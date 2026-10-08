@@ -3,22 +3,30 @@ import SokosumiChat
 import SwiftUI
 
 /// Web's `max-w-xl`: a card stops growing at 576 pt.
-private let resultCardMaxWidth: CGFloat = 576
+let resultCardMaxWidth: CGFloat = 576
 /// Web's `max-w-sm` for a result drawn as a Task card (row 38f).
 private let taskResultCardMaxWidth: CGFloat = 384
 
-/// Web `ResultPreviewCard`: the generic card, or the locked one for a result this viewer may not see.
+/// Web `ResultPreviewCard`: the project picker, the decision card, the generic card, or the locked one for a result
+/// this viewer may not see.
 struct ResultPreviewCardView: View {
   let item: ResultPreviewItem
   /// Answers a `project_selection` card: the card's id and the picked project's (row 38h1).
   var select: ((String, String) async throws -> Void)?
+  /// Accepts or rejects a card's decision: the decision's id and the resolution (row 38h2).
+  var resolveDecision: ((String, SokoBotDecision.Resolution) async throws -> Void)?
 
   var body: some View {
     switch item {
-    case let .available(card) where card.kind == .projectSelection:
-      ProjectSelectionCard(card: card, select: select.map { select in { try await select(card.id, $0) } })
     case let .available(card):
-      GenericResultCard(card: card)
+      if card.kind == .projectSelection {
+        ProjectSelectionCard(card: card, select: select.map { select in { try await select(card.id, $0) } })
+      } else if let decision = card.decision {
+        // Web draws the decision in place of the generic card, without its title, status or source link.
+        DecisionCardView(decision: decision, resolve: resolveDecision.map { resolve in { try await resolve(decision.id, $0) } })
+      } else {
+        GenericResultCard(card: card)
+      }
     case .unavailable:
       Label {
         Text("Result unavailable or no longer accessible", tableName: chatResultsTable,

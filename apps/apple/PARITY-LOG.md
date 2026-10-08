@@ -4285,6 +4285,141 @@ Grok's review ([comment](https://github.com/masumi-network/sokosumi/pull/5884#is
 - **A file AVFoundation cannot play got a dead player.** AVFoundation plays no WebM and no Ogg video (`isPlayableExtendedMIMEType` is false for `video/webm`, `audio/webm`, `video/ogg`). After loading, the chip now asks `AVURLAsset.load(.isPlayable)`; an unplayable file drops the file and shows "Preview unavailable" in place of Play (no longer a button), and Download still saves it. Test first: `SokoBotResultPreviewsTests/aVideoTheMacCannotPlaySaysSo` (a `clip.webm` from the stub loader: "Preview unavailable", no `AVPlayerView`, Download kept) failed, the other 10 passed (`38e2-fix-app-red.log`); green **11 of 11** (`38e2-fix-app-green.log`). `outputsDrawInlineAndOpenInTheApp` now plays a real WAV fixture (`briefing.wav`) and checks that an `AVPlayerView` is hosted; the render was redrawn with it ([soko-bot-result-outputs.png](docs/images/soko-bot-result-outputs.png)).
 - **Deviation (recorded):** web lets the browser try WebM and Ogg; the app says "Preview unavailable" when AVFoundation cannot play the file, and Download still saves it.
 
+## Slice 38h2 — decision cards
+
+Branch `claude/apple-parity-38h2-decision-cards`, started on `origin/main` `64eb85a2a` and fast-forwarded to `0dca17ff8` before the commit (#5886, row 11's audit; it changed only `PARITY.md`, so the audit and the snapshot stand); run by a coordinated session while another works on 38f. Web and Core were read-only. Draft [#5888](https://github.com/masumi-network/sokosumi/pull/5888).
+
+### Current-web and Core audit (at `64eb85a2a`, source only)
+
+Web paths are under `apps/web/src/`, Core under `apps/core/src/`.
+
+1. **Which results draw it.** `ResultPreviewCard` returns the locked card for an unavailable result or unknown kind (components/chat/result-previews.tsx:75-81), then the picker for `project_selection` (:82-83), then `DecisionCard` for any available result whose `decision` is set (:84-97), passing only the decision and `onDecisionResolved`. None of the generic card's chrome stays: no kind header, status chip, title, summary, "Recorded" or "Open source", and no card-wide link. Core sets `decision` only for kind `decision` (services/chat-result-preview.service.ts:488-510: title and summary are the reason, status `EXPIRED` once a pending decision's `expiresAt` passed, `sourceHref` `/personal-assistant`) and re-reads it for each viewer (:557). The footer is separate. Its Task-button rule counts only `task` results (app/(app)/chat/components/room-message-row.tsx:2914-2923), and its "approvals waiting" chip stays (soko-bot-message-footer.tsx:197).
+2. **What the card draws.** `DecisionCard` (app/(app)/personal-assistant/components/chat/decision-card.tsx):
+   - Frame (:63-68): `bg-card max-w-xl rounded-lg border`, `border-primary-tertiary` while pending.
+   - Header (:69-76), bordered below: `App.SokoBot.Chat.decision.heading` "Needs your okay" while `status === "PENDING"`, else `headingResolved` "Approval"; the tool's label at the trailing edge.
+   - The reason (:78-80).
+   - The typed fields (:81-99) as a `<dl>`: labels `Components.SokoBot.Proposal.fields.*` (Agent, Max credits, Name, Project, Input, Task, Coworker, Status, Description, Job, Job event, Start right away, Reason), identifier values monospaced.
+   - The rest of the proposal on one monospaced muted line (:100-104).
+   - `Proposal.incomplete` "This hire proposal is missing an Agent or a positive credit ceiling; it cannot be accepted." in warning colour, in any state (:105-109).
+   - While pending: `decision.accept` "Approve" and `decision.reject` "Reject", then `decision.expires` "Expires {time}" (:110-141).
+   - Otherwise: `Components.SokoBot.DecisionExplain.{status}` (:142-155). ACCEPTED "Approved and carried out." in success colour; PROCESSING "Being carried out. If this is an Agent hire, the seller-side start is in flight or unconfirmed — do not resubmit; it resolves automatically or an operator will follow up." in warning colour; REJECTED "Rejected. Nothing was created." and EXPIRED "Expired without a decision. Ask your Soko Bot again if still needed." muted.
+   - The strings are in messages/en.json (decision 7184-7193, tools 7124-7148, Proposal 968-987, DecisionExplain 988-994). `decision-status-note.tsx` is not used by this card: it is the console's note and adds `resultingEntityId`.
+3. **Tool label.** `useToolLabel` (app/(app)/personal-assistant/components/chat/turn-progress.tsx:16-22) maps names in three steps:
+   - No name gives `tools.default` "Working".
+   - A name `App.SokoBot.Chat.tools` has (22 tools, and "default" itself) gives its label, such as `hire_agent` → "Hiring an agent".
+   - Any other name is shown with spaces for underscores.
+4. **Proposal summary.** `summarizeProposal` (components/soko-bot/proposal-summary.ts:146-186):
+   - Field order (:103-109): `hire_agent` agentId, maxCredits, name, projectId, inputData; `provide_job_input` jobId, eventId, inputData; `create_task` name, coworkerId, status, projectId, description; `update_task` taskId, name, status, description; `assign_task` taskId, coworkerId, ready, status.
+   - A present key whose redacted value is null is skipped, but it still counts as typed. Identifier keys are monospaced (:111-118).
+   - Everything else is redacted as one object into `raw`, or null when nothing is left.
+   - `redactProposalValue` (:35-59): strings are cut to 160 characters ending "…". Numbers and booleans are kept at any depth. At depth 3 an array or object becomes "…". Arrays keep 5 items plus "…", objects 12 entries plus `"…": "…"`. A key matching `/token|password|passwd|secret|api[-_]?key|authorization|payment|card|credential/i` becomes "•••" (:8-10).
+   - `formatRedactedValue` (:62-71): null is "—", arrays are joined with ", ", objects are written as "key: value" joined with " · ".
+   - The proposal is "incomplete" only for `hire_agent` without a non-blank string `agentId` and a finite positive number `maxCredits` (:131-140).
+   - Tests: components/soko-bot/__tests__/proposal-summary.test.ts.
+5. **Buttons and expiry.**
+   - Approve and Reject show only while `status === "PENDING"` (decision-card.tsx:42, :110).
+   - Approve is disabled while a press is pending or the proposal is incomplete (:115). Reject is disabled while a press is pending (:126).
+   - The pressed button shows its loading state (`inFlight`, :39, :116, :127). The transition disables both until the action returns (:38, :47).
+   - "Expires {time}" uses the `dateTimeShort` format, `dateStyle: short, timeStyle: short` with the hour-cycle preference (i18n/time-format.ts:122), in tabular figures.
+6. **A press.**
+   - `resolveSokoBotDecisionAction({decisionId, resolution})` (lib/actions/soko-bot/action.ts:244-262) calls `sokoBotService.resolveDecision` (lib/services/soko-bot.service.ts:323-332), which calls Core `POST /soko-bots/me/decisions/{decisionId}` with `{resolution: "ACCEPT" | "REJECT"}`.
+   - Core's route (routes/v1/soko-bots/me/decisions/[decisionId]/post.ts:11-49) is user-scoped with no workspace header. It documents 200 `SokoBotPendingDecision` and 401, 403, 409 and 422 (`mapControlPlaneError`, routes/v1/soko-bots/helpers.ts:116-139). A pending decision past its expiry becomes EXPIRED and answers 409 "Pending decision expired"; a decision that is not pending answers 422 (services/soko-bot-runtime.service.ts:5226-5245). The router's gate can also answer 404 or 503 (helpers.ts:72-80).
+   - A failure toasts `result.error.message ?? t("error")`, which is Core's message (lib/clients/core.request.ts:215-241), else "Could not resolve the approval."
+   - A success toasts "Approved. Your Soko Bot will carry it out." or "Rejected. Nothing was created." and calls `onResolved`. That refetches the row's results (result-previews.tsx:498-501), and while `isFetching` the row shows "Loading results…" with every Task button (:467-475) until the card returns settled.
+7. **Core operation and snapshot.** Core's generated spec at `64eb85a2a` (`pnpm --filter @sokosumi/core run write-openapi-snapshot`, unchanged from `packages/core-client`) carries `post /soko-bots/me/decisions/{decisionId}` (`resolveMySokoBotDecision`). Apple's snapshot did not. Since Core #5871 was adopted in 38e1, the generated `ChatResultAvailable.decision` (`DecisionPayload`) has carried every field the card needs: `id`, `toolName`, `proposal` (an `OpenAPIValueContainer` dictionary), `reason`, `status`, `expiresAt`.
+8. **Filters.** The room passes no `existingDecisionIds` and no `onDecisionResolved` (room-message-row.tsx:2911-2925). The Thread draws the same `ChatMessageRow` (thread-panel.tsx:283), and the assistant's Direct is a room. Only the personal-assistant page passes `existingDecisionIds` (personal-assistant/components/chat/message-row.tsx:301-308), and that page is the excluded console. Every decision card shows in chat.
+
+Apple at `64eb85a2a`: a decision result drew 38e1's generic card ("Approval", the reason, "Open source" on web), and nothing could resolve it.
+
+### Split
+
+None. The card, its proposal summary, the tool label and the resolution make one web component over one operation, and none of them is useful alone.
+
+### Reuse
+
+- The card routes inside `ResultPreviewCardView` as 38h1's picker does. The closure passes through `MessageRowView`, `RoomTimelineView` and `ReplyThreadView` like `selectProject`.
+- The re-read reuses `MessageResultPreviewsView`'s Retry key (`attempt`), so it shows "Loading results…" as web's refetch does.
+- The coordinator call follows `selectProject`/`resultOutput` (`resolveClient`, `signOutIfUnauthorized`). The service call maps Core's errors with `ChatService`'s `unauthorized`, `rejected` and `unprocessableError`.
+- The alert follows `ResultOutputActionButton`'s (`friendlyMessage(for:mode: .coreMessage)`). The card keeps 38e1's frame and its 576 pt width (`resultCardMaxWidth`, no longer private) and the grid of its detail rows.
+- `TimeFormatPreference` gains web's `dateTimeShort` beside 38e1's `monthDayTime`. The strings come from web's en, de and es messages, keyed as web keys them.
+
+### What changed
+
+- Snapshot: `python3 scripts/update-core-api.py <Core spec at 64eb85a2a> '/soko-bots/me/decisions/{decisionId}'`. Structural diff: operations 78 → 79 (added `post /soko-bots/me/decisions/{decisionId}`, `resolveMySokoBotDecision`), schemas 99 → 100 (added `ResolveSokoBotDecisionRequest`; `SokoBotPendingDecision` was already selected), no operation or schema changed, nothing removed.
+- SokosumiChat:
+  - `ProposalSummary` and `RedactedValue` (new `ProposalSummary.swift`): web's `summarizeProposal`, `redactProposalValue`, `formatRedactedValue` and `isHireProposalAcceptable`.
+  - New `SokoBotDecision.swift`: `SokoBotDecision` (status, resolution, tool label, reason, expiry, summary), `SokoBotTool` and `SokoBotToolLabel` (web's `useToolLabel`), and `ChatService.resolveSokoBotDecision`.
+  - `ResultPreviewCard.decision`; `TimeFormatPreference.shortDateTime`.
+- SokosumiWorkspace: `resolveSokoBotDecision(_:_:auth:)` in `WorkspaceState+ResultPreviews.swift`.
+- App:
+  - `DecisionCardView` (new): the header, reason, fields grid, rest line, warning, Approve and Reject with "Expires …", or the explanation, and the failure alert.
+  - `ResultPreviewCardView` routes a card with a decision to it after the picker check. `MessageResultPreviewsView` reads the row again after a resolution.
+  - `MessageRowView`, `RoomTimelineView` and `ReplyThreadView` pass `resolveDecision`.
+  - 47 strings in `ChatResults.xcstrings` (en, de, es from web's messages). `AGENTS.md` names the new files.
+
+### Deviations from web (recorded)
+
+- **Proposal key order.** The generated client decodes the proposal into an unordered dictionary, so the rest line and nested objects list their keys in code-point order. Web keeps the JSON's order. For an object over 12 entries, the 12 Apple keeps can differ from web's.
+- **Truncation keeps whole characters.** A string over 160 UTF-16 units is cut at the last whole character before 159 units, plus "…". Web's `slice` can split an emoji's surrogate pair.
+- **Numbers.** Whole doubles print without a fraction, as JavaScript's `String` does. JavaScript's exponent forms for very large or very small numbers (`1e+21`, `1e-7`) are not reproduced.
+- **No success toast.** The re-read settled card ("Approved and carried out.", "Rejected. Nothing was created.") is the feedback, as in earlier rows that skipped web's success toasts.
+- **Failure alert.** A failure is an alert titled "Could not resolve the approval." whose message is Core's text. Web toasts Core's message alone. The buttons come back for another try, and nothing is re-read.
+- **Native buttons.** Approve is a small prominent bordered button and Reject a small bordered one, each with web's check or cross. The pressed one shows a small spinner in place of its icon. Without a resolver (only in tests) both stay disabled.
+- **Colours.** The pending border is the accent at 40 % (web `primary-tertiary`), the warning and PROCESSING are orange, and ACCEPTED is green.
+- **Expiry.** `DateFormatter`'s short styles are ICU's, as Intl's are, and match Node for en, de and es. German with a forced 12-hour clock writes "2:13 PM" where Node writes "02:13 PM".
+
+### Tests (red first, then green)
+
+- SokosumiChat, `SokoBotDecisionTests` (new; fixed ids and times, proposals and cards decoded through the generated client, operations through `TestTransport`). It covers:
+  - web's four `proposal-summary` tests, ported (the `inputData` order reads `answer` before `secretAnswer`);
+  - the depth and breadth caps and value formats;
+  - nine hire shapes;
+  - the 22 tool names and the three fallbacks;
+  - a pending and an expired card and a card without a decision;
+  - Approve and Reject posting `{resolution}` with no workspace header;
+  - 401, 403, 409, 422 and 503 carrying Core's message.
+
+  `TimeFormatPreferenceTests/shortDateTimeIsWebsDateTimeShort` checks Node's output for en and es (24-hour), en (12-hour) and de.
+
+  Red against compiling stubs: **11 tests failed, 34 issues** (`38h2-chat-red.log`). Green with `MessageResultPreviewsTests` and `ProjectSelectionTests`: **41 tests in 4 suites passed** (`38h2-chat-green.log`).
+- SokosumiWorkspace, `WorkspaceRealtimeTests/aDecisionResolvesForItsOwnerOutsideTheWorkspace`: in Acme's workspace, Approve posts `ACCEPT` to the decision with no slug header, and a 401 on Reject reaches the caller as the session's rejection. Red against a stub: **4 issues** (`38h2-workspace-red.log`). Green with the 38h1 and 38e2 coordinator tests: **3 tests passed** (`38h2-workspace-green.log`).
+- App, `NativeWindowTests/DecisionCardViewTests` (new):
+  - A pending hire shows every web line and both buttons, with no generic chrome.
+  - An incomplete hire warns and disables Approve.
+  - An unknown tool reads its name, and its whole proposal is masked.
+  - Approve disables both buttons until the resolver answers, then the row reads again and shows "Approval" and "Approved and carried out.".
+  - A refused Reject shows the alert with Core's message, reads nothing and re-enables both buttons.
+  - Four settled statuses each show their explanation and no buttons.
+  - The render.
+
+  Red with the card drawing nothing: **7 tests (10 cases), all failed** (`38h2-app-red.log`). Green: **10 of 10** (`38h2-app-green.log`).
+
+Render: [soko-bot-decision-card.png](docs/images/soko-bot-decision-card.png), half size, light beside dark, top to bottom: a pending hire with its fields and the rest of its proposal, an incomplete hire (warning, Approve disabled), the hire approved, and an expired `create_task`. Full size (2568 × 1832): `/private/tmp/claude-501/-Users-andreas-Developer-masumi-network-sokosumi--claude-worktrees-kind-fermat-e045a0/fad29be0-75a9-4c03-a498-f946de540a38/scratchpad/soko-bot-decision-card-full.png`. Checked at full size in both appearances:
+- Everything is hosted over the window background; nothing renders transparent or clips.
+- The header's divider spans the card. The field values align in one column, the identifiers are monospaced and the rest line is muted.
+- The pending border is the accent, the warning is orange, ACCEPTED is green and EXPIRED is muted.
+- The disabled Approve dims. Approve draws grey rather than accent because the render window is not key.
+
+### Verification
+
+All from `apps/apple` on `0dca17ff8` plus this change, in the worktree's default derived data (kept until the PR merges). Logs are in the session scratchpad.
+- `xcodebuild test -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -enableCodeCoverage NO` — **1,831 tests, all passed** (2,567 cases including parameterized arguments: CoreAPI 1, Auth 35, Chat 1,124, Realtime 57, Workspace 193, app 421; `38h2-full2.log`, result bundle `38h2-full2.xcresult`).
+  - The first run (`38h2-full.log`) lost the app test host mid-run. `MessageBodyPresentationTests/aFencedBlockShowsNoLanguageLabelAndKeepsItsHighlighting` trapped in `Bundle.module` while loading the syntax-highlighting queries, and the runner then reported "Sokosumi.app couldn't be opened because there is no such file", because the build products had gone from under the run. Every package suite passed in that run, and the unchanged rerun passed everything.
+- `xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build` — **BUILD SUCCEEDED**, no warning in the changed files (`38h2-macos-build.log`).
+- `swift build --package-path Packages/SokosumiWorkspace --triple arm64-apple-ios17.0 --sdk <iPhoneOS 27.0 SDK> --scratch-path <scratch>` — **Build complete** (`38h2-ios17-build.log`); the scratch path was deleted.
+- `mint run swiftformat --lint .` — **0/588 files require formatting**; `mint run swiftlint lint --strict` — **0 violations in 588 files**.
+- `pnpm install --frozen-lockfile` ran before the commit. No task-owned test host remained running.
+
+Unverified:
+- The app was not launched against Core. A live decision from a Soko Bot, a real 409 or 422, the re-read after a real resolution, the alert in a running window, the Thread and the assistant's Direct in a running window, VoiceOver, and the German and Spanish strings on screen were not exercised.
+- The running web UI was not exercised; the audit is source-based.
+
+How to test:
+1. In the assistant's Direct, ask the assistant to hire an Agent for a research task. Its reply shows a "Needs your okay" card with "Hiring an agent", the Agent, the credit ceiling and the input, with Approve, Reject and "Expires …".
+2. Click Approve. Both buttons disable, the row says "Loading results…", and the card returns as "Approval" with "Approved and carried out." (or the in-progress sentence while the hire starts).
+3. Reject a second request. The card shows "Rejected. Nothing was created."
+4. Let one expire. The card shows the expiry sentence and no buttons.
+
 ## Slice 38f — Task cards
 
 Branch `claude/apple-parity-38f-task-cards`, started on `origin/main` `64eb85a2a` and fast-forwarded to `f54f16069` before the commit (#5886, this file's row 11 audit; #5887, a wait in `SokoBotResultPreviewsTests`, which this slice also edits and which merged without conflict; no audited web or Core file changed); run by a coordinated session while another works on 38h2 ([#5888](https://github.com/masumi-network/sokosumi/pull/5888)). Web and Core were read-only. Draft [#5889](https://github.com/masumi-network/sokosumi/pull/5889).
@@ -4343,3 +4478,9 @@ All from `apps/apple` on `64eb85a2a` plus this change (the fast-forward to `f54f
 Unverified: the app was not launched against Core, so a live Task result from a Soko Bot turn, the Thread and the assistant's Direct in a running window, the hover border and the tags popover under a real pointer, the running glyph's motion on screen, VoiceOver and the German and Spanish strings on screen were not exercised. The running web UI was not exercised; the audit is source-based.
 
 How to test: in the assistant's Direct, ask "create a high-priority task to review the launch draft in the Launch project, private, and ask me which version to send". When the answer lands, the row shows "Task" over a card with "Input required", a lock, the bars, "LAU-7 Review the launch draft", its tags, the project and the people, then the question and "Recorded … Open source". Click the name: the Task opens on web; click "Launch": the project opens; click "+1": every tag shows. The small Task button under the message is gone.
+
+#### Slice 38f — merge of `main` (2026-10-08)
+
+`origin/main` `37645fb52` (#5888, row 38h2's decision cards; #5891, 38h2 marked Done) merged into the branch on top of `a81e7ed1b` (the review fix that keeps Task identifiers in caption type). Conflicts: `ResultPreviewCardView.swift` (38h2 made `resultCardMaxWidth` internal for `DecisionCardView`; it stays beside this slice's private `taskResultCardMaxWidth`; the dispatch is 38h2's: a project question draws its picker, a result with a `decision` the decision card, every other the generic card, which draws the Task card for a `task` result), `AGENTS.md` (one navigation line naming both the Task card and the decision card), `PARITY.md` (both checkpoint bullets; the Work order now reads 11a, 38g, with 38f In review and 38h2 Done) and this file (both slice sections, 38h2 first). `MessageResultPreviews.swift` merged by itself: `ResultPreviewCard` carries both `task` and `decision`.
+
+Verification on the merge: `xcodebuild test … -enableCodeCoverage NO -only-testing:SokosumiChatTests` plus `-only-testing:SokosumiTests/NativeWindowTests/` `SokoBotTaskCardTests`, `SokoBotResultPreviewsTests`, `ProjectSelectionViewTests` and `DecisionCardViewTests` — **1,161 tests, all passed** (Chat 1,132; Task cards 5, result previews 11, project selection 6, decision cards 7); macOS build **BUILD SUCCEEDED**; `mint run swiftformat --lint .` **0/592 files require formatting**; `mint run swiftlint lint --strict` **0 violations in 592 files**.

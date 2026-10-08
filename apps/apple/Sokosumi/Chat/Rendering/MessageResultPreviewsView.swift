@@ -14,6 +14,8 @@ struct MessageResultPreviewsView: View {
   let load: () async throws -> [Components.Schemas.ChatResultPreview]
   /// Answers a project question card (row 38h1): the card's id and the picked project's.
   var select: ((String, String) async throws -> Void)?
+  /// Accepts or rejects a decision card's decision (row 38h2): the decision's id and the resolution.
+  var resolveDecision: ((String, SokoBotDecision.Resolution) async throws -> Void)?
   @State private var state: ResultPreviewsLoad = .loading
   @State private var attempt = 0
 
@@ -44,7 +46,13 @@ struct MessageResultPreviewsView: View {
         .foregroundStyle(.secondary)
       case let .loaded(items):
         ForEach(items) { item in
-          ResultPreviewCardView(item: item, select: select)
+          ResultPreviewCardView(item: item, select: select, resolveDecision: resolveDecision.map { resolve in
+            { decisionId, resolution in
+              try await resolve(decisionId, resolution)
+              // Web refetches the row's results, so the card shows the settled decision.
+              attempt += 1
+            }
+          })
         }
       }
       if let footer, footer.pendingDecisionCount > 0 || !footer.footerTaskIds(excluding: previewedTaskIds).isEmpty {

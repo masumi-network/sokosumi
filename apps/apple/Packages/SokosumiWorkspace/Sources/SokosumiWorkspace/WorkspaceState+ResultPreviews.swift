@@ -21,6 +21,23 @@ public extension WorkspaceState {
     }
   }
 
+  /// Accepts or rejects a Soko Bot decision from its result card (row 38h2, web `resolveSokoBotDecisionAction`).
+  /// Decisions are the owner's, so no workspace travels with it; the card reads its results again afterwards to show
+  /// the settled state. A 401 signs out, anything else reaches the card with Core's message.
+  func resolveSokoBotDecision(_ decisionId: String, _ resolution: SokoBotDecision.Resolution, auth: AuthState) async throws {
+    guard let client = resolveClient(auth: auth) else {
+      throw ChatServiceError.unauthorized("Log in to resolve the approval.")
+    }
+    do {
+      _ = try await ChatService().resolveSokoBotDecision(client: client, decisionId: decisionId, resolution: resolution)
+    } catch {
+      if let error = error as? ChatServiceError {
+        signOutIfUnauthorized(error, auth: auth)
+      }
+      throw error
+    }
+  }
+
   /// One protected output's bytes as a local file named `fileName` (row 38e2), through the Core operation its href names
   /// and in the open workspace, as web's proxy routes call Core with the session. Web keeps no copy beyond the
   /// browser's revalidated one, so each preview, Open or Download asks again; a 401 signs out.

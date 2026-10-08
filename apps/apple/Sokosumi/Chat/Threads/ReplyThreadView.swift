@@ -94,6 +94,11 @@ import SwiftUI
       { previewId, projectId in try await workspaces.selectProject(projectId, preview: previewId, question: message, auth: auth) }
     }
 
+    /// Row 38h2: a decision card in the Thread resolves like the room's.
+    private var resolveDecisionAction: (String, SokoBotDecision.Resolution) async throws -> Void {
+      { decisionId, resolution in try await workspaces.resolveSokoBotDecision(decisionId, resolution, auth: auth) }
+    }
+
     private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
       guard workspaces.canSendToSelf(message) else { return nil }
       return { try await workspaces.sendMessageToSelf(message, auth: auth) }
@@ -156,7 +161,8 @@ import SwiftUI
                              sokoBotFeedback: workspaces.sokoBotFeedback(for: parent),
                              onSokoBotFeedback: sokoBotFeedbackAction(for: parent),
                              loadResultPreviews: resultPreviewsAction(for: parent),
-                             selectProject: selectProjectAction(for: parent))
+                             selectProject: selectProjectAction(for: parent),
+                             resolveDecision: resolveDecisionAction)
                 .jumpSpotlightRow(messageId: parent.id)
                 .id(parent.id)
               Divider()
@@ -383,6 +389,7 @@ import SwiftUI
                            onSokoBotFeedback: sokoBotFeedbackAction(for: message),
                            loadResultPreviews: resultPreviewsAction(for: message),
                            selectProject: selectProjectAction(for: message),
+                           resolveDecision: resolveDecisionAction,
                            streamThinking: thinking)
               .jumpSpotlightRow(messageId: message.id)
           }
