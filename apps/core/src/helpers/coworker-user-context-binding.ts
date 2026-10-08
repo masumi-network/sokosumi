@@ -1,6 +1,7 @@
 import { type Prisma, TaskStatus, VendorGrantStatus } from "@sokosumi/database";
 import { resolveCoworkerContextWorkspace } from "@/helpers/personal-workspace-error";
 
+import { listUserWorkspaces } from "@/helpers/user-workspaces";
 import prisma from "@/lib/db/prisma";
 import {
   type AuthenticationContext,
@@ -8,6 +9,8 @@ import {
   requireUserContext,
   type UserContext,
 } from "@/middleware/auth";
+
+import type { UserWorkspaces } from "@/schemas/user-workspace.schema";
 
 import { forbidden } from "./error";
 import {
@@ -127,27 +130,21 @@ export async function requireAuthorizedUserContext(
 }
 
 /**
- * The user's organizations, narrowed for a coworker to those whose workspace
- * its vendor may act in, by the policy of
- * {@link assertCoworkerUserContextBinding}: DENIED/REVOKED never, GRANTED
- * always, else a baseline task. Binding to one workspace must not reveal the
- * user's other organizations. Session users and Soko Bots keep every id.
+ * Of the user's `workspaceIds`, those a coworker's vendor may act in, by the
+ * policy of {@link assertCoworkerUserContextBinding}: DENIED/REVOKED never,
+ * GRANTED always, else a baseline task. Binding to one workspace must not
+ * reveal the user's others. Session users and Soko Bots keep every id.
  */
-export async function filterAuthorizedOrganizationIds(
+export async function filterAuthorizedWorkspaceIds(
   authContext: AuthenticationContext,
   userId: string,
-  organizationIds: string[],
+  workspaceIds: string[],
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Set<string>> {
-  if (authContext.actor !== "coworker" || organizationIds.length === 0) {
-    return new Set(organizationIds);
+  if (authContext.actor !== "coworker" || workspaceIds.length === 0) {
+    return new Set(workspaceIds);
   }
 
-  const workspaces = await tx.workspace.findMany({
-    where: { organizationId: { in: organizationIds } },
-    select: { id: true, organizationId: true },
-  });
-  const workspaceIds = workspaces.map((workspace) => workspace.id);
   const [grants, baselineTasks] = await Promise.all([
     tx.vendorGrant.findMany({
       where: {
@@ -170,16 +167,83 @@ export async function filterAuthorizedOrganizationIds(
     baselineTasks.map((task) => task.workspaceId),
   );
 
-  const authorized = new Set<string>();
-  for (const workspace of workspaces) {
-    const status = grantStatusByWorkspace.get(workspace.id);
-    const mayAct =
-      status === VendorGrantStatus.GRANTED ||
-      ((status === undefined || !isGrantDeniedOrRevoked(status)) &&
-        baselineWorkspaceIds.has(workspace.id));
-    if (mayAct && workspace.organizationId) {
-      authorized.add(workspace.organizationId);
-    }
+  return new Set(
+    workspaceIds.filter((workspaceId) => {
+      const status = grantStatusByWorkspace.get(workspaceId);
+      return (
+        status === VendorGrantStatus.GRANTED ||
+        ((status === undefined || !isGrantDeniedOrRevoked(status)) &&
+          baselineWorkspaceIds.has(workspaceId))
+      );
+    }),
+  );
+}
+
+/**
+ * The user's organizations whose workspace a coworker's vendor may act in
+ * ({@link filterAuthorizedWorkspaceIds}). Session users and Soko Bots keep
+ * every id.
+ */
+export async function filterAuthorizedOrganizationIds(
+  authContext: AuthenticationContext,
+  userId: string,
+  organizationIds: string[],
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Set<string>> {
+  if (authContext.actor !== "coworker" || organizationIds.length === 0) {
+    return new Set(organizationIds);
   }
-  return authorized;
+
+  const workspaces = await tx.workspace.findMany({
+    where: { organizationId: { in: organizationIds } },
+    select: { id: true, organizationId: true },
+  });
+  const authorizedWorkspaceIds = await filterAuthorizedWorkspaceIds(
+    authContext,
+    userId,
+    workspaces.map((workspace) => workspace.id),
+    tx,
+  );
+
+  return new Set(
+    workspaces
+      .filter((workspace) => authorizedWorkspaceIds.has(workspace.id))
+      .flatMap((workspace) =>
+        workspace.organizationId ? [workspace.organizationId] : [],
+      ),
+  );
+}
+
+/**
+ * The user's workspaces as this caller may see them. A coworker sees only the
+ * workspaces its vendor may act in ({@link filterAuthorizedWorkspaceIds}),
+ * none marked preferred when the preferred one is hidden, and no invitation
+ * count; with none to see it is rejected, so user ids cannot be probed.
+ * Session users and Soko Bots see the full list.
+ */
+export async function listAuthorizedUserWorkspaces(
+  authContext: AuthenticationContext,
+  userId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<UserWorkspaces> {
+  const listed = await listUserWorkspaces(userId);
+  if (authContext.actor !== "coworker") {
+    return listed;
+  }
+
+  const authorized = await filterAuthorizedWorkspaceIds(
+    authContext,
+    userId,
+    listed.workspaces.map((workspace) => workspace.id),
+    tx,
+  );
+  const workspaces = listed.workspaces.filter((workspace) =>
+    authorized.has(workspace.id),
+  );
+  if (workspaces.length === 0) {
+    throw forbidden(
+      "Coworker cannot act as this user without a granted workspace access or assigned task relationship",
+    );
+  }
+  return { workspaces, pendingInvitationCount: 0 };
 }

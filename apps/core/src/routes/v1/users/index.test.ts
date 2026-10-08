@@ -49,7 +49,7 @@ describe("users routes for coworkers", () => {
     });
     app.route("/users", usersRouter);
 
-    const response = await app.request("http://localhost/users/me/workspaces");
+    const response = await app.request("http://localhost/users/me/preferences");
 
     expect(response.status).toBe(403);
   });
