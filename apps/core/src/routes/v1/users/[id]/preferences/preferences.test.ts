@@ -1,4 +1,3 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
@@ -6,8 +5,8 @@ import {
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import {
   applyUserRouteMiddleware,
   type UserRouteVariables,
@@ -15,6 +14,14 @@ import {
 
 import mountGetUserPreferences from "./get.js";
 import mountPatchUserPreferences from "./patch.js";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   userFindUniqueMock,
@@ -76,8 +83,8 @@ const SESSION_ADMIN: AuthenticationContext = {
 
 function createPreferencesApp(
   authContext: AuthenticationContext,
-): OpenAPIHono<{ Variables: AuthVariables }> {
-  const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+): OpenAPIHonoWithAuth {
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -85,18 +92,10 @@ function createPreferencesApp(
     return await next();
   });
 
-  const userByIdApp = new OpenAPIHono<{
-    Variables: AuthVariables & UserRouteVariables;
-  }>();
-  applyUserRouteMiddleware(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
-  mountGetUserPreferences(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
-  mountPatchUserPreferences(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
+  const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
+  applyUserRouteMiddleware(userByIdApp);
+  mountGetUserPreferences(userByIdApp);
+  mountPatchUserPreferences(userByIdApp);
   app.route("/:id", userByIdApp);
   return app;
 }
@@ -422,7 +421,7 @@ describe("user preferences routes", () => {
       }),
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(notificationPreferenceUpsertMock).not.toHaveBeenCalled();
   });
 
@@ -447,7 +446,7 @@ describe("user preferences routes", () => {
       }),
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(notificationPreferenceUpsertMock).not.toHaveBeenCalled();
   });
 
@@ -483,7 +482,7 @@ describe("user preferences routes", () => {
       patchRequest("/me/preferences", { notificationPreferences: [] }),
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(userUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -492,7 +491,7 @@ describe("user preferences routes", () => {
 
     const response = await app.request(patchRequest("/me/preferences", {}));
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(userUpdateMock).not.toHaveBeenCalled();
   });
 

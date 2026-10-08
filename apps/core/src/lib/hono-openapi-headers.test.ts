@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import { createRoute, type RouteConfig } from "@hono/zod-openapi";
 import { describe, expect, it } from "vitest";
 
@@ -76,18 +76,46 @@ describe("coworker context responses", () => {
   });
 
   it("documents the context headers on every route that binds coworker context", () => {
-    const routesDir = join(__dirname, "../routes");
-    const undocumented = readdirSync(routesDir, { recursive: true })
+    const srcDir = join(__dirname, "..");
+    const sources = readdirSync(srcDir, { recursive: true })
       .map(String)
       .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"))
-      .filter((file) => {
-        const source = readFileSync(join(routesDir, file), "utf8");
-        return (
-          source.includes("requireAuthorizedUserContext(") &&
-          !source.includes("withCoworkerContextHeaderParameters(")
-        );
-      })
-      .map((file) => relative(routesDir, join(routesDir, file)));
+      .map((file) => ({
+        file,
+        source: readFileSync(join(srcDir, file), "utf8"),
+      }));
+    const isRoute = (source: string) => source.includes("createRoute(");
+    const helpers = sources.filter(({ source }) => !isRoute(source));
+    const callsAny = (source: string, names: Set<string>) =>
+      [...names].some((name) => source.includes(`${name}(`));
+
+    // A helper that calls a binder binds too: the exported function around
+    // each call joins the set, until no helper adds a name.
+    const binders = new Set(["requireAuthorizedUserContext"]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const { source } of helpers) {
+        let enclosing: string | undefined;
+        for (const line of source.split("\n")) {
+          enclosing =
+            /^export (?:async )?function (\w+)/.exec(line)?.[1] ?? enclosing;
+          if (enclosing && !binders.has(enclosing) && callsAny(line, binders)) {
+            binders.add(enclosing);
+            grew = true;
+          }
+        }
+      }
+    }
+
+    const undocumented = sources
+      .filter(
+        ({ source }) =>
+          isRoute(source) &&
+          callsAny(source, binders) &&
+          !source.includes("withCoworkerContextHeaderParameters("),
+      )
+      .map(({ file }) => file);
 
     expect(undocumented).toEqual([]);
   });
