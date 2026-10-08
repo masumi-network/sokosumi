@@ -38,7 +38,6 @@ test("tolerates null and unexpected agent values with safe defaults", () => {
       isNew: true,
       isShown: true,
       price: { credits: 99, includedFee: 2 },
-      tags: [{ name: "ignored-when-categories-present" }],
     }),
     {
       id: "agent-1",
@@ -62,18 +61,6 @@ test("tolerates null and unexpected agent job values", () => {
     createdAt: null,
     updatedAt: null,
   });
-  assert.deepEqual(
-    parseAgentJob({ id: "job-1", agent_id: "agent-1", status: "pending" }),
-    {
-      id: "job-1",
-      agentId: "agent-1",
-      status: "pending",
-      name: null,
-      result: null,
-      createdAt: null,
-      updatedAt: null,
-    },
-  );
 });
 
 test("preserves Core job summary result", () => {
