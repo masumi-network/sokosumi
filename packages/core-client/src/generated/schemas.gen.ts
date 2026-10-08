@@ -5625,30 +5625,6 @@ export const AdminTaskListItemSchema = {
                 'email'
             ]
         },
-        user: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
-                },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                email: {
-                    type: 'string',
-                    example: 'ada@example.com'
-                }
-            },
-            required: [
-                'id',
-                'name',
-                'email'
-            ],
-            deprecated: true,
-            description: 'Deprecated. Use owner instead.'
-        },
         organization: {
             type: [
                 'object',
@@ -5681,7 +5657,6 @@ export const AdminTaskListItemSchema = {
         'status',
         'createdAt',
         'owner',
-        'user',
         'organization'
     ]
 } as const;
@@ -5735,30 +5710,6 @@ export const AdminTaskDetailSchema = {
                 'email'
             ]
         },
-        user: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
-                },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                email: {
-                    type: 'string',
-                    example: 'ada@example.com'
-                }
-            },
-            required: [
-                'id',
-                'name',
-                'email'
-            ],
-            deprecated: true,
-            description: 'Deprecated. Use owner instead.'
-        },
         organization: {
             type: [
                 'object',
@@ -5788,7 +5739,6 @@ export const AdminTaskDetailSchema = {
     required: [
         'task',
         'owner',
-        'user',
         'organization'
     ]
 } as const;
