@@ -89,6 +89,11 @@ import SwiftUI
       return { try await workspaces.messageResultPreviews(message, auth: auth) }
     }
 
+    /// Row 38h1: a question asked in the Thread is answered in the Thread.
+    private func selectProjectAction(for message: Components.Schemas.ChatRoomMessage) -> (String, String) async throws -> Void {
+      { previewId, projectId in try await workspaces.selectProject(projectId, preview: previewId, question: message, auth: auth) }
+    }
+
     private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
       guard workspaces.canSendToSelf(message) else { return nil }
       return { try await workspaces.sendMessageToSelf(message, auth: auth) }
@@ -150,7 +155,8 @@ import SwiftUI
                              onSendToSelf: sendToSelfAction(for: parent),
                              sokoBotFeedback: workspaces.sokoBotFeedback(for: parent),
                              onSokoBotFeedback: sokoBotFeedbackAction(for: parent),
-                             loadResultPreviews: resultPreviewsAction(for: parent))
+                             loadResultPreviews: resultPreviewsAction(for: parent),
+                             selectProject: selectProjectAction(for: parent))
                 .jumpSpotlightRow(messageId: parent.id)
                 .id(parent.id)
               Divider()
@@ -376,6 +382,7 @@ import SwiftUI
                            sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
                            onSokoBotFeedback: sokoBotFeedbackAction(for: message),
                            loadResultPreviews: resultPreviewsAction(for: message),
+                           selectProject: selectProjectAction(for: message),
                            streamThinking: thinking)
               .jumpSpotlightRow(messageId: message.id)
           }

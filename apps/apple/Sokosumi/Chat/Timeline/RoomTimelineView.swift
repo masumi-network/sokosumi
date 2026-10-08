@@ -87,6 +87,11 @@ import SwiftUI
       return { try await workspaces.messageResultPreviews(message, auth: auth) }
     }
 
+    /// Row 38h1: picking a project on the row's question card replies to the bot that asked.
+    private func selectProjectAction(for message: Components.Schemas.ChatRoomMessage) -> (String, String) async throws -> Void {
+      { previewId, projectId in try await workspaces.selectProject(projectId, preview: previewId, question: message, auth: auth) }
+    }
+
     private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
       guard workspaces.canSendToSelf(message) else { return nil }
       return { try await workspaces.sendMessageToSelf(message, auth: auth) }
@@ -308,6 +313,7 @@ import SwiftUI
                                  sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
                                  onSokoBotFeedback: sokoBotFeedbackAction(for: message),
                                  loadResultPreviews: resultPreviewsAction(for: message),
+                                 selectProject: selectProjectAction(for: message),
                                  horizontalInset: 12,
                                  streamThinking: isCoworkerStreamOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
                                  newestEndsInAttachment: message.id == newestMessageId && MessageMarkdown.endsWithAttachmentRun(message.content),

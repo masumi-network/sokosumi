@@ -8,9 +8,13 @@ private let resultCardMaxWidth: CGFloat = 576
 /// Web `ResultPreviewCard`: the generic card, or the locked one for a result this viewer may not see.
 struct ResultPreviewCardView: View {
   let item: ResultPreviewItem
+  /// Answers a `project_selection` card: the card's id and the picked project's (row 38h1).
+  var select: ((String, String) async throws -> Void)?
 
   var body: some View {
     switch item {
+    case let .available(card) where card.kind == .projectSelection:
+      ProjectSelectionCard(card: card, select: select.map { select in { try await select(card.id, $0) } })
     case let .available(card):
       GenericResultCard(card: card)
     case .unavailable:
@@ -175,7 +179,7 @@ private struct GenericResultCard: View {
 
 /// Web `ProjectAvatar` at `size-5 rounded-sm` beside the project row: the logo, loaded like a participant's
 /// photo (a public URL), else the name's initial on a muted square. Decorative, like web's empty `alt`.
-private struct ProjectMarkView: View {
+struct ProjectMarkView: View {
   let mark: ResultPreviewCard.ProjectMark
   private let size: CGFloat = 20
   @Environment(\.displayScale) private var displayScale
