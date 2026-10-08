@@ -1373,16 +1373,6 @@ export type AdminTaskListItem = {
         name: string;
         email: string;
     };
-    /**
-     * Deprecated. Use owner instead.
-     *
-     * @deprecated
-     */
-    user: {
-        id: string;
-        name: string;
-        email: string;
-    };
     organization: {
         id: string;
         name: string;
@@ -1412,16 +1402,6 @@ export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
 export type AdminTaskDetail = {
     task: Task;
     owner: {
-        id: string;
-        name: string;
-        email: string;
-    };
-    /**
-     * Deprecated. Use owner instead.
-     *
-     * @deprecated
-     */
-    user: {
         id: string;
         name: string;
         email: string;

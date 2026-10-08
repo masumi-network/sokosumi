@@ -366,7 +366,7 @@ importers:
         version: 18.0.6
       evlog:
         specifier: 2.30.1
-        version: 2.30.1(ai@7.0.133(zod@4.6.5))(eve@0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
+        version: 2.30.1(ai@7.0.133(zod@4.6.5))(eve@0.74.0(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
       hono:
         specifier: 4.13.13
         version: 4.13.13
@@ -415,7 +415,7 @@ importers:
     devDependencies:
       '@evlog/cli':
         specifier: 0.9.0
-        version: 0.9.0(evlog@2.30.1(ai@7.0.133(zod@4.6.5))(eve@0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)))
+        version: 0.9.0(evlog@2.30.1(ai@7.0.133(zod@4.6.5))(eve@0.74.0(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)))
       '@types/node':
         specifier: 24.19.1
         version: 24.19.1
@@ -573,8 +573,8 @@ importers:
         specifier: 4.1.0
         version: 4.1.0
       eve:
-        specifier: 0.72.1
-        version: 0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5))
+        specifier: 0.74.0
+        version: 0.74.0(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5))
       fake-indexeddb:
         specifier: 6.2.5
         version: 6.2.5
@@ -754,8 +754,8 @@ importers:
         specifier: 6.1.2
         version: 6.1.2(babel-plugin-react-compiler@1.0.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
       playwright:
-        specifier: 1.63.0
-        version: 1.63.0
+        specifier: 1.64.0
+        version: 1.64.0
       postcss:
         specifier: 8.5.29
         version: 8.5.29
@@ -6675,8 +6675,8 @@ packages:
   estree-walker@3.0.3:
     resolution: {integrity: sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g==}
 
-  eve@0.72.1:
-    resolution: {integrity: sha512-D72hUlYoJVwsmS7JMcHLDmMgYozHujNy5VvWiEpXmhia8TnzT0do7hcM1A4SXjVhoZRiVRgKo8LZGBx8LH4gTw==}
+  eve@0.74.0:
+    resolution: {integrity: sha512-pXIvp8wGorrNXqO1/aQa1QJR85qI31ShrVGcRmdcfdugoEbhHN/vVWuvWQeGDPvEWkA1gqeAzCJ0ZO+Q0W7InA==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -8414,13 +8414,13 @@ packages:
   pkg-types@2.3.1:
     resolution: {integrity: sha512-y+ichcgc2LrADuhLNAx8DFjVfgz91pRxfZdI3UDhxHvcVEZsenLO+7XaU5vOp0u/7V/wZ+plyuQxtrDlZJ+yeg==}
 
-  playwright-core@1.63.0:
-    resolution: {integrity: sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg==}
+  playwright-core@1.64.0:
+    resolution: {integrity: sha512-T9r+MZkTECl2+oUcZ26YgZzTrYidTsIhYYkJix+6iDOymOb1FB2RLLSOxRGnZGv5DStt+aduIVbt+E8WygXYpg==}
     engines: {node: '>=20'}
     hasBin: true
 
-  playwright@1.63.0:
-    resolution: {integrity: sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg==}
+  playwright@1.64.0:
+    resolution: {integrity: sha512-kVzTnYFYEyQ9RGzBjNCd2+yEqWmVbxl3AHPynv3qQ6JTjv4a+kwRcnqQwIpuP3NnrnIrE/Q6wWAIAvMfIE2/Yg==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -10777,12 +10777,12 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@evlog/cli@0.9.0(evlog@2.30.1(ai@7.0.133(zod@4.6.5))(eve@0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)))':
+  '@evlog/cli@0.9.0(evlog@2.30.1(ai@7.0.133(zod@4.6.5))(eve@0.74.0(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)))':
     dependencies:
       '@clack/prompts': 1.8.1
       '@evlog/telemetry': 0.3.4
       citty: 0.2.2
-      evlog: 2.30.1(ai@7.0.133(zod@4.6.5))(eve@0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
+      evlog: 2.30.1(ai@7.0.133(zod@4.6.5))(eve@0.74.0(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
       oxc-parser: 0.152.0
 
   '@evlog/telemetry@0.3.4':
@@ -15734,7 +15734,7 @@ snapshots:
     dependencies:
       '@types/estree': 1.0.9
 
-  eve@0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5)):
+  eve@0.74.0(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5)):
     dependencies:
       ai: 7.0.133(zod@4.6.5)
       nitro: 3.0.260903-beta
@@ -15755,10 +15755,10 @@ snapshots:
 
   eventsource-parser@3.1.1: {}
 
-  evlog@2.30.1(ai@7.0.133(zod@4.6.5))(eve@0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)):
+  evlog@2.30.1(ai@7.0.133(zod@4.6.5))(eve@0.74.0(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)):
     optionalDependencies:
       ai: 7.0.133(zod@4.6.5)
-      eve: 0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5))
+      eve: 0.74.0(@opentelemetry/api@1.9.1)(ai@7.0.133(zod@4.6.5))
       hono: 4.13.13
       next: 16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react: 19.3.0
@@ -17774,11 +17774,11 @@ snapshots:
       exsolve: 1.1.1
       pathe: 2.0.3
 
-  playwright-core@1.63.0: {}
+  playwright-core@1.64.0: {}
 
-  playwright@1.63.0:
+  playwright@1.64.0:
     dependencies:
-      playwright-core: 1.63.0
+      playwright-core: 1.64.0
 
   po-parser@2.2.0: {}
 
