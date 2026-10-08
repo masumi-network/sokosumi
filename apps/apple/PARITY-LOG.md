@@ -4484,3 +4484,57 @@ How to test: in the assistant's Direct, ask "create a high-priority task to revi
 `origin/main` `37645fb52` (#5888, row 38h2's decision cards; #5891, 38h2 marked Done) merged into the branch on top of `a81e7ed1b` (the review fix that keeps Task identifiers in caption type). Conflicts: `ResultPreviewCardView.swift` (38h2 made `resultCardMaxWidth` internal for `DecisionCardView`; it stays beside this slice's private `taskResultCardMaxWidth`; the dispatch is 38h2's: a project question draws its picker, a result with a `decision` the decision card, every other the generic card, which draws the Task card for a `task` result), `AGENTS.md` (one navigation line naming both the Task card and the decision card), `PARITY.md` (both checkpoint bullets; the Work order now reads 11a, 38g, with 38f In review and 38h2 Done) and this file (both slice sections, 38h2 first). `MessageResultPreviews.swift` merged by itself: `ResultPreviewCard` carries both `task` and `decision`.
 
 Verification on the merge: `xcodebuild test … -enableCodeCoverage NO -only-testing:SokosumiChatTests` plus `-only-testing:SokosumiTests/NativeWindowTests/` `SokoBotTaskCardTests`, `SokoBotResultPreviewsTests`, `ProjectSelectionViewTests` and `DecisionCardViewTests` — **1,161 tests, all passed** (Chat 1,132; Task cards 5, result previews 11, project selection 6, decision cards 7); macOS build **BUILD SUCCEEDED**; `mint run swiftformat --lint .` **0/592 files require formatting**; `mint run swiftlint lint --strict` **0 violations in 592 files**.
+
+## Slice 11a — ⌘K shows the formatting bar
+
+Branch `claude/apple-parity-11a-cmd-k-shows-formatting-bar`, started on `origin/main` `6e9e3a042` (#5889, row 38f merged); run by a coordinated session while another works on 38g. Web and Core were read-only. Draft [#5894](https://github.com/masumi-network/sokosumi/pull/5894).
+
+### Current-web audit (at `6e9e3a042`, source only)
+
+Web paths are under `apps/web/src/`.
+
+1. **What ⌘K calls, and the other ways in.** The editor's key handler lower-cases the key (components/chat/composer-wysiwyg-editor.tsx:1151) and, for Command or Control without Option and outside composition, maps K to `onLinkShortcut` (:1203–1207, :1223–1226); Shift is not excluded, so Shift-⌘K opens it too. The room and Thread composers pass `openLinkDialog` (app/(app)/chat/components/room-composer.tsx:916), and the bar's Link button calls the same function (:800; components/chat/composer-format-toolbar.tsx:87–90). There is no bubble menu and no edit-on-click for an existing link: the dialog is filled from the selected text, and from it as the URL when the selection is an http(s) URL (room-composer.tsx:665–673).
+2. **The bar and the preference.** `openLinkDialog` calls `setFormatToolbarOpen(true)` first (:666); it never calls `setFormatToolbarOpenPreference`. Only the bar's toggle writes `sokosumi:format-toolbar-open:v1` (:858–863; app/(app)/chat/utils/format-toolbar-preference-storage.ts:23–28). `handleFormat` also sets the bar open (:675–678), but only the open bar calls it.
+3. **After the dialog; scope.** Saving inserts the link and refocuses the editor (:680–686); closing or cancelling only sets `linkDialogOpen` (:933–935; components/chat/composer-add-link-dialog.tsx:26–30). Nothing but the toggle sets the bar closed again. The open state is a `useState` per composer (room-composer.tsx:452), seeded on mount from the stored preference, or from the viewport width when nothing is stored (:493–500). The room composer remounts per room (`RoomTypingProvider key={selectedRoom.id}`, app/(app)/chat/components/rooms-client.tsx:3304) and the Thread composer per Thread (`key={draftKey}`, app/(app)/chat/components/thread-panel.tsx:421), so a reveal is lost on a switch and the preference applies again.
+4. **The message-edit composer.** It renders `ComposerWysiwygEditor` with no bar and no `onLinkShortcut` (app/(app)/chat/components/message-edit-composer.tsx:133–157), so ⌘K there is swallowed and does nothing.
+5. **Already open, narrow, focus.** With the bar open the call changes nothing; it applies at every width (the narrow default only seeds the mount). The dialog takes focus; the selection only fills the dialog.
+
+Apple at `6e9e3a042`: `ComposerTextInput` held `@State toolbarVisible = ComposerPreferences().toolbarVisible`, changed only by its toggle (ComposerTextInput.swift:12, :69–72). ⌘K (`MacComposerTextInput.performKeyEquivalent`) and the bar's Link control both call `MacComposerCommands.beginLink`, which opened the sheet and left a hidden bar hidden. The room composer is keyed per account, workspace and room (RoomTimelineView.swift:127), the Thread composer per parent (ReplyThreadView.swift:268).
+
+### Split
+
+None. ⌘K and the Link control share one function on web and on Apple; the reveal is one call in it.
+
+### Reuse
+
+`ComposerPreferences` (row 12b) stays the stored preference; `MacComposerCommands`, already the editor's per-composer object behind ⌘K, the bar and the sheet, now carries the bar's state, so `beginLink` reveals it with no second path. Candidates that did not fit: keeping the `@State` in `ComposerTextInput` and watching `linkEditor` with `onChange` (a second trigger beside `beginLink`, and a private `@State` the tests cannot give its own preference store); `@AppStorage` (a reveal would write the preference and every live composer would follow).
+
+### What changed
+
+- SokosumiChat: `ComposerToolbarVisibility` (new): one composer's bar, read from `ComposerPreferences` once; `toggle()` stores, `reveal()` does not.
+- App: `MacComposerCommands.toolbar` holds it and `beginLink` reveals it; `ComposerTextInput` reads and toggles it in place of its own `@State`. `docs/rich-composing.md` names the type.
+
+### Deviations from web (recorded)
+
+- **The edit composer.** Apple's edit composer keeps the bar and its toggle (18b), so ⌘K shows its bar too, through the same `beginLink`; web's has neither.
+- **Shift-⌘K.** Web also opens the dialog on Shift-⌘K; Apple's ⌘K still requires no other modifier (unchanged).
+- **Existing links.** Apple's sheet still opens over the whole link at the caret (12b); web fills only from the selection.
+
+### Tests (red first, then green)
+
+- SokosumiChat, `ComposerToolbarVisibilityTests` (new; each case on its own `UserDefaults` suite): the stored preference seeds the bar; the toggle shows, hides and stores; a reveal shows a hidden bar and stores nothing, so the next composer starts hidden; a reveal leaves a shown bar shown; the toggle after a reveal hides and stores hidden. Red against a stub whose `reveal()` did nothing: **5 tests, 2 failed, 3 issues** (`revealShowsAHiddenBarWithoutStoringIt`, `theToggleAfterARevealHidesAndStoresHidden`; the other three pass by construction); green **6 of 6** with `ComposerPreferencesTests`.
+- App, `MacComposerTextInputTests/linkEditorShowsAHiddenToolbarWithoutStoringIt` (new): `beginLink` on a hidden bar opens the editor over the selection, shows the bar and stores nothing; saving the link keeps it shown. App, `NativeWindowTests/ComposerToolbarRevealTests` (new): in a hosted room composer (light and dark) and edit composer with their own preference store and the bar hidden, a real ⌘K key event opens the sheet over the selected "notes" and shows the bar ("Bold (⌘B)" and "Hide formatting" in the accessibility texts); cancelling the sheet keeps the bar and the text; the store stays hidden. Red with `beginLink` not revealing: **all 3 new test cases failed** (both appearances of the room case) (`red.xcresult`, `red2.xcresult`; every other expectation, ⌘K opening the sheet and the sheet closing, passed); green with all of `MacComposerTextInputTests` and `MessageEditComposerControlsTests` (`green.xcresult`).
+
+Render: [composer-cmd-k-shows-formatting.png](docs/images/composer-cmd-k-shows-formatting.png), half size, light beside dark, each the room composer with the bar hidden and "notes" selected, over the same composer after ⌘K and Cancel: the bar shown, the Aa toggle lit, the selection kept. Full size (1936 × 800): `/private/tmp/sokosumi-11a/composer-cmd-k-shows-formatting.png`. Inspected at full size in both appearances: hosted over the window background, nothing transparent or clipped; the bar's controls sit on the composer's top edge as in the 12b renders.
+
+### Verification
+
+All from `apps/apple` on `6e9e3a042` plus this change, the worktree's own default derived data (kept until the PR merges); logs and result bundles in `/private/tmp/sokosumi-11a/`:
+- `xcodebuild test -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -enableCodeCoverage NO` — **1,852 tests, 1,849 passed, 3 failed** (CoreAPI 1, Auth 35, Chat 1,137, Realtime 57, Workspace 193 all passed; app 429, 426 passed; `full.xcresult`). The failures were `HistoryGapRowTests/aFailedGapStaysOnItsRowWithoutAnAlertAndTryAgainReloads` and `MessageEditComposerChromeTests/anOverLimitDraftShowsTheHintAndCountOnOneLineUnderTheField` (both known-flaky) and `HistoryGapRowTests/aGapRowLoadsItselfOnceItScrollsIntoViewAndKeepsTheReadingPosition` ("never asked for its page while scrolling", the gap suite's scroll timing; no composer code on its path); `-only-testing:` both suites passed **7 of 7** (`flaky-rerun.xcresult`).
+- `xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build` — **BUILD SUCCEEDED**, no warning in the changed files.
+- `swift build --package-path Packages/SokosumiWorkspace --triple arm64-apple-ios17.0 --sdk <iPhoneOS 27.0 SDK> --scratch-path <scratch>` — **Build complete**; the scratch path was deleted.
+- `mint run swiftformat --lint .` — **0/595 files require formatting**; `mint run swiftlint lint --strict` — **0 violations in 595 files**. `pnpm install --frozen-lockfile` ran before the commit. No task-owned test host remained running.
+
+Unverified: the app was not launched, so ⌘K and the Link control under a real keyboard and pointer in the signed app, the sheet's Save path in a window (covered only by `saveLink` in the unhosted test), VoiceOver, and a room or Thread switch and a relaunch after a reveal (the bar should follow the stored preference again) were not exercised. The running web UI was not exercised; the audit is source-based.
+
+How to test: hide the formatting bar with Aa in a room, select a word and press ⌘K. The link sheet opens over the word and the bar appears behind it. Press Cancel: the bar stays. Switch to another room and back, or quit and relaunch: the bar is hidden again. Do the same in a Thread and in a message you are editing.
