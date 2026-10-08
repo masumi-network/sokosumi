@@ -13,6 +13,8 @@ const coreClientMock = {
   getProjectsByIdContextMd: vi.fn(),
   getProjectsByIdSocialConnections: vi.fn(),
   getProjectsByIdSocialPosts: vi.fn(),
+  getProjectsByIdSocialPostsStatistics: vi.fn(),
+  postProjectsByIdSocialPostsByPostIdStatisticsRefresh: vi.fn(),
   getProjectsByIdSocialPostsByPostId: vi.fn(),
   getProjectsStats: vi.fn(),
   patchProjectsById: vi.fn(),
@@ -526,6 +528,55 @@ describe("project.service", () => {
       status: "DRAFT" as const,
       revision: 0,
     };
+
+    it("reads filtered statistics and pagination through Core", async () => {
+      const data = { posts: [post], summary: [], nextCursor: "post-2" };
+      coreClientMock.getProjectsByIdSocialPostsStatistics.mockResolvedValue({
+        data,
+      });
+      const { projectService } = await import("./project.service");
+      const filters = {
+        provider: "x" as const,
+        publishedFrom: "2026-10-01T00:00:00Z",
+        cursor: "post-0",
+      };
+      expect(
+        await projectService.listSocialPostStatistics("project-1", filters),
+      ).toEqual(data);
+      expect(
+        coreClientMock.getProjectsByIdSocialPostsStatistics,
+      ).toHaveBeenCalledWith("project-1", {
+        ...filters,
+        publishedFrom: new Date(filters.publishedFrom),
+        publishedUntil: undefined,
+        limit: 20,
+      });
+    });
+
+    it("returns persisted refresh results and propagates Core failures", async () => {
+      coreClientMock.postProjectsByIdSocialPostsByPostIdStatisticsRefresh.mockResolvedValue(
+        { data: post },
+      );
+      const { projectService } = await import("./project.service");
+      expect(
+        await projectService.refreshSocialPostStatistics("project-1", "post-1"),
+      ).toEqual(post);
+      expect(
+        coreClientMock.postProjectsByIdSocialPostsByPostIdStatisticsRefresh,
+      ).toHaveBeenCalledWith("project-1", "post-1");
+      coreClientMock.postProjectsByIdSocialPostsByPostIdStatisticsRefresh.mockRejectedValue(
+        new Error("Denied"),
+      );
+      await expect(
+        projectService.refreshSocialPostStatistics("project-1", "post-1"),
+      ).rejects.toThrow("Denied");
+      coreClientMock.getProjectsByIdSocialPostsStatistics.mockRejectedValue(
+        new Error("Denied"),
+      );
+      await expect(
+        projectService.listSocialPostStatistics("project-1"),
+      ).rejects.toThrow("Denied");
+    });
 
     it("lists social posts through the generated client", async () => {
       coreClientMock.getProjectsByIdSocialPosts.mockResolvedValue({

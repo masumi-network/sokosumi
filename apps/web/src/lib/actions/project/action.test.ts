@@ -26,6 +26,7 @@ const projectServiceMock = {
   initiateSocialConnection: vi.fn(),
   patchProject: vi.fn(),
   publishSocialPost: vi.fn(),
+  refreshSocialPostStatistics: vi.fn(),
   removeProjectDesignMd: vi.fn(),
   retryProjectClose: vi.fn(),
   scheduleSocialPost: vi.fn(),
@@ -613,6 +614,40 @@ describe("project actions", () => {
       status: "DRAFT" as const,
       revision: 0,
     };
+
+    it("refreshes statistics and revalidates the published post surfaces", async () => {
+      const projectId = "11111111-1111-4111-8111-111111111111";
+      const postId = "22222222-2222-4222-8222-222222222222";
+      projectServiceMock.refreshSocialPostStatistics.mockResolvedValue(post);
+      const { refreshProjectSocialPostStatistics } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      expect(
+        await refreshProjectSocialPostStatistics({ projectId, postId }),
+      ).toEqual({ ok: true, value: post });
+      expect(
+        projectServiceMock.refreshSocialPostStatistics,
+      ).toHaveBeenCalledWith(projectId, postId);
+      expect(revalidatePath).toHaveBeenCalledWith("/social");
+      projectServiceMock.refreshSocialPostStatistics.mockRejectedValue(
+        new Error("Denied"),
+      );
+      expect(
+        await refreshProjectSocialPostStatistics({ projectId, postId }),
+      ).toMatchObject({ ok: false, error: { message: "Denied" } });
+    });
+
+    it("rejects malformed statistics refresh ids", async () => {
+      const { refreshProjectSocialPostStatistics } = await import("./action");
+      expect(
+        await refreshProjectSocialPostStatistics({
+          projectId: "",
+          postId: "bad",
+        }),
+      ).toMatchObject({ ok: false });
+      expect(
+        projectServiceMock.refreshSocialPostStatistics,
+      ).not.toHaveBeenCalled();
+    });
 
     it("creates a draft with trimmed ids and revalidates the social route", async () => {
       projectServiceMock.createSocialPost.mockResolvedValue(post);

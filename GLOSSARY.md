@@ -170,6 +170,10 @@ _Avoid_: Per-post approval, connector approval
 One piece of content a Project intends to publish through exactly one Project social connection at one planned time. Not a Job or a Task.
 _Avoid_: Job, Task
 
+**Social statistics**:
+The latest available lifetime performance counters for published Social posts, with the time they were measured. A publication-date filter selects posts, not the period in which engagement occurred.
+_Avoid_: Engagement over the selected period, treating an unavailable counter as zero
+
 ### Task payments
 
 **Task payment claim**:

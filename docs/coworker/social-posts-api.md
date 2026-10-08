@@ -15,11 +15,21 @@ Before a delayed provider call, Core rechecks that the contextual user is active
 
 Connecting, reconnecting, replacing, disconnecting accounts, OAuth completion, and Publish now/Retry remain interactive-human actions on these REST routes. Coworker post responses set `canPublishNow` to false. Calendar's Social feed remains interactive-human-only in this layer.
 
+## Published post statistics
+
+Authorized Coworkers use `GET /v1/projects/{id}/social-posts/statistics` to read cached published-post metrics and summaries grouped by provider. Optional `provider`, `publishedFrom`, `publishedUntil`, `cursor`, and `limit` filters select posts. Follow `nextCursor` for individual posts beyond the first page. The same contextual-user, vendor delegation, workspace, Project, and beta checks apply.
+
+Use `POST /v1/projects/{id}/social-posts/{postId}/statistics/refresh` to fetch available metrics for one published post through its existing connected account. This changes the statistics cache only. Existing post reads also include `statistics`, which may be absent or null before a refresh. Metrics contain nullable `views`, `impressions`, `likes`, `comments`, `shares`, and `saves`, with `fetchedAt`, `refreshAttemptedAt`, and `error` recording freshness and refresh failures.
+
+For performance questions, list first, refresh relevant missing or stale results once per post, then list again for updated summaries. Stop retries on permission or provider errors and use prior results with their age and error. Request human reconnection when needed. Null means unavailable; zero means a measured zero. Compare within one provider and state partial metric coverage and differences in post age. Publication dates filter the posts; the returned counters are lifetime totals, not engagement gained during that date range.
+
 ## Soko Bot runtime tools
 
-Soko Bot uses its authenticated turn runtime, not Coworker credentials or these REST routes. The owner can ask it to list Project accounts (`list_project_social_accounts`), list/read posts (`list_social_posts`, `get_social_post`), or create, update, schedule, cancel, and immediately publish posts (`create_social_post`, `update_social_post`, `schedule_social_post`, `cancel_social_post`, `publish_social_post`). Publishing and scheduling work on every connected provider; the account's platform decides the rules (see Provider publishing rules).
+Soko Bot uses its authenticated turn runtime, not Coworker credentials or these REST routes. The owner can ask it to list Project accounts (`list_project_social_accounts`), list/read posts (`list_social_posts`, `get_social_post`), read cached performance and provider summaries (`list_social_post_statistics`), refresh published-post metrics (`refresh_social_post_statistics`), or create, update, schedule, cancel, and immediately publish posts (`create_social_post`, `update_social_post`, `schedule_social_post`, `cancel_social_post`, `publish_social_post`). Publishing and scheduling work on every connected provider; the account's platform decides the rules (see Provider publishing rules).
 
 Core derives the user and workspace from the active turn and rechecks owner activity, workspace membership, organization seat, and Social beta eligibility. Teammate and bot-to-bot turns do not receive these tools. Mutations use revisions and action receipts; uncertain publication requires reconciliation rather than automatic retry. Social mutations after web or shell use require a fresh owner message. Account OAuth remains in Project → Social.
+
+Version `v22` adds the `social-performance` skill to v19's behavior. It teaches when to list and refresh metrics, bounds refresh attempts, and explains stale, missing, and lifetime data. Version `v22` is the default for new or unpinned bots. Explicit existing version selections and their prompts remain unchanged; administrators can select v22 through the existing version settings. Both statistics tools are read capabilities under the existing Social access rules; refresh updates cached metrics without authorizing publication.
 
 Bot-created posts identify the bot as creator. Scheduling runs under the owner's user identity and existing delayed-publish eligibility checks. The owner authorizes publication by requesting scheduling or immediate publishing; drafting alone does not authorize either.
 

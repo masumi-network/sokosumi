@@ -668,6 +668,8 @@ model SocialPost {
   publishedAt         DateTime?
   publishedExternalId String?
   publishedUrl        String?
+  /// Latest lifetime metrics and refresh state; no history or credentials.
+  statistics          Json?
   lastError           String?
 
   /// Publish attempts made so far (scheduler and publish-now alike).

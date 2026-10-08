@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { SocialPostComposerMode } from "./social-post-composer-dialog";
+import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 
 export function SocialPostPreviewDialog({
@@ -73,6 +74,9 @@ export function SocialPostPreviewDialog({
             text={post.text}
             timestamp={post.publishedAt ?? post.scheduledAt}
           />
+        ) : null}
+        {post?.status === "PUBLISHED" ? (
+          <SocialPostMetrics statistics={post.statistics} compact />
         ) : null}
         {post ? (
           <DialogFooter className="gap-2 sm:gap-2">

@@ -2435,7 +2435,8 @@
           "calendar": "Calendar",
           "drafts": "Drafts",
           "attention": "Needs attention",
-          "accounts": "Accounts"
+          "accounts": "Accounts",
+          "statistics": "Statistics"
         },
         "empty": {
           "drafts": "No drafts yet."
@@ -2593,6 +2594,36 @@
           "instagram": {
             "more": "more",
             "mediaRequired": "Instagram needs an image or video."
+          }
+        },
+        "statistics": {
+          "title": "Post performance",
+          "description": "Latest lifetime totals for posts published in the selected date range (UTC). Metrics depend on platform and account permissions. Totals include available metrics only; missing metrics are excluded.",
+          "platform": "Platform",
+          "allPlatforms": "All platforms",
+          "publishedFrom": "Published from (UTC)",
+          "publishedUntil": "Published until (UTC)",
+          "clearFilters": "Clear filters",
+          "invalidRange": "End date must be on or after the start date.",
+          "loading": "Loading statistics…",
+          "loadFailed": "Failed to load statistics",
+          "retry": "Try again",
+          "refreshFailed": "Failed to refresh statistics. Previous results are retained. Check the connected account and permissions, then try again.",
+          "summary": "Performance by platform",
+          "coverage": "{measured} of {total} posts have statistics",
+          "empty": "No published posts match these filters.",
+          "refresh": "Refresh statistics",
+          "loadMore": "Load more posts",
+          "unavailable": "Unavailable",
+          "notFetched": "Statistics have not been fetched.",
+          "updatedAt": "Updated {date}",
+          "metrics": {
+            "views": "Views",
+            "impressions": "Impressions",
+            "likes": "Likes / reactions",
+            "comments": "Comments",
+            "shares": "Shares",
+            "saves": "Saves"
           }
         }
       },
@@ -2917,6 +2948,10 @@
       "pickProject": "Choose a project",
       "platforms": {
         "label": "Social platforms"
+      },
+      "statisticsNeedProject": {
+        "title": "Choose a project to see statistics",
+        "body": "Post statistics belong to a project. Choose one to evaluate its published content."
       }
     },
     "Error": {

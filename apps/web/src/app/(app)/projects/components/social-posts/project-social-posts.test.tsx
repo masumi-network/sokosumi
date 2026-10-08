@@ -97,6 +97,7 @@ const MESSAGES: Record<string, string> = {
   "sections.drafts": "Drafts",
   "sections.attention": "Needs attention",
   "sections.accounts": "Accounts",
+  "sections.statistics": "Statistics",
   "connectPrompt.title": "Connect an account to start posting",
   "connectPrompt.body": "Posts go out from this project's accounts.",
   "connectPrompt.action": "Connect X, YouTube, LinkedIn…",
@@ -540,6 +541,7 @@ describe("ProjectSocialPosts", () => {
 
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Drafts 1",
+      "Statistics ",
     ]);
     expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
 
@@ -578,6 +580,7 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Calendar ",
       "Drafts 1",
+      "Statistics ",
       "Accounts 1",
     ]);
     expect(screen.getByText("Calendar panel")).toBeVisible();

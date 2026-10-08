@@ -2435,7 +2435,8 @@
           "calendar": "Calendario",
           "drafts": "Borradores",
           "attention": "Requiere atención",
-          "accounts": "Cuentas"
+          "accounts": "Cuentas",
+          "statistics": "Estadísticas"
         },
         "empty": {
           "drafts": "Aún no hay borradores."
@@ -2593,6 +2594,36 @@
           "instagram": {
             "more": "más",
             "mediaRequired": "Instagram necesita una imagen o un video."
+          }
+        },
+        "statistics": {
+          "title": "Rendimiento de las publicaciones",
+          "description": "Totales acumulados más recientes de las publicaciones del intervalo seleccionado (UTC). Las métricas dependen de la plataforma y los permisos de la cuenta. Los totales incluyen solo las métricas disponibles; se excluyen las que faltan.",
+          "platform": "Plataforma",
+          "allPlatforms": "Todas las plataformas",
+          "publishedFrom": "Publicadas desde (UTC)",
+          "publishedUntil": "Publicadas hasta (UTC)",
+          "clearFilters": "Borrar filtros",
+          "invalidRange": "La fecha final debe ser igual o posterior a la fecha inicial.",
+          "loading": "Cargando estadísticas…",
+          "loadFailed": "No se pudieron cargar las estadísticas",
+          "retry": "Volver a intentar",
+          "refreshFailed": "No se pudieron actualizar las estadísticas. Se conservan los resultados anteriores. Revisa la cuenta conectada y los permisos y vuelve a intentarlo.",
+          "summary": "Rendimiento por plataforma",
+          "coverage": "{measured} de {total} publicaciones tienen estadísticas",
+          "empty": "Ninguna publicación publicada coincide con estos filtros.",
+          "refresh": "Actualizar estadísticas",
+          "loadMore": "Cargar más publicaciones",
+          "unavailable": "No disponible",
+          "notFetched": "Todavía no se han obtenido estadísticas.",
+          "updatedAt": "Actualizadas el {date}",
+          "metrics": {
+            "views": "Visualizaciones",
+            "impressions": "Impresiones",
+            "likes": "Me gusta / reacciones",
+            "comments": "Comentarios",
+            "shares": "Compartidos",
+            "saves": "Guardados"
           }
         }
       },
@@ -2917,6 +2948,10 @@
       "pickProject": "Elegir un proyecto",
       "platforms": {
         "label": "Plataformas de redes sociales"
+      },
+      "statisticsNeedProject": {
+        "title": "Elige un proyecto para ver estadísticas",
+        "body": "Las estadísticas pertenecen a un proyecto. Elige uno para evaluar su contenido publicado."
       }
     },
     "Error": {

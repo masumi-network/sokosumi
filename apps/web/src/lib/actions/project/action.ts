@@ -844,3 +844,23 @@ export const publishProjectSocialPost = withSession<
     return toActionResult(err(toCoreApiActionError(error)));
   }
 });
+
+export const refreshProjectSocialPostStatistics = withSession<
+  { projectId: string; postId: string } & AuthenticatedRequest,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId }) => {
+  const parsed = z
+    .object({ projectId: z.uuid(), postId: z.uuid() })
+    .safeParse({ projectId, postId });
+  if (!parsed.success) return badSocialPostInput(parsed);
+  try {
+    const post = await projectService.refreshSocialPostStatistics(
+      parsed.data.projectId,
+      parsed.data.postId,
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});

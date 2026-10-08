@@ -52,6 +52,7 @@ import type {
   GetProjectsByIdCalendarData,
   GetProjectsByIdImageStudioData,
   GetProjectsByIdSocialPostsData,
+  GetProjectsByIdSocialPostsStatisticsData,
   GetProjectsData,
   GetProjectsStatsData,
   GetShareByTokenError,
@@ -278,6 +279,7 @@ import {
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
   getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
+  getProjectsByIdSocialPostsStatistics as coreGetProjectsByIdSocialPostsStatistics,
   getProjectsStarred as coreGetProjectsStarred,
   getProjectsStats as coreGetProjectsStats,
   getShareByToken as coreGetShareByToken,
@@ -425,6 +427,7 @@ import {
   postProjectsByIdSocialPostsByPostIdCancel as corePostProjectsByIdSocialPostsByPostIdCancel,
   postProjectsByIdSocialPostsByPostIdPublish as corePostProjectsByIdSocialPostsByPostIdPublish,
   postProjectsByIdSocialPostsByPostIdSchedule as corePostProjectsByIdSocialPostsByPostIdSchedule,
+  postProjectsByIdSocialPostsByPostIdStatisticsRefresh as corePostProjectsByIdSocialPostsByPostIdStatisticsRefresh,
   postProjectsByIdStar as corePostProjectsByIdStar,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postTasks as corePostTasks,
@@ -3339,6 +3342,38 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdSocialPostsStatistics(
+    id: string,
+    query?: GetProjectsByIdSocialPostsStatisticsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialPostsStatistics({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Project Social statistics",
+    );
+  }
+
+  async function postProjectsByIdSocialPostsByPostIdStatisticsRefresh(
+    id: string,
+    postId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdStatisticsRefresh({
+          client,
+          path: { id, postId },
+        }),
+      "Failed to refresh Project Social statistics",
+    );
+  }
+
   async function getProjectsByIdSocialPostsByPostId(
     id: string,
     postId: string,
@@ -6145,6 +6180,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,
     getProjectsByIdSocialPosts,
+    getProjectsByIdSocialPostsStatistics,
+    postProjectsByIdSocialPostsByPostIdStatisticsRefresh,
     getProjectsByIdSocialPostsByPostId,
     patchProjectsByIdSocialPostsByPostId,
     postProjectsByIdSocialPosts,

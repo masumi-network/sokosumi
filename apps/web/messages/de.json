@@ -2435,7 +2435,8 @@
           "calendar": "Kalender",
           "drafts": "Entwürfe",
           "attention": "Braucht Aufmerksamkeit",
-          "accounts": "Konten"
+          "accounts": "Konten",
+          "statistics": "Statistiken"
         },
         "empty": {
           "drafts": "Noch keine Entwürfe."
@@ -2593,6 +2594,36 @@
           "instagram": {
             "more": "mehr",
             "mediaRequired": "Instagram braucht ein Bild oder Video."
+          }
+        },
+        "statistics": {
+          "title": "Beitragsleistung",
+          "description": "Aktuelle Gesamtwerte für Beiträge, die im ausgewählten Zeitraum (UTC) veröffentlicht wurden. Kennzahlen hängen von der Plattform und den Kontoberechtigungen ab. Summen enthalten nur verfügbare Kennzahlen; fehlende Kennzahlen sind ausgeschlossen.",
+          "platform": "Plattform",
+          "allPlatforms": "Alle Plattformen",
+          "publishedFrom": "Veröffentlicht ab (UTC)",
+          "publishedUntil": "Veröffentlicht bis (UTC)",
+          "clearFilters": "Filter zurücksetzen",
+          "invalidRange": "Das Enddatum muss am oder nach dem Startdatum liegen.",
+          "loading": "Statistiken werden geladen…",
+          "loadFailed": "Statistiken konnten nicht geladen werden",
+          "retry": "Erneut versuchen",
+          "refreshFailed": "Statistiken konnten nicht aktualisiert werden. Vorherige Ergebnisse bleiben erhalten. Prüfe das verbundene Konto und die Berechtigungen und versuche es erneut.",
+          "summary": "Leistung nach Plattform",
+          "coverage": "{measured} von {total} Beiträgen haben Statistiken",
+          "empty": "Keine veröffentlichten Beiträge entsprechen diesen Filtern.",
+          "refresh": "Statistiken aktualisieren",
+          "loadMore": "Weitere Beiträge laden",
+          "unavailable": "Nicht verfügbar",
+          "notFetched": "Statistiken wurden noch nicht abgerufen.",
+          "updatedAt": "Aktualisiert am {date}",
+          "metrics": {
+            "views": "Aufrufe",
+            "impressions": "Impressionen",
+            "likes": "Likes / Reaktionen",
+            "comments": "Kommentare",
+            "shares": "Geteilte Beiträge",
+            "saves": "Gespeicherte Beiträge"
           }
         }
       },
@@ -2917,6 +2948,10 @@
       "pickProject": "Projekt auswählen",
       "platforms": {
         "label": "Social-Media-Plattformen"
+      },
+      "statisticsNeedProject": {
+        "title": "Wähle ein Projekt, um Statistiken zu sehen",
+        "body": "Beitragsstatistiken gehören zu einem Projekt. Wähle eines, um seine veröffentlichten Inhalte zu bewerten."
       }
     },
     "Error": {

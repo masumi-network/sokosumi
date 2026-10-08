@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   applyVersionCapabilities,
   capabilitiesForClassification,
+  composeSystemPrompt,
   DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
   isSokoBotDecisionTarget,
@@ -31,6 +32,8 @@ const media = {
 const reads = [
   "list_project_social_accounts",
   "list_social_posts",
+  "list_social_post_statistics",
+  "refresh_social_post_statistics",
   "get_social_post",
 ] as const;
 const writes = [
@@ -44,6 +47,8 @@ const schemas = SOKO_BOT_TOOL_INPUT_SCHEMAS;
 const inputs = {
   list_project_social_accounts: { projectId },
   list_social_posts: { projectId },
+  list_social_post_statistics: { projectId },
+  refresh_social_post_statistics: { projectId, postId },
   get_social_post: { projectId, postId },
   create_social_post: { projectId, text: "Launch" },
   update_social_post: { projectId, postId, revision: 0, text: "Launch" },
@@ -133,6 +138,49 @@ describe("Social tool contracts", () => {
         schemas.list_social_posts.safeParse({ projectId, ...patch }).success,
       ).toBe(false);
     }
+  });
+
+  it("validates statistics provider and publication filters", () => {
+    const schema = schemas.list_social_post_statistics;
+    expect(
+      schema.parse({ projectId, provider: "x", publishedFrom: scheduledAt }),
+    ).toEqual({
+      projectId,
+      provider: "x",
+      publishedFrom: scheduledAt,
+      limit: 20,
+    });
+    for (const patch of [
+      { provider: "unknown" },
+      { limit: 101 },
+      { cursor: "invalid" },
+      { publishedFrom: "not-a-date" },
+      {
+        publishedFrom: "2026-10-02T12:00:00Z",
+        publishedUntil: "2026-10-01T12:00:00Z",
+      },
+    ]) {
+      expect(schema.safeParse({ projectId, ...patch }).success).toBe(false);
+    }
+  });
+
+  it("makes v22 performance instructions the default while preserving released prompts", () => {
+    const version = getSokoBotVersion("v22");
+    expect(version.skills).toContain("social-performance");
+    expect(version.skills).not.toContain("chat-result-previews");
+    expect(version.systemPrompt).toBe(getSokoBotVersion("v19").systemPrompt);
+    expect(version.model).toBe(getSokoBotVersion("v19").model);
+    expect(composeSystemPrompt(version)).toContain(
+      "refresh_social_post_statistics",
+    );
+    expect(composeSystemPrompt(version)).toContain("lifetime totals");
+    for (const id of ["v19", "v20", "v21"]) {
+      expect(getSokoBotVersion(id).skills).not.toContain("social-performance");
+      expect(composeSystemPrompt(getSokoBotVersion(id))).not.toContain(
+        "# Social performance",
+      );
+    }
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v22");
   });
 
   it("describes every provider's publishing rules", () => {

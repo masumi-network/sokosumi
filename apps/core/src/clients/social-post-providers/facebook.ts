@@ -4,8 +4,8 @@ import { deleteProjectSocialSession } from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import {
   ComposioPublishOutcomeUnknownError,
-  createSocialPublishSession,
-  executeSocialPublishTool,
+  createSocialPostToolSession,
+  executeSocialPostTool,
   guardSocialCreateOutcome,
 } from "@/clients/social-post-providers/tools";
 import type {
@@ -48,7 +48,7 @@ export async function publishFacebookPost(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("facebook");
-  const sessionId = await createSocialPublishSession({
+  const sessionId = await createSocialPostToolSession({
     toolkitSlug: "facebook",
     connectedAccountId: context.connectedAccountId,
     executorUserId: context.executorUserId,
@@ -90,7 +90,7 @@ export async function publishFacebookPost(
 
   try {
     const post = await guardSocialCreateOutcome(label, () =>
-      executeSocialPublishTool({
+      executeSocialPostTool({
         sessionId,
         toolSlug,
         arguments: toolArguments,
