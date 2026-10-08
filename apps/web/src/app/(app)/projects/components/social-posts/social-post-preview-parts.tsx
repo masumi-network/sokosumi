@@ -21,6 +21,8 @@ export interface SocialPostPreviewContentProps {
   timestampLabel?: string;
   /** Imported history may not include media even when the published post has it. */
   showMediaPlaceholder?: boolean;
+  /** Hide decorative feed controls when a preview is paired with real metrics. */
+  showEngagementActions?: boolean;
 }
 
 export function accountName(

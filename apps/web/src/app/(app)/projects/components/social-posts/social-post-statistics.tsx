@@ -25,14 +25,15 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { refreshProjectSocialAccountStatistics } from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
 import type { projectService } from "@/lib/services/project.service";
-import { SocialPostMetrics } from "./social-post-metrics";
-import { SocialPostPreview } from "./social-post-preview";
+import { SocialPostPerformanceCard } from "./social-post-performance-card";
 
 const ACCOUNT_METRIC_LABELS: Record<string, string> = {
   followers_count: "followers",
   follows_count: "following",
   following_count: "following",
   tweet_count: "posts",
+  post_count: "posts",
+  quote_count: "quotes",
   listed_count: "lists",
   posts_liked_count: "postsLiked",
   viewCount: "views",
@@ -581,60 +582,17 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
             {t("empty")}
           </p>
         ) : null}
-        <ul className="space-y-3">
+        <ul className="grid items-start gap-4 lg:grid-cols-2">
           {posts.map((post) => (
-            <li
-              key={post.id}
-              className="grid items-start gap-4 rounded-lg border p-4 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]"
-            >
-              <SocialPostPreview
-                account={{
-                  displayName:
-                    accountsById.get(post.connectionId)?.displayName ??
-                    accountsById.get(post.connectionId)?.externalHandle ??
-                    SOCIAL_PROVIDERS.find(
-                      (provider) => provider.id === post.provider,
-                    )?.name ??
-                    post.provider,
-                  handle:
-                    accountsById.get(post.connectionId)?.externalHandle ?? null,
-                  avatarUrl:
-                    accountsById.get(post.connectionId)?.avatarUrl ?? null,
-                }}
-                media={[]}
-                provider={post.provider}
-                text={post.text || t("mediaPost")}
-                timestamp={post.publishedAt ? new Date(post.publishedAt) : null}
-                timestampLabel={
-                  post.publishedAt
-                    ? formatDate(post.publishedAt)
-                    : t("dateUnavailable")
-                }
-                showMediaPlaceholder={false}
-              />
-              <div className="min-w-0 space-y-3">
-                {post.url ? (
-                  <a
-                    className="inline-block text-sm underline underline-offset-4"
-                    href={post.url}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                  >
-                    {t("openPost")}
-                  </a>
-                ) : null}
-                <SocialPostMetrics
-                  statistics={{
-                    metrics: post.metrics,
-                    fetchedAt: post.fetchedAt,
-                    refreshAttemptedAt: null,
-                    error: null,
-                  }}
-                />
+            <li key={post.id} className="min-w-0">
+              <SocialPostPerformanceCard
+                post={post}
+                account={accountsById.get(post.connectionId)}
+              >
                 {post.additionalMetrics.length
                   ? renderMetrics(post.additionalMetrics)
                   : null}
-              </div>
+              </SocialPostPerformanceCard>
             </li>
           ))}
         </ul>
