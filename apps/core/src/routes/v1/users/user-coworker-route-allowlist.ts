@@ -12,16 +12,32 @@ type UserRouteEnv = {
 
 /**
  * GET subpaths under `/users/{id}` that agents may call for their owner
- * context. Everything else under the user tree, and every other method on
- * these paths (such as `PATCH /users/{id}`), stays session-only.
+ * context, with the path the 403 names. Everything else under the user tree,
+ * and every other method on these paths (such as `PATCH /users/{id}`), stays
+ * session-only.
  */
-const AGENT_ALLOWED_USER_SUBPATH_PATTERNS: ReadonlyArray<RegExp> = [
-  /^\/$/,
-  /^\/credits$/,
-  /^\/organizations$/,
-  /^\/organizations\/[^/]+\/credits$/,
-  /^\/workspaces$/,
+const AGENT_ALLOWED_USER_SUBPATHS: ReadonlyArray<{
+  pattern: RegExp;
+  path: string;
+}> = [
+  { pattern: /^\/$/, path: "/users/{id}" },
+  { pattern: /^\/credits$/, path: "/users/{id}/credits" },
+  { pattern: /^\/organizations$/, path: "/users/{id}/organizations" },
+  {
+    pattern: /^\/organizations\/[^/]+\/credits$/,
+    path: "/users/{id}/organizations/{organizationId}/credits",
+  },
+  { pattern: /^\/workspaces$/, path: "/users/{id}/workspaces" },
 ];
+
+/** Names what an agent may call, so a 403 says what to do instead. */
+function agentUserRouteForbidden(actor: "coworker" | "sokoBot") {
+  const paths = AGENT_ALLOWED_USER_SUBPATHS.map(({ path }) => path);
+  const keys = actor === "coworker" ? "Coworker keys" : "Soko Bot keys";
+  return forbidden(
+    `${keys} may only GET ${paths.slice(0, -1).join(", ")} and ${paths.at(-1)}`,
+  );
+}
 
 /**
  * Allowlisted subpaths whose handler narrows its result to the workspaces the
@@ -86,7 +102,7 @@ export function isAgentSelfFilteringUserSubpath(subpath: string): boolean {
 
 export function isAgentAllowedUserSubpath(subpath: string): boolean {
   const normalized = subpath.replace(/\/+$/, "") || "/";
-  return AGENT_ALLOWED_USER_SUBPATH_PATTERNS.some((pattern) =>
+  return AGENT_ALLOWED_USER_SUBPATHS.some(({ pattern }) =>
     pattern.test(normalized),
   );
 }
@@ -108,12 +124,12 @@ export const agentUserRouteAllowlistMiddleware = createMiddleware<UserRouteEnv>(
 
     const pathUserId = c.req.param("id");
     if (!pathUserId) {
-      throw forbidden("Agent authentication cannot access this user route");
+      throw agentUserRouteForbidden(authContext.actor);
     }
 
     const subpath = userRouteSubpathAfterId(c.req.path, pathUserId);
     if (c.req.method !== "GET" || !isAgentAllowedUserSubpath(subpath)) {
-      throw forbidden("Agent authentication cannot access this user route");
+      throw agentUserRouteForbidden(authContext.actor);
     }
 
     return await next();

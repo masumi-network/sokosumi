@@ -354,6 +354,23 @@ describe("coworker user route allowlist", () => {
     expect(response.status).toBe(403);
   });
 
+  it("tells an agent which user routes it may call", async () => {
+    const coworkerResponse = await createUserRouteApp(CONTEXT_COWORKER).request(
+      "http://localhost/me/preferences",
+    );
+    const sokoBotResponse = await createUserRouteApp(ORCHESTRATOR).request(
+      "http://localhost/me/preferences",
+    );
+
+    expect(coworkerResponse.status).toBe(403);
+    expect(await coworkerResponse.text()).toBe(
+      "Coworker keys may only GET /users/{id}, /users/{id}/credits, /users/{id}/organizations, /users/{id}/organizations/{organizationId}/credits and /users/{id}/workspaces",
+    );
+    expect(await sokoBotResponse.text()).toMatch(
+      /^Soko Bot keys may only GET /,
+    );
+  });
+
   it("rejects coworker with context headers on preferences", async () => {
     const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request("http://localhost/me/preferences");
