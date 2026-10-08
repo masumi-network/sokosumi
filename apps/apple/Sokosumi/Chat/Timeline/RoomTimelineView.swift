@@ -42,7 +42,7 @@ import SwiftUI
     /// lands. Require a trip away from the top before auto-loading.
     @State private var transcriptWasAwayFromTop = false
     @State private var scrollIntent = TimelineScrollIntent()
-    @State private var userIsScrolling = false
+    @State private var scrollActivity = TranscriptScrollActivity()
     @State private var pendingBottomAlignment = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     /// The mark the last jump left on the row it landed on (row 25b1). The open thread keeps its own.
@@ -63,6 +63,10 @@ import SwiftUI
 
     private var room: Components.Schemas.ChatRoom? {
       workspaces.rooms.first { $0.id == roomId }
+    }
+
+    private var userIsScrolling: Bool {
+      scrollActivity.isScrolling
     }
 
     private func unfurlAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
@@ -344,6 +348,7 @@ import SwiftUI
             Color.clear.frame(height: 9).id("timeline-bottom")
           }
           .scrollTargetLayout()
+          .environment(\.transcriptScrollActivity, scrollActivity)
           .padding(.top, 8)
         }
         // Row 25b2: the other rows step back while the mark holds.
@@ -376,7 +381,10 @@ import SwiftUI
           proxy.scrollTo("timeline-bottom", anchor: .bottom)
         }
         .onScrollPhaseChange { _, phase in
-          userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+          let scrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+          if scrollActivity.isScrolling != scrolling {
+            scrollActivity.isScrolling = scrolling
+          }
           if phase.endsJumpMark {
             jumpMark = jumpMark?.readerScrolled(at: jumpMarkClock.now)
           }
