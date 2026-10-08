@@ -302,7 +302,7 @@ private struct ResultOutputMedia: View {
       }
       Group {
         if let player {
-          ResultOutputPlayer(player: player)
+          InlineMediaPlayer(player: player)
         } else if failed {
           // Not a button any more: the file could not be loaded or the Mac cannot play it; Download stays below.
           ZStack {
@@ -362,29 +362,6 @@ private struct ResultOutputMedia: View {
         }
       }
     }
-  }
-}
-
-/// The Mac's inline player. SwiftUI's `VideoPlayer` aborts in the Debug test host while it builds its type metadata
-/// (`_AVKit_SwiftUI`, `getSuperclassMetadata`), so the card hosts `AVPlayerView` itself.
-private struct ResultOutputPlayer: NSViewRepresentable {
-  let player: AVPlayer
-
-  func makeNSView(context _: Context) -> AVPlayerView {
-    let view = AVPlayerView()
-    view.controlsStyle = .inline
-    view.player = player
-    return view
-  }
-
-  func updateNSView(_ view: AVPlayerView, context _: Context) {
-    if view.player !== player {
-      view.player = player
-    }
-  }
-
-  static func dismantleNSView(_ view: AVPlayerView, coordinator _: ()) {
-    view.player?.pause()
   }
 }
 
