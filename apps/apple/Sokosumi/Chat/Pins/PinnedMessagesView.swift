@@ -128,7 +128,8 @@ struct PinnedMessageCard: View {
                     Text(author).fontWeight(.semibold).lineLimit(1).truncationMode(.tail)
                   }
                   if !preview.source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    markdown(preview.source).foregroundStyle(.secondary)
+                    // Web `enableMermaid={!quoteOnly}`: a quoted diagram stays code.
+                    markdown(preview.source, diagrams: false).foregroundStyle(.secondary)
                   }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -160,8 +161,8 @@ struct PinnedMessageCard: View {
     .onHover { isHovered = $0 }
   }
 
-  private func markdown(_ source: String) -> some View {
-    MessageMarkdownView(source: source, room: room, channels: channels)
+  private func markdown(_ source: String, diagrams: Bool = true) -> some View {
+    MessageMarkdownView(source: source, room: room, channels: channels, diagrams: diagrams)
       .lineLimit(6)
       .frame(maxHeight: previewHeight, alignment: .top)
       .fixedSize(horizontal: false, vertical: true)
