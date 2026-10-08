@@ -16775,23 +16775,6 @@ export const NotificationPreferenceSchema = {
     ]
 } as const;
 
-export const PreferredOrganizationSchema = {
-    type: 'object',
-    properties: {
-        organizationId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'org_123',
-            description: 'Organization id of the preferred workspace, or null for personal. GET resolves sign-in fallbacks and also returns null when no workspace exists; check workspace-access first. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.'
-        }
-    },
-    required: [
-        'organizationId'
-    ]
-} as const;
-
 export const PersonalWorkspaceCreatedSchema = {
     type: 'object',
     properties: {
@@ -16871,7 +16854,7 @@ export const UserWorkspacesSchema = {
             items: {
                 $ref: '#/components/schemas/UserWorkspace'
             },
-            description: 'Workspaces the person can act in: their personal workspace first, then their organizations. Empty means the person still needs identity onboarding'
+            description: 'Workspaces the person can act in: their personal workspace first, then their organizations. Exactly one is `preferred` whenever the list is non-empty. Empty means the person still needs identity onboarding'
         },
         pendingInvitationCount: {
             type: 'integer',
