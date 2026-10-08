@@ -445,6 +445,45 @@ struct WorkspaceRealtimeTests {
     state.reset()
   }
 
+  /// Row 38h2: Approve on a decision card resolves the owner's decision through the coordinator's client, with no
+  /// workspace header (decisions are the owner's); a 401 reaches the card as the session's rejection (which signs out).
+  @Test func aDecisionResolvesForItsOwnerOutsideTheWorkspace() async throws {
+    let decisionId = "3c4d5e6f-0000-4000-8000-0000000000d1"
+    let settled = """
+    {"data":{"id":"\(decisionId)","turnId":"3c4d5e6f-0000-4000-8000-0000000000e1","toolName":"hire_agent",\
+    "proposal":{"agentId":"agent_123","maxCredits":25},"reason":"Hire Scout","status":"ACCEPTED",\
+    "expiresAt":"\(realtimeTimestamp)","resolvedAt":"\(realtimeTimestamp)","resultingEntityId":"job_1",\
+    "createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)"},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+    """
+    let rejected = #"{"error":"Unauthorized","message":"Session expired","meta":{"timestamp":"\#(realtimeTimestamp)","requestId":"req-1","path":"/x","method":"POST"}}"#
+    let (state, auth, transport) = try realtimeState([
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])),
+      (200, settled),
+      (401, rejected)
+    ])
+    // With no window active the open room's fallback poll waits, so the script holds exactly these reads.
+    state.setWindowVisible(false, window: realtimeWindow)
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+
+    try await state.resolveSokoBotDecision(decisionId, .accept, auth: auth)
+    #expect(transport.operationIDs.last == "resolveMySokoBotDecision")
+    let request = try #require(transport.requests.last)
+    #expect(request.path?.hasSuffix("/soko-bots/me/decisions/\(decisionId)") == true)
+    #expect(HTTPField.Name("X-Organization-Slug").flatMap { request.headerFields[$0] } == nil)
+    let body = try #require(transport.bodies.last)
+    #expect(try JSONSerialization.jsonObject(with: body) as? [String: String] == ["resolution": "ACCEPT"])
+
+    await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
+      try await state.resolveSokoBotDecision(decisionId, .reject, auth: auth)
+    }
+    #expect(transport.operationIDs.suffix(2) == ["resolveMySokoBotDecision", "resolveMySokoBotDecision"])
+    #expect(try JSONSerialization.jsonObject(with: #require(transport.bodies.last)) as? [String: String] == ["resolution": "REJECT"])
+    state.reset()
+  }
+
   /// Row 38e2: a card's protected output loads through the coordinator's client in the open workspace, as web's
   /// proxy forwards the session; a 401 reaches the caller as the session's rejection (which signs out).
   @Test func aResultOutputLoadsInTheOpenWorkspace() async throws {
