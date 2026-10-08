@@ -347,6 +347,11 @@
       "skillPath": "skills/in-progress/setup-ts-deep-modules/SKILL.md",
       "computedHash": "61508216ede38d8cfa712879197a76f75f4896615dbf7abc3f62571f8f5923cc"
     },
+    "steward": {
+      "source": ".",
+      "sourceType": "local",
+      "computedHash": "391bb39e23502324bcfd512d8f7fdc36f448206a58bfbbfc62481bf5ac0a21cd"
+    },
     "surgical-patch": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
