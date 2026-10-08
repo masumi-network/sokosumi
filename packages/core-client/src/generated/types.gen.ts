@@ -4865,7 +4865,7 @@ export type WorkspaceGateStatus = typeof WorkspaceGateStatus[keyof typeof Worksp
 
 export type UserWorkspaces = {
     /**
-     * Workspaces the person can act in: their personal workspace first, then their organizations. Empty means the person still needs identity onboarding
+     * Workspaces the person can act in: their personal workspace first, then their organizations. Exactly one is `preferred` whenever the list is non-empty. Empty means the person still needs identity onboarding
      */
     workspaces: Array<UserWorkspace>;
     /**

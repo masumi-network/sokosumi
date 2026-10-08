@@ -203,6 +203,53 @@ describe("GET /users/{id}/workspaces", () => {
     expect(memberFindManyMock).toHaveBeenCalledTimes(1);
   });
 
+  it.each(
+    [true, false].flatMap((hasPersonal) =>
+      [0, 1, 2].flatMap((organizationCount) =>
+        [null, "org_1", "org_left"].map((preferredOrganizationId) => ({
+          hasPersonal,
+          organizationCount,
+          preferredOrganizationId,
+        })),
+      ),
+    ),
+  )(
+    "marks exactly one preferred (personal: $hasPersonal, organizations: $organizationCount, saved: $preferredOrganizationId)",
+    async ({ hasPersonal, organizationCount, preferredOrganizationId }) => {
+      userFindUniqueMock.mockResolvedValue({
+        id: "user_123",
+        name: "Ada Lovelace",
+        email: "Ada@Example.com",
+        preferredOrganizationId,
+      });
+      workspaceFindUniqueMock.mockResolvedValue(
+        hasPersonal ? { id: PERSONAL_WORKSPACE_ID } : null,
+      );
+      memberFindManyMock.mockResolvedValue(
+        Array.from({ length: organizationCount }, (_, index) => ({
+          organization: {
+            id: `org_${index}`,
+            name: `Org ${index}`,
+            slug: `org-${index}`,
+            logo: null,
+            metadata: null,
+            workspace: { id: `3333333${index}-3333-7333-8333-333333333333` },
+          },
+        })),
+      );
+
+      const response = await createApp().request("/me/workspaces");
+
+      const { workspaces } = (await response.json()).data as {
+        workspaces: { preferred: boolean }[];
+      };
+      expect(workspaces).toHaveLength(Number(hasPersonal) + organizationCount);
+      expect(workspaces.filter(({ preferred }) => preferred)).toHaveLength(
+        workspaces.length > 0 ? 1 : 0,
+      );
+    },
+  );
+
   it("orders memberships oldest first with the id as tie-break, like a new session", async () => {
     await createApp().request("/me/workspaces");
 
