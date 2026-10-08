@@ -2757,7 +2757,7 @@
       "back": "Zurück zum Projekt",
       "updated": "Aktualisiert",
       "emptyTitle": "Erstelle dein erstes Bild",
-      "emptyBody": "Wähle einen Stil als Ausgangspunkt oder schreibe unten deinen eigenen Prompt.",
+      "emptyBody": "Klicke auf eine Vorlage, um sie anzuwenden, oder schreibe unten deinen eigenen Prompt.",
       "promptPlaceholder": "Beschreibe das Bild…",
       "generate": "Erzeugen",
       "refine": "Verfeinern",
