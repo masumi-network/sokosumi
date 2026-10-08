@@ -169,7 +169,7 @@ describe("chat result cards", () => {
     expect(html).toContain("max-w-sm");
   });
   it.each(["linkedin", "x", "instagram"] as const)(
-    "uses the existing %s post preview with its account and protected media",
+    "renders only the existing %s post card with its account and protected media",
     (provider) => {
       const html = renderToStaticMarkup(
         <ResultPreviewCard
@@ -178,6 +178,8 @@ describe("chat result cards", () => {
             kind: "social_post",
             status: "SCHEDULED",
             summary: "Our launch",
+            destination: `${provider} · sokosumi`,
+            sourceHref: "/social?post=launch",
             social: {
               provider,
               account: {
@@ -202,10 +204,23 @@ describe("chat result cards", () => {
       );
       expect(html).toContain('data-testid="social-post-preview"');
       expect(html).toContain(`data-provider="${provider}"`);
-      expect(html).toContain('data-testid="social-post-status-SCHEDULED"');
+      expect(html).not.toContain('data-testid="social-post-status-SCHEDULED"');
       expect(html.toLowerCase()).toContain("sokosumi");
       expect(html).toContain("Our launch");
       expect(html).toContain('src="/api/drive/files/file/content"');
+      expect(html).not.toContain(`${provider} · sokosumi`);
+      expect(html).not.toContain(
+        '<dt class="text-muted-foreground">destination</dt>',
+      );
+      expect(html).not.toContain("recorded");
+      expect(html).not.toContain(">open<");
+      expect(html).not.toContain("Europe/Prague");
+      expect(html).not.toContain("Which audience?");
+      expect(html).not.toContain("Writer");
+      expect(html).not.toContain("kind.social_post");
+      expect(html).not.toContain('data-testid="result-preview-source"');
+      expect(html).not.toContain('href="/social?post=launch"');
+      expect(html).not.toContain('aria-label="Open source: Launch campaign"');
     },
   );
   it("renders an unavailable card without a resource link", () => {
