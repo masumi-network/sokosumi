@@ -82,19 +82,23 @@
         ))
       }
 
-      private static func waitForTexts(in host: NSView, _ what: String, _ ready: ([String]) -> Bool) async throws {
+      /// Throws on timeout, as `waitForView` does, so no later expectation runs on a composer that never got there.
+      private static func waitForTexts(in host: NSView, _ what: String, sourceLocation: SourceLocation = #_sourceLocation,
+                                       _ ready: ([String]) -> Bool) async throws {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: .seconds(10))
-        var texts: [String] = []
         repeat {
           host.layoutSubtreeIfNeeded()
-          texts = await hostedTexts(in: host)
-          if ready(texts) {
+          if await ready(hostedTexts(in: host)) {
             return
           }
           try await Task.sleep(for: .milliseconds(50))
         } while clock.now < deadline
-        Issue.record("Timed out waiting for \(what); the composer shows \(texts).")
+
+        host.layoutSubtreeIfNeeded()
+        let texts = await hostedTexts(in: host)
+        try #require(ready(texts), "Timed out after 10 seconds waiting for \(what); the composer shows \(texts).",
+                     sourceLocation: sourceLocation)
       }
 
       private static func bitmap(_ host: NSView) throws -> NSBitmapImageRep {
