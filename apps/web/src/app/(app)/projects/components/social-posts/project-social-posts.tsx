@@ -71,7 +71,9 @@ import {
   SOCIAL_TABS,
   type SocialTab,
 } from "./constants";
+import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
+import { SocialPostStatistics } from "./social-post-statistics";
 
 interface ProjectSocialPostsProps {
   /** Social's calendar, shown as the first tab when given. */
@@ -548,6 +550,9 @@ export function ProjectSocialPosts({
             </p>
           ) : null}
           {post.status === "PUBLISHED" ? (
+            <SocialPostMetrics statistics={post.statistics} compact />
+          ) : null}
+          {post.status === "PUBLISHED" ? (
             <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
               {post.publishedAt ? (
                 <time dateTime={post.publishedAt.toISOString()}>
@@ -642,6 +647,7 @@ export function ProjectSocialPosts({
                       <span className="text-muted-foreground tabular-nums">
                         {candidate !== "calendar" &&
                         candidate !== "accounts" &&
+                        candidate !== "statistics" &&
                         cursors[candidate]
                           ? `${count}+`
                           : count}
@@ -734,6 +740,15 @@ export function ProjectSocialPosts({
               );
             },
           )}
+
+          <TabsContent
+            value="statistics"
+            data-testid="social-posts-section-statistics"
+          >
+            {tab === "statistics" ? (
+              <SocialPostStatistics key={projectId} projectId={projectId} />
+            ) : null}
+          </TabsContent>
 
           {accounts !== undefined ? (
             <TabsContent
