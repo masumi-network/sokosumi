@@ -136,6 +136,25 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("SocialPostStatistics account history", () => {
+  it("shows a retryable error for a successful HTTP response containing an error body", async () => {
+    mocks.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ error: "Statistics unavailable" }),
+    });
+    renderStatistics();
+    expect(
+      await screen.findByText(
+        en.App.Projects.SocialPosts.statistics.loadFailed,
+      ),
+    ).toBeVisible();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: en.App.Projects.SocialPosts.statistics.retry,
+      }),
+    );
+    expect(await screen.findByText(post.text)).toBeVisible();
+  });
+
   it("shows every connected account, zero, unavailable, metric periods and external read-only posts", async () => {
     renderStatistics();
     expect(await screen.findByText(post.text)).toBeVisible();

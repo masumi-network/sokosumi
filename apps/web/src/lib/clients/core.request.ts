@@ -158,7 +158,7 @@ export async function executeCoreOperationWithResponse<TData, TError>(
     throw new CoreApiRequestError(message, {
       details: result.error,
       kind: extractErrorKind(result.error),
-      status: result.response?.status,
+      status: result.response?.ok ? 502 : result.response?.status,
       requestId: extractCoreRequestId({
         error: result.error,
         response: result.response,
@@ -179,7 +179,7 @@ export async function executeCoreOperationWithResponse<TData, TError>(
     throw new CoreApiRequestError(message, {
       details: result.error,
       kind: extractErrorKind(result.error),
-      status: result.response?.status,
+      status: result.response?.ok ? 502 : result.response?.status,
       requestId: extractCoreRequestId({
         error: result.error,
         response: result.response,

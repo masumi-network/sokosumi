@@ -20019,7 +20019,6 @@ export const SocialAccountStatisticsAccountSchema = {
                 }
             },
             required: [
-                'statistics',
                 'postCount'
             ]
         }

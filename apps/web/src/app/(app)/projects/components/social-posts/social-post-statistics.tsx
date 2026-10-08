@@ -108,7 +108,15 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
         { signal, cache: "no-store" },
       );
       if (!response.ok) throw new Error(t("loadFailed"));
-      return response.json();
+      const page: StatisticsPage = await response.json();
+      if (
+        !page ||
+        !Array.isArray(page.accounts) ||
+        !Array.isArray(page.posts)
+      ) {
+        throw new Error(t("loadFailed"));
+      }
+      return page;
     },
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled: Boolean(session?.user.id),

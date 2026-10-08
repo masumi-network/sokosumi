@@ -5871,7 +5871,7 @@ export type SocialAccountStatisticsPage = {
 };
 
 export type SocialAccountStatisticsAccount = ProjectSocialConnection & {
-    statistics: SocialAccountStatistics;
+    statistics?: SocialAccountStatistics;
     postCount: number;
 };
 

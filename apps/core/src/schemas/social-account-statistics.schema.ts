@@ -44,7 +44,8 @@ export type SocialAccountStatistics = z.infer<
 export const socialAccountStatisticsAccountSchema =
   projectSocialConnectionSchema
     .extend({
-      statistics: socialAccountStatisticsSchema.nullable(),
+      // Optional nullable references let the generated date transformer skip empty snapshots.
+      statistics: socialAccountStatisticsSchema.nullable().optional(),
       postCount: z.number().int().min(0),
     })
     .openapi("SocialAccountStatisticsAccount");

@@ -2708,7 +2708,9 @@ const socialAccountStatisticsSchemaResponseTransformer = (data: any) => {
 
 const socialAccountStatisticsAccountSchemaResponseTransformer = (data: any) => {
     data = projectSocialConnectionSchemaResponseTransformer(data);
-    data.statistics = socialAccountStatisticsSchemaResponseTransformer(data.statistics);
+    if (data.statistics) {
+        data.statistics = socialAccountStatisticsSchemaResponseTransformer(data.statistics);
+    }
     return data;
 };
 
