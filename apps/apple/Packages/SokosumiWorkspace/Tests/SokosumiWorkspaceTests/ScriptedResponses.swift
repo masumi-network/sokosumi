@@ -17,4 +17,9 @@ nonisolated func nextScriptedResponse(_ responses: inout [(Int, String)], operat
 
 /// Recovery timers that never fire within a test. The real 3 s fallback read lands in any test that runs longer
 /// under a loaded CI runner, as an extra request the test never scripted. Tests start recovery reads explicitly.
-let recoveryTimersNeverFire: (Duration) async throws -> Void = { _ in try await Task.sleep(for: .seconds(3600)) }
+/// Suspends until the scheduler cancels the timer, which ends the sleep by throwing.
+let recoveryTimersNeverFire: (Duration) async throws -> Void = { _ in
+  while true {
+    try await Task.sleep(for: .seconds(3600))
+  }
+}
