@@ -757,7 +757,7 @@ describe("ProjectSocialPosts", () => {
     expect(saveDraft).toBeDisabled();
 
     const textarea = within(dialog).getByLabelText("Text");
-    await user.type(textarea, "x".repeat(281));
+    fireEvent.change(textarea, { target: { value: "x".repeat(281) } });
     expect(screen.getByTestId("social-post-character-count")).toHaveTextContent(
       "281 / 280",
     );
