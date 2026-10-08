@@ -445,6 +445,37 @@ struct WorkspaceRealtimeTests {
     state.reset()
   }
 
+  /// Row 38e2: a card's protected output loads through the coordinator's client in the open workspace, as web's
+  /// proxy forwards the session; a 401 reaches the caller as the session's rejection (which signs out).
+  @Test func aResultOutputLoadsInTheOpenWorkspace() async throws {
+    let rejected = #"{"error":"Unauthorized","message":"Session expired","meta":{"timestamp":"\#(realtimeTimestamp)","requestId":"req-1","path":"/x","method":"GET"}}"#
+    let (state, auth, transport) = try realtimeState([
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])),
+      (200, "%PDF-1.7 report"),
+      (401, rejected)
+    ])
+    // With no window active the open room's fallback poll waits, so the script holds exactly these reads.
+    state.setWindowVisible(false, window: realtimeWindow)
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+
+    let file = try await state.resultOutput(.jobFile(jobId: "job-1", fileId: "blob-1", download: true), fileName: "report.pdf", auth: auth)
+    #expect(try Data(contentsOf: file.url) == Data("%PDF-1.7 report".utf8))
+    #expect(file.url.lastPathComponent == "report.pdf")
+    #expect(transport.operationIDs.last == "get/jobs/{id}/files/{fileId}/content")
+    let request = try #require(transport.requests.last)
+    #expect(request.path?.hasSuffix("/jobs/job-1/files/blob-1/content?download=true") == true)
+    #expect(HTTPField.Name("X-Organization-Slug").flatMap { request.headerFields[$0] } == "acme")
+
+    await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
+      try await state.resultOutput(.studioAsset(projectId: "p1", assetId: "a1"), fileName: "fox.png", auth: auth)
+    }
+    #expect(transport.operationIDs.last == "get/projects/{id}/image-studio/assets/{assetId}/content")
+    state.reset()
+  }
+
   @Test func renameRowRetitlesTheOpenGroupDirect() async throws {
     let (state, auth, _) = try realtimeState([
       (200, workspacesBody()),

@@ -20,4 +20,22 @@ public extension WorkspaceState {
       throw error
     }
   }
+
+  /// One protected output's bytes as a local file named `fileName` (row 38e2), through the Core operation its href names
+  /// and in the open workspace, as web's proxy routes call Core with the session. Web keeps no copy beyond the
+  /// browser's revalidated one, so each preview, Open or Download asks again; a 401 signs out.
+  func resultOutput(_ source: ResultOutputSource, fileName: String, auth: AuthState) async throws -> ResultOutputFile {
+    guard let client = resolveClient(auth: auth) else {
+      throw ChatServiceError.unauthorized("Log in to open this file.")
+    }
+    do {
+      return try await ChatService().resultOutput(client: client, source: source, fileName: fileName,
+                                                  organizationSlug: selection?.workspace.organizationSlug)
+    } catch {
+      if let error = error as? ChatServiceError {
+        signOutIfUnauthorized(error, auth: auth)
+      }
+      throw error
+    }
+  }
 }

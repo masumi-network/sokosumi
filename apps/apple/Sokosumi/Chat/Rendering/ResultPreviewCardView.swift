@@ -72,11 +72,7 @@ private struct GenericResultCard: View {
         .font(.caption)
       }
       if !card.outputs.isEmpty {
-        WrappingRow(spacing: 8) {
-          ForEach(card.outputs) { output in
-            ResultOutputView(output: output)
-          }
-        }
+        ResultOutputsView(card: card)
       }
       Divider()
       HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -208,67 +204,6 @@ struct ProjectMarkView: View {
       guard !Task.isCancelled else { return }
       logo = loaded?.cgImage
     }
-  }
-}
-
-/// Web's output link: the file's name, type and size, and Download under it when Core offers one. Each opens on
-/// web until row 38e2 loads protected outputs in the app.
-private struct ResultOutputView: View {
-  let output: ResultPreviewCard.Output
-  @Environment(\.openURL) private var openURL
-  @Environment(\.locale) private var locale
-  @State private var hovered = false
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 4) {
-      Button {
-        if let url = output.openURL {
-          openURL(url)
-        }
-      } label: {
-        HStack(spacing: 8) {
-          Image(systemName: "doc.text").accessibilityHidden(true)
-          Text(description)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(8)
-        .background(Color.primary.opacity(hovered ? 0.1 : 0.06), in: .rect(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.primary.opacity(0.12)))
-        .contentShape(.rect)
-      }
-      .buttonStyle(.plain)
-      .disabled(output.openURL == nil)
-      .onHover { hovered = $0 }
-      if let download = output.downloadURL {
-        Button {
-          openURL(download)
-        } label: {
-          HStack(spacing: 4) {
-            Image(systemName: "arrow.down.to.line").accessibilityHidden(true)
-            Text("Download", tableName: chatResultsTable, comment: "Downloads a result's output.")
-          }
-          .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text("Download \(output.name)", tableName: chatResultsTable,
-                                 comment: "Accessibility label of an output's download link. Argument: the file name."))
-      }
-    }
-    .font(.caption)
-  }
-
-  /// Web: `name · type · N bytes`, each part only when Core knows it.
-  private var description: String {
-    var parts = [output.name]
-    if let type = output.contentType {
-      parts.append(type)
-    }
-    if let size = output.sizeBytes {
-      // Resolved in the view's locale, as the `Text`s around it are.
-      parts.append(String(localized: LocalizedStringResource("\(size.formatted(.number.locale(locale))) bytes", table: chatResultsTable,
-                                                             locale: locale, comment: "An output's size. Argument: the formatted byte count.")))
-    }
-    return parts.joined(separator: " · ")
   }
 }
 
