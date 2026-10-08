@@ -172,20 +172,17 @@ function computeFreeJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
 }
 
 function computePaidJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
-  // 1. If the job has already been refunded, return the refund resolved status
   if (job.refundedTransactionId) {
     return SokosumiJobStatus.REFUND_RESOLVED;
   }
 
   const now = new Date();
 
-  // 3. If the job has no purchase, it means the job is not yet started
   const paymentStatus = checkPaymentStatus(job, now);
   if (paymentStatus) {
     return paymentStatus;
   }
 
-  // 4. If the job has a next action, it means the job is not yet finished
   const nextActionStatus = checkNextAction(job);
   if (nextActionStatus) {
     return nextActionStatus;
@@ -195,7 +192,6 @@ function computePaidJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
   if (!latestJobEvent) {
     return SokosumiJobStatus.STARTED;
   }
-  // 5. If the job has a purchase, it means the job is started
   switch (job.purchase?.onChainStatus) {
     case null:
     case undefined:
