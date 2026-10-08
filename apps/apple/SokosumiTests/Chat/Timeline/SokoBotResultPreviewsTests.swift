@@ -139,7 +139,7 @@
       }
 
       /// A solid square written once per run, so a card's avatar and logo load from a local file as from Core's URLs.
-      private static func fixtureImage(_ name: String, red: CGFloat, green: CGFloat, blue: CGFloat) -> String {
+      static func fixtureImage(_ name: String, red: CGFloat, green: CGFloat, blue: CGFloat) -> String {
         let url = FileManager.default.temporaryDirectory.appending(path: "result-card-\(name)-\(ProcessInfo.processInfo.processIdentifier).png")
         try? fixturePNG(width: 64, height: 64, red: red, green: green, blue: blue)?.write(to: url)
         return url.absoluteString
@@ -164,7 +164,8 @@
         .available(.init(id: taskCard, state: .available, capturedAt: created, kind: .task, title: "Review the draft",
                          status: "INPUT_REQUIRED", sourceHref: "/tasks/task%201", question: "Which version should I send?",
                          task: .init(id: "task 1", name: "Review the draft", status: .inputRequired, priority: .high, visibility: ._public,
-                                     participants: [], commentsCount: 0, tags: .init(automatic: [], manual: [], rejected: [])))),
+                                     createdAt: created, participants: [], commentsCount: 0,
+                                     tags: .init(automatic: [], manual: [], rejected: [])))),
         .available(.init(id: schedule, state: .available, capturedAt: created, kind: .taskSchedule, title: "Weekly report",
                          status: "ACTIVE", summary: "Compile the weekly numbers for the team.", sourceHref: "/schedules/sched-1",
                          assignee: "Elena", project: "Launch", scheduledAt: created.addingTimeInterval(5 * 86400),
@@ -207,7 +208,9 @@
         opened = []
         gate.release()
         let texts = try await Self.waitForText("Weekly report", in: host)
-        for text in ["Review the draft", "Which version should I send?", "Waiting for input", "Task schedule", "Active",
+        // The Task result is web's Task card (row 38f): its own status badge, not the generic "Waiting for input" chip.
+        #expect(!texts.contains("Waiting for input"), "\(texts)")
+        for text in ["Review the draft", "Which version should I send?", "Input required", "Task schedule", "Active",
                      "Compile the weekly numbers for the team.", "Assigned to", "Elena", "Project", "Launch", "Scheduled for",
                      "Recurrence", "0 9 * * 1", "Agent result", "Market scan", "Completed", "Result unavailable or no longer accessible"] {
           #expect(texts.contains(text), "\(text) missing from \(texts)")
