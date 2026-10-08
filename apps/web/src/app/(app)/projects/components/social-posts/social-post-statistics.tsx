@@ -26,6 +26,7 @@ import { refreshProjectSocialAccountStatistics } from "@/lib/actions/project/act
 import { useSession } from "@/lib/auth/auth.client";
 import type { projectService } from "@/lib/services/project.service";
 import { SocialPostMetrics } from "./social-post-metrics";
+import { SocialPostPreview } from "./social-post-preview";
 
 const ACCOUNT_METRIC_LABELS: Record<string, string> = {
   followers_count: "followers",
@@ -582,46 +583,58 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
         ) : null}
         <ul className="space-y-3">
           {posts.map((post) => (
-            <li key={post.id} className="space-y-3 rounded-lg border p-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="font-medium">
-                  {accountsById.get(post.connectionId)?.displayName ??
+            <li
+              key={post.id}
+              className="grid items-start gap-4 rounded-lg border p-4 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]"
+            >
+              <SocialPostPreview
+                account={{
+                  displayName:
+                    accountsById.get(post.connectionId)?.displayName ??
                     accountsById.get(post.connectionId)?.externalHandle ??
                     SOCIAL_PROVIDERS.find(
                       (provider) => provider.id === post.provider,
                     )?.name ??
-                    post.provider}
-                </p>
-                <p className="text-muted-foreground text-xs">
-                  {post.publishedAt
-                    ? formatDate(post.publishedAt)
-                    : t("dateUnavailable")}
-                </p>
-              </div>
-              <p className="text-sm whitespace-pre-wrap break-words">
-                {post.text || t("mediaPost")}
-              </p>
-              {post.url ? (
-                <a
-                  className="inline-block text-sm underline underline-offset-4"
-                  href={post.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  {t("openPost")}
-                </a>
-              ) : null}
-              <SocialPostMetrics
-                statistics={{
-                  metrics: post.metrics,
-                  fetchedAt: post.fetchedAt,
-                  refreshAttemptedAt: null,
-                  error: null,
+                    post.provider,
+                  handle:
+                    accountsById.get(post.connectionId)?.externalHandle ?? null,
+                  avatarUrl:
+                    accountsById.get(post.connectionId)?.avatarUrl ?? null,
                 }}
+                media={[]}
+                provider={post.provider}
+                text={post.text || t("mediaPost")}
+                timestamp={post.publishedAt ? new Date(post.publishedAt) : null}
+                timestampLabel={
+                  post.publishedAt
+                    ? formatDate(post.publishedAt)
+                    : t("dateUnavailable")
+                }
+                showMediaPlaceholder={false}
               />
-              {post.additionalMetrics.length
-                ? renderMetrics(post.additionalMetrics)
-                : null}
+              <div className="min-w-0 space-y-3">
+                {post.url ? (
+                  <a
+                    className="inline-block text-sm underline underline-offset-4"
+                    href={post.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                  >
+                    {t("openPost")}
+                  </a>
+                ) : null}
+                <SocialPostMetrics
+                  statistics={{
+                    metrics: post.metrics,
+                    fetchedAt: post.fetchedAt,
+                    refreshAttemptedAt: null,
+                    error: null,
+                  }}
+                />
+                {post.additionalMetrics.length
+                  ? renderMetrics(post.additionalMetrics)
+                  : null}
+              </div>
             </li>
           ))}
         </ul>

@@ -68,12 +68,15 @@ export function SocialPostPreview({
   );
 }
 
-function usePreviewTime(timestamp: Date | null) {
+function usePreviewTime(timestamp: Date | null, timestampLabel?: string) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const formatter = useFormatter();
-  return timestamp
-    ? formatter.dateTime(timestamp, { month: "short", day: "numeric" })
-    : t("now");
+  return (
+    timestampLabel ??
+    (timestamp
+      ? formatter.dateTime(timestamp, { month: "short", day: "numeric" })
+      : t("now"))
+  );
 }
 
 /**
@@ -100,11 +103,12 @@ function XPreview({
   media,
   text,
   timestamp,
+  timestampLabel,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
   const handle = accountHandle(account);
-  const time = usePreviewTime(timestamp);
+  const time = usePreviewTime(timestamp, timestampLabel);
   const actions = [
     { Icon: MessageCircle, key: "reply" },
     { Icon: Repeat2, key: "repost" },
@@ -154,10 +158,11 @@ function LinkedInPreview({
   media,
   text,
   timestamp,
+  timestampLabel,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
-  const time = usePreviewTime(timestamp);
+  const time = usePreviewTime(timestamp, timestampLabel);
   const fold = useFold(text, 210, 3);
   const actions = [
     { Icon: ThumbsUp, label: t("linkedin.like") },
@@ -227,6 +232,8 @@ function InstagramPreview({
   media,
   text,
   timestamp,
+  timestampLabel,
+  showMediaPlaceholder = true,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const formatter = useFormatter();
@@ -243,15 +250,17 @@ function InstagramPreview({
         <span className="min-w-0 flex-1 truncate font-semibold">{name}</span>
         <MoreHorizontal className="size-5 shrink-0" aria-hidden />
       </div>
-      <div className="bg-muted aspect-square overflow-hidden">
-        {first ? (
-          <PreviewMediaItem media={first} />
-        ) : (
-          <div className="text-muted-foreground flex size-full items-center justify-center px-6 text-center text-xs text-balance">
-            {t("instagram.mediaRequired")}
-          </div>
-        )}
-      </div>
+      {first || showMediaPlaceholder ? (
+        <div className="bg-muted aspect-square overflow-hidden">
+          {first ? (
+            <PreviewMediaItem media={first} />
+          ) : (
+            <div className="text-muted-foreground flex size-full items-center justify-center px-6 text-center text-xs text-balance">
+              {t("instagram.mediaRequired")}
+            </div>
+          )}
+        </div>
+      ) : null}
       <div aria-hidden className="flex items-center gap-4 px-3 pt-3">
         <Heart className="size-6" />
         <MessageCircle className="size-6 -scale-x-100" />
@@ -281,9 +290,10 @@ function InstagramPreview({
           </p>
         ) : null}
         <p className="text-muted-foreground text-xs">
-          {timestamp
-            ? formatter.dateTime(timestamp, { month: "long", day: "numeric" })
-            : t("now")}
+          {timestampLabel ??
+            (timestamp
+              ? formatter.dateTime(timestamp, { month: "long", day: "numeric" })
+              : t("now"))}
         </p>
       </div>
     </div>
@@ -296,10 +306,11 @@ function GenericPreview({
   media,
   text,
   timestamp,
+  timestampLabel,
 }: SocialPostPreviewContentProps & { provider: SocialPost["provider"] }) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
-  const time = usePreviewTime(timestamp);
+  const time = usePreviewTime(timestamp, timestampLabel);
 
   return (
     <div className="space-y-3 p-4">

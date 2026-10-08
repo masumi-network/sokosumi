@@ -31,10 +31,15 @@ vi.mock("next-intl", async () => {
   return {
     useFormatter: () =>
       createTestFormatter({ timeZone: "America/Los_Angeles" }),
-    useTranslations: () =>
+    useTranslations: (
+      namespace:
+        | "App.Projects.SocialPosts.statistics"
+        | "App.Projects.SocialPosts.preview",
+    ) =>
       createTranslator({
         locale: "en",
-        messages: en.App.Projects.SocialPosts.statistics,
+        messages: en,
+        namespace,
       }),
   };
 });
@@ -136,6 +141,36 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("SocialPostStatistics account history", () => {
+  it("uses the platform preview for imported posts without draft-only media or time hints", async () => {
+    mocks.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [{ ...account, provider: "instagram" }],
+        posts: [{ ...post, provider: "instagram", publishedAt: null }],
+      }),
+    });
+    renderStatistics();
+    const preview = await screen.findByTestId("social-post-preview");
+    expect(preview).toHaveAttribute("data-provider", "instagram");
+    expect(within(preview).getAllByText("launch")).toHaveLength(2);
+    expect(within(preview).getByText(post.text)).toBeVisible();
+    expect(
+      within(preview).getByText("Publication date unavailable"),
+    ).toBeVisible();
+    expect(
+      within(preview).queryByText(en.App.Projects.SocialPosts.preview.now),
+    ).not.toBeInTheDocument();
+    expect(
+      within(preview).queryByText(
+        en.App.Projects.SocialPosts.preview.instagram.mediaRequired,
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Open post on platform" }),
+    ).toHaveAttribute("href", post.url);
+    expect(screen.getByText("Likes / reactions")).toBeVisible();
+  });
   it("shows a retryable error for a successful HTTP response containing an error body", async () => {
     mocks.fetch.mockResolvedValueOnce({
       ok: true,
@@ -197,6 +232,7 @@ describe("SocialPostStatistics account history", () => {
           timeZone: "UTC",
           timeZoneName: "short",
         }),
+        { exact: false },
       ),
     ).toBeVisible();
     expect(screen.getByRole("heading", { name: "Brand page" })).toBeVisible();
