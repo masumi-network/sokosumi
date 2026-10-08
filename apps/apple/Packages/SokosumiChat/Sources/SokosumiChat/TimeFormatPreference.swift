@@ -57,6 +57,12 @@ public enum TimeFormatPreference: String, CaseIterable, Identifiable, Sendable {
     format(date, date: .abbreviated, locale: locale, timeZone: timeZone)
   }
 
+  /// Web's named `dateTime` format: short month, day and clock time, no year ("Oct 8, 3:15 PM"), as a result
+  /// card's recorded and scheduled times.
+  public func monthDayTime(_ date: Date, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
+    date.formatted(Date.FormatStyle(locale: self.locale(locale), timeZone: timeZone).month(.abbreviated).day().hour().minute())
+  }
+
   /// The Edited label's tooltip (web `Edit.editedAt`, "Edited {when}", `when` in its `dateTimeMedium`).
   public func edited(_ date: Date, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
     "Edited \(dateTime(date, locale: locale, timeZone: timeZone))"

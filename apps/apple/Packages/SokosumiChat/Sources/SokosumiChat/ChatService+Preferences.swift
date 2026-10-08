@@ -54,7 +54,7 @@ extension ChatService {
         pushOptIn: data.pushOptIn,
         cells: data.notificationPreferences
       )
-    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
+    case let .unprocessableContent(value): throw try rejected(status: 422, message: value.body.json.message)
     case let .unauthorized(value): throw try unauthorized(value.body.json.message)
     case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
     case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
