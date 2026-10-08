@@ -28,6 +28,10 @@ const AGENT_ALLOWED_USER_SUBPATHS: ReadonlyArray<{
     path: "/users/{id}/organizations/{organizationId}/credits",
   },
   { pattern: /^\/workspaces$/, path: "/users/{id}/workspaces" },
+  {
+    pattern: /^\/workspaces\/preferred$/,
+    path: "/users/{id}/workspaces/preferred",
+  },
 ];
 
 /** Names what an agent may call, so a 403 says what to do instead. */
@@ -46,6 +50,7 @@ function agentUserRouteForbidden(actor: "coworker" | "sokoBot") {
  */
 const AGENT_SELF_FILTERING_USER_SUBPATH_PATTERNS: ReadonlyArray<RegExp> = [
   /^\/workspaces$/,
+  /^\/workspaces\/preferred$/,
 ];
 
 function escapeRegExp(value: string): string {
@@ -110,7 +115,7 @@ export function isAgentAllowedUserSubpath(subpath: string): boolean {
 /**
  * Default-deny gate for agent actors on `/users/{id}/*`. This middleware keeps
  * access limited to
- * user profile, credits, organization list/credits, and workspace list reads.
+ * user profile, credits, organization list/credits, and workspace reads.
  */
 export const agentUserRouteAllowlistMiddleware = createMiddleware<UserRouteEnv>(
   async (c, next) => {

@@ -33656,6 +33656,128 @@ export type PostUsersByIdWorkspacesResponses = {
 
 export type PostUsersByIdWorkspacesResponse = PostUsersByIdWorkspacesResponses[keyof PostUsersByIdWorkspacesResponses];
 
+export type GetUsersByIdWorkspacesPreferredData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/workspaces/preferred';
+};
+
+export type GetUsersByIdWorkspacesPreferredErrors = {
+    /**
+     * Bad Request - invalid coworker context headers (this route needs no `X-Context-Organization-Id`)
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - User not found, or no preferred workspace the caller may see
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdWorkspacesPreferredError = GetUsersByIdWorkspacesPreferredErrors[keyof GetUsersByIdWorkspacesPreferredErrors];
+
+export type GetUsersByIdWorkspacesPreferredResponses = {
+    /**
+     * The preferred workspace
+     */
+    200: {
+        data: UserWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdWorkspacesPreferredResponse = GetUsersByIdWorkspacesPreferredResponses[keyof GetUsersByIdWorkspacesPreferredResponses];
+
 export type PutUsersByIdWorkspacesPreferredData = {
     body?: SetPreferredUserWorkspace;
     path: {
