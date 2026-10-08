@@ -3122,8 +3122,49 @@ export type ChatResultAvailable = {
     recurrence?: string | null;
     question?: string | null;
     outputs?: Array<ChatResultOutput>;
-    task?: ChatResultTask | null;
-    social?: ChatResultSocial | null;
+    task?: {
+        id: string;
+        name: string;
+        identifier: string | null;
+        status: TaskStatus;
+        priority: TaskPriority;
+        visibility: TaskVisibility;
+        createdAt: Date | null;
+        runAt: Date | null;
+        project: {
+            id: string;
+            name: string;
+            identifier: string | null;
+            logo: string | null;
+        } | null;
+        assignee: {
+            id: string;
+            name: string;
+            image?: string | null;
+            kind: 'user' | 'coworker' | 'sokoBot';
+            slug?: string;
+            avatarSeed?: string | null;
+        } | null;
+        participants: Array<{
+            id: string;
+            name: string;
+            image?: string | null;
+            kind: 'user' | 'coworker' | 'sokoBot';
+            slug?: string;
+            avatarSeed?: string | null;
+        }>;
+        commentsCount: number;
+        tags: TaskTags;
+    } | null;
+    social?: {
+        provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+        account: {
+            handle: string | null;
+            displayName: string | null;
+            avatarUrl: string | null;
+        } | null;
+        timestamp: Date | null;
+    } | null;
     actor?: {
         id: string;
         name: string;
@@ -3148,7 +3189,21 @@ export type ChatResultAvailable = {
         identifier: string | null;
         logo: string | null;
     } | null;
-    decision?: SokoBotPendingDecision | null;
+    decision?: {
+        id: string;
+        turnId: string;
+        toolName: string;
+        proposal: {
+            [key: string]: unknown;
+        };
+        reason: string;
+        status: 'PENDING' | 'PROCESSING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
+        expiresAt: Date;
+        resolvedAt: Date | null;
+        resultingEntityId: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+    } | null;
 };
 
 export type ChatResultOutput = {
@@ -3158,51 +3213,6 @@ export type ChatResultOutput = {
     openHref: string;
     previewHref: string | null;
     downloadHref?: string | null;
-};
-
-export type ChatResultTask = {
-    id: string;
-    name: string;
-    identifier: string | null;
-    status: TaskStatus;
-    priority: TaskPriority;
-    visibility: TaskVisibility;
-    createdAt: Date | null;
-    runAt: Date | null;
-    project: {
-        id: string;
-        name: string;
-        identifier: string | null;
-        logo: string | null;
-    } | null;
-    assignee: {
-        id: string;
-        name: string;
-        image?: string | null;
-        kind: 'user' | 'coworker' | 'sokoBot';
-        slug?: string;
-        avatarSeed?: string | null;
-    } | null;
-    participants: Array<{
-        id: string;
-        name: string;
-        image?: string | null;
-        kind: 'user' | 'coworker' | 'sokoBot';
-        slug?: string;
-        avatarSeed?: string | null;
-    }>;
-    commentsCount: number;
-    tags: TaskTags;
-};
-
-export type ChatResultSocial = {
-    provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
-    account: {
-        handle: string | null;
-        displayName: string | null;
-        avatarUrl: string | null;
-    } | null;
-    timestamp: Date | null;
 };
 
 export type ChatResultUnavailable = {
