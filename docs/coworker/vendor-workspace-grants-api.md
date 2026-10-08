@@ -138,7 +138,6 @@ answers **403** (`agentUserRouteAllowlistMiddleware`).
 | `GET /v1/users/{id}/organizations` | The user's organizations whose workspace the vendor may act in |
 | `GET /v1/users/{id}/organizations/{organizationId}/credits` | Credits in one of those organizations; any other answers **403** |
 | `GET /v1/users/{id}/workspaces` | The user's workspaces the vendor may act in (see below) |
-| `GET /v1/users/{id}/workspaces/preferred` | The user's preferred workspace, when the vendor may act in it (see below) |
 
 "May act in" is the binding rule above: never on a **DENIED** or **REVOKED**
 grant, always on **GRANTED**, otherwise when a baseline task exists in that
@@ -153,13 +152,6 @@ when the preferred one is hidden, and reports `pendingInvitationCount` as 0.
 With none to show it answers **403**. Pick a workspace from the list and send
 its `organizationId` as `X-Context-Organization-Id` on later calls (none for
 the personal workspace).
-
-**The workspace to charge.** `GET /v1/users/{id}/workspaces/preferred` returns
-the one workspace a new session of the user opens, under the same rules as the
-list: no organization header, no context binding. When the vendor may not act in
-it, the answer is **404** with `kind: "no_preferred_workspace"`; list the
-workspaces to pick another. With no workspace to act in at all it answers
-**403**.
 
 The same list, unfiltered, is available to the user's own OAuth access token
 with `sokosumi:api` (`GET /v1/users/me/workspaces`); see

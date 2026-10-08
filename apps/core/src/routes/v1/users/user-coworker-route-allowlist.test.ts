@@ -41,7 +41,6 @@ describe("isAgentAllowedUserSubpath", () => {
       true,
     );
     expect(isAgentAllowedUserSubpath("/workspaces")).toBe(true);
-    expect(isAgentAllowedUserSubpath("/workspaces/preferred")).toBe(true);
   });
 
   it("rejects other user subpaths", () => {
@@ -60,15 +59,12 @@ describe("isAgentAllowedUserSubpath", () => {
 });
 
 describe("isAgentSelfFilteringUserSubpath", () => {
-  it("marks only the workspace reads as filtering their own result", () => {
+  it("marks only the workspace list as filtering its own result", () => {
     expect(isAgentSelfFilteringUserSubpath("/workspaces")).toBe(true);
     expect(isAgentSelfFilteringUserSubpath("/workspaces/")).toBe(true);
-    expect(isAgentSelfFilteringUserSubpath("/workspaces/preferred")).toBe(true);
-    expect(
-      isAgentSelfFilteringUserSubpath(
-        "/workspaces/11111111-1111-7111-8111-111111111111",
-      ),
-    ).toBe(false);
+    expect(isAgentSelfFilteringUserSubpath("/workspaces/preferred")).toBe(
+      false,
+    );
     expect(isAgentSelfFilteringUserSubpath("/organizations")).toBe(false);
   });
 });

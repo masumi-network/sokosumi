@@ -39,6 +39,6 @@ A new client is **identity-only**. Core API access needs `sokosumi:api` in all t
 
 ## Which workspace
 
-`GET /v1/users/me/workspaces` lists the user's personal and organization workspaces, marks the `preferred` one, and counts pending invitations. An empty list means the user has no workspace yet. With `pendingInvitationCount` above 0, send them to Sokosumi to resolve those invitations ([ADR 0051](./adr/0051-cmo-runs-identity-onboarding-over-a-workspaces-resource.md)). With none, send them to Sokosumi's onboarding, or create one with `POST /v1/users/me/workspaces`. `GET /v1/users/me/workspaces/preferred` returns only the preferred workspace, and 404 `no_preferred_workspace` when the user has none.
+`GET /v1/users/me/workspaces` lists the user's personal and organization workspaces, marks the `preferred` one, and counts pending invitations. An empty list means the user has no workspace yet. With `pendingInvitationCount` above 0, send them to Sokosumi to resolve those invitations ([ADR 0051](./adr/0051-cmo-runs-identity-onboarding-over-a-workspaces-resource.md)). With none, send them to Sokosumi's onboarding, or create one with `POST /v1/users/me/workspaces`.
 
 A coworker integration can also list the workspaces its vendor may act in with its coworker key and `X-Context-User-Id`, then sends `X-Context-Organization-Id` on later calls: [`coworker/vendor-workspace-grants-api.md`](./coworker/vendor-workspace-grants-api.md).
