@@ -371,9 +371,12 @@ struct WorkspaceRealtimeTests {
       (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: replyId, roomId: roomA, content: "")])),
-      (200, realtimeReadBody(id: roomA)),
       (200, results)
     ])
+    // No realtime connection here, so the open room's fallback poll reads history every 3 s while a window is
+    // active; with none active it waits (and nothing is marked read), so the script holds exactly the reads this test
+    // makes however slow the run.
+    state.setWindowVisible(false, window: realtimeWindow)
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
     let placeholder = try #require(state.transcriptMessages.first { $0.id == replyId })
