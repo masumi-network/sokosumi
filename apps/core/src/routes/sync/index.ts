@@ -15,6 +15,7 @@ import mountGetNotificationFollowUpsSync from "./notification-follow-ups/get.js"
 import mountGetNotificationPublishesSync from "./notification-publishes/get.js";
 import mountGetProjectClosesSync from "./project-closes/get.js";
 import mountGetSkillCatalogSync from "./skill-catalog/get.js";
+import mountGetSocialPerformanceSync from "./social-performance/get.js";
 import mountGetSocialPostsPublishSync from "./social-posts-publish/get.js";
 import mountGetSokoBotAvatarsSync from "./soko-bot-avatars/get.js";
 import mountGetSokoBotEventsSync from "./soko-bot-events/get.js";
@@ -47,6 +48,7 @@ mountGetNotificationPublishesSync(app);
 mountGetProjectClosesSync(app);
 mountGetSkillCatalogSync(app);
 mountGetSocialPostsPublishSync(app);
+mountGetSocialPerformanceSync(app);
 mountGetSourceImportSync(app);
 mountGetSokoBotEventsSync(app);
 mountGetSokoBotAvatarsSync(app);

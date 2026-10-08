@@ -5,6 +5,10 @@ import type {
   CreateSocialPostRequest,
   DisconnectProjectSocialConnectionResponse,
   GetProjectsByIdCalendarData,
+  GetProjectsByIdSocialConnectionsByConnectionIdPerformanceAudienceData,
+  GetProjectsByIdSocialConnectionsByConnectionIdPerformanceDiscoveryData,
+  GetProjectsByIdSocialConnectionsPerformanceData,
+  GetWorkspacesByIdSocialPerformanceData,
   InitiateProjectSocialConnectionRequest,
   InitiateProjectSocialConnectionResponse,
   JobSummary,
@@ -347,6 +351,72 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function listSocialPerformance(
+    projectId: string,
+    params: NonNullable<
+      GetProjectsByIdSocialConnectionsPerformanceData["query"]
+    > = {},
+  ) {
+    const result = await coreClient.getProjectsByIdSocialConnectionsPerformance(
+      projectId,
+      params,
+    );
+    return result.data;
+  }
+
+  async function listWorkspaceSocialPerformance(
+    workspaceId: string,
+    params: NonNullable<GetWorkspacesByIdSocialPerformanceData["query"]> = {},
+  ) {
+    return (
+      await coreClient.getWorkspacesByIdSocialPerformance(workspaceId, params)
+    ).data;
+  }
+
+  async function listSocialPerformanceAudience(
+    projectId: string,
+    connectionId: string,
+    params?: GetProjectsByIdSocialConnectionsByConnectionIdPerformanceAudienceData["query"],
+  ) {
+    return (
+      await coreClient.getProjectsByIdSocialConnectionsByConnectionIdPerformanceAudience(
+        projectId,
+        connectionId,
+        params,
+      )
+    ).data;
+  }
+
+  async function getSocialPerformanceBenchmark(
+    projectId: string,
+    connectionId: string,
+    username: string,
+  ) {
+    return (
+      await coreClient.getProjectsByIdSocialConnectionsByConnectionIdPerformanceBenchmark(
+        projectId,
+        connectionId,
+        username,
+      )
+    ).data;
+  }
+
+  async function listSocialPerformanceDiscovery(
+    projectId: string,
+    connectionId: string,
+    params: NonNullable<
+      GetProjectsByIdSocialConnectionsByConnectionIdPerformanceDiscoveryData["query"]
+    >,
+  ) {
+    return (
+      await coreClient.getProjectsByIdSocialConnectionsByConnectionIdPerformanceDiscovery(
+        projectId,
+        connectionId,
+        params,
+      )
+    ).data;
+  }
+
   async function listSocialPostStatistics(
     projectId: string,
     params: {
@@ -582,6 +652,11 @@ export const projectService = (() => {
     listSocialPosts,
     listSocialPostStatistics,
     listSocialAccountStatistics,
+    listSocialPerformance,
+    listWorkspaceSocialPerformance,
+    listSocialPerformanceAudience,
+    getSocialPerformanceBenchmark,
+    listSocialPerformanceDiscovery,
     refreshSocialAccountStatistics,
     refreshSocialPostStatistics,
     getSocialPost,

@@ -12,14 +12,19 @@ import { SocialPostPreview } from "./social-post-preview";
 
 interface SocialPostPerformanceCardProps {
   post: SocialAccountPost;
-  account?: SocialAccountStatisticsAccount;
+  account?: Pick<
+    SocialAccountStatisticsAccount,
+    "displayName" | "externalHandle" | "avatarUrl"
+  >;
   children?: ReactNode;
+  footer?: ReactNode;
 }
 
 export function SocialPostPerformanceCard({
   post,
   account,
   children,
+  footer,
 }: SocialPostPerformanceCardProps) {
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const formatter = useFormatter();
@@ -32,7 +37,7 @@ export function SocialPostPerformanceCard({
           avatarUrl: account?.avatarUrl ?? null,
         }}
         className="bg-card rounded-none border-0"
-        media={[]}
+        media={post.media ?? []}
         provider={post.provider}
         text={post.text || t("mediaPost")}
         timestamp={post.publishedAt ? new Date(post.publishedAt) : null}
@@ -57,6 +62,7 @@ export function SocialPostPerformanceCard({
             error: null,
           }}
         />
+        {footer}
         <div className="flex flex-wrap items-start justify-between gap-3 text-xs">
           {children ? (
             <details className="group min-w-0">

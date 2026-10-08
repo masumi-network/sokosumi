@@ -17,6 +17,10 @@ describe("account-wide Social statistics", () => {
     for (const capability of [
       "list_social_account_statistics",
       "refresh_social_account_statistics",
+      "list_social_performance",
+      "read_social_performance_audience",
+      "read_social_performance_benchmark",
+      "read_social_performance_discovery",
     ] as const) {
       for (const route of SOKO_BOT_ROUTES) {
         expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).toContain(capability);
@@ -24,7 +28,63 @@ describe("account-wide Social statistics", () => {
       expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).not.toContain(capability);
     }
   });
+  it("validates scoped audience post selection and bounded public handles", () => {
+    expect(
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_performance_audience.safeParse({
+        projectId,
+        connectionId,
+        kind: "likers",
+      }).success,
+    ).toBe(false);
+    expect(
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_performance_audience.parse({
+        projectId,
+        connectionId,
+        kind: "mentions",
+      }),
+    ).toEqual({ projectId, connectionId, kind: "mentions", limit: 20 });
+    expect(
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_performance_benchmark.safeParse({
+        projectId,
+        connectionId,
+        username: "https://example.com",
+      }).success,
+    ).toBe(false);
+  });
+  it("requires a constrained discovery query and rejects inverted audience thresholds", () => {
+    const schema =
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_performance_discovery;
+    expect(schema.safeParse({ projectId, connectionId }).success).toBe(false);
+    expect(
+      schema.safeParse({
+        projectId,
+        connectionId,
+        topic: "safe OR from:someone",
+      }).success,
+    ).toBe(false);
+    expect(
+      schema.safeParse({
+        projectId,
+        connectionId,
+        topic: "AI",
+        minFollowers: 100,
+        maxFollowers: 20,
+      }).success,
+    ).toBe(false);
+    expect(
+      schema.parse({ projectId, connectionId, topic: "AI agents" }),
+    ).toMatchObject({ limit: 20, format: "any", sort: "recency" });
+  });
 
+  it("supports current-workspace performance without allowing model-supplied workspace identity", () => {
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_social_performance;
+    expect(schema.parse({ provider: "x" })).toMatchObject({
+      provider: "x",
+      limit: 20,
+    });
+    expect(schema.safeParse({ workspaceId: projectId }).success).toBe(false);
+    expect(schema.parse({ projectId })).toMatchObject({ projectId });
+  });
   it("validates account filters and lets history continue without a caller-supplied cursor", () => {
     const schemas = SOKO_BOT_TOOL_INPUT_SCHEMAS;
     expect(
@@ -55,7 +115,7 @@ describe("account-wide Social statistics", () => {
   it("teaches the new default to evaluate externally published posts without changing v22", () => {
     const version = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
     const prior = getSokoBotVersion("v22");
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v23");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v24");
     expect(version.model).toBe(prior.model);
     expect(version.systemPrompt).toBe(prior.systemPrompt);
     const prompt = composeSystemPrompt(version);

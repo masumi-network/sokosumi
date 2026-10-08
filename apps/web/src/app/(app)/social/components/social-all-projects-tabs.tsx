@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 
 import { SOCIAL_TABS } from "@/app/projects/components/social-posts/constants";
+import { SocialPostStatistics } from "@/app/projects/components/social-posts/social-post-statistics";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
   SEGMENTED_TABS_LIST_CLASS_NAME,
@@ -39,11 +40,13 @@ export function SocialAllProjectsTabs({
   actions,
   calendar,
   notice,
+  workspaceId,
 }: {
   actions: React.ReactNode;
   calendar: React.ReactNode;
   /** Why the scoped project could not be opened, when it could not. */
   notice?: string;
+  workspaceId: string;
 }) {
   const t = useTranslations("App.Projects.SocialPosts");
   const [tabParam, setTabParam] = useQueryState(
@@ -99,7 +102,7 @@ export function SocialAllProjectsTabs({
         <SocialAccountsProjectPrompt kind="drafts" />
       </TabsContent>
       <TabsContent value="statistics">
-        <SocialAccountsProjectPrompt kind="statistics" notice={notice} />
+        <SocialPostStatistics workspaceId={workspaceId} />
       </TabsContent>
       <TabsContent value="accounts">
         <SocialAccountsProjectPrompt notice={notice} />

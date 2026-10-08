@@ -199,6 +199,15 @@ import {
   listSocialAccountStatistics,
   refreshSocialAccountStatistics,
 } from "@/services/social-account-statistics.service";
+import {
+  listSocialPerformance,
+  listWorkspaceSocialPerformance,
+} from "@/services/social-performance.service";
+import {
+  readSocialPerformanceAudience,
+  readSocialPerformanceBenchmark,
+  readSocialPerformanceDiscovery,
+} from "@/services/social-performance-research.service";
 import { publishSocialPostNow } from "@/services/social-post-publisher.service";
 import {
   listSocialPostStatistics,
@@ -3910,6 +3919,10 @@ export class SokoBotRuntimeService {
           input.capability === "list_social_posts" ||
           input.capability === "list_social_post_statistics" ||
           input.capability === "list_social_account_statistics" ||
+          input.capability === "list_social_performance" ||
+          input.capability === "read_social_performance_audience" ||
+          input.capability === "read_social_performance_benchmark" ||
+          input.capability === "read_social_performance_discovery" ||
           input.capability === "get_social_post"
         ) {
           const result = await this.executeAuthorizedTool(input);
@@ -4321,6 +4334,44 @@ export class SokoBotRuntimeService {
           await refreshSocialPostStatistics({ ...params, workspaceId, userId }),
         );
       }
+      case "list_social_performance": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.list_social_performance.parse(
+            input.input,
+          );
+        await this.requireSocialAccess(authorized);
+        return params.projectId
+          ? listSocialPerformance({
+              ...params,
+              projectId: params.projectId,
+              workspaceId,
+            })
+          : listWorkspaceSocialPerformance({ ...params, workspaceId });
+      }
+      case "read_social_performance_audience": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_performance_audience.parse(
+            input.input,
+          );
+        await this.requireSocialAccess(authorized);
+        return readSocialPerformanceAudience({ ...params, workspaceId });
+      }
+      case "read_social_performance_benchmark": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_performance_benchmark.parse(
+            input.input,
+          );
+        await this.requireSocialAccess(authorized);
+        return readSocialPerformanceBenchmark({ ...params, workspaceId });
+      }
+      case "read_social_performance_discovery": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_performance_discovery.parse(
+            input.input,
+          );
+        await this.requireSocialAccess(authorized);
+        return readSocialPerformanceDiscovery({ ...params, workspaceId });
+      }
       case "list_social_account_statistics": {
         const params =
           SOKO_BOT_TOOL_INPUT_SCHEMAS.list_social_account_statistics.parse(
@@ -4479,6 +4530,10 @@ export class SokoBotRuntimeService {
       case "list_social_post_statistics":
       case "refresh_social_post_statistics":
       case "list_social_account_statistics":
+      case "list_social_performance":
+      case "read_social_performance_audience":
+      case "read_social_performance_benchmark":
+      case "read_social_performance_discovery":
       case "refresh_social_account_statistics":
       case "get_social_post":
       case "create_social_post":

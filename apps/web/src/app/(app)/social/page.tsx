@@ -84,6 +84,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
       <SocialPageShell title={t("title")}>
         <SocialCalendarPreviewProvider>
           <SocialAllProjectsTabs
+            workspaceId={calendar.workspaceId}
             actions={
               <SocialNewPostMenu
                 project={null}

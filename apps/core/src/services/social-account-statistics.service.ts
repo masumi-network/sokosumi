@@ -7,6 +7,7 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type SocialAccountStatistics,
+  socialAccountMetricSchema,
   socialAccountPostSchema,
   socialAccountStatisticsAccountSchema,
   socialAccountStatisticsPageSchema,
@@ -14,6 +15,7 @@ import {
   socialAccountStatisticsSchema,
 } from "@/schemas/social-account-statistics.schema";
 import { listProjectSocialConnections } from "@/services/project-social-connections.service";
+import { recordSocialPerformanceSnapshot } from "@/services/social-performance-snapshots.service";
 
 interface AccountStatisticsScope {
   projectId: string;
@@ -39,6 +41,15 @@ const EMPTY_STATISTICS: SocialAccountStatistics = {
   historyError: null,
   metricWarning: null,
 };
+const X_PRIVATE_METRIC_KEYS = new Set([
+  "url_link_clicks",
+  "user_profile_clicks",
+  "engagements",
+  "organic_impression_count",
+  "organic_like_count",
+  "organic_reply_count",
+  "organic_repost_count",
+]);
 
 /** Reuse the connected-account Project/workspace guard; raw credentials never leave Core. */
 async function scopedConnections(input: AccountStatisticsScope) {
@@ -134,8 +145,12 @@ export async function refreshSocialAccountStatistics(
     userId: string;
     connectionId: string;
     continueHistory?: boolean;
+    /** Daily cron refreshes the profile and latest posts without restarting an archive cursor. */
+    refreshHead?: boolean;
+    signal?: AbortSignal;
   },
 ) {
+  input.signal?.throwIfAborted();
   const accounts = await scopedConnections(input);
   const target = accounts.find(
     ({ account }) => account.id === input.connectionId,
@@ -155,7 +170,15 @@ export async function refreshSocialAccountStatistics(
     throw badRequest("Refresh the account before continuing its history");
   const attemptedAt = new Date().toISOString();
   let snapshot: SocialAccountStatistics;
-  let preservePostMetrics = false;
+  const preservePostMetrics = new Set<string>();
+  const postObservationTimes = new Map<string, Date>();
+  let profileMeasured = false;
+  let headFetchedAt: Date | null = null;
+  let paginatedHead: {
+    externalIds: string[];
+    nextCursor: string;
+    fetchedAt: Date;
+  } | null = null;
   let posts: ReturnType<
     typeof socialAccountStatisticsProviderPageSchema.parse
   >["posts"] = [];
@@ -168,41 +191,97 @@ export async function refreshSocialAccountStatistics(
         externalAccountId: record.externalAccountId,
         externalHandle: record.externalHandle,
         cursor: input.continueHistory ? previous.historyNextCursor : null,
-        includeProfile: !input.continueHistory,
+        includeProfile: !input.continueHistory || Boolean(input.refreshHead),
+        signal: input.signal,
       }),
     );
+    input.signal?.throwIfAborted();
     const fetchedAt = new Date().toISOString();
     const measuredProfile =
       page.accountMetrics !== null &&
       page.accountMetrics.some((metric) => metric.value !== null);
     const refreshProfile =
       measuredProfile && !(page.accountError && previous.metrics.length > 0);
-    preservePostMetrics = page.metricWarning !== null;
+    profileMeasured = refreshProfile;
     const historySucceeded = page.historyError === null;
-    // Verified partial rows remain useful even when the provider reports a history limit.
+    if (!input.continueHistory && historySucceeded)
+      headFetchedAt = new Date(fetchedAt);
+    // Continuation progress is retained unless the transaction detects a new uncovered head gap.
     const historyProgress = historySucceeded || page.posts.length > 0;
+    for (const post of page.posts)
+      postObservationTimes.set(post.externalId, new Date(fetchedAt));
+    if (page.metricWarning !== null)
+      for (const post of page.posts) preservePostMetrics.add(post.externalId);
+    let headWarning: string | null = null;
+    if (input.continueHistory && input.refreshHead) {
+      try {
+        const head = socialAccountStatisticsProviderPageSchema.parse(
+          await fetchSocialAccountStatisticsPage({
+            provider: record.provider,
+            connectedAccountId: record.composioConnectedAccountId,
+            executorUserId: record.connectorUserId,
+            externalAccountId: record.externalAccountId,
+            externalHandle: record.externalHandle,
+            cursor: null,
+            includeProfile: false,
+            signal: input.signal,
+          }),
+        );
+        input.signal?.throwIfAborted();
+        const observedAt = new Date();
+        if (head.historyError === null) headFetchedAt = observedAt;
+        if (head.historyError === null && head.nextCursor !== null)
+          paginatedHead = {
+            externalIds: head.posts.map((post) => post.externalId),
+            nextCursor: head.nextCursor,
+            fetchedAt: observedAt,
+          };
+        for (const post of head.posts)
+          postObservationTimes.set(post.externalId, observedAt);
+        headWarning = head.historyError ?? head.metricWarning;
+        if (head.metricWarning !== null)
+          for (const post of head.posts)
+            preservePostMetrics.add(post.externalId);
+        page.posts = [
+          ...new Map(
+            [...page.posts, ...head.posts].map((post) => [
+              post.externalId,
+              post,
+            ]),
+          ).values(),
+        ];
+      } catch {
+        input.signal?.throwIfAborted();
+        headWarning =
+          "Latest posts could not be refreshed. Archive import progress is retained.";
+      }
+    }
     posts = page.posts;
     snapshot = {
       metrics: refreshProfile ? (page.accountMetrics ?? []) : previous.metrics,
       fetchedAt: refreshProfile ? fetchedAt : previous.fetchedAt,
       refreshAttemptedAt: attemptedAt,
-      error: input.continueHistory
-        ? previous.error
-        : (page.accountError ??
-          (measuredProfile
-            ? null
-            : "No account metrics are available for this connection.")),
+      error:
+        input.continueHistory && !input.refreshHead
+          ? previous.error
+          : (page.accountError ??
+            (measuredProfile
+              ? null
+              : "No account metrics are available for this connection.")),
       historyNextCursor: historyProgress
         ? page.nextCursor
         : previous.historyNextCursor,
       historyComplete: historySucceeded ? page.nextCursor === null : false,
       historyFetchedAt: historyProgress ? fetchedAt : previous.historyFetchedAt,
       historyError: page.historyError,
-      metricWarning: input.continueHistory
-        ? (page.metricWarning ?? previous.metricWarning)
-        : page.metricWarning,
+      metricWarning:
+        headWarning ??
+        (input.continueHistory
+          ? (page.metricWarning ?? previous.metricWarning)
+          : page.metricWarning),
     };
   } catch {
+    input.signal?.throwIfAborted();
     snapshot = {
       ...previous,
       refreshAttemptedAt: attemptedAt,
@@ -214,11 +293,50 @@ export async function refreshSocialAccountStatistics(
       historyComplete: false,
     };
   }
-  const statistics: Prisma.InputJsonObject = {
-    ...snapshot,
-    metrics: snapshot.metrics.map((metric) => ({ ...metric })),
-  };
+  input.signal?.throwIfAborted();
   const result = await serializableTransaction(async (tx) => {
+    const checkCompletedHeadOverlap =
+      input.refreshHead &&
+      !input.continueHistory &&
+      previous.historyComplete &&
+      snapshot.historyError === null &&
+      snapshot.historyNextCursor !== null;
+    const previousPosts =
+      posts.length &&
+      (record.provider === "x" || checkCompletedHeadOverlap || paginatedHead)
+        ? await tx.socialAccountPost.findMany({
+            where: {
+              connectionId: record.id,
+              externalId: { in: posts.map((post) => post.externalId) },
+            },
+            select: {
+              externalId: true,
+              additionalMetrics: true,
+              fetchedAt: true,
+            },
+          })
+        : [];
+    const cachedIds = new Set(previousPosts.map((post) => post.externalId));
+    if (
+      paginatedHead &&
+      !paginatedHead.externalIds.some((id) => cachedIds.has(id))
+    ) {
+      // The newer gap lies above the old archive cursor. Prioritize its cursor;
+      // revisiting retained archive pages is safer than losing that middle range.
+      snapshot.historyComplete = false;
+      snapshot.historyNextCursor = paginatedHead.nextCursor;
+      snapshot.historyFetchedAt = paginatedHead.fetchedAt.toISOString();
+    }
+    // Reaching the complete cached archive closes the new-post gap. A full page
+    // containing only new identities still needs its provider continuation.
+    if (checkCompletedHeadOverlap && previousPosts.length > 0) {
+      snapshot.historyComplete = true;
+      snapshot.historyNextCursor = null;
+    }
+    const statistics: Prisma.InputJsonObject = {
+      ...snapshot,
+      metrics: snapshot.metrics.map((metric) => ({ ...metric })),
+    };
     const updated = await tx.projectSocialConnection.updateMany({
       where: {
         id: record.id,
@@ -230,7 +348,11 @@ export async function refreshSocialAccountStatistics(
         connectorUserId: record.connectorUserId,
         statistics: { equals: record.statistics ?? Prisma.DbNull },
       },
-      data: { statistics },
+      data: {
+        statistics,
+        performanceRefreshAttemptedAt: new Date(attemptedAt),
+        ...(headFetchedAt ? { performanceHeadFetchedAt: headFetchedAt } : {}),
+      },
     });
     if (updated.count === 0)
       throw conflict(
@@ -238,15 +360,52 @@ export async function refreshSocialAccountStatistics(
       );
     const fetchedAt = new Date(snapshot.historyFetchedAt ?? attemptedAt);
     for (const post of posts) {
+      const previousPost =
+        record.provider === "x"
+          ? previousPosts.find((entry) => entry.externalId === post.externalId)
+          : undefined;
+      const previousMetrics =
+        socialAccountMetricSchema
+          .array()
+          .safeParse(previousPost?.additionalMetrics).data ?? [];
+      const additionalMetrics = [
+        ...post.additionalMetrics,
+        // Expired OAuth observations may be absent altogether from a later public-only page.
+        ...previousMetrics
+          .filter(
+            (value) =>
+              X_PRIVATE_METRIC_KEYS.has(value.key) &&
+              !post.additionalMetrics.some(
+                (current) => current.key === value.key,
+              ),
+          )
+          .map((value) => ({ ...value, value: null })),
+      ].map((value) => {
+        if (value.value !== null || !X_PRIVATE_METRIC_KEYS.has(value.key))
+          return { ...value };
+        const previousValue = previousMetrics.find(
+          (candidate) =>
+            candidate.key === value.key && candidate.value !== null,
+        );
+        return previousValue && previousPost
+          ? {
+              ...previousValue,
+              period: previousValue.period?.startsWith("lifetime:")
+                ? previousValue.period
+                : `lifetime:${previousPost.fetchedAt.toISOString()}`,
+            }
+          : { ...value };
+      });
       const data = {
         text: post.text,
+        contentType: post.contentType,
+        postKind: post.postKind,
+        media: post.media.map((item) => ({ ...item })),
         publishedAt: post.publishedAt ? new Date(post.publishedAt) : null,
         url: post.url,
         metrics: { ...post.metrics },
-        additionalMetrics: post.additionalMetrics.map((metric) => ({
-          ...metric,
-        })),
-        fetchedAt,
+        additionalMetrics,
+        fetchedAt: postObservationTimes.get(post.externalId) ?? fetchedAt,
       };
       await tx.socialAccountPost.upsert({
         where: {
@@ -261,9 +420,32 @@ export async function refreshSocialAccountStatistics(
           externalId: post.externalId,
         },
         // Partial insights must not erase measured counters or their original age.
-        update: preservePostMetrics
-          ? { text: data.text, publishedAt: data.publishedAt, url: data.url }
+        update: preservePostMetrics.has(post.externalId)
+          ? {
+              text: data.text,
+              publishedAt: data.publishedAt,
+              url: data.url,
+              contentType: data.contentType,
+              postKind: data.postKind,
+              media: data.media,
+            }
           : data,
+      });
+    }
+    if (
+      profileMeasured ||
+      posts.some((post) => !preservePostMetrics.has(post.externalId))
+    ) {
+      await recordSocialPerformanceSnapshot(tx, {
+        connectionId: record.id,
+        metrics: profileMeasured
+          ? snapshot.metrics.map((metric) => ({ ...metric }))
+          : null,
+        profileFetchedAt:
+          profileMeasured && snapshot.fetchedAt
+            ? new Date(snapshot.fetchedAt)
+            : null,
+        fetchedAt: new Date(),
       });
     }
     const postCount = await tx.socialAccountPost.count({

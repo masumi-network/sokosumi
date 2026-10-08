@@ -16,7 +16,10 @@ import {
   createSocialPostToolSession,
   executeSocialPostTool,
 } from "@/clients/social-post-providers/tools";
-import type { SocialAccountMetric } from "@/schemas/social-account-statistics.schema";
+import type {
+  SocialAccountMetric,
+  SocialAccountPostMedia,
+} from "@/schemas/social-account-statistics.schema";
 import type { SocialPostMetrics } from "@/schemas/social-post-statistics.schema";
 
 export interface SocialAccountStatisticsContext {
@@ -32,6 +35,9 @@ export interface SocialAccountStatisticsContext {
 interface AccountPost {
   externalId: string;
   text: string;
+  contentType: "text" | "image" | "video" | "carousel" | "link" | "unknown";
+  postKind: "post" | "reply" | "quote" | "repost" | "unknown";
+  media: SocialAccountPostMedia[];
   publishedAt: string | null;
   url: string | null;
   metrics: SocialPostMetrics;
@@ -99,6 +105,20 @@ const TOOLS = {
 };
 // Current version in Meta’s official facebook-python-business-sdk/apiconfig.py.
 const FACEBOOK_GRAPH_VERSION = "v26.0";
+// Versioned member analytics and Posts API; reviewed against September 2026 documentation.
+const LINKEDIN_VERSION = "202609";
+const LINKEDIN_METRICS = [
+  ["IMPRESSION", "impressions"],
+  ["REACTION", "reactions"],
+  ["COMMENT", "comments"],
+  ["RESHARE", "shares"],
+  ["MEMBERS_REACHED", "members_reached"],
+  ["POST_SAVE", "saves"],
+  ["POST_SEND", "post_sends"],
+  ["LINK_CLICKS", "link_clicks"],
+  ["FOLLOWER_GAINED_FROM_CONTENT", "followers_gained_from_content"],
+  ["PROFILE_VIEW_FROM_CONTENT", "profile_views_from_content"],
+] satisfies [string, string][];
 
 function number(value: unknown): number | null {
   const parsed =
@@ -194,6 +214,109 @@ function objects(value: unknown): Record<string, unknown>[] {
         .filter((item): item is Record<string, unknown> => item !== null)
     : [];
 }
+function previewMedia(
+  kind: SocialAccountPostMedia["kind"],
+  source: unknown,
+  thumbnail: unknown = null,
+): SocialAccountPostMedia[] {
+  const mediaUrl = url(source) ?? url(thumbnail);
+  return mediaUrl
+    ? [{ kind, url: mediaUrl, thumbnailUrl: url(thumbnail) }]
+    : [];
+}
+
+function contentType(entry: AccountPost): AccountPost["contentType"] {
+  if (entry.media.length > 1) return "carousel";
+  if (entry.media.some((item) => item.kind === "video" || item.kind === "gif"))
+    return "video";
+  if (entry.media.length) return "image";
+  return /https?:\/\/\S+/i.test(entry.text) ? "link" : "text";
+}
+
+function instagramMedia(
+  item: Record<string, unknown>,
+): SocialAccountPostMedia[] {
+  const children = objects(record(item.children)?.data);
+  const items = children.length ? children : [item];
+  return items
+    .flatMap((child) =>
+      previewMedia(
+        child.media_type === "VIDEO" ? "video" : "image",
+        child.media_url,
+        child.thumbnail_url,
+      ),
+    )
+    .slice(0, 20);
+}
+
+function facebookMedia(
+  item: Record<string, unknown>,
+): SocialAccountPostMedia[] {
+  return objects(record(item.attachments)?.data)
+    .flatMap((attachment) => {
+      const children = objects(record(attachment.subattachments)?.data);
+      return (children.length ? children : [attachment]).flatMap((child) => {
+        const media = record(child.media);
+        return previewMedia(
+          typeof child.type === "string" && child.type.includes("video")
+            ? "video"
+            : "image",
+          media?.source ?? record(media?.image)?.src,
+          record(media?.image)?.src,
+        );
+      });
+    })
+    .slice(0, 20);
+}
+
+function xMedia(item: Record<string, unknown>, data: Record<string, unknown>) {
+  const keys = record(item.attachments)?.media_keys;
+  if (!Array.isArray(keys)) return [];
+  const expanded = objects(record(data.includes)?.media);
+  return keys
+    .flatMap((key) => {
+      const media = expanded.find((candidate) => candidate.media_key === key);
+      if (!media) return [];
+      const kind =
+        media.type === "video"
+          ? "video"
+          : media.type === "animated_gif"
+            ? "gif"
+            : "image";
+      const variant = objects(media.variants)
+        .filter((candidate) => candidate.content_type === "video/mp4")
+        .sort(
+          (left, right) =>
+            (counter(right.bit_rate) ?? 0) - (counter(left.bit_rate) ?? 0),
+        )[0];
+      return previewMedia(
+        kind,
+        variant?.url ?? media.url,
+        media.preview_image_url,
+      );
+    })
+    .slice(0, 20);
+}
+
+function xPostKind(
+  item: Record<string, unknown>,
+  accountId: string,
+): AccountPost["postKind"] {
+  const references = objects(item.referenced_tweets ?? item.referenced_posts);
+  if (
+    references.some(
+      (reference) =>
+        reference.type === "retweeted" || reference.type === "reposted",
+    )
+  )
+    return "repost";
+  if (references.some((reference) => reference.type === "replied_to"))
+    // Self-thread continuations are authored content, not outgoing replies.
+    return item.in_reply_to_user_id === accountId ? "post" : "reply";
+  if (references.some((reference) => reference.type === "quoted"))
+    return "quote";
+  return "post";
+}
 function post(
   item: Record<string, unknown>,
   text: unknown,
@@ -205,6 +328,9 @@ function post(
     ? {
         externalId: id,
         text: typeof text === "string" ? text : "",
+        contentType: "unknown",
+        postKind: "post",
+        media: [],
         publishedAt,
         url: url(link),
         metrics: metrics(),
@@ -290,7 +416,18 @@ async function readNativeHistory(
         { name: "max_results", value: "100", type: "query" },
         {
           name: "post.fields",
-          value: "created_at,public_metrics,note_post",
+          value: "created_at,public_metrics,note_post,attachments,entities",
+          type: "query",
+        },
+        {
+          name: "expansions",
+          value:
+            "attachments.media_keys,author_id,in_reply_to_user_id,referenced_posts",
+          type: "query",
+        },
+        {
+          name: "media.fields",
+          value: "type,url,preview_image_url,variants,public_metrics",
           type: "query",
         },
       ]
@@ -299,7 +436,7 @@ async function readNativeHistory(
         {
           name: "fields",
           value:
-            "id,message,created_time,permalink_url,shares,reactions.summary(true),comments.summary(true),is_published",
+            "id,message,created_time,permalink_url,shares,reactions.summary(true),comments.summary(true),is_published,attachments{media,type,subattachments}",
           type: "query",
         },
       ];
@@ -309,6 +446,32 @@ async function readNativeHistory(
       value: context.cursor,
       type: "query",
     });
+  return readNativeStatistics(context, endpoint, parameters);
+}
+
+export async function readNativeStatistics(
+  context: SocialAccountStatisticsContext,
+  endpoint: string,
+  parameters: { name: string; value: string; type: string }[],
+): Promise<Record<string, unknown>> {
+  const isX = context.provider === "x";
+  // Every endpoint is a fixed read shape; neither a user URL nor a caller header can reach the proxy.
+  const allowed = isX
+    ? /^https:\/\/api\.x\.com\/2\/(?:tweets(?:\/(?:[0-9]{1,19}\/(?:liking_users|retweeted_by)|search\/recent))?|users\/(?:[0-9]{1,19}\/(?:tweets|mentions|followers)|by\/username\/[A-Za-z0-9_]{1,15}))$/.test(
+        endpoint,
+      )
+    : (context.provider === "facebook" &&
+        endpoint ===
+          `https://graph.facebook.com/${FACEBOOK_GRAPH_VERSION}/${context.externalAccountId}/posts`) ||
+      (context.provider === "linkedin" &&
+        [
+          "https://api.linkedin.com/rest/posts",
+          "https://api.linkedin.com/rest/memberCreatorPostAnalytics",
+          "https://api.linkedin.com/rest/memberFollowersCount",
+          "https://api.linkedin.com/rest/organizationalEntityShareStatistics",
+        ].includes(endpoint));
+  if (!allowed || parameters.some((value) => value.type !== "query"))
+    throw new TypeError("Unsupported native statistics endpoint or parameter");
   const request = async (target: string) => {
     const response = await projectComposioFetch(
       "/api/v3.1/tools/execute/proxy",
@@ -319,7 +482,24 @@ async function readNativeHistory(
           connected_account_id: context.connectedAccountId,
           endpoint: target,
           method: "GET",
-          parameters,
+          parameters: [
+            ...parameters,
+            ...(context.provider === "linkedin"
+              ? [
+                  {
+                    name: "Linkedin-Version",
+                    value: LINKEDIN_VERSION,
+                    type: "header",
+                  },
+                  {
+                    name: "X-Restli-Protocol-Version",
+                    value: "2.0.0",
+                    type: "header",
+                  },
+                  { name: "X-RestLi-Method", value: "FINDER", type: "header" },
+                ]
+              : []),
+          ],
         },
       },
     );
@@ -347,7 +527,7 @@ async function readNativeHistory(
     // and only on the proxy's domain-validation rejection, never API failures.
     if (!isX || !(error instanceof ProxyDomainMismatchError)) throw error;
     result = await request(
-      `https://api.twitter.com/2/users/${context.externalAccountId}/tweets`,
+      endpoint.replace("https://api.x.com/", "https://api.twitter.com/"),
     );
   }
   const data = record(result.data);
@@ -359,6 +539,359 @@ async function readNativeHistory(
   )
     throw new TypeError("Account history unavailable");
   return data;
+}
+
+function linkedInAuthor(context: SocialAccountStatisticsContext): string {
+  const id = context.externalAccountId;
+  if (
+    /^urn:li:(?:person:[A-Za-z0-9_-]{1,100}|organization:[0-9]{1,19})$/.test(id)
+  )
+    return id;
+  if (/^[A-Za-z0-9_-]{1,100}$/.test(id)) return `urn:li:person:${id}`;
+  throw new TypeError("Invalid LinkedIn author");
+}
+
+async function linkedInMetric(
+  context: SocialAccountStatisticsContext,
+  queryType: string,
+  key: string,
+  entity?: string,
+): Promise<SocialAccountMetric> {
+  const data = await readNativeStatistics(
+    context,
+    "https://api.linkedin.com/rest/memberCreatorPostAnalytics",
+    [
+      { name: "q", value: entity ? "entity" : "me", type: "query" },
+      { name: "queryType", value: queryType, type: "query" },
+      { name: "aggregation", value: "TOTAL", type: "query" },
+      ...(entity
+        ? [
+            {
+              name: "entity",
+              value: `(${entity.startsWith("urn:li:ugcPost:") ? "ugc" : "share"}:${encodeURIComponent(entity)})`,
+              type: "query",
+            },
+          ]
+        : []),
+    ],
+  );
+  const element = requiredList(data, "elements", 10).find((item) => {
+    const metricType =
+      string(item.metricType) ??
+      Object.values(record(item.metricType) ?? {}).find(
+        (value) => typeof value === "string",
+      );
+    return metricType === queryType;
+  });
+  if (!element || counter(element.count) === null)
+    throw new TypeError("LinkedIn metric unavailable");
+  if (entity) {
+    const target = Object.values(record(element.targetEntity) ?? {});
+    if (target.length && !target.includes(entity))
+      throw new TypeError("LinkedIn metric belongs to another post");
+  }
+  return metric(key, counter(element.count));
+}
+
+async function linkedInMetrics(
+  context: SocialAccountStatisticsContext,
+  entity?: string,
+): Promise<{ values: SocialAccountMetric[]; incomplete: boolean }> {
+  // A denied first request avoids exhausting quotas on the same missing grant.
+  const values = [
+    await linkedInMetric(context, "IMPRESSION", "impressions", entity),
+  ];
+  let incomplete = false;
+  for (let start = 1; start < LINKEDIN_METRICS.length; start += 3) {
+    const results = await Promise.allSettled(
+      LINKEDIN_METRICS.slice(start, start + 3).map(([type, key]) =>
+        linkedInMetric(context, type, key, entity),
+      ),
+    );
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") values.push(result.value);
+      else {
+        context.signal?.throwIfAborted();
+        incomplete = true;
+        const specification = LINKEDIN_METRICS[start + index];
+        if (specification) values.push(metric(specification[1], null));
+      }
+    });
+  }
+  return { values, incomplete };
+}
+
+async function linkedInOrganizationStatistics(
+  context: SocialAccountStatisticsContext,
+  posts: AccountPost[] = [],
+) {
+  const parameters = [
+    { name: "q", value: "organizationalEntity", type: "query" },
+    {
+      name: "organizationalEntity",
+      value: linkedInAuthor(context),
+      type: "query",
+    },
+  ];
+  for (const [name, prefix] of [
+    ["shares", "urn:li:share:"],
+    ["ugcPosts", "urn:li:ugcPost:"],
+  ]) {
+    const ids = posts
+      .filter((entry) => entry.externalId.startsWith(prefix))
+      .map((entry) => encodeURIComponent(entry.externalId));
+    if (ids.length)
+      parameters.push({ name, value: `List(${ids.join(",")})`, type: "query" });
+  }
+  const data = await readNativeStatistics(
+    context,
+    "https://api.linkedin.com/rest/organizationalEntityShareStatistics",
+    parameters,
+  );
+  const elements = requiredList(data, "elements", posts.length || 1);
+  if (
+    elements.some(
+      (item) => item.organizationalEntity !== linkedInAuthor(context),
+    )
+  )
+    throw new TypeError("LinkedIn insights belong to another organization");
+  return elements;
+}
+
+async function linkedInHistory(
+  context: SocialAccountStatisticsContext,
+  result: AccountPage,
+) {
+  const author = linkedInAuthor(context);
+  const offset = context.cursor === null ? 0 : counter(context.cursor);
+  if (offset === null) throw new TypeError("Invalid LinkedIn history cursor");
+  const data = await readNativeStatistics(
+    context,
+    "https://api.linkedin.com/rest/posts",
+    [
+      { name: "q", value: "author", type: "query" },
+      { name: "author", value: author, type: "query" },
+      { name: "count", value: "5", type: "query" },
+      { name: "start", value: String(offset), type: "query" },
+      { name: "sortBy", value: "CREATED", type: "query" },
+    ],
+  );
+  for (const item of requiredList(data, "elements", 5)) {
+    if (item.author !== author || item.lifecycleState !== "PUBLISHED") continue;
+    const id = string(item.id);
+    if (!id || !/^urn:li:(?:share|ugcPost):[0-9]{1,19}$/.test(id)) continue;
+    const milliseconds = counter(item.publishedAt);
+    const entry = post(
+      item,
+      item.commentary,
+      milliseconds === null ? null : date(new Date(milliseconds).toJSON()),
+      `https://www.linkedin.com/feed/update/${id}/`,
+    );
+    if (!entry) continue;
+    const content = record(item.content);
+    const mediaId = string(record(content?.media)?.id);
+    const article = record(content?.article);
+    entry.postKind = record(item.reshareContext) ? "repost" : "post";
+    entry.contentType = record(content?.multiImage)
+      ? "carousel"
+      : mediaId?.startsWith("urn:li:video:")
+        ? "video"
+        : mediaId?.startsWith("urn:li:image:")
+          ? "image"
+          : article
+            ? "link"
+            : content && Object.keys(content).length
+              ? "unknown"
+              : contentType(entry);
+    entry.media = article ? previewMedia("image", article.thumbnail) : [];
+    result.posts.push(entry);
+  }
+  const next = objects(record(data.paging)?.links).find(
+    (link) => link.rel === "next",
+  );
+  if (next) {
+    const href = url(next.href);
+    if (!href) throw new TypeError("Invalid LinkedIn history pagination");
+    const parsed = new URL(href);
+    const nextOffset = counter(parsed.searchParams.get("start"));
+    if (
+      parsed.origin !== "https://api.linkedin.com" ||
+      parsed.pathname !== "/rest/posts" ||
+      nextOffset === null ||
+      nextOffset <= offset
+    )
+      throw new TypeError("Invalid LinkedIn history pagination");
+    result.nextCursor = String(nextOffset);
+  }
+  if (author.startsWith("urn:li:organization:")) {
+    if (!result.posts.length) return;
+    try {
+      const insights = await linkedInOrganizationStatistics(
+        context,
+        result.posts,
+      );
+      const cutoff = new Date();
+      cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 1);
+      for (const entry of result.posts) {
+        const value = insights.find(
+          (item) => (item.share ?? item.ugcPost) === entry.externalId,
+        );
+        const statistics = record(value?.totalShareStatistics);
+        // Values outside the rolling window cannot be described as post lifetime counters.
+        if (!entry.publishedAt || new Date(entry.publishedAt) < cutoff) {
+          if (value)
+            entry.additionalMetrics = counts(statistics, [
+              "impressionCount",
+              "likeCount",
+              "commentCount",
+              "shareCount",
+              "clickCount",
+              "uniqueImpressionsCount",
+            ]).map((value) => ({
+              ...value,
+              key: `organic_${value.key}`,
+              period: "rolling_12_months_organic",
+            }));
+          continue;
+        }
+        // LinkedIn explicitly documents that omitted in-window posts have zero activity.
+        const count = (key: string) => (value ? counter(statistics?.[key]) : 0);
+        entry.metrics = {
+          ...metrics(),
+          impressions: count("impressionCount"),
+          likes: count("likeCount"),
+          comments: count("commentCount"),
+          shares: count("shareCount"),
+        };
+        entry.additionalMetrics = [
+          metric("click_count", count("clickCount")),
+          metric("unique_impressions", count("uniqueImpressionsCount")),
+          ...(number(statistics?.likeCount) !== null &&
+          (number(statistics?.likeCount) ?? 0) < 0
+            ? [metric("organic_like_adjustments", statistics?.likeCount)]
+            : []),
+        ];
+      }
+    } catch {
+      context.signal?.throwIfAborted();
+      result.metricWarning =
+        "LinkedIn organization insights require rw_organization_admin and an administrator role. Published posts remain available.";
+    }
+    return;
+  }
+  let permissionDenied = false;
+  for (const entry of result.posts) {
+    if (permissionDenied) break;
+    try {
+      const insights = await linkedInMetrics(context, entry.externalId);
+      const counters = new Map(
+        insights.values.map((value) => [value.key, value.value]),
+      );
+      entry.metrics = {
+        ...metrics(),
+        impressions: counter(counters.get("impressions")),
+        likes: counter(counters.get("reactions")),
+        comments: counter(counters.get("comments")),
+        shares: counter(counters.get("shares")),
+        saves: counter(counters.get("saves")),
+      };
+      entry.additionalMetrics = insights.values.filter(
+        (value) =>
+          !["impressions", "reactions", "comments", "shares", "saves"].includes(
+            value.key,
+          ),
+      );
+      if (insights.incomplete)
+        result.metricWarning =
+          "LinkedIn published posts were imported, but some member analytics are unavailable. Check the r_member_postAnalytics permission and Community Management app access.";
+    } catch {
+      context.signal?.throwIfAborted();
+      permissionDenied = true;
+      result.metricWarning =
+        "LinkedIn published posts were imported, but member analytics are unavailable. Check the r_member_postAnalytics permission and Community Management app access.";
+    }
+  }
+}
+
+/** Private counters expire at X after 30 days; public history remains usable when OAuth denies them. */
+async function enrichXPrivateMetrics(
+  context: SocialAccountStatisticsContext,
+  posts: AccountPost[],
+) {
+  const cutoff = Date.now() - 30 * 86400000;
+  const eligible = posts.filter(
+    (entry) =>
+      entry.postKind !== "repost" &&
+      /^\d{1,19}$/.test(entry.externalId) &&
+      entry.publishedAt !== null &&
+      new Date(entry.publishedAt).getTime() > cutoff,
+  );
+  if (!eligible.length) return;
+  // The batch Composio lookup uses app authentication; native proxy keeps the owner's OAuth context.
+  try {
+    const data = await readNativeStatistics(
+      context,
+      "https://api.x.com/2/tweets",
+      [
+        {
+          name: "ids",
+          value: eligible.map((entry) => entry.externalId).join(","),
+          type: "query",
+        },
+        {
+          name: "post.fields",
+          value: "non_public_metrics,organic_metrics",
+          type: "query",
+        },
+        { name: "expansions", value: "author_id", type: "query" },
+      ],
+    );
+    for (const item of requiredList(data, "data")) {
+      const entry = eligible.find((post) => post.externalId === item.id);
+      if (
+        !entry ||
+        (item.author_id !== undefined &&
+          item.author_id !== context.externalAccountId)
+      )
+        continue;
+      const nonPublic = record(item.non_public_metrics);
+      const organic = record(item.organic_metrics);
+      const privateMetrics = [
+        ...counts(nonPublic, [
+          "url_link_clicks",
+          "user_profile_clicks",
+          "engagements",
+        ]),
+        ...[
+          "impression_count",
+          "like_count",
+          "reply_count",
+          "repost_count",
+        ].map((key) =>
+          metric(
+            `organic_${key}`,
+            counter(
+              organic?.[key] ??
+                (key === "repost_count" ? organic?.retweet_count : undefined),
+            ),
+          ),
+        ),
+      ].map((value) => ({
+        ...value,
+        period: `lifetime:${new Date().toISOString()}`,
+      }));
+      entry.additionalMetrics = [
+        ...entry.additionalMetrics.filter(
+          (value) =>
+            !privateMetrics.some((candidate) => candidate.key === value.key),
+        ),
+        ...privateMetrics,
+      ];
+    }
+  } catch {
+    context.signal?.throwIfAborted();
+    // Missing scopes/private metrics must not stop the public timeline refresh.
+  }
 }
 
 async function profile(
@@ -544,9 +1077,64 @@ async function profile(
     }
     case "linkedin": {
       await read("LINKEDIN_GET_MY_INFO", {});
-      result.accountMetrics = [];
-      result.accountError =
-        "LinkedIn personal account statistics are not available through this connection.";
+      try {
+        if (linkedInAuthor(context).startsWith("urn:li:organization:")) {
+          const [insight] = await linkedInOrganizationStatistics(context);
+          if (!insight)
+            throw new TypeError("LinkedIn organization insights unavailable");
+          result.accountMetrics = counts(record(insight.totalShareStatistics), [
+            "impressionCount",
+            "uniqueImpressionsCount",
+            "clickCount",
+            "likeCount",
+            "commentCount",
+            "shareCount",
+          ]).map((value) => ({
+            ...value,
+            period: "rolling_12_months_organic",
+          }));
+          const likes = number(record(insight.totalShareStatistics)?.likeCount);
+          if (likes !== null && likes < 0)
+            result.accountMetrics.push(
+              metric(
+                "organic_like_adjustments",
+                likes,
+                "rolling_12_months_organic",
+              ),
+            );
+          break;
+        }
+        const analytics = await linkedInMetrics(context);
+        result.accountMetrics = analytics.values;
+        if (analytics.incomplete)
+          result.accountError =
+            "Some LinkedIn member analytics are unavailable. Check the r_member_postAnalytics permission and Community Management app access.";
+      } catch {
+        context.signal?.throwIfAborted();
+        result.accountError = linkedInAuthor(context).startsWith(
+          "urn:li:organization:",
+        )
+          ? "LinkedIn organization insights require rw_organization_admin and an administrator role. Reconnect after these are enabled."
+          : "LinkedIn member analytics require the r_member_postAnalytics permission and approved Community Management app access. Reconnect after these are enabled.";
+      }
+      if (!linkedInAuthor(context).startsWith("urn:li:organization:"))
+        try {
+          const followerData = await readNativeStatistics(
+            context,
+            "https://api.linkedin.com/rest/memberFollowersCount",
+            [{ name: "q", value: "me", type: "query" }],
+          );
+          const [follower] = requiredList(followerData, "elements", 1);
+          const count = counter(follower?.memberFollowersCount);
+          if (count === null)
+            throw new TypeError("LinkedIn follower count unavailable");
+          result.accountMetrics ??= [];
+          result.accountMetrics.push(metric("followers_count", count));
+        } catch {
+          context.signal?.throwIfAborted();
+          result.accountError ??=
+            "LinkedIn follower counts require r_member_profileAnalytics and approved Community Management app access. Other permitted post analytics remain available.";
+        }
       break;
     }
   }
@@ -557,6 +1145,72 @@ async function profile(
     result.accountMetrics = null;
     result.accountError = `${socialPostProviderLabel(context.provider)} account totals are unavailable. Check the connection permissions.`;
   }
+}
+
+export function parseXAccountPosts(
+  data: Record<string, unknown>,
+  accountId: string,
+): AccountPost[] {
+  const posts: AccountPost[] = [];
+  for (const item of requiredList(data, "data")) {
+    if (item.author_id !== undefined && item.author_id !== accountId) continue;
+    const entry = post(
+      item,
+      record(item.note_post)?.text ??
+        record(item.note_tweet)?.text ??
+        item.text,
+      date(item.created_at),
+      `https://x.com/i/status/${string(item.id) ?? ""}`,
+    );
+    if (!entry) continue;
+    entry.postKind = xPostKind(item, accountId);
+    entry.media = xMedia(item, data);
+    const mediaKeys = record(item.attachments)?.media_keys;
+    const expandedMedia = objects(record(data.includes)?.media);
+    const singleMedia = Array.isArray(mediaKeys)
+      ? expandedMedia.find((value) => value.media_key === mediaKeys[0])
+      : undefined;
+    entry.contentType =
+      Array.isArray(mediaKeys) && mediaKeys.length > 1
+        ? "carousel"
+        : singleMedia?.type === "photo"
+          ? "image"
+          : singleMedia?.type === "video" ||
+              singleMedia?.type === "animated_gif"
+            ? "video"
+            : Array.isArray(mediaKeys) && mediaKeys.length
+              ? "unknown"
+              : contentType(entry);
+    const count = record(item.public_metrics);
+    entry.metrics = {
+      ...metrics(),
+      impressions: counter(count?.impression_count),
+      likes: counter(count?.like_count),
+      comments: counter(count?.reply_count),
+      shares: counter(count?.repost_count ?? count?.retweet_count),
+      saves: counter(count?.bookmark_count),
+    };
+    entry.additionalMetrics = counts(count, ["quote_count"]);
+    entry.additionalMetrics.push(
+      ...counts(null, [
+        "url_link_clicks",
+        "user_profile_clicks",
+        "engagements",
+      ]),
+    );
+    if (Array.isArray(mediaKeys)) {
+      const videoViews = expandedMedia
+        .filter(
+          (media) =>
+            mediaKeys.includes(media.media_key) && media.type === "video",
+        )
+        .map((media) => counter(record(media.public_metrics)?.view_count));
+      if (videoViews.length === 1) entry.metrics.views = videoViews[0];
+      // X video counts belong to the media, so summing multiple videos would misrepresent post views.
+    }
+    posts.push(entry);
+  }
+  return posts;
 }
 
 async function history(
@@ -572,33 +1226,8 @@ async function history(
       const data = await readNativeHistory(context);
       if (data.data === undefined && record(data.meta)?.result_count === 0)
         data.data = [];
-      for (const item of requiredList(data, "data")) {
-        if (
-          item.author_id !== undefined &&
-          item.author_id !== context.externalAccountId
-        )
-          continue;
-        const entry = post(
-          item,
-          record(item.note_post)?.text ??
-            record(item.note_tweet)?.text ??
-            item.text,
-          date(item.created_at),
-          `https://x.com/i/status/${string(item.id) ?? ""}`,
-        );
-        if (!entry) continue;
-        const count = record(item.public_metrics);
-        entry.metrics = {
-          ...metrics(),
-          impressions: counter(count?.impression_count),
-          likes: counter(count?.like_count),
-          comments: counter(count?.reply_count),
-          shares: counter(count?.repost_count ?? count?.retweet_count),
-          saves: counter(count?.bookmark_count),
-        };
-        entry.additionalMetrics = counts(count, ["quote_count"]);
-        result.posts.push(entry);
-      }
+      result.posts = parseXAccountPosts(data, context.externalAccountId);
+      await enrichXPrivateMetrics(context, result.posts);
       result.nextCursor = cursor(record(data.meta)?.next_token);
       if (record(data.meta)?.next_token && !result.nextCursor)
         throw new TypeError("Invalid history pagination");
@@ -619,6 +1248,26 @@ async function history(
           item.permalink_url,
         );
         if (!entry) continue;
+        entry.media = facebookMedia(item);
+        const attachments = objects(record(item.attachments)?.data).flatMap(
+          (value) => {
+            const children = objects(record(value.subattachments)?.data);
+            return children.length ? children : [value];
+          },
+        );
+        const attachmentType = string(attachments[0]?.type);
+        entry.contentType =
+          attachments.length > 1
+            ? "carousel"
+            : attachmentType?.includes("video")
+              ? "video"
+              : attachmentType === "photo"
+                ? "image"
+                : attachmentType === "share" || attachmentType === "link"
+                  ? "link"
+                  : attachments.length && !entry.media.length
+                    ? "unknown"
+                    : contentType(entry);
         entry.metrics.likes = counter(
           record(record(item.reactions)?.summary)?.total_count,
         );
@@ -641,7 +1290,7 @@ async function history(
         ig_user_id: context.externalAccountId,
         limit: 10,
         fields:
-          "id,caption,timestamp,permalink,like_count,comments_count,media_product_type",
+          "id,caption,timestamp,permalink,like_count,comments_count,media_product_type,media_type,media_url,thumbnail_url,children{media_type,media_url,thumbnail_url}",
         ...(context.cursor ? { after: context.cursor } : {}),
       });
       for (const item of requiredList(data, "data", 10)) {
@@ -652,6 +1301,15 @@ async function history(
           item.permalink,
         );
         if (!entry) continue;
+        entry.media = instagramMedia(item);
+        entry.contentType =
+          item.media_type === "CAROUSEL_ALBUM"
+            ? "carousel"
+            : item.media_type === "VIDEO" || item.media_product_type === "REELS"
+              ? "video"
+              : item.media_type === "IMAGE"
+                ? "image"
+                : contentType(entry);
         if (typeof item.media_product_type === "string")
           mediaTypes.set(entry.externalId, item.media_product_type);
         entry.metrics.likes = counter(item.like_count);
@@ -689,6 +1347,16 @@ async function history(
           date(record(item.contentDetails)?.videoPublishedAt),
           `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`,
         );
+        if (entry) {
+          entry.contentType = "video";
+          const thumbnails = record(snippet?.thumbnails);
+          const thumbnail =
+            record(thumbnails?.high)?.url ??
+            record(thumbnails?.medium)?.url ??
+            record(thumbnails?.default)?.url;
+          // The Data API supplies a thumbnail, not an authorized playable video URL.
+          entry.media = previewMedia("image", thumbnail);
+        }
         return entry ? [entry] : [];
       });
       const ids = entries.map((entry) => entry.externalId);
@@ -714,6 +1382,13 @@ async function history(
                   ? snippet.title
                   : entry.text;
             entry.publishedAt = date(snippet.publishedAt) ?? entry.publishedAt;
+            const thumbnails = record(snippet.thumbnails);
+            const thumbnail =
+              record(thumbnails?.maxres)?.url ??
+              record(thumbnails?.high)?.url ??
+              record(thumbnails?.medium)?.url ??
+              record(thumbnails?.default)?.url;
+            if (thumbnail) entry.media = previewMedia("image", thumbnail);
             const count = record(detail.statistics);
             entry.metrics.views = counter(count?.viewCount);
             entry.metrics.likes = counter(count?.likeCount);
@@ -766,6 +1441,8 @@ async function history(
           detail.share_url,
         );
         if (!entry) continue;
+        entry.contentType = "video";
+        entry.media = previewMedia("image", detail.cover_image_url);
         entry.metrics = {
           ...metrics(),
           views: counter(detail.view_count),
@@ -785,8 +1462,18 @@ async function history(
       break;
     }
     case "linkedin":
-      result.historyError =
-        "LinkedIn personal published history is not available through this connection.";
+      try {
+        await linkedInHistory(context, result);
+      } catch {
+        context.signal?.throwIfAborted();
+        result.posts = [];
+        result.nextCursor = null;
+        result.historyError = linkedInAuthor(context).startsWith(
+          "urn:li:organization:",
+        )
+          ? "LinkedIn organization history requires r_organization_social and a permitted organization role. Reconnect after these are enabled."
+          : "LinkedIn published history requires the restricted r_member_social permission and approved Community Management app access. Reconnect after these are enabled.";
+      }
       break;
   }
   if (result.nextCursor !== null && result.nextCursor === context.cursor)

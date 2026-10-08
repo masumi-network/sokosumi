@@ -20159,6 +20159,20 @@ export const SocialAccountPostSchema = {
         text: {
             type: 'string'
         },
+        contentType: {
+            $ref: '#/components/schemas/SocialAccountPostContentType'
+        },
+        postKind: {
+            $ref: '#/components/schemas/SocialAccountPostKind'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountPostMedia'
+            },
+            maxItems: 20,
+            default: []
+        },
         publishedAt: {
             type: [
                 'string',
@@ -20201,6 +20215,61 @@ export const SocialAccountPostSchema = {
         'metrics',
         'additionalMetrics',
         'fetchedAt'
+    ]
+} as const;
+
+export const SocialAccountPostContentTypeSchema = {
+    type: 'string',
+    enum: [
+        'text',
+        'image',
+        'video',
+        'carousel',
+        'link',
+        'unknown'
+    ],
+    default: 'unknown'
+} as const;
+
+export const SocialAccountPostKindSchema = {
+    type: 'string',
+    enum: [
+        'post',
+        'reply',
+        'quote',
+        'repost',
+        'unknown'
+    ],
+    default: 'unknown'
+} as const;
+
+export const SocialAccountPostMediaSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'gif',
+                'video'
+            ]
+        },
+        url: {
+            type: 'string',
+            format: 'uri'
+        },
+        thumbnailUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
+        }
+    },
+    required: [
+        'kind',
+        'url',
+        'thumbnailUrl'
     ]
 } as const;
 
@@ -20263,6 +20332,1163 @@ export const SocialPostMetricsSchema = {
         'comments',
         'shares',
         'saves'
+    ]
+} as const;
+
+export const SocialPerformanceResponseSchema = {
+    type: 'object',
+    properties: {
+        range: {
+            type: 'object',
+            properties: {
+                publishedFrom: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                publishedUntil: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                previousFrom: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                previousUntil: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                timezone: {
+                    type: 'string'
+                },
+                semantics: {
+                    type: 'string',
+                    enum: [
+                        'lifetime_metrics_by_publication_cohort'
+                    ]
+                }
+            },
+            required: [
+                'publishedFrom',
+                'publishedUntil',
+                'previousFrom',
+                'previousUntil',
+                'timezone',
+                'semantics'
+            ]
+        },
+        accounts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountStatisticsAccount'
+            }
+        },
+        summary: {
+            type: 'object',
+            properties: {
+                current: {
+                    $ref: '#/components/schemas/SocialPerformanceSummary'
+                },
+                previous: {
+                    $ref: '#/components/schemas/SocialPerformanceSummary'
+                },
+                deltas: {
+                    type: 'object',
+                    properties: {
+                        postCount: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        },
+                        views: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        },
+                        impressions: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        },
+                        likes: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        },
+                        comments: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        },
+                        shares: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        },
+                        saves: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        },
+                        interactions: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'postCount',
+                        'views',
+                        'impressions',
+                        'likes',
+                        'comments',
+                        'shares',
+                        'saves',
+                        'interactions'
+                    ]
+                }
+            },
+            required: [
+                'current',
+                'previous',
+                'deltas'
+            ]
+        },
+        daily: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    summary: {
+                        $ref: '#/components/schemas/SocialPerformanceSummary'
+                    }
+                },
+                required: [
+                    'date',
+                    'summary'
+                ]
+            }
+        },
+        comparisons: {
+            type: 'object',
+            properties: {
+                accounts: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            connectionId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            provider: {
+                                $ref: '#/components/schemas/ProjectSocialProvider'
+                            },
+                            summary: {
+                                $ref: '#/components/schemas/SocialPerformanceSummary'
+                            }
+                        },
+                        required: [
+                            'connectionId',
+                            'provider',
+                            'summary'
+                        ]
+                    }
+                },
+                providers: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            provider: {
+                                $ref: '#/components/schemas/ProjectSocialProvider'
+                            },
+                            summary: {
+                                $ref: '#/components/schemas/SocialPerformanceSummary'
+                            }
+                        },
+                        required: [
+                            'provider',
+                            'summary'
+                        ]
+                    }
+                },
+                formats: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            contentType: {
+                                $ref: '#/components/schemas/SocialAccountPostContentType'
+                            },
+                            summary: {
+                                $ref: '#/components/schemas/SocialPerformanceSummary'
+                            }
+                        },
+                        required: [
+                            'contentType',
+                            'summary'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'accounts',
+                'providers',
+                'formats'
+            ]
+        },
+        heatmap: {
+            type: 'object',
+            properties: {
+                timezone: {
+                    type: 'string'
+                },
+                comparisonProvider: {
+                    allOf: [
+                        {
+                            $ref: '#/components/schemas/ProjectSocialProvider'
+                        },
+                        {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    ]
+                },
+                postCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                minimumSampleSize: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                cells: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            weekday: {
+                                type: 'integer',
+                                minimum: 0,
+                                maximum: 6
+                            },
+                            hour: {
+                                type: 'integer',
+                                minimum: 0,
+                                maximum: 23
+                            },
+                            postCount: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            measuredPostCount: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            meanInteractions: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            },
+                            meanEngagementRate: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'weekday',
+                            'hour',
+                            'postCount',
+                            'measuredPostCount',
+                            'meanInteractions',
+                            'meanEngagementRate'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'timezone',
+                'comparisonProvider',
+                'postCount',
+                'minimumSampleSize',
+                'cells'
+            ]
+        },
+        followers: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    connectionId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    provider: {
+                        $ref: '#/components/schemas/ProjectSocialProvider'
+                    },
+                    change: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    points: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                date: {
+                                    type: 'string',
+                                    format: 'date'
+                                },
+                                fetchedAt: {
+                                    type: 'string',
+                                    format: 'date-time',
+                                    example: '2021-01-01T00:00:00.000Z'
+                                },
+                                value: {
+                                    type: [
+                                        'number',
+                                        'null'
+                                    ]
+                                }
+                            },
+                            required: [
+                                'date',
+                                'fetchedAt',
+                                'value'
+                            ]
+                        }
+                    }
+                },
+                required: [
+                    'connectionId',
+                    'provider',
+                    'change',
+                    'points'
+                ]
+            }
+        },
+        observations: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    connectionId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    date: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    fetchedAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    summary: {
+                        $ref: '#/components/schemas/SocialPerformanceSummary'
+                    }
+                },
+                required: [
+                    'connectionId',
+                    'date',
+                    'fetchedAt',
+                    'summary'
+                ]
+            }
+        },
+        baseline: {
+            type: 'object',
+            properties: {
+                windowDays: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                excludeRecentDays: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                minimumSampleSize: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                metric: {
+                    type: 'string',
+                    enum: [
+                        'interactions'
+                    ]
+                },
+                comparison: {
+                    type: 'string',
+                    enum: [
+                        'same_account_median'
+                    ]
+                }
+            },
+            required: [
+                'windowDays',
+                'excludeRecentDays',
+                'minimumSampleSize',
+                'metric',
+                'comparison'
+            ]
+        },
+        posts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPerformancePost'
+            }
+        },
+        pagination: {
+            type: 'object',
+            properties: {
+                limit: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                offset: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                nextOffset: {
+                    type: [
+                        'integer',
+                        'null'
+                    ],
+                    minimum: 0
+                },
+                total: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                truncated: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'limit',
+                'offset',
+                'nextOffset',
+                'total',
+                'truncated'
+            ]
+        },
+        coverage: {
+            type: 'object',
+            properties: {
+                historyComplete: {
+                    type: 'boolean'
+                },
+                lastFetchedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                missingPublicationDateCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                historicalSnapshotsAvailable: {
+                    type: 'boolean'
+                },
+                unknownPostKindCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                unknownContentTypeCount: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'historyComplete',
+                'lastFetchedAt',
+                'missingPublicationDateCount',
+                'historicalSnapshotsAvailable',
+                'unknownPostKindCount',
+                'unknownContentTypeCount'
+            ]
+        }
+    },
+    required: [
+        'range',
+        'accounts',
+        'summary',
+        'daily',
+        'comparisons',
+        'heatmap',
+        'followers',
+        'observations',
+        'baseline',
+        'posts',
+        'pagination',
+        'coverage'
+    ]
+} as const;
+
+export const SocialPerformanceSummarySchema = {
+    type: 'object',
+    properties: {
+        postCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        measuredPostCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        metrics: {
+            type: 'object',
+            properties: {
+                views: {
+                    $ref: '#/components/schemas/SocialPerformanceMetric'
+                },
+                impressions: {
+                    $ref: '#/components/schemas/SocialPerformanceMetric'
+                },
+                likes: {
+                    $ref: '#/components/schemas/SocialPerformanceMetric'
+                },
+                comments: {
+                    $ref: '#/components/schemas/SocialPerformanceMetric'
+                },
+                shares: {
+                    $ref: '#/components/schemas/SocialPerformanceMetric'
+                },
+                saves: {
+                    $ref: '#/components/schemas/SocialPerformanceMetric'
+                }
+            },
+            required: [
+                'views',
+                'impressions',
+                'likes',
+                'comments',
+                'shares',
+                'saves'
+            ]
+        },
+        interactions: {
+            $ref: '#/components/schemas/SocialPerformanceMetric'
+        },
+        engagementRates: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPerformanceRate'
+            }
+        },
+        additionalMetrics: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    key: {
+                        type: 'string'
+                    },
+                    period: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    unit: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    aggregate: {
+                        $ref: '#/components/schemas/SocialPerformanceMetric'
+                    }
+                },
+                required: [
+                    'key',
+                    'period',
+                    'unit',
+                    'aggregate'
+                ]
+            }
+        }
+    },
+    required: [
+        'postCount',
+        'measuredPostCount',
+        'metrics',
+        'interactions',
+        'engagementRates',
+        'additionalMetrics'
+    ]
+} as const;
+
+export const SocialPerformanceMetricSchema = {
+    type: 'object',
+    properties: {
+        total: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        mean: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        median: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        measuredPostCount: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'total',
+        'mean',
+        'median',
+        'measuredPostCount'
+    ]
+} as const;
+
+export const SocialPerformanceRateSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            $ref: '#/components/schemas/ProjectSocialProvider'
+        },
+        denominator: {
+            type: 'string',
+            enum: [
+                'views',
+                'impressions'
+            ]
+        },
+        numeratorMetrics: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        interactions: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        exposure: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        rate: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        mean: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        median: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        measuredPostCount: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'provider',
+        'denominator',
+        'numeratorMetrics',
+        'interactions',
+        'exposure',
+        'rate',
+        'mean',
+        'median',
+        'measuredPostCount'
+    ]
+} as const;
+
+export const SocialPerformancePostSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SocialAccountPost'
+        },
+        {
+            type: 'object',
+            properties: {
+                interactions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                engagementRate: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                engagementDenominator: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    enum: [
+                        'views',
+                        'impressions',
+                        null
+                    ]
+                },
+                baselineMultiplier: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                baselineSampleSize: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'interactions',
+                'engagementRate',
+                'engagementDenominator',
+                'baselineMultiplier',
+                'baselineSampleSize'
+            ]
+        }
+    ]
+} as const;
+
+export const SocialPerformanceAudienceResponseSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'followers',
+                'mentions',
+                'likers',
+                'reposters'
+            ]
+        },
+        postId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            default: null
+        },
+        contacts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPerformanceContact'
+            }
+        },
+        posts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPerformancePublicPost'
+            },
+            maxItems: 100,
+            default: []
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        samplePostCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        oldestPostAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        newestPostAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        coverage: {
+            type: 'string'
+        }
+    },
+    required: [
+        'kind',
+        'contacts',
+        'nextCursor',
+        'observedAt',
+        'samplePostCount',
+        'oldestPostAt',
+        'newestPostAt',
+        'coverage'
+    ]
+} as const;
+
+export const SocialPerformanceContactSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        username: {
+            type: 'string'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        location: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
+        },
+        followersCount: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        interactions: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        replies: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        quotes: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        mentions: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        likes: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            default: null
+        },
+        reposts: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            default: null
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'username',
+        'description',
+        'location',
+        'avatarUrl',
+        'followersCount',
+        'interactions',
+        'replies',
+        'quotes',
+        'mentions'
+    ]
+} as const;
+
+export const SocialPerformancePublicPostSchema = {
+    type: 'object',
+    properties: {
+        author: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/SocialPerformanceContact'
+                },
+                {
+                    type: [
+                        'object',
+                        'null'
+                    ]
+                }
+            ]
+        },
+        post: {
+            $ref: '#/components/schemas/SocialAccountPost'
+        },
+        interactionType: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'reply',
+                'quote',
+                'mention',
+                null
+            ],
+            default: null
+        }
+    },
+    required: [
+        'author',
+        'post'
+    ]
+} as const;
+
+export const SocialPerformanceAudienceExportRequestSchema = {
+    type: 'object',
+    properties: {
+        format: {
+            type: 'string',
+            enum: [
+                'csv',
+                'xlsx'
+            ]
+        },
+        pages: {
+            type: 'array',
+            items: {
+                allOf: [
+                    {
+                        $ref: '#/components/schemas/SocialPerformanceAudienceResponse'
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            contacts: {
+                                type: 'array',
+                                items: {
+                                    $ref: '#/components/schemas/SocialPerformanceContact'
+                                },
+                                maxItems: 100
+                            }
+                        }
+                    }
+                ]
+            },
+            minItems: 1,
+            maxItems: 20
+        }
+    },
+    required: [
+        'format',
+        'pages'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SocialPerformanceBenchmarkResponseSchema = {
+    type: 'object',
+    properties: {
+        profile: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                },
+                username: {
+                    type: 'string'
+                },
+                avatarUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri'
+                },
+                followersCount: {
+                    type: [
+                        'integer',
+                        'null'
+                    ],
+                    minimum: 0
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'username',
+                'avatarUrl',
+                'followersCount'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        summary: {
+            $ref: '#/components/schemas/SocialPerformanceSummary'
+        },
+        posts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPerformancePost'
+            }
+        },
+        meanImpressionsToFollowers: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        coverage: {
+            type: 'string'
+        }
+    },
+    required: [
+        'profile',
+        'observedAt',
+        'summary',
+        'posts',
+        'meanImpressionsToFollowers',
+        'coverage'
+    ]
+} as const;
+
+export const SocialPerformanceDiscoveryResponseSchema = {
+    type: 'object',
+    properties: {
+        posts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPerformancePublicPost'
+            },
+            maxItems: 100
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        publishedFrom: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        publishedUntil: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        samplePostCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        matchedPostCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        missingCounterPostCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        coverage: {
+            type: 'string'
+        }
+    },
+    required: [
+        'posts',
+        'nextCursor',
+        'observedAt',
+        'publishedFrom',
+        'publishedUntil',
+        'samplePostCount',
+        'matchedPostCount',
+        'missingCounterPostCount',
+        'coverage'
     ]
 } as const;
 
@@ -28379,6 +29605,711 @@ export const CalendarIdentityLabelsRequestSchema = {
         'refs'
     ],
     additionalProperties: false
+} as const;
+
+export const WorkspaceSocialPerformanceResponseSchema = {
+    type: 'object',
+    properties: {
+        range: {
+            type: 'object',
+            properties: {
+                publishedFrom: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                publishedUntil: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                previousFrom: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                previousUntil: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                timezone: {
+                    type: 'string'
+                },
+                semantics: {
+                    type: 'string',
+                    enum: [
+                        'lifetime_metrics_by_publication_cohort'
+                    ]
+                }
+            },
+            required: [
+                'publishedFrom',
+                'publishedUntil',
+                'previousFrom',
+                'previousUntil',
+                'timezone',
+                'semantics'
+            ]
+        },
+        accounts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountStatisticsAccount'
+            }
+        },
+        summary: {
+            type: 'object',
+            properties: {
+                current: {
+                    $ref: '#/components/schemas/SocialPerformanceSummary'
+                },
+                previous: {
+                    $ref: '#/components/schemas/SocialPerformanceSummary'
+                },
+                deltas: {
+                    type: 'object',
+                    properties: {
+                        postCount: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        },
+                        views: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        },
+                        impressions: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        },
+                        likes: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        },
+                        comments: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        },
+                        shares: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        },
+                        saves: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        },
+                        interactions: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'postCount',
+                        'views',
+                        'impressions',
+                        'likes',
+                        'comments',
+                        'shares',
+                        'saves',
+                        'interactions'
+                    ]
+                }
+            },
+            required: [
+                'current',
+                'previous',
+                'deltas'
+            ]
+        },
+        daily: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    summary: {
+                        $ref: '#/components/schemas/SocialPerformanceSummary'
+                    }
+                },
+                required: [
+                    'date',
+                    'summary'
+                ]
+            }
+        },
+        comparisons: {
+            type: 'object',
+            properties: {
+                accounts: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            connectionId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            provider: {
+                                $ref: '#/components/schemas/ProjectSocialProvider'
+                            },
+                            summary: {
+                                $ref: '#/components/schemas/SocialPerformanceSummary'
+                            }
+                        },
+                        required: [
+                            'connectionId',
+                            'provider',
+                            'summary'
+                        ]
+                    }
+                },
+                providers: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            provider: {
+                                $ref: '#/components/schemas/ProjectSocialProvider'
+                            },
+                            summary: {
+                                $ref: '#/components/schemas/SocialPerformanceSummary'
+                            }
+                        },
+                        required: [
+                            'provider',
+                            'summary'
+                        ]
+                    }
+                },
+                formats: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            contentType: {
+                                $ref: '#/components/schemas/SocialAccountPostContentType'
+                            },
+                            summary: {
+                                $ref: '#/components/schemas/SocialPerformanceSummary'
+                            }
+                        },
+                        required: [
+                            'contentType',
+                            'summary'
+                        ]
+                    }
+                },
+                projects: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            projectId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            summary: {
+                                $ref: '#/components/schemas/SocialPerformanceSummary'
+                            }
+                        },
+                        required: [
+                            'projectId',
+                            'summary'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'accounts',
+                'providers',
+                'formats',
+                'projects'
+            ]
+        },
+        heatmap: {
+            type: 'object',
+            properties: {
+                timezone: {
+                    type: 'string'
+                },
+                comparisonProvider: {
+                    allOf: [
+                        {
+                            $ref: '#/components/schemas/ProjectSocialProvider'
+                        },
+                        {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    ]
+                },
+                postCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                minimumSampleSize: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                cells: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            weekday: {
+                                type: 'integer',
+                                minimum: 0,
+                                maximum: 6
+                            },
+                            hour: {
+                                type: 'integer',
+                                minimum: 0,
+                                maximum: 23
+                            },
+                            postCount: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            measuredPostCount: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            meanInteractions: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            },
+                            meanEngagementRate: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'weekday',
+                            'hour',
+                            'postCount',
+                            'measuredPostCount',
+                            'meanInteractions',
+                            'meanEngagementRate'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'timezone',
+                'comparisonProvider',
+                'postCount',
+                'minimumSampleSize',
+                'cells'
+            ]
+        },
+        followers: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    connectionId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    provider: {
+                        $ref: '#/components/schemas/ProjectSocialProvider'
+                    },
+                    change: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    points: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                date: {
+                                    type: 'string',
+                                    format: 'date'
+                                },
+                                fetchedAt: {
+                                    type: 'string',
+                                    format: 'date-time',
+                                    example: '2021-01-01T00:00:00.000Z'
+                                },
+                                value: {
+                                    type: [
+                                        'number',
+                                        'null'
+                                    ]
+                                }
+                            },
+                            required: [
+                                'date',
+                                'fetchedAt',
+                                'value'
+                            ]
+                        }
+                    }
+                },
+                required: [
+                    'connectionId',
+                    'provider',
+                    'change',
+                    'points'
+                ]
+            }
+        },
+        observations: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    connectionId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    date: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    fetchedAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    summary: {
+                        $ref: '#/components/schemas/SocialPerformanceSummary'
+                    }
+                },
+                required: [
+                    'connectionId',
+                    'date',
+                    'fetchedAt',
+                    'summary'
+                ]
+            }
+        },
+        baseline: {
+            type: 'object',
+            properties: {
+                windowDays: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                excludeRecentDays: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                minimumSampleSize: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                metric: {
+                    type: 'string',
+                    enum: [
+                        'interactions'
+                    ]
+                },
+                comparison: {
+                    type: 'string',
+                    enum: [
+                        'same_account_median'
+                    ]
+                }
+            },
+            required: [
+                'windowDays',
+                'excludeRecentDays',
+                'minimumSampleSize',
+                'metric',
+                'comparison'
+            ]
+        },
+        posts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    connectionId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    provider: {
+                        $ref: '#/components/schemas/ProjectSocialProvider'
+                    },
+                    externalId: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 500
+                    },
+                    text: {
+                        type: 'string'
+                    },
+                    contentType: {
+                        $ref: '#/components/schemas/SocialAccountPostContentType'
+                    },
+                    postKind: {
+                        $ref: '#/components/schemas/SocialAccountPostKind'
+                    },
+                    media: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/SocialAccountPostMedia'
+                        },
+                        maxItems: 20,
+                        default: []
+                    },
+                    publishedAt: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    url: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uri'
+                    },
+                    metrics: {
+                        $ref: '#/components/schemas/SocialPostMetrics'
+                    },
+                    additionalMetrics: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/SocialAccountMetric'
+                        },
+                        maxItems: 100
+                    },
+                    fetchedAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    interactions: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    engagementRate: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    engagementDenominator: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'views',
+                            'impressions',
+                            null
+                        ]
+                    },
+                    baselineMultiplier: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    baselineSampleSize: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    projectIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            format: 'uuid'
+                        }
+                    }
+                },
+                required: [
+                    'id',
+                    'connectionId',
+                    'provider',
+                    'externalId',
+                    'text',
+                    'publishedAt',
+                    'url',
+                    'metrics',
+                    'additionalMetrics',
+                    'fetchedAt',
+                    'interactions',
+                    'engagementRate',
+                    'engagementDenominator',
+                    'baselineMultiplier',
+                    'baselineSampleSize',
+                    'projectIds'
+                ]
+            }
+        },
+        pagination: {
+            type: 'object',
+            properties: {
+                limit: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                offset: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                nextOffset: {
+                    type: [
+                        'integer',
+                        'null'
+                    ],
+                    minimum: 0
+                },
+                total: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                truncated: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'limit',
+                'offset',
+                'nextOffset',
+                'total',
+                'truncated'
+            ]
+        },
+        coverage: {
+            type: 'object',
+            properties: {
+                historyComplete: {
+                    type: 'boolean'
+                },
+                lastFetchedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                missingPublicationDateCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                historicalSnapshotsAvailable: {
+                    type: 'boolean'
+                },
+                unknownPostKindCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                unknownContentTypeCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                duplicatePostCopiesExcluded: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                deduplicationBasis: {
+                    type: 'string',
+                    enum: [
+                        'provider_external_post_id'
+                    ]
+                }
+            },
+            required: [
+                'historyComplete',
+                'lastFetchedAt',
+                'missingPublicationDateCount',
+                'historicalSnapshotsAvailable',
+                'unknownPostKindCount',
+                'unknownContentTypeCount',
+                'duplicatePostCopiesExcluded',
+                'deduplicationBasis'
+            ]
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projects: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    name: {
+                        type: 'string'
+                    },
+                    connectionIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            format: 'uuid'
+                        }
+                    }
+                },
+                required: [
+                    'id',
+                    'name',
+                    'connectionIds'
+                ]
+            }
+        }
+    },
+    required: [
+        'range',
+        'accounts',
+        'summary',
+        'daily',
+        'comparisons',
+        'heatmap',
+        'followers',
+        'observations',
+        'baseline',
+        'posts',
+        'pagination',
+        'coverage',
+        'workspaceId',
+        'projects'
+    ]
 } as const;
 
 export const WorkspaceOrganizationSchema = {

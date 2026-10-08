@@ -223,6 +223,11 @@ const social = vi.hoisted(() => ({
   listAccounts: vi.fn(),
   listStatistics: vi.fn(),
   listAccountStatistics: vi.fn(),
+  listPerformance: vi.fn(),
+  listWorkspacePerformance: vi.fn(),
+  audience: vi.fn(),
+  benchmark: vi.fn(),
+  discovery: vi.fn(),
   refreshAccountStatistics: vi.fn(),
   refreshStatistics: vi.fn(),
   list: vi.fn(),
@@ -242,6 +247,15 @@ vi.mock("@/services/project-social-connections.service", () => ({
 vi.mock("@/services/social-post-statistics.service", () => ({
   listSocialPostStatistics: social.listStatistics,
   refreshSocialPostStatistics: social.refreshStatistics,
+}));
+vi.mock("@/services/social-performance.service", () => ({
+  listSocialPerformance: social.listPerformance,
+  listWorkspaceSocialPerformance: social.listWorkspacePerformance,
+}));
+vi.mock("@/services/social-performance-research.service", () => ({
+  readSocialPerformanceAudience: social.audience,
+  readSocialPerformanceBenchmark: social.benchmark,
+  readSocialPerformanceDiscovery: social.discovery,
 }));
 vi.mock("@/services/social-account-statistics.service", () => ({
   listSocialAccountStatistics: social.listAccountStatistics,
@@ -4785,6 +4799,10 @@ describe("Soko Bot project social tools", () => {
     "list_social_post_statistics",
     "refresh_social_post_statistics",
     "list_social_account_statistics",
+    "list_social_performance",
+    "read_social_performance_audience",
+    "read_social_performance_benchmark",
+    "read_social_performance_discovery",
     "refresh_social_account_statistics",
     "get_social_post",
     "create_social_post",
@@ -4877,6 +4895,11 @@ describe("Soko Bot project social tools", () => {
       accounts: [{ id: accountId, statistics: null, postCount: 0 }],
       posts: [],
       nextCursor: null,
+    });
+    social.listPerformance.mockResolvedValue({ summary: {} });
+    social.listWorkspacePerformance.mockResolvedValue({
+      summary: {},
+      projects: [],
     });
     social.refreshAccountStatistics.mockResolvedValue({
       account: { id: accountId, statistics: null, postCount: 0 },
@@ -5024,6 +5047,101 @@ describe("Soko Bot project social tools", () => {
     });
     expect(social.publish).not.toHaveBeenCalled();
     expect(social.update).not.toHaveBeenCalled();
+  });
+
+  it("reads complete performance only inside the authorized workspace", async () => {
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_social_performance",
+      toolCallId: "full-performance",
+      input: {
+        projectId,
+        connectionId: accountId,
+        timezone: "Europe/Prague",
+        postKind: "posts",
+      },
+    });
+    expect(social.listPerformance).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId,
+        connectionId: accountId,
+        workspaceId: SCOPE.workspaceId,
+        timezone: "Europe/Prague",
+        limit: 20,
+      }),
+    );
+    expect(social.publish).not.toHaveBeenCalled();
+  });
+  it("reads a combined workspace cohort only from the authorized turn when projectId is omitted", async () => {
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_social_performance",
+      toolCallId: "workspace-performance",
+      input: { provider: "x", timezone: "Europe/Prague" },
+    });
+    expect(social.listWorkspacePerformance).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: SCOPE.workspaceId,
+        provider: "x",
+        limit: 20,
+      }),
+    );
+    expect(social.listPerformance).not.toHaveBeenCalled();
+    expect(social.beta).toHaveBeenCalledWith(SCOPE.userId, expect.anything());
+    expect(social.publish).not.toHaveBeenCalled();
+  });
+  it("scopes live audience and public benchmarking to the authorized workspace without publishing", async () => {
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "read_social_performance_audience",
+      toolCallId: "audience-performance",
+      input: { projectId, connectionId: accountId, kind: "likers", postId },
+    });
+    expect(social.audience).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId,
+        connectionId: accountId,
+        postId,
+        workspaceId: SCOPE.workspaceId,
+        limit: 20,
+      }),
+    );
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "read_social_performance_benchmark",
+      toolCallId: "benchmark-performance",
+      input: { projectId, connectionId: accountId, username: "example" },
+    });
+    expect(social.benchmark).toHaveBeenCalledWith({
+      projectId,
+      connectionId: accountId,
+      username: "example",
+      workspaceId: SCOPE.workspaceId,
+    });
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "read_social_performance_discovery",
+      toolCallId: "discover-performance",
+      input: {
+        projectId,
+        connectionId: accountId,
+        topic: "AI agents",
+        language: "en",
+        minLikes: 10,
+      },
+    });
+    expect(social.discovery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId,
+        connectionId: accountId,
+        topic: "AI agents",
+        language: "en",
+        minLikes: 10,
+        workspaceId: SCOPE.workspaceId,
+        limit: 20,
+      }),
+    );
+    expect(social.publish).not.toHaveBeenCalled();
   });
 
   it("reads account-wide statistics with authorized filters and publication dates", async () => {

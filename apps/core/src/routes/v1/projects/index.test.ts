@@ -6,6 +6,11 @@ const PROJECTS_BASE_PATH = "/v1/projects";
 
 const SOCIAL_CONNECTION_OPERATIONS = [
   {
+    path: `${PROJECTS_BASE_PATH}/{id}/social-connections/performance`,
+    method: "get",
+    responseStatuses: ["200", "400", "401", "403", "404", "422", "500"],
+  },
+  {
     path: `${PROJECTS_BASE_PATH}/{id}/social-connections`,
     method: "get",
     responseStatuses: ["200", "401", "403", "404", "409", "422", "500", "503"],
