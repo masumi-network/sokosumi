@@ -1,6 +1,7 @@
 import { OpenAPIHono, type RouteConfig, z } from "@hono/zod-openapi";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
+import { jsonErrorResponse } from "@/helpers/openapi";
 import { type AuthVariables, authMiddleware } from "@/middleware/auth";
 import { coworkerContextMiddleware } from "@/middleware/coworker-context";
 import { organizationContextMiddleware } from "@/middleware/organization";
@@ -129,12 +130,25 @@ export function withOrganizationSlugHeaderParameter<T extends RouteConfig>(
 }
 
 /**
- * Organization slug plus coworker workspace context headers.
+ * Organization slug plus coworker workspace context headers, and the 400 those
+ * headers can produce when the route declares none of its own.
  * Use only when the handler accepts coworker auth with
  * `X-Context-User-Id` / optional `X-Context-Organization-Id`.
  */
 export function withCoworkerContextHeaderParameters<T extends RouteConfig>(
   route: T,
 ): T {
-  return withHeaderParameters(route, COWORKER_CONTEXT_HEADER_PARAMETERS);
+  const withHeaders = withHeaderParameters(
+    route,
+    COWORKER_CONTEXT_HEADER_PARAMETERS,
+  );
+  return {
+    ...withHeaders,
+    responses: {
+      400: jsonErrorResponse(
+        "Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`",
+      ),
+      ...withHeaders.responses,
+    },
+  } as T;
 }
