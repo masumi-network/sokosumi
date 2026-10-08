@@ -62,7 +62,7 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
       }
       messagesGETReleased = false
     }
-    let next = responses.removeFirst()
+    let next = try nextScriptedResponse(&responses, operationID: operationID)
     if pauseNextRoomsGET, operationID == "get/chats/rooms" {
       pauseNextRoomsGET = false
       await withCheckedContinuation { roomsGETWaiter = $0
@@ -212,7 +212,8 @@ private func realtimeState(
   defaults.removePersistentDomain(forName: suite)
   let state = WorkspaceState(
     savedRoom: SavedRoomSelection(defaults: defaults),
-    instanceStore: MemoryRealtimeClientInstanceIdStore(stored: instanceId)
+    instanceStore: MemoryRealtimeClientInstanceIdStore(stored: instanceId),
+    recoverySleep: recoveryTimersNeverFire
   )
   state.setWindowVisible(true, window: realtimeWindow)
   state.clientResolver = { client }

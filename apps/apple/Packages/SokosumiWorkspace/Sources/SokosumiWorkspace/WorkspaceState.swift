@@ -237,8 +237,8 @@ public final class WorkspaceState: ObservableObject {
     timeline.generation
   }
 
-  let transcriptRecovery = ChatRefreshScheduler()
-  let sidebarRecovery = SidebarCollectionsRecovery()
+  let transcriptRecovery: ChatRefreshScheduler
+  let sidebarRecovery: SidebarCollectionsRecovery
   /// Re-reads the open room while it still counts unread (row 07e); see `WorkspaceState+OpenRoomUnreadRecheck`.
   let openRoomUnreadRecheck: OpenRoomUnreadRecheck
   private var connectionHealthy = false
@@ -257,16 +257,20 @@ public final class WorkspaceState: ObservableObject {
   let realtimeClientInstanceId: String
 
   /// Creates a workspace coordinator. The host app must inject its authenticated
-  /// client provider; the default resolves no client. `threadNow` is the open Thread's clock.
+  /// client provider; the default resolves no client. `threadNow` is the open Thread's clock;
+  /// `recoverySleep` paces the room, Thread and sidebar recovery timers.
   public init(
     clientProvider: @escaping (AuthState) -> Client? = { _ in nil },
     savedRoom: SavedRoomSelection = SavedRoomSelection(),
     instanceStore: RealtimeClientInstanceIdStore = UserDefaultsRealtimeInstanceIdStore(),
     unreadsFilter: UnreadsFilterPreference = .transient,
     openRoomUnreadRecheck: OpenRoomUnreadRecheck = OpenRoomUnreadRecheck(),
-    threadNow: @escaping () -> Date = Date.init
+    threadNow: @escaping () -> Date = Date.init,
+    recoverySleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
   ) {
-    thread = ThreadSession(now: threadNow)
+    thread = ThreadSession(now: threadNow, recoverySleep: recoverySleep)
+    transcriptRecovery = ChatRefreshScheduler(sleep: recoverySleep)
+    sidebarRecovery = SidebarCollectionsRecovery(sleep: recoverySleep)
     self.clientProvider = clientProvider
     self.openRoomUnreadRecheck = openRoomUnreadRecheck
     sidebar = ConversationSidebar(savedRoom: savedRoom, unreadsFilter: unreadsFilter)
