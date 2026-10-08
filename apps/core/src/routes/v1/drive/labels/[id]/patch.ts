@@ -6,7 +6,10 @@ import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   updateWorkspaceLabelRequestSchema,
@@ -25,33 +28,35 @@ const bodySchema = updateWorkspaceLabelRequestSchema.extend({
   organizationId: z.string().optional(),
 });
 
-const route = createRoute({
-  method: "patch",
-  path: "/{id}",
-  description: [
-    "Rename, describe, archive or merge a vocabulary entry.",
-    "",
-    "A rename keeps the id, so saved filters and existing assignments keep",
-    "working. A merge records a redirect from the retired id and deduplicates",
-    "assignments; it is an administrative action, never something a model does.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    params: paramsSchema,
-    body: {
-      required: true,
-      content: { "application/json": { schema: bodySchema } },
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "patch",
+    path: "/{id}",
+    description: [
+      "Rename, describe, archive or merge a vocabulary entry.",
+      "",
+      "A rename keeps the id, so saved filters and existing assignments keep",
+      "working. A merge records a redirect from the retired id and deduplicates",
+      "assignments; it is an administrative action, never something a model does.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      params: paramsSchema,
+      body: {
+        required: true,
+        content: { "application/json": { schema: bodySchema } },
+      },
     },
-  },
-  responses: {
-    200: jsonSuccessResponse(workspaceLabelSchema, "Label updated"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-  },
-});
+    responses: {
+      200: jsonSuccessResponse(workspaceLabelSchema, "Label updated"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

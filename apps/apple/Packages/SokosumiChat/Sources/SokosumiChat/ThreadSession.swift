@@ -21,16 +21,19 @@ public final class ThreadSession: ObservableObject {
   @Published public private(set) var mute: ThreadMuteState?
   public let timeline = RoomTimeline()
   public let outbox: RoomOutbox
-  public let recovery = ChatRefreshScheduler()
+  public let recovery: ChatRefreshScheduler
   public private(set) var loadTask: Task<Void, Never>?
   private var transcriptObservation: AnyCancellable?
   private let service = ChatService()
   private let now: () -> Date
   private let makeId: () -> String
 
-  public init(now: @escaping () -> Date = Date.init, makeId: @escaping () -> String = { UUID().uuidString }) {
+  /// `recoverySleep` paces the recovery timer.
+  public init(now: @escaping () -> Date = Date.init, makeId: @escaping () -> String = { UUID().uuidString },
+              recoverySleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
     self.now = now
     self.makeId = makeId
+    recovery = ChatRefreshScheduler(sleep: recoverySleep)
     outbox = RoomOutbox(now: now)
     transcriptObservation = timeline.$messages.sink { [weak outbox] in outbox?.reconcile(messages: $0) }
   }
