@@ -206,7 +206,7 @@ describe("GET /users/{id}/workspaces", () => {
   it.each(
     [true, false].flatMap((hasPersonal) =>
       [0, 1, 2].flatMap((organizationCount) =>
-        [null, "org_1", "org_left"].map((preferredOrganizationId) => ({
+        [null, "org_0", "org_left"].map((preferredOrganizationId) => ({
           hasPersonal,
           organizationCount,
           preferredOrganizationId,
