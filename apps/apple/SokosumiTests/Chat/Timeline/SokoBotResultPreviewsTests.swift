@@ -402,11 +402,11 @@
           .jobFile(jobId: "job-1", fileId: "blob-4", download: false), .jobFile(jobId: "job-1", fileId: "blob-1", download: true),
           .jobFile(jobId: "job-1", fileId: "blob-3", download: false)
         ])
-        // The loaded file plays in the native player, which replaces the Play button.
-        try await Self.until { recorder.answered == 5 }
+        // The loaded file plays in the native player, which replaces the Play button. The view checks the file with
+        // AVFoundation after the load answers, so wait for the player rather than for the load.
+        try await Self.until { Self.hostsPlayer(host) }
         await Self.settle(host)
         #expect(await Self.nodes(labelled: "Play briefing.wav", in: host).isEmpty)
-        #expect(Self.hostsPlayer(host))
         #expect(opened.isEmpty, "\(opened)")
       }
 
