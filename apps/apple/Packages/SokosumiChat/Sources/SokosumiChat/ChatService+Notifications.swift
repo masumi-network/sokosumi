@@ -21,6 +21,7 @@ public extension ChatService {
     let response = try await client.getWorkspacesId(.init(path: .init(id: workspaceId)))
     switch response {
     case let .ok(value): return try value.body.json.data.organizationId
+    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
     case let .unauthorized(value): throw try unauthorized(value.body.json.message)
     case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
     case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)

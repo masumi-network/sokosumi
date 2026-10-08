@@ -60,6 +60,8 @@ public struct ChatService: Sendable {
     switch response {
     case let .ok(okResponse):
       return try okResponse.body.json.data
+    case let .badRequest(value):
+      throw try rejected(status: 400, message: value.body.json.message)
     case let .unauthorized(value):
       throw try unauthorized(value.body.json.message)
     case let .forbidden(forbidden):
