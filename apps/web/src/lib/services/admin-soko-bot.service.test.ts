@@ -55,6 +55,16 @@ describe("adminSokoBotService", () => {
     });
   });
 
+  it("passes the fleet kind filter through to Core", async () => {
+    coreMock.listAdminSokoBots.mockResolvedValue({
+      data: { items: [], total: 0 },
+    });
+    await adminSokoBotService.list({ kind: "cmo" });
+    expect(coreMock.listAdminSokoBots).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kind: "cmo" }),
+    );
+  });
+
   it("passes the selected version to the quality endpoint", async () => {
     coreMock.getAdminSokoBotQuality.mockResolvedValue({
       data: { overall: { turns: 0 } },

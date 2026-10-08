@@ -1,4 +1,20 @@
 export {
+  CMO_CALENDAR_STATUSES,
+  type CmoBrandBrain,
+  type CmoCalendarEntry,
+  type CmoPreview,
+  type CmoReportUpdateInput,
+  type CmoStrategy,
+  type CmoSystemSchedule,
+  cmoBrandBrainSchema,
+  cmoMayExecute,
+  cmoReportUpdateInputSchema,
+  cmoRoutineSkipReason,
+  cmoStrategySchema,
+  isCmoScheduleKey,
+  SOKO_BOT_CMO_SCHEDULES,
+} from "./cmo.js";
+export {
   getSokoBotIntegrationProvider,
   isSokoBotEmailProvider,
   SOKO_BOT_INTEGRATION_PROVIDERS,
@@ -30,10 +46,12 @@ export {
   capabilitiesForClassification,
   exceedsUnattendedHireBudget,
   isSokoBotCapability,
+  isSokoBotCmoCapability,
   isSokoBotSandboxCapability,
   limitSokoBotWrites,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
+  SOKO_BOT_CMO_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_ROUTES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
@@ -73,6 +91,8 @@ export type {
 } from "./runtime.js";
 export { SOKO_BOT_TURN_TOKEN_HEADER } from "./runtime.js";
 export {
+  CMO_PLACEHOLDER_PATTERN,
+  CMO_SCENARIOS,
   evaluateScenario,
   type ScenarioCheck,
   type ScenarioResult,
@@ -120,9 +140,11 @@ export {
 } from "./tool-contracts.js";
 export {
   applyVersionCapabilities,
+  CMO_SOKO_BOT_VERSION_ID,
   composeSystemPrompt,
   DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
+  SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SKILLS,
   SOKO_BOT_VERSIONS,
   type SokoBotVersion,

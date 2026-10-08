@@ -1,7 +1,10 @@
 import type { Prisma } from "@sokosumi/database";
 import {
   dueFollowUps,
+  getSokoBotVersion,
+  isCmoScheduleKey,
   parseSokoBotMemory,
+  SOKO_BOT_CMO_SCHEDULES,
   SOKO_BOT_SYSTEM_SCHEDULES,
   type SokoBotCalendarEvent,
   type SokoBotInboxMessage,
@@ -117,13 +120,28 @@ export async function ensureSystemSchedules(bot: {
   userId: string;
   workspaceId: string;
   ingestTimezone: string;
+  versionId?: string | null;
 }): Promise<void> {
   const existing = await prisma.sokoBotSchedule.findMany({
     where: { sokoBotId: bot.id, systemKey: { not: null } },
     select: { systemKey: true },
   });
   const have = new Set(existing.map((row) => row.systemKey));
-  for (const schedule of SOKO_BOT_SYSTEM_SCHEDULES) {
+  const versionId =
+    bot.versionId !== undefined
+      ? bot.versionId
+      : (
+          await prisma.sokoBot.findUnique({
+            where: { id: bot.id },
+            select: { versionId: true },
+          })
+        )?.versionId;
+  // A CMO bot runs marketing rhythms, never the personal stand-up and wrap.
+  const rhythms =
+    getSokoBotVersion(versionId).profile === "cmo"
+      ? SOKO_BOT_CMO_SCHEDULES
+      : SOKO_BOT_SYSTEM_SCHEDULES;
+  for (const schedule of rhythms) {
     if (have.has(schedule.key)) continue;
     const nextRunAt = computeNextRunWithMinimumInterval(
       { cron: schedule.cronExpression, timezone: bot.ingestTimezone },
@@ -431,6 +449,15 @@ export async function buildSystemBeatMessage(input: {
   now: Date;
 }): Promise<{ message: string; nudgeKeys: string[]; skip?: boolean }> {
   const { bot, now } = input;
+  if (isCmoScheduleKey(input.key)) {
+    const { buildCmoBeatPacket } = await import("@/services/cmo.service");
+    const { packet, skip } = await buildCmoBeatPacket(bot.id, now, input.key);
+    return {
+      message: [input.prompt, "", packet].join("\n").trim(),
+      nudgeKeys: [],
+      ...(skip ? { skip: true } : {}),
+    };
+  }
   const lines: string[] = [input.prompt, ""];
   const nudgeKeys: string[] = [];
   if (RHYTHM_KEYS.has(input.key)) {

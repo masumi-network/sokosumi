@@ -456,6 +456,7 @@ export class SokoBotEventsSyncService {
         const started = await sokoBotControlPlane.startTurn({
           userId: work.userId,
           workspaceId: work.workspaceId,
+          sokoBotId: work.sokoBotId,
           clientTurnId: sokoBotEventClientTurnId(changes),
           message: buildEventMessage(changes),
           source: "EVENT",

@@ -8,6 +8,7 @@ const { scheduleFindManyMock, scheduleCreateMock } = vi.hoisted(() => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    sokoBot: { findUnique: vi.fn().mockResolvedValue({ versionId: "v19" }) },
     sokoBotSchedule: {
       findMany: scheduleFindManyMock,
       create: scheduleCreateMock,

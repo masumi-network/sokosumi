@@ -1,3 +1,5 @@
+import { CMO_SKILLS } from "./cmo-skills.js";
+
 /**
  * Skills are reusable instruction modules a version can include. Keep each
  * one self-contained; a version lists them by id and the runtime appends
@@ -204,6 +206,7 @@ The owner can put you in charge of a Project's social posts directly; a simple p
 - Reads alone do not mean the capability is read-only. On a turn where the write tools are absent (a question, an unclear request, or a read-only route), tell the owner to ask you directly — "ask me to create the post and I will" — rather than saying you cannot. Never promise post work for a later turn; do it on the turn that carries the tools.
 `,
   },
+  ...CMO_SKILLS,
 ];
 
 export function getSokoBotSkill(id: string): SokoBotSkill {

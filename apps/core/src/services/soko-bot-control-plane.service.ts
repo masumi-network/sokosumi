@@ -17,6 +17,7 @@ import {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRuntime,
@@ -210,11 +211,27 @@ export interface CreateSokoBotInput {
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
+  /**
+   * Pin a specific version instead of the promoted default: how products
+   * built on Soko Bots (CMO's Cuso) create their bot.
+   */
+  versionId?: string;
+  /**
+   * Pin the bot to one Project (CMO.xyz's Cuso). It lives beside the owner's
+   * personal assistant in the same workspace; null or absent is that
+   * personal assistant.
+   */
+  projectId?: string;
 }
 
 export interface StartSokoBotTurnInput {
   userId: string;
   workspaceId: string;
+  /**
+   * The bot to run when the caller knows it. Without it the turn goes to the
+   * owner's personal assistant in the workspace, never a project bot.
+   */
+  sokoBotId?: string;
   clientTurnId: string;
   message: string;
   source?: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
@@ -1296,7 +1313,8 @@ export class SokoBotControlPlane {
     const hash = memoryHash(markdown);
     // Resolved outside the transaction: promoting a version affects new bots
     // only, so this is read once at creation and then pinned.
-    const defaultVersionId = await getDefaultSokoBotVersionId();
+    const defaultVersionId =
+      input.versionId ?? (await getDefaultSokoBotVersionId());
 
     const created = await prisma.$transaction(async (tx) => {
       // Only a live row: a deleted bot is a tombstone kept for provenance and
@@ -1305,6 +1323,7 @@ export class SokoBotControlPlane {
         where: {
           userId: input.userId,
           workspaceId: input.workspaceId,
+          projectId: input.projectId ?? null,
           deletedAt: null,
         },
       });
@@ -1348,6 +1367,7 @@ export class SokoBotControlPlane {
         data: {
           userId: input.userId,
           workspaceId: input.workspaceId,
+          projectId: input.projectId ?? null,
           name,
           // Pin the version a bot was created on rather than leaving it null
           // and relying on the runtime fallback: the console can then show
@@ -1414,7 +1434,7 @@ export class SokoBotControlPlane {
     // columns, which is what makes it affordable to ask every couple of
     // seconds — not a saved round trip, which it is not.
     const bot = await prisma.sokoBot.findFirst({
-      where: { userId, workspaceId, archivedAt: null },
+      where: { userId, workspaceId, projectId: null, archivedAt: null },
       select: {
         status: true,
         lastTurnAt: true,
@@ -1436,7 +1456,7 @@ export class SokoBotControlPlane {
 
   async getForUser(userId: string, workspaceId: string) {
     const bot = await prisma.sokoBot.findFirst({
-      where: { userId, workspaceId, archivedAt: null },
+      where: { userId, workspaceId, projectId: null, archivedAt: null },
       include: {
         memoryRevisions: { orderBy: { version: "desc" }, take: 1 },
         legacyMessages: {
@@ -1467,7 +1487,7 @@ export class SokoBotControlPlane {
   ) {
     const take = Math.min(Math.max(options.take ?? 50, 1), 100);
     const bot = await prisma.sokoBot.findFirst({
-      where: { userId, workspaceId, archivedAt: null },
+      where: { userId, workspaceId, projectId: null, archivedAt: null },
       select: { id: true },
     });
     if (!bot) return { turns: [], count: 0, hasMore: false };
@@ -2097,6 +2117,7 @@ export class SokoBotControlPlane {
       where: {
         userId: input.userId,
         workspaceId: input.workspaceId,
+        ...(input.sokoBotId ? { id: input.sokoBotId } : { projectId: null }),
         archivedAt: null,
       },
     });
@@ -2435,8 +2456,24 @@ export class SokoBotControlPlane {
       )
       ?.originatingTurn.capabilityNames.filter(isSokoBotCapability);
     const writes = input.presetRoute?.writes ?? confirmedWrites;
+    // Cuso (CMO) has no personal reach: his version lists only marketing
+    // tools, and the owner approved the strategy he executes. An owner's chat
+    // request ("announce this on Tuesday") gets his whole toolset instead of
+    // whatever narrower write scope the classifier guessed, so he does the
+    // work instead of asking permission for it.
+    const cmoOwnerRequest =
+      version.profile === "cmo" &&
+      !input.presetRoute &&
+      !input.chat?.askedByBot &&
+      !unpromptedWork;
     const classified = capabilitiesForClassification(
-      classification.classification,
+      cmoOwnerRequest
+        ? {
+            ...classification.classification,
+            route: "MANAGE_WORK",
+            writeScope: "WORK",
+          }
+        : classification.classification,
     );
     const routeCapabilities = (
       writes ? limitSokoBotWrites(classified, writes) : classified
@@ -3460,7 +3497,7 @@ export class SokoBotControlPlane {
     const hash = memoryHash(markdown);
     return serializableTransaction(async (tx) => {
       const bot = await tx.sokoBot.findFirst({
-        where: { userId, workspaceId, archivedAt: null },
+        where: { userId, workspaceId, projectId: null, archivedAt: null },
       });
       if (!bot) throw new SokoBotNotFoundError("Soko Bot not found");
       const version = bot.memoryVersion + 1;
@@ -3496,7 +3533,7 @@ export class SokoBotControlPlane {
       throw new SokoBotValidationError("Unknown Soko Bot version");
     }
     const updated = await prisma.sokoBot.updateMany({
-      where: { userId, workspaceId, archivedAt: null },
+      where: { userId, workspaceId, projectId: null, archivedAt: null },
       data: { versionId },
     });
     if (updated.count === 0)
@@ -3664,7 +3701,11 @@ export class SokoBotControlPlane {
 
   async listForAdmin(
     query: string | undefined,
-    options: { cursor?: string; take?: number } = {},
+    options: {
+      cursor?: string;
+      take?: number;
+      kind?: "all" | "assistant" | "cmo";
+    } = {},
   ) {
     const take = Math.min(Math.max(options.take ?? 50, 1), 100);
     const term = query?.trim();
@@ -3677,17 +3718,36 @@ export class SokoBotControlPlane {
         : null;
     // Tombstones are emptied rows kept only so Tasks and billing still resolve;
     // they are not bots and never appear in the fleet.
-    const where: Prisma.SokoBotWhereInput = term
-      ? {
-          deletedAt: null,
-          OR: [
-            ...(idTerm ? [{ id: idTerm }] : []),
-            { name: { contains: term, mode: "insensitive" } },
-            { user: { name: { contains: term, mode: "insensitive" } } },
-            { user: { email: { contains: term, mode: "insensitive" } } },
-          ],
-        }
-      : { deletedAt: null };
+    const cmoVersionIds = SOKO_BOT_PRODUCT_VERSIONS.filter(
+      (version) => version.profile === "cmo",
+    ).map((version) => version.id);
+    const kindWhere: Prisma.SokoBotWhereInput =
+      options.kind === "cmo"
+        ? { versionId: { in: cmoVersionIds } }
+        : options.kind === "assistant"
+          ? {
+              OR: [
+                { versionId: null },
+                { versionId: { notIn: cmoVersionIds } },
+              ],
+            }
+          : {};
+    const where: Prisma.SokoBotWhereInput = {
+      deletedAt: null,
+      AND: [
+        kindWhere,
+        term
+          ? {
+              OR: [
+                ...(idTerm ? [{ id: idTerm }] : []),
+                { name: { contains: term, mode: "insensitive" } },
+                { user: { name: { contains: term, mode: "insensitive" } } },
+                { user: { email: { contains: term, mode: "insensitive" } } },
+              ],
+            }
+          : {},
+      ],
+    };
     const [items, total] = await prisma.$transaction([
       prisma.sokoBot.findMany({
         where,
@@ -3723,6 +3783,9 @@ export class SokoBotControlPlane {
     return {
       items: items.map(({ workspace: _workspace, ...bot }) => ({
         ...bot,
+        kind: cmoVersionIds.includes(bot.versionId ?? "")
+          ? ("cmo" as const)
+          : ("assistant" as const),
         outOfCredits: outOfCredits.has(bot.id),
       })),
       total,
@@ -4464,6 +4527,7 @@ export class SokoBotControlPlane {
         retry = await this.startTurn({
           userId: bot.userId,
           workspaceId: scheduleRun.schedule.workspaceId,
+          sokoBotId: bot.id,
           clientTurnId: retryClientTurnId,
           message: occurrencePrompt,
           source: "ADMIN_RETRY",
@@ -4544,6 +4608,7 @@ export class SokoBotControlPlane {
         retry = await this.startTurn({
           userId: bot.userId,
           workspaceId: failed.workspaceId,
+          sokoBotId: bot.id,
           clientTurnId: `admin-retry:${failed.id}:${adminRetryOperationKey(operationId)}`,
           message: failed.userMessage,
           source: "ADMIN_RETRY",
@@ -4611,7 +4676,7 @@ export class SokoBotControlPlane {
   async archive(userId: string, workspaceId: string): Promise<void> {
     const archived = await serializableTransaction(async (tx) => {
       const bot = await tx.sokoBot.findFirst({
-        where: { userId, workspaceId, archivedAt: null },
+        where: { userId, workspaceId, projectId: null, archivedAt: null },
       });
       if (!bot) return null;
       await tx.$queryRaw`

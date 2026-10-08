@@ -49,7 +49,7 @@ export function SignedOut({ error, createAccount, signIn }: SignedOutProps) {
         <p className="eyebrow">AI marketing agent</p>
         <h1>Put your marketing on autopilot.</h1>
         <p className="lead">
-          CMO.XYZ runs your marketing end to end, in one system. Not a chatbot
+          CMO.xyz runs your marketing end to end, in one system. Not a chatbot
           you prompt. Not a stack of separate tools.
         </p>
         <ul className="scope">

@@ -480,6 +480,9 @@ model Project {
   socialPosts             SocialPost[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
+  sokoBots SokoBot[]
+  cmoHire  CmoHire?
+
   imageSessions ProjectImageSession[]
   imageJobs     ProjectImageJob[]
   imageAssets   ProjectImageAsset[]
@@ -2086,7 +2089,8 @@ model SokoBot {
   /// nothing references is deleted outright instead of tombstoned.
   deletedAt            DateTime?
 
-  /// Owner of this Soko Bot. One row per user and workspace (active or archived).
+  /// Owner of this Soko Bot. One personal bot per user and workspace (active
+  /// or archived), plus at most one bot pinned to each Project.
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -2094,12 +2098,18 @@ model SokoBot {
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  /// Set for a bot that works for one Project only (CMO.xyz's Cuso); null for
+  /// the owner's personal assistant in the workspace.
+  projectId String?  @db.Uuid
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   /// Legacy shadow coworker. Empty after PA cutover; column kept (SOK-946).
   coworker Coworker?
 
   chatRoomMemberships   ChatRoomSokoBotMember[]
   chatRoomMessages      ChatRoomMessage[]       @relation("ChatRoomSokoBotSender")
   chatRoomMentions      ChatRoomMention[]
+  cmoHire               CmoHire?
   apiKeys               CoworkerApiKey[]
   assignedTasks         Task[]                  @relation("TaskAssigneeSokoBot")
   assignedTaskSchedules TaskSchedule[]          @relation("TaskScheduleAssigneeSokoBot")
@@ -2177,14 +2187,68 @@ model SokoBot {
   pendingDecisions     SokoBotPendingDecision[]
   schedules            SokoBotSchedule[]
 
-  // One LIVE bot per user and workspace. Partial, because a plain unique would
-  // let a tombstone block its owner from ever creating a new bot.
-  @@unique([userId, workspaceId], map: "soko_bot_user_workspace_live_key", where: { deletedAt: null })
+  // One LIVE personal bot per user and workspace. Partial, because a plain
+  // unique would let a tombstone block its owner from ever creating a new bot,
+  // and project bots (Cuso) live beside it in the same workspace.
+  @@unique([userId, workspaceId], map: "soko_bot_user_workspace_live_key", where: { deletedAt: null, projectId: null })
+  @@unique([projectId], map: "soko_bot_project_live_key", where: { deletedAt: null, projectId: { not: null } })
   @@index([archivedAt])
   @@index([lastPolledAt])
   @@index([userId, workspaceId])
   @@index([workspaceId])
   @@map("soko_bot")
+}
+
+/// A person hiring Cuso through CMO.xyz (ADR 0053). Cuso is an ordinary Soko
+/// Bot in a Project of his own in the Workspace the person chose; this row
+/// holds what CMO adds on top: the start form's answers, the Brand Brain and
+/// the strategy (JSON, validated by the `@sokosumi/soko-bot` CMO schemas).
+model CmoHire {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The person who hired Cuso. One hire per person for now.
+  userId      String  @unique
+  /// The Workspace Cuso works in: the Project, Cuso and his work live there,
+  /// and it pays (its organization, or the person for a personal one).
+  workspaceId String  @db.Uuid
+  sokoBotId   String  @unique @db.Uuid
+  sokoBot     SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  /// "CMO.xyz · <business>": Cuso's only Project. Social accounts connect,
+  /// posts, Tasks and files live here.
+  projectId   String  @unique @db.Uuid
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  businessName String
+  websiteUrl   String
+  goals        String
+
+  brandBrain          Json?
+  brandBrainUpdatedAt DateTime?
+  strategy            Json?
+  strategyUpdatedAt   DateTime?
+  /// The owner approved the strategy: from here Cuso executes on its own.
+  /// Cleared when the owner asks for a new strategy.
+  strategyApprovedAt  DateTime?
+  /// Strategies Cuso replaced, newest first, so the owner can revert.
+  strategyHistory     Json?
+  /// Cuso's daily, weekly and request reports, newest first (chat cards).
+  updates             Json?
+  /// The brand's look, read from the site at signup: logo, colours, fonts.
+  brandVisual         Json?
+  /// A CMO tier picked without real billing; counts only while
+  /// CMO_MOCK_BILLING is on (local and preview runs).
+  mockPlan            String?
+  mockPlanActivatedAt DateTime?
+  /// The owner connected or skipped the Accounts step, so onboarding resumes
+  /// on the plan step.
+  accountsDoneAt      DateTime?
+  /// The owner finished onboarding (strategy, accounts, plan) and landed in
+  /// the chat; until then CMO shows the onboarding steps.
+  onboardedAt         DateTime?
+
+  @@map("cmo_hire")
 }
 
 /// Immutable copy of external Hermes chat history made during first-party

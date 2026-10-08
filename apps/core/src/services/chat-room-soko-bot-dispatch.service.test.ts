@@ -96,6 +96,9 @@ describe("Soko Bot mention dispatch", () => {
     await runSokoBotMentionDispatch(input());
     expect(startTurn).toHaveBeenCalledWith(
       expect.objectContaining({
+        // The mentioned bot itself: in a DM with Joseph it is Joseph, even
+        // when the owner's Cuso lives in the same workspace.
+        sokoBotId: "bot-a",
         userId: "user-a",
         workspaceId: "workspace-a",
         message: "Please answer",

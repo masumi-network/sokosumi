@@ -342,6 +342,7 @@ export class SokoBotIngestSyncService {
     const started = await sokoBotControlPlane.startTurn({
       userId: bot.userId,
       workspaceId: bot.workspaceId,
+      sokoBotId: bot.id,
       clientTurnId: `ingest:${kind}:${bot.id}:${now.toISOString().slice(0, 13)}`,
       message: buildIngestMessage({
         kind,

@@ -1,5 +1,10 @@
 import { composeSokoBotPersona, type SokoBotPersona } from "../persona.js";
-import type { SokoBotCapability } from "../policy.js";
+import {
+  isSokoBotCmoCapability,
+  SOKO_BOT_CMO_CAPABILITIES,
+  type SokoBotCapability,
+} from "../policy.js";
+import { cmoV1 } from "./cmo-v1.js";
 import {
   getSokoBotSkill,
   SOKO_BOT_SKILLS,
@@ -58,13 +63,23 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
 ];
 export const DEFAULT_SOKO_BOT_VERSION_ID = "v23";
 
+/**
+ * Versions of other products built on Soko Bots (CMO's Cuso). Kept out of
+ * `SOKO_BOT_VERSIONS` so the personal-assistant fleet can never be promoted
+ * or migrated onto them; a bot is pinned to one at creation.
+ */
+export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [cmoV1];
+export const CMO_SOKO_BOT_VERSION_ID = cmoV1.id;
+
 export type { SokoBotSkill, SokoBotVersion };
 export { getSokoBotSkill, SOKO_BOT_SKILLS };
 
 export function getSokoBotVersion(
   id: string | null | undefined,
 ): SokoBotVersion {
-  const version = SOKO_BOT_VERSIONS.find((candidate) => candidate.id === id);
+  const version = [...SOKO_BOT_VERSIONS, ...SOKO_BOT_PRODUCT_VERSIONS].find(
+    (candidate) => candidate.id === id,
+  );
   if (version) return version;
   const fallback = SOKO_BOT_VERSIONS.find(
     (candidate) => candidate.id === DEFAULT_SOKO_BOT_VERSION_ID,
@@ -85,12 +100,24 @@ export function composeSystemPrompt(
   ].join("\n\n");
 }
 
-/** Route ceiling ∩ version allowlist; a version narrows, it never widens. */
+/**
+ * Route ceiling ∩ version allowlist; a version narrows, it never widens. The
+ * one exception is a product's own tools: a CMO bot always carries its Brand
+ * Brain and strategy tools, and no other bot ever does.
+ */
 export function applyVersionCapabilities(
   version: SokoBotVersion,
   capabilities: readonly SokoBotCapability[],
 ): SokoBotCapability[] {
-  if (!version.capabilities) return [...capabilities];
-  const allowed = new Set<SokoBotCapability>(version.capabilities);
-  return capabilities.filter((capability) => allowed.has(capability));
+  const routed = capabilities.filter(
+    (capability) => !isSokoBotCmoCapability(capability),
+  );
+  const allowed = version.capabilities
+    ? routed.filter((capability) =>
+        (version.capabilities as readonly string[]).includes(capability),
+      )
+    : routed;
+  return version.profile === "cmo"
+    ? [...allowed, ...SOKO_BOT_CMO_CAPABILITIES]
+    : allowed;
 }

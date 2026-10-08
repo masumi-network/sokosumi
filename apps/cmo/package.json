@@ -22,6 +22,8 @@
     "@sokosumi/utils": "workspace:*",
     "@vercel/related-projects": "1.1.1",
     "better-auth": "1.7.7",
+    "lucide-react": "1.52.0",
+    "motion": "14.0.0",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",

@@ -42,6 +42,11 @@ export type InitiateProjectSocialConnectionInput = {
   projectId: string;
   workspaceId: string;
   userId: string;
+  /**
+   * Where the provider sends the owner back. Defaults to Web's popup
+   * callback; CMO.xyz passes its own page, already checked by the caller.
+   */
+  callbackUrl?: string;
 } & (
   | {
       provider: ProjectSocialProvider;
@@ -421,7 +426,7 @@ export async function initiateProjectSocialConnection(
     authConfigId,
     connectorUserId: projectConnectorUserId(input.userId),
     executorUserId: projectExecutorUserId(input.projectId),
-    callbackUrl: `${getWebAppBaseUrl()}/composio/callback`,
+    callbackUrl: input.callbackUrl ?? `${getWebAppBaseUrl()}/composio/callback`,
   });
   try {
     await serializableTransaction(async (tx) => {

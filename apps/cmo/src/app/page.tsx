@@ -5,7 +5,10 @@ import {
 } from "@sokosumi/core-client";
 import { headers } from "next/headers";
 
+import { CmoApp } from "../components/app/cmo-app";
 import { NameSetup } from "../components/name-setup";
+import { Onboarding } from "../components/onboarding";
+import { OnboardingFlow } from "../components/onboarding/flow";
 import { OrganizationSetup } from "../components/organization-setup";
 import { PendingInvitations } from "../components/pending-invitations";
 import { SignedIn } from "../components/signed-in";
@@ -21,6 +24,23 @@ import { asSignedInPersonInPage } from "../lib/core";
 import { isValidPersonName } from "../lib/person-name";
 import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
 import { createAccount, signIn, signOut } from "./actions";
+import {
+  approveStrategy,
+  chooseMockPlan,
+  completeOnboarding,
+  connectChannel,
+  finishAccounts,
+  loadMessages,
+  loadOverview,
+  loadPlans,
+  loadState,
+  onboard,
+  pauseEntry,
+  requestStrategy,
+  retryLearning,
+  revertUpdate,
+  sendMessage,
+} from "./cmo-actions";
 import { saveName } from "./name-actions";
 import {
   createOrganizationWorkspace,
@@ -68,6 +88,7 @@ interface HomePageProps {
   searchParams: Promise<{
     error?: string | string[];
     step?: string | string[];
+    connect?: string | string[];
   }>;
 }
 
@@ -146,11 +167,65 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       />
     );
   }
+  const overview = await loadOverview().catch(() => undefined);
+  // Core unreachable: keep the signed-in shell rather than an error page.
+  if (overview === undefined) {
+    return (
+      <SignedIn
+        name={session.user.name}
+        email={session.user.email}
+        signOut={signOut}
+      />
+    );
+  }
+  if (overview === null) {
+    // Cuso is hired where the person works now (ADR 0053).
+    const preferred =
+      workspaces.find((workspace) => workspace.preferred) ?? workspaces[0];
+    return <Onboarding workspace={preferred} onboard={onboard} />;
+  }
+  if (!overview.onboardedAt) {
+    return (
+      <OnboardingFlow
+        overview={overview}
+        messages={await loadMessages().catch(() => [])}
+        plans={await loadPlans().catch(() => null)}
+        name={session.user.name}
+        initialStep={step}
+        actions={{
+          loadState,
+          sendMessage,
+          retryLearning,
+          requestStrategy,
+          approveStrategy,
+          finishAccounts,
+          chooseMockPlan,
+          connectChannel,
+          completeOnboarding,
+          signOut,
+        }}
+      />
+    );
+  }
   return (
-    <SignedIn
+    <CmoApp
+      overview={overview}
+      messages={await loadMessages().catch(() => [])}
       name={session.user.name}
       email={session.user.email}
-      signOut={signOut}
+      initialView={step === "connect" ? "channels" : "chat"}
+      connectFailed={step === "connect" && first(params.connect) === "failed"}
+      actions={{
+        loadState,
+        sendMessage,
+        approveStrategy,
+        revertUpdate,
+        retryLearning,
+        pauseEntry,
+        connectChannel,
+        chooseMockPlan,
+        signOut,
+      }}
     />
   );
 }

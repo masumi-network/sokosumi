@@ -17,6 +17,7 @@ import {
   exceedsUnattendedHireBudget,
   sokoBotGenerateImageInputSchema as generateImageInputSchema,
   sokoBotGetImageInputSchema as getImageInputSchema,
+  getSokoBotVersion,
   sokoBotHireAgentInputSchema as hireAgentInputSchema,
   isSokoBotCapability,
   isSokoBotDecisionTarget,
@@ -175,6 +176,13 @@ import {
   hydrateChatResultSnapshots,
   resolveChatResultReference,
 } from "@/services/chat-result-preview.service";
+import {
+  CmoNotFoundError,
+  cmoExecutionRefusal,
+  reportCmoUpdate,
+  saveCmoBrandBrain,
+  saveCmoStrategy,
+} from "@/services/cmo.service";
 import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
 import {
   activateDriveUploadResource,
@@ -490,6 +498,55 @@ export interface SokoBotActionContext {
 export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
   grant: SokoBotTurnGrantClaims;
   askedByKind?: SokoBotPacketAudience;
+}
+
+/** Tools whose work belongs to a Project; a project bot's go to its own. */
+const PROJECT_SCOPED_TOOLS: ReadonlySet<string> = new Set([
+  "list_tasks",
+  "create_task",
+  "hire_agent",
+  "generate_image",
+  "get_image",
+  "list_project_social_accounts",
+  "list_social_posts",
+  "get_social_post",
+  "create_social_post",
+  "update_social_post",
+  "schedule_social_post",
+  "cancel_social_post",
+  "publish_social_post",
+]);
+
+/**
+ * A bot pinned to a Project (CMO.xyz's Cuso) works in that Project only:
+ * its project-scoped tools default to it and refuse any other.
+ */
+export async function pinToBotProject(
+  input: ExecuteSokoBotToolInput,
+  sokoBotId: string,
+): Promise<ExecuteSokoBotToolInput> {
+  if (!PROJECT_SCOPED_TOOLS.has(input.capability)) return input;
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: { projectId: true },
+  });
+  if (!bot?.projectId) return input;
+  const fields =
+    input.input &&
+    typeof input.input === "object" &&
+    !Array.isArray(input.input)
+      ? (input.input as Record<string, unknown>)
+      : {};
+  if (
+    fields.projectId !== undefined &&
+    fields.projectId !== null &&
+    fields.projectId !== bot.projectId
+  ) {
+    throw new SokoBotRuntimeValidationError(
+      "This bot works in its own Project only; use that Project.",
+    );
+  }
+  return { ...input, input: { ...fields, projectId: bot.projectId } };
 }
 
 export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
@@ -3672,6 +3729,96 @@ export class SokoBotRuntimeService {
     return workspace;
   }
 
+  /** Cuso's Brand Brain and strategy, written to its CMO hire. */
+  /** Cuso's Brand Brain, strategy and reports, written to its CMO hire. */
+  private async saveCmoRecord(
+    authorized: AuthorizedSokoBotRuntime,
+    input: ExecuteSokoBotToolInput,
+  ) {
+    if (getSokoBotVersion(authorized.turn.versionId).profile !== "cmo") {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Only a CMO assistant keeps a Brand Brain, strategy and reports",
+      );
+    }
+    const where = { sokoBotId: authorized.turn.sokoBotId };
+    const run = async (): Promise<{
+      targetId: string;
+      result: Record<string, unknown>;
+    }> => {
+      switch (input.capability) {
+        case "save_brand_brain": {
+          const saved = await saveCmoBrandBrain(
+            where,
+            SOKO_BOT_TOOL_INPUT_SCHEMAS.save_brand_brain.parse(input.input)
+              .brandBrain,
+          );
+          return {
+            targetId: saved.id,
+            result: {
+              saved: "brandBrain",
+              updatedAt: saved.brandBrainUpdatedAt?.toISOString(),
+            },
+          };
+        }
+        case "save_strategy": {
+          const saved = await saveCmoStrategy(
+            where,
+            SOKO_BOT_TOOL_INPUT_SCHEMAS.save_strategy.parse(input.input)
+              .strategy,
+            { turnId: authorized.turn.id },
+          );
+          return {
+            targetId: saved.id,
+            result: {
+              saved: "strategy",
+              approved: saved.strategyApprovedAt !== null,
+              updatedAt: saved.strategyUpdatedAt?.toISOString(),
+            },
+          };
+        }
+        default: {
+          const record = await reportCmoUpdate({
+            sokoBotId: authorized.turn.sokoBotId,
+            turnId: authorized.turn.id,
+            update: SOKO_BOT_TOOL_INPUT_SCHEMAS.report_update.parse(
+              input.input,
+            ),
+          });
+          return {
+            targetId: record.id,
+            result: {
+              reported: record.kind,
+              id: record.id,
+              revertible: record.previousStrategy !== undefined,
+            },
+          };
+        }
+      }
+    };
+    const { targetId, result } = await run().catch((error: unknown) => {
+      if (error instanceof CmoNotFoundError) {
+        throw new SokoBotRuntimeValidationError(error.message);
+      }
+      throw error;
+    });
+    await serializableTransaction(async (tx) => {
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        false,
+        input.capability,
+      );
+      await commitActionReceipt(tx, {
+        turnId: authorized.turn.id,
+        toolCallId: input.toolCallId,
+        actorBotId: authorized.turn.sokoBotId,
+        targetId,
+        result: persistedToolResult(result),
+      });
+    }, "CMO record changed concurrently");
+    return result;
+  }
+
   private async updateMemory(
     authorized: AuthorizedSokoBotRuntime,
     rawInput: unknown,
@@ -3751,8 +3898,9 @@ export class SokoBotRuntimeService {
     }, "Memory changed during turn");
   }
 
-  async executeTool(input: ExecuteSokoBotToolInput): Promise<unknown> {
-    const authorized = await this.authorize(input);
+  async executeTool(rawInput: ExecuteSokoBotToolInput): Promise<unknown> {
+    const authorized = await this.authorize(rawInput);
+    let input = await pinToBotProject(rawInput, authorized.turn.sokoBotId);
     assertEvaluationActor({
       ...authorized.turn,
       clientTurnId: authorized.turn.id,
@@ -4257,8 +4405,25 @@ export class SokoBotRuntimeService {
       workspace.organizationId,
       tx,
     );
-    await requireSocialBetaAccess(authorized.turn.userId, tx);
+    // Social is Cuso's core job, so CMO bots skip the Social beta; their
+    // scheduling and publishing answer to the CMO gate instead.
+    if (getSokoBotVersion(authorized.turn.versionId).profile !== "cmo") {
+      await requireSocialBetaAccess(authorized.turn.userId, tx);
+    }
     return workspace;
+  }
+
+  /**
+   * CMO bots schedule and publish only once the owner approved the strategy
+   * and the workspace has an active CMO plan (`cmoMayExecute`). No-op for
+   * every other bot.
+   */
+  private async requireCmoExecution(authorized: AuthorizedSokoBotRuntime) {
+    const refusal = await cmoExecutionRefusal({
+      sokoBotId: authorized.turn.sokoBotId,
+      versionId: authorized.turn.versionId,
+    });
+    if (refusal) throw new SokoBotRuntimeValidationError(refusal);
   }
 
   private async executeSocialTool(
@@ -4266,6 +4431,16 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
   ) {
     const { workspaceId, userId } = authorized.turn;
+    if (
+      getSokoBotVersion(authorized.turn.versionId).profile === "cmo" &&
+      (input.capability === "publish_social_post" ||
+        input.capability === "schedule_social_post" ||
+        (input.capability === "create_social_post" &&
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.create_social_post.safeParse(input.input)
+            .data?.scheduledAt))
+    ) {
+      await this.requireCmoExecution(authorized);
+    }
     switch (input.capability) {
       case "list_project_social_accounts": {
         const params =
@@ -4919,6 +5094,10 @@ export class SokoBotRuntimeService {
           });
       case "update_memory":
         return this.updateMemory(authorized, input.input, input.toolCallId);
+      case "save_brand_brain":
+      case "save_strategy":
+      case "report_update":
+        return this.saveCmoRecord(authorized, input);
       case "manage_reminder": {
         const parsed = sokoBotManageReminderInputSchema.parse(input.input);
         return serializableTransaction(async (tx) => {

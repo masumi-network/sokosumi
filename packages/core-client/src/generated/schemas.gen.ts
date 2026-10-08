@@ -909,6 +909,13 @@ export const AdminSokoBotListItemSchema = {
                 'null'
             ]
         },
+        kind: {
+            type: 'string',
+            enum: [
+                'assistant',
+                'cmo'
+            ]
+        },
         runtimeVersion: {
             type: [
                 'string',
@@ -984,6 +991,7 @@ export const AdminSokoBotListItemSchema = {
         'status',
         'archivedAt',
         'versionId',
+        'kind',
         'runtimeVersion',
         'runtimeDeployment',
         'lastActivityAt',
@@ -22926,6 +22934,1244 @@ export const PublicSharedTaskFileSchema = {
         'mimeType',
         'size',
         'createdAt'
+    ]
+} as const;
+
+export const CmoOverviewSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        businessName: {
+            type: 'string'
+        },
+        websiteUrl: {
+            type: 'string'
+        },
+        goals: {
+            type: 'string'
+        },
+        organizationSlug: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        projectName: {
+            type: 'string'
+        },
+        workspaceId: {
+            type: 'string'
+        },
+        sokoBotId: {
+            type: 'string'
+        },
+        projectId: {
+            type: 'string'
+        },
+        roomId: {
+            type: 'string'
+        },
+        botStatus: {
+            type: 'string'
+        },
+        learning: {
+            type: 'string',
+            enum: [
+                'running',
+                'failed',
+                'done'
+            ],
+            description: 'Cuso\'s first look at the business: still running, failed or stuck (offer a retry), or done.'
+        },
+        subscriptionActive: {
+            type: 'boolean'
+        },
+        work: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoWork'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        brandVisual: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoBrandVisual'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        projectLogo: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        accountsDoneAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        onboardedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        mockBilling: {
+            type: 'boolean',
+            description: 'CMO offers its own mock tiers instead of Sokosumi checkout.'
+        },
+        mockPlan: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        mockPlanActivatedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        routines: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoRoutine'
+            }
+        },
+        brandBrain: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        summary: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
+                        voice: {
+                            type: 'object',
+                            properties: {
+                                tone: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                do: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 12
+                                },
+                                dont: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 12
+                                },
+                                examples: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    maxItems: 8
+                                }
+                            },
+                            required: [
+                                'tone',
+                                'do',
+                                'dont',
+                                'examples'
+                            ]
+                        },
+                        audience: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 8
+                        },
+                        products: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 12
+                        },
+                        competitors: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'name'
+                                ]
+                            },
+                            maxItems: 10
+                        },
+                        channels: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'name'
+                                ]
+                            },
+                            maxItems: 12
+                        }
+                    },
+                    required: [
+                        'summary',
+                        'voice',
+                        'audience',
+                        'products',
+                        'competitors',
+                        'channels'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        brandBrainUpdatedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        strategy: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        month: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}$'
+                        },
+                        summary: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
+                        why: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
+                        goals: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            minItems: 1,
+                            maxItems: 6
+                        },
+                        audience: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        positioning: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
+                        pillars: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 6
+                        },
+                        channels: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    cadence: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'channel',
+                                    'cadence'
+                                ]
+                            },
+                            maxItems: 10
+                        },
+                        calendar: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 64
+                                    },
+                                    date: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    time: {
+                                        type: 'string',
+                                        pattern: '^\\d{2}:\\d{2}$'
+                                    },
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    title: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    format: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    status: {
+                                        type: 'string',
+                                        enum: [
+                                            'idea',
+                                            'draft',
+                                            'scheduled',
+                                            'published',
+                                            'skipped'
+                                        ]
+                                    },
+                                    hook: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    brief: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    draft: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 4000
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    socialPostId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    imageFileId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    },
+                                    taskId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'date',
+                                    'channel',
+                                    'title',
+                                    'format',
+                                    'status'
+                                ]
+                            },
+                            maxItems: 120
+                        },
+                        previews: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    kind: {
+                                        type: 'string',
+                                        enum: [
+                                            'post',
+                                            'ad',
+                                            'seo',
+                                            'newsletter'
+                                        ]
+                                    },
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    title: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    body: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    }
+                                },
+                                required: [
+                                    'kind',
+                                    'channel',
+                                    'title',
+                                    'body'
+                                ]
+                            },
+                            maxItems: 4,
+                            default: []
+                        },
+                        changes: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 10,
+                            default: []
+                        }
+                    },
+                    required: [
+                        'month',
+                        'summary',
+                        'goals',
+                        'pillars',
+                        'channels',
+                        'calendar'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        strategyUpdatedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        strategyApprovedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        updates: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoUpdate'
+            }
+        },
+        channels: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoChannel'
+            }
+        },
+        upNext: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoUpNextItem'
+            }
+        },
+        connectChannelUrl: {
+            type: 'string'
+        },
+        subscribeUrl: {
+            type: 'string'
+        },
+        billing: {
+            type: 'object',
+            properties: {
+                plan: {
+                    anyOf: [
+                        {
+                            type: 'string'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                subscriptionStatus: {
+                    anyOf: [
+                        {
+                            type: 'string'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                availableCredits: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'plan',
+                'subscriptionStatus',
+                'availableCredits'
+            ]
+        },
+        posts: {
+            type: 'object',
+            properties: {
+                draft: {
+                    type: 'number'
+                },
+                scheduled: {
+                    type: 'number'
+                },
+                published: {
+                    type: 'number'
+                },
+                failed: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'draft',
+                'scheduled',
+                'published',
+                'failed'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'businessName',
+        'websiteUrl',
+        'goals',
+        'organizationSlug',
+        'projectName',
+        'workspaceId',
+        'sokoBotId',
+        'projectId',
+        'roomId',
+        'botStatus',
+        'learning',
+        'subscriptionActive',
+        'work',
+        'brandVisual',
+        'projectLogo',
+        'accountsDoneAt',
+        'onboardedAt',
+        'mockBilling',
+        'mockPlan',
+        'mockPlanActivatedAt',
+        'routines',
+        'brandBrain',
+        'brandBrainUpdatedAt',
+        'strategy',
+        'strategyUpdatedAt',
+        'strategyApprovedAt',
+        'updates',
+        'channels',
+        'upNext',
+        'connectChannelUrl',
+        'subscribeUrl',
+        'billing',
+        'posts',
+        'createdAt'
+    ]
+} as const;
+
+export const CmoWorkSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'research',
+                'strategy'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'running',
+                'failed',
+                'done'
+            ]
+        },
+        startedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        steps: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoWorkStep'
+            }
+        }
+    },
+    required: [
+        'kind',
+        'status',
+        'startedAt',
+        'steps'
+    ]
+} as const;
+
+export const CmoWorkStepSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'search',
+                'read',
+                'study',
+                'brain',
+                'strategy',
+                'other'
+            ]
+        },
+        label: {
+            type: 'string'
+        },
+        url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'running',
+                'done',
+                'failed'
+            ]
+        },
+        at: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'label',
+        'url',
+        'status',
+        'at'
+    ]
+} as const;
+
+export const CmoBrandVisualSchema = {
+    type: 'object',
+    properties: {
+        logoUrl: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        siteName: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        designMdUrl: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'logoUrl',
+        'colors',
+        'fonts',
+        'siteName',
+        'designMdUrl'
+    ]
+} as const;
+
+export const CmoRoutineSchema = {
+    type: 'object',
+    properties: {
+        key: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        when: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        nextRunAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        timezone: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'key',
+        'name',
+        'when',
+        'description',
+        'nextRunAt',
+        'timezone'
+    ]
+} as const;
+
+export const CmoUpdateSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'daily',
+                'weekly',
+                'monthly',
+                'brand',
+                'request'
+            ]
+        },
+        headline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 400
+        },
+        done: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 12,
+            default: []
+        },
+        upNext: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 12,
+            default: []
+        },
+        changes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 10,
+            default: []
+        },
+        results: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        id: {
+            type: 'string'
+        },
+        at: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        revertible: {
+            type: 'boolean'
+        },
+        revertedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'headline',
+        'id',
+        'at',
+        'revertible',
+        'revertedAt'
+    ]
+} as const;
+
+export const CmoChannelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        provider: {
+            type: 'string'
+        },
+        handle: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        displayName: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        status: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'provider',
+        'handle',
+        'displayName',
+        'status'
+    ]
+} as const;
+
+export const CmoUpNextItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        date: {
+            type: 'string'
+        },
+        channel: {
+            type: 'string'
+        },
+        title: {
+            type: 'string'
+        },
+        status: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'date',
+        'channel',
+        'title',
+        'status'
+    ]
+} as const;
+
+export const CmoOnboardingRequestSchema = {
+    type: 'object',
+    properties: {
+        workspaceId: {
+            type: 'string',
+            minLength: 1,
+            description: 'The Workspace to hire Cuso into, as `/v1/users/me/workspaces` lists it.'
+        },
+        websiteUrl: {
+            type: 'string',
+            maxLength: 500,
+            format: 'uri'
+        },
+        goals: {
+            type: 'string',
+            minLength: 3,
+            maxLength: 2000
+        }
+    },
+    required: [
+        'workspaceId',
+        'websiteUrl',
+        'goals'
+    ]
+} as const;
+
+export const CmoMockPlanRequestSchema = {
+    type: 'object',
+    properties: {
+        plan: {
+            type: 'string',
+            pattern: '^[a-z][a-z0-9-]{0,31}$',
+            description: 'A CMO tier id from CMO\'s own plan config.'
+        }
+    },
+    required: [
+        'plan'
+    ]
+} as const;
+
+export const CmoTurnStartedSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            type: 'string'
+        }
+    },
+    required: [
+        'turnId'
+    ]
+} as const;
+
+export const CmoBrandBrainRequestSchema = {
+    type: 'object',
+    properties: {
+        brandBrain: {
+            type: 'object',
+            properties: {
+                summary: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 2000
+                },
+                voice: {
+                    type: 'object',
+                    properties: {
+                        tone: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        do: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 12
+                        },
+                        dont: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 12
+                        },
+                        examples: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 2000
+                            },
+                            maxItems: 8
+                        }
+                    },
+                    required: [
+                        'tone',
+                        'do',
+                        'dont',
+                        'examples'
+                    ]
+                },
+                audience: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    maxItems: 8
+                },
+                products: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    maxItems: 12
+                },
+                competitors: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            url: {
+                                type: 'string',
+                                maxLength: 500,
+                                format: 'uri'
+                            },
+                            note: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'name'
+                        ]
+                    },
+                    maxItems: 10
+                },
+                channels: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            url: {
+                                type: 'string',
+                                maxLength: 500,
+                                format: 'uri'
+                            },
+                            note: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'name'
+                        ]
+                    },
+                    maxItems: 12
+                }
+            },
+            required: [
+                'summary',
+                'voice',
+                'audience',
+                'products',
+                'competitors',
+                'channels'
+            ]
+        }
+    },
+    required: [
+        'brandBrain'
+    ]
+} as const;
+
+export const CmoStrategyRequestSchema = {
+    type: 'object',
+    properties: {
+        note: {
+            type: 'string',
+            maxLength: 1000
+        }
+    }
+} as const;
+
+export const CmoChannelConnectSchema = {
+    type: 'object',
+    properties: {
+        redirectUrl: {
+            type: 'string'
+        }
+    },
+    required: [
+        'redirectUrl'
     ]
 } as const;
 

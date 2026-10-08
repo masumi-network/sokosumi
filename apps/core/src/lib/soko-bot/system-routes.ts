@@ -81,6 +81,40 @@ export const SYSTEM_TURN_ROUTES = {
     writeScope: "MEMORY",
     reason: "Memory cleanup: drop stale goals and follow-ups.",
   },
+  /**
+   * CMO daily run: draft, design and schedule the calendar's next entries.
+   * Publishing is still gated by the approved strategy and the subscription
+   * inside the social tools.
+   */
+  "cmo-daily-run": {
+    route: "MANAGE_WORK",
+    writeScope: "WORK",
+    reason: "CMO daily run: prepare and schedule the next calendar entries.",
+  },
+  /** CMO weekly review: measure, then improve or propose a better plan. */
+  "cmo-weekly-review": {
+    route: "MANAGE_WORK",
+    writeScope: "WORK",
+    reason: "CMO weekly review: measure and improve the strategy.",
+  },
+  /** CMO monthly strategy: plan next month from what was learned. */
+  "cmo-monthly-strategy": {
+    route: "MANAGE_WORK",
+    writeScope: "WORK",
+    reason: "CMO monthly strategy: write next month's strategy.",
+  },
+  /** CMO Brand Brain refresh: reads the open web, so it may not post. */
+  "cmo-brand-refresh": {
+    route: "MANAGE_WORK",
+    writeScope: "WORK",
+    sandbox: true,
+    reason: "CMO Brand Brain refresh: re-read the website and update it.",
+  },
+  /** CMO strategy reminder: one friendly line, no tools. */
+  "cmo-strategy-nudge": {
+    route: "DIRECT_RESPONSE",
+    reason: "CMO strategy reminder: remind the owner once.",
+  },
 } as const satisfies Record<string, PresetRoute>;
 
 export function systemScheduleRoute(

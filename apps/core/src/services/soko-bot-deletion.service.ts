@@ -232,7 +232,7 @@ export async function deleteSokoBotForUser(
   workspaceId: string,
 ): Promise<SokoBotDeletionResult> {
   const bot = await prisma.sokoBot.findFirst({
-    where: { userId, workspaceId, deletedAt: null },
+    where: { userId, workspaceId, projectId: null, deletedAt: null },
     select: { id: true },
   });
   if (!bot) throw notFound("Soko Bot not found");

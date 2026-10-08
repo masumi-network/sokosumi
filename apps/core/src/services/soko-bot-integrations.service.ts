@@ -218,7 +218,7 @@ async function lookupToolkit(
 
 export async function requireBot(userId: string, workspaceId: string) {
   const bot = await prisma.sokoBot.findFirst({
-    where: { userId, workspaceId, archivedAt: null },
+    where: { userId, workspaceId, projectId: null, archivedAt: null },
     select: { id: true },
   });
   if (!bot)
