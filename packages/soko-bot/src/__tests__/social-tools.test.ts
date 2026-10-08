@@ -34,6 +34,8 @@ const reads = [
   "list_social_posts",
   "list_social_post_statistics",
   "refresh_social_post_statistics",
+  "list_social_account_statistics",
+  "refresh_social_account_statistics",
   "get_social_post",
 ] as const;
 const writes = [
@@ -49,6 +51,11 @@ const inputs = {
   list_social_posts: { projectId },
   list_social_post_statistics: { projectId },
   refresh_social_post_statistics: { projectId, postId },
+  list_social_account_statistics: { projectId },
+  refresh_social_account_statistics: {
+    projectId,
+    connectionId: socialConnectionId,
+  },
   get_social_post: { projectId, postId },
   create_social_post: { projectId, text: "Launch" },
   update_social_post: { projectId, postId, revision: 0, text: "Launch" },
@@ -164,7 +171,7 @@ describe("Social tool contracts", () => {
     }
   });
 
-  it("makes v22 performance instructions the default while preserving released prompts", () => {
+  it("keeps v22 performance instructions available while preserving released prompts", () => {
     const version = getSokoBotVersion("v22");
     expect(version.skills).toContain("social-performance");
     expect(version.skills).not.toContain("chat-result-previews");
@@ -180,7 +187,7 @@ describe("Social tool contracts", () => {
         "# Social performance",
       );
     }
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v22");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v23");
   });
 
   it("describes every provider's publishing rules", () => {

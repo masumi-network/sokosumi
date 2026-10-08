@@ -171,8 +171,12 @@ One piece of content a Project intends to publish through exactly one Project so
 _Avoid_: Job, Task
 
 **Social statistics**:
-The latest available lifetime performance counters for published Social posts, with the time they were measured. A publication-date filter selects posts, not the period in which engagement occurred.
+Available metrics for a connected social account and its published content, with freshness, metric periods, units, and accessible-history coverage. Account totals retain the provider's metric period; a publication-date filter selects posts and does not define when engagement occurred.
 _Avoid_: Engagement over the selected period, treating an unavailable counter as zero
+
+**Social account post**:
+A read-only cached publication retrieved from a connected account's provider history, including posts created outside Sokosumi. Distinct from a schedulable Social post; identified by the connected account and provider post ID.
+_Avoid_: Draft, scheduled Social post, importing history as publishable content
 
 ### Task payments
 

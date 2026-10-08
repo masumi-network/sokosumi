@@ -561,16 +561,40 @@ model ProjectSocialConnection {
   connectorUserId            String
   connectedAt                DateTime?
   disconnectedAt             DateTime?
+  /// Cached account metrics and provider history progress; separate from scheduled posts.
+  statistics                 Json?
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
 
-  project     Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  audits      ProjectSocialConnectionAudit[]
-  intents     ProjectSocialConnectionIntent[]
-  socialPosts SocialPost[]
+  project      Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  audits       ProjectSocialConnectionAudit[]
+  intents      ProjectSocialConnectionIntent[]
+  socialPosts  SocialPost[]
+  accountPosts SocialAccountPost[]
 
   @@unique([projectId, activeExternalAccountKey])
   @@map("project_social_connection")
+}
+
+/// Provider-authored published posts are read-only cache records, never scheduling drafts.
+model SocialAccountPost {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  connectionId      String    @db.Uuid
+  externalId        String
+  text              String
+  publishedAt       DateTime?
+  url               String?
+  metrics           Json
+  additionalMetrics Json
+  fetchedAt         DateTime
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  connection ProjectSocialConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, externalId], map: "social_account_post_connectionId_externalId_key")
+  @@index([connectionId, publishedAt, id], map: "social_account_post_connectionId_publishedAt_id_idx")
+  @@map("social_account_post")
 }
 
 model ProjectSocialConnectionIntent {

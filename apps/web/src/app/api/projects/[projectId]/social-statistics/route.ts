@@ -14,6 +14,7 @@ const querySchema = z.object({
   publishedFrom: z.iso.datetime().optional(),
   publishedUntil: z.iso.datetime().optional(),
   cursor: z.string().optional(),
+  connectionId: z.uuid().optional(),
 });
 
 export async function GET(
@@ -32,7 +33,7 @@ export async function GET(
   if (!query.success)
     return NextResponse.json({ error: "Invalid filters" }, { status: 400 });
   try {
-    const data = await projectService.listSocialPostStatistics(
+    const data = await projectService.listSocialAccountStatistics(
       projectId,
       query.data,
     );

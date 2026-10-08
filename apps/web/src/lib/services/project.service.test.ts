@@ -14,6 +14,8 @@ const coreClientMock = {
   getProjectsByIdSocialConnections: vi.fn(),
   getProjectsByIdSocialPosts: vi.fn(),
   getProjectsByIdSocialPostsStatistics: vi.fn(),
+  getProjectsByIdSocialConnectionsStatistics: vi.fn(),
+  postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh: vi.fn(),
   postProjectsByIdSocialPostsByPostIdStatisticsRefresh: vi.fn(),
   getProjectsByIdSocialPostsByPostId: vi.fn(),
   getProjectsStats: vi.fn(),
@@ -528,6 +530,76 @@ describe("project.service", () => {
       status: "DRAFT" as const,
       revision: 0,
     };
+
+    it("reads account overview and external posts with filtered publication dates", async () => {
+      const data = { accounts: [], posts: [], nextCursor: "external-2" };
+      coreClientMock.getProjectsByIdSocialConnectionsStatistics.mockResolvedValue(
+        { data },
+      );
+      const { projectService } = await import("./project.service");
+      const filters = {
+        provider: "x" as const,
+        connectionId: "connection-1",
+        publishedFrom: "2026-10-01T00:00:00Z",
+        publishedUntil: "2026-10-08T23:59:59Z",
+        cursor: "external-1",
+      };
+      expect(
+        await projectService.listSocialAccountStatistics("project-1", filters),
+      ).toEqual(data);
+      expect(
+        coreClientMock.getProjectsByIdSocialConnectionsStatistics,
+      ).toHaveBeenCalledWith("project-1", {
+        ...filters,
+        publishedFrom: new Date(filters.publishedFrom),
+        publishedUntil: new Date(filters.publishedUntil),
+        limit: 20,
+      });
+      coreClientMock.getProjectsByIdSocialConnectionsStatistics.mockRejectedValue(
+        new Error("Denied"),
+      );
+      await expect(
+        projectService.listSocialAccountStatistics("project-1"),
+      ).rejects.toThrow("Denied");
+    });
+
+    it("syncs first or continued account history pages through Core and propagates failures", async () => {
+      const data = { account: {}, importedPostCount: 10 };
+      coreClientMock.postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh.mockResolvedValue(
+        { data },
+      );
+      const { projectService } = await import("./project.service");
+      expect(
+        await projectService.refreshSocialAccountStatistics(
+          "project-1",
+          "connection-1",
+        ),
+      ).toEqual(data);
+      expect(
+        coreClientMock.postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
+      ).toHaveBeenLastCalledWith("project-1", "connection-1", {
+        continueHistory: false,
+      });
+      await projectService.refreshSocialAccountStatistics(
+        "project-1",
+        "connection-1",
+        true,
+      );
+      expect(
+        coreClientMock.postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
+      ).toHaveBeenLastCalledWith("project-1", "connection-1", {
+        continueHistory: true,
+      });
+      coreClientMock.postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh.mockRejectedValue(
+        new Error("Denied"),
+      );
+      await expect(
+        projectService.refreshSocialAccountStatistics(
+          "project-1",
+          "connection-1",
+        ),
+      ).rejects.toThrow("Denied");
+    });
 
     it("reads filtered statistics and pagination through Core", async () => {
       const data = { posts: [post], summary: [], nextCursor: "post-2" };

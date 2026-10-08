@@ -307,6 +307,46 @@ export const projectService = (() => {
     };
   }
 
+  async function listSocialAccountStatistics(
+    projectId: string,
+    params: {
+      provider?: SocialPost["provider"];
+      connectionId?: string;
+      publishedFrom?: string;
+      publishedUntil?: string;
+      cursor?: string;
+    } = {},
+  ) {
+    const result = await coreClient.getProjectsByIdSocialConnectionsStatistics(
+      projectId,
+      {
+        ...params,
+        publishedFrom: params.publishedFrom
+          ? new Date(params.publishedFrom)
+          : undefined,
+        publishedUntil: params.publishedUntil
+          ? new Date(params.publishedUntil)
+          : undefined,
+        limit: 20,
+      },
+    );
+    return result.data;
+  }
+
+  async function refreshSocialAccountStatistics(
+    projectId: string,
+    connectionId: string,
+    continueHistory = false,
+  ) {
+    const result =
+      await coreClient.postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh(
+        projectId,
+        connectionId,
+        { continueHistory },
+      );
+    return result.data;
+  }
+
   async function listSocialPostStatistics(
     projectId: string,
     params: {
@@ -541,6 +581,8 @@ export const projectService = (() => {
     cancelProjectCloseOwedWork,
     listSocialPosts,
     listSocialPostStatistics,
+    listSocialAccountStatistics,
+    refreshSocialAccountStatistics,
     refreshSocialPostStatistics,
     getSocialPost,
     createSocialPost,

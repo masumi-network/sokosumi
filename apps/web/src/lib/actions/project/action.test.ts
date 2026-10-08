@@ -27,6 +27,7 @@ const projectServiceMock = {
   patchProject: vi.fn(),
   publishSocialPost: vi.fn(),
   refreshSocialPostStatistics: vi.fn(),
+  refreshSocialAccountStatistics: vi.fn(),
   removeProjectDesignMd: vi.fn(),
   retryProjectClose: vi.fn(),
   scheduleSocialPost: vi.fn(),
@@ -614,6 +615,52 @@ describe("project actions", () => {
       status: "DRAFT" as const,
       revision: 0,
     };
+
+    it("syncs account statistics with retained history and returns serialized Core errors", async () => {
+      const projectId = "11111111-1111-4111-8111-111111111111";
+      const connectionId = "22222222-2222-4222-8222-222222222222";
+      const data = { account: {}, importedPostCount: 5 };
+      projectServiceMock.refreshSocialAccountStatistics.mockResolvedValue(data);
+      const { refreshProjectSocialAccountStatistics } = await import(
+        "./action"
+      );
+      const { revalidatePath } = await import("next/cache");
+      expect(
+        await refreshProjectSocialAccountStatistics({
+          projectId,
+          connectionId,
+          continueHistory: true,
+        }),
+      ).toEqual({ ok: true, value: data });
+      expect(
+        projectServiceMock.refreshSocialAccountStatistics,
+      ).toHaveBeenCalledWith(projectId, connectionId, true);
+      expect(revalidatePath).toHaveBeenCalledWith("/social");
+      projectServiceMock.refreshSocialAccountStatistics.mockRejectedValue(
+        new Error("Denied"),
+      );
+      expect(
+        await refreshProjectSocialAccountStatistics({
+          projectId,
+          connectionId,
+        }),
+      ).toMatchObject({ ok: false, error: { message: "Denied" } });
+    });
+
+    it("rejects malformed account sync parameters", async () => {
+      const { refreshProjectSocialAccountStatistics } = await import(
+        "./action"
+      );
+      expect(
+        await refreshProjectSocialAccountStatistics({
+          projectId: "bad",
+          connectionId: "bad",
+        }),
+      ).toMatchObject({ ok: false });
+      expect(
+        projectServiceMock.refreshSocialAccountStatistics,
+      ).not.toHaveBeenCalled();
+    });
 
     it("refreshes statistics and revalidates the published post surfaces", async () => {
       const projectId = "11111111-1111-4111-8111-111111111111";

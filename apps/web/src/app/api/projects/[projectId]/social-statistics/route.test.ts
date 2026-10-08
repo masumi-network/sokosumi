@@ -8,7 +8,7 @@ vi.mock("@/lib/auth/route-session", async () => ({
   readRouteSession: mocks.readSession,
 }));
 vi.mock("@/lib/services/project.service", () => ({
-  projectService: { listSocialPostStatistics: mocks.list },
+  projectService: { listSocialAccountStatistics: mocks.list },
 }));
 
 import { CoreApiRequestError } from "@/lib/clients/core.client";
@@ -29,7 +29,7 @@ beforeEach(() => {
 });
 describe("statistics read", () => {
   it("forwards validated filters and returns uncached Core data", async () => {
-    const data = { posts: [], summary: [], nextCursor: null };
+    const data = { posts: [], accounts: [], nextCursor: null };
     mocks.list.mockResolvedValue(data);
     const response = await read(
       "?provider=x&publishedFrom=2026-10-01T00:00:00.000Z&cursor=next",

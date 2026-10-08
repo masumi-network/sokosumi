@@ -195,6 +195,10 @@ import {
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
 import { listProjectSocialConnections } from "@/services/project-social-connections.service";
+import {
+  listSocialAccountStatistics,
+  refreshSocialAccountStatistics,
+} from "@/services/social-account-statistics.service";
 import { publishSocialPostNow } from "@/services/social-post-publisher.service";
 import {
   listSocialPostStatistics,
@@ -3857,6 +3861,7 @@ export class SokoBotRuntimeService {
             "cancel_social_post",
             "publish_social_post",
             "refresh_social_post_statistics",
+            "refresh_social_account_statistics",
           ].includes(input.capability)
         ) {
           await this.requireSocialAccess(authorized);
@@ -3874,6 +3879,26 @@ export class SokoBotRuntimeService {
             }),
           );
         }
+        if (input.capability === "refresh_social_account_statistics") {
+          const params =
+            SOKO_BOT_TOOL_INPUT_SCHEMAS.refresh_social_account_statistics.parse(
+              input.input,
+            );
+          const result = await listSocialAccountStatistics({
+            projectId: params.projectId,
+            connectionId: params.connectionId,
+            workspaceId: authorized.turn.workspaceId,
+            limit: 1,
+          });
+          const account = result.accounts.find(
+            (account) => account.id === params.connectionId,
+          );
+          if (!account)
+            throw new SokoBotRuntimeAuthorizationError(
+              "Social account is no longer available",
+            );
+          return { account, importedPostCount: 0 };
+        }
         if (
           input.capability === "list_tables" ||
           input.capability === "read_table"
@@ -3884,6 +3909,7 @@ export class SokoBotRuntimeService {
           input.capability === "list_project_social_accounts" ||
           input.capability === "list_social_posts" ||
           input.capability === "list_social_post_statistics" ||
+          input.capability === "list_social_account_statistics" ||
           input.capability === "get_social_post"
         ) {
           const result = await this.executeAuthorizedTool(input);
@@ -4295,6 +4321,35 @@ export class SokoBotRuntimeService {
           await refreshSocialPostStatistics({ ...params, workspaceId, userId }),
         );
       }
+      case "list_social_account_statistics": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.list_social_account_statistics.parse(
+            input.input,
+          );
+        await this.requireSocialAccess(authorized);
+        return listSocialAccountStatistics({
+          ...params,
+          workspaceId,
+          publishedFrom: params.publishedFrom
+            ? new Date(params.publishedFrom)
+            : undefined,
+          publishedUntil: params.publishedUntil
+            ? new Date(params.publishedUntil)
+            : undefined,
+        });
+      }
+      case "refresh_social_account_statistics": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.refresh_social_account_statistics.parse(
+            input.input,
+          );
+        await this.requireSocialAccess(authorized);
+        return refreshSocialAccountStatistics({
+          ...params,
+          workspaceId,
+          userId,
+        });
+      }
       case "get_social_post": {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.get_social_post.parse(
           input.input,
@@ -4423,6 +4478,8 @@ export class SokoBotRuntimeService {
       case "list_social_posts":
       case "list_social_post_statistics":
       case "refresh_social_post_statistics":
+      case "list_social_account_statistics":
+      case "refresh_social_account_statistics":
       case "get_social_post":
       case "create_social_post":
       case "update_social_post":

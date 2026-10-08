@@ -19973,6 +19973,333 @@ export const ProjectSocialProviderSchema = {
     example: 'x'
 } as const;
 
+export const SocialAccountStatisticsPageSchema = {
+    type: 'object',
+    properties: {
+        accounts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountStatisticsAccount'
+            }
+        },
+        posts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountPost'
+            }
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'accounts',
+        'posts',
+        'nextCursor'
+    ]
+} as const;
+
+export const SocialAccountStatisticsAccountSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/ProjectSocialConnection'
+        },
+        {
+            type: 'object',
+            properties: {
+                statistics: {
+                    $ref: '#/components/schemas/SocialAccountStatistics'
+                },
+                postCount: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'statistics',
+                'postCount'
+            ]
+        }
+    ]
+} as const;
+
+export const SocialAccountStatisticsSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        metrics: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountMetric'
+            },
+            maxItems: 100
+        },
+        fetchedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        refreshAttemptedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        error: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        historyNextCursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 10000
+        },
+        historyComplete: {
+            type: 'boolean'
+        },
+        historyFetchedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        historyError: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        metricWarning: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
+        }
+    },
+    required: [
+        'metrics',
+        'fetchedAt',
+        'refreshAttemptedAt',
+        'error',
+        'historyNextCursor',
+        'historyComplete',
+        'historyFetchedAt',
+        'historyError'
+    ]
+} as const;
+
+export const SocialAccountMetricSchema = {
+    type: 'object',
+    properties: {
+        key: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        value: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: -9007199254740991,
+            maximum: 9007199254740991
+        },
+        period: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        },
+        unit: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        }
+    },
+    required: [
+        'key',
+        'value',
+        'period',
+        'unit'
+    ]
+} as const;
+
+export const SocialAccountPostSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        connectionId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        provider: {
+            $ref: '#/components/schemas/ProjectSocialProvider'
+        },
+        externalId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        text: {
+            type: 'string'
+        },
+        publishedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        url: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
+        },
+        metrics: {
+            $ref: '#/components/schemas/SocialPostMetrics'
+        },
+        additionalMetrics: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountMetric'
+            },
+            maxItems: 100
+        },
+        fetchedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'connectionId',
+        'provider',
+        'externalId',
+        'text',
+        'publishedAt',
+        'url',
+        'metrics',
+        'additionalMetrics',
+        'fetchedAt'
+    ]
+} as const;
+
+export const SocialPostMetricsSchema = {
+    type: 'object',
+    properties: {
+        views: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 9007199254740991
+        },
+        impressions: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 9007199254740991
+        },
+        likes: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 9007199254740991
+        },
+        comments: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 9007199254740991
+        },
+        shares: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 9007199254740991
+        },
+        saves: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 9007199254740991
+        }
+    },
+    required: [
+        'views',
+        'impressions',
+        'likes',
+        'comments',
+        'shares',
+        'saves'
+    ]
+} as const;
+
+export const RefreshSocialAccountStatisticsResponseSchema = {
+    type: 'object',
+    properties: {
+        account: {
+            $ref: '#/components/schemas/SocialAccountStatisticsAccount'
+        },
+        importedPostCount: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'account',
+        'importedPostCount'
+    ]
+} as const;
+
+export const RefreshSocialAccountStatisticsRequestSchema = {
+    type: 'object',
+    properties: {
+        continueHistory: {
+            type: 'boolean'
+        }
+    },
+    additionalProperties: false
+} as const;
+
 export const InitiateProjectSocialConnectionResponseSchema = {
     type: 'object',
     properties: {
@@ -20479,68 +20806,6 @@ export const SocialPostStatisticsSchema = {
         'fetchedAt',
         'refreshAttemptedAt',
         'error'
-    ]
-} as const;
-
-export const SocialPostMetricsSchema = {
-    type: 'object',
-    properties: {
-        views: {
-            type: [
-                'integer',
-                'null'
-            ],
-            minimum: 0,
-            maximum: 9007199254740991
-        },
-        impressions: {
-            type: [
-                'integer',
-                'null'
-            ],
-            minimum: 0,
-            maximum: 9007199254740991
-        },
-        likes: {
-            type: [
-                'integer',
-                'null'
-            ],
-            minimum: 0,
-            maximum: 9007199254740991
-        },
-        comments: {
-            type: [
-                'integer',
-                'null'
-            ],
-            minimum: 0,
-            maximum: 9007199254740991
-        },
-        shares: {
-            type: [
-                'integer',
-                'null'
-            ],
-            minimum: 0,
-            maximum: 9007199254740991
-        },
-        saves: {
-            type: [
-                'integer',
-                'null'
-            ],
-            minimum: 0,
-            maximum: 9007199254740991
-        }
-    },
-    required: [
-        'views',
-        'impressions',
-        'likes',
-        'comments',
-        'shares',
-        'saves'
     ]
 } as const;
 

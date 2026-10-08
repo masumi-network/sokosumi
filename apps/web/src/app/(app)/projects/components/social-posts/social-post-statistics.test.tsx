@@ -1,4 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import en from "@/../messages/en.json";
@@ -15,7 +22,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   }),
 }));
 vi.mock("@/lib/actions/project/action", () => ({
-  refreshProjectSocialPostStatistics: mocks.refresh,
+  refreshProjectSocialAccountStatistics: mocks.refresh,
 }));
 vi.mock("next-intl", async () => {
   const { createTestFormatter } = await import("@/test/intl-formatter");
@@ -31,7 +38,44 @@ vi.mock("next-intl", async () => {
       }),
   };
 });
-const statistics = {
+const snapshot = {
+  metrics: [
+    { key: "followers", value: 0, period: "lifetime", unit: null },
+    { key: "reach", value: null, period: "days_28", unit: null },
+  ],
+  fetchedAt: "2026-10-08T08:00:00Z",
+  refreshAttemptedAt: "2026-10-08T08:00:00Z",
+  error: null,
+  historyNextCursor: null,
+  historyComplete: false,
+  historyFetchedAt: null,
+  historyError: null,
+  metricWarning: null,
+};
+const account = {
+  id: "11111111-1111-4111-8111-111111111111",
+  provider: "x",
+  displayName: "Launch account",
+  externalHandle: "launch",
+  status: "active",
+  statistics: snapshot,
+  postCount: 1,
+};
+const secondAccount = {
+  ...account,
+  id: "22222222-2222-4222-8222-222222222222",
+  provider: "facebook",
+  displayName: "Brand page",
+  externalHandle: "brand",
+};
+const post = {
+  id: "post-1",
+  connectionId: account.id,
+  provider: "x",
+  externalId: "outside-123",
+  publishedAt: "2026-10-01T00:15:00Z",
+  text: "Published outside Sokosumi",
+  url: "https://x.com/launch/status/123",
   metrics: {
     views: 0,
     impressions: null,
@@ -40,29 +84,32 @@ const statistics = {
     shares: 1,
     saves: null,
   },
+  additionalMetrics: [
+    { key: "url_clicks", value: 9, period: "lifetime", unit: null },
+  ],
   fetchedAt: "2026-10-08T08:00:00Z",
-  refreshAttemptedAt: "2026-10-08T08:00:00Z",
-  error: null,
-};
-const post = {
-  id: "post-1",
-  provider: "x",
-  publishedAt: "2026-10-01T10:00:00Z",
-  text: "Launch post",
-  statistics,
 };
 function page(cursor: string | null = null) {
   return {
+    accounts: [account, secondAccount],
     posts: [post],
-    summary: [
-      {
-        provider: "x",
-        postCount: 22,
-        measuredPostCount: 1,
-        metrics: statistics.metrics,
-      },
-    ],
     nextCursor: cursor,
+  };
+}
+function response(accountValue = account, nextCursor: string | null = null) {
+  return {
+    ok: true,
+    value: {
+      account: {
+        ...accountValue,
+        statistics: {
+          ...snapshot,
+          historyNextCursor: nextCursor,
+          historyComplete: !nextCursor,
+        },
+      },
+      importedPostCount: 1,
+    },
   };
 }
 function renderStatistics(searchParams = "") {
@@ -74,45 +121,49 @@ function renderStatistics(searchParams = "") {
     </TestQueryProvider>,
   );
 }
+function accountCard(name: string) {
+  const element = screen.getByRole("heading", { name }).closest("article");
+  if (!element) throw new Error("Missing account card");
+  return within(element);
+}
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.refresh.mockReset();
+  mocks.fetch.mockReset();
   vi.stubGlobal("fetch", mocks.fetch);
   mocks.fetch.mockResolvedValue({ ok: true, json: async () => page() });
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe("SocialPostStatistics", () => {
-  it("keeps zero distinct from unavailable and shows full filtered summary coverage", async () => {
+describe("SocialPostStatistics account history", () => {
+  it("shows every connected account, zero, unavailable, metric periods and external read-only posts", async () => {
     renderStatistics();
-    expect(await screen.findByText("Launch post")).toBeVisible();
-    expect(screen.getByText("1 of 22 posts have statistics")).toBeVisible();
-    expect(screen.getAllByText("0")).toHaveLength(2);
-    expect(screen.getAllByText("Unavailable")).toHaveLength(6);
-    expect(screen.getByText(/^Updated/)).toBeVisible();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Brand page" })).toBeVisible();
+    expect(accountCard("Launch account").getByText("0")).toBeVisible();
+    expect(
+      accountCard("Launch account").getByText("Unavailable"),
+    ).toBeVisible();
+    expect(accountCard("Launch account").getByText("Lifetime")).toBeVisible();
+    expect(
+      accountCard("Launch account").getByText("Last 28 days"),
+    ).toBeVisible();
+    expect(screen.getByText("Link clicks")).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Open post on platform" }),
+    ).toHaveAttribute("href", post.url);
+    expect(
+      screen.queryByRole("button", { name: /edit|schedule|post now/i }),
+    ).not.toBeInTheDocument();
   });
-  it("filters by publication date and platform in the request", async () => {
+  it("filters cached posts by account, platform and UTC dates while retaining the account overview", async () => {
     renderStatistics(
-      "?statisticsProvider=x&publishedFrom=2026-10-01&publishedUntil=2026-10-08",
+      `?statisticsProvider=x&statisticsAccount=${account.id}&publishedFrom=2026-10-01&publishedUntil=2026-10-01`,
     );
-    await screen.findByText("Launch post");
+    await screen.findByText(post.text);
     const url = new URL(mocks.fetch.mock.calls[0][0], "https://web.test");
     expect(url.searchParams.get("provider")).toBe("x");
-    expect(url.searchParams.get("publishedFrom")).toBe(
-      "2026-10-01T00:00:00.000Z",
-    );
-    expect(url.searchParams.get("publishedUntil")).toBe(
-      "2026-10-08T23:59:59.999Z",
-    );
-  });
-  it("uses the same UTC date for filtering and publication display across reader timezones", async () => {
-    const publishedAt = "2026-10-01T00:15:00Z";
-    mocks.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ ...page(), posts: [{ ...post, publishedAt }] }),
-    });
-    renderStatistics("?publishedFrom=2026-10-01&publishedUntil=2026-10-01");
-    await screen.findByText("Launch post");
-    const url = new URL(mocks.fetch.mock.calls[0][0], "https://web.test");
+    expect(url.searchParams.get("connectionId")).toBe(account.id);
     expect(url.searchParams.get("publishedFrom")).toBe(
       "2026-10-01T00:00:00.000Z",
     );
@@ -120,42 +171,73 @@ describe("SocialPostStatistics", () => {
       "2026-10-01T23:59:59.999Z",
     );
     const { createTestFormatter } = await import("@/test/intl-formatter");
-    const readerFormatter = createTestFormatter({
-      timeZone: "America/Los_Angeles",
-    });
+    const reader = createTestFormatter({ timeZone: "America/Los_Angeles" });
     expect(
       screen.getByText(
-        readerFormatter.dateTime(new Date(publishedAt), "dateTime", {
+        reader.dateTime(new Date(post.publishedAt), "dateTime", {
           timeZone: "UTC",
           timeZoneName: "short",
         }),
       ),
     ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Brand page" })).toBeVisible();
+  });
+  it("keeps account metrics visible while publication date filters are invalid", async () => {
+    renderStatistics("?publishedFrom=2026-10-08&publishedUntil=2026-10-01");
     expect(
-      screen.queryByText(
-        readerFormatter.dateTime(new Date(publishedAt), "dateTime"),
-      ),
-    ).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Published from (UTC)")).toBeVisible();
-    expect(screen.getByLabelText("Published until (UTC)")).toBeVisible();
+      await screen.findByRole("heading", { name: "Brand page" }),
+    ).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "End date must be on or after",
+    );
+    expect(screen.queryByText(post.text)).not.toBeInTheDocument();
+    const url = new URL(mocks.fetch.mock.calls[0][0], "https://web.test");
+    expect(url.searchParams.has("publishedFrom")).toBe(false);
+    expect(url.searchParams.has("publishedUntil")).toBe(false);
   });
 
-  it("loads additional posts rather than silently capping the report", async () => {
+  it("shows missing post metrics as a warning without claiming missing history", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [
+          {
+            ...account,
+            statistics: {
+              ...snapshot,
+              historyComplete: true,
+              metricWarning: "Some post insights unavailable",
+            },
+          },
+        ],
+      }),
+    });
+    renderStatistics();
+    await screen.findByText(post.text);
+    expect(screen.getByText(/Some post metrics are unavailable/)).toBeVisible();
+    expect(
+      screen.getByText(
+        "All history currently available from the platform has been imported.",
+      ),
+    ).toBeVisible();
+  });
+
+  it("loads every cached post page", async () => {
     mocks.fetch
       .mockResolvedValueOnce({ ok: true, json: async () => page("next-post") })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          posts: [{ ...post, id: "post-2", text: "Second post" }],
-          summary: page().summary,
-          nextCursor: null,
+          ...page(),
+          posts: [{ ...post, id: "post-2", text: "Second external post" }],
         }),
       });
     renderStatistics();
     fireEvent.click(
       await screen.findByRole("button", { name: "Load more posts" }),
     );
-    expect(await screen.findByText("Second post")).toBeVisible();
+    expect(await screen.findByText("Second external post")).toBeVisible();
     expect(
       new URL(
         mocks.fetch.mock.calls[1][0],
@@ -163,48 +245,201 @@ describe("SocialPostStatistics", () => {
       ).searchParams.get("cursor"),
     ).toBe("next-post");
   });
-  it("retains cached metrics when refresh fails and offers another attempt", async () => {
-    mocks.refresh.mockResolvedValue({
-      ok: false,
-      error: { message: "Denied" },
-    });
+  it("syncs all account history pages sequentially and refreshes visible cache after each page", async () => {
+    mocks.refresh
+      .mockResolvedValueOnce(response(account, "provider-page-2"))
+      .mockResolvedValueOnce(response(account))
+      .mockResolvedValueOnce(response(secondAccount));
     renderStatistics();
-    await screen.findByText("Launch post");
-    fireEvent.click(screen.getByRole("button", { name: "Refresh statistics" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Previous results are retained",
-    );
-    expect(screen.getAllByText("0")).toHaveLength(2);
+    await screen.findByText(post.text);
+    fireEvent.click(screen.getByRole("button", { name: "Sync all accounts" }));
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(3));
+    expect(mocks.refresh.mock.calls.map(([params]) => params)).toEqual([
+      {
+        projectId: "project-1",
+        connectionId: account.id,
+        continueHistory: false,
+      },
+      {
+        projectId: "project-1",
+        connectionId: account.id,
+        continueHistory: true,
+      },
+      {
+        projectId: "project-1",
+        connectionId: secondAccount.id,
+        continueHistory: false,
+      },
+    ]);
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Refresh statistics" }),
+        screen.getByRole("button", { name: "Sync all accounts" }),
       ).toBeEnabled(),
     );
-    expect(mocks.refresh).toHaveBeenCalledWith({
-      projectId: "project-1",
-      postId: "post-1",
-    });
+    expect(mocks.fetch).toHaveBeenCalledTimes(4);
   });
-  it("reloads persisted statistics after a refresh", async () => {
-    mocks.refresh.mockResolvedValue({ ok: true, value: post });
+  it("continues history when account metrics are unavailable but a next page exists", async () => {
+    const result = response(account, "provider-page-2");
+    mocks.refresh
+      .mockResolvedValueOnce({
+        ...result,
+        value: {
+          ...result.value,
+          account: {
+            ...result.value.account,
+            statistics: {
+              ...result.value.account.statistics,
+              error: "Account insights unavailable",
+              metricWarning: "Some post metrics unavailable",
+            },
+          },
+        },
+      })
+      .mockResolvedValueOnce(response(account));
     renderStatistics();
-    await screen.findByText("Launch post");
+    await screen.findByText(post.text);
+    fireEvent.click(
+      accountCard("Launch account").getByRole("button", {
+        name: "Sync account",
+      }),
+    );
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(2));
+  });
+  it("resumes an incomplete retained history cursor", async () => {
     mocks.fetch.mockResolvedValue({
       ok: true,
       json: async () => ({
         ...page(),
-        posts: [
+        accounts: [
           {
-            ...post,
+            ...account,
+            statistics: { ...snapshot, historyNextCursor: "retained-cursor" },
+          },
+        ],
+      }),
+    });
+    mocks.refresh.mockResolvedValue(response(account));
+    renderStatistics();
+    fireEvent.click(await screen.findByRole("button", { name: "Resume sync" }));
+    await waitFor(() =>
+      expect(mocks.refresh).toHaveBeenCalledWith({
+        projectId: "project-1",
+        connectionId: account.id,
+        continueHistory: true,
+      }),
+    );
+  });
+  it("retains the returned resume cursor when a follow-up cache read fails", async () => {
+    mocks.fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => page() })
+      .mockResolvedValue({ ok: false });
+    mocks.refresh
+      .mockResolvedValueOnce(response(account, "retained-next-page"))
+      .mockResolvedValueOnce({ ok: false, error: { message: "Rate limited" } });
+    renderStatistics();
+    await screen.findByText(post.text);
+    fireEvent.click(
+      accountCard("Launch account").getByRole("button", {
+        name: "Sync account",
+      }),
+    );
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(2));
+    expect(
+      await accountCard("Launch account").findByRole("button", {
+        name: "Resume sync",
+      }),
+    ).toBeEnabled();
+    expect(screen.getByText(post.text)).toBeVisible();
+  });
+
+  it("stops after the in-flight page when canceled", async () => {
+    let resolvePage: (value: ReturnType<typeof response>) => void = () => {};
+    mocks.refresh.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePage = resolve;
+        }),
+    );
+    renderStatistics();
+    await screen.findByText(post.text);
+    fireEvent.click(
+      accountCard("Launch account").getByRole("button", {
+        name: "Sync account",
+      }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Stop sync" }));
+    await act(async () => resolvePage(response(account, "next-page")));
+    await waitFor(() =>
+      expect(
+        accountCard("Launch account").getByRole("button", {
+          name: "Sync account",
+        }),
+      ).toBeEnabled(),
+    );
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  });
+  it("does not request another page after unmount", async () => {
+    let resolvePage: (value: ReturnType<typeof response>) => void = () => {};
+    mocks.refresh.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePage = resolve;
+        }),
+    );
+    const rendered = renderStatistics();
+    await screen.findByText(post.text);
+    fireEvent.click(
+      accountCard("Launch account").getByRole("button", {
+        name: "Sync account",
+      }),
+    );
+    rendered.unmount();
+    await act(async () => resolvePage(response(account, "next-page")));
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  });
+  it("retains cached posts on account failure and continues other accounts", async () => {
+    mocks.refresh
+      .mockResolvedValueOnce({ ok: false, error: { message: "Denied" } })
+      .mockResolvedValueOnce(response(secondAccount));
+    renderStatistics();
+    await screen.findByText(post.text);
+    fireEvent.click(screen.getByRole("button", { name: "Sync all accounts" }));
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(2));
+    expect(
+      accountCard("Launch account").getByText(/Cached results are retained/),
+    ).toBeVisible();
+    expect(screen.getByText(post.text)).toBeVisible();
+  });
+  it("shows provider history limitations without claiming completion and disables reauthorization-required sync", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [
+          {
+            ...account,
+            status: "reauthorization_required",
             statistics: {
-              ...statistics,
-              metrics: { ...statistics.metrics, views: 10 },
+              ...snapshot,
+              historyError: "Platform exposes only the most recent posts",
             },
           },
         ],
       }),
     });
-    fireEvent.click(screen.getByRole("button", { name: "Refresh statistics" }));
-    expect(await screen.findByText("10")).toBeVisible();
+    renderStatistics();
+    await screen.findByText(post.text);
+    expect(
+      screen.getByText("Platform exposes only the most recent posts"),
+    ).toBeVisible();
+    expect(
+      screen.queryByText(
+        "All history currently available from the platform has been imported.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sync account" })).toBeDisabled();
+    expect(
+      screen.getByRole("link", { name: "Manage accounts" }),
+    ).toHaveAttribute("href", "/social?projectId=project-1&tab=accounts");
   });
 });

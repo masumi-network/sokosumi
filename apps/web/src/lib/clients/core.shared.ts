@@ -51,6 +51,7 @@ import type {
   GetNotificationsData,
   GetProjectsByIdCalendarData,
   GetProjectsByIdImageStudioData,
+  GetProjectsByIdSocialConnectionsStatisticsData,
   GetProjectsByIdSocialPostsData,
   GetProjectsByIdSocialPostsStatisticsData,
   GetProjectsData,
@@ -99,6 +100,7 @@ import type {
   PostProjectsByIdCloseRetryData,
   PostProjectsByIdImageStudioJobsData,
   PostProjectsByIdJobsData,
+  PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData,
   PostProjectsByIdSocialConnectionsFinalizeData,
   PostProjectsByIdSocialConnectionsInitiateData,
   PostProjectsByIdSocialPostsByPostIdCancelData,
@@ -277,6 +279,7 @@ import {
   getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
+  getProjectsByIdSocialConnectionsStatistics as coreGetProjectsByIdSocialConnectionsStatistics,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
   getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
   getProjectsByIdSocialPostsStatistics as coreGetProjectsByIdSocialPostsStatistics,
@@ -421,6 +424,7 @@ import {
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
+  postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh as corePostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
   postProjectsByIdSocialConnectionsFinalize as corePostProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
   postProjectsByIdSocialPosts as corePostProjectsByIdSocialPosts,
@@ -3342,6 +3346,42 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdSocialConnectionsStatistics(
+    id: string,
+    query?: GetProjectsByIdSocialConnectionsStatisticsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsStatistics({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch social account statistics",
+    );
+  }
+
+  async function postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh(
+    id: string,
+    connectionId: string,
+    body: NonNullable<
+      PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData["body"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh({
+          client,
+          path: { id, connectionId },
+          body,
+        }),
+      "Failed to refresh social account statistics",
+    );
+  }
+
   async function getProjectsByIdSocialPostsStatistics(
     id: string,
     query?: GetProjectsByIdSocialPostsStatisticsData["query"],
@@ -6181,6 +6221,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobsByJobIdCancel,
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsStatistics,
+    getProjectsByIdSocialConnectionsStatistics,
+    postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
     postProjectsByIdSocialPostsByPostIdStatisticsRefresh,
     getProjectsByIdSocialPostsByPostId,
     patchProjectsByIdSocialPostsByPostId,

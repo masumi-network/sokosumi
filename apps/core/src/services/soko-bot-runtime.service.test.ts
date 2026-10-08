@@ -222,6 +222,8 @@ vi.mock("@/helpers/data-table", () => ({
 const social = vi.hoisted(() => ({
   listAccounts: vi.fn(),
   listStatistics: vi.fn(),
+  listAccountStatistics: vi.fn(),
+  refreshAccountStatistics: vi.fn(),
   refreshStatistics: vi.fn(),
   list: vi.fn(),
   get: vi.fn(),
@@ -240,6 +242,10 @@ vi.mock("@/services/project-social-connections.service", () => ({
 vi.mock("@/services/social-post-statistics.service", () => ({
   listSocialPostStatistics: social.listStatistics,
   refreshSocialPostStatistics: social.refreshStatistics,
+}));
+vi.mock("@/services/social-account-statistics.service", () => ({
+  listSocialAccountStatistics: social.listAccountStatistics,
+  refreshSocialAccountStatistics: social.refreshAccountStatistics,
 }));
 vi.mock("@/services/social-posts.service", () => ({
   listSocialPosts: social.list,
@@ -4778,6 +4784,8 @@ describe("Soko Bot project social tools", () => {
     "list_social_posts",
     "list_social_post_statistics",
     "refresh_social_post_statistics",
+    "list_social_account_statistics",
+    "refresh_social_account_statistics",
     "get_social_post",
     "create_social_post",
     "update_social_post",
@@ -4865,6 +4873,15 @@ describe("Soko Bot project social tools", () => {
       nextCursor: null,
     });
     social.refreshStatistics.mockResolvedValue(post);
+    social.listAccountStatistics.mockResolvedValue({
+      accounts: [{ id: accountId, statistics: null, postCount: 0 }],
+      posts: [],
+      nextCursor: null,
+    });
+    social.refreshAccountStatistics.mockResolvedValue({
+      account: { id: accountId, statistics: null, postCount: 0 },
+      importedPostCount: 2,
+    });
     social.list.mockResolvedValue({
       posts: [post],
       pagination: { hasMore: false },
@@ -5009,6 +5026,98 @@ describe("Soko Bot project social tools", () => {
     expect(social.update).not.toHaveBeenCalled();
   });
 
+  it("reads account-wide statistics with authorized filters and publication dates", async () => {
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_social_account_statistics",
+      toolCallId: "account-performance",
+      input: {
+        projectId,
+        connectionId: accountId,
+        publishedFrom: "2026-10-01T00:00:00Z",
+        limit: 5,
+      },
+    });
+    expect(social.listAccountStatistics).toHaveBeenCalledWith({
+      projectId,
+      connectionId: accountId,
+      workspaceId: SCOPE.workspaceId,
+      publishedFrom: new Date("2026-10-01T00:00:00Z"),
+      publishedUntil: undefined,
+      limit: 5,
+    });
+  });
+
+  it("continues history with the authorized account and no caller-supplied cursor", async () => {
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "refresh_social_account_statistics",
+      toolCallId: "account-history-page",
+      input: { projectId, connectionId: accountId, continueHistory: true },
+    });
+    expect(social.refreshAccountStatistics).toHaveBeenCalledWith({
+      projectId,
+      connectionId: accountId,
+      continueHistory: true,
+      workspaceId: SCOPE.workspaceId,
+      userId: SCOPE.userId,
+    });
+    expect(social.publish).not.toHaveBeenCalled();
+    expect(social.update).not.toHaveBeenCalled();
+  });
+
+  it("replays history synchronization from cache without importing another page", async () => {
+    const input = { projectId, connectionId: accountId, continueHistory: true };
+    toolCallFindUniqueMock.mockResolvedValue({
+      inputHash: createHash("sha256")
+        .update(canonicalJson(input))
+        .digest("hex"),
+      capability: "refresh_social_account_statistics",
+      status: "COMPLETED",
+      result: {},
+    });
+    expect(
+      await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "refresh_social_account_statistics",
+        toolCallId: "account-history-replay",
+        input,
+      }),
+    ).toEqual({
+      account: { id: accountId, statistics: null, postCount: 0 },
+      importedPostCount: 0,
+    });
+    expect(social.refreshAccountStatistics).not.toHaveBeenCalled();
+    expect(social.listAccountStatistics).toHaveBeenCalledWith({
+      projectId,
+      connectionId: accountId,
+      workspaceId: SCOPE.workspaceId,
+      limit: 1,
+    });
+  });
+
+  it.each([
+    "list_social_account_statistics",
+    "refresh_social_account_statistics",
+  ] as const)("rejects %s after access revocation", async (capability) => {
+    social.beta.mockRejectedValue(new Error("Access revoked"));
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability,
+        toolCallId: "account-performance-denied",
+        input: {
+          projectId,
+          ...(capability === "refresh_social_account_statistics"
+            ? { connectionId: accountId }
+            : {}),
+        },
+      }),
+    ).rejects.toThrow("Access revoked");
+    expect(social.listAccountStatistics).not.toHaveBeenCalled();
+    expect(social.refreshAccountStatistics).not.toHaveBeenCalled();
+  });
+
   it.each([
     "list_social_post_statistics",
     "refresh_social_post_statistics",
@@ -5076,6 +5185,15 @@ describe("Soko Bot project social tools", () => {
         }),
       ).rejects.toThrow("only available for the owner");
       expect(social.refreshStatistics).not.toHaveBeenCalled();
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "refresh_social_account_statistics",
+          toolCallId: "wrong-account-audience",
+          input: { projectId, connectionId: accountId },
+        }),
+      ).rejects.toThrow("only available for the owner");
+      expect(social.refreshAccountStatistics).not.toHaveBeenCalled();
     },
   );
 

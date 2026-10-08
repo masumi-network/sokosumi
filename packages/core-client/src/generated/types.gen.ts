@@ -5864,6 +5864,67 @@ export const ProjectSocialProvider = {
 
 export type ProjectSocialProvider = typeof ProjectSocialProvider[keyof typeof ProjectSocialProvider];
 
+export type SocialAccountStatisticsPage = {
+    accounts: Array<SocialAccountStatisticsAccount>;
+    posts: Array<SocialAccountPost>;
+    nextCursor: string | null;
+};
+
+export type SocialAccountStatisticsAccount = ProjectSocialConnection & {
+    statistics: SocialAccountStatistics;
+    postCount: number;
+};
+
+export type SocialAccountStatistics = {
+    metrics: Array<SocialAccountMetric>;
+    fetchedAt: Date | null;
+    refreshAttemptedAt: Date | null;
+    error: string | null;
+    historyNextCursor: string | null;
+    historyComplete: boolean;
+    historyFetchedAt: Date | null;
+    historyError: string | null;
+    metricWarning?: string | null;
+} | null;
+
+export type SocialAccountMetric = {
+    key: string;
+    value: number | null;
+    period: string | null;
+    unit: string | null;
+};
+
+export type SocialAccountPost = {
+    id: string;
+    connectionId: string;
+    provider: ProjectSocialProvider;
+    externalId: string;
+    text: string;
+    publishedAt: Date | null;
+    url: string | null;
+    metrics: SocialPostMetrics;
+    additionalMetrics: Array<SocialAccountMetric>;
+    fetchedAt: Date;
+};
+
+export type SocialPostMetrics = {
+    views: number | null;
+    impressions: number | null;
+    likes: number | null;
+    comments: number | null;
+    shares: number | null;
+    saves: number | null;
+};
+
+export type RefreshSocialAccountStatisticsResponse = {
+    account: SocialAccountStatisticsAccount;
+    importedPostCount: number;
+};
+
+export type RefreshSocialAccountStatisticsRequest = {
+    continueHistory?: boolean;
+};
+
 export type InitiateProjectSocialConnectionResponse = {
     connectionId: string;
     redirectUrl: string;
@@ -5977,15 +6038,6 @@ export type SocialPostStatistics = {
     refreshAttemptedAt: Date | null;
     error: string | null;
 } | null;
-
-export type SocialPostMetrics = {
-    views: number | null;
-    impressions: number | null;
-    likes: number | null;
-    comments: number | null;
-    shares: number | null;
-    saves: number | null;
-};
 
 export type SocialPostLastAttempt = {
     attempt: number;
@@ -40789,6 +40841,300 @@ export type GetProjectsByIdSocialConnectionsResponses = {
 };
 
 export type GetProjectsByIdSocialConnectionsResponse = GetProjectsByIdSocialConnectionsResponses[keyof GetProjectsByIdSocialConnectionsResponses];
+
+export type GetProjectsByIdSocialConnectionsStatisticsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        provider?: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+        publishedFrom?: Date;
+        publishedUntil?: Date;
+        connectionId?: string;
+    };
+    url: '/projects/{id}/social-connections/statistics';
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsError = GetProjectsByIdSocialConnectionsStatisticsErrors[keyof GetProjectsByIdSocialConnectionsStatisticsErrors];
+
+export type GetProjectsByIdSocialConnectionsStatisticsResponses = {
+    /**
+     * Social account statistics
+     */
+    200: {
+        data: SocialAccountStatisticsPage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsResponse = GetProjectsByIdSocialConnectionsStatisticsResponses[keyof GetProjectsByIdSocialConnectionsStatisticsResponses];
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData = {
+    body: RefreshSocialAccountStatisticsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-connections/{connectionId}/statistics/refresh';
+};
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshError = PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshErrors[keyof PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshErrors];
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses = {
+    /**
+     * Social account statistics refreshed
+     */
+    200: {
+        data: RefreshSocialAccountStatisticsResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponse = PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses[keyof PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses];
 
 export type PostProjectsByIdSocialConnectionsInitiateData = {
     body: InitiateProjectSocialConnectionRequest;
