@@ -14,6 +14,7 @@ import mountGetUserOrganizationCredits from "./organizations/[organizationId]/cr
 import mountGetUserOrganizationMember from "./organizations/[organizationId]/member/get.js";
 import mountGetUserOrganizations from "./organizations/get.js";
 import mountGetUserPreferences from "./preferences/get.js";
+import mountGetUserWorkspaces from "./workspaces/get.js";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -33,7 +34,9 @@ const {
   txUserFindUniqueMock,
   assertCoworkerUserContextBindingMock,
   filterAuthorizedOrganizationIdsMock,
+  listAuthorizedUserWorkspacesMock,
 } = vi.hoisted(() => ({
+  listAuthorizedUserWorkspacesMock: vi.fn(),
   filterAuthorizedOrganizationIdsMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   buildCreditsPayloadMock: vi.fn(),
@@ -64,6 +67,8 @@ vi.mock("@/helpers/coworker-user-context-binding", () => ({
   requireAuthorizedUserContext: vi.fn(),
   filterAuthorizedOrganizationIds: (...args: unknown[]) =>
     filterAuthorizedOrganizationIdsMock(...args),
+  listAuthorizedUserWorkspaces: (...args: unknown[]) =>
+    listAuthorizedUserWorkspacesMock(...args),
 }));
 
 vi.mock("@/helpers/subscription", () => ({
@@ -166,6 +171,7 @@ function createUserRouteApp(
   mountGetUserOrganizationCredits(userByIdApp);
   mountGetUserOrganizationMember(userByIdApp);
   mountGetUserPreferences(userByIdApp);
+  mountGetUserWorkspaces(userByIdApp);
   app.route("/:id", userByIdApp);
   return app;
 }
@@ -310,10 +316,38 @@ describe("coworker user route allowlist", () => {
     expect(response.status).toBe(403);
   });
 
+  it("lists workspaces for a coworker without binding it to one first", async () => {
+    listAuthorizedUserWorkspacesMock.mockResolvedValue({
+      workspaces: [
+        {
+          id: "11111111-1111-7111-8111-111111111111",
+          kind: "organization",
+          name: "Acme",
+          organizationId: "org_1",
+          slug: "acme",
+          logo: null,
+          websiteUrl: null,
+          preferred: false,
+        },
+      ],
+      pendingInvitationCount: 0,
+    });
+
+    const app = createUserRouteApp(CONTEXT_COWORKER);
+    const response = await app.request("http://localhost/me/workspaces");
+
+    expect(response.status).toBe(200);
+    expect(assertCoworkerUserContextBindingMock).not.toHaveBeenCalled();
+    expect(listAuthorizedUserWorkspacesMock).toHaveBeenCalledWith(
+      CONTEXT_COWORKER,
+      "user_123",
+    );
+  });
+
   it.each([
-    ["GET", "/me/workspaces"],
     ["POST", "/me/workspaces"],
     ["PUT", "/me/workspaces/preferred"],
+    ["DELETE", "/me/workspaces/11111111-1111-7111-8111-111111111111"],
   ])("rejects coworker with context headers on %s %s", async (method, path) => {
     const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request(`http://localhost${path}`, { method });
