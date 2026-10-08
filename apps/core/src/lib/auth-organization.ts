@@ -21,10 +21,6 @@ import {
   applyDesignMdMetadataGuardToOrganizationCreate,
   applyDesignMdMetadataGuardToOrganizationUpdate,
 } from "@/helpers/design-md-metadata-auth";
-import {
-  ensurePersonalWorkspaceForOrganizationMembership,
-  pinPreferredOrganizationIfUnset,
-} from "@/helpers/org-membership-personal-workspace";
 import { prepareOrganizationForDeletion } from "@/helpers/organization-deletion";
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import prisma from "@/lib/db/prisma";
@@ -99,17 +95,15 @@ export function createAuthOrganizationPlugin() {
 
   return organization({
     organizationHooks: {
-      beforeCreateOrganization: async ({ organization, user }) => {
-        await ensurePersonalWorkspaceForOrganizationMembership(user.id);
+      beforeCreateOrganization: async ({ organization }) => {
         return {
           data: applyDesignMdMetadataGuardToOrganizationCreate(
             organization as Record<string, unknown>,
           ),
         };
       },
-      afterCreateOrganization: async ({ organization, user }) => {
+      afterCreateOrganization: async ({ organization }) => {
         await ensureWorkspaceForCreatedOrganization(organization);
-        await pinPreferredOrganizationIfUnset(user.id, organization.id);
         await ensureFreeSubscriptionForCreatedOrganization(organization);
         waitUntil(
           stripeClient
@@ -139,16 +133,6 @@ export function createAuthOrganizationPlugin() {
             member.organizationId,
           ),
         };
-      },
-      beforeAcceptInvitation: async ({ organization, user }) => {
-        await ensurePersonalWorkspaceForOrganizationMembership(user.id, {
-          organizationId: organization.id,
-        });
-      },
-      beforeAddMember: async ({ user, organization }) => {
-        await ensurePersonalWorkspaceForOrganizationMembership(user.id, {
-          organizationId: organization.id,
-        });
       },
       afterAcceptInvitation: async ({ organization, user }) => {
         await upgradeGuestChatRoomMembershipsToMember(user.id, organization.id);
