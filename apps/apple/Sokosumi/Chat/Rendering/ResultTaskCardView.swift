@@ -65,7 +65,6 @@ struct ResultTaskCardView: View {
       TaskPriorityMark(priority: task.priority)
       Button(action: openTask) {
         titleText
-          .font(.callout.weight(.medium))
           .lineLimit(2)
           .multilineTextAlignment(.leading)
           .fixedSize(horizontal: false, vertical: true)
@@ -76,9 +75,11 @@ struct ResultTaskCardView: View {
   }
 
   private var titleText: Text {
-    guard let identifier = task.identifier else { return Text(verbatim: task.name) }
+    // A font on the whole run replaces the identifier's caption (web's `text-xs`).
+    let name = Text(verbatim: task.name).font(.callout.weight(.medium))
+    guard let identifier = task.identifier else { return name }
     let prefix = Text(verbatim: identifier).font(.caption).fontWeight(.regular).foregroundStyle(.secondary).monospacedDigit()
-    return Text("\(prefix) \(task.name)")
+    return Text("\(prefix) \(name)")
   }
 
   @ViewBuilder
