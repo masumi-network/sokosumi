@@ -15,6 +15,7 @@ import mountGetUserOrganizationMember from "./organizations/[organizationId]/mem
 import mountGetUserOrganizations from "./organizations/get.js";
 import mountGetUserPreferences from "./preferences/get.js";
 import mountGetUserWorkspaces from "./workspaces/get.js";
+import mountGetUserPreferredWorkspace from "./workspaces/preferred/get.js";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -172,6 +173,7 @@ function createUserRouteApp(
   mountGetUserOrganizationMember(userByIdApp);
   mountGetUserPreferences(userByIdApp);
   mountGetUserWorkspaces(userByIdApp);
+  mountGetUserPreferredWorkspace(userByIdApp);
   app.route("/:id", userByIdApp);
   return app;
 }
@@ -344,6 +346,40 @@ describe("coworker user route allowlist", () => {
     );
   });
 
+  it("reads the preferred workspace for a coworker without binding it to one first", async () => {
+    listAuthorizedUserWorkspacesMock.mockResolvedValue({
+      workspaces: [
+        {
+          id: "11111111-1111-7111-8111-111111111111",
+          kind: "organization",
+          name: "Acme",
+          organizationId: "org_1",
+          slug: "acme",
+          logo: null,
+          websiteUrl: null,
+          preferred: true,
+        },
+      ],
+      pendingInvitationCount: 0,
+    });
+
+    const app = createUserRouteApp(CONTEXT_COWORKER);
+    const response = await app.request(
+      "http://localhost/me/workspaces/preferred",
+    );
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toMatchObject({
+      organizationId: "org_1",
+      preferred: true,
+    });
+    expect(assertCoworkerUserContextBindingMock).not.toHaveBeenCalled();
+    expect(listAuthorizedUserWorkspacesMock).toHaveBeenCalledWith(
+      CONTEXT_COWORKER,
+      "user_123",
+    );
+  });
+
   it.each([
     ["POST", "/me/workspaces"],
     ["PUT", "/me/workspaces/preferred"],
@@ -364,10 +400,10 @@ describe("coworker user route allowlist", () => {
 
     expect(coworkerResponse.status).toBe(403);
     expect(await coworkerResponse.text()).toBe(
-      "Coworker keys may only GET /users/{id}, /users/{id}/credits, /users/{id}/organizations, /users/{id}/organizations/{organizationId}/credits and /users/{id}/workspaces",
+      "Coworker keys may only GET /users/{id}, /users/{id}/credits, /users/{id}/organizations, /users/{id}/organizations/{organizationId}/credits, /users/{id}/workspaces and /users/{id}/workspaces/preferred",
     );
     expect(await sokoBotResponse.text()).toBe(
-      "Soko Bot keys may only GET /users/{id}, /users/{id}/credits, /users/{id}/organizations, /users/{id}/organizations/{organizationId}/credits and /users/{id}/workspaces",
+      "Soko Bot keys may only GET /users/{id}, /users/{id}/credits, /users/{id}/organizations, /users/{id}/organizations/{organizationId}/credits, /users/{id}/workspaces and /users/{id}/workspaces/preferred",
     );
   });
 

@@ -44,6 +44,7 @@ import mountGetUserWorkspaceAccess from "./workspace-access/get.js";
 import mountDeleteUserWorkspace from "./workspaces/[workspaceId]/delete.js";
 import mountGetUserWorkspaces from "./workspaces/get.js";
 import mountPostUserWorkspaces from "./workspaces/post.js";
+import mountGetUserPreferredWorkspace from "./workspaces/preferred/get.js";
 import mountPutUserPreferredWorkspace from "./workspaces/preferred/put.js";
 
 const app = new OpenAPIHonoWithAuth<UserRouteVariables>();
@@ -65,6 +66,7 @@ mountDeleteUserOauthConsent(app);
 mountGetUserWorkspaceAccess(app);
 mountGetUserWorkspaces(app);
 mountPostUserWorkspaces(app);
+mountGetUserPreferredWorkspace(app);
 mountPutUserPreferredWorkspace(app);
 mountDeleteUserWorkspace(app);
 mountGetUserPendingOrganizationInvitations(app);
