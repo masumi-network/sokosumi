@@ -14,7 +14,6 @@ const {
   memberFindUniqueMock,
   createMemberMock,
   getMembersWithUserAndLastSeenMock,
-  ensurePersonalWorkspaceForOrganizationMembershipMock,
   upgradeGuestChatRoomMembershipsToMemberMock,
   resolveActiveSubscriptionByReferenceIdMock,
   getLatestSubscriptionByReferenceIdMock,
@@ -34,7 +33,6 @@ const {
   memberFindUniqueMock: vi.fn(),
   createMemberMock: vi.fn(),
   getMembersWithUserAndLastSeenMock: vi.fn(),
-  ensurePersonalWorkspaceForOrganizationMembershipMock: vi.fn(),
   upgradeGuestChatRoomMembershipsToMemberMock: vi.fn(),
   resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
   getLatestSubscriptionByReferenceIdMock: vi.fn(),
@@ -70,11 +68,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
     getLatestSubscriptionByReferenceId: (...args: unknown[]) =>
       getLatestSubscriptionByReferenceIdMock(...args),
   },
-}));
-
-vi.mock("@/helpers/org-membership-personal-workspace", () => ({
-  ensurePersonalWorkspaceForOrganizationMembership: (...args: unknown[]) =>
-    ensurePersonalWorkspaceForOrganizationMembershipMock(...args),
 }));
 
 vi.mock("@/helpers/chat-room-guest-upgrade", () => ({
@@ -154,9 +147,6 @@ describe("POST /admin/organizations/{slug}/members", () => {
     userFindUniqueMock.mockResolvedValue({ id: "user_target" });
     memberFindUniqueMock.mockResolvedValue(null);
     createMemberMock.mockResolvedValue({ id: "mem_1" });
-    ensurePersonalWorkspaceForOrganizationMembershipMock.mockResolvedValue(
-      undefined,
-    );
     upgradeGuestChatRoomMembershipsToMemberMock.mockResolvedValue(0);
     getMembersWithUserAndLastSeenMock.mockResolvedValue([MEMBER]);
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
@@ -166,16 +156,10 @@ describe("POST /admin/organizations/{slug}/members", () => {
     getLatestSubscriptionByReferenceIdMock.mockResolvedValue(null);
   });
 
-  it("creates a personal workspace in the same transaction as membership", async () => {
+  it("creates the membership", async () => {
     const response = await post();
 
     expect(response.status).toBe(201);
-    expect(
-      ensurePersonalWorkspaceForOrganizationMembershipMock,
-    ).toHaveBeenCalledWith("user_target", {
-      tx: expect.anything(),
-      organizationId: "org_1",
-    });
     expect(createMemberMock).toHaveBeenCalledWith({
       data: {
         user: { connect: { id: "user_target" } },
@@ -183,17 +167,6 @@ describe("POST /admin/organizations/{slug}/members", () => {
         role: "member",
       },
     });
-  });
-
-  it("fails the add when personal workspace ensure fails", async () => {
-    ensurePersonalWorkspaceForOrganizationMembershipMock.mockRejectedValue(
-      new Error("personal workspace failed"),
-    );
-
-    const response = await post();
-
-    expect(response.status).toBe(500);
-    expect(createMemberMock).not.toHaveBeenCalled();
   });
 
   it("returns the member with org subscription and no credits field", async () => {

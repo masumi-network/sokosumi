@@ -60,6 +60,6 @@ docs(readme): update setup instructions
 - **Links**: Reference Linear or GitHub issues
 - **Verification**: List steps (e.g., `pnpm test`, `pnpm build`)
 - **Screenshots**: Attach for UI updates
-- **Schema Changes**: Flag migration filenames and mention data scripts (`pnpm --filter @sokosumi/database data-migration:<name>`). Root only aliases `pnpm data-migration:org-only-personal-workspaces`.
+- **Schema Changes**: Flag migration filenames and mention data scripts (`pnpm --filter @sokosumi/database data-migration:<name>`).
 - **Preview database reset:** `/reset-db <mainnet|preprod>` or `/reset-db all` on a PR comment resets that PR's Neon preview branch, redeploys Core, and drops preview-only data. `/deploy … --reset-db` resets, then deploys. Full command, access, and environment rules are in the root [README](../../README.md#deployment).
 - **Preview cleanup on close:** merging or closing a PR deletes its Neon preview branch, its Vercel preview deployments, and its branch-scoped preview env vars (the `closed` job in `.github/workflows/preview-deploy.yml`). The daily `Reconcile closed previews` run sweeps any it missed; dispatch `Preview deploy` by hand to sweep sooner. After a reopen, comment `/deploy <mainnet|preprod|all>` to rebuild the preview. Legacy previews require a separately reviewed cleanup.

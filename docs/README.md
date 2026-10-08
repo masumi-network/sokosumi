@@ -41,4 +41,4 @@ Root [`AGENTS.md`](../AGENTS.md) is the loading table and trigger list. Task-spe
 
 ## Architecture decisions
 
-- [`adr/`](./adr/) — accepted architecture decision records (`adr/superseded/` holds superseded records)
+- [`adr/`](./adr/) — accepted architecture decision records (`adr/superseded/` holds superseded and deprecated records)
