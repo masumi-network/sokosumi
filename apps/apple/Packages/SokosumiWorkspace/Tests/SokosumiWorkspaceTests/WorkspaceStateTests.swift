@@ -84,7 +84,7 @@ private final class ScriptedTransport: ClientTransport {
       bodies.append(Data())
     }
     if pausesWholeRequest(operationID) {
-      let next = responses.removeFirst()
+      let next = try nextScriptedResponse(&responses, operationID: operationID)
       if !requestReleased {
         await withCheckedContinuation { pauseWaiters.append($0) }
       }
@@ -99,7 +99,7 @@ private final class ScriptedTransport: ClientTransport {
       try Task.checkCancellation()
     }
     if pauseStream, operationID == "post/chats/rooms/{id}/stream" || operationID == "get/chats/rooms/{id}/stream/active" {
-      let next = responses.removeFirst()
+      let next = try nextScriptedResponse(&responses, operationID: operationID)
       if !requestReleased {
         await withCheckedContinuation { pauseWaiters.append($0) }
       }
@@ -108,7 +108,7 @@ private final class ScriptedTransport: ClientTransport {
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
     if pausesMessageOperation(operationID) || (pauseStarredOrder && operationID == "put/chats/rooms/starred") {
-      let next = responses.removeFirst()
+      let next = try nextScriptedResponse(&responses, operationID: operationID)
       if !requestReleased {
         await withCheckedContinuation { pauseWaiters.append($0) }
       }
@@ -116,7 +116,7 @@ private final class ScriptedTransport: ClientTransport {
       try Task.checkCancellation()
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
-    let next = responses.removeFirst()
+    let next = try nextScriptedResponse(&responses, operationID: operationID)
     return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
   }
 
@@ -227,7 +227,8 @@ private func ephemeralState(
   defaults.removePersistentDomain(forName: suite)
   let state = WorkspaceState(
     savedRoom: SavedRoomSelection(defaults: defaults),
-    openRoomUnreadRecheck: openRoomUnreadRecheck
+    openRoomUnreadRecheck: openRoomUnreadRecheck,
+    recoverySleep: recoveryTimersNeverFire
   )
   state.readAttention.setVisible(visible, window: UUID())
   state.clientResolver = { client }
