@@ -3,7 +3,6 @@
 import {
   type ChatResultDescriptor,
   type ChatResultPreview,
-  SocialPostStatus,
   SokosumiJobStatus,
 } from "@sokosumi/core-client";
 import { getChatRoomMessageResultsResponseTransformer } from "@sokosumi/core-client/transformers";
@@ -32,7 +31,6 @@ import {
 import { DecisionCard } from "@/app/personal-assistant/components/chat/decision-card";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { SocialPostPreview } from "@/app/projects/components/social-posts/social-post-preview";
-import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { TaskCard } from "@/app/tasks/components/task-card";
 import { TaskProjectSelect } from "@/app/tasks/components/task-project-select";
@@ -108,9 +106,39 @@ export function ResultPreviewCard({
         }
       : null;
   const social = result.kind === "social_post" ? result.social : null;
-  const postStatus = social
-    ? Object.values(SocialPostStatus).find((status) => status === result.status)
-    : undefined;
+  if (social)
+    return (
+      <SocialPostPreview
+        className="w-full min-w-0 max-w-xl"
+        provider={social.provider}
+        account={social.account}
+        text={result.summary ?? result.title}
+        timestamp={
+          social.timestamp
+            ? new Date(social.timestamp)
+            : new Date(result.capturedAt)
+        }
+        media={(result.outputs ?? [])
+          .filter(
+            (output) =>
+              output.previewHref &&
+              (output.contentType?.startsWith("image/") ||
+                output.contentType?.startsWith("video/")),
+          )
+          .map((output) => ({
+            pathname: output.openHref,
+            fileUrl: output.previewHref ?? output.openHref,
+            name: output.name,
+            size: output.sizeBytes ?? 0,
+            mimeType: output.contentType ?? "image/png",
+            kind: output.contentType?.startsWith("video/")
+              ? "video"
+              : output.contentType === "image/gif"
+                ? "gif"
+                : "image",
+          }))}
+      />
+    );
   const jobStatus =
     result.kind === "job"
       ? Object.values(SokosumiJobStatus).find(
@@ -157,7 +185,7 @@ export function ResultPreviewCard({
       className={cn(
         "relative isolate w-full min-w-0 cursor-pointer rounded-lg",
         nativeTask ? "max-w-sm" : "max-w-xl",
-        !nativeTask && !social && "bg-background rounded-lg border p-4",
+        !nativeTask && "bg-background rounded-lg border p-4",
       )}
     >
       <Link
@@ -184,12 +212,7 @@ export function ResultPreviewCard({
               {t(`kind.${result.kind}`)}
             </span>
           </div>
-          {postStatus ? (
-            <SocialPostStatusBadge
-              status={postStatus}
-              label={t(`status.${postStatus}`)}
-            />
-          ) : jobStatus ? (
+          {jobStatus ? (
             <JobStatusBadge status={jobStatus} />
           ) : result.status && !nativeTask ? (
             <span className="bg-muted text-muted-foreground shrink-0 rounded-md px-2 py-0.5 text-xs">
@@ -202,45 +225,12 @@ export function ResultPreviewCard({
             task={nativeTask}
             statusLabels={buildTaskStatusLabels((key) => tTaskStatus(key))}
           />
-        ) : social ? (
-          <SocialPostPreview
-            provider={social.provider}
-            account={social.account}
-            text={result.summary ?? result.title}
-            timestamp={
-              social.timestamp
-                ? new Date(social.timestamp)
-                : new Date(result.capturedAt)
-            }
-            media={(result.outputs ?? [])
-              .filter(
-                (output) =>
-                  output.previewHref &&
-                  (output.contentType?.startsWith("image/") ||
-                    output.contentType?.startsWith("video/")),
-              )
-              .map((output) => ({
-                pathname: output.openHref,
-                fileUrl: output.previewHref ?? output.openHref,
-                name: output.name,
-                size: output.sizeBytes ?? 0,
-                mimeType: output.contentType ?? "image/png",
-                kind: output.contentType?.startsWith("video/")
-                  ? "video"
-                  : output.contentType === "image/gif"
-                    ? "gif"
-                    : "image",
-              }))}
-          />
         ) : (
           <h3 className="text-foreground text-sm font-medium wrap-break-word">
             {result.title}
           </h3>
         )}
-        {!nativeTask &&
-        !social &&
-        result.summary &&
-        result.summary !== result.title ? (
+        {!nativeTask && result.summary && result.summary !== result.title ? (
           <p className="text-muted-foreground line-clamp-5 text-sm whitespace-pre-wrap wrap-break-word">
             {result.summary}
           </p>
@@ -302,7 +292,7 @@ export function ResultPreviewCard({
             ) : null}
           </dl>
         )}
-        {!social && result.outputs?.length ? (
+        {result.outputs?.length ? (
           <ul
             className={
               result.kind === "studio_job"
