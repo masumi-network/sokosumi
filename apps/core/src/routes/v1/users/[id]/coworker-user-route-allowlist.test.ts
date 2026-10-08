@@ -366,8 +366,8 @@ describe("coworker user route allowlist", () => {
     expect(await coworkerResponse.text()).toBe(
       "Coworker keys may only GET /users/{id}, /users/{id}/credits, /users/{id}/organizations, /users/{id}/organizations/{organizationId}/credits and /users/{id}/workspaces",
     );
-    expect(await sokoBotResponse.text()).toMatch(
-      /^Soko Bot keys may only GET /,
+    expect(await sokoBotResponse.text()).toBe(
+      "Soko Bot keys may only GET /users/{id}, /users/{id}/credits, /users/{id}/organizations, /users/{id}/organizations/{organizationId}/credits and /users/{id}/workspaces",
     );
   });
 
