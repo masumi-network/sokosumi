@@ -5,7 +5,6 @@ import {
 import {
   EnterpriseContractStatus,
   type Prisma,
-  type Subscription,
 } from "../generated/prisma/client.js";
 import { subscriptionRepository } from "../repositories/subscription.repository.js";
 import {
@@ -43,33 +42,6 @@ export async function resolveOrganizationBillingPlan(
   tx: Prisma.TransactionClient,
   now: Date = new Date(),
 ): Promise<OrganizationBillingPlan> {
-  const { billingPlan } =
-    await resolveOrganizationBillingPlanWithActiveSubscription(
-      organizationId,
-      tx,
-      now,
-    );
-
-  return billingPlan;
-}
-
-/**
- * Resolves the billing plan and returns the active subscription it fetched.
- *
- * Callers that also need the active subscription (e.g. seat/credit syncing)
- * should use this instead of calling `resolveOrganizationBillingPlan` followed
- * by a separate subscription lookup, which would query the same row twice.
- * For enterprise-contract organizations no subscription is fetched and
- * `activeSubscription` is `null`.
- */
-export async function resolveOrganizationBillingPlanWithActiveSubscription(
-  organizationId: string,
-  tx: Prisma.TransactionClient,
-  now: Date = new Date(),
-): Promise<{
-  billingPlan: OrganizationBillingPlan;
-  activeSubscription: Subscription | null;
-}> {
   const activeContract = await tx.enterpriseContract.findFirst({
     where: {
       organizationId,
@@ -90,22 +62,19 @@ export async function resolveOrganizationBillingPlanWithActiveSubscription(
     });
 
     return {
-      billingPlan: {
-        mode: "enterprise_contract",
-        plan: "enterprise",
-        isConsumable,
-        purchasedSeats: activeContract.seats,
-        contractId: activeContract.id,
-        endsAt: deriveEnterpriseContractEndDate(
-          activeContract.activatedAt,
-          activeContract.periodCount,
-        ),
-        activatedAt: activeContract.activatedAt,
-        cancelAtPeriodEnd: false,
-        cancelAt: null,
-        periodEnd: null,
-      },
-      activeSubscription: null,
+      mode: "enterprise_contract",
+      plan: "enterprise",
+      isConsumable,
+      purchasedSeats: activeContract.seats,
+      contractId: activeContract.id,
+      endsAt: deriveEnterpriseContractEndDate(
+        activeContract.activatedAt,
+        activeContract.periodCount,
+      ),
+      activatedAt: activeContract.activatedAt,
+      cancelAtPeriodEnd: false,
+      cancelAt: null,
+      periodEnd: null,
     };
   }
 
@@ -124,15 +93,12 @@ export async function resolveOrganizationBillingPlanWithActiveSubscription(
     plan === "free" ? 0 : resolvePurchasedSeats(subscription?.seats);
 
   return {
-    billingPlan: {
-      mode: "self_serve",
-      plan,
-      purchasedSeats,
-      subscriptionId: subscription?.id ?? null,
-      cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
-      cancelAt: subscription?.cancelAt ?? null,
-      periodEnd: subscription?.periodEnd ?? null,
-    },
-    activeSubscription: subscription,
+    mode: "self_serve",
+    plan,
+    purchasedSeats,
+    subscriptionId: subscription?.id ?? null,
+    cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
+    cancelAt: subscription?.cancelAt ?? null,
+    periodEnd: subscription?.periodEnd ?? null,
   };
 }
