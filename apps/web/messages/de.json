@@ -2598,9 +2598,7 @@
         },
         "statistics": {
           "title": "Kontoleistung",
-          "description": "Vergleiche veröffentlichte Inhalte, beobachtetes Wachstum und Plattformkennzahlen deiner verbundenen Konten. Veröffentlichungsfilter verwenden UTC; Diagramme und Veröffentlichungszeiten die ausgewählte Zeitzone.",
           "platform": "Plattform",
-          "allPlatforms": "Alle Plattformen",
           "publishedFrom": "Veröffentlicht ab (UTC)",
           "publishedUntil": "Veröffentlicht bis (UTC)",
           "clearFilters": "Filter zurücksetzen",
@@ -2626,8 +2624,6 @@
           "accountsTitle": "Verbundene Konten",
           "postsTitle": "Veröffentlichte Kontobeiträge",
           "account": "Konto",
-          "allAccounts": "Alle Konten",
-          "syncAll": "Alle Konten synchronisieren",
           "syncAccount": "Konto synchronisieren",
           "resumeSync": "Synchronisierung fortsetzen",
           "syncHint": "Die Synchronisierung importiert jede verfügbare Seite des Kontoverlaufs. Plattformberechtigungen, Aufbewahrung und API-Limits können verfügbare Kennzahlen oder Beiträge einschränken.",
@@ -2864,13 +2860,16 @@
               "impressions": "Meiste Impressionen in der Stichprobe"
             },
             "unknownAuthor": "Unbekannter Autor",
-            "workspaceTitle": "Leistung des Arbeitsbereichs",
             "project": "Projekt",
-            "allProjects": "Alle Projekte",
             "projectComparison": "Projektvergleich",
-            "workspaceDedupHint": "{count} doppelte Beitragskopien wurden aus den Gesamtwerten des Arbeitsbereichs ausgeschlossen. Projekt- und Kontovergleiche können sich überschneiden und sind nicht addierbar.",
             "workspaceAnalysisPrompt": "Analysiere die Social-Media-Leistung des aktuell autorisierten Arbeitsbereichs {workspaceId} für Beiträge von {from} bis {until}, Zeitzone {timezone}. Verwende list_social_performance ohne projectId für alle Projekte, sofern die ausgewählten Filter kein Projekt angeben. Erläutere Abdeckung, Aktualität, Plattformformeln, Mittelwert und Median, beobachtetes Wachstum, Inhaltsmuster und historische Veröffentlichungszeiten. Gib eine evidenzbasierte Zusammenfassung und hilfreiche Inhaltsvorschläge. Behandle die Gesamtsummen der Veröffentlichungskohorte nicht als Interaktionen, die in diesem Zeitraum hinzugekommen sind, und prognostiziere keine Reichweite.",
-            "audiencePostsHint": "Wähle aus den zwischengespeicherten Beiträgen des ausgewählten Kontos in diesem Veröffentlichungszeitraum. Lade eine weitere Seite für ältere passende Beiträge."
+            "audiencePostsHint": "Wähle aus den zwischengespeicherten Beiträgen des ausgewählten Kontos in diesem Veröffentlichungszeitraum. Lade eine weitere Seite für ältere passende Beiträge.",
+            "accountTabs": "Verbundene Konten",
+            "moreFilters": "Weitere Filter",
+            "accountDetails": "Kontodetails",
+            "moreInsights": "Weitere Einblicke",
+            "activeFilters": "{count} aktiv",
+            "accountDescription": "Wähle ein Konto, um seine Performance zu untersuchen. Vergleiche veröffentlichte Inhalte, beobachtetes Wachstum und die auf der Plattform verfügbaren Kennzahlen."
           }
         }
       },

@@ -149,6 +149,10 @@ export function SocialPerformanceOverview({
   const format = useFormatter();
   const [trendMetric, setTrendMetric] = useState<TrendMetric>("interactions");
   const current = data.summary.current;
+  const accountProvider =
+    data.accounts.length === 1 ? data.accounts[0]?.provider : null;
+  const impressionBased =
+    accountProvider === "x" || accountProvider === "linkedin";
   const accountsById = new Map(
     data.accounts.map((account) => [account.id, account]),
   );
@@ -289,8 +293,20 @@ export function SocialPerformanceOverview({
       </td>
     );
   }
+  const visibleCards = cards.filter(
+    (card) =>
+      !accountProvider ||
+      (card.key !== "views" && card.key !== "impressions") ||
+      card.measured > 0 ||
+      (card.key === "impressions" ? impressionBased : !impressionBased),
+  );
+  const activeTrendMetric = visibleCards.some(
+    (card) => card.key === trendMetric,
+  )
+    ? trendMetric
+    : "interactions";
   const comparisonGroups = [
-    ...(projectComparisons
+    ...(projectComparisons && data.accounts.length > 1
       ? [
           {
             key: "projects",
@@ -306,16 +322,20 @@ export function SocialPerformanceOverview({
           },
         ]
       : []),
-    {
-      key: "accounts",
-      title: t("performance.accountComparison"),
-      rows: data.comparisons.accounts.map((item) => ({
-        id: item.connectionId,
-        name: accountName(item.connectionId),
-        provider: item.provider,
-        summary: item.summary,
-      })),
-    },
+    ...(data.accounts.length > 1
+      ? [
+          {
+            key: "accounts",
+            title: t("performance.accountComparison"),
+            rows: data.comparisons.accounts.map((item) => ({
+              id: item.connectionId,
+              name: accountName(item.connectionId),
+              provider: item.provider,
+              summary: item.summary,
+            })),
+          },
+        ]
+      : []),
     {
       key: "formats",
       title: t("performance.formatComparison"),
@@ -329,8 +349,13 @@ export function SocialPerformanceOverview({
   ];
   return (
     <div className="space-y-6" data-testid="social-performance-overview">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map((card) => {
+      <div
+        className={cn(
+          "grid gap-3 sm:grid-cols-2",
+          visibleCards.length === 3 ? "xl:grid-cols-3" : "xl:grid-cols-4",
+        )}
+      >
+        {visibleCards.map((card) => {
           const delta = data.summary.deltas[card.key];
           return (
             <article
@@ -415,45 +440,41 @@ export function SocialPerformanceOverview({
           </p>
         ) : null}
       </div>
-      <div className="grid min-w-0 gap-4 xl:grid-cols-2">
-        <section className="bg-card min-w-0 space-y-4 rounded-xl border p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold">
-                {t("performance.trends")}
-              </h3>
-              <p className="text-muted-foreground text-xs">
-                {t("performance.trendsHint", { timezone: data.range.timezone })}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <Label className="sr-only" htmlFor="performance-trend-metric">
-                {t("performance.trendMetric")}
-              </Label>
-              <Select
-                value={trendMetric}
-                onValueChange={(value) => {
-                  if (
-                    value === "interactions" ||
-                    value === "views" ||
-                    value === "impressions" ||
-                    value === "postCount"
+      <section className="bg-card min-w-0 space-y-4 rounded-xl border p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold">{t("performance.trends")}</h3>
+            <p className="text-muted-foreground text-xs">
+              {t("performance.trendsHint", { timezone: data.range.timezone })}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <Label className="sr-only" htmlFor="performance-trend-metric">
+              {t("performance.trendMetric")}
+            </Label>
+            <Select
+              value={activeTrendMetric}
+              onValueChange={(value) => {
+                if (
+                  value === "interactions" ||
+                  value === "views" ||
+                  value === "impressions" ||
+                  value === "postCount"
+                )
+                  setTrendMetric(value);
+              }}
+            >
+              <SelectTrigger id="performance-trend-metric">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(
+                  ["interactions", "impressions", "views", "postCount"] as const
+                )
+                  .filter((metric) =>
+                    visibleCards.some((card) => card.key === metric),
                   )
-                    setTrendMetric(value);
-                }}
-              >
-                <SelectTrigger id="performance-trend-metric">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(
-                    [
-                      "interactions",
-                      "impressions",
-                      "views",
-                      "postCount",
-                    ] as const
-                  ).map((metric) => (
+                  .map((metric) => (
                     <SelectItem key={metric} value={metric}>
                       {metric === "interactions"
                         ? t("performance.interactions")
@@ -462,287 +483,218 @@ export function SocialPerformanceOverview({
                           : t(`metrics.${metric}`)}
                     </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
+              </SelectContent>
+            </Select>
           </div>
-          <TrendChart
-            label={
-              trendMetric === "interactions"
-                ? t("performance.interactions")
-                : trendMetric === "postCount"
-                  ? t("performance.posts")
-                  : t(`metrics.${trendMetric}`)
-            }
-            timezone={data.range.timezone}
-            points={data.daily.map((day) => ({
-              date: day.date,
-              value:
-                trendMetric === "postCount"
-                  ? day.summary.postCount
-                  : trendMetric === "interactions"
-                    ? day.summary.interactions.total
-                    : day.summary.metrics[trendMetric].total,
-            }))}
+        </div>
+        <TrendChart
+          label={
+            activeTrendMetric === "interactions"
+              ? t("performance.interactions")
+              : activeTrendMetric === "postCount"
+                ? t("performance.posts")
+                : t(`metrics.${activeTrendMetric}`)
+          }
+          timezone={data.range.timezone}
+          points={data.daily.map((day) => ({
+            date: day.date,
+            value:
+              activeTrendMetric === "postCount"
+                ? day.summary.postCount
+                : activeTrendMetric === "interactions"
+                  ? day.summary.interactions.total
+                  : day.summary.metrics[activeTrendMetric].total,
+          }))}
+        />
+      </section>
+      <details className="group/insights min-w-0 rounded-xl border p-4">
+        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+          <ChevronDown
+            className="size-4 group-open/insights:rotate-180"
+            aria-hidden
           />
-        </section>
-        <section className="bg-card min-w-0 space-y-4 rounded-xl border p-4">
-          <div className="space-y-1">
-            <h3 className="text-sm font-semibold">
-              {t("performance.postingTimes")}
-            </h3>
-            <p className="text-muted-foreground text-xs">
-              {t("performance.postingTimesHint", {
-                timezone: data.heatmap.timezone,
-              })}
-            </p>
-          </div>
-          <div className="app-scrollbar relative overflow-x-auto pb-2">
-            <table className="w-max border-separate border-spacing-0 text-xs">
-              <caption className="sr-only">
+          {t("performance.moreInsights")}
+        </summary>
+        <div className="mt-4 min-w-0 space-y-6">
+          <section className="bg-card min-w-0 space-y-4 rounded-xl border p-4">
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold">
                 {t("performance.postingTimes")}
-              </caption>
-              <thead>
-                <tr>
-                  <th className="pe-2 text-start">
-                    {t("performance.dayHour")}
-                  </th>
-                  {Array.from({ length: 24 }, (_, hour) => (
-                    <th
-                      key={hour}
-                      className="text-muted-foreground text-2xs font-normal"
-                    >
-                      {hour % 3 === 0 ? (
-                        format.number(hour)
-                      ) : (
-                        <span className="sr-only">{format.number(hour)}</span>
-                      )}
+              </h3>
+              <p className="text-muted-foreground text-xs">
+                {t("performance.postingTimesHint", {
+                  timezone: data.heatmap.timezone,
+                })}
+              </p>
+            </div>
+            <div className="app-scrollbar relative overflow-x-auto pb-2">
+              <table className="w-max border-separate border-spacing-0 text-xs">
+                <caption className="sr-only">
+                  {t("performance.postingTimes")}
+                </caption>
+                <thead>
+                  <tr>
+                    <th className="pe-2 text-start">
+                      {t("performance.dayHour")}
                     </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {weekdayDates.map((date, weekday) => (
-                  <tr key={date.toISOString()}>
-                    <th
-                      scope="row"
-                      className="text-muted-foreground pe-2 text-start font-normal"
-                    >
-                      {format.dateTime(date, {
-                        weekday: "short",
-                        timeZone: "UTC",
-                      })}
-                    </th>
-                    {Array.from({ length: 24 }, (_, hour) =>
-                      heatCell(weekday, hour),
-                    )}
+                    {Array.from({ length: 24 }, (_, hour) => (
+                      <th
+                        key={hour}
+                        className="text-muted-foreground text-2xs font-normal"
+                      >
+                        {hour % 3 === 0 ? (
+                          format.number(hour)
+                        ) : (
+                          <span className="sr-only">{format.number(hour)}</span>
+                        )}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {!data.heatmap.comparisonProvider ? (
-            <p className="text-muted-foreground text-xs">
-              {t("performance.activityOnly")}
-            </p>
-          ) : null}
-          <details className="group">
-            <summary className="text-muted-foreground hover:text-foreground flex w-fit cursor-pointer list-none items-center gap-1 rounded-sm py-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
-              <ChevronDown
-                className="size-3.5 group-open:rotate-180"
-                aria-hidden
-              />
-              {t("performance.exactValues")}
-            </summary>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("performance.dayHour")}</TableHead>
-                  <TableHead className="text-end">
-                    {t("performance.posts")}
-                  </TableHead>
-                  <TableHead className="text-end">
-                    {t("performance.mean")}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.heatmap.cells
-                  .filter((cell) => cell.postCount > 0)
-                  .map((cell) => (
-                    <TableRow key={`${cell.weekday}:${cell.hour}`}>
-                      <TableCell>
-                        {format.dateTime(
-                          weekdayDates[cell.weekday] ?? new Date(0),
-                          { weekday: "short", timeZone: "UTC" },
-                        )}{" "}
-                        {format.number(cell.hour)}:00
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums">
-                        {format.number(cell.postCount)}
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums">
-                        {number(cell.meanInteractions)}
-                      </TableCell>
-                    </TableRow>
+                </thead>
+                <tbody>
+                  {weekdayDates.map((date, weekday) => (
+                    <tr key={date.toISOString()}>
+                      <th
+                        scope="row"
+                        className="text-muted-foreground pe-2 text-start font-normal"
+                      >
+                        {format.dateTime(date, {
+                          weekday: "short",
+                          timeZone: "UTC",
+                        })}
+                      </th>
+                      {Array.from({ length: 24 }, (_, hour) =>
+                        heatCell(weekday, hour),
+                      )}
+                    </tr>
                   ))}
-              </TableBody>
-            </Table>
-          </details>
-          <p className="text-muted-foreground text-xs">
-            {t("performance.heatmapHint", {
-              count: data.heatmap.minimumSampleSize,
-            })}
-          </p>
-          <div className="space-y-2 border-t pt-3">
-            <h4 className="text-xs font-medium">
-              {t("performance.rankedWindows")}
-            </h4>
-            <p className="text-muted-foreground text-xs">
-              {t("performance.rankedWindowsHint", {
-                count: data.heatmap.minimumSampleSize,
-                timezone: data.heatmap.timezone,
-              })}
-            </p>
-            {rankedWindows.length ? (
+                </tbody>
+              </table>
+            </div>
+            {!data.heatmap.comparisonProvider ? (
+              <p className="text-muted-foreground text-xs">
+                {t("performance.activityOnly")}
+              </p>
+            ) : null}
+            <details className="group">
+              <summary className="text-muted-foreground hover:text-foreground flex w-fit cursor-pointer list-none items-center gap-1 rounded-sm py-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+                <ChevronDown
+                  className="size-3.5 group-open:rotate-180"
+                  aria-hidden
+                />
+                {t("performance.exactValues")}
+              </summary>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t("performance.dayHour")}</TableHead>
                     <TableHead className="text-end">
-                      {t("performance.measuredPosts")}
+                      {t("performance.posts")}
                     </TableHead>
                     <TableHead className="text-end">
-                      {t("performance.meanInteractions")}
+                      {t("performance.mean")}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rankedWindows.map((cell) => (
-                    <TableRow key={`${cell.weekday}:${cell.hour}`}>
-                      <TableCell>
-                        {format.dateTime(
-                          weekdayDates[cell.weekday] ?? new Date(0),
-                          { weekday: "short", timeZone: "UTC" },
-                        )}{" "}
-                        {format.number(cell.hour)}:00
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums">
-                        {format.number(cell.measuredPostCount)}
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums">
-                        {number(cell.meanInteractions)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {data.heatmap.cells
+                    .filter((cell) => cell.postCount > 0)
+                    .map((cell) => (
+                      <TableRow key={`${cell.weekday}:${cell.hour}`}>
+                        <TableCell>
+                          {format.dateTime(
+                            weekdayDates[cell.weekday] ?? new Date(0),
+                            { weekday: "short", timeZone: "UTC" },
+                          )}{" "}
+                          {format.number(cell.hour)}:00
+                        </TableCell>
+                        <TableCell className="text-end tabular-nums">
+                          {format.number(cell.postCount)}
+                        </TableCell>
+                        <TableCell className="text-end tabular-nums">
+                          {number(cell.meanInteractions)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
-            ) : (
+            </details>
+            <p className="text-muted-foreground text-xs">
+              {t("performance.heatmapHint", {
+                count: data.heatmap.minimumSampleSize,
+              })}
+            </p>
+            <div className="space-y-2 border-t pt-3">
+              <h4 className="text-xs font-medium">
+                {t("performance.rankedWindows")}
+              </h4>
               <p className="text-muted-foreground text-xs">
-                {t("performance.noRankedWindows")}
+                {t("performance.rankedWindowsHint", {
+                  count: data.heatmap.minimumSampleSize,
+                  timezone: data.heatmap.timezone,
+                })}
               </p>
-            )}
-          </div>
-        </section>
-      </div>
-      <section className="min-w-0 space-y-3">
-        <h3 className="text-sm font-semibold">
-          {t("performance.engagementRates")}
-        </h3>
-        <p className="text-muted-foreground text-xs">
-          {t("performance.ratesHint")}
-        </p>
-        <div className="overflow-hidden rounded-xl border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("platform")}</TableHead>
-                <TableHead>{t("performance.rateFormula")}</TableHead>
-                <TableHead className="text-end">
-                  {t("performance.engagementRate")}
-                </TableHead>
-                <TableHead className="text-end">
-                  {t("performance.mean")}
-                </TableHead>
-                <TableHead className="text-end">
-                  {t("performance.median")}
-                </TableHead>
-                <TableHead className="text-end">
-                  {t("performance.measuredPosts")}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {current.engagementRates.map((item) => (
-                <TableRow key={`${item.provider}-${item.denominator}`}>
-                  <TableCell>
-                    <span className="flex items-center gap-2">
-                      <SocialPostProviderIcon
-                        className="size-4"
-                        provider={item.provider}
-                        aria-hidden
-                      />
-                      {SOCIAL_PROVIDERS.find(
-                        (provider) => provider.id === item.provider,
-                      )?.name ?? item.provider}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground max-w-64 whitespace-normal text-xs">
-                    {item.numeratorMetrics
-                      .map((metric) =>
-                        metric === "quotes" || metric === "quote_count"
-                          ? t("accountMetrics.quotes")
-                          : t.has(`metrics.${metric}`)
-                            ? t(`metrics.${metric}`)
-                            : ACCOUNT_METRIC_LABELS[metric] &&
-                                t.has(
-                                  `accountMetrics.${ACCOUNT_METRIC_LABELS[metric]}`,
-                                )
-                              ? t(
-                                  `accountMetrics.${ACCOUNT_METRIC_LABELS[metric]}`,
-                                )
-                              : metric,
-                      )
-                      .join(" + ")}{" "}
-                    / {t(`metrics.${item.denominator}`)}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {item.rate == null
-                      ? t("unavailable")
-                      : `${number(item.rate)}%`}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {item.mean == null ? "—" : `${number(item.mean)}%`}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {item.median == null ? "—" : `${number(item.median)}%`}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {format.number(item.measuredPostCount)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </section>
-      <div className="grid min-w-0 gap-4 xl:grid-cols-2">
-        {comparisonGroups.map((group) => (
-          <section key={group.key} className="min-w-0 space-y-3">
-            <h3 className="text-sm font-semibold">{group.title}</h3>
+              {rankedWindows.length ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("performance.dayHour")}</TableHead>
+                      <TableHead className="text-end">
+                        {t("performance.measuredPosts")}
+                      </TableHead>
+                      <TableHead className="text-end">
+                        {t("performance.meanInteractions")}
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rankedWindows.map((cell) => (
+                      <TableRow key={`${cell.weekday}:${cell.hour}`}>
+                        <TableCell>
+                          {format.dateTime(
+                            weekdayDates[cell.weekday] ?? new Date(0),
+                            { weekday: "short", timeZone: "UTC" },
+                          )}{" "}
+                          {format.number(cell.hour)}:00
+                        </TableCell>
+                        <TableCell className="text-end tabular-nums">
+                          {format.number(cell.measuredPostCount)}
+                        </TableCell>
+                        <TableCell className="text-end tabular-nums">
+                          {number(cell.meanInteractions)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-muted-foreground text-xs">
+                  {t("performance.noRankedWindows")}
+                </p>
+              )}
+            </div>
+          </section>
+          <section className="min-w-0 space-y-3">
+            <h3 className="text-sm font-semibold">
+              {t(
+                accountProvider
+                  ? "performance.engagementRate"
+                  : "performance.engagementRates",
+              )}
+            </h3>
+            <p className="text-muted-foreground text-xs">
+              {t("performance.ratesHint")}
+            </p>
             <div className="overflow-hidden rounded-xl border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>
-                      {group.key === "accounts"
-                        ? t("account")
-                        : group.key === "projects"
-                          ? t("performance.project")
-                          : t("performance.contentType")}
-                    </TableHead>
+                    {!accountProvider ? (
+                      <TableHead>{t("platform")}</TableHead>
+                    ) : null}
+                    <TableHead>{t("performance.rateFormula")}</TableHead>
                     <TableHead className="text-end">
-                      {t("performance.posts")}
+                      {t("performance.engagementRate")}
                     </TableHead>
                     <TableHead className="text-end">
                       {t("performance.mean")}
@@ -751,130 +703,222 @@ export function SocialPerformanceOverview({
                       {t("performance.median")}
                     </TableHead>
                     <TableHead className="text-end">
-                      {t("performance.engagementRate")}
+                      {t("performance.measuredPosts")}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {group.rows.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="max-w-48 whitespace-normal">
-                        <span className="flex items-center gap-2">
-                          {item.provider ? (
+                  {current.engagementRates.map((item) => (
+                    <TableRow key={`${item.provider}-${item.denominator}`}>
+                      {!accountProvider ? (
+                        <TableCell>
+                          <span className="flex items-center gap-2">
                             <SocialPostProviderIcon
-                              className="size-4 shrink-0"
+                              className="size-4"
                               provider={item.provider}
                               aria-hidden
                             />
-                          ) : null}
-                          {item.name}
-                        </span>
+                            {SOCIAL_PROVIDERS.find(
+                              (provider) => provider.id === item.provider,
+                            )?.name ?? item.provider}
+                          </span>
+                        </TableCell>
+                      ) : null}
+                      <TableCell className="text-muted-foreground max-w-64 whitespace-normal text-xs">
+                        {item.numeratorMetrics
+                          .map((metric) =>
+                            metric === "quotes" || metric === "quote_count"
+                              ? t("accountMetrics.quotes")
+                              : t.has(`metrics.${metric}`)
+                                ? t(`metrics.${metric}`)
+                                : ACCOUNT_METRIC_LABELS[metric] &&
+                                    t.has(
+                                      `accountMetrics.${ACCOUNT_METRIC_LABELS[metric]}`,
+                                    )
+                                  ? t(
+                                      `accountMetrics.${ACCOUNT_METRIC_LABELS[metric]}`,
+                                    )
+                                  : metric,
+                          )
+                          .join(" + ")}{" "}
+                        / {t(`metrics.${item.denominator}`)}
                       </TableCell>
                       <TableCell className="text-end tabular-nums">
-                        {format.number(item.summary.postCount)}
+                        {item.rate == null
+                          ? t("unavailable")
+                          : `${number(item.rate)}%`}
                       </TableCell>
                       <TableCell className="text-end tabular-nums">
-                        {number(item.summary.interactions.mean)}
+                        {item.mean == null ? "—" : `${number(item.mean)}%`}
                       </TableCell>
                       <TableCell className="text-end tabular-nums">
-                        {number(item.summary.interactions.median)}
+                        {item.median == null ? "—" : `${number(item.median)}%`}
                       </TableCell>
                       <TableCell className="text-end tabular-nums">
-                        {rate(item.summary)}
+                        {format.number(item.measuredPostCount)}
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
-            <p className="text-muted-foreground text-xs">
-              {t("performance.comparisonHint")}
-            </p>
           </section>
-        ))}
-      </div>
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold">{t("performance.growth")}</h3>
-        <p className="text-muted-foreground text-xs">
-          {t("performance.growthHint")}
-        </p>
-        {data.followers.length ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            {data.followers.map((item) => (
-              <article
-                key={item.connectionId}
-                className="bg-card min-w-0 space-y-4 rounded-xl border p-4"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <h4 className="flex items-center gap-2 text-sm font-medium">
-                    <SocialPostProviderIcon
-                      className="size-4"
-                      provider={item.provider}
-                      aria-hidden
-                    />
-                    {accountName(item.connectionId)}
-                  </h4>
-                  <span className="text-sm tabular-nums">
-                    {item.change == null
-                      ? t("performance.baselineNeeded")
-                      : format.number(item.change, { signDisplay: "always" })}
-                  </span>
+          <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+            {comparisonGroups.map((group) => (
+              <section key={group.key} className="min-w-0 space-y-3">
+                <h3 className="text-sm font-semibold">{group.title}</h3>
+                <div className="overflow-hidden rounded-xl border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>
+                          {group.key === "accounts"
+                            ? t("account")
+                            : group.key === "projects"
+                              ? t("performance.project")
+                              : t("performance.contentType")}
+                        </TableHead>
+                        <TableHead className="text-end">
+                          {t("performance.posts")}
+                        </TableHead>
+                        <TableHead className="text-end">
+                          {t("performance.mean")}
+                        </TableHead>
+                        <TableHead className="text-end">
+                          {t("performance.median")}
+                        </TableHead>
+                        <TableHead className="text-end">
+                          {t("performance.engagementRate")}
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {group.rows.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="max-w-48 whitespace-normal">
+                            <span className="flex items-center gap-2">
+                              {item.provider ? (
+                                <SocialPostProviderIcon
+                                  className="size-4 shrink-0"
+                                  provider={item.provider}
+                                  aria-hidden
+                                />
+                              ) : null}
+                              {item.name}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-end tabular-nums">
+                            {format.number(item.summary.postCount)}
+                          </TableCell>
+                          <TableCell className="text-end tabular-nums">
+                            {number(item.summary.interactions.mean)}
+                          </TableCell>
+                          <TableCell className="text-end tabular-nums">
+                            {number(item.summary.interactions.median)}
+                          </TableCell>
+                          <TableCell className="text-end tabular-nums">
+                            {rate(item.summary)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
-                <TrendChart
-                  label={t("accountMetrics.followers")}
-                  timezone={data.range.timezone}
-                  points={item.points.map((point) => ({
-                    date: point.date,
-                    value: point.value,
-                  }))}
-                />
-              </article>
+                <p className="text-muted-foreground text-xs">
+                  {t("performance.comparisonHint")}
+                </p>
+              </section>
             ))}
           </div>
-        ) : (
-          <p className="text-muted-foreground rounded-xl border border-dashed p-4 text-sm">
-            {t("performance.baselineNeeded")}
-          </p>
-        )}
-        <details className="group rounded-xl border p-4">
-          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
-            <ChevronDown className="size-4 group-open:rotate-180" aria-hidden />
-            {t("performance.observations")}
-          </summary>
-          <p className="text-muted-foreground mt-3 text-xs">
-            {t("performance.observationsHint")}
-          </p>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {data.accounts.map((account) => {
-              const points = data.observations
-                .filter(
-                  (observation) => observation.connectionId === account.id,
-                )
-                .map((observation) => ({
-                  date: observation.date,
-                  value: observation.summary.interactions.total,
-                }));
-              return points.length ? (
-                <div key={account.id} className="min-w-0 space-y-3">
-                  <h4 className="text-sm font-medium">
-                    {accountName(account.id)}
-                  </h4>
-                  <TrendChart
-                    label={t("performance.interactions")}
-                    timezone={data.range.timezone}
-                    points={points}
-                  />
-                </div>
-              ) : null;
-            })}
-          </div>
-          {!data.coverage.historicalSnapshotsAvailable ? (
-            <p className="text-muted-foreground mt-3 text-sm">
-              {t("performance.baselineNeeded")}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold">{t("performance.growth")}</h3>
+            <p className="text-muted-foreground text-xs">
+              {t("performance.growthHint")}
             </p>
-          ) : null}
-        </details>
-      </section>
+            {data.followers.length ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                {data.followers.map((item) => (
+                  <article
+                    key={item.connectionId}
+                    className="bg-card min-w-0 space-y-4 rounded-xl border p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <h4 className="flex items-center gap-2 text-sm font-medium">
+                        <SocialPostProviderIcon
+                          className="size-4"
+                          provider={item.provider}
+                          aria-hidden
+                        />
+                        {accountName(item.connectionId)}
+                      </h4>
+                      <span className="text-sm tabular-nums">
+                        {item.change == null
+                          ? t("performance.baselineNeeded")
+                          : format.number(item.change, {
+                              signDisplay: "always",
+                            })}
+                      </span>
+                    </div>
+                    <TrendChart
+                      label={t("accountMetrics.followers")}
+                      timezone={data.range.timezone}
+                      points={item.points.map((point) => ({
+                        date: point.date,
+                        value: point.value,
+                      }))}
+                    />
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground rounded-xl border border-dashed p-4 text-sm">
+                {t("performance.baselineNeeded")}
+              </p>
+            )}
+            <details className="group rounded-xl border p-4">
+              <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+                <ChevronDown
+                  className="size-4 group-open:rotate-180"
+                  aria-hidden
+                />
+                {t("performance.observations")}
+              </summary>
+              <p className="text-muted-foreground mt-3 text-xs">
+                {t("performance.observationsHint")}
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {data.accounts.map((account) => {
+                  const points = data.observations
+                    .filter(
+                      (observation) => observation.connectionId === account.id,
+                    )
+                    .map((observation) => ({
+                      date: observation.date,
+                      value: observation.summary.interactions.total,
+                    }));
+                  return points.length ? (
+                    <div key={account.id} className="min-w-0 space-y-3">
+                      <h4 className="text-sm font-medium">
+                        {accountName(account.id)}
+                      </h4>
+                      <TrendChart
+                        label={t("performance.interactions")}
+                        timezone={data.range.timezone}
+                        points={points}
+                      />
+                    </div>
+                  ) : null;
+                })}
+              </div>
+              {!data.coverage.historicalSnapshotsAvailable ? (
+                <p className="text-muted-foreground mt-3 text-sm">
+                  {t("performance.baselineNeeded")}
+                </p>
+              ) : null}
+            </details>
+          </section>
+        </div>
+      </details>
     </div>
   );
 }

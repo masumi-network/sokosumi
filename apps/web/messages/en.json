@@ -2598,9 +2598,7 @@
         },
         "statistics": {
           "title": "Account performance",
-          "description": "Compare published content, observed growth, and platform metrics across your connected accounts. Publication filters use UTC; charts and posting times use the selected timezone.",
           "platform": "Platform",
-          "allPlatforms": "All platforms",
           "publishedFrom": "Published from (UTC)",
           "publishedUntil": "Published until (UTC)",
           "clearFilters": "Clear filters",
@@ -2626,8 +2624,6 @@
           "accountsTitle": "Connected accounts",
           "postsTitle": "Published account posts",
           "account": "Account",
-          "allAccounts": "All accounts",
-          "syncAll": "Sync all accounts",
           "syncAccount": "Sync account",
           "resumeSync": "Resume sync",
           "syncHint": "Sync imports each available page of account history. Platform permissions, retention and API limits can restrict the available metrics or posts.",
@@ -2864,13 +2860,16 @@
               "impressions": "Most impressions in sample"
             },
             "unknownAuthor": "Unknown author",
-            "workspaceTitle": "Workspace performance",
             "project": "Project",
-            "allProjects": "All projects",
             "projectComparison": "Project comparison",
-            "workspaceDedupHint": "{count} duplicate post copies excluded from workspace totals. Project and account comparisons can overlap and are not additive.",
             "workspaceAnalysisPrompt": "Analyze social performance for the current authorized workspace {workspaceId}, posts published from {from} until {until}, timezone {timezone}. Use list_social_performance without projectId for all projects, unless the selected filters specify a project. Explain coverage, freshness, platform formulas, mean and median, observed growth, content patterns and historical posting-time samples. Give an evidence-based recap and useful next-content suggestions. Do not treat publication-cohort totals as engagement gained during the period or predict reach.",
-            "audiencePostsHint": "Choose from the selected account’s cached posts in this publication range. Load another page for older matching posts."
+            "audiencePostsHint": "Choose from the selected account’s cached posts in this publication range. Load another page for older matching posts.",
+            "accountTabs": "Connected accounts",
+            "moreFilters": "More filters",
+            "accountDetails": "Account details",
+            "moreInsights": "More insights",
+            "activeFilters": "{count} active",
+            "accountDescription": "Choose an account to explore its performance. Compare published content, observed growth and the metrics available from its platform."
           }
         }
       },

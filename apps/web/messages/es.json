@@ -2598,9 +2598,7 @@
         },
         "statistics": {
           "title": "Rendimiento de las cuentas",
-          "description": "Compara el contenido publicado, el crecimiento observado y las métricas de tus cuentas conectadas. Los filtros de publicación usan UTC; los gráficos y horarios usan la zona horaria seleccionada.",
           "platform": "Plataforma",
-          "allPlatforms": "Todas las plataformas",
           "publishedFrom": "Publicadas desde (UTC)",
           "publishedUntil": "Publicadas hasta (UTC)",
           "clearFilters": "Borrar filtros",
@@ -2626,8 +2624,6 @@
           "accountsTitle": "Cuentas conectadas",
           "postsTitle": "Publicaciones de las cuentas",
           "account": "Cuenta",
-          "allAccounts": "Todas las cuentas",
-          "syncAll": "Sincronizar todas las cuentas",
           "syncAccount": "Sincronizar cuenta",
           "resumeSync": "Reanudar sincronización",
           "syncHint": "La sincronización importa cada página disponible del historial de la cuenta. Los permisos, la retención y los límites de las API pueden restringir las métricas o publicaciones disponibles.",
@@ -2864,13 +2860,16 @@
               "impressions": "Más impresiones en la muestra"
             },
             "unknownAuthor": "Autor desconocido",
-            "workspaceTitle": "Rendimiento del espacio de trabajo",
             "project": "Proyecto",
-            "allProjects": "Todos los proyectos",
             "projectComparison": "Comparación de proyectos",
-            "workspaceDedupHint": "Se excluyeron {count} copias duplicadas de publicaciones de los totales del espacio. Las comparaciones de proyectos y cuentas pueden solaparse y no son sumables.",
             "workspaceAnalysisPrompt": "Analiza el rendimiento social del espacio de trabajo autorizado actual {workspaceId}, para publicaciones entre {from} y {until}, zona horaria {timezone}. Usa list_social_performance sin projectId para todos los proyectos, salvo que los filtros seleccionados indiquen uno. Explica cobertura, actualidad, fórmulas de plataforma, media y mediana, crecimiento observado, patrones de contenido y horarios históricos de publicación. Ofrece un resumen basado en datos y sugerencias útiles de contenido. No interpretes los totales de la cohorte de publicación como interacciones ganadas durante el periodo ni predigas el alcance.",
-            "audiencePostsHint": "Elige entre las publicaciones guardadas de la cuenta seleccionada en este periodo. Carga otra página para ver publicaciones coincidentes más antiguas."
+            "audiencePostsHint": "Elige entre las publicaciones guardadas de la cuenta seleccionada en este periodo. Carga otra página para ver publicaciones coincidentes más antiguas.",
+            "accountTabs": "Cuentas conectadas",
+            "moreFilters": "Más filtros",
+            "accountDetails": "Detalles de la cuenta",
+            "moreInsights": "Más información",
+            "activeFilters": "{count} activos",
+            "accountDescription": "Elige una cuenta para explorar su rendimiento. Compara el contenido publicado, el crecimiento observado y las métricas disponibles en su plataforma."
           }
         }
       },

@@ -7,6 +7,7 @@ import type {
 import {
   type InfiniteData,
   useInfiniteQuery,
+  useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
 import { Download, Search } from "lucide-react";
@@ -26,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { refreshProjectSocialAccountStatistics } from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
@@ -100,21 +102,86 @@ export function SocialPostStatistics({
   const ownerScope = projectId
     ? `project:${projectId}`
     : `workspace:${workspaceId}`;
-  const runScopeKey = JSON.stringify(queryScope);
   const [filterScope, setFilterScope] = useState(ownerScope);
   const scopeChangePending = filterScope !== ownerScope;
   const apiPath = `/api/${projectId ? "projects" : "workspaces"}/${encodeURIComponent(projectId ?? workspaceId)}/social-performance`;
+  const catalogue = useQuery({
+    queryKey: [...queryScope, "catalogue"],
+    queryFn: async ({ signal }): Promise<StatisticsPage> => {
+      const response = await fetch(`${apiPath}?limit=1`, {
+        signal,
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error(t("loadFailed"));
+      const page: StatisticsPage = await response.json();
+      if (
+        !Array.isArray(page?.accounts) ||
+        (workspaceId &&
+          !Array.isArray("projects" in page ? page.projects : null))
+      )
+        throw new Error(t("loadFailed"));
+      return page;
+    },
+    enabled: Boolean(session?.user.id) && !scopeChangePending,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const accounts = catalogue.data?.accounts ?? [];
+  const projects =
+    catalogue.data && "projects" in catalogue.data
+      ? catalogue.data.projects
+      : [];
+  const projectNames = Object.fromEntries(
+    projects.map((project) => [project.id, project.name]),
+  );
+  const connectionProjects = Object.fromEntries(
+    projects.flatMap((project) =>
+      project.connectionIds.map((id) => [id, project.id]),
+    ),
+  );
+  function accountProjectId(accountId: string) {
+    return projectId ?? connectionProjects[accountId];
+  }
+  const eligibleAccounts = accounts.filter((account) =>
+    Boolean(accountProjectId(account.id)),
+  );
+  const fallbackAccounts = filters.statisticsProvider
+    ? eligibleAccounts.filter(
+        (account) => account.provider === filters.statisticsProvider,
+      )
+    : eligibleAccounts;
+  const selectedAccount =
+    eligibleAccounts.find(
+      (account) => account.id === filters.statisticsAccount,
+    ) ??
+    fallbackAccounts.find((account) => account.status === "active") ??
+    fallbackAccounts[0] ??
+    eligibleAccounts.find((account) => account.status === "active") ??
+    eligibleAccounts[0];
+  const selectedProjectId = selectedAccount
+    ? accountProjectId(selectedAccount.id)
+    : undefined;
+  const runScopeKey = JSON.stringify([
+    ...queryScope,
+    selectedAccount?.id ?? null,
+  ]);
+  const {
+    statisticsAccount: _account,
+    statisticsProvider: _provider,
+    performanceProject: _project,
+    ...postFilters
+  } = filters;
   const query = useInfiniteQuery({
-    queryKey: [...queryScope, filters],
+    queryKey: [...queryScope, "account", selectedAccount?.id, postFilters],
     initialPageParam: 0,
     queryFn: async ({ pageParam, signal }): Promise<StatisticsPage> => {
       const params = new URLSearchParams();
-      if (workspaceId && filters.performanceProject)
-        params.set("projectId", filters.performanceProject);
-      if (filters.statisticsProvider)
-        params.set("provider", filters.statisticsProvider);
-      if (filters.statisticsAccount)
-        params.set("connectionId", filters.statisticsAccount);
+      if (workspaceId && selectedProjectId)
+        params.set("projectId", selectedProjectId);
+      if (selectedAccount) {
+        params.set("provider", selectedAccount.provider);
+        params.set("connectionId", selectedAccount.id);
+      }
       if (validRange && filters.publishedFrom)
         params.set("publishedFrom", `${filters.publishedFrom}T00:00:00.000Z`);
       if (validRange && filters.publishedUntil)
@@ -145,22 +212,13 @@ export function SocialPostStatistics({
       return page;
     },
     getNextPageParam: (page) => page.pagination.nextOffset ?? undefined,
-    enabled: Boolean(session?.user.id) && !scopeChangePending,
+    enabled:
+      Boolean(session?.user.id && selectedAccount && selectedProjectId) &&
+      !scopeChangePending,
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const accounts = query.data?.pages[0]?.accounts ?? [];
   const firstPage = query.data?.pages[0];
-  const projects =
-    firstPage && "projects" in firstPage ? firstPage.projects : [];
-  const projectNames = Object.fromEntries(
-    projects.map((project) => [project.id, project.name]),
-  );
-  const connectionProjects = Object.fromEntries(
-    projects.flatMap((project) =>
-      project.connectionIds.map((id) => [id, project.id]),
-    ),
-  );
   const postProjects = Object.fromEntries(
     (query.data?.pages ?? []).flatMap((page) =>
       "workspaceId" in page
@@ -168,9 +226,6 @@ export function SocialPostStatistics({
         : [],
     ),
   );
-  function accountProjectId(accountId: string) {
-    return projectId ?? connectionProjects[accountId];
-  }
   function manageAccountsHref(accountId?: string) {
     const ownerProject = accountId ? accountProjectId(accountId) : projectId;
     return ownerProject
@@ -188,12 +243,12 @@ export function SocialPostStatistics({
     postKind: filters.performancePostKind,
     sort: filters.performanceSort,
   });
-  if (workspaceId && filters.performanceProject)
-    performanceParams.set("projectId", filters.performanceProject);
-  if (filters.statisticsProvider)
-    performanceParams.set("provider", filters.statisticsProvider);
-  if (filters.statisticsAccount)
-    performanceParams.set("connectionId", filters.statisticsAccount);
+  if (workspaceId && selectedProjectId)
+    performanceParams.set("projectId", selectedProjectId);
+  if (selectedAccount) {
+    performanceParams.set("provider", selectedAccount.provider);
+    performanceParams.set("connectionId", selectedAccount.id);
+  }
   if (validRange && filters.publishedFrom)
     performanceParams.set(
       "publishedFrom",
@@ -263,6 +318,27 @@ export function SocialPostStatistics({
     filters.statisticsAccount,
     setFilters,
   ]);
+  useEffect(() => {
+    if (scopeChangePending || !selectedAccount) return;
+    if (
+      filters.statisticsAccount !== selectedAccount.id ||
+      filters.statisticsProvider ||
+      filters.performanceProject
+    ) {
+      void setFilters({
+        statisticsAccount: selectedAccount.id,
+        statisticsProvider: null,
+        performanceProject: null,
+      });
+    }
+  }, [
+    scopeChangePending,
+    selectedAccount,
+    filters.statisticsAccount,
+    filters.statisticsProvider,
+    filters.performanceProject,
+    setFilters,
+  ]);
 
   async function handleSync(targets: Account[]) {
     if (runRef.current || targets.length === 0) return;
@@ -307,7 +383,7 @@ export function SocialPostStatistics({
             setSync((current) => (current ? { ...current, pages } : null));
             // Keep the returned cursor even if the follow-up history read fails.
             queryClient.setQueriesData<InfiniteData<StatisticsPage>>(
-              { queryKey: queryScope },
+              { queryKey: [...queryScope, "account"] },
               (current) =>
                 current
                   ? {
@@ -320,6 +396,20 @@ export function SocialPostStatistics({
                             : cached,
                         ),
                       })),
+                    }
+                  : current,
+            );
+            queryClient.setQueryData<StatisticsPage>(
+              [...queryScope, "catalogue"],
+              (current) =>
+                current
+                  ? {
+                      ...current,
+                      accounts: current.accounts.map((cached) =>
+                        cached.id === result.value.account.id
+                          ? result.value.account
+                          : cached,
+                      ),
                     }
                   : current,
             );
@@ -406,616 +496,646 @@ export function SocialPostStatistics({
       timeZoneName: "short",
     });
   }
+  function accountName(account: Account) {
+    return (
+      account.displayName ??
+      account.externalHandle ??
+      SOCIAL_PROVIDERS.find((provider) => provider.id === account.provider)
+        ?.name ??
+      account.provider
+    );
+  }
+  const advancedFilterCount = [
+    !filters.performanceRange &&
+      Boolean(filters.publishedFrom || filters.publishedUntil),
+    filters.performanceTimezone !== "UTC",
+    Boolean(filters.performanceSearch),
+    Boolean(filters.performanceFormat),
+    filters.performancePostKind !== "posts",
+    filters.performanceSort !== "interactions",
+  ].filter(Boolean).length;
 
   return (
     <div className="space-y-6" data-testid="social-statistics">
       <div className="space-y-1">
-        <h2 className="text-lg font-semibold">
-          {t(workspaceId ? "performance.workspaceTitle" : "title")}
-        </h2>
-        <p className="text-muted-foreground text-sm">{t("description")}</p>
+        <h2 className="text-lg font-semibold">{t("title")}</h2>
+        <p className="text-muted-foreground text-sm">
+          {t("performance.accountDescription")}
+        </p>
       </div>
       <div role="status" className="text-muted-foreground text-sm">
-        {query.isPending ? t("loading") : ""}
+        {catalogue.isPending || (selectedAccount && query.isPending)
+          ? t("loading")
+          : ""}
       </div>
-      {query.isError ? (
+      {catalogue.isError || query.isError ? (
         <div role="alert" className="flex flex-wrap items-center gap-3">
           <p className="text-sm">{t("loadFailed")}</p>
           <Button
             variant="outline"
-            loading={query.isFetching}
-            onClick={() => void query.refetch()}
+            loading={catalogue.isFetching || query.isFetching}
+            onClick={() =>
+              void (catalogue.isError ? catalogue.refetch() : query.refetch())
+            }
           >
             {t("retry")}
           </Button>
         </div>
       ) : null}
-
-      <section
-        className="space-y-4 rounded-xl border p-4"
-        aria-label={t("performance.filters")}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-2">
-            {(["7", "30", "90"] as const).map((days) => (
-              <Button
-                key={days}
-                size="sm"
-                variant={
-                  (filters.performanceRange ??
-                    (!filters.publishedFrom && !filters.publishedUntil
-                      ? "30"
-                      : null)) === days
-                    ? "default"
-                    : "outline"
-                }
-                aria-pressed={
-                  filters.performanceRange === days ||
-                  (days === "30" &&
-                    !filters.publishedFrom &&
-                    !filters.publishedUntil)
-                }
-                onClick={() => handlePreset(days)}
-              >
-                {t("performance.lastDays", { days })}
-              </Button>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {(["csv", "xlsx"] as const).map((exportFormat) => {
-              const content = (
-                <>
-                  <Download className="size-4" aria-hidden />
-                  {t(
-                    exportFormat === "csv"
-                      ? "performance.exportCsv"
-                      : "performance.exportXlsx",
-                  )}
-                </>
-              );
-              return (
-                <Button
-                  key={exportFormat}
-                  size="sm"
-                  variant="outline"
-                  asChild={validRange}
-                  disabled={!validRange}
-                >
-                  {validRange ? (
-                    <a
-                      href={`${apiPath}/export?${performanceParams}&format=${exportFormat}`}
-                    >
-                      {content}
-                    </a>
-                  ) : (
-                    content
-                  )}
-                </Button>
-              );
-            })}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
-          {workspaceId ? (
-            <div className="space-y-2">
-              <Label htmlFor="performance-project">
-                {t("performance.project")}
-              </Label>
-              <Select
-                value={filters.performanceProject ?? "all"}
-                onValueChange={(value) =>
-                  void setFilters({
-                    performanceProject: value === "all" ? null : value,
-                    statisticsAccount: null,
-                  })
-                }
-              >
-                <SelectTrigger id="performance-project" className="w-52">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">
-                    {t("performance.allProjects")}
-                  </SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
-          <div className="space-y-2">
-            <Label htmlFor="statistics-provider">{t("platform")}</Label>
-            <Select
-              value={filters.statisticsProvider ?? "all"}
-              onValueChange={(value) =>
-                void setFilters({
-                  statisticsProvider: value === "all" ? null : value,
-                  statisticsAccount: null,
-                })
-              }
-            >
-              <SelectTrigger id="statistics-provider" className="min-w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allPlatforms")}</SelectItem>
-                {SOCIAL_PROVIDERS.map((provider) => (
-                  <SelectItem key={provider.id} value={provider.id}>
-                    {provider.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="statistics-account">{t("account")}</Label>
-            <Select
-              value={filters.statisticsAccount ?? "all"}
-              onValueChange={(value) =>
-                void setFilters({
-                  statisticsAccount: value === "all" ? null : value,
-                })
-              }
-            >
-              <SelectTrigger id="statistics-account" className="min-w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allAccounts")}</SelectItem>
-                {accounts
-                  .filter(
-                    (account) =>
-                      !filters.statisticsProvider ||
-                      account.provider === filters.statisticsProvider,
-                  )
-                  .map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.displayName ??
-                        account.externalHandle ??
-                        account.provider}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="statistics-from">{t("publishedFrom")}</Label>
-            <Input
-              id="statistics-from"
-              type="date"
-              value={filters.publishedFrom ?? ""}
-              onChange={(event) =>
-                void setFilters({
-                  publishedFrom: event.target.value || null,
-                  performanceRange: null,
-                })
-              }
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="statistics-until">{t("publishedUntil")}</Label>
-            <Input
-              id="statistics-until"
-              type="date"
-              value={filters.publishedUntil ?? ""}
-              min={filters.publishedFrom ?? undefined}
-              aria-invalid={!validRange}
-              onChange={(event) =>
-                void setFilters({
-                  publishedUntil: event.target.value || null,
-                  performanceRange: null,
-                })
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="performance-timezone">
-              {t("performance.timezone")}
-            </Label>
-            <Select
-              value={filters.performanceTimezone}
-              onValueChange={(value) =>
-                void setFilters({ performanceTimezone: value })
-              }
-            >
-              <SelectTrigger
-                id="performance-timezone"
-                className="w-full sm:w-52"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {["UTC", ...Intl.supportedValuesOf("timeZone")].map((zone) => (
-                  <SelectItem key={zone} value={zone}>
-                    {zone.replaceAll("_", " ")}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              void setFilters({
-                statisticsProvider: null,
-                performanceProject: null,
-                statisticsAccount: null,
-                publishedFrom: null,
-                publishedUntil: null,
-                performanceRange: null,
-                performanceSearch: null,
-                performanceFormat: null,
-                performancePostKind: null,
-                performanceSort: null,
-              })
-            }
+      {!catalogue.isPending &&
+      !catalogue.isError &&
+      !eligibleAccounts.length ? (
+        <p className="text-muted-foreground rounded-xl border border-dashed p-4 text-sm">
+          {t("noAccounts")}{" "}
+          <Link
+            className="underline underline-offset-4"
+            href={manageAccountsHref()}
           >
-            {t("clearFilters")}
-          </Button>
-        </div>
-
-        <div className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="space-y-2">
-            <Label htmlFor="performance-search">
-              {t("performance.searchPosts")}
-            </Label>
-            <div className="relative">
-              <Search
-                className="text-muted-foreground pointer-events-none absolute start-3 top-3 size-4"
-                aria-hidden
-              />
-              <Input
-                id="performance-search"
-                className="ps-9"
-                value={filters.performanceSearch ?? ""}
-                maxLength={200}
-                onChange={(event) =>
-                  void setFilters({
-                    performanceSearch: event.target.value || null,
-                  })
-                }
-                placeholder={t("performance.searchPlaceholder")}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="performance-format">
-              {t("performance.contentType")}
-            </Label>
-            <Select
-              value={filters.performanceFormat ?? "all"}
-              onValueChange={(value) =>
-                void setFilters({
-                  performanceFormat:
-                    value === "all"
-                      ? null
-                      : (value as NonNullable<
-                          typeof filters.performanceFormat
-                        >),
-                })
-              }
-            >
-              <SelectTrigger id="performance-format" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  {t("performance.allFormats")}
-                </SelectItem>
-                {(
-                  [
-                    "text",
-                    "image",
-                    "video",
-                    "carousel",
-                    "link",
-                    "unknown",
-                  ] as const
-                ).map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {t(`performance.formats.${value}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="performance-kind">
-              {t("performance.postKind")}
-            </Label>
-            <Select
-              value={filters.performancePostKind}
-              onValueChange={(value) =>
-                void setFilters({
-                  performancePostKind:
-                    value as typeof filters.performancePostKind,
-                })
-              }
-            >
-              <SelectTrigger id="performance-kind" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(
-                  ["posts", "replies", "quotes", "reposts", "all"] as const
-                ).map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {t(`performance.kinds.${value}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="performance-sort">{t("performance.sort")}</Label>
-            <Select
-              value={filters.performanceSort}
-              onValueChange={(value) =>
-                void setFilters({
-                  performanceSort: value as typeof filters.performanceSort,
-                })
-              }
-            >
-              <SelectTrigger id="performance-sort" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(
-                  [
-                    "interactions",
-                    "publishedAt",
-                    "views",
-                    "impressions",
-                    "likes",
-                    "engagementRate",
-                    "baselineMultiplier",
-                  ] as const
-                ).map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {t(`performance.sorts.${value}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </section>
-      {!validRange ? (
-        <p role="alert" className="text-semantic-destructive text-sm">
-          {t("performance.invalidRange")}
+            {t("manageAccounts")}
+          </Link>
         </p>
       ) : null}
-      {performance && validRange ? (
-        <>
-          {firstPage && "workspaceId" in firstPage ? (
-            <p className="text-muted-foreground text-xs">
-              {t("performance.workspaceDedupHint", {
-                count: firstPage.coverage.duplicatePostCopiesExcluded,
-              })}
-            </p>
-          ) : null}
-          <SocialPerformanceOverview
-            data={performance}
-            projects={projects}
-            projectComparisons={
-              firstPage && "workspaceId" in firstPage
-                ? firstPage.comparisons.projects
-                : undefined
-            }
-          />
-          <SocialPerformancePosts
-            key={`posts:${runScopeKey}`}
-            data={performance}
-            projectNames={projectNames}
-            postProjects={postProjects}
-          />
-          <SocialPerformanceResearch
-            key={`research:${runScopeKey}`}
-            projectId={projectId}
-            workspaceId={workspaceId}
-            connectionProjects={connectionProjects}
-            projectNames={projectNames}
-            data={performance}
-            filterContext={JSON.stringify(
-              Object.fromEntries(performanceParams),
-            )}
-          />
-          {query.hasNextPage ? (
-            <Button
-              variant="outline"
-              loading={query.isFetchingNextPage}
-              onClick={() => void query.fetchNextPage()}
-            >
-              {t("loadMore")}
-            </Button>
-          ) : null}
-        </>
-      ) : null}
-      <section className="space-y-3" aria-label={t("accountsTitle")}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold">{t("accountsTitle")}</h3>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={
-              Boolean(sync) ||
-              !accounts.some(
-                (account) =>
-                  account.status === "active" && accountProjectId(account.id),
-              )
-            }
-            onClick={() =>
-              void handleSync(
-                accounts.filter(
-                  (account) =>
-                    account.status === "active" && accountProjectId(account.id),
-                ),
-              )
-            }
+      <Tabs
+        value={selectedAccount?.id ?? ""}
+        onValueChange={(value) => {
+          if (!eligibleAccounts.some((account) => account.id === value)) return;
+          void setFilters({
+            statisticsAccount: value,
+            statisticsProvider: null,
+            performanceProject: null,
+          });
+        }}
+        className="min-w-0 gap-4"
+      >
+        {eligibleAccounts.length ? (
+          <TabsList
+            aria-label={t("performance.accountTabs")}
+            className="app-scrollbar h-auto w-full max-w-full justify-start overflow-x-auto p-1"
           >
-            {t("syncAll")}
-          </Button>
-        </div>
-        <p className="text-muted-foreground text-sm">{t("syncHint")}</p>
-        <div role="status" className="text-muted-foreground text-sm">
-          {sync
-            ? t(sync.stopping ? "stoppingSync" : "syncProgress", {
-                completed: sync.completed,
-                total: sync.total,
-                pages: sync.pages,
-              })
-            : ""}
-        </div>
-        {sync ? (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={sync.stopping}
-            onClick={handleCancel}
-          >
-            {t("stopSync")}
-          </Button>
+            {eligibleAccounts.map((account) => {
+              const duplicate =
+                workspaceId &&
+                eligibleAccounts.some(
+                  (other) =>
+                    other.id !== account.id &&
+                    other.provider === account.provider &&
+                    (other.externalHandle ?? other.displayName) ===
+                      (account.externalHandle ?? account.displayName),
+                );
+              const subtitle =
+                (SOCIAL_PROVIDERS.find(
+                  (provider) => provider.id === account.provider,
+                )?.name ?? account.provider) +
+                (duplicate
+                  ? ` · ${projectNames[accountProjectId(account.id)] ?? ""}`
+                  : "");
+              return (
+                <TabsTrigger
+                  key={account.id}
+                  value={account.id}
+                  className="h-auto flex-none items-center gap-2 px-3 py-2"
+                >
+                  <SocialPostProviderIcon
+                    provider={account.provider}
+                    className="size-4 shrink-0"
+                    aria-hidden
+                  />
+                  <span className="min-w-0 max-w-52 text-start">
+                    <span
+                      className="block truncate"
+                      title={accountName(account)}
+                    >
+                      {accountName(account)}
+                    </span>
+                    <span
+                      className="text-muted-foreground block truncate text-xs font-normal"
+                      title={subtitle}
+                    >
+                      {subtitle}
+                    </span>
+                  </span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
         ) : null}
-        {!query.isPending && !query.isError && accounts.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {t("noAccounts")}{" "}
-            <Link
-              className="underline underline-offset-4"
-              href={manageAccountsHref()}
-            >
-              {t("manageAccounts")}
-            </Link>
-          </p>
-        ) : null}
-        <div className="grid gap-3 md:grid-cols-2">
-          {accounts.map((account) => {
-            const snapshot = account.statistics;
-            return (
-              <article
-                key={account.id}
-                className="min-w-0 space-y-3 rounded-lg border p-4"
+        <TabsContent
+          key={runScopeKey}
+          value={selectedAccount?.id ?? "none"}
+          className="min-w-0 space-y-5"
+        >
+          <section className="space-y-3" aria-label={t("accountsTitle")}>
+            <div role="status" className="text-muted-foreground text-sm">
+              {sync
+                ? t(sync.stopping ? "stoppingSync" : "syncProgress", {
+                    completed: sync.completed,
+                    total: sync.total,
+                    pages: sync.pages,
+                  })
+                : ""}
+            </div>
+            {sync ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={sync.stopping}
+                onClick={handleCancel}
               >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 space-y-1">
-                    <h4 className="flex items-center gap-2 font-medium">
-                      <SocialPostProviderIcon
-                        provider={account.provider}
-                        className="size-5 shrink-0"
-                        aria-hidden="true"
-                      />
-                      <span className="min-w-0 break-words">
-                        {account.displayName ??
-                          account.externalHandle ??
-                          SOCIAL_PROVIDERS.find(
+                {t("stopSync")}
+              </Button>
+            ) : null}
+            <div>
+              {(selectedAccount
+                ? [
+                    firstPage?.accounts.find(
+                      (account) => account.id === selectedAccount.id,
+                    ) ?? selectedAccount,
+                  ]
+                : []
+              ).map((account) => {
+                const snapshot = account.statistics;
+                return (
+                  <article
+                    key={account.id}
+                    className="min-w-0 space-y-3 rounded-lg border p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0 space-y-1">
+                        <h4 className="flex items-center gap-2 font-medium">
+                          <SocialPostProviderIcon
+                            provider={account.provider}
+                            className="size-5 shrink-0"
+                            aria-hidden="true"
+                          />
+                          <span className="min-w-0 break-words">
+                            {account.displayName ??
+                              account.externalHandle ??
+                              SOCIAL_PROVIDERS.find(
+                                (provider) => provider.id === account.provider,
+                              )?.name ??
+                              account.provider}
+                          </span>
+                        </h4>
+                        <p className="text-muted-foreground text-xs">
+                          {SOCIAL_PROVIDERS.find(
                             (provider) => provider.id === account.provider,
-                          )?.name ??
-                          account.provider}
-                      </span>
-                    </h4>
-                    <p className="text-muted-foreground text-xs">
-                      {SOCIAL_PROVIDERS.find(
-                        (provider) => provider.id === account.provider,
-                      )?.name ?? account.provider}
-                      {account.externalHandle
-                        ? ` · ${account.externalHandle}`
-                        : ""}
-                    </p>
-                    {workspaceId ? (
-                      <p className="text-muted-foreground text-xs">
-                        {
-                          projects.find(
-                            (project) =>
-                              project.id === accountProjectId(account.id),
-                          )?.name
+                          )?.name ?? account.provider}
+                          {account.externalHandle
+                            ? ` · ${account.externalHandle}`
+                            : ""}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          {snapshot?.fetchedAt
+                            ? t("updatedAt", {
+                                date: formatDate(snapshot.fetchedAt),
+                              })
+                            : t("notFetched")}
+                        </p>
+                        {workspaceId ? (
+                          <p className="text-muted-foreground text-xs">
+                            {
+                              projects.find(
+                                (project) =>
+                                  project.id === accountProjectId(account.id),
+                              )?.name
+                            }
+                          </p>
+                        ) : null}
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        loading={
+                          sync?.accountId === account.id && !sync.stopping
                         }
+                        disabled={
+                          Boolean(sync) ||
+                          account.status !== "active" ||
+                          !accountProjectId(account.id)
+                        }
+                        onClick={() => void handleSync([account])}
+                      >
+                        {snapshot?.historyNextCursor &&
+                        !snapshot.historyComplete
+                          ? t("resumeSync")
+                          : t("syncAccount")}
+                      </Button>
+                    </div>
+                    {account.status !== "active" ? (
+                      <p className="text-semantic-warning text-sm">
+                        {t("reconnectHint")}{" "}
+                        <Link
+                          className="underline underline-offset-4"
+                          href={manageAccountsHref(account.id)}
+                        >
+                          {t("manageAccounts")}
+                        </Link>
                       </p>
                     ) : null}
-                  </div>
+                    {snapshot?.error || syncErrors[account.id] ? (
+                      <p
+                        role="status"
+                        className="text-semantic-warning text-sm"
+                      >
+                        {syncErrors[account.id] ??
+                          t("accountMetricsIncomplete")}
+                      </p>
+                    ) : null}
+                    {snapshot?.metricWarning ? (
+                      <p
+                        role="status"
+                        className="text-semantic-warning text-sm"
+                      >
+                        {t("postMetricsIncomplete")}
+                      </p>
+                    ) : null}
+                    {snapshot?.historyError ? (
+                      <p
+                        role="status"
+                        className="text-semantic-warning text-sm"
+                      >
+                        {t("historyLimited")}
+                      </p>
+                    ) : null}
+                    <details className="group space-y-3">
+                      <summary className="text-muted-foreground w-fit cursor-pointer rounded-sm py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                        {t("performance.accountDetails")}
+                      </summary>
+                      {snapshot?.metrics.length ? (
+                        renderMetrics(snapshot.metrics)
+                      ) : (
+                        <p className="text-muted-foreground text-sm">
+                          {snapshot?.fetchedAt
+                            ? t("accountMetricsUnavailable")
+                            : t("accountNotFetched")}
+                        </p>
+                      )}
+
+                      <p className="text-muted-foreground text-xs">
+                        {t("syncHint")}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {t("importedCount", { count: account.postCount })}
+                        {snapshot?.historyFetchedAt
+                          ? ` · ${t("updatedAt", { date: formatDate(snapshot.historyFetchedAt) })}`
+                          : ""}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {snapshot?.historyComplete
+                          ? t("historyComplete")
+                          : snapshot?.historyNextCursor
+                            ? t("historyPartial")
+                            : t("historyNotFetched")}
+                      </p>
+                      {snapshot?.historyError ? (
+                        <div role="status" className="space-y-1 text-sm">
+                          <p className="text-muted-foreground break-words">
+                            {snapshot.historyError}
+                          </p>
+                        </div>
+                      ) : null}
+                    </details>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+          <section
+            className="space-y-4 rounded-xl border p-4"
+            aria-label={t("performance.filters")}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-2">
+                {(["7", "30", "90"] as const).map((days) => (
                   <Button
-                    type="button"
+                    key={days}
                     size="sm"
-                    variant="outline"
-                    loading={sync?.accountId === account.id && !sync.stopping}
-                    disabled={
-                      Boolean(sync) ||
-                      account.status !== "active" ||
-                      !accountProjectId(account.id)
+                    variant={
+                      (filters.performanceRange ??
+                        (!filters.publishedFrom && !filters.publishedUntil
+                          ? "30"
+                          : null)) === days
+                        ? "default"
+                        : "outline"
                     }
-                    onClick={() => void handleSync([account])}
+                    aria-pressed={
+                      filters.performanceRange === days ||
+                      (days === "30" &&
+                        !filters.publishedFrom &&
+                        !filters.publishedUntil)
+                    }
+                    onClick={() => handlePreset(days)}
                   >
-                    {snapshot?.historyNextCursor && !snapshot.historyComplete
-                      ? t("resumeSync")
-                      : t("syncAccount")}
+                    {t("performance.lastDays", { days })}
                   </Button>
-                </div>
-                {account.status !== "active" ? (
-                  <p className="text-semantic-warning text-sm">
-                    {t("reconnectHint")}{" "}
-                    <Link
-                      className="underline underline-offset-4"
-                      href={manageAccountsHref(account.id)}
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(["csv", "xlsx"] as const).map((exportFormat) => {
+                  const content = (
+                    <>
+                      <Download className="size-4" aria-hidden />
+                      {t(
+                        exportFormat === "csv"
+                          ? "performance.exportCsv"
+                          : "performance.exportXlsx",
+                      )}
+                    </>
+                  );
+                  return (
+                    <Button
+                      key={exportFormat}
+                      size="sm"
+                      variant="outline"
+                      asChild={validRange}
+                      disabled={!validRange}
                     >
-                      {t("manageAccounts")}
-                    </Link>
-                  </p>
+                      {validRange ? (
+                        <a
+                          href={`${apiPath}/export?${performanceParams}&format=${exportFormat}`}
+                        >
+                          {content}
+                        </a>
+                      ) : (
+                        content
+                      )}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+            <details className="group">
+              <summary className="text-muted-foreground flex w-fit cursor-pointer items-center gap-2 rounded-sm py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                {t("performance.moreFilters")}
+                {advancedFilterCount ? (
+                  <span className="text-foreground text-xs">
+                    {t("performance.activeFilters", {
+                      count: advancedFilterCount,
+                    })}
+                  </span>
                 ) : null}
-                {snapshot?.metrics.length ? (
-                  renderMetrics(snapshot.metrics)
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    {snapshot?.fetchedAt
-                      ? t("accountMetricsUnavailable")
-                      : t("accountNotFetched")}
-                  </p>
-                )}
-                <p className="text-muted-foreground text-xs">
-                  {snapshot?.fetchedAt
-                    ? t("updatedAt", { date: formatDate(snapshot.fetchedAt) })
-                    : t("notFetched")}
-                </p>
-                {snapshot?.error || syncErrors[account.id] ? (
-                  <p role="status" className="text-semantic-warning text-sm">
-                    {syncErrors[account.id] ?? t("accountMetricsIncomplete")}
-                  </p>
-                ) : null}
-                {snapshot?.metricWarning ? (
-                  <p role="status" className="text-semantic-warning text-sm">
-                    {t("postMetricsIncomplete")}
-                  </p>
-                ) : null}
-                <p className="text-muted-foreground text-xs">
-                  {t("importedCount", { count: account.postCount })}
-                  {snapshot?.historyFetchedAt
-                    ? ` · ${t("updatedAt", { date: formatDate(snapshot.historyFetchedAt) })}`
-                    : ""}
-                </p>
-                <p className="text-muted-foreground text-xs">
-                  {snapshot?.historyComplete
-                    ? t("historyComplete")
-                    : snapshot?.historyNextCursor
-                      ? t("historyPartial")
-                      : t("historyNotFetched")}
-                </p>
-                {snapshot?.historyError ? (
-                  <div role="status" className="space-y-1 text-sm">
-                    <p className="text-semantic-warning">
-                      {t("historyLimited")}
-                    </p>
-                    <p className="text-muted-foreground break-words">
-                      {snapshot.historyError}
-                    </p>
+              </summary>
+              <div className="mt-4 flex flex-wrap items-end gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="statistics-from">{t("publishedFrom")}</Label>
+                  <Input
+                    id="statistics-from"
+                    type="date"
+                    value={filters.publishedFrom ?? ""}
+                    onChange={(event) =>
+                      void setFilters({
+                        publishedFrom: event.target.value || null,
+                        performanceRange: null,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="statistics-until">
+                    {t("publishedUntil")}
+                  </Label>
+                  <Input
+                    id="statistics-until"
+                    type="date"
+                    value={filters.publishedUntil ?? ""}
+                    min={filters.publishedFrom ?? undefined}
+                    aria-invalid={!validRange}
+                    onChange={(event) =>
+                      void setFilters({
+                        publishedUntil: event.target.value || null,
+                        performanceRange: null,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="performance-timezone">
+                    {t("performance.timezone")}
+                  </Label>
+                  <Select
+                    value={filters.performanceTimezone}
+                    onValueChange={(value) =>
+                      void setFilters({ performanceTimezone: value })
+                    }
+                  >
+                    <SelectTrigger
+                      id="performance-timezone"
+                      className="w-full sm:w-52"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["UTC", ...Intl.supportedValuesOf("timeZone")].map(
+                        (zone) => (
+                          <SelectItem key={zone} value={zone}>
+                            {zone.replaceAll("_", " ")}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    void setFilters({
+                      statisticsProvider: null,
+                      performanceProject: null,
+                      publishedFrom: null,
+                      publishedUntil: null,
+                      performanceRange: null,
+                      performanceSearch: null,
+                      performanceFormat: null,
+                      performancePostKind: null,
+                      performanceSort: null,
+                      performanceTimezone: null,
+                    })
+                  }
+                >
+                  {t("clearFilters")}
+                </Button>
+              </div>
+
+              <div className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="space-y-2">
+                  <Label htmlFor="performance-search">
+                    {t("performance.searchPosts")}
+                  </Label>
+                  <div className="relative">
+                    <Search
+                      className="text-muted-foreground pointer-events-none absolute start-3 top-3 size-4"
+                      aria-hidden
+                    />
+                    <Input
+                      id="performance-search"
+                      className="ps-9"
+                      value={filters.performanceSearch ?? ""}
+                      maxLength={200}
+                      onChange={(event) =>
+                        void setFilters({
+                          performanceSearch: event.target.value || null,
+                        })
+                      }
+                      placeholder={t("performance.searchPlaceholder")}
+                    />
                   </div>
-                ) : null}
-              </article>
-            );
-          })}
-        </div>
-      </section>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="performance-format">
+                    {t("performance.contentType")}
+                  </Label>
+                  <Select
+                    value={filters.performanceFormat ?? "all"}
+                    onValueChange={(value) =>
+                      void setFilters({
+                        performanceFormat:
+                          value === "all"
+                            ? null
+                            : (value as NonNullable<
+                                typeof filters.performanceFormat
+                              >),
+                      })
+                    }
+                  >
+                    <SelectTrigger id="performance-format" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        {t("performance.allFormats")}
+                      </SelectItem>
+                      {(
+                        [
+                          "text",
+                          "image",
+                          "video",
+                          "carousel",
+                          "link",
+                          "unknown",
+                        ] as const
+                      ).map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {t(`performance.formats.${value}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="performance-kind">
+                    {t("performance.postKind")}
+                  </Label>
+                  <Select
+                    value={filters.performancePostKind}
+                    onValueChange={(value) =>
+                      void setFilters({
+                        performancePostKind:
+                          value as typeof filters.performancePostKind,
+                      })
+                    }
+                  >
+                    <SelectTrigger id="performance-kind" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(
+                        [
+                          "posts",
+                          "replies",
+                          "quotes",
+                          "reposts",
+                          "all",
+                        ] as const
+                      ).map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {t(`performance.kinds.${value}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="performance-sort">
+                    {t("performance.sort")}
+                  </Label>
+                  <Select
+                    value={filters.performanceSort}
+                    onValueChange={(value) =>
+                      void setFilters({
+                        performanceSort:
+                          value as typeof filters.performanceSort,
+                      })
+                    }
+                  >
+                    <SelectTrigger id="performance-sort" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(
+                        [
+                          "interactions",
+                          "publishedAt",
+                          "views",
+                          "impressions",
+                          "likes",
+                          "engagementRate",
+                          "baselineMultiplier",
+                        ] as const
+                      ).map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {t(`performance.sorts.${value}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </details>
+          </section>
+          {!validRange ? (
+            <p role="alert" className="text-semantic-destructive text-sm">
+              {t("performance.invalidRange")}
+            </p>
+          ) : null}
+          {performance && validRange ? (
+            <>
+              <SocialPerformanceOverview
+                key={`overview:${runScopeKey}`}
+                data={performance}
+              />
+              <SocialPerformancePosts
+                key={`posts:${runScopeKey}`}
+                data={performance}
+                projectNames={projectNames}
+                postProjects={postProjects}
+              />
+              <SocialPerformanceResearch
+                key={`research:${runScopeKey}`}
+                projectId={projectId}
+                workspaceId={workspaceId}
+                connectionProjects={connectionProjects}
+                projectNames={projectNames}
+                data={performance}
+                filterContext={JSON.stringify(
+                  Object.fromEntries(performanceParams),
+                )}
+              />
+              {query.hasNextPage ? (
+                <Button
+                  variant="outline"
+                  loading={query.isFetchingNextPage}
+                  onClick={() => void query.fetchNextPage()}
+                >
+                  {t("loadMore")}
+                </Button>
+              ) : null}
+            </>
+          ) : null}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

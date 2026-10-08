@@ -4,9 +4,11 @@ Verified on 2026-10-08. This records available APIs and the implementation's cov
 
 ## Visual verification
 
-The actual React overview and post components were rendered with synthetic data for dark/light and mobile layout checks. This screenshot is layout evidence; no live connected account was queried.
+Performance opens one connected account at a time. Account tabs keep the full authorized catalogue available; metrics, posts, research, exports and sync use the selected connection. Detailed filters and additional analysis are collapsed by default.
 
-![Performance overview rendered with synthetic data](images/social-performance-overview.png)
+The actual React components were rendered with synthetic data for dark/light and mobile layout checks. This screenshot is layout evidence; no live connected account was queried for the fixture.
+
+![Performance overview rendered with synthetic data](images/social-performance-overview.jpg)
 
 ## Implemented provider collection
 
@@ -21,7 +23,7 @@ The actual React overview and post components were rendered with synthetic data 
 
 All providers feed shared cohort comparisons, ranking, format analysis and exports. Engagement calculations require measured components and use an explicit denominator. Daily collection records observations going forward; those observations do not turn lifetime counters into historical event-time activity.
 
-The combined workspace view uses the active authorized workspace and preserves project/account attribution. Its overall cohort deduplicates overlapping provider post IDs using the freshest measured copy before calculating totals, means and medians. Per-project and per-account comparisons remain scoped samples and can overlap, so they are not additive. Follower observations remain per connection rather than a deduplicated cross-network audience. Workspace CSV/XLSX exports include this attribution and coverage.
+Core workspace aggregation and Soko Bot reports use the active authorized workspace and preserve project/account attribution. The combined cohort deduplicates overlapping provider post IDs using the freshest measured copy before calculating totals, means and medians. Per-project and per-account comparisons remain scoped samples and can overlap, so they are not additive. Follower observations remain per connection rather than a deduplicated cross-network audience. The Performance UI and its CSV/XLSX links select one connection, including in the workspace view; exports retain project attribution and coverage.
 
 ## X audience and benchmarking
 
