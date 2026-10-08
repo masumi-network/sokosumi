@@ -46,7 +46,7 @@ No dependency additions are needed. Live slice status and verification evidence 
 
 ## Rich editor implementation
 
-`ComposerDocument` defines the portable block/inline structure and Markdown serialization. `ComposerInlineText` and `ComposerBlockText` preserve semantic attributes independently of fonts and colors; `ComposerBlockFormat` applies block commands. `ComposerLink`, `ComposerPaste`, and `ComposerPreferences` own validation, clipboard sanitization, and toolbar preference storage.
+`ComposerDocument` defines the portable block/inline structure and Markdown serialization. `ComposerInlineText` and `ComposerBlockText` preserve semantic attributes independently of fonts and colors; `ComposerBlockFormat` applies block commands. `ComposerLink`, `ComposerPaste`, and `ComposerPreferences` own validation, clipboard sanitization, and toolbar preference storage; `ComposerToolbarVisibility` is one composer's bar, read from that preference once, stored only by its toggle and shown without storing when the link editor opens (row 11a).
 
 `MacComposerAttributedText` adds native presentation. `MacComposerTextInput` preserves IME handling, selection and undo, while `MacComposerCommands` routes toolbar actions to that same editor. `ComposerLayout` and `ComposerToolbarButton` use SwiftUI without platform-specific APIs. The minimum editor height is three lines, growing to eight before scrolling.
 
