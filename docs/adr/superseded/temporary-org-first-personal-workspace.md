@@ -1,14 +1,14 @@
 # Temporary personal workspace on org-first membership
 
-- Status: Withdrawn; [ADR-0005](../0005-optional-personal-workspace.md) stands. The overlay, `REQUIRE_PERSONAL_WORKSPACE`, and the backfill script are removed. Personal workspaces it already created stay.
+- Status: deprecated; [ADR-0005](../0005-optional-personal-workspace.md) stands. The overlay, `REQUIRE_PERSONAL_WORKSPACE`, and the backfill script are removed. Personal workspaces it already created stay.
 - Archived: live number 0010 is retired; do not reuse it
 
-Creating or joining an organization still lands the user in that org. A temporary overlay can also create a personal workspace on that path (`beforeCreateOrganization`, `beforeAddMember`, `beforeAcceptInvitation`, join-link accept, admin add-member) without clearing `preferredOrganizationId`. The overlay is off unless Core `REQUIRE_PERSONAL_WORKSPACE=true` (default `false`, matching ADR 0005). Existing org-only users were backfilled with a one-off data-migration script (since removed), which used `packages/database/.env` like Prisma CLI (not Core env). If backfill finds `preferredOrganizationId` null, it sets it to an existing org membership so session create does not drop them into personal.
+This ADR added a temporary overlay: creating or joining an organization still landed the user in that org, and could also create a personal workspace on that path (`beforeCreateOrganization`, `beforeAddMember`, `beforeAcceptInvitation`, join-link accept, admin add-member) without clearing `preferredOrganizationId`. The overlay was off unless Core `REQUIRE_PERSONAL_WORKSPACE=true` (default `false`, matching ADR 0005). Existing org-only users were backfilled with a one-off data-migration script, which used `packages/database/.env` like Prisma CLI (not Core env). Where backfill found `preferredOrganizationId` null, it set it to an existing org membership so session create would not drop them into personal.
 
-This contradicts ADR 0005 (personal is optional; invitees should not get a leftover personal). Keep 0005 as the long-term model. Unwinding the overlay later does not delete the rows — jobs and tasks may already live on them.
+It contradicted ADR 0005 (personal is optional; invitees should not get a leftover personal), which stayed the long-term model. Unwinding the overlay does not delete the rows it created — jobs and tasks may already live on them.
 
-OAuth Allow still uses `ensureOAuthWorkspaceAction` (PR 3885): empty inventory gets a personal workspace before consent. That path is independent of identity onboarding.
+OAuth Allow's `ensureOAuthWorkspaceAction` (PR 3885), which gives an empty inventory a personal workspace before consent, was independent of this overlay and is unaffected.
 
-Better Auth `beforeCreateOrganization` / `beforeAcceptInvitation` / `beforeAddMember` cannot share a Prisma transaction with the membership write. Personal create is fail-closed (membership does not proceed). The reverse is not: if BA then fails, a leftover personal workspace can remain. Join-link and admin add-member do share a transaction.
+Better Auth `beforeCreateOrganization` / `beforeAcceptInvitation` / `beforeAddMember` could not share a Prisma transaction with the membership write. Personal create was fail-closed (membership did not proceed). The reverse was not: if BA then failed, a leftover personal workspace could remain. Join-link and admin add-member did share a transaction.
 
-Rejected: disable Organization on identity onboarding; create personal on Continue before the org exists; auto-delete personal after org create; change the workspace gate to require personal.
+Rejected at the time: disable Organization on identity onboarding; create personal on Continue before the org exists; auto-delete personal after org create; change the workspace gate to require personal.

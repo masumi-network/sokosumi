@@ -234,12 +234,12 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     ).toHaveBeenCalledWith("user_123", "org_1", expect.anything());
   });
 
-  it("does not map a non-member unique violation to already_member", async () => {
+  it("maps only the (userId, organizationId) unique violation to already_member", async () => {
     getInviteLinkByTokenMock.mockResolvedValue(liveLink());
     createMemberMock.mockRejectedValue(
       Object.assign(new Error("Unique constraint failed"), {
         code: "P2002",
-        meta: { target: ["userId"] },
+        meta: { target: ["id"] },
       }),
     );
 
