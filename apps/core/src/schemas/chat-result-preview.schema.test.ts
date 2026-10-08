@@ -55,12 +55,17 @@ describe("chat result cards", () => {
       info: { title: "Test", version: "1" },
     });
     const available = document.components?.schemas?.ChatResultAvailable;
+    const properties = (
+      available as { properties?: Record<string, object> } | undefined
+    )?.properties;
     for (const name of ["task", "social", "actor", "projectInfo", "decision"]) {
-      expect(available).toMatchObject({
-        properties: {
-          [name]: { type: ["object", "null"], default: null },
-        },
+      expect(properties?.[name]).toMatchObject({
+        type: ["object", "null"],
+        default: null,
       });
+      for (const composition of ["anyOf", "oneOf", "allOf"]) {
+        expect(properties?.[name]).not.toHaveProperty(composition);
+      }
     }
   });
 });
