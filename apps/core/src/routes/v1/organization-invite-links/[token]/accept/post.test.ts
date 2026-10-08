@@ -10,7 +10,6 @@ const {
   tryConsumeInviteLinkMock,
   getMemberMock,
   createMemberMock,
-  ensurePersonalWorkspaceForOrganizationMembershipMock,
   orgFindUniqueMock,
 } = vi.hoisted(() => ({
   authContextState: {
@@ -38,7 +37,6 @@ const {
   tryConsumeInviteLinkMock: vi.fn(),
   getMemberMock: vi.fn(),
   createMemberMock: vi.fn(),
-  ensurePersonalWorkspaceForOrganizationMembershipMock: vi.fn(),
   orgFindUniqueMock: vi.fn(),
 }));
 
@@ -67,11 +65,6 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 vi.mock("@/helpers/invite-link-consume", () => ({
   tryConsumeOrganizationInviteLink: (...args: unknown[]) =>
     tryConsumeInviteLinkMock(...args),
-}));
-
-vi.mock("@/helpers/org-membership-personal-workspace", () => ({
-  ensurePersonalWorkspaceForOrganizationMembership: (...args: unknown[]) =>
-    ensurePersonalWorkspaceForOrganizationMembershipMock(...args),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -152,9 +145,6 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     getMemberMock.mockResolvedValue(null);
     tryConsumeInviteLinkMock.mockResolvedValue(true);
     createMemberMock.mockResolvedValue(undefined);
-    ensurePersonalWorkspaceForOrganizationMembershipMock.mockResolvedValue(
-      undefined,
-    );
     upgradeGuestChatRoomMembershipsToMemberMock.mockResolvedValue(0);
     cancelPendingOrganizationInvitationsForUserMock.mockResolvedValue(0);
   });
@@ -193,12 +183,6 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     expect(body.data.status).toBe("joined");
     expect(body.data.organizationSlug).toBe("acme");
     expect(body.data.organizationId).toBe("org_1");
-    expect(
-      ensurePersonalWorkspaceForOrganizationMembershipMock,
-    ).toHaveBeenCalledWith("user_123", {
-      tx: expect.anything(),
-      organizationId: "org_1",
-    });
     expect(createMemberMock).toHaveBeenCalledWith({
       data: {
         user: { connect: { id: "user_123" } },
@@ -215,18 +199,6 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     expect(
       cancelPendingOrganizationInvitationsForUserMock,
     ).toHaveBeenCalledWith("user_123", "org_1", expect.anything());
-  });
-
-  it("fails the join when personal workspace ensure fails", async () => {
-    getInviteLinkByTokenMock.mockResolvedValue(liveLink());
-    ensurePersonalWorkspaceForOrganizationMembershipMock.mockRejectedValue(
-      new Error("personal workspace failed"),
-    );
-
-    const response = await post();
-
-    expect(response.status).toBe(500);
-    expect(createMemberMock).not.toHaveBeenCalled();
   });
 
   it("does not consume a use when already a member", async () => {
@@ -262,9 +234,9 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     ).toHaveBeenCalledWith("user_123", "org_1", expect.anything());
   });
 
-  it("does not map a personal-workspace unique violation to already_member", async () => {
+  it("does not map a non-member unique violation to already_member", async () => {
     getInviteLinkByTokenMock.mockResolvedValue(liveLink());
-    ensurePersonalWorkspaceForOrganizationMembershipMock.mockRejectedValue(
+    createMemberMock.mockRejectedValue(
       Object.assign(new Error("Unique constraint failed"), {
         code: "P2002",
         meta: { target: ["userId"] },

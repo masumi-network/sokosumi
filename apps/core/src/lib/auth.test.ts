@@ -197,7 +197,6 @@ function getDefaultEnv() {
     SIGNUP_BONUS_TTL_DAYS: 30,
     VERCEL_ENV: undefined,
     VERCEL_GIT_COMMIT_REF: "",
-    REQUIRE_PERSONAL_WORKSPACE: false,
   };
 }
 
