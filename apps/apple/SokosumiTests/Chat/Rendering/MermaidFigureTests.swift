@@ -7,6 +7,11 @@
   import SwiftUI
   import Testing
 
+  /// The Enlarge sheet's zoom, observed so the hosted sheet redraws its disabled state.
+  @MainActor @Observable private final class MermaidZoomBox {
+    var value = 1.0
+  }
+
   /// Row 10d: the renderer behind web's policy. No window: it draws into a bitmap of its own.
   struct MermaidRendererTests {
     private static func accepted(_ source: String) -> SokosumiChat.MermaidDiagram {
@@ -191,6 +196,40 @@
         }
         #expect(texts.contains { $0.contains("A[Start]") }, "\(texts)")
         #expect(!texts.contains("Mermaid flowchart"), "\(texts)")
+      }
+
+      /// The Enlarge sheet's zoom keys, as the image viewer's (`MessageImageViewerActionsTests.zoomStepsWithinWebsLimits`):
+      /// ⌘=, the unshifted key on layouts that put + above it, and ⌘⇧= zoom in, ⌘− zooms out, and ⌘= stops at 300 %.
+      @Test func theEnlargedSheetZoomsWithTheImageViewersKeys() async throws {
+        let zoom = MermaidZoomBox()
+        let sheet = MermaidEnlargedView(
+          source: Self.accepted, output: nil, zoom: Binding(get: { zoom.value }, set: { zoom.value = $0 }), copy: nil, copySource: {}
+        )
+        let (window, host) = ComposerSkillsTests.window(sheet, size: NSSize(width: 620, height: 520))
+        defer { window.orderOut(nil) }
+        _ = try await ComposerSkillsTests.waitForText("Zoom in", in: host)
+        func press(_ characters: String, keyCode: UInt16, modifiers: NSEvent.ModifierFlags = .command) throws -> Bool {
+          let event = try #require(NSEvent.keyEvent(
+            with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: window.windowNumber, context: nil, characters: characters, charactersIgnoringModifiers: characters,
+            isARepeat: false, keyCode: keyCode
+          ))
+          return window.performKeyEquivalent(with: event)
+        }
+        #expect(try press("=", keyCode: 24), "⌘= is Zoom in's key.")
+        await ComposerSkillsTests.settle(host)
+        #expect(zoom.value == 1.25)
+        #expect(try press("+", keyCode: 24, modifiers: [.command, .shift]), "⌘⇧= types + on a US layout.")
+        await ComposerSkillsTests.settle(host)
+        #expect(zoom.value == 1.5)
+        #expect(try press("-", keyCode: 27), "⌘− is Zoom out's key.")
+        await ComposerSkillsTests.settle(host)
+        #expect(zoom.value == 1.25)
+        zoom.value = 3
+        await ComposerSkillsTests.settle(host)
+        #expect(try !press("=", keyCode: 24), "⌘= is disabled at 300 %.")
+        await ComposerSkillsTests.settle(host)
+        #expect(zoom.value == 3, "⌘= stops at 300 %.")
       }
 
       @Test func copySourcePutsTheSourceOnThePasteboardAndSaysSo() async throws {

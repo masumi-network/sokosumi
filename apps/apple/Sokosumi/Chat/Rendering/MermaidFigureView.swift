@@ -275,6 +275,21 @@ struct MermaidEnlargedView: View {
         }
         .keyboardShortcut("+")
         .disabled(zoom >= MermaidFigure.zoomRange.upperBound)
+        .background {
+          // ⌘=, the unshifted key on layouts that put + above it, as in the image viewer. Only a key equivalent:
+          // invisible, and out of hit testing, the key-view loop and VoiceOver.
+          Button {
+            zoom = MermaidFigure.zoomedIn(zoom)
+          } label: {
+            Text("Zoom in", tableName: mermaidTable, comment: "Makes the enlarged Mermaid diagram larger.")
+          }
+          .keyboardShortcut("=", modifiers: .command)
+          .disabled(zoom >= MermaidFigure.zoomRange.upperBound)
+          .opacity(0)
+          .allowsHitTesting(false)
+          .focusable(false)
+          .accessibilityHidden(true)
+        }
         Button(action: copySource) {
           Text("Copy source", tableName: mermaidTable, comment: "Copies a Mermaid diagram's source text.")
         }
