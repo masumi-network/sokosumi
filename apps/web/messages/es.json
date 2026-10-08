@@ -2757,7 +2757,7 @@
       "back": "Volver al proyecto",
       "updated": "Actualizado",
       "emptyTitle": "Crea tu primera imagen",
-      "emptyBody": "Elige un estilo para empezar o escribe tu propio prompt abajo.",
+      "emptyBody": "Haz clic en una plantilla para aplicarla o escribe tu propio prompt abajo.",
       "promptPlaceholder": "Describe la imagen…",
       "generate": "Generar",
       "refine": "Refinar",
