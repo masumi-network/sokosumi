@@ -169,8 +169,14 @@
         defer { window.orderOut(nil) }
         _ = try await Helpers.waitForText("Sokosumi HQ", in: host)
         try await Self.until { recorder.answered == 2 }
-        await Helpers.settle(host)
-        #expect(try #require(await Helpers.nodes(labelled: "View image b.png", in: host).first).press())
+        // The picture becomes a button once its file has also decoded, a moment after the load answers.
+        var pressed = false
+        let deadline = ContinuousClock.now.advanced(by: .seconds(10))
+        while !pressed, ContinuousClock.now < deadline {
+          await Helpers.settle(host)
+          pressed = await Helpers.nodes(labelled: "View image b.png", in: host).first?.press() == true
+        }
+        #expect(pressed)
         try await Self.until { recorder.previewed == ["b.png"] }
 
         let videoRecorder = OutputRecorder(image: Self.picture)
@@ -185,6 +191,25 @@
         #expect(try #require(await Helpers.nodes(labelled: "Play clip.mp4", in: videoHost).first).press())
         try await Self.until { videoRecorder.previewed == ["clip.mp4"] }
         #expect(videoRecorder.loads == [.driveFile(id: "f7", scope: .personal, organizationId: nil, download: false)])
+      }
+
+      /// Four pictures sit in web's 2×2 grid row by row, so VoiceOver and the keyboard reach them in the post's order.
+      @Test func fourPicturesAreReadRowByRow() async throws {
+        let names = ["p1.png", "p2.png", "p3.png", "p4.png"]
+        let card = Self.card(
+          "7d1f0c2a-0000-4000-8000-000000000046", title: "Four", text: "Four pictures",
+          social: .init(provider: .x, account: .init(handle: "sokosumi"), timestamp: Self.published),
+          outputs: names.enumerated().map { Self.output($1, "image/png", "g\($0)") }
+        )
+        let recorder = OutputRecorder(image: Self.picture)
+        let (window, host) = Self.host(card, recorder: recorder)
+        defer { window.orderOut(nil) }
+        _ = try await Helpers.waitForText("Four pictures", in: host)
+        try await Self.until { recorder.answered == 4 }
+        await Helpers.settle(host)
+        let order = await Helpers.nodes(in: host) { $0.hasPrefix("View image ") }
+          .compactMap { $0.object.value(forKey: "accessibilityLabel") as? String }
+        #expect(order == names.map { "View image \($0)" }, "\(order)")
       }
 
       // MARK: Render

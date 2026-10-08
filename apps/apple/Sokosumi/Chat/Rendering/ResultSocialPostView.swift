@@ -340,24 +340,30 @@ private struct SocialPostMediaGrid: View {
       Color.clear
         .aspectRatio(16 / 9, contentMode: .fit)
         .overlay {
-          HStack(spacing: 2) {
-            switch media.count {
-            case 2:
+          // Built in web's reading order, so VoiceOver and the keyboard reach the pictures as the post lists them.
+          switch media.count {
+          case 2:
+            HStack(spacing: 2) {
               SocialPostMediaCell(media: media[0])
               SocialPostMediaCell(media: media[1])
-            case 3:
+            }
+          case 3:
+            HStack(spacing: 2) {
               SocialPostMediaCell(media: media[0])
               VStack(spacing: 2) {
                 SocialPostMediaCell(media: media[1])
                 SocialPostMediaCell(media: media[2])
               }
-            default:
-              VStack(spacing: 2) {
+            }
+          default:
+            // Row by row: the first two over the next two.
+            VStack(spacing: 2) {
+              HStack(spacing: 2) {
                 SocialPostMediaCell(media: media[0])
-                SocialPostMediaCell(media: media[2])
-              }
-              VStack(spacing: 2) {
                 SocialPostMediaCell(media: media[1])
+              }
+              HStack(spacing: 2) {
+                SocialPostMediaCell(media: media[2])
                 SocialPostMediaCell(media: media[3])
               }
             }
