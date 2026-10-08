@@ -36,7 +36,6 @@ private struct GenericResultCard: View {
   let card: ResultPreviewCard
   @Environment(\.openURL) private var openURL
   @Environment(\.timeFormat) private var timeFormat
-  @Environment(\.locale) private var locale
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
