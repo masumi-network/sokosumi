@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   isAgentAllowedUserSubpath,
+  isAgentSelfFilteringUserSubpath,
   userRouteSubpathAfterId,
 } from "./user-coworker-route-allowlist";
 
@@ -32,13 +33,14 @@ describe("userRouteSubpathAfterId", () => {
 });
 
 describe("isAgentAllowedUserSubpath", () => {
-  it("allows profile, credits, and organization list/credits reads", () => {
+  it("allows profile, credits, organization list/credits, and workspace list reads", () => {
     expect(isAgentAllowedUserSubpath("/")).toBe(true);
     expect(isAgentAllowedUserSubpath("/credits")).toBe(true);
     expect(isAgentAllowedUserSubpath("/organizations")).toBe(true);
     expect(isAgentAllowedUserSubpath("/organizations/org_1/credits")).toBe(
       true,
     );
+    expect(isAgentAllowedUserSubpath("/workspaces")).toBe(true);
   });
 
   it("rejects other user subpaths", () => {
@@ -53,5 +55,16 @@ describe("isAgentAllowedUserSubpath", () => {
     expect(isAgentAllowedUserSubpath("/pending-organization-invitations")).toBe(
       false,
     );
+  });
+});
+
+describe("isAgentSelfFilteringUserSubpath", () => {
+  it("marks only the workspace list as filtering its own result", () => {
+    expect(isAgentSelfFilteringUserSubpath("/workspaces")).toBe(true);
+    expect(isAgentSelfFilteringUserSubpath("/workspaces/")).toBe(true);
+    expect(isAgentSelfFilteringUserSubpath("/workspaces/preferred")).toBe(
+      false,
+    );
+    expect(isAgentSelfFilteringUserSubpath("/organizations")).toBe(false);
   });
 });

@@ -6,7 +6,11 @@ import prisma from "@/lib/db/prisma";
 import type { EnvVariables, OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { UserContext } from "@/middleware/auth";
 
-import { agentUserRouteAllowlistMiddleware } from "./user-coworker-route-allowlist";
+import {
+  agentUserRouteAllowlistMiddleware,
+  isAgentSelfFilteringUserSubpath,
+  userRouteSubpathAfterId,
+} from "./user-coworker-route-allowlist";
 import { resolveUsersPathUserId } from "./user-path-access";
 
 export interface UserRouteContext {
@@ -36,7 +40,8 @@ export function requireUserRouteContext(
  * Resolves and validates the target user context for `/users/{id}` routes.
  * Coworkers must have a workspace grant or baseline task relationship to the
  * context user before any user-tree handler runs (see
- * {@link assertCoworkerUserContextBinding}).
+ * {@link assertCoworkerUserContextBinding}), except on routes that narrow their
+ * own result to the workspaces the coworker may act in.
  */
 export const usersPathUserContextMiddleware = createMiddleware<UserRouteEnv>(
   async (c, next) => {
@@ -60,7 +65,12 @@ export const usersPathUserContextMiddleware = createMiddleware<UserRouteEnv>(
     }
 
     const authContext = c.var.authContext;
-    if (authContext.actor === "coworker") {
+    if (
+      authContext.actor === "coworker" &&
+      !isAgentSelfFilteringUserSubpath(
+        userRouteSubpathAfterId(c.req.path, pathUser),
+      )
+    ) {
       await assertCoworkerUserContextBinding(authContext, userContext, prisma);
     }
 
