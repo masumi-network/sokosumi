@@ -174,6 +174,8 @@ public struct ResultPreviewCard: Equatable, Sendable {
   public let details: [Detail]
   /// Web's Task card in place of the title, the summary and the rows (row 38f).
   public let task: ResultTaskCard?
+  /// Web's social post preview in place of the whole card (row 38g).
+  public let social: ResultSocialPost?
   public let outputs: [Output]
   public let capturedAt: Date
   public let sourceURL: URL?
@@ -196,6 +198,7 @@ public struct ResultPreviewCard: Equatable, Sendable {
     title = result.title
     let task = ResultTaskCard(result, webBaseURL: webBaseURL)
     self.task = task
+    social = ResultSocialPost(result)
     // Web's `nativeTask`: the Task card replaces the chip, the title, the summary and the rows; the question stays.
     status = task != nil ? nil : result.status.nonEmpty.map { raw in
       result.kind == .job && Self.jobStatuses.contains(raw) ? .job(raw) : .result(raw)
