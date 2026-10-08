@@ -1,6 +1,5 @@
 #if os(macOS)
   import AppKit
-  import AVKit
   @testable import Sokosumi
   import SokosumiChat
   import SwiftUI
@@ -22,12 +21,7 @@
         _ = try await Helpers.waitForText(filename, in: host)
         #expect(await Helpers.pressAll(label, in: host) == 1)
         #expect(await Helpers.nodes(labelled: label, in: host).isEmpty)
-        #expect(Self.hostsPlayer(host))
-      }
-
-      /// Whether an `AVPlayerView` sits anywhere under `view`.
-      private static func hostsPlayer(_ view: NSView) -> Bool {
-        view is AVPlayerView || view.subviews.contains(where: hostsPlayer)
+        #expect(Helpers.hostsPlayer(host))
       }
     }
   }
