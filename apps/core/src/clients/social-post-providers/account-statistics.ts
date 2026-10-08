@@ -5,12 +5,14 @@ import {
 } from "@sokosumi/utils";
 
 import {
+  ComposioApiError,
   deleteProjectSocialSession,
   projectComposioFetch,
   projectComposioResponse,
   record,
 } from "@/clients/composio.client";
 import {
+  ComposioToolError,
   createSocialPostToolSession,
   executeSocialPostTool,
 } from "@/clients/social-post-providers/tools";
@@ -47,6 +49,16 @@ type ReadTool = (
   slug: string,
   args: Record<string, unknown>,
 ) => Promise<Record<string, unknown> | null>;
+
+function statisticsFailureMessage(error: unknown, fallback: string): string {
+  if (error instanceof ComposioToolError && error.providerMessage) {
+    return `${fallback} ${error.providerMessage}`;
+  }
+  if (error instanceof ComposioApiError) {
+    return `${fallback} Connector request failed (HTTP ${error.httpStatus}).`;
+  }
+  return fallback;
+}
 
 // Exact slugs/inputs verified in Composio's official embedded toolkit schemas.
 const TOOLS = {
@@ -919,24 +931,36 @@ export async function fetchSocialAccountStatisticsPage(
     if (context.includeProfile)
       try {
         await profile(context, read, result);
-      } catch {
+      } catch (error) {
         context.signal?.throwIfAborted();
-        result.accountError = `${label} account statistics are unavailable. Check the connection permissions or try again later.`;
+        result.accountError = statisticsFailureMessage(
+          error,
+          `${label} account statistics are unavailable. Check the connection permissions or try again later.`,
+        );
       }
     try {
       await history(context, read, result, mediaTypes);
       await enrichMetaHistory(context, read, result, mediaTypes);
-    } catch {
+    } catch (error) {
       context.signal?.throwIfAborted();
       result.posts = [];
       result.nextCursor = null;
-      result.historyError = `${label} published history is unavailable. Check the connection permissions or try again later.`;
+      result.historyError = statisticsFailureMessage(
+        error,
+        `${label} published history is unavailable. Check the connection permissions or try again later.`,
+      );
     }
-  } catch {
+  } catch (error) {
     context.signal?.throwIfAborted();
     if (context.includeProfile)
-      result.accountError = `${label} account statistics are unavailable. Check the connection permissions or try again later.`;
-    result.historyError = `${label} published history is unavailable. Check the connection permissions or try again later.`;
+      result.accountError = statisticsFailureMessage(
+        error,
+        `${label} account statistics are unavailable. Check the connection permissions or try again later.`,
+      );
+    result.historyError = statisticsFailureMessage(
+      error,
+      `${label} published history is unavailable. Check the connection permissions or try again later.`,
+    );
   } finally {
     if (sessionId)
       await deleteProjectSocialSession(

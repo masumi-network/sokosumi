@@ -56,6 +56,30 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("connected account statistics", () => {
+  it("preserves sanitized provider refusal details for account totals and history", async () => {
+    stub(
+      () =>
+        new Response(
+          JSON.stringify({
+            successful: false,
+            error: {
+              message:
+                "Request had insufficient authentication scopes. access_token=private-token",
+              status: 403,
+            },
+          }),
+        ),
+    );
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      provider: "youtube",
+    });
+    expect(result.accountError).toContain("insufficient authentication scopes");
+    expect(result.historyError).toContain("insufficient authentication scopes");
+    expect(result.accountError).not.toContain("private-token");
+    expect(result.historyError).not.toContain("private-token");
+  });
+
   it("pins read sessions and X native authored history; ignores other authors and preserves zero/null", async () => {
     const { sessions, requests, fetchMock } = stub((request) =>
       request.tool_slug
