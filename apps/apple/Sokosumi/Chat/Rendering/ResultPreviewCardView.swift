@@ -4,6 +4,8 @@ import SwiftUI
 
 /// Web's `max-w-xl`: a card stops growing at 576 pt.
 private let resultCardMaxWidth: CGFloat = 576
+/// Web's `max-w-sm` for a result drawn as a Task card (row 38f).
+private let taskResultCardMaxWidth: CGFloat = 384
 
 /// Web `ResultPreviewCard`: the generic card, or the locked one for a result this viewer may not see.
 struct ResultPreviewCardView: View {
@@ -35,7 +37,8 @@ struct ResultPreviewCardView: View {
 }
 
 /// The kind, the status, the title, the summary, the question, the detail rows, the outputs and the recorded time;
-/// a click anywhere that is not a control opens the source on web, as web's card-wide link does.
+/// a click anywhere that is not a control opens the source on web, as web's card-wide link does. A `task` result
+/// draws web's Task card in place of the status, title, summary and rows, without the card's own frame.
 private struct GenericResultCard: View {
   let card: ResultPreviewCard
   @Environment(\.openURL) private var openURL
@@ -44,9 +47,13 @@ private struct GenericResultCard: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       header
-      Text(card.title)
-        .font(.callout.weight(.medium))
-        .fixedSize(horizontal: false, vertical: true)
+      if let task = card.task {
+        ResultTaskCardView(task: task)
+      } else {
+        Text(card.title)
+          .font(.callout.weight(.medium))
+          .fixedSize(horizontal: false, vertical: true)
+      }
       if let summary = card.summary {
         Text(summary)
           .font(.callout)
@@ -93,10 +100,19 @@ private struct GenericResultCard: View {
       }
       .font(.caption)
     }
-    .padding(16)
-    .frame(maxWidth: resultCardMaxWidth, alignment: .leading)
-    .background(.background, in: .rect(cornerRadius: 8))
-    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12)))
+    // Around a Task card web drops the result's own border and padding and narrows it to `max-w-sm`.
+    .padding(card.task == nil ? 16 : 0)
+    .frame(maxWidth: card.task == nil ? resultCardMaxWidth : taskResultCardMaxWidth, alignment: .leading)
+    .background {
+      if card.task == nil {
+        RoundedRectangle(cornerRadius: 8).fill(.background)
+      }
+    }
+    .overlay {
+      if card.task == nil {
+        RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12))
+      }
+    }
     .contentShape(.rect(cornerRadius: 8))
     // The controls inside take their own clicks; the rest of the card is the source link.
     .onTapGesture(perform: openSource)

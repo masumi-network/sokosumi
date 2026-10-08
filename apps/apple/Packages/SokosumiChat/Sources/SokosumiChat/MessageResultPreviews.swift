@@ -165,11 +165,15 @@ public struct ResultPreviewCard: Equatable, Sendable {
   public let id: String
   public let kind: Kind
   public let title: String
+  /// Nil for a Task card, whose own status badge stands in for the chip.
   public let status: Status?
-  /// Nil when empty or the same as the title, as web hides it then.
+  /// Nil when empty or the same as the title, as web hides it then, and for a Task card.
   public let summary: String?
   public let question: String?
+  /// Empty for a Task card, which shows its assignee and project itself.
   public let details: [Detail]
+  /// Web's Task card in place of the title, the summary and the rows (row 38f).
+  public let task: ResultTaskCard?
   public let outputs: [Output]
   public let capturedAt: Date
   public let sourceURL: URL?
@@ -187,12 +191,15 @@ public struct ResultPreviewCard: Equatable, Sendable {
     id = result.id
     kind = result.kind
     title = result.title
-    status = result.status.nonEmpty.map { raw in
+    let task = ResultTaskCard(result, webBaseURL: webBaseURL)
+    self.task = task
+    // Web's `nativeTask`: the Task card replaces the chip, the title, the summary and the rows; the question stays.
+    status = task != nil ? nil : result.status.nonEmpty.map { raw in
       result.kind == .job && Self.jobStatuses.contains(raw) ? .job(raw) : .result(raw)
     }
-    summary = result.summary.nonEmpty.flatMap { $0 == result.title ? nil : $0 }
+    summary = task != nil ? nil : result.summary.nonEmpty.flatMap { $0 == result.title ? nil : $0 }
     question = result.question.nonEmpty
-    details = [
+    details = task != nil ? [] : [
       result.assignee.nonEmpty.map(Detail.assignee),
       result.project.nonEmpty.map { name in
         Detail.project(name, mark: result.projectInfo.map { ProjectMark(name: $0.name, logoURL: $0.logo.nonEmpty) })

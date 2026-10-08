@@ -177,7 +177,9 @@ enum ResultFixture {
     #expect(card.taskId == "task 1")
     #expect(card.question == "Which version?")
     #expect(card.summary == nil)
-    #expect(card.status == .result("INPUT_REQUIRED"))
+    // Row 38f: the Task card's own status badge replaces the generic chip.
+    #expect(card.task?.status == .inputRequired)
+    #expect(card.status == nil)
     #expect(MessageResultPreviews.previewedTaskIds(items) == ["task 1"])
   }
 
