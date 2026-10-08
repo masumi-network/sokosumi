@@ -77,11 +77,38 @@ public struct ResultPreviewCard: Equatable, Sendable {
   /// Web's `<dl>` rows, in web's order.
   public enum Detail: Equatable, Sendable {
     case assignee(String)
-    case project(String)
+    /// The project's name, with web's `ProjectAvatar` when Core sends `projectInfo`.
+    case project(String, mark: ProjectMark?)
     case destination(String)
     /// The next run, written in `timeZone` when Core names one.
     case scheduled(Date, timeZone: String?)
     case recurrence(String)
+  }
+
+  /// Web `ProjectAvatar`: the logo, else the name's first letter (or "P").
+  public struct ProjectMark: Equatable, Sendable {
+    public let name: String
+    public let logoURL: String?
+
+    public init(name: String, logoURL: String?) {
+      self.name = name
+      self.logoURL = logoURL
+    }
+
+    public var initial: String {
+      name.trimmingCharacters(in: .whitespacesAndNewlines).first.map { String($0).uppercased() } ?? "P"
+    }
+  }
+
+  /// Who a schedule runs as (web `AssigneeAvatar` from `actor`): a person, a coworker or a Soko Bot.
+  public struct Actor: Equatable, Sendable {
+    public let name: String
+    public let imageURL: String?
+
+    public init(name: String, imageURL: String?) {
+      self.name = name
+      self.imageURL = imageURL
+    }
   }
 
   /// A file the result produced. Until row 38e2 every output is a row that opens on web.
@@ -105,6 +132,8 @@ public struct ResultPreviewCard: Equatable, Sendable {
   public let outputs: [Output]
   public let capturedAt: Date
   public let sourceURL: URL?
+  /// The header's avatar, before the agent and the kind icon (web: `actor`, else `agent`, else the icon).
+  public let actor: Actor?
   /// A job's agent, drawn where web draws `AgentIcon`.
   public let agentName: String?
   public let agentIconURL: String?
@@ -122,7 +151,9 @@ public struct ResultPreviewCard: Equatable, Sendable {
     question = result.question.nonEmpty
     details = [
       result.assignee.nonEmpty.map(Detail.assignee),
-      result.project.nonEmpty.map(Detail.project),
+      result.project.nonEmpty.map { name in
+        Detail.project(name, mark: result.projectInfo.map { ProjectMark(name: $0.name, logoURL: $0.logo.nonEmpty) })
+      },
       result.destination.nonEmpty.map(Detail.destination),
       result.scheduledAt.map { Detail.scheduled($0, timeZone: result.timezone.nonEmpty) },
       result.recurrence.nonEmpty.map(Detail.recurrence)
@@ -139,9 +170,11 @@ public struct ResultPreviewCard: Equatable, Sendable {
     }
     capturedAt = result.capturedAt
     sourceURL = MessageResultPreviews.webURL(forLocalHref: result.sourceHref, webBaseURL: webBaseURL)
+    actor = result.actor.map { Actor(name: $0.name, imageURL: $0.image.nonEmpty) }
     agentName = result.agent?.name
     agentIconURL = result.agent?.icon.nonEmpty
-    taskId = result.kind == .task ? Self.taskId(sourceHref: result.sourceHref) : nil
+    // Web: an available `task` result that carries its `task` object.
+    taskId = result.kind == .task ? result.task?.id : nil
   }
 
   /// `SokosumiJobStatus`: the statuses web's `JobStatusBadge` labels; any other job status gets the generic chip.
@@ -149,15 +182,6 @@ public struct ResultPreviewCard: Equatable, Sendable {
     "started", "completed", "processing", "input_required", "result_pending", "failed", "payment_pending",
     "payment_failed", "refund_pending", "refund_resolved", "dispute_pending", "dispute_resolved"
   ]
-
-  /// The generator drops Core's `task` object (`anyOf [ChatResultTask, null]`), so the Task's id comes from the
-  /// `sourceHref` Core writes beside it, `/tasks/{encodeURIComponent(task.id)}` (`chat-result-preview.service.ts`).
-  private static func taskId(sourceHref: String) -> String? {
-    guard let path = URLComponents(string: sourceHref)?.percentEncodedPath, path.hasPrefix("/tasks/") else { return nil }
-    let segment = path.dropFirst("/tasks/".count)
-    guard !segment.isEmpty, !segment.contains("/") else { return nil }
-    return String(segment).removingPercentEncoding
-  }
 }
 
 private extension String? {

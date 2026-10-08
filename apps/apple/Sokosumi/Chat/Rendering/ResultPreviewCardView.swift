@@ -112,7 +112,13 @@ private struct GenericResultCard: View {
   private var header: some View {
     HStack(alignment: .top, spacing: 12) {
       HStack(spacing: 8) {
-        if let agent = card.agentName {
+        if let actor = card.actor {
+          // Web `AssigneeAvatar` at size lg; its image is named like web's `alt`. A Soko Bot without an image gets
+          // initials, not web's orb (excluded since row 38).
+          ParticipantAvatar(imageURL: actor.imageURL, name: actor.name, size: 32)
+            .accessibilityElement()
+            .accessibilityLabel(actor.name)
+        } else if let agent = card.agentName {
           // Web `AgentIcon` at size-8; an icon this view cannot draw falls back to the agent's initials.
           ParticipantAvatar(imageURL: card.agentIconURL, name: agent, size: 32)
             .accessibilityHidden(true)
@@ -150,7 +156,12 @@ private struct GenericResultCard: View {
   @ViewBuilder
   private func detailValue(_ detail: ResultPreviewCard.Detail) -> some View {
     switch detail {
-    case let .assignee(value), let .project(value), let .destination(value):
+    case let .project(value, mark?):
+      HStack(spacing: 8) {
+        ProjectMarkView(mark: mark)
+        Text(value)
+      }
+    case let .assignee(value), let .project(value, nil), let .destination(value):
       Text(value)
     case let .scheduled(date, timeZone):
       // Web writes the time in the schedule's own zone and names it.
@@ -158,6 +169,40 @@ private struct GenericResultCard: View {
       Text(timeFormat.monthDayTime(date, timeZone: zone) + (timeZone.map { " · \($0)" } ?? ""))
     case let .recurrence(value):
       Text(value).monospaced()
+    }
+  }
+}
+
+/// Web `ProjectAvatar` at `size-5 rounded-sm` beside the project row: the logo, loaded like a participant's
+/// photo (a public URL), else the name's initial on a muted square. Decorative, like web's empty `alt`.
+private struct ProjectMarkView: View {
+  let mark: ResultPreviewCard.ProjectMark
+  private let size: CGFloat = 20
+  @Environment(\.displayScale) private var displayScale
+  @State private var logo: CGImage?
+
+  var body: some View {
+    Group {
+      if let logo {
+        Image(decorative: logo, scale: displayScale)
+          .resizable()
+          .interpolation(.high)
+          .scaledToFill()
+      } else {
+        Text(mark.initial)
+          .font(.system(size: 10, weight: .medium))
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .background(Color.primary.opacity(0.08))
+      }
+    }
+    .frame(width: size, height: size)
+    .clipShape(.rect(cornerRadius: 4))
+    .accessibilityHidden(true)
+    .task(id: "\(mark.logoURL ?? "")-\(displayScale)") {
+      let loaded = await loadImageThumbnail(urlString: mark.logoURL, pointSize: size, scale: displayScale)
+      guard !Task.isCancelled else { return }
+      logo = loaded?.cgImage
     }
   }
 }

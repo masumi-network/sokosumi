@@ -67,13 +67,37 @@
         )
       }
 
+      /// A solid square written once per run, so a card's avatar and logo load from a local file as from Core's URLs.
+      private static func fixtureImage(_ name: String, red: CGFloat, green: CGFloat, blue: CGFloat) -> String {
+        let url = FileManager.default.temporaryDirectory.appending(path: "result-card-\(name)-\(ProcessInfo.processInfo.processIdentifier).png")
+        let size = 64
+        if let context = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
+                                   space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+          context.setFillColor(CGColor(red: red, green: green, blue: blue, alpha: 1))
+          context.fill(CGRect(x: 0, y: 0, width: size, height: size))
+          context.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 0.85))
+          context.fillEllipse(in: CGRect(x: 20, y: 20, width: 24, height: 24))
+          if let image = context.makeImage() {
+            try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: url)
+          }
+        }
+        return url.absoluteString
+      }
+
+      private static let actorImage = fixtureImage("actor", red: 0.85, green: 0.45, blue: 0.2)
+      private static let projectLogo = fixtureImage("logo", red: 0.2, green: 0.55, blue: 0.4)
+
       private static let previews: [Components.Schemas.ChatResultPreview] = [
         .available(.init(id: taskCard, state: .available, capturedAt: created, kind: .task, title: "Review the draft",
-                         status: "INPUT_REQUIRED", sourceHref: "/tasks/task%201", question: "Which version should I send?")),
+                         status: "INPUT_REQUIRED", sourceHref: "/tasks/task%201", question: "Which version should I send?",
+                         task: .init(id: "task 1", name: "Review the draft", status: .inputRequired, priority: .high, visibility: ._public,
+                                     participants: [], commentsCount: 0, tags: .init(automatic: [], manual: [], rejected: [])))),
         .available(.init(id: schedule, state: .available, capturedAt: created, kind: .taskSchedule, title: "Weekly report",
                          status: "ACTIVE", summary: "Compile the weekly numbers for the team.", sourceHref: "/schedules/sched-1",
                          assignee: "Elena", project: "Launch", scheduledAt: created.addingTimeInterval(5 * 86400),
-                         timezone: "Europe/Berlin", recurrence: "0 9 * * 1")),
+                         timezone: "Europe/Berlin", recurrence: "0 9 * * 1",
+                         actor: .init(id: "user_3", name: "Ada Lovelace", image: actorImage, kind: .user),
+                         projectInfo: .init(id: "project_1", name: "Launch", identifier: "LAU", logo: projectLogo))),
         .available(.init(id: job, state: .available, capturedAt: created, kind: .job, title: "Market scan", status: "completed",
                          summary: "Three competitors raised prices this quarter.", sourceHref: "/agents/ag-1/jobs/job-1", assignee: "Scout",
                          outputs: [.init(name: "report.pdf", contentType: "application/pdf", sizeBytes: 20480,
@@ -140,6 +164,16 @@
         gate.release()
         _ = try await Self.waitForText("Weekly report", in: host)
         #expect(gate.reads == 2)
+      }
+
+      /// Web's header: a schedule's `actor` avatar stands where the kind icon would, named like web's avatar `alt`.
+      @Test func aScheduleCardShowsWhoItRunsAs() async throws {
+        guard case let .available(result) = Self.previews[1] else { return }
+        let card = ResultPreviewCardView(item: .available(ResultPreviewCard(result, webBaseURL: CoreSettings.webBaseURL)))
+        let (window, host) = Self.window(card.padding(12), size: NSSize(width: 620, height: 360))
+        defer { window.orderOut(nil) }
+        let texts = try await Self.waitForText("Weekly report", in: host)
+        #expect(texts.contains("Ada Lovelace"), "\(texts)")
       }
 
       // MARK: Opening

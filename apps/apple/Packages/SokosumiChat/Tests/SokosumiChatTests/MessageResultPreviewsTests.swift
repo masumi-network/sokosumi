@@ -12,17 +12,17 @@ enum ResultFixture {
   static let job = "7d1f0c2a-0000-4000-8000-000000000003"
   static let task = "7d1f0c2a-0000-4000-8000-000000000004"
   static let stray = "7d1f0c2a-0000-4000-8000-000000000005"
+  static let bareTask = "7d1f0c2a-0000-4000-8000-000000000006"
   static let web = URL(string: "https://app.example/base/")!
 
-  /// A `task_schedule` card with every generic field Core fills, plus the fields the generator drops (`actor`,
-  /// `projectInfo`, `task`, `social`, `decision`), which must not break decoding.
+  /// A `task_schedule` card with every generic field Core fills, its `actor` and its `projectInfo` (Core #5871).
   static let scheduleJSON = """
   {"id":"\(schedule)","state":"available","capturedAt":"2026-10-07T14:05:00.000Z","kind":"task_schedule",\
   "title":"Weekly report","status":"ACTIVE","summary":"Compile the weekly numbers","sourceHref":"/schedules/sched-1",\
   "assignee":"Elena","project":"Launch","destination":null,"scheduledAt":"2026-10-12T07:00:00.000Z",\
   "timezone":"Europe/Berlin","recurrence":"0 9 * * 1","question":null,"outputs":[],"task":null,"social":null,\
-  "actor":{"id":"u1","name":"Elena","image":null,"kind":"user","avatarSeed":null},"agent":null,"projectOptions":[],\
-  "projectInfo":{"id":"p1","name":"Launch","identifier":"LAU","logo":null},"decision":null}
+  "actor":{"id":"u1","name":"Elena","image":"https://cdn.example/elena.png","kind":"user","avatarSeed":null},"agent":null,"projectOptions":[],\
+  "projectInfo":{"id":"p1","name":"Launch","identifier":"LAU","logo":"https://cdn.example/launch.png"},"decision":null}
   """
 
   static let lockedJSON = #"{"id":"\#(locked)","state":"unavailable"}"#
@@ -37,10 +37,19 @@ enum ResultFixture {
   "agent":{"name":"Scout","icon":"https://cdn.example/scout.svg"}}
   """
 
+  /// The Task's id comes from `task`, not from `sourceHref` (here they differ on purpose).
   static let taskJSON = """
   {"id":"\(task)","state":"available","capturedAt":"2026-10-07T14:07:00.000Z","kind":"task","title":"Review the draft",\
-  "status":"INPUT_REQUIRED","summary":"","sourceHref":"/tasks/task%201","question":"Which version?",\
-  "task":{"id":"task 1","name":"Review the draft"}}
+  "status":"INPUT_REQUIRED","summary":"","sourceHref":"/tasks/elsewhere","question":"Which version?",\
+  "task":{"id":"task 1","name":"Review the draft","identifier":"LAU-7","status":"INPUT_REQUIRED","priority":"HIGH",\
+  "visibility":"PUBLIC","createdAt":"2026-10-07T14:00:00.000Z","runAt":null,"project":null,"assignee":null,\
+  "participants":[],"commentsCount":0,"tags":{"automatic":[],"manual":[],"rejected":[]}}}
+  """
+
+  /// A `task` result without its `task` object: web shows no Task, so its footer button stays.
+  static let bareTaskJSON = """
+  {"id":"\(bareTask)","state":"available","capturedAt":"2026-10-07T14:07:00.000Z","kind":"task","title":"Gone",\
+  "status":null,"sourceHref":"/tasks/task%202","task":null}
   """
 
   static let strayJSON = """
@@ -124,12 +133,13 @@ enum ResultFixture {
     #expect(card.summary == "Compile the weekly numbers")
     #expect(card.question == nil)
     #expect(card.details == [
-      .assignee("Elena"), .project("Launch"),
+      .assignee("Elena"), .project("Launch", mark: .init(name: "Launch", logoURL: "https://cdn.example/launch.png")),
       .scheduled(Date(timeIntervalSince1970: 1_791_788_400), timeZone: "Europe/Berlin"), .recurrence("0 9 * * 1")
     ])
     #expect(card.outputs.isEmpty)
     #expect(card.capturedAt == Date(timeIntervalSince1970: 1_791_381_900))
     #expect(card.sourceURL == URL(string: "https://app.example/base/schedules/sched-1"))
+    #expect(card.actor == .init(name: "Elena", imageURL: "https://cdn.example/elena.png"))
     #expect(card.agentName == nil && card.taskId == nil)
   }
 
@@ -143,6 +153,7 @@ enum ResultFixture {
     // Web hides a summary that repeats the title.
     #expect(card.summary == nil)
     #expect(card.details == [.assignee("Scout")])
+    #expect(card.actor == nil)
     #expect(card.agentName == "Scout" && card.agentIconURL == "https://cdn.example/scout.svg")
     #expect(card.sourceURL == URL(string: "https://app.example/base/agents/ag%201/jobs/job-1"))
     #expect(card.outputs.map(\.name) == ["report.pdf", "notes"])
@@ -154,8 +165,10 @@ enum ResultFixture {
   }
 
   @Test func aTaskCardKnowsItsTaskAndTheQuestionItWaitsOn() async throws {
-    let previews = try await ResultFixture.previews([ResultFixture.taskJSON, ResultFixture.jobJSON, ResultFixture.lockedJSON])
-    let items = MessageResultPreviews.items(previews, descriptorIds: [ResultFixture.task, ResultFixture.job, ResultFixture.locked],
+    let previews = try await ResultFixture.previews([ResultFixture.taskJSON, ResultFixture.jobJSON, ResultFixture.lockedJSON,
+                                                     ResultFixture.bareTaskJSON])
+    let items = MessageResultPreviews.items(previews, descriptorIds: [ResultFixture.task, ResultFixture.job, ResultFixture.locked,
+                                                                      ResultFixture.bareTask],
                                             webBaseURL: ResultFixture.web)
     guard case let .available(card)? = items.first else {
       Issue.record("no card")
@@ -166,6 +179,12 @@ enum ResultFixture {
     #expect(card.summary == nil)
     #expect(card.status == .result("INPUT_REQUIRED"))
     #expect(MessageResultPreviews.previewedTaskIds(items) == ["task 1"])
+  }
+
+  /// Web `ProjectAvatar`'s fallback: the trimmed name's first letter, upper-cased, else "P".
+  @Test func aProjectMarkFallsBackToItsInitial() {
+    #expect(ResultPreviewCard.ProjectMark(name: "  launch", logoURL: nil).initial == "L")
+    #expect(ResultPreviewCard.ProjectMark(name: "   ", logoURL: nil).initial == "P")
   }
 
   @Test func statusChipsFollowWebsBadges() {
