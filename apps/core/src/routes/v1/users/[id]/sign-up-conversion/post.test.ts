@@ -2,8 +2,8 @@ import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
+  applyUserRouteMiddleware,
   type UserRouteVariables,
-  usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
@@ -89,7 +89,7 @@ function createApp(
   });
 
   const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
-  userByIdApp.use("*", usersPathUserContextMiddleware);
+  applyUserRouteMiddleware(userByIdApp);
   mountPostSignUpConversion(userByIdApp);
   app.route("/:id", userByIdApp);
 

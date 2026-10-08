@@ -25,7 +25,10 @@ import {
 } from "@/helpers/openapi";
 import { parseCursorPagination } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import type { DriveItem } from "@/schemas/drive-file.schema";
 import {
   driveFileScopeSchema,
@@ -82,38 +85,40 @@ const drivePaginationMetaSchema = cursorPaginationMetaSchema
   .omit({ total: true })
   .openapi("DrivePaginationMetadata");
 
-const route = createRoute({
-  method: "get",
-  path: "/",
-  description: [
-    "List drive items (folders and files) at the current folder level.",
-    "Personal or organization scope.",
-    "Omit sortBy/sortOrder for today's default: folders then files, each name ascending (Blob page-local).",
-    "With sortBy/sortOrder (name|date|type, asc|desc): folders stay a leading bucket;",
-    "files sort by display name, uploadedAt, or mime/extension type family.",
-    "Explicit sort drains the current folder on the server and paginates with a signed cursor",
-    "so order stays correct across pages (no client full drain).",
-    "Search (q) still filters the current folder; sort applies to the filtered set.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    query: querySchema,
-  },
-  responses: {
-    200: jsonPaginatedSuccessResponse(
-      driveItemsSchema,
-      "Drive items",
-      undefined,
-      drivePaginationMetaSchema,
-    ),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-    503: jsonErrorResponse("Service Unavailable"),
-  },
-});
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/",
+    description: [
+      "List drive items (folders and files) at the current folder level.",
+      "Personal or organization scope.",
+      "Omit sortBy/sortOrder for today's default: folders then files, each name ascending (Blob page-local).",
+      "With sortBy/sortOrder (name|date|type, asc|desc): folders stay a leading bucket;",
+      "files sort by display name, uploadedAt, or mime/extension type family.",
+      "Explicit sort drains the current folder on the server and paginates with a signed cursor",
+      "so order stays correct across pages (no client full drain).",
+      "Search (q) still filters the current folder; sort applies to the filtered set.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      query: querySchema,
+    },
+    responses: {
+      200: jsonPaginatedSuccessResponse(
+        driveItemsSchema,
+        "Drive items",
+        undefined,
+        drivePaginationMetaSchema,
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
 
 function mapBlobPageToItems(input: {
   prefix: string;

@@ -48,6 +48,32 @@ async function getMemberByIdAndOrganizationId(
   });
 }
 
+async function attachLastSeenAt(
+  members: MemberWithUser[],
+  tx: Prisma.TransactionClient,
+): Promise<MemberWithUserAndLastSeen[]> {
+  if (members.length === 0) {
+    return [];
+  }
+
+  const lastSessionByUser = await tx.session.groupBy({
+    by: ["userId"],
+    where: { userId: { in: members.map((member) => member.userId) } },
+    _max: { updatedAt: true },
+  });
+
+  const lastSeenByUserId = new Map<string, Date>(
+    lastSessionByUser.flatMap((group) =>
+      group._max.updatedAt ? [[group.userId, group._max.updatedAt]] : [],
+    ),
+  );
+
+  return members.map((member) => ({
+    ...member,
+    lastSeenAt: lastSeenByUserId.get(member.userId) ?? null,
+  }));
+}
+
 export const memberRepository = {
   async getMembersOrganizationIdsByUserId(
     userId: string,
@@ -84,28 +110,7 @@ export const memberRepository = {
     tx: Prisma.TransactionClient,
   ): Promise<MemberWithUserAndLastSeen[]> {
     const members = await getMembersWithUser({ organizationId }, tx);
-
-    const userIds = members.map((member) => member.userId);
-    if (userIds.length === 0) {
-      return [];
-    }
-
-    const lastSessionByUser = await tx.session.groupBy({
-      by: ["userId"],
-      where: { userId: { in: userIds } },
-      _max: { updatedAt: true },
-    });
-
-    const lastSeenByUserId = new Map<string, Date>(
-      lastSessionByUser.flatMap((group) =>
-        group._max.updatedAt ? [[group.userId, group._max.updatedAt]] : [],
-      ),
-    );
-
-    return members.map((member) => ({
-      ...member,
-      lastSeenAt: lastSeenByUserId.get(member.userId) ?? null,
-    }));
+    return attachLastSeenAt(members, tx);
   },
 
   async getMembersByOrganizationId(
@@ -238,28 +243,8 @@ export const memberRepository = {
       tx.member.count({ where }),
     ]);
 
-    const userIds = members.map((member) => member.userId);
-    if (userIds.length === 0) {
-      return { members: [], total };
-    }
-
-    const lastSessionByUser = await tx.session.groupBy({
-      by: ["userId"],
-      where: { userId: { in: userIds } },
-      _max: { updatedAt: true },
-    });
-
-    const lastSeenByUserId = new Map<string, Date>(
-      lastSessionByUser.flatMap((group) =>
-        group._max.updatedAt ? [[group.userId, group._max.updatedAt]] : [],
-      ),
-    );
-
     return {
-      members: members.map((member) => ({
-        ...member,
-        lastSeenAt: lastSeenByUserId.get(member.userId) ?? null,
-      })),
+      members: await attachLastSeenAt(members, tx),
       total,
     };
   },

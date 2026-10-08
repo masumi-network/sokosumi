@@ -336,6 +336,51 @@ describe("Social account statistics", () => {
     expect(result.importedPostCount).toBe(1);
     expect(mocks.upsert).toHaveBeenCalled();
   });
+  it("retains stored post metrics and their age when insights fail", async () => {
+    mocks.provider.mockResolvedValue({
+      ...page,
+      posts: [
+        {
+          ...providerPost,
+          metrics: { ...metrics, impressions: null },
+          additionalMetrics: [],
+        },
+      ],
+      metricWarning: "Video details are unavailable.",
+    });
+    await refreshSocialAccountStatistics({
+      ...scope,
+      connectionId,
+      userId: "reader",
+    });
+    const { create, update } = mocks.upsert.mock.calls[0][0];
+    expect(create.metrics.impressions).toBeNull();
+    expect(update).toEqual({
+      text: providerPost.text,
+      publishedAt: new Date(providerPost.publishedAt),
+      url: providerPost.url,
+    });
+    expect(update).not.toHaveProperty("metrics");
+    expect(update).not.toHaveProperty("additionalMetrics");
+    expect(update).not.toHaveProperty("fetchedAt");
+  });
+  it("retains account metrics and their age when optional analytics fail", async () => {
+    mocks.provider.mockResolvedValue({
+      ...page,
+      accountMetrics: [{ ...metric, value: 123 }],
+      accountError: "Channel analytics are unavailable.",
+    });
+    const result = await refreshSocialAccountStatistics({
+      ...scope,
+      connectionId,
+      userId: "reader",
+    });
+    expect(result.account.statistics).toMatchObject({
+      metrics: previous.metrics,
+      fetchedAt: previous.fetchedAt,
+      error: "Channel analytics are unavailable.",
+    });
+  });
   it("retains an earlier metric warning across continuation pages", async () => {
     mocks.connections.mockResolvedValue([
       {

@@ -155,6 +155,7 @@ export async function refreshSocialAccountStatistics(
     throw badRequest("Refresh the account before continuing its history");
   const attemptedAt = new Date().toISOString();
   let snapshot: SocialAccountStatistics;
+  let preservePostMetrics = false;
   let posts: ReturnType<
     typeof socialAccountStatisticsProviderPageSchema.parse
   >["posts"] = [];
@@ -174,13 +175,16 @@ export async function refreshSocialAccountStatistics(
     const measuredProfile =
       page.accountMetrics !== null &&
       page.accountMetrics.some((metric) => metric.value !== null);
+    const refreshProfile =
+      measuredProfile && !(page.accountError && previous.metrics.length > 0);
+    preservePostMetrics = page.metricWarning !== null;
     const historySucceeded = page.historyError === null;
     // Verified partial rows remain useful even when the provider reports a history limit.
     const historyProgress = historySucceeded || page.posts.length > 0;
     posts = page.posts;
     snapshot = {
-      metrics: measuredProfile ? (page.accountMetrics ?? []) : previous.metrics,
-      fetchedAt: measuredProfile ? fetchedAt : previous.fetchedAt,
+      metrics: refreshProfile ? (page.accountMetrics ?? []) : previous.metrics,
+      fetchedAt: refreshProfile ? fetchedAt : previous.fetchedAt,
       refreshAttemptedAt: attemptedAt,
       error: input.continueHistory
         ? previous.error
@@ -256,7 +260,10 @@ export async function refreshSocialAccountStatistics(
           connectionId: record.id,
           externalId: post.externalId,
         },
-        update: data,
+        // Partial insights must not erase measured counters or their original age.
+        update: preservePostMetrics
+          ? { text: data.text, publishedAt: data.publishedAt, url: data.url }
+          : data,
       });
     }
     const postCount = await tx.socialAccountPost.count({
