@@ -20,6 +20,16 @@ const AGENT_ALLOWED_USER_SUBPATH_PATTERNS: ReadonlyArray<RegExp> = [
   /^\/credits$/,
   /^\/organizations$/,
   /^\/organizations\/[^/]+\/credits$/,
+  /^\/workspaces$/,
+];
+
+/**
+ * Allowlisted subpaths whose handler narrows its result to the workspaces the
+ * agent may act in, so the agent is not bound to one context workspace first.
+ * Listing workspaces is how a coworker finds the organization to send.
+ */
+const AGENT_SELF_FILTERING_USER_SUBPATH_PATTERNS: ReadonlyArray<RegExp> = [
+  /^\/workspaces$/,
 ];
 
 function escapeRegExp(value: string): string {
@@ -67,6 +77,13 @@ export function userRouteSubpathAfterId(
   return `/${afterSegments.join("/")}`;
 }
 
+export function isAgentSelfFilteringUserSubpath(subpath: string): boolean {
+  const normalized = subpath.replace(/\/+$/, "") || "/";
+  return AGENT_SELF_FILTERING_USER_SUBPATH_PATTERNS.some((pattern) =>
+    pattern.test(normalized),
+  );
+}
+
 export function isAgentAllowedUserSubpath(subpath: string): boolean {
   const normalized = subpath.replace(/\/+$/, "") || "/";
   return AGENT_ALLOWED_USER_SUBPATH_PATTERNS.some((pattern) =>
@@ -77,7 +94,7 @@ export function isAgentAllowedUserSubpath(subpath: string): boolean {
 /**
  * Default-deny gate for agent actors on `/users/{id}/*`. This middleware keeps
  * access limited to
- * user profile, credits, and organization list/credits reads.
+ * user profile, credits, organization list/credits, and workspace list reads.
  */
 export const agentUserRouteAllowlistMiddleware = createMiddleware<UserRouteEnv>(
   async (c, next) => {

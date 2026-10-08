@@ -2312,7 +2312,7 @@ export const getUsersByIdWorkspaceAccess = <ThrowOnError extends boolean = false
 });
 
 /**
- * List the workspaces the user can act in (path `me` for the session user, or a user id the caller may access): the personal workspace first, then organization workspaces, with the one a new session opens marked `preferred`, and the count of pending organization invitations. An empty list means the user still needs identity onboarding (ADR 0051).
+ * List the workspaces the user can act in (path `me` for the session user, or a user id the caller may access): the personal workspace first, then organization workspaces, with the one a new session opens marked `preferred`, and the count of pending organization invitations. An empty list means the user still needs identity onboarding (ADR 0051). A coworker with `X-Context-User-Id` sees only the workspaces its vendor may act in (granted, or a task it or a same-vendor coworker is assigned), no invitation count, and none marked preferred when the preferred one is hidden; with none to see it gets 403. A Soko Bot sees its owner's full list.
  */
 export const getUsersByIdWorkspaces = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdWorkspacesData, ThrowOnError>): RequestResult<GetUsersByIdWorkspacesResponses, GetUsersByIdWorkspacesErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdWorkspacesResponses, GetUsersByIdWorkspacesErrors, ThrowOnError>({
     responseTransformer: getUsersByIdWorkspacesResponseTransformer,

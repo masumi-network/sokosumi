@@ -49,13 +49,25 @@ describe("users routes for coworkers", () => {
     });
     app.route("/users", usersRouter);
 
-    const response = await app.request("http://localhost/users/me/workspaces");
+    const response = await app.request("http://localhost/users/me/preferences");
 
     expect(response.status).toBe(403);
   });
 });
 
 describe("users routes OpenAPI contract", () => {
+  it("documents the workspace list's own 400, not the context binding's", () => {
+    const doc = usersRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: { title: "Users API", version: "1.0.0" },
+    });
+    const response = doc.paths?.["/{id}/workspaces"]?.get?.responses?.["400"];
+
+    expect(response).toMatchObject({
+      description: expect.not.stringContaining("context_organization_required"),
+    });
+  });
+
   it("mounts the registered lookup at /registered without a duplicated segment", () => {
     const doc = usersRouter.getOpenAPI31Document({
       openapi: "3.1.0",
