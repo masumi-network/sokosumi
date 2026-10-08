@@ -26,47 +26,52 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { moveDriveItemRequestSchema } from "@/schemas/drive-file.schema";
 import { reconcileDriveUploadMoves } from "@/services/file-catalog.service";
 
-const route = createRoute({
-  method: "patch",
-  path: "/move",
-  description: [
-    "Move a Drive file or folder to a different folder path.",
-    "Personal: owner only. Organization: any member.",
-    "409 on name collision at target folder.",
-    "For files: renames the file blob.",
-    "For folders: renames all blobs under that prefix.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    body: {
-      required: true,
-      content: {
-        "application/json": {
-          schema: moveDriveItemRequestSchema,
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "patch",
+    path: "/move",
+    description: [
+      "Move a Drive file or folder to a different folder path.",
+      "Personal: owner only. Organization: any member.",
+      "409 on name collision at target folder.",
+      "For files: renames the file blob.",
+      "For folders: renames all blobs under that prefix.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: moveDriveItemRequestSchema,
+          },
         },
       },
     },
-  },
-  responses: {
-    200: jsonSuccessResponse(
-      moveDriveItemRequestSchema,
-      "Drive item moved successfully",
-    ),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict - target already exists"),
-    422: jsonErrorResponse(
-      "Unprocessable Entity - folder exceeds 500 descendant limit",
-    ),
-    503: jsonErrorResponse("Service Unavailable"),
-  },
-});
+    responses: {
+      200: jsonSuccessResponse(
+        moveDriveItemRequestSchema,
+        "Drive item moved successfully",
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict - target already exists"),
+      422: jsonErrorResponse(
+        "Unprocessable Entity - folder exceeds 500 descendant limit",
+      ),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
 
 // Maximum descendants allowed for folder move operations
 const MAX_FOLDER_DESCENDANTS = 500;
