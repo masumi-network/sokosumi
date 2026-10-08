@@ -27,6 +27,8 @@ Exact versions are in `Packages/SokosumiChat/Package.swift`. Current rendering d
 | tree-sitter-diff | 0.2.0 |
 | tree-sitter-ini | 1.4.0 |
 
+BeautifulMermaid (MIT), a native Swift renderer with no web view or JavaScript, is pinned for row 10d's Mermaid flowcharts exactly to 1.0.4 on the app target in `Sokosumi.xcodeproj`, not in a package: its output is a platform image and it imports AppKit/UIKit, so it stays out of the UI-free packages. It resolves elk-swift 1.0.2 (EPL-2.0, used unmodified; its source is public at https://github.com/lukilabs/elk-swift). Both pins are in `Sokosumi.xcworkspace/xcshareddata/swiftpm/Package.resolved`. Web's source policy decides what reaches it (row 10d).
+
 ## Remainder
 
 Slice 10 is Partial. Row 10b (remaining web language/dialect coverage, automatic detection, color/query refinements) is deferred and is not a blocker. New grammar or dependency updates still need approval.
