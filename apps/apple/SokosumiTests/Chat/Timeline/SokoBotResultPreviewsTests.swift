@@ -29,7 +29,7 @@
   private struct ResultsUnavailable: Error {}
 
   /// One of SwiftUI's accessibility nodes, pressed the way VoiceOver presses it.
-  private struct ResultsNode {
+  struct ResultsNode {
     let object: NSObject
 
     func press() -> Bool {
@@ -245,7 +245,7 @@
 
       // MARK: Helpers
 
-      private static func window(_ content: some View, size: NSSize) -> (NSWindow, NSView) {
+      static func window(_ content: some View, size: NSSize) -> (NSWindow, NSView) {
         let host = NSHostingView(rootView: content.frame(width: size.width, height: size.height, alignment: .topLeading).background(.background)
           .environment(\.locale, Locale(identifier: "en_US")))
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled], backing: .buffered, defer: false)
@@ -254,7 +254,7 @@
         return (window, host)
       }
 
-      private static func draw(_ content: some View, size: NSSize, dark: Bool, until text: String, poke: () -> Void = {}) async throws -> CGImage {
+      static func draw(_ content: some View, size: NSSize, dark: Bool, until text: String, poke: () -> Void = {}) async throws -> CGImage {
         let host = NSHostingView(rootView: content
           .frame(width: size.width, height: size.height, alignment: .topLeading)
           .background(.background)
@@ -276,7 +276,7 @@
         return try #require(bitmap.cgImage)
       }
 
-      private static func settle(_ host: NSView) async {
+      static func settle(_ host: NSView) async {
         for _ in 0 ..< 8 {
           await Task.yield()
           host.layoutSubtreeIfNeeded()
@@ -284,7 +284,7 @@
         }
       }
 
-      private static func waitForText(_ text: String, in host: NSView) async throws -> [String] {
+      static func waitForText(_ text: String, in host: NSView) async throws -> [String] {
         let deadline = ContinuousClock.now.advanced(by: .seconds(10))
         var texts: [String] = []
         repeat {
@@ -300,7 +300,7 @@
       }
 
       /// Presses every node labelled exactly `label` and says how many took the press.
-      private static func pressAll(_ label: String, in host: NSView) async -> Int {
+      static func pressAll(_ label: String, in host: NSView) async -> Int {
         var pressed = 0
         for node in await nodes(labelled: label, in: host) where node.press() {
           pressed += 1
@@ -309,16 +309,16 @@
         return pressed
       }
 
-      private static func nodes(labelled label: String, in host: NSView) async -> [ResultsNode] {
+      static func nodes(labelled label: String, in host: NSView) async -> [ResultsNode] {
         await nodes(in: host) { $0 == label }
       }
 
-      private static func nodes(containing text: String, in host: NSView) async -> [ResultsNode] {
+      static func nodes(containing text: String, in host: NSView) async -> [ResultsNode] {
         await nodes(in: host) { $0 == text || $0.contains(text) }
       }
 
       /// Accessibility nodes, parents before children, whose label matches.
-      private static func nodes(in host: NSView, where matches: (String) -> Bool) async -> [ResultsNode] {
+      static func nodes(in host: NSView, where matches: (String) -> Bool) async -> [ResultsNode] {
         _ = await hostedTexts(in: host)
         var seen: Set<ObjectIdentifier> = []
         var found: [ResultsNode] = []

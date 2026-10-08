@@ -12,6 +12,8 @@ struct MessageResultPreviewsView: View {
   /// The settled turn whose approvals and Task buttons follow the cards (row 38's footer), if it has any.
   let footer: SokoBotTurnMetadata?
   let load: () async throws -> [Components.Schemas.ChatResultPreview]
+  /// Answers a project question card (row 38h1): the card's id and the picked project's.
+  var select: ((String, String) async throws -> Void)?
   @State private var state: ResultPreviewsLoad = .loading
   @State private var attempt = 0
 
@@ -42,7 +44,7 @@ struct MessageResultPreviewsView: View {
         .foregroundStyle(.secondary)
       case let .loaded(items):
         ForEach(items) { item in
-          ResultPreviewCardView(item: item)
+          ResultPreviewCardView(item: item, select: select)
         }
       }
       if let footer, footer.pendingDecisionCount > 0 || !footer.footerTaskIds(excluding: previewedTaskIds).isEmpty {

@@ -145,6 +145,54 @@
         }
       }
     },
+    "Choose a project" : {
+      "comment" : "A Soko Bot's question which project to use.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a project"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Projekt auswählen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige un proyecto"
+          }
+        }
+      }
+    },
+    "Could not send your choice. Please try again." : {
+      "comment" : "When the chosen project could not be sent to the Soko Bot.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not send your choice. Please try again."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Auswahl konnte nicht gesendet werden. Bitte versuche es erneut."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo enviar tu elección. Inténtalo de nuevo."
+          }
+        }
+      }
+    },
     "Download" : {
       "comment" : "Downloads a result's output.",
       "extractionState" : "manual",
@@ -237,6 +285,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cargando resultados…"
+          }
+        }
+      }
+    },
+    "No projects available. Ask the bot to refresh the choices." : {
+      "comment" : "When a Soko Bot's project question offers no project.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No projects available. Ask the bot to refresh the choices."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Projekte verfügbar. Bitte den Bot, die Auswahl zu aktualisieren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay proyectos disponibles. Pide al bot que actualice las opciones."
           }
         }
       }
@@ -453,6 +525,102 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Programado para"
+          }
+        }
+      }
+    },
+    "Search projects…" : {
+      "comment" : "Placeholder of the project search.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search projects…"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Projekte suchen…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar proyectos…"
+          }
+        }
+      }
+    },
+    "Selected %@" : {
+      "comment" : "Accessibility label once a project was chosen. Argument: the project's name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selected %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ausgewählt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Has elegido %@"
+          }
+        }
+      }
+    },
+    "Selected project" : {
+      "comment" : "Before the project a reply to a Soko Bot chose.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selected project"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ausgewähltes Projekt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proyecto seleccionado"
+          }
+        }
+      }
+    },
+    "Sending your choice…" : {
+      "comment" : "While a chosen project is sent to the Soko Bot.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending your choice…"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auswahl wird gesendet…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviando tu elección…"
           }
         }
       }

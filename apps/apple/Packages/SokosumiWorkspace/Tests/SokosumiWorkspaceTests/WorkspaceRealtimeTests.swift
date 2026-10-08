@@ -401,6 +401,50 @@ struct WorkspaceRealtimeTests {
     state.reset()
   }
 
+  @Test func aProjectPickRepliesToTheBotAndLandsInTheRoomAtOnce() async throws {
+    let questionId = "550e8400-e29b-41d4-a716-446655440731"
+    let replyId = "550e8400-e29b-41d4-a716-446655440732"
+    let preview = "7d1f0c2a-0000-4000-8000-000000000007"
+    let books = "0b5e0e7a-0000-4000-8000-0000000000a1"
+    let results = """
+    {"data":[{"id":"\(preview)","state":"available","capturedAt":"\(realtimeTimestamp)","kind":"project_selection",\
+    "title":"Choose a project","status":null,"sourceHref":"/projects",\
+    "projectOptions":[{"id":"\(books)","name":"Books","identifier":null,"logo":null}]}],\
+    "meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+    """
+    let botSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_1","ownerUserId":"user_1","presence":"online"}}"#
+    let question = realtimeMessageJSON(id: questionId, roomId: roomA, content: "Which project?")
+      .replacingOccurrences(of: #"{"type":"user","user":{"id":"user_2","name":"Ada","email":"ada@example.com","presence":"offline"}}"#, with: botSender)
+    let (state, auth, transport) = try realtimeState([
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [question])),
+      (200, results),
+      (201, realtimeCreatedBody(id: replyId, roomId: roomA, content: #"Use project \"Books\" (project ID: \#(books))."#))
+    ])
+    // As above: no window active, so the fallback poll takes no scripted answer.
+    state.setWindowVisible(false, window: realtimeWindow)
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let asked = try #require(state.transcriptMessages.first { $0.id == questionId })
+
+    try await state.selectProject(books, preview: preview, question: asked, auth: auth)
+    #expect(Array(transport.operationIDs.suffix(2)) == ["getChatRoomMessageResults", "post/chats/rooms/{id}/messages"])
+    #expect(transport.requests.suffix(2).allSatisfy { request in
+      HTTPField.Name("X-Organization-Slug").flatMap { request.headerFields[$0] } == "acme"
+    })
+    let body = try #require(transport.bodies.last)
+    let sent = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    #expect(sent["mentionedSokoBotIds"] as? [String] == ["bot_1"])
+    #expect(sent["clientMessageId"] as? String == ProjectSelection.clientMessageId(
+      userId: "user_1", roomId: roomA, messageId: questionId, previewId: preview, projectId: books
+    ))
+    let reply = try #require(state.transcriptMessages.last)
+    #expect(reply.id == replyId)
+    #expect(ProjectSelectionReply(content: reply.content) == ProjectSelectionReply(projectId: books, name: "Books"))
+    state.reset()
+  }
+
   @Test func renameRowRetitlesTheOpenGroupDirect() async throws {
     let (state, auth, _) = try realtimeState([
       (200, workspacesBody()),

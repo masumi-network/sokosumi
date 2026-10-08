@@ -77,6 +77,8 @@ import SwiftUI
     var onSokoBotFeedback: ((Bool) async throws -> Void)?
     /// Reads the message's recorded result cards (row 38e1); the room and the Thread pass it.
     var loadResultPreviews: (() async throws -> [Components.Schemas.ChatResultPreview])?
+    /// Answers a project question among those cards (row 38h1): the card's id and the picked project's.
+    var selectProject: ((String, String) async throws -> Void)?
     var horizontalInset: CGFloat = 0
     var streamThinking = false
     /// The room transcript's newest message, whose body ends in a run of files (row 31b3, web
@@ -317,6 +319,9 @@ import SwiftUI
             }
             if let editing, isEditingThisRow {
               MessageEditComposer(editing: editing).id(message.id)
+            } else if mentionShell == nil, let reply = ProjectSelectionReply(content: message.content) {
+              // A project question's answer (row 38h1) is the chosen project, not its raw sentence and id.
+              ProjectSelectionChip(projectId: reply.projectId, mark: reply.mark)
             } else if mentionShell == nil, message.quote == nil || !message.content.isEmpty {
               // Mention shells render their own state; Send to yourself posts only a quote, so there is no body to render.
               MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: preparedDocument)
@@ -329,7 +334,7 @@ import SwiftUI
                 .id(preview.url + (preview.imageUrl ?? ""))
             }
             if let loadResultPreviews, !resultPreviewIds.isEmpty {
-              MessageResultPreviewsView(descriptorIds: resultPreviewIds, footer: sokoBotFooter, load: loadResultPreviews)
+              MessageResultPreviewsView(descriptorIds: resultPreviewIds, footer: sokoBotFooter, load: loadResultPreviews, select: selectProject)
             } else if let sokoBotFooter {
               SokoBotMessageFooterView(turn: sokoBotFooter)
             }

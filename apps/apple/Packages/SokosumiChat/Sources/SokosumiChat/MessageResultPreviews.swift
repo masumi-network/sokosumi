@@ -100,6 +100,21 @@ public struct ResultPreviewCard: Equatable, Sendable {
     }
   }
 
+  /// A project a `project_selection` card offers (Core's live `projectOptions`, row 38h1).
+  public struct ProjectOption: Equatable, Identifiable, Sendable {
+    public let id: String
+    public let mark: ProjectMark
+
+    public init(id: String, mark: ProjectMark) {
+      self.id = id
+      self.mark = mark
+    }
+
+    public var name: String {
+      mark.name
+    }
+  }
+
   /// Who a schedule runs as (web `AssigneeAvatar` from `actor`): a person, a coworker or a Soko Bot.
   public struct Actor: Equatable, Sendable {
     public let name: String
@@ -139,6 +154,8 @@ public struct ResultPreviewCard: Equatable, Sendable {
   public let agentIconURL: String?
   /// The Task a `task` card shows (web `result.task.id`).
   public let taskId: String?
+  /// What a `project_selection` card offers, in Core's order (by name); empty for every other kind.
+  public let projectOptions: [ProjectOption]
 
   public init(_ result: Components.Schemas.ChatResultAvailable, webBaseURL: URL) {
     id = result.id
@@ -175,6 +192,7 @@ public struct ResultPreviewCard: Equatable, Sendable {
     agentIconURL = result.agent?.icon.nonEmpty
     // Web: an available `task` result that carries its `task` object.
     taskId = result.kind == .task ? result.task?.id : nil
+    projectOptions = (result.projectOptions ?? []).map { .init(id: $0.id, mark: .init(name: $0.name, logoURL: $0.logo.nonEmpty)) }
   }
 
   /// `SokosumiJobStatus`: the statuses web's `JobStatusBadge` labels; any other job status gets the generic chip.
