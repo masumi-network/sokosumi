@@ -7,6 +7,7 @@ import {
   CreateTaskModalProvider,
   useCreateTaskModal,
 } from "./create-task-modal";
+import { getStoredTasksReturnPath } from "./task-navigation";
 
 const { taskFormPropsSpy, routerReplaceMock, loadCreateTaskModalDataMock } =
   vi.hoisted(() => ({
@@ -108,11 +109,36 @@ async function openFromCalendar(
 describe("CreateTaskModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
     loadCreateTaskModalDataMock.mockResolvedValue({
       agentNameById: { "agent-1": "Agent One" },
       designMdAttachment: null,
       projectOptions: [{ id: "project-1", name: "Sokosumi" }],
     });
+  });
+
+  it("returns to the scoped board after opening a newly created task", () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/tasks?projectId=project-1&status=READY&create=true&assignee=cow&prompt=hello",
+    );
+    render(
+      <CreateTaskModalProvider initialOpen initialProjectId="project-1">
+        <CreateTaskModal coworkerOptions={[]} projectOptions={[]} />
+      </CreateTaskModalProvider>,
+    );
+    const props = taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
+      onSuccess: (task: { id: string; identifier: null; name: string }) => void;
+    };
+    act(() =>
+      props.onSuccess({ id: "task-new", identifier: null, name: "New task" }),
+    );
+
+    expect(getStoredTasksReturnPath()).toBe(
+      "/tasks?projectId=project-1&status=READY",
+    );
+    window.history.replaceState({}, "", "/");
   });
 
   it("leaves the project unselected for an unfiltered Calendar", async () => {
