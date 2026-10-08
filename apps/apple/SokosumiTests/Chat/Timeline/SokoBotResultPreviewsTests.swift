@@ -434,7 +434,7 @@
       }
 
       /// Whether an `AVPlayerView` sits anywhere under `view`.
-      private static func hostsPlayer(_ view: NSView) -> Bool {
+      static func hostsPlayer(_ view: NSView) -> Bool {
         view is AVPlayerView || view.subviews.contains(where: hostsPlayer)
       }
 
