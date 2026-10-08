@@ -9,6 +9,8 @@ public struct MessageMarkdownBlock: Identifiable, Equatable, Sendable {
   public fileprivate(set) var text = AttributedString()
   public fileprivate(set) var children: [MessageMarkdownBlock] = []
   public fileprivate(set) var taskChecked: Bool?
+  /// A `mermaid` fence in a body that opted in; other fences and other Markdown keep their code (row 10d).
+  public fileprivate(set) var diagram: MermaidDiagram?
 }
 
 /// The message's text blocks and whitespace-separated file runs, in source order.
@@ -39,11 +41,19 @@ public struct MessageMarkdown: Equatable, Sendable {
   /// The images the body's viewer steps through.
   public let imageGallery: MessageImageGallery
 
-  public init(_ source: String, baseURL: URL? = nil, mentions: MessageMentions? = nil, channels: [ComposerChannel] = []) {
+  /// `diagrams` is web's `enableMermaid`: message bodies in rooms, Directs, Threads and pins draw `mermaid` fences;
+  /// quotes, composer previews and file previews keep them as code.
+  public init(
+    _ source: String,
+    baseURL: URL? = nil,
+    mentions: MessageMentions? = nil,
+    channels: [ComposerChannel] = [],
+    diagrams: Bool = false
+  ) {
     let normalized = Self.normalized(source)
-    let document = Markdown.Document(parsing: MarkdownBareDomains(normalized).linkified())
-    var builder = MarkdownBlockBuilder(baseURL: baseURL)
-    let built = document.children.flatMap { builder.blocks(for: $0) }.map { $0.resolving(mentions: mentions, channels: channels) }
+    var builder = MarkdownBlockBuilder(baseURL: baseURL, diagrams: diagrams)
+    let built = builder.document(MarkdownBareDomains(normalized).linkified())
+      .map { $0.resolving(mentions: mentions, channels: channels) }
     blocks = built
     let runs = MarkdownBareDomains(normalized).attachmentRuns()
     if runs.isEmpty {
@@ -55,8 +65,7 @@ public struct MessageMarkdown: Equatable, Sendable {
       func appendText(through end: Int) {
         let source = String(characters[cursor ..< end])
         guard !source.allSatisfy(MarkdownBareDomains.isWebWhitespace) else { return }
-        let parsed = Markdown.Document(parsing: MarkdownBareDomains(source).linkified())
-        let blocks = parsed.children.flatMap { builder.blocks(for: $0) }
+        let blocks = builder.document(MarkdownBareDomains(source).linkified())
           .map { $0.resolving(mentions: mentions, channels: channels) }
         rendered.append(MessageMarkdownSegment(id: cursor, blocks: blocks, files: []))
       }
@@ -94,7 +103,25 @@ public struct MessageMarkdown: Equatable, Sendable {
 
 private struct MarkdownBlockBuilder {
   let baseURL: URL?
+  /// Web `enableMermaid`.
+  let diagrams: Bool
   var nextID = 0
+  /// The parsed text's lines, for a fence's opening and closing lines.
+  private var lines: [Substring] = []
+  /// `mermaid` fences seen in this document: a message section (web `markdown-mermaid.ts`, `tokens.size`).
+  private var diagramCount = 0
+
+  init(baseURL: URL?, diagrams: Bool) {
+    self.baseURL = baseURL
+    self.diagrams = diagrams
+  }
+
+  /// One parsed text: the whole body, or one section between file runs.
+  mutating func document(_ text: String) -> [MessageMarkdownBlock] {
+    lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+    diagramCount = 0
+    return Markdown.Document(parsing: text).children.flatMap { blocks(for: $0) }
+  }
 
   mutating func blocks(for node: any Markup) -> [MessageMarkdownBlock] {
     if let html = node as? HTMLBlock, let body = try? MessageHTML.parse(html.rawHTML) {
@@ -163,6 +190,16 @@ private struct MarkdownBlockBuilder {
     var result = MessageMarkdownBlock(id: nextID, kind: override ?? kind(node))
     if let code = node as? CodeBlock {
       result.text = AttributedString(code.code)
+      if diagrams, code.language?.split(whereSeparator: \.isWhitespace).first?.lowercased() == "mermaid" {
+        // remark's code value drops the newline before the closing fence.
+        let source = code.code.hasSuffix("\n") ? String(code.code.dropLast()) : code.code
+        result.diagram = MermaidDiagram(
+          source: source,
+          complete: isClosed(code),
+          overLimit: diagramCount >= MermaidDiagram.maxPerSection
+        )
+        diagramCount += 1
+      }
     } else if let table = node as? Markdown.Table {
       let columnCount = table.columnAlignments.count
       result.children = [block(table.head, kind: .tableHeaderRow, tableColumnCount: columnCount)]
@@ -191,6 +228,28 @@ private struct MarkdownBlockBuilder {
       result.text = MessageInlineHTML.applying(to: inline(node), baseURL: baseURL)
     }
     return result
+  }
+
+  /// Web's complete check: the block spans more than one line and its last line, quote markers and whitespace
+  /// aside, is a run of the opening fence's character at least as long as it. An open fence ends at its last line.
+  private func isClosed(_ code: CodeBlock) -> Bool {
+    guard let range = code.range, range.lowerBound.line < range.upperBound.line,
+          lines.indices.contains(range.lowerBound.line - 1), lines.indices.contains(range.upperBound.line - 1)
+    else { return false }
+    let first = lines[range.lowerBound.line - 1]
+    let start = first.utf8.index(first.startIndex, offsetBy: range.lowerBound.column - 1, limitedBy: first.endIndex)
+    let opening = first[(start ?? first.endIndex)...].drop { $0 == " " || $0 == "\t" }
+    guard let character = opening.first, character == "`" || character == "~" else { return false }
+    let fence = opening.prefix { $0 == character }.count
+    var last = Substring(lines[range.upperBound.line - 1])
+    while let marker = last.firstIndex(where: { $0 != " " && $0 != "\t" }), last[marker] == ">" {
+      last = last[last.index(after: marker)...]
+      if last.first == " " || last.first == "\t" {
+        last = last.dropFirst()
+      }
+    }
+    let closing = last.trimmingCharacters(in: .whitespaces)
+    return fence >= 3 && closing.count >= fence && closing.allSatisfy { $0 == character }
   }
 
   private func kind(_ node: any Markup) -> PresentationIntent.Kind {

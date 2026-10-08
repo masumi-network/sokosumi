@@ -25,7 +25,7 @@
   }
 
   /// One of SwiftUI's accessibility nodes, driven the way VoiceOver drives it.
-  private struct AccessibilityNode {
+  struct AccessibilityNode {
     let object: NSObject
 
     var isEnabled: Bool {
@@ -258,7 +258,7 @@
 
       // MARK: Helpers
 
-      private static func window(_ content: some View, size: NSSize) -> (NSWindow, NSView) {
+      static func window(_ content: some View, size: NSSize) -> (NSWindow, NSView) {
         let host = NSHostingView(rootView: content.frame(width: size.width, height: size.height).background(.background)
           .environment(\.locale, Locale(identifier: "en_US")))
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled], backing: .buffered, defer: false)
@@ -267,7 +267,7 @@
         return (window, host)
       }
 
-      private static func draw(_ content: some View, size: NSSize, dark: Bool, until text: String? = nil) async throws -> CGImage {
+      static func draw(_ content: some View, size: NSSize, dark: Bool, until text: String? = nil) async throws -> CGImage {
         let host = NSHostingView(rootView: content
           .frame(width: size.width, height: size.height, alignment: .topLeading)
           .background(.background)
@@ -289,7 +289,7 @@
         return try #require(bitmap.cgImage)
       }
 
-      private static func settle(_ host: NSView) async {
+      static func settle(_ host: NSView) async {
         for _ in 0 ..< 8 {
           await Task.yield()
           host.layoutSubtreeIfNeeded()
@@ -297,7 +297,7 @@
         }
       }
 
-      private static func waitForText(_ text: String, in host: NSView) async throws -> [String] {
+      static func waitForText(_ text: String, in host: NSView) async throws -> [String] {
         let deadline = ContinuousClock.now.advanced(by: .seconds(10))
         var texts: [String] = []
         repeat {
@@ -313,17 +313,17 @@
       }
 
       /// The accessibility node whose label is exactly `label`.
-      private static func element(labelled label: String, in host: NSView) async -> AccessibilityNode? {
+      static func element(labelled label: String, in host: NSView) async -> AccessibilityNode? {
         await element(in: host) { $0 == label }
       }
 
       /// The first accessibility node, parents before children, whose label is `text` or has it as one of its
       /// ", "-joined parts (a button speaks its children as one label).
-      private static func element(containing text: String, in host: NSView) async -> AccessibilityNode? {
+      static func element(containing text: String, in host: NSView) async -> AccessibilityNode? {
         await element(in: host) { $0 == text || $0.components(separatedBy: ", ").contains(text) }
       }
 
-      private static func element(in host: NSView, where matches: (String) -> Bool) async -> AccessibilityNode? {
+      static func element(in host: NSView, where matches: (String) -> Bool) async -> AccessibilityNode? {
         _ = await hostedTexts(in: host)
         var seen: Set<ObjectIdentifier> = []
         func find(_ element: Any) -> AccessibilityNode? {

@@ -273,31 +273,6 @@
     }
   }
 
-  @keyframes reasoning-step-in {
-    from {
-      opacity: 0;
-      transform: translateY(0.25rem);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes reasoning-cursor-blink {
-    0%,
-    50% {
-      opacity: 1;
-    }
-    51%,
-    100% {
-      opacity: 0;
-    }
-  }
-
-  --animate-reasoning-step-in: reasoning-step-in 0.25s ease-out both;
-  --animate-reasoning-cursor-blink: reasoning-cursor-blink 1s step-end infinite;
-
   --animate-rotate-once: rotate-once 0.6s ease-in-out;
   --animate-roll-up: roll-up 0.2s ease-out forwards;
   --animate-roll-down: roll-down 0.2s ease-out forwards;
@@ -943,35 +918,6 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   font-variant-ligatures: no-contextual;
 }
 
-@utility landing-hero-bg {
-  background-image:
-    linear-gradient(var(--hero-wash), var(--hero-ground)),
-    url("/backgrounds/landing-hero.jpg");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-@utility landing-join-our-community-bg {
-  background: url("/backgrounds/join-our-community.jpg");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-@utility agent-card-image-shadow {
-  box-shadow: 0px 0px 8px 2px
-    color-mix(in oklab, var(--muted-foreground) 30%, transparent);
-}
-
-@utility job-table-width {
-  @apply w-full lg:w-[max(480px,32%)];
-}
-
-@utility job-details-width {
-  @apply w-full lg:w-[calc(100%-max(480px,32%))];
-}
-
 @utility press {
   /* Pointer-down feedback (DESIGN.md Motion: scale 0.995). Transform only. */
   @media (prefers-reduced-motion: no-preference) {
@@ -1277,26 +1223,6 @@ time {
   background-clip: text;
   color: transparent;
   animation: var(--animate-bui-shimmer-text);
-}
-
-@utility reasoning-step-in {
-  animation: var(--animate-reasoning-step-in);
-}
-
-.reasoning-step-typing {
-  position: relative;
-}
-.reasoning-step-typing::after {
-  content: "";
-  position: relative;
-  display: inline-block;
-  width: 2px;
-  height: 1em;
-  margin-left: 1px;
-  vertical-align: text-bottom;
-  background-color: currentColor;
-  opacity: 0.7;
-  animation: var(--animate-reasoning-cursor-blink);
 }
 
 /* Respect reduced-motion for the chat "thinking" indicator: freeze the

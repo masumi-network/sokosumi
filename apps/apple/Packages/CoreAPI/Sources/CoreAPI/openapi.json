@@ -25,11 +25,11 @@
           {
             "schema": {
               "type": "string",
-              "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+              "description": "Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.",
               "example": "me"
             },
             "required": true,
-            "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+            "description": "Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.",
             "name": "id",
             "in": "path"
           }
@@ -87,6 +87,68 @@
                   },
                   "required": [
                     "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
                     "meta"
                   ]
                 }
@@ -5670,6 +5732,15 @@
         ],
         "parameters": [
           {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          },
+          {
+            "$ref": "#/components/parameters/ContextUserId"
+          },
+          {
+            "$ref": "#/components/parameters/ContextOrganizationId"
+          },
+          {
             "schema": {
               "type": "string",
               "enum": [
@@ -10217,11 +10288,11 @@
           {
             "schema": {
               "type": "string",
-              "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+              "description": "Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.",
               "example": "me"
             },
             "required": true,
-            "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+            "description": "Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.",
             "name": "id",
             "in": "path"
           }
@@ -10586,11 +10657,11 @@
           {
             "schema": {
               "type": "string",
-              "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+              "description": "Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.",
               "example": "me"
             },
             "required": true,
-            "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+            "description": "Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.",
             "name": "id",
             "in": "path"
           }
@@ -10730,68 +10801,6 @@
               }
             }
           },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -10918,6 +10927,68 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "application/json": {
                 "schema": {
@@ -13928,11 +13999,11 @@
           {
             "schema": {
               "type": "string",
-              "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+              "description": "Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.",
               "example": "me"
             },
             "required": true,
-            "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+            "description": "Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.",
             "name": "id",
             "in": "path"
           },
@@ -23652,6 +23723,15 @@
         ],
         "parameters": [
           {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          },
+          {
+            "$ref": "#/components/parameters/ContextUserId"
+          },
+          {
+            "$ref": "#/components/parameters/ContextOrganizationId"
+          },
+          {
             "schema": {
               "type": "string",
               "format": "uuid",
@@ -23706,6 +23786,68 @@
                   },
                   "required": [
                     "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
                     "meta"
                   ]
                 }
@@ -26872,11 +27014,11 @@
           {
             "schema": {
               "type": "string",
-              "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+              "description": "Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.",
               "example": "me"
             },
             "required": true,
-            "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+            "description": "Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.",
             "name": "id",
             "in": "path"
           }
@@ -27204,11 +27346,11 @@
           {
             "schema": {
               "type": "string",
-              "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+              "description": "Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.",
               "example": "me"
             },
             "required": true,
-            "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+            "description": "Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.",
             "name": "id",
             "in": "path"
           }
@@ -27657,6 +27799,330 @@
           },
           "401": {
             "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chats/rooms/{id}/messages/{messageId}/results": {
+      "get": {
+        "operationId": "getChatRoomMessageResults",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "messageId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized recorded message results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChatResultPreview"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Read budget exceeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -31701,6 +32167,808 @@
           "source",
           "description",
           "installs"
+        ]
+      },
+      "ChatResultPreview": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ChatResultAvailable"
+          },
+          {
+            "$ref": "#/components/schemas/ChatResultUnavailable"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "state",
+          "mapping": {
+            "available": "#/components/schemas/ChatResultAvailable",
+            "unavailable": "#/components/schemas/ChatResultUnavailable"
+          }
+        }
+      },
+      "ChatResultAvailable": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "available"
+            ]
+          },
+          "capturedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "task",
+              "task_schedule",
+              "bot_schedule",
+              "social_post",
+              "studio_job",
+              "job",
+              "file",
+              "decision",
+              "project_selection"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 4000,
+            "default": null
+          },
+          "sourceHref": {
+            "type": "string",
+            "maxLength": 2000,
+            "pattern": "^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$"
+          },
+          "assignee": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "default": null
+          },
+          "project": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "default": null
+          },
+          "destination": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "default": null
+          },
+          "scheduledAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "default": null,
+            "example": "2021-01-01T00:00:00.000Z"
+          },
+          "timezone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100,
+            "default": null
+          },
+          "recurrence": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200,
+            "default": null
+          },
+          "question": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 4000,
+            "default": null
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatResultOutput"
+            },
+            "maxItems": 12,
+            "default": []
+          },
+          "task": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "identifier": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 200
+              },
+              "status": {
+                "$ref": "#/components/schemas/TaskStatus"
+              },
+              "priority": {
+                "$ref": "#/components/schemas/TaskPriority"
+              },
+              "visibility": {
+                "$ref": "#/components/schemas/TaskVisibility"
+              },
+              "createdAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "example": "2021-01-01T00:00:00.000Z"
+              },
+              "runAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "example": "2021-01-01T00:00:00.000Z"
+              },
+              "project": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "identifier": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "logo": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "identifier",
+                  "logo"
+                ]
+              },
+              "assignee": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "image": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 2000,
+                    "default": null
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "user",
+                      "coworker",
+                      "sokoBot"
+                    ]
+                  },
+                  "slug": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "avatarSeed": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 200,
+                    "default": null
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "kind"
+                ]
+              },
+              "participants": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "maxLength": 200
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 500
+                    },
+                    "image": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "maxLength": 2000,
+                      "default": null
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "coworker",
+                        "sokoBot"
+                      ]
+                    },
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 200
+                    },
+                    "avatarSeed": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "maxLength": 200,
+                      "default": null
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "kind"
+                  ]
+                },
+                "maxItems": 6
+              },
+              "commentsCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "tags": {
+                "$ref": "#/components/schemas/TaskTags"
+              }
+            },
+            "default": null,
+            "required": [
+              "id",
+              "name",
+              "identifier",
+              "status",
+              "priority",
+              "visibility",
+              "createdAt",
+              "runAt",
+              "project",
+              "assignee",
+              "participants",
+              "commentsCount",
+              "tags"
+            ]
+          },
+          "social": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "x",
+                  "linkedin",
+                  "facebook",
+                  "instagram",
+                  "tiktok",
+                  "youtube"
+                ]
+              },
+              "account": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "handle": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 500
+                  },
+                  "displayName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 500
+                  },
+                  "avatarUrl": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "handle",
+                  "displayName",
+                  "avatarUrl"
+                ]
+              },
+              "timestamp": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "example": "2021-01-01T00:00:00.000Z"
+              }
+            },
+            "default": null,
+            "required": [
+              "provider",
+              "account",
+              "timestamp"
+            ]
+          },
+          "actor": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "image": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 2000,
+                "default": null
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "coworker",
+                  "sokoBot"
+                ]
+              },
+              "slug": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "avatarSeed": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 200,
+                "default": null
+              }
+            },
+            "default": null,
+            "required": [
+              "id",
+              "name",
+              "kind"
+            ]
+          },
+          "agent": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "icon": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 2000
+              }
+            },
+            "default": null,
+            "required": [
+              "name",
+              "icon"
+            ]
+          },
+          "projectOptions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "identifier": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "logo": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 2000
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "identifier",
+                "logo"
+              ]
+            },
+            "maxItems": 12,
+            "default": []
+          },
+          "projectInfo": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "identifier": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "logo": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 2000
+              }
+            },
+            "default": null,
+            "required": [
+              "id",
+              "name",
+              "identifier",
+              "logo"
+            ]
+          },
+          "decision": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "turnId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "toolName": {
+                "type": "string"
+              },
+              "proposal": {
+                "type": "object",
+                "additionalProperties": {}
+              },
+              "reason": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "PROCESSING",
+                  "ACCEPTED",
+                  "REJECTED",
+                  "EXPIRED"
+                ]
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time",
+                "example": "2021-01-01T00:00:00.000Z"
+              },
+              "resolvedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "example": "2021-01-01T00:00:00.000Z"
+              },
+              "resultingEntityId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "example": "2021-01-01T00:00:00.000Z"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "example": "2021-01-01T00:00:00.000Z"
+              }
+            },
+            "default": null,
+            "required": [
+              "id",
+              "turnId",
+              "toolName",
+              "proposal",
+              "reason",
+              "status",
+              "expiresAt",
+              "resolvedAt",
+              "resultingEntityId",
+              "createdAt",
+              "updatedAt"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "capturedAt",
+          "kind",
+          "title",
+          "status",
+          "sourceHref"
+        ]
+      },
+      "ChatResultOutput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "contentType": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "sizeBytes": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "openHref": {
+            "type": "string",
+            "maxLength": 2000,
+            "pattern": "^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$"
+          },
+          "previewHref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "pattern": "^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$"
+          },
+          "downloadHref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "pattern": "^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$",
+            "default": null
+          }
+        },
+        "required": [
+          "name",
+          "contentType",
+          "sizeBytes",
+          "openHref",
+          "previewHref"
+        ]
+      },
+      "TaskStatus": {
+        "type": "string",
+        "enum": [
+          "DRAFT",
+          "QUEUED",
+          "READY",
+          "GRANT_PENDING",
+          "INPUT_REQUIRED",
+          "APPROVAL_REQUIRED",
+          "AUTHENTICATION_REQUIRED",
+          "OUT_OF_CREDITS",
+          "CREDITS_TOPPED_UP",
+          "RUNNING",
+          "AWAITING_EXTERNAL",
+          "COMPLETED",
+          "FAILED",
+          "CANCELED"
+        ],
+        "example": "RUNNING"
+      },
+      "TaskPriority": {
+        "type": "string",
+        "enum": [
+          "URGENT",
+          "HIGH",
+          "MEDIUM",
+          "LOW",
+          "NONE"
+        ],
+        "example": "NONE",
+        "description": "URGENT, HIGH, MEDIUM, LOW, or NONE (default)."
+      },
+      "TaskVisibility": {
+        "type": "string",
+        "enum": [
+          "PUBLIC",
+          "PRIVATE"
+        ],
+        "example": "PUBLIC",
+        "description": "PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner's Soko Bot, and the assigned coworker's vendor family. Set at create; immutable."
+      },
+      "TaskTags": {
+        "type": "object",
+        "properties": {
+          "automatic": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskTagId"
+            }
+          },
+          "manual": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskTagId"
+            }
+          },
+          "rejected": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskTagId"
+            }
+          }
+        },
+        "required": [
+          "automatic",
+          "manual",
+          "rejected"
+        ]
+      },
+      "TaskTagId": {
+        "type": "string",
+        "enum": [
+          "research",
+          "strategy",
+          "writing",
+          "design",
+          "analysis",
+          "development",
+          "marketing",
+          "social",
+          "seo",
+          "operations"
+        ]
+      },
+      "ChatResultUnavailable": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "unavailable"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "state"
         ]
       }
     }

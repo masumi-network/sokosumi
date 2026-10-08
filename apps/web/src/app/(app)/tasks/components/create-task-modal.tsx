@@ -25,6 +25,7 @@ import {
   type TaskFormInitialDesignMdAttachment,
 } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
+import { storeTasksReturnPath } from "./task-navigation";
 
 // --- Context ---
 
@@ -424,6 +425,7 @@ export function CreateTaskModal({
             router.refresh();
           }}
           onSuccess={(task) => {
+            storeTasksReturnPath();
             handleClose();
             router.push(taskHref(task));
           }}

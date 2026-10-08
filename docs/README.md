@@ -10,6 +10,10 @@ This directory contains documentation for the Sokosumi monorepo.
 - [`coworker-metadata.md`](./coworker-metadata.md) — Marketplace profile and Ready-To-Run offers JSON
 - [`coworker/benchmarks/`](./coworker/benchmarks/) — coworker chat cold-start benchmark
 
+## OAuth clients
+
+- [`oauth-clients.md`](./oauth-clients.md) — Sign in with Sokosumi for third-party apps: endpoints, the `sokosumi:api` scope in three places, token lifetimes, 401 vs 403 `insufficient_scope`, finding the user's workspace
+
 ## Agent tooling
 
 Root [`AGENTS.md`](../AGENTS.md) is the loading table and trigger list. Task-specific files live in [`agents/`](./agents/). Do not restate that list here.

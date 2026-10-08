@@ -2,10 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
-import { agentUserRouteAllowlistMiddleware } from "@/routes/v1/users/user-coworker-route-allowlist";
 import {
+  applyUserRouteMiddleware,
   type UserRouteVariables,
-  usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
@@ -15,6 +14,7 @@ import mountGetUserOrganizationCredits from "./organizations/[organizationId]/cr
 import mountGetUserOrganizationMember from "./organizations/[organizationId]/member/get.js";
 import mountGetUserOrganizations from "./organizations/get.js";
 import mountGetUserPreferences from "./preferences/get.js";
+import mountGetUserWorkspaces from "./workspaces/get.js";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -33,7 +33,11 @@ const {
   prismaTransactionMock,
   txUserFindUniqueMock,
   assertCoworkerUserContextBindingMock,
+  filterAuthorizedOrganizationIdsMock,
+  listAuthorizedUserWorkspacesMock,
 } = vi.hoisted(() => ({
+  listAuthorizedUserWorkspacesMock: vi.fn(),
+  filterAuthorizedOrganizationIdsMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   buildCreditsPayloadMock: vi.fn(),
   memberFindManyMock: vi.fn(),
@@ -61,6 +65,10 @@ vi.mock("@/helpers/coworker-user-context-binding", () => ({
   assertCoworkerUserContextBinding: (...args: unknown[]) =>
     assertCoworkerUserContextBindingMock(...args),
   requireAuthorizedUserContext: vi.fn(),
+  filterAuthorizedOrganizationIds: (...args: unknown[]) =>
+    filterAuthorizedOrganizationIdsMock(...args),
+  listAuthorizedUserWorkspaces: (...args: unknown[]) =>
+    listAuthorizedUserWorkspacesMock(...args),
 }));
 
 vi.mock("@/helpers/subscription", () => ({
@@ -156,14 +164,14 @@ function createUserRouteApp(
   });
 
   const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
-  userByIdApp.use("*", usersPathUserContextMiddleware);
-  userByIdApp.use("*", agentUserRouteAllowlistMiddleware);
+  applyUserRouteMiddleware(userByIdApp);
   mountGetUserById(userByIdApp);
   mountGetUserCredits(userByIdApp);
   mountGetUserOrganizations(userByIdApp);
   mountGetUserOrganizationCredits(userByIdApp);
   mountGetUserOrganizationMember(userByIdApp);
   mountGetUserPreferences(userByIdApp);
+  mountGetUserWorkspaces(userByIdApp);
   app.route("/:id", userByIdApp);
   return app;
 }
@@ -172,6 +180,10 @@ describe("coworker user route allowlist", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     assertCoworkerUserContextBindingMock.mockResolvedValue(undefined);
+    filterAuthorizedOrganizationIdsMock.mockImplementation(
+      async (_auth: unknown, _userId: string, organizationIds: string[]) =>
+        new Set(organizationIds),
+    );
     userFindUniqueMock.mockResolvedValue(USER_RECORD);
     buildCreditsPayloadMock.mockResolvedValue(CREDITS_PAYLOAD);
     resolveMemberOrganizationByIdMock.mockResolvedValue({
@@ -242,6 +254,49 @@ describe("coworker user route allowlist", () => {
     expect(buildCreditsPayloadMock).toHaveBeenCalled();
   });
 
+  it("lists only the organizations the coworker's vendor may act in", async () => {
+    const organization = (id: string) => ({
+      organizationId: id,
+      role: "member",
+      organization: {
+        id,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        name: id,
+        slug: id,
+        logo: null,
+        metadata: null,
+      },
+    });
+    memberFindManyMock.mockResolvedValue([
+      organization("org_granted"),
+      organization("org_hidden"),
+    ]);
+    filterAuthorizedOrganizationIdsMock.mockResolvedValue(
+      new Set(["org_granted"]),
+    );
+
+    const app = createUserRouteApp(CONTEXT_COWORKER);
+    const response = await app.request("http://localhost/me/organizations");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.map((org: { id: string }) => org.id)).toEqual([
+      "org_granted",
+    ]);
+  });
+
+  it("rejects coworker on credits of an organization its vendor may not act in", async () => {
+    filterAuthorizedOrganizationIdsMock.mockResolvedValue(new Set());
+
+    const app = createUserRouteApp(CONTEXT_COWORKER);
+    const response = await app.request(
+      "http://localhost/me/organizations/org_1/credits",
+    );
+
+    expect(response.status).toBe(403);
+    expect(buildCreditsPayloadMock).not.toHaveBeenCalled();
+  });
+
   it("rejects coworker with context headers on organization member", async () => {
     const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request(
@@ -261,14 +316,59 @@ describe("coworker user route allowlist", () => {
     expect(response.status).toBe(403);
   });
 
+  it("lists workspaces for a coworker without binding it to one first", async () => {
+    listAuthorizedUserWorkspacesMock.mockResolvedValue({
+      workspaces: [
+        {
+          id: "11111111-1111-7111-8111-111111111111",
+          kind: "organization",
+          name: "Acme",
+          organizationId: "org_1",
+          slug: "acme",
+          logo: null,
+          websiteUrl: null,
+          preferred: false,
+        },
+      ],
+      pendingInvitationCount: 0,
+    });
+
+    const app = createUserRouteApp(CONTEXT_COWORKER);
+    const response = await app.request("http://localhost/me/workspaces");
+
+    expect(response.status).toBe(200);
+    expect(assertCoworkerUserContextBindingMock).not.toHaveBeenCalled();
+    expect(listAuthorizedUserWorkspacesMock).toHaveBeenCalledWith(
+      CONTEXT_COWORKER,
+      "user_123",
+    );
+  });
+
   it.each([
-    ["GET", "/me/workspaces"],
     ["POST", "/me/workspaces"],
     ["PUT", "/me/workspaces/preferred"],
+    ["DELETE", "/me/workspaces/11111111-1111-7111-8111-111111111111"],
   ])("rejects coworker with context headers on %s %s", async (method, path) => {
     const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request(`http://localhost${path}`, { method });
     expect(response.status).toBe(403);
+  });
+
+  it("tells an agent which user routes it may call", async () => {
+    const coworkerResponse = await createUserRouteApp(CONTEXT_COWORKER).request(
+      "http://localhost/me/preferences",
+    );
+    const sokoBotResponse = await createUserRouteApp(ORCHESTRATOR).request(
+      "http://localhost/me/preferences",
+    );
+
+    expect(coworkerResponse.status).toBe(403);
+    expect(await coworkerResponse.text()).toBe(
+      "Coworker keys may only GET /users/{id}, /users/{id}/credits, /users/{id}/organizations, /users/{id}/organizations/{organizationId}/credits and /users/{id}/workspaces",
+    );
+    expect(await sokoBotResponse.text()).toBe(
+      "Soko Bot keys may only GET /users/{id}, /users/{id}/credits, /users/{id}/organizations, /users/{id}/organizations/{organizationId}/credits and /users/{id}/workspaces",
+    );
   });
 
   it("rejects coworker with context headers on preferences", async () => {

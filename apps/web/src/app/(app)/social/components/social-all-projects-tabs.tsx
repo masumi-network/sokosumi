@@ -16,7 +16,12 @@ import { cn } from "@/lib/utils";
 
 import { SocialAccountsProjectPrompt } from "./social-accounts-project-prompt";
 
-const ALL_PROJECTS_TABS = ["calendar", "drafts", "accounts"] as const;
+const ALL_PROJECTS_TABS = [
+  "calendar",
+  "drafts",
+  "statistics",
+  "accounts",
+] as const;
 type AllProjectsTab = (typeof ALL_PROJECTS_TABS)[number];
 
 function isAllProjectsTab(value: string | null): value is AllProjectsTab {
@@ -92,6 +97,9 @@ export function SocialAllProjectsTabs({
       </TabsContent>
       <TabsContent value="drafts">
         <SocialAccountsProjectPrompt kind="drafts" />
+      </TabsContent>
+      <TabsContent value="statistics">
+        <SocialAccountsProjectPrompt kind="statistics" notice={notice} />
       </TabsContent>
       <TabsContent value="accounts">
         <SocialAccountsProjectPrompt notice={notice} />
