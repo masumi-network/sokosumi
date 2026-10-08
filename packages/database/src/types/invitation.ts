@@ -7,17 +7,9 @@ export const InvitationStatus = {
   CANCELED: "canceled",
 } as const;
 
-export const invitationOrganizationInclude = {
-  organization: true,
-} as const;
-
-export const invitationInviterInclude = {
-  inviter: true,
-} as const;
-
 export const invitationInclude = {
-  ...invitationOrganizationInclude,
-  ...invitationInviterInclude,
+  organization: true,
+  inviter: true,
 } as const;
 
 export type InvitationWithRelations = Prisma.InvitationGetPayload<{
