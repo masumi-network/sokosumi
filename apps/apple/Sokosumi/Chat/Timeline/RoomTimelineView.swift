@@ -81,6 +81,12 @@ import SwiftUI
       return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful, auth: auth) }
     }
 
+    /// Row 38e1: a settled row with result descriptors reads its cards through the coordinator.
+    private func resultPreviewsAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> [Components.Schemas.ChatResultPreview])? {
+      guard !MessageResultPreviews.descriptorIds(of: message).isEmpty else { return nil }
+      return { try await workspaces.messageResultPreviews(message, auth: auth) }
+    }
+
     private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
       guard workspaces.canSendToSelf(message) else { return nil }
       return { try await workspaces.sendMessageToSelf(message, auth: auth) }
@@ -301,6 +307,7 @@ import SwiftUI
                                  onSendToSelf: sendToSelfAction(for: message),
                                  sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
                                  onSokoBotFeedback: sokoBotFeedbackAction(for: message),
+                                 loadResultPreviews: resultPreviewsAction(for: message),
                                  horizontalInset: 12,
                                  streamThinking: isCoworkerStreamOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
                                  newestEndsInAttachment: message.id == newestMessageId && MessageMarkdown.endsWithAttachmentRun(message.content),

@@ -83,6 +83,12 @@ import SwiftUI
       return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful, auth: auth) }
     }
 
+    /// Row 38e1: the Thread's rows read their result cards as the room's do.
+    private func resultPreviewsAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> [Components.Schemas.ChatResultPreview])? {
+      guard !MessageResultPreviews.descriptorIds(of: message).isEmpty else { return nil }
+      return { try await workspaces.messageResultPreviews(message, auth: auth) }
+    }
+
     private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
       guard workspaces.canSendToSelf(message) else { return nil }
       return { try await workspaces.sendMessageToSelf(message, auth: auth) }
@@ -143,7 +149,8 @@ import SwiftUI
                              onQuoteJump: jumpToQuote,
                              onSendToSelf: sendToSelfAction(for: parent),
                              sokoBotFeedback: workspaces.sokoBotFeedback(for: parent),
-                             onSokoBotFeedback: sokoBotFeedbackAction(for: parent))
+                             onSokoBotFeedback: sokoBotFeedbackAction(for: parent),
+                             loadResultPreviews: resultPreviewsAction(for: parent))
                 .jumpSpotlightRow(messageId: parent.id)
                 .id(parent.id)
               Divider()
@@ -368,6 +375,7 @@ import SwiftUI
                            onQuoteJump: jumpToQuote, onSendToSelf: sendToSelfAction(for: message),
                            sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
                            onSokoBotFeedback: sokoBotFeedbackAction(for: message),
+                           loadResultPreviews: resultPreviewsAction(for: message),
                            streamThinking: thinking)
               .jumpSpotlightRow(messageId: message.id)
           }
