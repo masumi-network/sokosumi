@@ -75,6 +75,8 @@ import SwiftUI
     /// The Soko Bot turn's useful / not useful thumbs, on a row that carries them (row 38b).
     var sokoBotFeedback: SokoBotFeedback?
     var onSokoBotFeedback: ((Bool) async throws -> Void)?
+    /// Reads the message's recorded result cards (row 38e1); the room and the Thread pass it.
+    var loadResultPreviews: (() async throws -> [Components.Schemas.ChatResultPreview])?
     var horizontalInset: CGFloat = 0
     var streamThinking = false
     /// The room transcript's newest message, whose body ends in a run of files (row 31b3, web
@@ -166,6 +168,11 @@ import SwiftUI
       return turn
     }
 
+    /// The recorded results a settled row reads (row 38e1, web `ResultPreviews`), with the footer after them.
+    private var resultPreviewIds: [String] {
+      showsBodyExtras ? MessageResultPreviews.descriptorIds(of: message) : []
+    }
+
     /// Web `MessageSkillChips` under the body (row 42), the pending shell's too; not while the row is edited or
     /// stands in for a coworker's mention.
     private var skills: [Components.Schemas.ChatRoomMessageSkill] {
@@ -177,11 +184,13 @@ import SwiftUI
     }
 
     /// Web `keepsSeenByCornerClear` (row 31b3): the newest message's body ends in attachments and nothing is drawn
-    /// after it — no reactions, Thread bar, skill chips, link preview, Soko Bot footer or failed send, and it is not
-    /// being edited. The faces then sit under the attachment instead of beside it, so the column never narrows for them.
+    /// after it — no reactions, Thread bar, skill chips, link preview, result cards, Soko Bot footer or failed send,
+    /// and it is not being edited. The faces then sit under the attachment instead of beside it, so the column never
+    /// narrows for them.
     private var keepsSeenByCornerClear: Bool {
       newestEndsInAttachment && message.deletedAt == nil && mentionShell == nil && !isEditingThisRow && !showsReactions
-        && threadReplyBar == nil && skills.isEmpty && unfurls.isEmpty && sokoBotFooter == nil && outbound?.status != .failed
+        && threadReplyBar == nil && skills.isEmpty && unfurls.isEmpty && resultPreviewIds.isEmpty && sokoBotFooter == nil
+        && outbound?.status != .failed
     }
 
     private var reactionAction: ((String) -> Void)? {
@@ -319,7 +328,9 @@ import SwiftUI
               MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
                 .id(preview.url + (preview.imageUrl ?? ""))
             }
-            if let sokoBotFooter {
+            if let loadResultPreviews, !resultPreviewIds.isEmpty {
+              MessageResultPreviewsView(descriptorIds: resultPreviewIds, footer: sokoBotFooter, load: loadResultPreviews)
+            } else if let sokoBotFooter {
               SokoBotMessageFooterView(turn: sokoBotFooter)
             }
             if isContinuation, message.editedAt != nil {
