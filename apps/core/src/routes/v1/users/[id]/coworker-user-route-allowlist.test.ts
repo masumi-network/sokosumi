@@ -347,6 +347,7 @@ describe("coworker user route allowlist", () => {
   it.each([
     ["POST", "/me/workspaces"],
     ["PUT", "/me/workspaces/preferred"],
+    ["DELETE", "/me/workspaces/11111111-1111-7111-8111-111111111111"],
   ])("rejects coworker with context headers on %s %s", async (method, path) => {
     const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request(`http://localhost${path}`, { method });

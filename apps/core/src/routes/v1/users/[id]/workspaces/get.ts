@@ -47,6 +47,9 @@ const route = withCoworkerContextHeaderParameters(
           requestId: "550e8400-e29b-41d4-a716-446655440000",
         },
       }),
+      400: jsonErrorResponse(
+        "Bad Request - invalid coworker context headers (this route needs no `X-Context-Organization-Id`)",
+      ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),

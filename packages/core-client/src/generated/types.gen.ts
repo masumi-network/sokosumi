@@ -33439,7 +33439,7 @@ export type GetUsersByIdWorkspacesData = {
 
 export type GetUsersByIdWorkspacesErrors = {
     /**
-     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     * Bad Request - invalid coworker context headers (this route needs no `X-Context-Organization-Id`)
      */
     400: {
         error: string;

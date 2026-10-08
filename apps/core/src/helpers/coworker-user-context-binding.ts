@@ -224,7 +224,6 @@ export async function filterAuthorizedOrganizationIds(
 export async function listAuthorizedUserWorkspaces(
   authContext: AuthenticationContext,
   userId: string,
-  tx: Prisma.TransactionClient = prisma,
 ): Promise<UserWorkspaces> {
   const listed = await listUserWorkspaces(userId);
   if (authContext.actor !== "coworker") {
@@ -235,7 +234,6 @@ export async function listAuthorizedUserWorkspaces(
     authContext,
     userId,
     listed.workspaces.map((workspace) => workspace.id),
-    tx,
   );
   const workspaces = listed.workspaces.filter((workspace) =>
     authorized.has(workspace.id),
