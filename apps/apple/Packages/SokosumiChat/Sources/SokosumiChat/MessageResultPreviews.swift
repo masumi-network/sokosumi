@@ -182,6 +182,9 @@ public struct ResultPreviewCard: Equatable, Sendable {
   public let taskId: String?
   /// What a `project_selection` card offers, in Core's order (by name); empty for every other kind.
   public let projectOptions: [ProjectOption]
+  /// The approval this card asks for (row 38h2): web draws `DecisionCard` instead of the generic card whenever Core
+  /// sends one, which it does for a `decision` result, re-read for each viewer.
+  public let decision: SokoBotDecision?
 
   public init(_ result: Components.Schemas.ChatResultAvailable, webBaseURL: URL) {
     id = result.id
@@ -212,6 +215,7 @@ public struct ResultPreviewCard: Equatable, Sendable {
     // Web: an available `task` result that carries its `task` object.
     taskId = result.kind == .task ? result.task?.id : nil
     projectOptions = (result.projectOptions ?? []).map { .init(id: $0.id, mark: .init(name: $0.name, logoURL: $0.logo.nonEmpty)) }
+    decision = result.decision.map(SokoBotDecision.init)
   }
 
   /// `SokosumiJobStatus`: the statuses web's `JobStatusBadge` labels; any other job status gets the generic chip.

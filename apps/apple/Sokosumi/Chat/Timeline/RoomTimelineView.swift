@@ -92,6 +92,11 @@ import SwiftUI
       { previewId, projectId in try await workspaces.selectProject(projectId, preview: previewId, question: message, auth: auth) }
     }
 
+    /// Row 38h2: Approve or Reject on a decision card resolves the owner's decision.
+    private var resolveDecisionAction: (String, SokoBotDecision.Resolution) async throws -> Void {
+      { decisionId, resolution in try await workspaces.resolveSokoBotDecision(decisionId, resolution, auth: auth) }
+    }
+
     private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
       guard workspaces.canSendToSelf(message) else { return nil }
       return { try await workspaces.sendMessageToSelf(message, auth: auth) }
@@ -314,6 +319,7 @@ import SwiftUI
                                  onSokoBotFeedback: sokoBotFeedbackAction(for: message),
                                  loadResultPreviews: resultPreviewsAction(for: message),
                                  selectProject: selectProjectAction(for: message),
+                                 resolveDecision: resolveDecisionAction,
                                  horizontalInset: 12,
                                  streamThinking: isCoworkerStreamOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
                                  newestEndsInAttachment: message.id == newestMessageId && MessageMarkdown.endsWithAttachmentRun(message.content),

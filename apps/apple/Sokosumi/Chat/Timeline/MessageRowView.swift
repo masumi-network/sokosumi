@@ -79,6 +79,8 @@ import SwiftUI
     var loadResultPreviews: (() async throws -> [Components.Schemas.ChatResultPreview])?
     /// Answers a project question among those cards (row 38h1): the card's id and the picked project's.
     var selectProject: ((String, String) async throws -> Void)?
+    /// Accepts or rejects a decision among those cards (row 38h2): the decision's id and the resolution.
+    var resolveDecision: ((String, SokoBotDecision.Resolution) async throws -> Void)?
     var horizontalInset: CGFloat = 0
     var streamThinking = false
     /// The room transcript's newest message, whose body ends in a run of files (row 31b3, web
@@ -334,7 +336,8 @@ import SwiftUI
                 .id(preview.url + (preview.imageUrl ?? ""))
             }
             if let loadResultPreviews, !resultPreviewIds.isEmpty {
-              MessageResultPreviewsView(descriptorIds: resultPreviewIds, footer: sokoBotFooter, load: loadResultPreviews, select: selectProject)
+              MessageResultPreviewsView(descriptorIds: resultPreviewIds, footer: sokoBotFooter, load: loadResultPreviews, select: selectProject,
+                                        resolveDecision: resolveDecision)
             } else if let sokoBotFooter {
               SokoBotMessageFooterView(turn: sokoBotFooter)
             }
