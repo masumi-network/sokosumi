@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, useQueryStates } from "nuqs";
 import { useRef, useState } from "react";
+import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -366,13 +367,20 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 space-y-1">
-                    <h4 className="break-words font-medium">
-                      {account.displayName ??
-                        account.externalHandle ??
-                        SOCIAL_PROVIDERS.find(
-                          (provider) => provider.id === account.provider,
-                        )?.name ??
-                        account.provider}
+                    <h4 className="flex items-center gap-2 font-medium">
+                      <SocialPostProviderIcon
+                        provider={account.provider}
+                        className="size-5 shrink-0"
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0 break-words">
+                        {account.displayName ??
+                          account.externalHandle ??
+                          SOCIAL_PROVIDERS.find(
+                            (provider) => provider.id === account.provider,
+                          )?.name ??
+                          account.provider}
+                      </span>
                     </h4>
                     <p className="text-muted-foreground text-xs">
                       {SOCIAL_PROVIDERS.find(
