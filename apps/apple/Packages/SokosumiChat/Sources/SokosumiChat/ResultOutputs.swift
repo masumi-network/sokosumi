@@ -141,9 +141,16 @@ public extension ResultPreviewCard.Output {
     let mimeType = contentType?.split(separator: ";", maxSplits: 1).first?.trimmingCharacters(in: .whitespaces).lowercased()
     guard let type = mimeType.flatMap({ UTType(mimeType: $0) }), let preferred = type.preferredFilenameExtension else { return base }
     let current = (base as NSString).pathExtension
-    if !current.isEmpty, let named = UTType(filenameExtension: current), named.conforms(to: type) || type.conforms(to: named) {
+    if !current.isEmpty, let named = UTType(filenameExtension: current),
+       named.conforms(to: type) || type.conforms(to: named) || (named.isDeclared && Self.sameKind(named, type)) {
       return base
     }
     return "\(base).\(preferred)"
+  }
+
+  /// Both an image, both audio or video, or both text: `clip.ogg` (`org.xiph.ogg-audio`) typed `video/ogg`
+  /// (`org.xiph.ogv`) is still a media file and keeps its name.
+  private static func sameKind(_ first: UTType, _ second: UTType) -> Bool {
+    [UTType.image, .audiovisualContent, .text].contains { first.conforms(to: $0) && second.conforms(to: $0) }
   }
 }

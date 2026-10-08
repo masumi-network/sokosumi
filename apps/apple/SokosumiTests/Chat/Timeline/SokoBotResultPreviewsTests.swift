@@ -1,5 +1,6 @@
 #if os(macOS)
   import AppKit
+  import AVKit
   import CoreAPI
   import HTTPTypes
   import OpenAPIRuntime
@@ -59,7 +60,7 @@
       if let failure {
         throw failure
       }
-      let bytes = fileName.hasSuffix(".png") ? image : Data("fixture \(fileName)".utf8)
+      let bytes = fileName.hasSuffix(".png") ? image : fileName.hasSuffix(".wav") ? Self.wave : Data("fixture \(fileName)".utf8)
       let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: OutputBytesTransport(bytes: bytes))
       let file = try await ChatService().resultOutput(client: client, source: source, fileName: fileName, organizationSlug: nil)
       answered += 1
@@ -69,6 +70,29 @@
     func preview(_ file: ResultOutputFile) {
       previewed.append(file.url.lastPathComponent)
     }
+
+    /// A quarter second of 8 kHz 16-bit mono silence as a WAV file, which AVFoundation can play.
+    private static let wave: Data = {
+      let samples = 2000
+      var data = Data()
+      func append(_ value: some FixedWidthInteger) {
+        withUnsafeBytes(of: value.littleEndian) { data.append(contentsOf: $0) }
+      }
+      data.append(contentsOf: Array("RIFF".utf8))
+      append(UInt32(36 + samples * 2))
+      data.append(contentsOf: Array("WAVEfmt ".utf8))
+      append(UInt32(16))
+      append(UInt16(1))
+      append(UInt16(1))
+      append(UInt32(8000))
+      append(UInt32(16000))
+      append(UInt16(2))
+      append(UInt16(16))
+      data.append(contentsOf: Array("data".utf8))
+      append(UInt32(samples * 2))
+      data.append(Data(count: samples * 2))
+      return data
+    }()
 
     func save(_ file: ResultOutputFile) async throws {
       saved.append(file.url.lastPathComponent)
@@ -314,7 +338,7 @@
                 downloadHref: job("blob-2") + "?download=true"),
           .init(name: "report.pdf", contentType: "application/pdf", sizeBytes: 20480, openHref: job("blob-1"), previewHref: job("blob-1"),
                 downloadHref: job("blob-1") + "?download=true"),
-          .init(name: "briefing.m4a", contentType: "audio/mp4", sizeBytes: 512_000, openHref: job("blob-3"), previewHref: job("blob-3"),
+          .init(name: "briefing.wav", contentType: "audio/wav", sizeBytes: 512_000, openHref: job("blob-3"), previewHref: job("blob-3"),
                 downloadHref: job("blob-3") + "?download=true"),
           .init(name: "data.csv", contentType: "text/csv", sizeBytes: 300, openHref: job("blob-4"), previewHref: job("blob-4"),
                 downloadHref: job("blob-4") + "?download=true")
@@ -370,7 +394,7 @@
         let download = try #require(await Self.nodes(labelled: "Download report.pdf", in: host).first)
         #expect(download.press())
         try await Self.until { recorder.saved == ["report.pdf"] }
-        let play = try #require(await Self.nodes(labelled: "Play briefing.m4a", in: host).first)
+        let play = try #require(await Self.nodes(labelled: "Play briefing.wav", in: host).first)
         #expect(play.press())
         try await Self.until { recorder.loads.count == 5 }
         #expect(recorder.loads == [
@@ -381,8 +405,37 @@
         // The loaded file plays in the native player, which replaces the Play button.
         try await Self.until { recorder.answered == 5 }
         await Self.settle(host)
-        #expect(await Self.nodes(labelled: "Play briefing.m4a", in: host).isEmpty)
+        #expect(await Self.nodes(labelled: "Play briefing.wav", in: host).isEmpty)
+        #expect(Self.hostsPlayer(host))
         #expect(opened.isEmpty, "\(opened)")
+      }
+
+      /// Web lets the browser try a WebM or Ogg video; AVFoundation cannot play one, so after Play the chip says
+      /// "Preview unavailable", hosts no player and keeps Download.
+      @Test func aVideoTheMacCannotPlaySaysSo() async throws {
+        let recorder = OutputRecorder(image: Self.chartImage)
+        let card = ResultPreviewCardView(item: .available(ResultPreviewCard(.init(
+          id: Self.outputs, state: .available, capturedAt: Self.created, kind: .job, title: "Screen recording", status: "completed",
+          sourceHref: "/agents/ag-1/jobs/job-1",
+          outputs: [.init(name: "clip.webm", contentType: "video/webm", sizeBytes: 90000, openHref: Self.job("blob-5"),
+                          previewHref: Self.job("blob-5"), downloadHref: Self.job("blob-5") + "?download=true")]
+        ), webBaseURL: CoreSettings.webBaseURL)))
+          .environment(\.resultOutputLoader, recorder)
+          .environment(\.resultOutputPresenter, recorder)
+        let (window, host) = Self.window(card.padding(12), size: NSSize(width: 620, height: 480))
+        defer { window.orderOut(nil) }
+        _ = try await Self.waitForText("Screen recording", in: host)
+        let play = try #require(await Self.nodes(labelled: "Play clip.webm", in: host).first)
+        #expect(play.press())
+        try await Self.until { recorder.answered == 1 }
+        _ = try await Self.waitForText("Preview unavailable", in: host)
+        #expect(!Self.hostsPlayer(host))
+        #expect(await !(Self.nodes(labelled: "Download clip.webm", in: host)).isEmpty)
+      }
+
+      /// Whether an `AVPlayerView` sits anywhere under `view`.
+      private static func hostsPlayer(_ view: NSView) -> Bool {
+        view is AVPlayerView || view.subviews.contains(where: hostsPlayer)
       }
 
       /// A Drive file's row opens its page on web (Core's `openHref` is a page, not bytes); its Download saves in the app.

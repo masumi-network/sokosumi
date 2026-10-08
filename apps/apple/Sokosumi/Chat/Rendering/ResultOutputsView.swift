@@ -303,20 +303,24 @@ private struct ResultOutputMedia: View {
       Group {
         if let player {
           ResultOutputPlayer(player: player)
+        } else if failed {
+          // Not a button any more: the file could not be loaded or the Mac cannot play it; Download stays below.
+          ZStack {
+            RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.08))
+            Label {
+              Text("Preview unavailable", tableName: chatResultsTable,
+                   comment: "A result output's image or player when its file could not be loaded.")
+            } icon: {
+              Image(systemName: video ? "film" : "waveform")
+            }
+            .foregroundStyle(.secondary)
+          }
         } else {
           Button { loading = true } label: {
             ZStack {
               RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.08))
               if loading {
                 ProgressView().controlSize(.small)
-              } else if failed {
-                Label {
-                  Text("Preview unavailable", tableName: chatResultsTable,
-                       comment: "A result output's image or player when its file could not be loaded.")
-                } icon: {
-                  Image(systemName: video ? "film" : "waveform")
-                }
-                .foregroundStyle(.secondary)
               } else {
                 Image(systemName: "play.circle.fill").font(.largeTitle)
               }
@@ -341,6 +345,12 @@ private struct ResultOutputMedia: View {
       do {
         let loaded = try await loader.file(source, named: output.fileName)
         guard !Task.isCancelled else { return }
+        // Web lets the browser try any type; AVFoundation plays no WebM and no Ogg video, and an unplayable file says so
+        // here while its Download still saves it.
+        guard try await AVURLAsset(url: loaded.url).load(.isPlayable), !Task.isCancelled else {
+          failed = !Task.isCancelled
+          return
+        }
         file = loaded
         failed = false
         let created = AVPlayer(url: loaded.url)

@@ -123,6 +123,18 @@ private enum OutputFixture {
     #expect(ResultPreviewCard.Output.fileName(name: String(repeating: "x", count: 500), contentType: "image/png").count == 204)
   }
 
+  /// A name whose own extension is a declared type of the same kind as the content type keeps it (`video/ogg` is
+  /// `org.xiph.ogv`, `.ogg` is `org.xiph.ogg-audio`: both media, neither conforms to the other). A prompt or a name
+  /// whose extension is another kind still gains the type's extension.
+  @Test func aNameKeepsItsOwnExtensionOfTheSameKind() {
+    #expect(ResultPreviewCard.Output.fileName(name: "clip.ogg", contentType: "video/ogg") == "clip.ogg")
+    #expect(ResultPreviewCard.Output.fileName(name: "photo.jpg", contentType: "image/png") == "photo.jpg")
+    #expect(ResultPreviewCard.Output.fileName(name: "notes.txt", contentType: "text/markdown") == "notes.txt")
+    #expect(ResultPreviewCard.Output.fileName(name: "Golden hour. Sunset", contentType: "image/png") == "Golden hour. Sunset.png")
+    #expect(ResultPreviewCard.Output.fileName(name: "chart.pdf", contentType: "image/png") == "chart.pdf.png")
+    #expect(ResultPreviewCard.Output.fileName(name: "Version 1.5", contentType: "video/mp4") == "Version 1.5.mp4")
+  }
+
   // MARK: Loading
 
   /// Each operation is called with its path and query and the workspace's slug, and its bytes land in a named file.
