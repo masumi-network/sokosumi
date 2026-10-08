@@ -7,8 +7,8 @@ let resultCardMaxWidth: CGFloat = 576
 /// Web's `max-w-sm` for a result drawn as a Task card (row 38f).
 private let taskResultCardMaxWidth: CGFloat = 384
 
-/// Web `ResultPreviewCard`: the project picker, the decision card, the generic card, or the locked one for a result
-/// this viewer may not see.
+/// Web `ResultPreviewCard`: the project picker, the decision card, the social post preview, the generic card, or the
+/// locked one for a result this viewer may not see.
 struct ResultPreviewCardView: View {
   let item: ResultPreviewItem
   /// Answers a `project_selection` card: the card's id and the picked project's (row 38h1).
@@ -24,6 +24,10 @@ struct ResultPreviewCardView: View {
       } else if let decision = card.decision {
         // Web draws the decision in place of the generic card, without its title, status or source link.
         DecisionCardView(decision: decision, resolve: resolveDecision.map { resolve in { try await resolve(decision.id, $0) } })
+      } else if let social = card.social {
+        // Web draws the post as its network shows it in place of the whole card: no header, status, question, outputs,
+        // recorded time or source link (row 38g).
+        ResultSocialPostView(post: social)
       } else {
         GenericResultCard(card: card)
       }

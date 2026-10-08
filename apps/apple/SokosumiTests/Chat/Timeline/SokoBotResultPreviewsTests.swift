@@ -39,9 +39,9 @@
     }
   }
 
-  /// Row 38e2: stands in for the coordinator (which loads) and for Quick Look and the save panel (which present), and
+  /// Rows 38e2 and 38g: stands in for the coordinator (which loads) and for Quick Look and the save panel (which present), and
   /// records what each was asked.
-  @MainActor private final class OutputRecorder: ResultOutputLoading, ResultOutputPresenting {
+  @MainActor final class OutputRecorder: ResultOutputLoading, ResultOutputPresenting {
     private(set) var loads: [ResultOutputSource] = []
     private(set) var previewed: [String] = []
     private(set) var saved: [String] = []
@@ -146,7 +146,7 @@
       }
 
       /// A solid rectangle with a light disc in its middle, as PNG bytes.
-      private static func fixturePNG(width: Int, height: Int, red: CGFloat, green: CGFloat, blue: CGFloat) -> Data? {
+      static func fixturePNG(width: Int, height: Int, red: CGFloat, green: CGFloat, blue: CGFloat) -> Data? {
         guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                       space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         context.setFillColor(CGColor(red: red, green: green, blue: blue, alpha: 1))
