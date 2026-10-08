@@ -169,6 +169,54 @@
         }
       }
     },
+    "Could not download file" : {
+      "comment" : "Alert title when a result output could not be downloaded or saved.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not download file"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datei konnte nicht heruntergeladen werden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo descargar el archivo"
+          }
+        }
+      }
+    },
+    "Could not open file" : {
+      "comment" : "Alert title when a result output could not be loaded for Quick Look.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not open file"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datei konnte nicht geöffnet werden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo abrir el archivo"
+          }
+        }
+      }
+    },
     "Could not send your choice. Please try again." : {
       "comment" : "When the chosen project could not be sent to the Soko Bot.",
       "extractionState" : "manual",
@@ -357,6 +405,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abrir origen: %@"
+          }
+        }
+      }
+    },
+    "Play %@" : {
+      "comment" : "Accessibility label of a result output's audio or video before it plays. Argument: the file name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ abspielen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducir %@"
+          }
+        }
+      }
+    },
+    "Preview unavailable" : {
+      "comment" : "A result output's image or player when its file could not be loaded.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preview unavailable"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorschau nicht verfügbar"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vista previa no disponible"
           }
         }
       }
@@ -717,6 +813,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Programación de tarea"
+          }
+        }
+      }
+    },
+    "View document %@" : {
+      "comment" : "Accessibility label of a result output's PDF or text tile. Argument: the file name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View document %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dokument ansehen %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ver documento %@"
+          }
+        }
+      }
+    },
+    "View image %@" : {
+      "comment" : "Accessibility label of a result output's image. Argument: the file name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View image %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bild ansehen %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ver imagen %@"
           }
         }
       }

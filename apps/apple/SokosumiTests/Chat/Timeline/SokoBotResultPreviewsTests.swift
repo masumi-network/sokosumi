@@ -1,6 +1,7 @@
 #if os(macOS)
   import AppKit
   import CoreAPI
+  import HTTPTypes
   import OpenAPIRuntime
   @testable import Sokosumi
   import SokosumiChat
@@ -27,6 +28,52 @@
   }
 
   private struct ResultsUnavailable: Error {}
+
+  /// Core's content operation answering with fixed bytes, so the stub loader below returns a real `ResultOutputFile`.
+  private struct OutputBytesTransport: ClientTransport {
+    let bytes: Data
+
+    func send(_: HTTPRequest, body _: HTTPBody?, baseURL _: URL, operationID _: String) async throws -> (HTTPResponse, HTTPBody?) {
+      (HTTPResponse(status: .ok), HTTPBody(bytes))
+    }
+  }
+
+  /// Row 38e2: stands in for the coordinator (which loads) and for Quick Look and the save panel (which present), and
+  /// records what each was asked.
+  @MainActor private final class OutputRecorder: ResultOutputLoading, ResultOutputPresenting {
+    private(set) var loads: [ResultOutputSource] = []
+    private(set) var previewed: [String] = []
+    private(set) var saved: [String] = []
+    /// Loads that handed back a file.
+    private(set) var answered = 0
+    /// When set, every load fails with it.
+    var failure: (any Error)?
+    let image: Data
+
+    init(image: Data) {
+      self.image = image
+    }
+
+    func file(_ source: ResultOutputSource, named fileName: String) async throws -> ResultOutputFile {
+      loads.append(source)
+      if let failure {
+        throw failure
+      }
+      let bytes = fileName.hasSuffix(".png") ? image : Data("fixture \(fileName)".utf8)
+      let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: OutputBytesTransport(bytes: bytes))
+      let file = try await ChatService().resultOutput(client: client, source: source, fileName: fileName, organizationSlug: nil)
+      answered += 1
+      return file
+    }
+
+    func preview(_ file: ResultOutputFile) {
+      previewed.append(file.url.lastPathComponent)
+    }
+
+    func save(_ file: ResultOutputFile) async throws {
+      saved.append(file.url.lastPathComponent)
+    }
+  }
 
   /// One of SwiftUI's accessibility nodes, pressed the way VoiceOver presses it.
   struct ResultsNode {
@@ -70,18 +117,20 @@
       /// A solid square written once per run, so a card's avatar and logo load from a local file as from Core's URLs.
       private static func fixtureImage(_ name: String, red: CGFloat, green: CGFloat, blue: CGFloat) -> String {
         let url = FileManager.default.temporaryDirectory.appending(path: "result-card-\(name)-\(ProcessInfo.processInfo.processIdentifier).png")
-        let size = 64
-        if let context = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
-                                   space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
-          context.setFillColor(CGColor(red: red, green: green, blue: blue, alpha: 1))
-          context.fill(CGRect(x: 0, y: 0, width: size, height: size))
-          context.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 0.85))
-          context.fillEllipse(in: CGRect(x: 20, y: 20, width: 24, height: 24))
-          if let image = context.makeImage() {
-            try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: url)
-          }
-        }
+        try? fixturePNG(width: 64, height: 64, red: red, green: green, blue: blue)?.write(to: url)
         return url.absoluteString
+      }
+
+      /// A solid rectangle with a light disc in its middle, as PNG bytes.
+      private static func fixturePNG(width: Int, height: Int, red: CGFloat, green: CGFloat, blue: CGFloat) -> Data? {
+        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        context.setFillColor(CGColor(red: red, green: green, blue: blue, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        context.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 0.85))
+        let disc = CGFloat(min(width, height)) * 3 / 8
+        context.fillEllipse(in: CGRect(x: (CGFloat(width) - disc) / 2, y: (CGFloat(height) - disc) / 2, width: disc, height: disc))
+        return context.makeImage().flatMap { NSBitmapImageRep(cgImage: $0).representation(using: .png, properties: [:]) }
       }
 
       private static let actorImage = fixtureImage("actor", red: 0.85, green: 0.45, blue: 0.2)
@@ -243,6 +292,181 @@
         try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "soko-bot-result-previews.png")
       }
 
+      // MARK: Protected outputs (row 38e2)
+
+      private static let outputs = "7d1f0c2a-0000-4000-8000-000000000005"
+      private static let driveCard = "7d1f0c2a-0000-4000-8000-000000000006"
+      private static let studio = "7d1f0c2a-0000-4000-8000-000000000007"
+      private static let driveFile = "8a2e0d3b-0000-4000-8000-000000000021"
+      private static let studioImage = fixturePNG(width: 320, height: 200, red: 0.85, green: 0.45, blue: 0.2) ?? Data()
+      private static let chartImage = fixturePNG(width: 120, height: 120, red: 0.2, green: 0.45, blue: 0.75) ?? Data()
+
+      private static func job(_ blob: String) -> String {
+        "/api/jobs/job-1/files/\(blob)/content"
+      }
+
+      /// A job with an image, a PDF, an audio file and a CSV: three draw inline, the CSV is a row; each has Download.
+      private static let outputsCard = ResultPreviewCard(.init(
+        id: outputs, state: .available, capturedAt: created, kind: .job, title: "Market scan", status: "completed",
+        summary: "Three competitors raised prices this quarter.", sourceHref: "/agents/ag-1/jobs/job-1", assignee: "Scout",
+        outputs: [
+          .init(name: "chart.png", contentType: "image/png", sizeBytes: 4096, openHref: job("blob-2"), previewHref: job("blob-2"),
+                downloadHref: job("blob-2") + "?download=true"),
+          .init(name: "report.pdf", contentType: "application/pdf", sizeBytes: 20480, openHref: job("blob-1"), previewHref: job("blob-1"),
+                downloadHref: job("blob-1") + "?download=true"),
+          .init(name: "briefing.m4a", contentType: "audio/mp4", sizeBytes: 512_000, openHref: job("blob-3"), previewHref: job("blob-3"),
+                downloadHref: job("blob-3") + "?download=true"),
+          .init(name: "data.csv", contentType: "text/csv", sizeBytes: 300, openHref: job("blob-4"), previewHref: job("blob-4"),
+                downloadHref: job("blob-4") + "?download=true")
+        ],
+        agent: .init(name: "Scout", icon: nil)
+      ), webBaseURL: CoreSettings.webBaseURL)
+
+      /// A Drive file Office cannot preview inline: its row opens the Drive page on web, its Download saves in the app.
+      private static let driveFileCard = ResultPreviewCard(.init(
+        id: driveCard, state: .available, capturedAt: created, kind: .file, title: "plan.docx",
+        sourceHref: "/drive/files/\(driveFile)?scope=me",
+        outputs: [.init(name: "plan.docx", contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        sizeBytes: 9000, openHref: "/drive/files/\(driveFile)?scope=me",
+                        previewHref: "/api/drive/files/\(driveFile)/content?scope=me",
+                        downloadHref: "/api/drive/files/\(driveFile)/content?scope=me&download=true")]
+      ), webBaseURL: CoreSettings.webBaseURL)
+
+      /// A Studio generation: its image is a large preview in the first of two columns, and has no Download.
+      private static let studioCard = ResultPreviewCard(.init(
+        id: studio, state: .available, capturedAt: created, kind: .studioJob, title: "A red fox at dawn", status: "SUCCEEDED",
+        summary: "A red fox at dawn", sourceHref: "/studio?projectId=p1&v=a1",
+        outputs: [.init(name: "A red fox at dawn", contentType: "image/png", sizeBytes: 182_000, openHref: "/studio?projectId=p1&v=a1",
+                        previewHref: "/api/projects/p1/image-studio/assets/a1/content")]
+      ), webBaseURL: CoreSettings.webBaseURL)
+
+      /// Web draws the image, PDF and audio inline and the CSV as a row; Apple loads each through Core with the
+      /// session, previews it in Quick Look and saves Download through the save panel. Only the image loads by itself.
+      @Test func outputsDrawInlineAndOpenInTheApp() async throws {
+        let recorder = OutputRecorder(image: Self.chartImage)
+        var opened: [URL] = []
+        let card = ResultPreviewCardView(item: .available(Self.outputsCard))
+          .environment(\.resultOutputLoader, recorder)
+          .environment(\.resultOutputPresenter, recorder)
+          .environment(\.openURL, OpenURLAction { opened.append($0)
+            return .handled
+          })
+        let (window, host) = Self.window(card.padding(12), size: NSSize(width: 620, height: 640))
+        defer { window.orderOut(nil) }
+        _ = try await Self.waitForText("Market scan", in: host)
+        try await Self.until { recorder.answered == 1 }
+        await Self.settle(host)
+        #expect(recorder.loads == [.jobFile(jobId: "job-1", fileId: "blob-2", download: false)])
+
+        let image = try #require(await Self.nodes(labelled: "View image chart.png", in: host).first)
+        #expect(image.press())
+        try await Self.until { recorder.previewed == ["chart.png"] }
+        let document = try #require(await Self.nodes(labelled: "View document report.pdf", in: host).first)
+        #expect(document.press())
+        try await Self.until { recorder.previewed == ["chart.png", "report.pdf"] }
+        let row = try #require(await Self.nodes(containing: "data.csv · text/csv · 300 bytes", in: host).first)
+        #expect(row.press())
+        try await Self.until { recorder.previewed == ["chart.png", "report.pdf", "data.csv"] }
+        let download = try #require(await Self.nodes(labelled: "Download report.pdf", in: host).first)
+        #expect(download.press())
+        try await Self.until { recorder.saved == ["report.pdf"] }
+        let play = try #require(await Self.nodes(labelled: "Play briefing.m4a", in: host).first)
+        #expect(play.press())
+        try await Self.until { recorder.loads.count == 5 }
+        #expect(recorder.loads == [
+          .jobFile(jobId: "job-1", fileId: "blob-2", download: false), .jobFile(jobId: "job-1", fileId: "blob-1", download: false),
+          .jobFile(jobId: "job-1", fileId: "blob-4", download: false), .jobFile(jobId: "job-1", fileId: "blob-1", download: true),
+          .jobFile(jobId: "job-1", fileId: "blob-3", download: false)
+        ])
+        // The loaded file plays in the native player, which replaces the Play button.
+        try await Self.until { recorder.answered == 5 }
+        await Self.settle(host)
+        #expect(await Self.nodes(labelled: "Play briefing.m4a", in: host).isEmpty)
+        #expect(opened.isEmpty, "\(opened)")
+      }
+
+      /// A Drive file's row opens its page on web (Core's `openHref` is a page, not bytes); its Download saves in the app.
+      @Test func aDriveFilesPageStaysOnWebAndItsDownloadSaves() async throws {
+        let recorder = OutputRecorder(image: Self.chartImage)
+        var opened: [URL] = []
+        let card = ResultPreviewCardView(item: .available(Self.driveFileCard))
+          .environment(\.resultOutputLoader, recorder)
+          .environment(\.resultOutputPresenter, recorder)
+          .environment(\.openURL, OpenURLAction { opened.append($0)
+            return .handled
+          })
+        let (window, host) = Self.window(card.padding(12), size: NSSize(width: 620, height: 300))
+        defer { window.orderOut(nil) }
+        _ = try await Self.waitForText("plan.docx", in: host)
+        let row = try #require(await Self.nodes(containing: "plan.docx · application/vnd", in: host).first)
+        #expect(row.press())
+        await Self.settle(host)
+        #expect(opened == [Self.web("/drive/files/\(Self.driveFile)?scope=me")])
+        #expect(recorder.loads.isEmpty)
+        let download = try #require(await Self.nodes(labelled: "Download plan.docx", in: host).first)
+        #expect(download.press())
+        try await Self.until { recorder.saved == ["plan.docx"] }
+        #expect(recorder.loads == [.driveFile(id: Self.driveFile, scope: .personal, organizationId: nil, download: true)])
+      }
+
+      /// A load Core refuses (403/404/503) says so with Core's message instead of failing silently.
+      @Test func aRefusedDownloadSaysSo() async throws {
+        let recorder = OutputRecorder(image: Self.chartImage)
+        recorder.failure = ChatServiceError.unprocessable(statusCode: 404, message: "Output unavailable")
+        let card = ResultPreviewCardView(item: .available(Self.driveFileCard))
+          .environment(\.resultOutputLoader, recorder)
+          .environment(\.resultOutputPresenter, recorder)
+        let (window, host) = Self.window(card.padding(12), size: NSSize(width: 620, height: 300))
+        defer { window.orderOut(nil) }
+        _ = try await Self.waitForText("plan.docx", in: host)
+        let download = try #require(await Self.nodes(labelled: "Download plan.docx", in: host).first)
+        #expect(download.press())
+        try await Self.until { window.attachedSheet != nil }
+        let sheet = try #require(window.attachedSheet)
+        let texts = try await hostedTexts(in: #require(sheet.contentView))
+        #expect(texts.contains("Could not download file") && texts.contains("Output unavailable"), "\(texts)")
+        #expect(recorder.saved.isEmpty)
+        window.endSheet(sheet)
+      }
+
+      /// Light beside dark: a job's image thumbnail, PDF tile, audio player, CSV row and Downloads, then a Studio
+      /// generation's large image, each hosted over the window background.
+      @Test func rendersTheProtectedOutputs() async throws {
+        var columns: [[CGImage]] = []
+        for dark in [false, true] {
+          let recorder = OutputRecorder(image: Self.chartImage)
+          let studioRecorder = OutputRecorder(image: Self.studioImage)
+          let content = VStack(alignment: .leading, spacing: 12) {
+            ResultPreviewCardView(item: .available(Self.outputsCard))
+              .environment(\.resultOutputLoader, recorder)
+            ResultPreviewCardView(item: .available(Self.studioCard))
+              .environment(\.resultOutputLoader, studioRecorder)
+          }
+          .padding(12)
+          try await columns.append([
+            Self.draw(content, size: NSSize(width: 640, height: 1000), dark: dark, until: "A red fox at dawn") {} ready: {
+              try await Self.until { recorder.loads.count == 1 && studioRecorder.loads.count == 1 }
+              // The loaded files still decode off the main thread.
+              try await Task.sleep(for: .milliseconds(600))
+            }
+          ])
+        }
+        let combined = try RoomHeaderTests.stitched(columns)
+        try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "soko-bot-result-outputs.png")
+      }
+
+      /// Polls until `condition` holds, failing after ten seconds.
+      private static func until(_ condition: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation) async throws {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(10))
+        while !condition() {
+          guard ContinuousClock.now < deadline else {
+            Issue.record("the condition never held", sourceLocation: sourceLocation)
+            return
+          }
+          try await Task.sleep(for: .milliseconds(25))
+        }
+      }
+
       // MARK: Helpers
 
       static func window(_ content: some View, size: NSSize) -> (NSWindow, NSView) {
@@ -254,7 +478,8 @@
         return (window, host)
       }
 
-      static func draw(_ content: some View, size: NSSize, dark: Bool, until text: String, poke: () -> Void = {}) async throws -> CGImage {
+      static func draw(_ content: some View, size: NSSize, dark: Bool, until text: String, poke: () -> Void = {},
+                       ready: @MainActor () async throws -> Void = {}) async throws -> CGImage {
         let host = NSHostingView(rootView: content
           .frame(width: size.width, height: size.height, alignment: .topLeading)
           .background(.background)
@@ -269,6 +494,7 @@
         await settle(host)
         poke()
         _ = try await waitForText(text, in: host)
+        try await ready()
         await settle(host)
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)

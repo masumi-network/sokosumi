@@ -126,14 +126,40 @@ public struct ResultPreviewCard: Equatable, Sendable {
     }
   }
 
-  /// A file the result produced. Until row 38e2 every output is a row that opens on web.
+  /// A file the result produced (row 38e2). Web draws it inline when it has a `previewHref` it can classify, else a row
+  /// opening `openHref`, with Download for `downloadHref`. The app loads each href that names a Core content operation
+  /// itself; an href that does not (a web page) keeps its web link.
   public struct Output: Equatable, Identifiable, Sendable {
     public let id: String
     public let name: String
     public let contentType: String?
     public let sizeBytes: Int?
+    /// How web draws it inline; nil for a row. Only when the app can load its `previewHref`.
+    public let preview: ResultOutputPreview?
+    public let previewSource: ResultOutputSource?
+    public let openSource: ResultOutputSource?
+    public let downloadSource: ResultOutputSource?
+    /// The web page or route for whatever the app cannot load itself.
     public let openURL: URL?
     public let downloadURL: URL?
+    /// The loaded file's name.
+    public let fileName: String
+
+    init(_ output: Components.Schemas.ChatResultOutput, index: Int, webBaseURL: URL) {
+      id = "\(output.openHref)-\(index)"
+      name = output.name
+      contentType = output.contentType.nonEmpty
+      sizeBytes = output.sizeBytes.flatMap { $0.isFinite && $0 >= 0 ? Int($0) : nil }
+      previewSource = output.previewHref.flatMap(ResultOutputSource.init(href:))
+      preview = previewSource == nil ? nil : output.previewHref.flatMap {
+        ResultOutputPreview(href: $0, name: output.name, contentType: output.contentType)
+      }
+      openSource = ResultOutputSource(href: output.openHref)
+      downloadSource = output.downloadHref.flatMap(ResultOutputSource.init(href:))
+      openURL = MessageResultPreviews.webURL(forLocalHref: output.openHref, webBaseURL: webBaseURL)
+      downloadURL = output.downloadHref.flatMap { MessageResultPreviews.webURL(forLocalHref: $0, webBaseURL: webBaseURL) }
+      fileName = Self.fileName(name: output.name, contentType: output.contentType)
+    }
   }
 
   public let id: String
@@ -176,14 +202,7 @@ public struct ResultPreviewCard: Equatable, Sendable {
       result.recurrence.nonEmpty.map(Detail.recurrence)
     ].compactMap(\.self)
     outputs = (result.outputs ?? []).enumerated().map { index, output in
-      Output(
-        id: "\(output.openHref)-\(index)",
-        name: output.name,
-        contentType: output.contentType.nonEmpty,
-        sizeBytes: output.sizeBytes.flatMap { $0.isFinite && $0 >= 0 ? Int($0) : nil },
-        openURL: MessageResultPreviews.webURL(forLocalHref: output.openHref, webBaseURL: webBaseURL),
-        downloadURL: output.downloadHref.flatMap { MessageResultPreviews.webURL(forLocalHref: $0, webBaseURL: webBaseURL) }
-      )
+      Output(output, index: index, webBaseURL: webBaseURL)
     }
     capturedAt = result.capturedAt
     sourceURL = MessageResultPreviews.webURL(forLocalHref: result.sourceHref, webBaseURL: webBaseURL)
