@@ -648,17 +648,19 @@ struct ConversationSidebarView: View {
 
   /// Web's Threads entry (`ChatUnreadNavRows`, SOK-1159): opens the chat-level Threads view in the detail
   /// column. It carries the one number a room row does, from the rooms alone: the mention badge where an
-  /// unread Thread names the reader, the muted count of unread Threads otherwise, nothing at zero; bold
-  /// while any Thread is unread. VoiceOver hears web's words for both.
+  /// unread Thread names the reader, the muted count of unread Threads otherwise, nothing at zero. The label
+  /// is bold and full strength while any Thread is unread and muted at rest, like web's `THREADS_ROW_CLASS`.
+  /// VoiceOver hears web's words for both.
   private var threadsRow: some View {
     let attention = resolveUnreadThreadsAttention(workspaces.rooms)
     return Label {
       HStack(spacing: 6) {
         Text("Threads")
           .lineLimit(1)
-          .fontWeight(attention.threadCount > 0 ? .bold : .regular)
+          .fontWeight(attention.isUnread ? .bold : .regular)
+          .foregroundStyle(attention.isUnread ? .primary : .secondary)
         Spacer(minLength: 0)
-        if attention.mentionCount == 0, attention.threadCount > 0 {
+        if attention.mentionCount == 0, attention.isUnread {
           Text(roomCountLabel(attention.threadCount))
             .font(.caption.weight(.semibold)).monospacedDigit()
             .foregroundStyle(.secondary)

@@ -4599,3 +4599,38 @@ All from `apps/apple` on `6e9e3a042` plus this change (`origin/main` had not mov
 Unverified: the app was not launched against Core, so a live social post result from a Soko Bot turn (its real Drive media, an organization workspace's `scope=org`, a 403/404 media read), the Thread and the assistant's Direct in a running window, Quick Look on a real picture or video, VoiceOver and the German and Spanish strings on screen were not exercised. The running web UI was not exercised; the audit is source-based.
 
 How to test: in the assistant's Direct, in a workspace with the Social beta and a connected LinkedIn account, ask "draft a LinkedIn post announcing the autumn release with the launch picture from Drive". When the answer lands, the row shows the post as LinkedIn would: the account's photo and name, today's date with the globe, the text folded behind "…see more" if long, the picture, and Like, Comment, Repost, Send. Click "…see more": the whole text shows. Click the picture: Quick Look opens it. There is no "Social post" header, status, "Recorded" or "Open source".
+
+## 24f1 fix — the Threads row rests muted
+
+Reported 2026-10-08 by the user in the signed `apple-latest` build: the sidebar's Threads row looked unread (full-strength label and icon) while the Unreads filter said "All caught up". Branch `claude/apple-threads-row-rests-muted` on `origin/main` `8533fe9e3`.
+
+### Web (re-audited at `8533fe9e3`)
+
+- `ChatUnreadNavRows` ([chat-unread-nav-rows.tsx](<../web/src/components/chat/chat-unread-nav-rows.tsx>)): the row at rest is `THREADS_ROW_CLASS` (:56-58), `text-tertiary-foreground dark:text-muted-foreground`, for label and icon alike. `hasCount` is `threadCount > 0` (:148), from `resolveUnreadThreadsAttention` ([room-attention.ts](<../web/src/components/chat/room-attention.ts>) :221-244: unread Threads across unmuted rooms). Only the label span adds `text-foreground font-semibold` while `hasCount` (:188-194); the `MessagesSquare` icon (:179) never changes.
+- Mentions choose only the number (`RowCountMark`, :295-303: the `@` pill or the muted count) and the rail pill; they never change the label.
+- Selection: on `/chat/threads`, `isActive` (:223-225) gives `SidebarMenuButton`'s `data-[active=true]` fill, medium weight and accent foreground.
+
+### Cause
+
+`ConversationSidebarView.threadsRow` chose the label's weight from `threadCount` and never its colour, so the label drew the row's default — full strength in a key window — with nothing unread. 24f1's hosted fixture selected the row and rendered it in an inactive window, where the sidebar greys default text, so the renders showed a muted label. The counts were never wrong: the row and the Unreads filter read the same overlaid rooms, so "All caught up" always meant a zero count and a regular weight.
+
+### Fix
+
+`UnreadThreadsAttention.isUnread` (web's `hasCount`) in `SokosumiChat`; the row draws the label secondary at rest and bold `.primary` while a Thread is unread; the icon stays secondary. Recorded deviation: selected, the row takes the List's native selection, not web's medium weight.
+
+### Tests (red first, then green)
+
+- SokosumiChat, `UnreadThreadsAttentionTests.theThreadsEntryReadsUnreadOnlyWhileAThreadIsUnread` (new): no rooms, a read room and a muted room's Threads are not unread; one unread Thread, with or without a mention, is. Red: `value of type 'UnreadThreadsAttention' has no member 'isUnread'`.
+- App, `NativeWindowTests/CrossRoomThreadsViewTests.theThreadsRowRestsMutedWithNothingUnread(dark:)` (new): the sidebar unselected with `controlActiveState` key, as the reader's window is; at rest the Threads label's ink is fainter than the Unreads label's by more than 0.15, unread it matches. Red before the fix: light 0.354 = 0.354, dark 0.931 = 0.931. Vision reads text only locally, so on CI the test checks the fixture alone. `UnreadsFilterViewTests.ink` and `RecognizedLine` became internal for it.
+
+Render: [threads-row-rests-muted.png](docs/images/threads-row-rests-muted.png), half size; top before, bottom after; light then dark; each pair nothing unread, then three unread Threads.
+
+### Verification
+
+All from `apps/apple` on `8533fe9e3` plus this change:
+- `xcodebuild test -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -enableCodeCoverage NO` — **1,868 tests passed, 0 failed** (2,612 runs; CoreAPI 1, Auth 35, Chat 1,146, Realtime 57, Workspace 193, app 436).
+- `xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build` — **BUILD SUCCEEDED**, no warning in the changed files.
+- `swift build --package-path Packages/SokosumiWorkspace --triple arm64-apple-ios17.0 --sdk <iPhoneOS SDK> --scratch-path <scratch>` — **Build complete**; the scratch path was deleted.
+- `mint run swiftformat --lint .` — **0/599 files require formatting**; `mint run swiftlint lint --strict` — **0 violations in 599 files**. No task-owned test host remained running.
+
+Unverified: the row in a running app against Core and the native selection's look on the row were not exercised.
