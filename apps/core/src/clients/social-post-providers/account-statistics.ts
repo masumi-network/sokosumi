@@ -50,6 +50,16 @@ type ReadTool = (
   args: Record<string, unknown>,
 ) => Promise<Record<string, unknown> | null>;
 
+const YOUTUBE_QUOTA_ERROR =
+  "YouTube API quota is exhausted. Daily quota resets at midnight Pacific Time. Try syncing after the reset, or ask the administrator to review the connector's Google API quota.";
+
+function isYouTubeQuotaError(error: unknown): boolean {
+  return (
+    error instanceof ComposioToolError &&
+    /quotaExceeded|exceeded.{0,150}quota/i.test(error.providerMessage ?? "")
+  );
+}
+
 function statisticsFailureMessage(error: unknown, fallback: string): string {
   if (error instanceof ComposioToolError && error.providerMessage) {
     return `${fallback} ${error.providerMessage}`;
@@ -933,6 +943,11 @@ export async function fetchSocialAccountStatisticsPage(
         await profile(context, read, result);
       } catch (error) {
         context.signal?.throwIfAborted();
+        if (context.provider === "youtube" && isYouTubeQuotaError(error)) {
+          result.accountError = YOUTUBE_QUOTA_ERROR;
+          result.historyError = YOUTUBE_QUOTA_ERROR;
+          return result;
+        }
         result.accountError = statisticsFailureMessage(
           error,
           `${label} account statistics are unavailable. Check the connection permissions or try again later.`,
@@ -945,10 +960,13 @@ export async function fetchSocialAccountStatisticsPage(
       context.signal?.throwIfAborted();
       result.posts = [];
       result.nextCursor = null;
-      result.historyError = statisticsFailureMessage(
-        error,
-        `${label} published history is unavailable. Check the connection permissions or try again later.`,
-      );
+      result.historyError =
+        context.provider === "youtube" && isYouTubeQuotaError(error)
+          ? YOUTUBE_QUOTA_ERROR
+          : statisticsFailureMessage(
+              error,
+              `${label} published history is unavailable. Check the connection permissions or try again later.`,
+            );
     }
   } catch (error) {
     context.signal?.throwIfAborted();

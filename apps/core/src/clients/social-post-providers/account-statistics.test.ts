@@ -56,6 +56,35 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("connected account statistics", () => {
+  it("reports YouTube quota exhaustion and skips history requests that cannot succeed", async () => {
+    const { requests } = stub(
+      () =>
+        new Response(
+          JSON.stringify({
+            successful: false,
+            error: JSON.stringify({
+              error: {
+                code: 403,
+                message:
+                  'The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.',
+                errors: [{ domain: "youtube.quota", reason: "quotaExceeded" }],
+              },
+            }),
+          }),
+        ),
+    );
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      provider: "youtube",
+    });
+    expect(result.accountError).toContain("YouTube API quota is exhausted");
+    expect(result.historyError).toBe(result.accountError);
+    expect(result.historyError).toContain("midnight Pacific Time");
+    expect(requests.map((request) => request.tool_slug)).toEqual([
+      "YOUTUBE_LIST_CHANNELS",
+    ]);
+  });
+
   it("preserves sanitized provider refusal details for account totals and history", async () => {
     stub(
       () =>
