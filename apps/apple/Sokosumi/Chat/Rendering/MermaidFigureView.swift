@@ -20,6 +20,9 @@ struct MermaidFigureView: View {
   @State private var sourceExpanded: Bool
   @State private var enlarging = false
   @State private var zoom = 1.0
+  @State private var height: CGFloat = 0
+  @State private var statusHeight: CGFloat = 0
+  @State private var summaryHeight: CGFloat = 0
 
   init(diagram: MermaidDiagram, pasteboard: NSPasteboard = .general) {
     self.diagram = diagram
@@ -86,18 +89,23 @@ struct MermaidFigureView: View {
       }
       .controlSize(.small)
       MermaidStatusLine(status: figure.status, copy: figure.copy)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { statusHeight = $0 }
       if figure.drawsDiagram {
         MermaidImageScroller(output: current, zoom: 1)
           .frame(height: 256)
           .frame(maxWidth: .infinity, alignment: .leading)
       }
-      MermaidSourceDisclosure(source: diagram.source, isExpanded: $sourceExpanded)
+      MermaidSourceDisclosure(source: diagram.source, isExpanded: $sourceExpanded) { summaryHeight = $0 }
     }
     .font(.callout)
     .padding(12)
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(Color(nsColor: .controlBackgroundColor), in: .rect(cornerRadius: 8))
     .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
+    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+    // Web's line clamp counts only the figure's line boxes: the status text and the source summary. The flex
+    // caption, the scrolling preview, an open source's scrolling `pre` and the padding are height, not lines.
+    .messageClampAllowance(max(0, height - summaryHeight - (figure.status == nil && figure.copy == nil ? 0 : statusHeight)))
     .onChange(of: figure.sourceStartsOpen) { _, open in
       sourceExpanded = open
     }
@@ -213,6 +221,8 @@ private struct MermaidImageScroller: View {
 private struct MermaidSourceDisclosure: View {
   let source: String
   @Binding var isExpanded: Bool
+  /// The summary row's height, the one line web's clamp counts for the disclosure.
+  var summaryHeight: (CGFloat) -> Void = { _ in }
 
   var body: some View {
     DisclosureGroup(isExpanded: $isExpanded) {
@@ -227,6 +237,7 @@ private struct MermaidSourceDisclosure: View {
       .fixedSize(horizontal: false, vertical: true)
     } label: {
       Text("Diagram source", tableName: mermaidTable, comment: "Disclosure that shows a Mermaid diagram's source text.")
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { summaryHeight($0) }
     }
   }
 }

@@ -115,10 +115,43 @@
           #expect(texts.contains(text), "\(text) missing from \(texts)")
         }
         #expect(!texts.contains("Preparing diagram…"), "\(texts)")
-        #expect(!texts.contains("Show more"), "A body that draws a diagram is not clamped: \(texts)")
+        #expect(!texts.contains("Show more"), "A line of text and a figure are two of web's 16 lines: \(texts)")
         #expect(!texts.contains { $0.contains("A[Start]") }, "The source starts collapsed: \(texts)")
         let enlarge = try #require(await ComposerSkillsTests.element(labelled: "Enlarge", in: host))
         #expect(enlarge.isEnabled)
+      }
+
+      /// Web's `line-clamp-[16]` counts line boxes: of a drawn figure only the source summary is one (the caption is a
+      /// flex row, the preview an overflow box), so the whole figure stays and fifteen lines of text follow it.
+      @Test func theFigureCountsAsWebsLineBoxesTowardTheClamp() async throws {
+        let figure = "```mermaid\n\(Self.accepted)\n```"
+        let text = (1 ... 30).map { "Line \($0) of a very long chat message." }.joined(separator: "\n")
+        let (alone, aloneTexts) = try await Self.settledHeight(of: figure)
+        #expect(!aloneTexts.contains("Show more"), "\(aloneTexts)")
+        let (clamped, texts) = try await Self.settledHeight(of: figure + "\n\n" + text)
+        #expect(texts.contains("Show more"), "Thirty lines after the figure overflow: \(texts)")
+        let lines16 = NSHostingView(rootView: Text(String(repeating: "A\n", count: 15) + "A").font(.body)).fittingSize.height
+        #expect(clamped >= alone + lines16 * 0.75, "The figure and most of fifteen lines show: \(clamped) pt, figure \(alone) pt")
+        #expect(clamped <= alone + lines16 + 48, "No more than the figure, fifteen lines and Show more: \(clamped) pt, figure \(alone) pt, 16 lines \(lines16) pt")
+      }
+
+      /// The body's own height once the diagram is drawn and the layout has stopped moving.
+      private static func settledHeight(of source: String) async throws -> (CGFloat, [String]) {
+        let host = NSHostingView(rootView: body(source).frame(width: 560).environment(\.locale, Locale(identifier: "en_US")))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 560, height: 400), styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        _ = try await ComposerSkillsTests.waitForText("Flowchart. The complete text is available under Diagram source.", in: host)
+        var last: CGFloat = -1
+        var stable = 0
+        for _ in 0 ..< 80 where stable < 5 {
+          await ComposerSkillsTests.settle(host)
+          let height = host.fittingSize.height
+          stable = abs(height - last) <= 0.5 ? stable + 1 : 0
+          last = height
+        }
+        return await (last, hostedTexts(in: host))
       }
 
       @Test func anUnfinishedFenceWaitsWithItsSourceOpen() async throws {

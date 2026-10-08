@@ -178,12 +178,11 @@ struct MermaidDiagramTests {
     #expect(diagrams("```mermaid\n" + Self.regression + "\n```").first?.refusal == nil)
   }
 
-  /// Web's 16-line clamp counts line boxes, and a figure is about five of them (title, status, image, source
-  /// summary), so a diagram beside a short text is never cut there. Apple's clamp measures height, so a body that
-  /// draws a diagram is exempt instead; the same body without diagrams still clamps.
-  @Test func aBodyThatDrawsADiagramIsNotClamped() {
+  /// Web `ChannelMessageBody` clamps every body but a large solo image, a diagram's included
+  /// (room-message-row.tsx:832, :869); how much of the figure counts toward the 16 lines is the view's business.
+  @Test func aBodyThatDrawsADiagramStillClamps() {
     let source = "Here is the plan:\n\n```mermaid\n" + Self.regression + "\n```"
-    #expect(!MessageMarkdown(source, diagrams: true).clampsLongBody)
+    #expect(MessageMarkdown(source, diagrams: true).clampsLongBody)
     #expect(MessageMarkdown(source).clampsLongBody)
   }
 
