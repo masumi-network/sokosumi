@@ -34,7 +34,7 @@ import SwiftUI
                             hasLiveMessages: !input.messages.isEmpty, preparedTranscript: prepared,
                             scrollActivity: scrollActivity, olderPageWaits: prepared?.lacksRowsAbove(in: input.messages) ?? false,
                             landingOlderRows: landingOlderRows) {
-        if let waiting = waitingTranscript {
+        if let waiting = waitingTranscript, !scrollActivity.isScrolling {
           commit(waiting)
         }
       }
@@ -426,9 +426,13 @@ import SwiftUI
           if scrollActivity.isScrolling != scrolling {
             scrollActivity.isScrolling = scrolling
           }
-          // Only a list at rest takes the rows: a jump's scroll animation is motion too.
+          // Only a list at rest takes the rows: a jump's scroll animation is motion too. They land on the next turn,
+          // once the scroll view has finished the gesture: a gesture ending against the top edge settles there after
+          // this callback, and rows landed before it would be pushed down under the reader.
           if phase == .idle, olderPageWaits {
-            landWaitingPage()
+            Task { @MainActor in
+              landWaitingPage()
+            }
           }
           if phase.endsJumpMark {
             jumpMark = jumpMark?.readerScrolled(at: jumpMarkClock.now)
