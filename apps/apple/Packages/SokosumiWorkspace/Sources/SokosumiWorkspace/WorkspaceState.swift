@@ -237,8 +237,8 @@ public final class WorkspaceState: ObservableObject {
     timeline.generation
   }
 
-  let transcriptRecovery = ChatRefreshScheduler()
-  let sidebarRecovery = SidebarCollectionsRecovery()
+  let transcriptRecovery: ChatRefreshScheduler
+  let sidebarRecovery: SidebarCollectionsRecovery
   /// Re-reads the open room while it still counts unread (row 07e); see `WorkspaceState+OpenRoomUnreadRecheck`.
   let openRoomUnreadRecheck: OpenRoomUnreadRecheck
   private var connectionHealthy = false
@@ -257,16 +257,20 @@ public final class WorkspaceState: ObservableObject {
   let realtimeClientInstanceId: String
 
   /// Creates a workspace coordinator. The host app must inject its authenticated
-  /// client provider; the default resolves no client. `threadNow` is the open Thread's clock.
+  /// client provider; the default resolves no client. `threadNow` is the open Thread's clock;
+  /// `recoverySleep` paces the room, Thread and sidebar recovery timers.
   public init(
     clientProvider: @escaping (AuthState) -> Client? = { _ in nil },
     savedRoom: SavedRoomSelection = SavedRoomSelection(),
     instanceStore: RealtimeClientInstanceIdStore = UserDefaultsRealtimeInstanceIdStore(),
     unreadsFilter: UnreadsFilterPreference = .transient,
     openRoomUnreadRecheck: OpenRoomUnreadRecheck = OpenRoomUnreadRecheck(),
-    threadNow: @escaping () -> Date = Date.init
+    threadNow: @escaping () -> Date = Date.init,
+    recoverySleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
   ) {
-    thread = ThreadSession(now: threadNow)
+    thread = ThreadSession(now: threadNow, recoverySleep: recoverySleep)
+    transcriptRecovery = ChatRefreshScheduler(sleep: recoverySleep)
+    sidebarRecovery = SidebarCollectionsRecovery(sleep: recoverySleep)
     self.clientProvider = clientProvider
     self.openRoomUnreadRecheck = openRoomUnreadRecheck
     sidebar = ConversationSidebar(savedRoom: savedRoom, unreadsFilter: unreadsFilter)
@@ -756,7 +760,8 @@ public final class WorkspaceState: ObservableObject {
   /// Queue a local shell immediately, then POST in order. Invalid drafts stay
   /// with the composer; accepted sends retain a stable ID for safe retries.
   @discardableResult
-  public func sendMessage(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
+  public func sendMessage(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil,
+                          skills: [Components.Schemas.ChatRoomMessageSkill] = [], auth: AuthState) -> Bool {
     let draft = ComposerContent(content)
     guard let roomId = transcriptRoomId,
           let client = resolveClient(auth: auth) else { return false }
@@ -781,10 +786,11 @@ public final class WorkspaceState: ObservableObject {
     let mentions = ComposerMention.selected(in: draft.text, catalog: composerMentions)
     var shell = makeOutboundShell(clientMessageId: id, roomId: roomId, content: draft.text)
     shell.quote = quote
+    shell.skills = skills
     outbox.enqueue(shell, send: { [service] in
       try await service.createMessage(
         client: client, roomId: roomId, content: draft.text,
-        clientMessageId: id, mentions: mentions, quote: quote, organizationSlug: slug
+        clientMessageId: id, mentions: mentions, quote: quote, skillIds: skills.map(\.id), organizationSlug: slug
       )
     }, confirmed: { [weak self] message in
       guard let self else { return }

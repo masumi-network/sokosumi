@@ -4,8 +4,8 @@ import { errorHandler } from "@/helpers/error-handler.js";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
+  applyUserRouteMiddleware,
   type UserRouteVariables,
-  usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
 
 import mountPostUserPersonalWorkspace from "./post";
@@ -85,7 +85,7 @@ function createApp(authContext: AuthenticationContext = SESSION_USER) {
   });
 
   const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
-  userByIdApp.use("*", usersPathUserContextMiddleware);
+  applyUserRouteMiddleware(userByIdApp);
   mountPostUserPersonalWorkspace(userByIdApp);
   app.route("/:id", userByIdApp);
   return app;

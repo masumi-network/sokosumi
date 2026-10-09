@@ -27,55 +27,60 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { createBlobUploadGrant } from "@/lib/blob-upload-grant";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import {
   createDriveFileUploadSessionRequestSchema,
   driveFileUploadSessionSchema,
 } from "@/schemas/drive-file.schema";
 import { reserveDriveUploadResource } from "@/services/file-catalog.service";
 
-const route = createRoute({
-  method: "post",
-  path: "/",
-  description: [
-    "Mint a direct upload session for a drive file (personal or organization).",
-    "Bytes go client → Vercel Blob (not through this API).",
-    "Drive uses exact pathnames (addRandomSuffix: false).",
-    "409 if target pathname already exists.",
-    "",
-    "Agent / REST:",
-    "1. POST this endpoint with `filename`, `contentType`, `size`, and `scope` (+ `organizationId` if scope=org).",
-    "2. PUT raw bytes to `uploadUrl` with `Content-Type` from `headers`.",
-    "3. Done — file is immediately available via pathname.",
-    "",
-    `Max size: ${FILE_UPLOAD_MAX_SIZE_BYTES} bytes. MIME allowlist matches user uploads (including SVG for drive).`,
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    body: {
-      required: true,
-      content: {
-        "application/json": {
-          schema: createDriveFileUploadSessionRequestSchema,
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/",
+    description: [
+      "Mint a direct upload session for a drive file (personal or organization).",
+      "Bytes go client → Vercel Blob (not through this API).",
+      "Drive uses exact pathnames (addRandomSuffix: false).",
+      "409 if target pathname already exists.",
+      "",
+      "Agent / REST:",
+      "1. POST this endpoint with `filename`, `contentType`, `size`, and `scope` (+ `organizationId` if scope=org).",
+      "2. PUT raw bytes to `uploadUrl` with `Content-Type` from `headers`.",
+      "3. Done — file is immediately available via pathname.",
+      "",
+      `Max size: ${FILE_UPLOAD_MAX_SIZE_BYTES} bytes. MIME allowlist matches user uploads (including SVG for drive).`,
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: createDriveFileUploadSessionRequestSchema,
+          },
         },
       },
     },
-  },
-  responses: {
-    201: jsonSuccessResponse(
-      driveFileUploadSessionSchema,
-      "Drive file upload session created",
-    ),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict - target pathname already exists"),
-    413: jsonErrorResponse("Payload Too Large"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-    503: jsonErrorResponse("Service Unavailable"),
-  },
-});
+    responses: {
+      201: jsonSuccessResponse(
+        driveFileUploadSessionSchema,
+        "Drive file upload session created",
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict - target pathname already exists"),
+      413: jsonErrorResponse("Payload Too Large"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

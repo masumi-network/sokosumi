@@ -171,11 +171,7 @@ describe("GET /admin/tasks/{id}", () => {
       name: "Ada Lovelace",
       email: "ada@example.com",
     });
-    expect(body.data.user).toEqual({
-      id: "user_123",
-      name: "Ada Lovelace",
-      email: "ada@example.com",
-    });
+    expect(body.data.user).toBeUndefined();
     expect(body.data.organization).toEqual({
       id: "org_123",
       name: "Acme Corp",

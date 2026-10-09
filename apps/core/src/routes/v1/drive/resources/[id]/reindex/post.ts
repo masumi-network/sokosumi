@@ -8,7 +8,10 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import { requeueFileIndexJob } from "@/lib/files/index-jobs";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   assertFileEditAllowed,
@@ -44,24 +47,26 @@ const responseSchema = z.object({
 /** One manual retry per document per minute is plenty and bounds the cost. */
 const REINDEX_COOLDOWN_MS = 60_000;
 
-const route = createRoute({
-  method: "post",
-  path: "/{id}/reindex",
-  description: [
-    "Queue this document for re-extraction.",
-    "Rate limited, and it cannot bypass the provider budget. Manual metadata",
-    "and dismissals survive: a reindex recomputes text, never decisions.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: { params: paramsSchema, query: querySchema },
-  responses: {
-    200: jsonSuccessResponse(responseSchema, "Reindex queued"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    429: jsonErrorResponse("Too Many Requests"),
-  },
-});
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/{id}/reindex",
+    description: [
+      "Queue this document for re-extraction.",
+      "Rate limited, and it cannot bypass the provider budget. Manual metadata",
+      "and dismissals survive: a reindex recomputes text, never decisions.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: { params: paramsSchema, query: querySchema },
+    responses: {
+      200: jsonSuccessResponse(responseSchema, "Reindex queued"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      429: jsonErrorResponse("Too Many Requests"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

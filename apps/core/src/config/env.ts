@@ -191,13 +191,6 @@ const baseEnvSchema = z.object({
     .default("false")
     .transform((value) => value.trim().toLowerCase() === "true"),
 
-  // Temporary overlay (ADR 0010): org-first membership also gets a personal
-  // workspace. Default false is ADR 0005 (personal optional).
-  REQUIRE_PERSONAL_WORKSPACE: z
-    .string()
-    .default("false")
-    .transform((val: string) => val.trim().toLowerCase() === "true"),
-
   /** Platform-wide kill switch for everything Soko Bots start on their own. */
   SOKO_BOT_PROACTIVE_PAUSED: z
     .string()

@@ -6,7 +6,10 @@ import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   createWorkspaceLabelRequestSchema,
@@ -18,30 +21,32 @@ const bodySchema = createWorkspaceLabelRequestSchema.extend({
   organizationId: z.string().optional(),
 });
 
-const route = createRoute({
-  method: "post",
-  path: "/",
-  description: [
-    "Create a workspace tag or category.",
-    "A person creates vocabulary; a model never does. Names are compared",
-    "case-folded and NFC-normalized, so one workspace cannot end up with",
-    "'Aurora' and 'aurora' as two entries.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    body: {
-      required: true,
-      content: { "application/json": { schema: bodySchema } },
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/",
+    description: [
+      "Create a workspace tag or category.",
+      "A person creates vocabulary; a model never does. Names are compared",
+      "case-folded and NFC-normalized, so one workspace cannot end up with",
+      "'Aurora' and 'aurora' as two entries.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      body: {
+        required: true,
+        content: { "application/json": { schema: bodySchema } },
+      },
     },
-  },
-  responses: {
-    201: jsonSuccessResponse(workspaceLabelSchema, "Label created"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    409: jsonErrorResponse("Conflict"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-  },
-});
+    responses: {
+      201: jsonSuccessResponse(workspaceLabelSchema, "Label created"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      409: jsonErrorResponse("Conflict"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

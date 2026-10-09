@@ -107,6 +107,29 @@ struct RoomReadReceiptsTests {
   @Test func noRoomReportsNothing() {
     let receipts = RoomReadReceipts(room: nil, currentUserId: viewer, liveReads: ["user-a": at(0)])
     #expect(receipts.readers.isEmpty && receipts.nonReaders.isEmpty)
+    #expect(receipts.readState(for: "user-a") == nil)
+  }
+
+  /// Row 31b2, web `readStateFor`: what one roster row says. A read time (the later of payload and live mark),
+  /// never-read, or silence — for the viewer, for anyone off the human roster and for a stranger's live mark.
+  @Test func readStateSaysWhatARosterRowStates() throws {
+    let receipts = try receipts(
+      [member(viewer, at(180)), member("user-a", at(0)), member("user-b", nil), member("user-c", nil)],
+      live: ["user-a": at(30), "user-c": at(10), "user-stranger": at(5)]
+    )
+    #expect(receipts.readState(for: "user-a") == .read(at(30)))
+    #expect(receipts.readState(for: "user-b") == .unread)
+    #expect(receipts.readState(for: "user-c") == .read(at(10)))
+    #expect(receipts.readState(for: viewer) == nil)
+    #expect(receipts.readState(for: "agent") == nil)
+    #expect(receipts.readState(for: "user-stranger") == nil)
+  }
+
+  /// A guest is told nothing either way: "not read yet" about a host member is still a read time.
+  @Test func aGuestViewersRowsStaySilent() throws {
+    let receipts = try receipts([member("user-a", at(0)), member("user-b", nil)], live: ["user-b": at(10)], access: .guest)
+    #expect(receipts.readState(for: "user-a") == nil)
+    #expect(receipts.readState(for: "user-b") == nil)
   }
 
   /// Only the newest message shows faces; scrollback stays quiet.

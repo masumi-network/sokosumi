@@ -1,4 +1,8 @@
-import { getUsersById, type User } from "@sokosumi/core-client";
+import {
+  getUsersById,
+  type SignUpContext,
+  type User,
+} from "@sokosumi/core-client";
 import { type Client, createClient } from "@sokosumi/core-client/client";
 import { joinFirstAndLastName, OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
 import type { AuthContext, BetterAuthPlugin } from "better-auth";
@@ -31,20 +35,36 @@ const SOKOSUMI_OAUTH_PROVIDER_ID = "sokosumi";
 
 export interface SokosumiSignInOptions {
   createAccount: boolean;
+  /** Values a new account keeps as its sign-up context (ADR 0052). */
+  signUpContext?: SignUpContext["context"];
 }
 
 /**
  * What CMO sends to start Sign in with Sokosumi. "Create account" adds the
  * OpenID Connect `prompt=create`, which makes Core open Sokosumi's sign-up
- * page instead of its sign-in page. Sign in sends no prompt, so a person
- * still signed in to Sokosumi goes straight back to CMO.
+ * page instead of its sign-in page, and any sign-up context as one JSON
+ * `signup_context` parameter. Sign in sends neither, so a person still signed
+ * in to Sokosumi goes straight back to CMO.
  */
-function sokosumiSignInBody({ createAccount }: SokosumiSignInOptions) {
+function sokosumiSignInBody({
+  createAccount,
+  signUpContext = {},
+}: SokosumiSignInOptions) {
+  const hasContext = Object.keys(signUpContext).length > 0;
   return {
     provider: SOKOSUMI_OAUTH_PROVIDER_ID,
     callbackURL: "/",
     errorCallbackURL: "/",
-    ...(createAccount ? { additionalParams: { prompt: "create" } } : {}),
+    ...(createAccount
+      ? {
+          additionalParams: {
+            prompt: "create",
+            ...(hasContext
+              ? { signup_context: JSON.stringify(signUpContext) }
+              : {}),
+          },
+        }
+      : {}),
   };
 }
 
@@ -441,7 +461,9 @@ export async function getPageAccessToken(
 
 /**
  * A link's way into Sign in with Sokosumi, for `/signup` and `/signin`.
- * A person already signed in to CMO goes home instead.
+ * A person already signed in to CMO goes home instead. A Create account
+ * link's query parameters become the sign-up context; a repeated one keeps
+ * its first value.
  */
 export async function sokosumiSignInRedirect(
   auth: CmoAuth,
@@ -464,10 +486,18 @@ export async function sokosumiSignInRedirect(
     return new Response(null, { status: 403, headers });
   }
   if (!(await auth.api.getSession({ headers: request.headers }))) {
+    // In the link's key order; the first of a repeated parameter wins.
+    const signUpContext: Record<string, string> = {};
+    if (options.createAccount) {
+      for (const [key, value] of new URL(request.url).searchParams) {
+        // Own keys only: `constructor` is inherited from Object.prototype.
+        if (!Object.hasOwn(signUpContext, key)) signUpContext[key] = value;
+      }
+    }
     const { url, setCookies } = await startSokosumiSignIn(
       auth,
       request.headers,
-      options,
+      { ...options, signUpContext },
     );
     headers.set("location", url);
     for (const cookie of setCookies) headers.append("set-cookie", cookie);

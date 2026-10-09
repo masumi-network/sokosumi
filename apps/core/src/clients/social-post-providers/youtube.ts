@@ -5,8 +5,8 @@ import { socialPostPublishedUrl } from "@/clients/social-post-providers/publishe
 import {
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
-  createSocialPublishSession,
-  executeSocialPublishTool,
+  createSocialPostToolSession,
+  executeSocialPostTool,
   guardSocialCreateOutcome,
   stageSocialPublishFile,
 } from "@/clients/social-post-providers/tools";
@@ -46,7 +46,7 @@ export async function publishYouTubeVideo(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("youtube");
-  const sessionId = await createSocialPublishSession({
+  const sessionId = await createSocialPostToolSession({
     toolkitSlug: "youtube",
     connectedAccountId: context.connectedAccountId,
     executorUserId: context.executorUserId,
@@ -71,7 +71,7 @@ export async function publishYouTubeVideo(
       signal: context.signal,
     });
     const uploaded = await guardSocialCreateOutcome(label, () =>
-      executeSocialPublishTool({
+      executeSocialPostTool({
         sessionId,
         toolSlug: YOUTUBE_UPLOAD_TOOL_SLUG,
         arguments: {

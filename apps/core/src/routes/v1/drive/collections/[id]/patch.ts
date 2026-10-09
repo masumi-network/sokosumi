@@ -6,7 +6,10 @@ import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   fileCollectionSchema,
@@ -25,31 +28,33 @@ const bodySchema = updateFileCollectionRequestSchema.extend({
   organizationId: z.string().optional(),
 });
 
-const route = createRoute({
-  method: "patch",
-  path: "/{id}",
-  description: [
-    "Rename a collection, or re-save it over the current filters and sort.",
-    "Only the owner may change one: a shared collection's definition belongs",
-    "to whoever saved it, and every reader still sees their own authorized",
-    "results from it.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    params: paramsSchema,
-    body: {
-      required: true,
-      content: { "application/json": { schema: bodySchema } },
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "patch",
+    path: "/{id}",
+    description: [
+      "Rename a collection, or re-save it over the current filters and sort.",
+      "Only the owner may change one: a shared collection's definition belongs",
+      "to whoever saved it, and every reader still sees their own authorized",
+      "results from it.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      params: paramsSchema,
+      body: {
+        required: true,
+        content: { "application/json": { schema: bodySchema } },
+      },
     },
-  },
-  responses: {
-    200: jsonSuccessResponse(fileCollectionSchema, "Collection updated"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict"),
-  },
-});
+    responses: {
+      200: jsonSuccessResponse(fileCollectionSchema, "Collection updated"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

@@ -561,16 +561,40 @@ model ProjectSocialConnection {
   connectorUserId            String
   connectedAt                DateTime?
   disconnectedAt             DateTime?
+  /// Cached account metrics and provider history progress; separate from scheduled posts.
+  statistics                 Json?
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
 
-  project     Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  audits      ProjectSocialConnectionAudit[]
-  intents     ProjectSocialConnectionIntent[]
-  socialPosts SocialPost[]
+  project      Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  audits       ProjectSocialConnectionAudit[]
+  intents      ProjectSocialConnectionIntent[]
+  socialPosts  SocialPost[]
+  accountPosts SocialAccountPost[]
 
   @@unique([projectId, activeExternalAccountKey])
   @@map("project_social_connection")
+}
+
+/// Provider-authored published posts are read-only cache records, never scheduling drafts.
+model SocialAccountPost {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  connectionId      String    @db.Uuid
+  externalId        String
+  text              String
+  publishedAt       DateTime?
+  url               String?
+  metrics           Json
+  additionalMetrics Json
+  fetchedAt         DateTime
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  connection ProjectSocialConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, externalId], map: "social_account_post_connectionId_externalId_key")
+  @@index([connectionId, publishedAt, id], map: "social_account_post_connectionId_publishedAt_id_idx")
+  @@map("social_account_post")
 }
 
 model ProjectSocialConnectionIntent {
@@ -668,6 +692,8 @@ model SocialPost {
   publishedAt         DateTime?
   publishedExternalId String?
   publishedUrl        String?
+  /// Latest lifetime metrics and refresh state; no history or credentials.
+  statistics          Json?
   lastError           String?
 
   /// Publish attempts made so far (scheduler and publish-now alike).
@@ -811,6 +837,26 @@ model UTMAttribution {
   @@index([capturedAt])
   @@index([convertedAt])
   @@map("utmAttribution")
+}
+
+/// The account's sign-up origin and the sign-up context that origin handed
+/// over (ADR 0052). Written once, when Core creates the user; never changed.
+model SignUpContext {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// `sokosumi`, `unknown`, or the OAuth client's `signUpOrigin`.
+  origin   String
+  /// Key to string, number or boolean.
+  entries  Json    @default("{}")
+  /// The OAuth request's `client_id`, null outside one. Internal and never
+  /// returned by the API: it lets an operator correct `unknown` origins.
+  clientId String?
+
+  @@map("sign_up_context")
 }
 
 model Notice {
@@ -1632,6 +1678,10 @@ model OauthClient {
   dpopBoundAccessTokens            Boolean  @default(false)
   referenceId                      String?
   metadata                         Json?
+  /// The sign-up origin recorded for accounts created through this client
+  /// (ADR 0052). Null records `unknown`. Core reads it with Prisma; Better
+  /// Auth's adapter only touches its declared fields, so no additionalFields.
+  signUpOrigin                     String?
 
   // Relations
   accessTokens    OauthAccessToken[]

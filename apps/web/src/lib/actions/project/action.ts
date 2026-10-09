@@ -844,3 +844,58 @@ export const publishProjectSocialPost = withSession<
     return toActionResult(err(toCoreApiActionError(error)));
   }
 });
+
+export const refreshProjectSocialPostStatistics = withSession<
+  { projectId: string; postId: string } & AuthenticatedRequest,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId }) => {
+  const parsed = z
+    .object({ projectId: z.uuid(), postId: z.uuid() })
+    .safeParse({ projectId, postId });
+  if (!parsed.success) return badSocialPostInput(parsed);
+  try {
+    const post = await projectService.refreshSocialPostStatistics(
+      parsed.data.projectId,
+      parsed.data.postId,
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const refreshProjectSocialAccountStatistics = withSession<
+  {
+    projectId: string;
+    connectionId: string;
+    continueHistory?: boolean;
+  } & AuthenticatedRequest,
+  ActionResultDto<
+    Awaited<ReturnType<typeof projectService.refreshSocialAccountStatistics>>,
+    ActionError
+  >
+>(async ({ projectId, connectionId, continueHistory }) => {
+  const parsed = z
+    .object({
+      projectId: z.uuid(),
+      connectionId: z.uuid(),
+      continueHistory: z.boolean().optional(),
+    })
+    .safeParse({ projectId, connectionId, continueHistory });
+  if (!parsed.success)
+    return toActionResult(
+      err({ code: CommonErrorCode.BAD_INPUT, message: parsed.error.message }),
+    );
+  try {
+    const data = await projectService.refreshSocialAccountStatistics(
+      parsed.data.projectId,
+      parsed.data.connectionId,
+      parsed.data.continueHistory,
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(data));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});

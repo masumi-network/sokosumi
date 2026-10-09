@@ -9,7 +9,6 @@ import {
 import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { ensurePersonalWorkspaceForOrganizationMembership } from "@/helpers/org-membership-personal-workspace";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -84,10 +83,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const role = body.role as MemberRole;
 
     const member = await prisma.$transaction(async (tx) => {
-      await ensurePersonalWorkspaceForOrganizationMembership(body.userId, {
-        tx,
-        organizationId: organization.id,
-      });
       const created = await tx.member.create({
         data: {
           user: {

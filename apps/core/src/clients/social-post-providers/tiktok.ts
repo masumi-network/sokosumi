@@ -6,8 +6,8 @@ import { socialPostPublishedUrl } from "@/clients/social-post-providers/publishe
 import {
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
-  createSocialPublishSession,
-  executeSocialPublishTool,
+  createSocialPostToolSession,
+  executeSocialPostTool,
   guardSocialCreateOutcome,
 } from "@/clients/social-post-providers/tools";
 import type {
@@ -75,7 +75,7 @@ export async function publishTikTokVideo(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("tiktok");
-  const sessionId = await createSocialPublishSession({
+  const sessionId = await createSocialPostToolSession({
     toolkitSlug: "tiktok",
     connectedAccountId: context.connectedAccountId,
     executorUserId: context.executorUserId,
@@ -85,7 +85,7 @@ export async function publishTikTokVideo(
   });
   const video = context.media.find((ref) => ref.kind === "video");
   try {
-    const creator = await executeSocialPublishTool({
+    const creator = await executeSocialPostTool({
       sessionId,
       toolSlug: TIKTOK_QUERY_CREATOR_TOOL_SLUG,
       arguments: {},
@@ -101,7 +101,7 @@ export async function publishTikTokVideo(
     const privacyLevel = pickTikTokPrivacyLevel(options);
 
     const published = await guardSocialCreateOutcome(label, () =>
-      executeSocialPublishTool({
+      executeSocialPostTool({
         sessionId,
         toolSlug: TIKTOK_PUBLISH_TOOL_SLUG,
         arguments: {
@@ -124,7 +124,7 @@ export async function publishTikTokVideo(
     try {
       for (;;) {
         context.signal?.throwIfAborted();
-        const status = await executeSocialPublishTool({
+        const status = await executeSocialPostTool({
           sessionId,
           toolSlug: TIKTOK_STATUS_TOOL_SLUG,
           arguments: { publish_id: publishId },

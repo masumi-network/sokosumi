@@ -22,7 +22,6 @@ const envDefaults: Record<string, string> = {
   PAYMENT_API_KEY: "test-payment-key",
   REGISTRY_API_URL: "https://example.com/registry",
   REGISTRY_API_KEY: "test-registry-key",
-  REQUIRE_PERSONAL_WORKSPACE: "false",
   SOKO_BOT_ENABLED: "true",
   SOKO_BOT_RUNTIME_ADAPTER: "in-memory",
   CRON_SECRET: "test-cron-secret",
