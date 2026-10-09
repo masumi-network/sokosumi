@@ -12,9 +12,17 @@ on:
     - cron: "17 3 * * *"
   # Push still starts the workflow so Publish macOS DMG runs on every Apple
   # merge. Test and lint do not run on this event.
+  #
+  # A `macos-v*` tag push (merging the Release PR, see macos-release.yml)
+  # publishes that Stable release. It must stay in this workflow: the build
+  # number is this workflow's run number, and a new workflow would restart it
+  # below the builds already shipped. GitHub does not evaluate `paths` for
+  # tag pushes, so every such tag starts a run.
   push:
     branches:
       - main
+    tags:
+      - "macos-v*"
     paths:
       - "apps/apple/**"
       - ".github/workflows/apple.yml"
@@ -28,8 +36,10 @@ concurrency:
 jobs:
   changes:
     name: Detect Apple changes
-    # Schedule has no push/PR diff; skip rather than fail paths-filter.
-    if: github.event_name != 'schedule'
+    # Schedule has no push/PR diff, and a tag push has no branch to diff
+    # against; skip rather than fail paths-filter. Only the pull_request-only
+    # test and lint jobs need it, so Publish still runs on tags.
+    if: github.event_name != 'schedule' && !startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -205,6 +215,9 @@ jobs:
       - name: Test scrolling performance runner
         run: python3 apps/apple/scripts/test-scrolling-performance.py
 
+      - name: Test the appcast check
+        run: apps/apple/scripts/test-check-appcast.sh
+
       - name: Cache Mint packages
         uses: actions/cache@v6
         with:
@@ -329,19 +342,31 @@ jobs:
   # with a Developer ID Application certificate and notarized by Apple, or
   # Gatekeeper refuses it on every machine that did not build it. All six
   # secrets below are set by `apps/apple/scripts/setup-release-signing.sh`.
+  #
+  # A `macos-v<version>` tag push builds that commit as a Stable release
+  # (ADR 0054): the notarized disk image is signed with Sparkle's EdDSA key
+  # into a one-item appcast pointing at the immutable `macos-v<version>`
+  # asset, checked, attached to that release, and copied with the appcast onto
+  # the fixed `macos-latest` release every installed app reads.
   publish:
     name: Publish macOS DMG
-    # `workflow_dispatch` still builds, notarizes and uploads the artifact
-    # without rewriting `apple-latest`. That is the way to test a change to
-    # this job. Schedule does not match, so the daily warm never publishes.
+    # `workflow_dispatch` still builds, notarizes and signs the appcast, and
+    # uploads both as artifacts without touching any release. That is the way
+    # to test a change to this job. Schedule does not match, so the daily warm
+    # never publishes.
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: xcode-27
     permissions:
-      # `gh release` rewrites the apple-latest tag and its assets.
+      # `gh release` rewrites the apple-latest tag and its assets, and the
+      # Stable release's assets on macos-v<version> and macos-latest.
       contents: write
     env:
       TEAM_ID: GVWN7HXYJB
       RELEASE_TAG: apple-latest
+      # The tools that sign the appcast. Keep the version on the Sparkle the
+      # app links (Package.resolved); the checksum is GitHub's asset digest.
+      SPARKLE_VERSION: 2.10.0
+      SPARKLE_SHA256: c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -507,10 +532,125 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+      # The next five steps run on a Stable tag and on a manual run, so a
+      # dispatch exercises the same signing and checks; only the tag run
+      # uploads to a release. Sparkle verifies the signature over the stapled
+      # file's bytes, so signing comes after stapling.
+      - name: Fetch Sparkle's release tools
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/macos-v')
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/Sparkle.tar.xz" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+          echo "$SPARKLE_SHA256  $RUNNER_TEMP/Sparkle.tar.xz" | shasum -a 256 -c
+          mkdir -p "$RUNNER_TEMP/sparkle"
+          tar -xJf "$RUNNER_TEMP/Sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle" ./bin
+
+      - name: Write the release notes
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/macos-v')
+        # The version is the one the app carries (Version.xcconfig, bumped by
+        # the Release PR). A tag run refuses a tag that disagrees with it and
+        # a changelog without its section. A manual run publishes nothing, so
+        # before the Release PR has written that section it signs placeholder
+        # notes instead.
+        run: |
+          VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$RUNNER_TEMP/export/Sokosumi.app/Contents/Info.plist")"
+          STABLE_TAG="macos-v$VERSION"
+          CHANGELOG=apps/apple/CHANGELOG.md
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            if ! apps/apple/scripts/release-notes.sh "$CHANGELOG" "$VERSION" > /dev/null 2>&1; then
+              CHANGELOG="$RUNNER_TEMP/CHANGELOG.md"
+              printf '# Changelog\n\n## %s (manual run)\n\n* Manual run %s of %s. Not a release.\n' \
+                "$VERSION" "$GITHUB_RUN_ID" "$GITHUB_SHA" > "$CHANGELOG"
+            fi
+          elif [ "$GITHUB_REF_NAME" != "$STABLE_TAG" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the app's version $VERSION (apps/apple/Version.xcconfig)."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/appcast"
+          cp "$RUNNER_TEMP/Sokosumi.dmg" "$RUNNER_TEMP/appcast/Sokosumi.dmg"
+          # generate_appcast embeds `<archive name>.md` as the item's notes.
+          apps/apple/scripts/release-notes.sh "$CHANGELOG" "$VERSION" > "$RUNNER_TEMP/appcast/Sokosumi.md"
+          echo "STABLE_TAG=$STABLE_TAG" >> "$GITHUB_ENV"
+          echo "RELEASE_CHANGELOG=$CHANGELOG" >> "$GITHUB_ENV"
+
+      - name: Sign the disk image into an appcast
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/macos-v')
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        # A fresh directory holding only this disk image gives a one-item
+        # appcast: the Stable release, never a Beta build. The key reaches
+        # generate_appcast on stdin (`printf` is a shell builtin, so it never
+        # shows in a process list). The item points at the immutable
+        # macos-v<version> asset, not the macos-latest copy that the next
+        # release replaces under its signature.
+        run: |
+          if [ -z "$SPARKLE_ED_PRIVATE_KEY" ]; then
+            echo "::error::SPARKLE_ED_PRIVATE_KEY is not set. Run apps/apple/scripts/setup-release-updates.sh."
+            exit 1
+          fi
+          printf '%s\n' "$SPARKLE_ED_PRIVATE_KEY" | "$RUNNER_TEMP/sparkle/bin/generate_appcast" \
+            --ed-key-file - \
+            --download-url-prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$STABLE_TAG/" \
+            --link "https://github.com/$GITHUB_REPOSITORY/releases/tag/$STABLE_TAG" \
+            --embed-release-notes --maximum-deltas 0 \
+            "$RUNNER_TEMP/appcast"
+
+      - name: Check the appcast offers this disk image
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/macos-v')
+        # Fails when the signature does not verify against the public key
+        # shipped apps carry, or the length, URL, versions or notes are wrong:
+        # every installed app would reject or misreport that update.
+        env:
+          SPARKLE_ED_PUBLIC_KEY: ${{ vars.SPARKLE_ED_PUBLIC_KEY }}
+        run: |
+          apps/apple/scripts/check-appcast.sh "$RUNNER_TEMP/appcast/appcast.xml" \
+            "$RUNNER_TEMP/Sokosumi.dmg" "$RUNNER_TEMP/export/Sokosumi.app" "$RELEASE_CHANGELOG"
+
+      - name: Upload the appcast as a run artifact
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/macos-v')
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: Sokosumi-appcast
+          path: ${{ runner.temp }}/appcast/appcast.xml
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Publish the Stable release
+        # Only the tag push itself; a manual run on a tag ref must not publish.
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/macos-v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Release Please created the macos-v release. GitHub marks it Latest,
+        # which must stay on the CLI's newest release, so that comes first.
+        # macos-latest is created once and never recreated: its asset URLs are
+        # baked into every installed app. `--clobber` deletes before it
+        # uploads, so the disk image goes first and the appcast last, and a
+        # Sparkle check never sees an item whose file is missing.
+        run: |
+          CLI_TAG="$(gh release list --exclude-drafts --exclude-pre-releases --limit 100 \
+            --json tagName,publishedAt \
+            --jq '[.[] | select(.tagName | startswith("cli-v"))] | sort_by(.publishedAt) | last | .tagName // empty')"
+          if [ -n "$CLI_TAG" ]; then
+            gh release edit "$CLI_TAG" --latest
+          else
+            gh release edit "$STABLE_TAG" --latest=false
+          fi
+          gh release upload "$STABLE_TAG" "$RUNNER_TEMP/Sokosumi.dmg" --clobber
+          NOTES="Newest Stable release: [$STABLE_TAG](https://github.com/$GITHUB_REPOSITORY/releases/tag/$STABLE_TAG). Installed apps read appcast.xml here; Sokosumi.dmg is the permanent download link."
+          if ! gh release view macos-latest > /dev/null 2>&1; then
+            gh release create macos-latest --latest=false --target "$GITHUB_SHA" \
+              --title "Sokosumi for macOS" --notes "$NOTES"
+          else
+            gh release edit macos-latest --notes "$NOTES"
+          fi
+          gh release upload macos-latest "$RUNNER_TEMP/Sokosumi.dmg" --clobber
+          gh release upload macos-latest "$RUNNER_TEMP/appcast/appcast.xml" --clobber
+
       - name: Replace the apple-latest prerelease
         # Never on a manual run: a test build must not rewrite the link people
-        # have already been given.
-        if: github.event_name == 'push'
+        # have already been given. Never on a Stable tag either: Beta builds
+        # come from main only.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         # One tag, rewritten each time, so the download URL never changes.
