@@ -265,6 +265,7 @@ import SwiftUI
             }
           }
         }
+        .scrollEdgeEffectStyle(.hard, for: .top)
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
           if let notice = ReadOnlyDirectNotice(room: currentRoom) {
