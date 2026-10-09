@@ -151,11 +151,11 @@ import SwiftUI
       showsHoverChrome || focusedAction != nil || showsReactionPicker
     }
 
-    /// The bar exists only while the pointer is on the row or focus or the picker holds it, hidden until it shows:
-    /// a hidden bar on every realized row cost SwiftUI layout and hit testing on every scroll step (M6). The
-    /// keyboard and VoiceOver reach every action through the row's menu and accessibility actions (M7).
+    /// The bar exists only while the pointer is on the row or the bar shows, hidden until it does: a hidden bar on
+    /// every realized row cost SwiftUI layout and hit testing on every scroll step (M6). The keyboard and VoiceOver
+    /// reach every action through the row's menu and accessibility actions (M7).
     private var buildsActionBar: Bool {
-      isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker
+      isHovered || isReplyHovered || showsActions
     }
 
     /// Persisted mention shell (thinking or failed); nil for ordinary rows.
