@@ -16775,77 +16775,6 @@ export const NotificationPreferenceSchema = {
     ]
 } as const;
 
-export const PersonalWorkspaceCreatedSchema = {
-    type: 'object',
-    properties: {
-        workspaceId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'Id of the newly created personal workspace',
-            example: '11111111-1111-7111-8111-111111111111'
-        }
-    },
-    required: [
-        'workspaceId'
-    ]
-} as const;
-
-export const PersonalWorkspaceDeletedSchema = {
-    type: 'object',
-    properties: {
-        workspaceId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'Id of the deleted personal workspace',
-            example: '11111111-1111-7111-8111-111111111111'
-        }
-    },
-    required: [
-        'workspaceId'
-    ]
-} as const;
-
-export const WorkspaceAccessSchema = {
-    type: 'object',
-    properties: {
-        gate: {
-            $ref: '#/components/schemas/WorkspaceGateStatus'
-        },
-        hasPersonalWorkspace: {
-            type: 'boolean',
-            description: 'Whether the user owns a personal workspace row',
-            example: true
-        },
-        hasOrganizationMembership: {
-            type: 'boolean',
-            description: 'Whether the user is a member of at least one organization',
-            example: false
-        },
-        hasPendingOrganizationInvites: {
-            type: 'boolean',
-            description: 'Whether the user has at least one non-expired pending organization invitation by email',
-            example: false
-        }
-    },
-    required: [
-        'gate',
-        'hasPersonalWorkspace',
-        'hasOrganizationMembership',
-        'hasPendingOrganizationInvites'
-    ]
-} as const;
-
-export const WorkspaceGateStatusSchema = {
-    type: 'string',
-    enum: [
-        'ready',
-        'pending-invites',
-        'identity-onboarding'
-    ],
-    description: 'Derived workspace gate: ready when the user has a personal workspace or any organization membership; pending-invites when they have neither but have non-expired pending organization invitations; identity-onboarding when they have neither and no pending org entry',
-    example: 'ready'
-} as const;
-
 export const UserWorkspacesSchema = {
     type: 'object',
     properties: {
@@ -16996,6 +16925,21 @@ export const SetPreferredUserWorkspaceSchema = {
             type: 'string',
             format: 'uuid',
             description: 'Id of a workspace the person can act in',
+            example: '11111111-1111-7111-8111-111111111111'
+        }
+    },
+    required: [
+        'workspaceId'
+    ]
+} as const;
+
+export const PersonalWorkspaceDeletedSchema = {
+    type: 'object',
+    properties: {
+        workspaceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Id of the deleted personal workspace',
             example: '11111111-1111-7111-8111-111111111111'
         }
     },
