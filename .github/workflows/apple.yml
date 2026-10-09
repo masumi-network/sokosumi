@@ -5,9 +5,13 @@ permissions:
 on:
   workflow_dispatch:
   pull_request:
-  # Lint and test on main after Apple merges so the Mint cache is saved on
-  # the default branch. PR caches are scoped to refs/pull/N/merge and cannot
-  # be restored by sibling PRs.
+  # Main-scoped caches (Mint, SwiftPM, Xcode compilation) are what PRs restore.
+  # Saving them used to mean running test/lint on every Apple push to main.
+  # A daily off-peak warm plus manual dispatch fills the same keys instead.
+  schedule:
+    - cron: "17 3 * * *"
+  # Push still starts the workflow so Publish macOS DMG runs on every Apple
+  # merge. Test and lint do not run on this event.
   push:
     branches:
       - main
@@ -24,6 +28,8 @@ concurrency:
 jobs:
   changes:
     name: Detect Apple changes
+    # Schedule has no push/PR diff; skip rather than fail paths-filter.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -56,7 +62,10 @@ jobs:
   test:
     name: Xcode test
     needs: changes
-    # Same gate as `lint`: PR, dispatch, or path-filtered `push` to main.
+    # Required check name: keep this `name:` stable. Runs on pull_request
+    # only (path-filtered by `changes`). A skipped job still reports, so
+    # non-Apple PRs satisfy the Default Branch ruleset. Do not run on push
+    # to main: that queued macOS runners behind every Apple merge.
     #
     # One build of the `Sokosumi` *workspace* scheme covers the app target
     # and all five package suites -- the workspace is what makes the package
@@ -67,12 +76,10 @@ jobs:
     # Xcode Cloud builds releases only; it never reports on a pull request, so
     # this job is the Apple test gate. See
     # `apps/apple/docs/xcode-cloud-required-check.md`.
-    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true'
     runs-on: xcode-27
     permissions:
       contents: read
-      # Delete superseded compilation cache entries.
-      actions: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -160,36 +167,6 @@ jobs:
           fi
           exit "$status"
 
-      # Saved from main only, like the Mint cache: a PR's entry is scoped to
-      # its merge ref, so no sibling PR could read it. Saved even when tests
-      # fail, since the compile that filled them succeeded.
-      - name: Save Swift package checkouts
-        if: ${{ !cancelled() && github.event_name == 'push' && steps.spm-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v6
-        with:
-          path: ${{ runner.temp }}/SourcePackages
-          key: ${{ runner.os }}-spm-${{ hashFiles('apps/apple/Sokosumi.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
-
-      - name: Save Xcode compilation cache
-        # A re-run attempt keeps the run id and restores its own entry exactly.
-        if: ${{ !cancelled() && github.event_name == 'push' && steps.cas-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v6
-        with:
-          path: ${{ runner.temp }}/CompilationCache
-          key: ${{ runner.os }}-xcode-cas-${{ github.run_id }}
-
-      # Each main push saves a ~0.4 GB entry and restores only the newest, so
-      # older ones would pile up in the repo's 10 GB and evict other caches.
-      - name: Delete superseded Xcode compilation caches
-        if: ${{ !cancelled() && github.event_name == 'push' && steps.cas-cache.outputs.cache-hit != 'true' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: >-
-          gh cache list --ref "$GITHUB_REF" --key "$RUNNER_OS-xcode-cas-" --sort created_at
-          --order desc --limit 100 --json id --jq '.[1:][].id'
-          | xargs -r -n1 gh cache delete
-
       - name: Report test failures
         if: failure()
         run: |
@@ -209,10 +186,9 @@ jobs:
   lint:
     name: Swift lint and format
     needs: changes
-    # PR, dispatch, or path-filtered `push` to main so `actions/cache` saves
-    # ~/.mint on the default branch. `Swift lint and format` is a required
-    # status check on `main`.
-    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    # Required check name: keep this `name:` stable. Same PR-only gate as
+    # `Xcode test`. Mint on main is saved by `Warm Apple caches`, not here.
+    if: github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true'
     runs-on: xcode-27
     steps:
       - name: Checkout repository
@@ -251,17 +227,107 @@ jobs:
         working-directory: apps/apple
         run: mint run swiftlint lint --strict
 
+  # Main-scoped caches PRs restore: SwiftPM checkouts, Xcode compilation CAS,
+  # and Mint. build-for-testing fills the first two (the test step does not
+  # write them). mint bootstrap fills ~/.mint. No DerivedData save: that
+  # directory is date-keyed and the CAS already covers compile replay.
+  warm:
+    name: Warm Apple caches
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: xcode-27
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 27 toolchain
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Show Xcode version
+        run: xcodebuild -version && swift --version
+
+      - name: Restore Swift package checkouts
+        id: spm-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('apps/apple/Sokosumi.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+
+      - name: Restore Xcode compilation cache
+        id: cas-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/CompilationCache
+          key: ${{ runner.os }}-xcode-cas-${{ github.run_id }}
+          restore-keys: ${{ runner.os }}-xcode-cas-
+
+      - name: Build Sokosumi workspace scheme for testing
+        working-directory: apps/apple
+        run: xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipPackageUpdates -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" COMPILATION_CACHE_KEEP_CAS_DIRECTORY=YES build-for-testing -enableCodeCoverage NO -resultBundlePath "$RUNNER_TEMP/Sokosumi.xcresult"
+
+      - name: Save Swift package checkouts
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.spm-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('apps/apple/Sokosumi.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+
+      - name: Save Xcode compilation cache
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.cas-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/CompilationCache
+          key: ${{ runner.os }}-xcode-cas-${{ github.run_id }}
+
+      - name: Delete superseded Xcode compilation caches
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.cas-cache.outputs.cache-hit != 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          gh cache list --ref "$GITHUB_REF" --key "$RUNNER_OS-xcode-cas-" --sort created_at
+          --order desc --limit 100 --json id --jq '.[1:][].id'
+          | xargs -r -n1 gh cache delete
+
+      - name: Install Mint
+        run: brew install mint
+
+      - name: Restore Mint packages
+        id: mint-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.mint
+          key: ${{ runner.os }}-mint-${{ hashFiles('apps/apple/Mintfile') }}
+
+      - name: Bootstrap pinned Swift tools
+        working-directory: apps/apple
+        run: mint bootstrap
+
+      - name: Save Mint packages
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.mint-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.mint
+          key: ${{ runner.os }}-mint-${{ hashFiles('apps/apple/Mintfile') }}
+
   # The rolling download. Every Apple change that reaches main replaces the
   # single `apple-latest` prerelease, so
   # https://github.com/masumi-network/sokosumi/releases/download/apple-latest/Sokosumi.dmg
-  # is a permanent link to the newest build. Needs `test` green first: a
-  # rolling download that ships a broken build is worse than no download.
+  # is a permanent link to the newest build.
+  #
+  # No `needs: test`: `Xcode test` is pull_request-only, and a skipped needed
+  # job skips its dependents. The Default Branch ruleset already required
+  # `Xcode test` on the PR that merged. Do not add `needs: warm` (or `test`)
+  # — warm's `if` is false on push, so that need would skip Publish on every
+  # Apple main push. `changes` does run on push; it is not the skip cause.
   #
   # Deliberately NOT gated on `lint`. SwiftLint and SwiftFormat are style
   # checks and cannot make a binary broken, so withholding a working,
-  # notarized download over indentation is a false coupling. `needs: test`
-  # also covers `changes`, which `test` already depends on and which this job
-  # never reads.
+  # notarized download over indentation is a false coupling.
   #
   # The app is sandboxed with the hardened runtime on, so it must be signed
   # with a Developer ID Application certificate and notarized by Apple, or
@@ -269,11 +335,9 @@ jobs:
   # secrets below are set by `apps/apple/scripts/setup-release-signing.sh`.
   publish:
     name: Publish macOS DMG
-    needs: test
-    # `workflow_dispatch` runs everything except the release step, so the disk
-    # image can be built, notarized and downloaded from the run's artifacts
+    # `workflow_dispatch` still builds, notarizes and uploads the artifact
     # without rewriting `apple-latest`. That is the way to test a change to
-    # this job.
+    # this job. Schedule does not match, so the daily warm never publishes.
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: xcode-27
     permissions:

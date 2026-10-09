@@ -5,7 +5,8 @@ permissions:
 # Replaces CodeQL default setup, which analyzed every PR push — docs- and
 # Apple-only ones included — and never cancelled a superseded run.
 #
-# PRs run only when they touch JS/TS source, the lockfile, or this workflow.
+# PRs run only when they touch JS/TS source, the lockfile, or this workflow,
+# and only once the PR is not a draft (`ready_for_review` re-runs it).
 # Every push to main runs, so each PR has an analyzed base to diff its alerts
 # against; the weekly run picks up new queries, as default setup did. Swift is
 # not analyzed (default setup never did; it needs a macOS build). The
@@ -19,6 +20,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "**/*.ts"
       - "**/*.tsx"
@@ -44,6 +46,9 @@ concurrency:
 jobs:
   analyze:
     name: Analyze (javascript-typescript)
+    # Draft PRs skip this; ready_for_review re-runs it. Push to main and the
+    # weekly schedule always run. Not a required check.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
