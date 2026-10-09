@@ -168,7 +168,7 @@ describe("core index", () => {
     getEnvMock.mockReturnValue({
       NODE_ENV: "development",
       PORT: 8787,
-      MACOS_DEVELOPER_ID_MINIMUM_BUILD: 8000,
+      MACOS_MINIMUM_BUILD: 8000,
     });
     const headers = { "X-Sokosumi-Client": "macos-developer-id/7999" };
 

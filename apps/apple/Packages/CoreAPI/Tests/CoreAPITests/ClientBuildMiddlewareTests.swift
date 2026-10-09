@@ -7,7 +7,7 @@ import Testing
 struct ClientBuildMiddlewareTests {
   @Test func namesTheBuildOnEveryRequest() async throws {
     let transport = StubTransport(status: 204, body: "")
-    _ = try? await client(transport, channel: .developerID).getUsersId(path: .init(id: "me"))
+    _ = try? await client(transport).getUsersId(path: .init(id: "me"))
     let header = try #require(HTTPField.Name("X-Sokosumi-Client"))
     #expect(transport.lastRequest?.headerFields[header] == "macos-developer-id/7993")
   }
@@ -15,22 +15,22 @@ struct ClientBuildMiddlewareTests {
   @Test func clientUpdateRequiredThrowsUpdateRequired() async throws {
     let transport = StubTransport(status: 426, body: errorBody(kind: "client_update_required"))
     let error = await #expect(throws: ClientError.self) {
-      try await client(transport, channel: .appStore).getUsersId(path: .init(id: "me"))
+      try await client(transport).getUsersId(path: .init(id: "me"))
     }
-    #expect(error?.underlyingError as? CoreUpdateRequired == CoreUpdateRequired(channel: .appStore))
+    #expect(error?.underlyingError as? CoreUpdateRequired == CoreUpdateRequired())
   }
 
   @Test func removedOperationThrowsUpdateRequired() async throws {
     let transport = StubTransport(status: 404, body: errorBody(kind: "route_not_found"))
     let error = await #expect(throws: ClientError.self) {
-      try await client(transport, channel: .developerID).getUsersId(path: .init(id: "me"))
+      try await client(transport).getUsersId(path: .init(id: "me"))
     }
-    #expect(error?.underlyingError as? CoreUpdateRequired == CoreUpdateRequired(channel: .developerID))
+    #expect(error?.underlyingError as? CoreUpdateRequired == CoreUpdateRequired())
   }
 
   @Test func missingResourceStaysANotFound() async throws {
     let transport = StubTransport(status: 404, body: errorBody(kind: nil))
-    let response = try await client(transport, channel: .developerID).getUsersId(path: .init(id: "me"))
+    let response = try await client(transport).getUsersId(path: .init(id: "me"))
     guard case let .notFound(notFound) = response else {
       Issue.record("expected 404, got \(response)")
       return
@@ -41,7 +41,7 @@ struct ClientBuildMiddlewareTests {
   @Test func anOversizedNotFoundPassesThrough() async throws {
     let message = String(repeating: "x", count: 70 * 1024)
     let body = #"{"error":"NotFound","message":"\#(message)","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/v1/users/me","method":"GET"}}"#
-    let response = try await client(StubTransport(status: 404, body: body), channel: .developerID).getUsersId(path: .init(id: "me"))
+    let response = try await client(StubTransport(status: 404, body: body)).getUsersId(path: .init(id: "me"))
     guard case let .notFound(notFound) = response else {
       Issue.record("expected 404, got \(response)")
       return
@@ -49,11 +49,11 @@ struct ClientBuildMiddlewareTests {
     #expect(try notFound.body.json.message == message)
   }
 
-  private func client(_ transport: StubTransport, channel: DistributionChannel) throws -> Client {
+  private func client(_ transport: StubTransport) throws -> Client {
     try Client.connecting(
       to: #require(URL(string: "https://core.example/v1")),
       transport: transport,
-      middlewares: [ClientBuildMiddleware(channel: channel, build: "7993")]
+      middlewares: [ClientBuildMiddleware(build: "7993")]
     )
   }
 }

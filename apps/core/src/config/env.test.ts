@@ -347,18 +347,18 @@ describe("isExplicitPreprod", () => {
   });
 });
 
-describe("macOS minimum builds", () => {
+describe("macOS minimum build", () => {
   beforeEach(() => {
     vi.stubEnv("SOKO_BOT_RUNTIME_ADAPTER", "in-process");
   });
 
   it("treats a blank minimum as unset", () => {
-    vi.stubEnv("MACOS_DEVELOPER_ID_MINIMUM_BUILD", "");
-    expect(validateEnv().MACOS_DEVELOPER_ID_MINIMUM_BUILD).toBeUndefined();
+    vi.stubEnv("MACOS_MINIMUM_BUILD", "");
+    expect(validateEnv().MACOS_MINIMUM_BUILD).toBeUndefined();
   });
 
   it("reads a configured minimum as a number", () => {
-    vi.stubEnv("MACOS_APP_STORE_MINIMUM_BUILD", "40");
-    expect(validateEnv().MACOS_APP_STORE_MINIMUM_BUILD).toBe(40);
+    vi.stubEnv("MACOS_MINIMUM_BUILD", "8000");
+    expect(validateEnv().MACOS_MINIMUM_BUILD).toBe(8000);
   });
 });
