@@ -71,6 +71,12 @@ import UniformTypeIdentifiers
       parentMessageId == nil
     }
 
+    /// One gap to the pane's left, right and bottom edges. The room's matches web's `px-5` and
+    /// leaves the Typing line room under the card; the narrower Thread pane has no line.
+    private var edgeInset: CGFloat {
+      announcesTyping ? 20 : 8
+    }
+
     /// Web `shouldAllowRoomSkills`, for the room and its Threads alike.
     private var allowsSkills: Bool {
       MessageSkills.allowed(in: workspaces.rooms.first { $0.id == roomId })
@@ -109,9 +115,6 @@ import UniformTypeIdentifiers
             }
           }
         }
-        if announcesTyping {
-          RoomTypingLine(typing: workspaces.typing, room: workspaces.rooms.first { $0.id == roomId })
-        }
       }
       .fileImporter(isPresented: $filePickerPresented, allowedContentTypes: [.data], allowsMultipleSelection: true) { result in
         switch result {
@@ -127,9 +130,15 @@ import UniformTypeIdentifiers
           uploads.add(attachment)
         }, workspace: workspaces.selection)
       }
-      .padding(.horizontal, 8)
-      // The Typing line stands in the bottom padding, as on web from `md` up.
-      .padding(.bottom, announcesTyping ? 4 : 8)
+      .padding([.horizontal, .bottom], edgeInset)
+      // The Typing line stands in the bottom padding, out of flow, as on web from `md` up.
+      .overlay(alignment: .bottom) {
+        if announcesTyping {
+          RoomTypingLine(typing: workspaces.typing, room: workspaces.rooms.first { $0.id == roomId })
+            .padding(.horizontal, edgeInset)
+            .padding(.bottom, 4)
+        }
+      }
       .background(.background)
       // Web's editor blurs with its browser window. A Mac text view keeps first responder
       // when its window goes behind another, so that stop comes from the window.
