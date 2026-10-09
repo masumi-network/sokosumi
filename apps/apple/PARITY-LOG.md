@@ -4634,3 +4634,49 @@ All from `apps/apple` on `8533fe9e3` plus this change:
 - `mint run swiftformat --lint .` — **0/599 files require formatting**; `mint run swiftlint lint --strict` — **0 violations in 599 files**. No task-owned test host remained running.
 
 Unverified: the row in a running app against Core and the native selection's look on the row were not exercised.
+
+## Slice M8 — hover chrome waits for a resting pointer
+
+Branch `claude/apple-transcript-hover-delay`, started on `origin/main` `8533fe9e3`; the user's decision (2026-10-08), a native-Mac deviation recorded in row M8. Web and Core were read-only. Draft [#5898](https://github.com/masumi-network/sokosumi/pull/5898).
+
+### Evidence and web audit
+
+- **The recording** (10 s, `#Sokosumi`, signed `apple-latest`, 2026-10-08), read frame by frame with `ffprobe`/`ffmpeg`: the pointer stays still while the quick-reaction bar and the row fill land on each row that passes under it (Francis Luz's row at 1.18 s and 1.80 s, a Scratch row at 2.58 s, Patrick Tobler's at 3.12 s, another Scratch row at 3.47 s).
+- **Web** (`room-message-row.tsx`:1310-1317, at `8533fe9e3`): `MESSAGE_ACTIONS_PILL_REVEAL_DELAY_CLASS = "[@media(hover:hover)]:group-hover:delay-200"`, added by web #4773 (2026-09-18) because "scrolling drags a stationary pointer across row after row"; leaving clears it at once. The row's own fill (`hover:bg-card-background`, :2661) has no delay. Apple had not taken the bar's delay.
+
+### Behaviour
+
+`MessageRowView` keeps its `isHovered`/`isReplyHovered` and adds `hoverRested`, set by a `.task` keyed on "pointer on the row and the list still" after `messageHoverDelay` (200 ms). `showsHoverChrome` (fill and bar) needs all three; keyboard focus in the bar and the open reaction picker show the bar without it, as before. The room and the Thread already derive `userIsScrolling` from `onScrollPhaseChange` (tracking, interacting, decelerating); it now lives in a `TranscriptScrollActivity` object they hand their rows through the environment, so a row reads it only while the pointer is on it.
+
+A first version passed the flag as an environment value. The hitch harness (below) showed it doubling the frames over 25 ms (46 and 49 against 22 and 26 on `main`): each scroll start and end rewrote the environment over every realized row. The object removes that.
+
+### Tests (red before the fix, green after)
+
+`SokosumiTests/Chat/Timeline/MessageHoverDelayTests.swift`, pixel checks of a hosted row (the band above the row the bar reaches, the gutter only the fill paints) and of the real room and Thread:
+- Before the fix (row unchanged, the two environment entries added as the seam): `aPassingPointerDrawsNoChrome`, `nothingShowsWhileTheTranscriptScrolls`, `scrollingHidesTheChromeAtOnce` and both room cases of `theTranscriptHidesHoverChromeWhileScrolling` (trackpad phases and an unphased mouse wheel; fill drawn at 10 of 11 events) **failed**; `aRestingPointerShowsTheChrome` passed, as it must. With the room wired and the Thread not, the Thread case **failed** (fill at 9 of 11 events) and the room cases passed.
+- After: **7 of 7** passed, and with `SokoBotFeedbackToolbarTests`, `MessageReactIconTests`, `MessageContextMenuTests` and `TranscriptScrollingTests` **32 of 32**. The seam then moved from an environment value to `TranscriptScrollActivity` with the same assertions; the full run below includes it.
+
+### Hitch harness (real views, scripted scroll)
+
+A disposable copy of `apps/apple` whose entry point opens `RoomTimelineView` on 600 fixture messages (text bursts, screenshots, quotes of screenshots, code, reactions, Thread bars, day changes; local images through `ScrollMediaProtocol`), rests a pointer over the list by feeding the hosting view tracking events as the tests' `hover` does, and plays six trackpad flicks (60 changed events and 45 momentum events each, 16 ms apart). Release build, ad hoc, no sandbox, in-memory token store. Counters patched into the copy only; frame intervals from the hosting view's display link. Two runs each:
+
+| Build | Hover writes | Row bodies | Frames over 25 ms | Worst frame |
+| --- | --- | --- | --- | --- |
+| `main` `8533fe9e3` | 128, 128 | 859, 862 | 23, 18 | 43.6, 46.0 ms |
+| first version (environment value) | 128, 128 | 880, 879 | 49, 46 | 49.3, 55.2 ms |
+| this change | 128, 128 | 826, 829 | 29, 23 | 33.3, 33.3 ms |
+
+Hover writes stay at 128: the pointer still crosses rows; what changes is that nothing draws for them. Display-link intervals are a proxy, not presented frames; Instruments numbers for the scroll itself belong to the M6 follow-up.
+
+### Verification
+
+All from `apps/apple` on `8533fe9e3` plus this change, the worktree's own derived data; logs and result bundles in the session scratchpad:
+- `xcodebuild test -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -enableCodeCoverage NO` — **1,871 tests, 1,870 passed, 1 failed** (CoreAPI 1, Auth 35, Chat 1,145, Realtime 57, Workspace 193 all passed; app 440, 439 passed; `a-full.xcresult`). The failure is the Known-flaky `MessageEditComposerChromeTests/anOverLimitDraftShowsTheHintAndCountOnOneLineUnderTheField` (Vision OCR); `-only-testing:` that suite and `MessageHoverDelayTests` passed **11 of 11** (`a-rerun.xcresult`).
+- `xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build` — **BUILD SUCCEEDED**, no warning in the changed files.
+- `swift build --package-path Packages/SokosumiWorkspace --triple arm64-apple-ios17.0 --sdk <iPhoneOS 27.0 SDK> --scratch-path <scratch>` — **Build complete**; the scratch path was deleted.
+- `mint run swiftformat --lint .` — **0/600 files require formatting**; `mint run swiftlint lint --strict` — **0 violations in 600 files**. No task-owned test host or harness remained running.
+
+Unverified: a real pointer and trackpad in the signed app (the tests and the harness feed tracking events by hand, because the test host is never the active app), keyboard focus reaching the bar with Full Keyboard Access, and VoiceOver's row actions on screen. Programmatic scrolls (a jump's animation) do not count as scrolling, as before for `userIsScrolling`.
+
+How to test: open a long room, rest the pointer over the transcript and scroll with the trackpad or a wheel: no row lights up and no bar appears while the list moves; stop, and after a moment the row under the pointer shows its fill and bar. Move the pointer onto another row: its bar follows after the same short wait. Tab into a row's bar with Full Keyboard Access: it shows at once.
+
