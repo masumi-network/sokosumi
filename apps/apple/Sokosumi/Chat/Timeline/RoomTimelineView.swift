@@ -366,7 +366,7 @@ import SwiftUI
               }
               .background {
                 // Where the first rows sit in the viewport, so an older page landing above them can leave them there.
-                if index < 2 {
+                if index < 2 || message.id == firstRows.landingAnchor {
                   Color.clear.onGeometryChange(for: CGRect.self) { $0.frame(in: .scrollView) } action: { frame in
                     firstRows.record(index, id: message.id, frame: frame)
                   }
@@ -479,6 +479,7 @@ import SwiftUI
         }
         .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
           firstRows.viewport = (edges.topInset, edges.viewportHeight)
+          firstRows.offset = edges.offsetY
           if workspaces.timeline.historicalAnchor == nil,
              oldEdges.offsetY != edges.offsetY,
              userIsScrolling || oldEdges.nearBottom != edges.nearBottom {
@@ -528,8 +529,21 @@ import SwiftUI
     /// on the page's own first rows (a real trackpad, the paging harness, the CI runner).
     private func landWaitingPageInPlace() {
       let placement = firstRows.placement
-      guard landWaitingPage(), let placement else { return }
+      firstRows.landingAnchor = placement?.id
+      firstRows.forgetAnchorFrame()
+      guard landWaitingPage(), let placement else {
+        firstRows.landingAnchor = nil
+        return
+      }
       scrollPosition.scrollTo(id: placement.id, anchor: placement.anchor)
+      // The anchor's fraction is measured against the visible rows; where the list lines it up against more (the CI
+      // runner put the row 66 pt low), move it the rest of the way once it has settled.
+      Task { @MainActor in
+        defer { firstRows.landingAnchor = nil }
+        guard await (try? Task.sleep(for: .milliseconds(150))) != nil, !userIsScrolling,
+              let offset = firstRows.settledOffset(for: placement.id, was: placement.minY) else { return }
+        scrollPosition.scrollTo(y: offset)
+      }
     }
 
     private func completeVisibleJump(_ target: String) {
@@ -589,16 +603,29 @@ import SwiftUI
     }
   }
 
-  /// Where the transcript's first two rows sit in the viewport (M6, row 04). A plain object: the geometry callbacks
-  /// write it on every change without updating the view.
+  /// Where the transcript's first two rows sit in the viewport, and the row an older page's landing keeps in place
+  /// (M6, row 04). A plain object: the geometry callbacks write it on every change without updating the view.
   @MainActor private final class FirstRowsPlacement {
     /// The inset above the visible rows and their height.
     var viewport: (topInset: CGFloat, height: CGFloat) = (0, 0)
+    /// The list's content offset, as the last geometry change reported it.
+    var offset: CGFloat = 0
+    /// The row a landing keeps in place, tracked until it has settled.
+    var landingAnchor: String?
     private var rows: [Int: (id: String, frame: CGRect)] = [:]
+    private var anchorFrame: CGRect?
 
-    /// A row on screen and the anchor that puts it back at the same height. The second row first: the first row can lose
-    /// its day pill once rows from the same day land above it, which moves its text by the pill.
-    var placement: (id: String, anchor: UnitPoint)? {
+    struct Placement {
+      let id: String
+      /// The point of the row lined up with the same point of the viewport.
+      let anchor: UnitPoint
+      /// Where the row's top sat.
+      let minY: CGFloat
+    }
+
+    /// A row on screen and where it sat. The second row first: the first row can lose its day pill once rows from the
+    /// same day land above it, which moves its text by the pill.
+    var placement: Placement? {
       guard viewport.height > 0 else { return nil }
       for index in [1, 0] {
         guard let row = rows[index], row.frame.maxY > viewport.topInset,
@@ -606,13 +633,28 @@ import SwiftUI
         // `scrollTo(id:anchor:)` lines the row's point at `anchor` up with the viewport's: top + f × (H − h) = top.
         let room = viewport.height - row.frame.height
         let fraction = abs(room) < 1 ? 0 : (row.frame.minY - viewport.topInset) / room
-        return (row.id, UnitPoint(x: 0, y: fraction))
+        return Placement(id: row.id, anchor: UnitPoint(x: 0, y: fraction), minY: row.frame.minY)
       }
       return nil
     }
 
+    /// The content offset that puts the landing anchor back at `minY`, when it settled elsewhere.
+    func settledOffset(for id: String, was minY: CGFloat) -> CGFloat? {
+      guard id == landingAnchor, let frame = anchorFrame, abs(frame.minY - minY) > 1 else { return nil }
+      return offset + frame.minY - minY
+    }
+
+    func forgetAnchorFrame() {
+      anchorFrame = nil
+    }
+
     func record(_ index: Int, id: String, frame: CGRect) {
-      rows[index] = (id, frame)
+      if id == landingAnchor {
+        anchorFrame = frame
+      }
+      if index < 2 {
+        rows[index] = (id, frame)
+      }
     }
   }
 #endif
