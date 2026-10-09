@@ -1,4 +1,6 @@
+import CoreAPI
 import Foundation
+import OpenAPIRuntime
 
 /// How Chat surfaces an error to the user.
 public enum UserFacingErrorMode: Sendable {
@@ -17,10 +19,30 @@ public func friendlyMessage(for error: Error, mode: UserFacingErrorMode = .windo
   if let failure = error as? AttachmentUpload.Failure, let description = failure.errorDescription {
     return description
   }
+  if let update = updateRequired(in: error) {
+    return updateMessage(update.channel)
+  }
   if let urlError = findURLError(in: error) {
     return urlErrorMessage(urlError)
   }
   return "Couldn't reach Core. Check your connection and try again."
+}
+
+/// The `apple-latest` disk image, the update for a `developerID` build.
+public let latestDownloadURL = URL(string: "https://github.com/masumi-network/sokosumi/releases/download/apple-latest/Sokosumi.dmg")!
+
+/// `ClientBuildMiddleware` throws inside the generated client, which wraps it in `ClientError`.
+public func updateRequired(in error: Error) -> CoreUpdateRequired? {
+  error as? CoreUpdateRequired ?? (error as? ClientError)?.underlyingError as? CoreUpdateRequired
+}
+
+public func updateMessage(_ channel: DistributionChannel) -> String {
+  switch channel {
+  case .developerID:
+    "This version of Sokosumi is out of date. Download the latest version: \(latestDownloadURL.absoluteString)"
+  case .appStore:
+    "This version of Sokosumi is out of date. Update it from the App Store or TestFlight."
+  }
 }
 
 private func chatServiceMessage(_ error: ChatServiceError, mode: UserFacingErrorMode) -> String {

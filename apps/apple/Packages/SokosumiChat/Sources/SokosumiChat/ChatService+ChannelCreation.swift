@@ -11,13 +11,16 @@ public extension ChatService {
   }
 
   /// `isOrganizationOwnerOrAdmin`, or `nil` when the read failed: web's room page and sidebar both treat a failed
-  /// membership read as not owner or admin. A 401 is the session ending (the coordinator signs out) and
-  /// cancellation is the caller leaving, so both still throw.
+  /// membership read as not owner or admin. A 401 is the session ending (the coordinator signs out),
+  /// `CoreUpdateRequired` is a build Core turned away, and cancellation is the caller leaving, so all three still throw.
   func organizationOwnerOrAdminIfReadable(client: Client, organizationId: String) async throws -> Bool? {
     do {
       return try await isOrganizationOwnerOrAdmin(client: client, organizationId: organizationId)
     } catch {
       if case ChatServiceError.unauthorized = error {
+        throw error
+      }
+      if updateRequired(in: error) != nil {
         throw error
       }
       try Task.checkCancellation()
