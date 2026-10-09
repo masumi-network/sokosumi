@@ -3,6 +3,12 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, it } from "node:test";
 
+import {
+  eligibleRows,
+  parseParity,
+  section,
+} from "../../../apps/apple/scripts/parity-status.mjs";
+
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const parityPath = path.join(repoRoot, "apps/apple/PARITY.md");
 
@@ -20,32 +26,15 @@ const CHILD_STATUS = /\b(Todo|In progress|In review|Merged|Done)\b/;
  */
 const CHECKPOINT_MAX_BYTES = 8 * 1024;
 
-function section(markdown, heading) {
-  const start = markdown.indexOf(`\n## ${heading}\n`);
-  assert.notEqual(start, -1, `PARITY.md has no "## ${heading}" section`);
-  const end = markdown.indexOf("\n## ", start + 1);
-  return markdown.slice(start, end === -1 ? undefined : end);
-}
-
-function parseRows(markdown) {
-  const rows = new Map();
-  for (const line of section(
-    markdown,
-    "Dependency-ordered capability inventory",
-  ).split("\n")) {
-    const match = /^\| ([0-9][0-9a-z]*) \| /.exec(line);
-    if (!match) continue;
-    const cells = line
-      .slice(1, -1)
-      .split(" | ")
-      .map((cell) => cell.trim());
-    rows.set(match[1], { cells, status: cells[3] ?? "" });
-  }
-  return rows;
-}
-
 const markdown = await readFile(parityPath, "utf8");
-const rows = parseRows(markdown);
+const parity = parseParity(markdown);
+const { rows } = parity;
+
+function checkpointOf(text) {
+  const checkpoint = section(text, "Resume checkpoint");
+  assert.ok(checkpoint, 'PARITY.md has no "## Resume checkpoint" section');
+  return checkpoint;
+}
 
 describe("apps/apple/PARITY.md", () => {
   it("finds the capability rows", () => {
@@ -93,31 +82,29 @@ describe("apps/apple/PARITY.md", () => {
   });
 
   it("lists exactly the Todo rows in the Work order", () => {
-    const checkpoint = section(markdown, "Resume checkpoint");
-    const workOrder = checkpoint
-      .split("\n")
-      .find((line) => line.startsWith("- **Work order.**"));
-    assert.ok(workOrder, "the Resume checkpoint has no **Work order.** bullet");
-    const order = /Order: (none|[0-9][0-9a-z]*(?:, [0-9][0-9a-z]*)*)\./.exec(
-      workOrder,
-    );
     assert.ok(
-      order,
-      'the Work order must contain "Order: <ids>." or "Order: none."',
+      parity.workOrder,
+      'the Resume checkpoint\'s **Work order.** bullet must contain "Order: <ids>." or "Order: none."',
     );
-    const listed = order[1] === "none" ? [] : order[1].split(", ");
     const todo = [...rows]
       .filter(([, row]) => row.status.startsWith("Todo"))
       .map(([id]) => id);
     assert.deepEqual(
-      [...listed].sort(),
+      [...parity.workOrder].sort(),
       [...todo].sort(),
       "the Work order must list exactly the Todo rows",
     );
   });
 
+  it("records how far web was audited", () => {
+    assert.ok(
+      parity.webAuditedThrough,
+      "the Resume checkpoint needs a **Web audited through.** `<sha>` bullet",
+    );
+  });
+
   it("keeps row state out of the Resume checkpoint", () => {
-    const checkpoint = section(markdown, "Resume checkpoint");
+    const checkpoint = checkpointOf(markdown);
     const bytes = Buffer.byteLength(checkpoint);
     assert.ok(
       bytes <= CHECKPOINT_MAX_BYTES,
@@ -128,5 +115,28 @@ describe("apps/apple/PARITY.md", () => {
       /In review/,
       "row state belongs in the row's Status cell, not the Resume checkpoint",
     );
+  });
+});
+
+describe("parity-status eligibleRows", () => {
+  const fixture = [
+    "## Resume checkpoint",
+    "",
+    "- **Work order.** Order: 41b, 41a, 41c.",
+    "",
+    "## Dependency-ordered capability inventory",
+    "",
+    "| 40 | Base | — | Done — #1 | x |",
+    "| 41a | First | 40 | Todo | x |",
+    "| 41b | Second | 41a | Todo | x |",
+    "| 41c | Third | 40 | Todo | x |",
+    "| 41d | Fourth | 40 | In review — #2 | x |",
+    "",
+  ].join("\n");
+
+  it("keeps the Work order's order and skips rows with unmet dependencies or an open PR", () => {
+    const fixtureParity = parseParity(`\n${fixture}`);
+    assert.deepEqual(eligibleRows(fixtureParity, new Set()), ["41a", "41c"]);
+    assert.deepEqual(eligibleRows(fixtureParity, new Set(["41a"])), ["41c"]);
   });
 });
