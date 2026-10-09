@@ -426,11 +426,13 @@ import SwiftUI
           if scrollActivity.isScrolling != scrolling {
             scrollActivity.isScrolling = scrolling
           }
-          // Only a list at rest takes the rows: a jump's scroll animation is motion too. They land on the next turn,
-          // once the scroll view has finished the gesture: a gesture ending against the top edge settles there after
-          // this callback, and rows landed before it would be pushed down under the reader.
+          // Only a list at rest takes the rows: a jump's scroll animation is motion too. They land once it has rested
+          // a moment: a gesture ending against the top edge is still settling there when it reports idle, and rows
+          // landed before it settles are pushed down under the reader (CI runner). The room view lands them only if
+          // the reader has not started scrolling again.
           if phase == .idle, olderPageWaits {
             Task { @MainActor in
+              try? await Task.sleep(for: .milliseconds(300))
               landWaitingPage()
             }
           }

@@ -65,12 +65,15 @@
                 "The page's rows wait while the reader scrolls: document \(documentHeight(scroll)) pt, was \(height) pt.")
         #expect(TranscriptPageProtocol.requests.withLock { $0 } == 2, "No further page is asked for while one waits.")
         let before = try TranscriptReadingPosition.snapshot(host)
+        let beforeOffset = scroll.contentView.bounds.minY
         try sendTranscriptScroll(scroll, delta: 0, phase: 4)
         _ = try await waitForView(in: host, timeoutMessage: "The waiting rows did not land once the scroll ended: document \(documentHeight(scroll)) pt, was \(height) pt") {
           documentHeight(scroll) > height + 500 ? scroll : nil
         }
         try await Task.sleep(for: .milliseconds(300))
         host.layoutSubtreeIfNeeded()
+        Attachment.record("before: offset \(beforeOffset) pt of \(height) pt; after: offset \(scroll.contentView.bounds.minY) pt of \(documentHeight(scroll)) pt",
+                          named: "held-page-offsets.txt")
         try await TranscriptReadingPosition.expectStable(host, before: before)
       }
 
