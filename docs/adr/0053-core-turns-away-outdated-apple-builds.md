@@ -5,7 +5,7 @@ Core removes operations, such as `GET`/`PUT /v1/users/{id}/preferred-organizatio
 ## Considered Options
 
 - **Marketing version (`1.0`).** It never changed before Release Please. Build numbers already increase: the DMG job archives with `CURRENT_PROJECT_VERSION = github.run_number`.
-- **One minimum per channel.** The first version gated `developer-id` and `app-store` (Xcode Cloud and TestFlight) apart, because their counters are unrelated. With TestFlight gone the channel says nothing, so the header is `macos/<build>`. Core still accepts `macos-developer-id/<build>`, which DMG builds from 8033 until #5922 send, until the minimum passes them.
+- **One minimum per channel.** The first version gated `developer-id` and `app-store` (Xcode Cloud and TestFlight) apart, because their counters are unrelated. With TestFlight gone the channel says nothing, so the header is `macos/<build>`. No published build is in use, so Core accepts only that form.
 - **A version endpoint the app polls.** The app would also need a check on every launch and on resume, and it would still fail the first time it calls a removed operation. A middleware check in Core needs nothing new on the client beyond the header.
 - **Treat every undocumented 404 as outdated.** An operation that does not document 404 can still answer one for a missing resource, and telling that person to update would be wrong. Matching `route_not_found` is exact.
 - **410 Gone.** It describes the resource. 426 describes the client, and Core already names it `UpgradeRequired`.
@@ -14,6 +14,6 @@ Core removes operations, such as `GET`/`PUT /v1/users/{id}/preferred-organizatio
 
 - The gate covers `/v1` only. `/auth` keeps refreshing tokens, so an outdated build stays signed in and works again once updated.
 - Build 1 is the project default, which every published build overrides, so a local build is never gated, even against production Core.
-- Builds published before the header name themselves only in URLSession's default User-Agent (`Sokosumi/<build> CFNetwork/…`). Core gates those from build 3125, the Apple workflow run that published the first DMG. Older User-Agent builds come from TestFlight or a local machine and are never gated. Neither is any `macos-app-store/<build>` header a TestFlight build sent before removal; TestFlight expires those builds after 90 days. These builds do not know the 426. The 426 message names the update and the link, so a build that shows Core's message still says what to do.
+- Only builds that send the header can be gated. No published build was in use when this shipped, so Core reads no User-Agent fallback.
 - Removing an operation the Apple snapshot ever selected: set `MACOS_MINIMUM_BUILD` to the first published build that no longer calls it, then remove it. For the DMG that is the `Apple` workflow `push` run on `main` for the merge commit (`gh run list -w Apple -b main -e push`).
 - An unset minimum gates nothing, so local and preview Core run without them. Raising it is an environment change and a redeploy on Vercel.

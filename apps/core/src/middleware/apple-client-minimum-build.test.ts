@@ -54,17 +54,16 @@ describe("appleClientMinimumBuildMiddleware", () => {
     expect(response.status).toBe(200);
   });
 
-  it("still reads macos-developer-id, which DMG builds sent before #5922", async () => {
-    const response = await request({
-      [APPLE_CLIENT_HEADER]: "macos-developer-id/7999",
-    });
-
-    expect(response.status).toBe(426);
+  it("reads only macos/<build>", async () => {
+    for (const value of ["macos-developer-id/7999", "macos-app-store/39"]) {
+      const response = await request({ [APPLE_CLIENT_HEADER]: value });
+      expect(response.status).toBe(200);
+    }
   });
 
-  it("no longer reads the retired app-store channel", async () => {
+  it("ignores the User-Agent", async () => {
     const response = await request({
-      [APPLE_CLIENT_HEADER]: "macos-app-store/39",
+      "User-Agent": "Sokosumi/6362 CFNetwork/3860.100.1 Darwin/26.0.0",
     });
 
     expect(response.status).toBe(200);
@@ -86,26 +85,6 @@ describe("appleClientMinimumBuildMiddleware", () => {
     });
 
     expect(response.status).toBe(200);
-  });
-
-  it("gates a published build that predates the header by its User-Agent", async () => {
-    const response = await request({
-      "User-Agent": "Sokosumi/6362 CFNetwork/3860.100.1 Darwin/26.0.0",
-    });
-
-    expect(response.status).toBe(426);
-  });
-
-  it("leaves User-Agent builds below the first DMG alone, since they are local or TestFlight builds", async () => {
-    const firstDMG = await request({
-      "User-Agent": "Sokosumi/3125 CFNetwork/3860.100.1 Darwin/26.0.0",
-    });
-    expect(firstDMG.status).toBe(426);
-
-    const beforeFirstDMG = await request({
-      "User-Agent": "Sokosumi/3124 CFNetwork/3860.100.1 Darwin/26.0.0",
-    });
-    expect(beforeFirstDMG.status).toBe(200);
   });
 
   it("serves requests from other clients", async () => {
