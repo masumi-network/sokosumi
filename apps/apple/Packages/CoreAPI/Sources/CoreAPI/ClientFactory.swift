@@ -16,7 +16,7 @@ public extension Client {
   }
 
   /// Fake-transport variant that also runs middlewares, so tests cover the
-  /// app's real middleware stack (e.g. explicit-null rewrite).
+  /// app's real middleware stack (e.g. guest-link `expiresInDays`).
   static func connecting(
     to serverURL: URL,
     transport: any ClientTransport,
