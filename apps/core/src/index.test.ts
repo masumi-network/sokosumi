@@ -153,6 +153,49 @@ describe("core index", () => {
     expect(otherResponse.status).toBe(503);
   });
 
+  it("tags an unmatched route as route_not_found", async () => {
+    const fetchHandler = await loadFetchHandler();
+
+    const response = await fetchHandler(
+      new Request("http://localhost/v1/users/u1/preferred-organization"),
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ kind: "route_not_found" });
+  });
+
+  it("turns an outdated Apple build away from /v1 but not from /auth", async () => {
+    getEnvMock.mockReturnValue({
+      NODE_ENV: "development",
+      PORT: 8787,
+      MACOS_MINIMUM_BUILD: 8000,
+    });
+    const headers = { "X-Sokosumi-Client": "macos/7999" };
+
+    const fetchHandler = await loadFetchHandler();
+
+    const v1Response = await fetchHandler(
+      new Request("http://localhost/v1/openapi.json", { headers }),
+    );
+    expect(v1Response.status).toBe(426);
+
+    // A removed operation still answers 426, not route_not_found, so an
+    // outdated build sees one kind for both.
+    const removedResponse = await fetchHandler(
+      new Request("http://localhost/v1/users/u1/preferred-organization", {
+        headers,
+      }),
+    );
+    expect(removedResponse.status).toBe(426);
+
+    const authResponse = await fetchHandler(
+      new Request("http://localhost/auth/open-api/generate-schema", {
+        headers,
+      }),
+    );
+    expect(authResponse.status).toBe(200);
+  });
+
   it("does not generate llms markdown during startup and still serves docs routes", async () => {
     createMarkdownFromOpenApiMock.mockResolvedValue("# llms");
 

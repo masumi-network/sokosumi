@@ -406,7 +406,8 @@ jobs:
       - name: Archive Sokosumi for Developer ID
         working-directory: apps/apple
         # CFBundleVersion must rise for every published build. The run number
-        # is monotonic per workflow, which is exactly that guarantee.
+        # is monotonic per workflow, which is exactly that guarantee. Core
+        # compares it with MACOS_MINIMUM_BUILD (ADR 0053).
         #
         # `SOKOSUMI_PROVISIONING_PROFILE`, not `PROVISIONING_PROFILE_SPECIFIER`:
         # a setting on the command line reaches every target, and the Swift
@@ -510,6 +511,10 @@ jobs:
           if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
             gh release edit "$RELEASE_TAG" --target "$GITHUB_SHA" \
               --notes "Newest macOS build from \`main\` ($GITHUB_SHA). Signed and notarized. Not a stable release."
+            # `--target` moves only targetCommitish; an existing tag stays
+            # where it was created, so move it to this build explicitly.
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG" \
+              -f sha="$GITHUB_SHA" -F force=true > /dev/null
           else
             gh release create "$RELEASE_TAG" --prerelease --target "$GITHUB_SHA" \
               --title "Sokosumi for macOS (latest)" \

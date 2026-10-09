@@ -229,6 +229,9 @@ SENTRY_ENVIRONMENT=   # development | staging | production
 
 # Maintenance (HTTP 503 on all routes; read at startup)
 MAINTENANCE_MODE=false
+
+# Oldest macOS build /v1 serves (HTTP 426; unset = no minimum)
+MACOS_MINIMUM_BUILD=
 ```
 
 Maintenance mode is read at startup, so changing `MAINTENANCE_MODE` requires a restart/redeploy.

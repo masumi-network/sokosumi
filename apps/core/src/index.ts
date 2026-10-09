@@ -18,6 +18,7 @@ import {
 import { betterAuthEvlogMiddleware } from "@/lib/evlog-better-auth";
 import { withPublicScheme } from "@/lib/request-scheme";
 import { initSentry } from "@/lib/sentry";
+import { appleClientMinimumBuildMiddleware } from "@/middleware/apple-client-minimum-build";
 import { maintenanceMiddleware } from "@/middleware/maintenance";
 import { sentryMiddleware } from "@/middleware/sentry";
 import authRouter from "@/routes/auth/index";
@@ -50,12 +51,10 @@ app.use(coreEvlogMiddleware());
 app.use(bindCoreRequestContext());
 app.use(betterAuthEvlogMiddleware());
 app.use(maintenanceMiddleware());
+// `/v1` only: `/auth` keeps refreshing tokens for a build this turns away.
+app.use("/v1/*", appleClientMinimumBuildMiddleware());
 
 app.onError(errorHandler);
-
-app.notFound(() => {
-  throw notFound();
-});
 
 app.route("/", wellKnownRouter);
 app.route("/auth", authRouter);
@@ -134,6 +133,12 @@ app.get("/llms.txt", async (c) => {
 // robots.txt lives on mainApp so crawlers still get Disallow during maintenance.
 mainApp.get("/robots.txt", (c) => c.text("User-Agent: *\nDisallow: /\n"));
 mainApp.route("/", app);
+// On mainApp, which dispatches every request: a notFound on `app` never runs,
+// and Hono's default answers plain text. The kind tells a client that the
+// operation is gone, not the resource (ADR 0053).
+mainApp.notFound((c) =>
+  errorHandler(notFound("Not Found", { kind: "route_not_found" }), c),
+);
 
 serve(
   {

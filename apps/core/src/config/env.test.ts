@@ -346,3 +346,19 @@ describe("isExplicitPreprod", () => {
     expect(isExplicitPreprod({ NETWORK: "Mainnet" })).toBe(false);
   });
 });
+
+describe("macOS minimum build", () => {
+  beforeEach(() => {
+    vi.stubEnv("SOKO_BOT_RUNTIME_ADAPTER", "in-process");
+  });
+
+  it("treats a blank minimum as unset", () => {
+    vi.stubEnv("MACOS_MINIMUM_BUILD", "");
+    expect(validateEnv().MACOS_MINIMUM_BUILD).toBeUndefined();
+  });
+
+  it("reads a configured minimum as a number", () => {
+    vi.stubEnv("MACOS_MINIMUM_BUILD", "8000");
+    expect(validateEnv().MACOS_MINIMUM_BUILD).toBe(8000);
+  });
+});

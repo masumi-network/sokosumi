@@ -20,6 +20,8 @@ public final class WorkspaceSession: ObservableObject {
     case blocked(gate: WorkspaceGate)
     case ready
     case failed(message: String)
+    /// Core turned this build away (ADR 0053).
+    case updateRequired
   }
 
   @Published public private(set) var phase: Phase = .idle
@@ -71,6 +73,8 @@ public final class WorkspaceSession: ObservableObject {
       guard attempt == generation, !Task.isCancelled else { return nil }
       if case let ChatServiceError.blocked(gate) = error {
         phase = .blocked(gate: gate)
+      } else if updateRequired(in: error) != nil {
+        phase = .updateRequired
       } else {
         phase = .failed(message: friendlyMessage(for: error))
       }
