@@ -41,5 +41,8 @@
 	<string>https://api.sokosumi.com/v1</string>
 	<key>SokosumiWebBaseURL</key>
 	<string>https://app.sokosumi.com</string>
+	<!-- ADR 0053. Publish macOS DMG passes developer-id; Xcode Cloud builds keep the default. -->
+	<key>SokosumiDistributionChannel</key>
+	<string>$(SOKOSUMI_DISTRIBUTION_CHANNEL:default=app-store)</string>
 </dict>
 </plist>
