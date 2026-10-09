@@ -323,10 +323,11 @@ jobs:
           path: ~/.mint
           key: ${{ runner.os }}-mint-${{ hashFiles('apps/apple/Mintfile') }}
 
-  # The rolling download. Every Apple change that reaches main replaces the
-  # single `apple-latest` prerelease, so
-  # https://github.com/masumi-network/sokosumi/releases/download/apple-latest/Sokosumi.dmg
-  # is a permanent link to the newest build.
+  # The Beta build. Every Apple change that reaches main replaces the assets
+  # of the single rolling `macos-beta` prerelease, so
+  # https://github.com/masumi-network/sokosumi/releases/download/macos-beta/Sokosumi.dmg
+  # is a permanent link to the newest build of main. A Beta build is never
+  # written into the appcast and never touches `macos-latest`.
   #
   # No `needs: test`: `Xcode test` is pull_request-only, and a skipped needed
   # job skips its dependents. The Default Branch ruleset already required
@@ -357,12 +358,12 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: xcode-27
     permissions:
-      # `gh release` rewrites the apple-latest tag and its assets, and the
+      # `gh release` rewrites the macos-beta tag and its assets, and the
       # Stable release's assets on macos-v<version> and macos-latest.
       contents: write
     env:
       TEAM_ID: GVWN7HXYJB
-      RELEASE_TAG: apple-latest
+      BETA_TAG: macos-beta
       # The tools that sign the appcast. Keep the version on the Sparkle the
       # app links (Package.resolved); the checksum is GitHub's asset digest.
       SPARKLE_VERSION: 2.10.0
@@ -527,7 +528,7 @@ jobs:
         with:
           name: Sokosumi-dmg
           path: ${{ runner.temp }}/Sokosumi.dmg
-          # Short: the current build always lives at the apple-latest URL, so
+          # Short: the current build always lives at the macos-beta URL, so
           # this exists to grab one specific run, not to archive history.
           retention-days: 7
           if-no-files-found: error
@@ -646,27 +647,30 @@ jobs:
           gh release upload macos-latest "$RUNNER_TEMP/Sokosumi.dmg" --clobber
           gh release upload macos-latest "$RUNNER_TEMP/appcast/appcast.xml" --clobber
 
-      - name: Replace the apple-latest prerelease
+      - name: Publish the Beta build
         # Never on a manual run: a test build must not rewrite the link people
         # have already been given. Never on a Stable tag either: Beta builds
-        # come from main only.
+        # come from main only. Nothing here writes an appcast or touches
+        # macos-latest, so no installed app is ever offered a Beta build.
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
-        # One tag, rewritten each time, so the download URL never changes.
-        # `--clobber` replaces the asset in place; recreating the release
-        # would hand out a new URL and break every link already shared.
+        # One prerelease, created on first use and rewritten each time, so the
+        # download URL never changes. `--clobber` replaces the asset in place;
+        # recreating the release would hand out a new URL and break every link
+        # already shared. `--latest=false` keeps GitHub's Latest badge on the
+        # CLI release.
         run: |
-          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" --target "$GITHUB_SHA" \
-              --notes "Newest macOS build from \`main\` ($GITHUB_SHA). Signed and notarized. Not a stable release."
+          NOTES="Beta build $GITHUB_RUN_NUMBER of the Mac app, from \`main\` at [${GITHUB_SHA:0:9}](https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA). Signed and notarized. Not a Stable release: installed apps are never offered it as an update. Stable releases: https://github.com/$GITHUB_REPOSITORY/releases/download/macos-latest/Sokosumi.dmg"
+          if gh release view "$BETA_TAG" > /dev/null 2>&1; then
+            gh release edit "$BETA_TAG" --target "$GITHUB_SHA" \
+              --prerelease --latest=false --notes "$NOTES"
             # `--target` moves only targetCommitish; an existing tag stays
             # where it was created, so move it to this build explicitly.
-            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG" \
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$BETA_TAG" \
               -f sha="$GITHUB_SHA" -F force=true > /dev/null
           else
-            gh release create "$RELEASE_TAG" --prerelease --target "$GITHUB_SHA" \
-              --title "Sokosumi for macOS (latest)" \
-              --notes "Newest macOS build from \`main\` ($GITHUB_SHA). Signed and notarized. Not a stable release."
+            gh release create "$BETA_TAG" --prerelease --latest=false --target "$GITHUB_SHA" \
+              --title "Sokosumi for macOS (Beta)" --notes "$NOTES"
           fi
-          gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/Sokosumi.dmg" --clobber
+          gh release upload "$BETA_TAG" "$RUNNER_TEMP/Sokosumi.dmg" --clobber
