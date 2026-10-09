@@ -21,7 +21,7 @@ One fresh session carries one row of `apps/apple/PARITY.md` from `Todo` to merge
    - Without one: exactly one open row PR is this session's PR; go to step 5. More than one: stop and ask the user which row, or to start with a row id.
 
    Done when you know whether this session's row already has an open PR.
-3. **Pick the row.** With a row id: that row, when its status is exactly `Todo` and its dependencies are `Done` or `Merged`; otherwise stop and report why. Without one: the first Work order entry that qualifies and has no open row PR. Never take M6. No `Todo` left: open one docs PR marking the last row `Done`, then stop.
+3. **Pick the row.** With a row id: that row, when its status is exactly `Todo` and its dependencies are `Done` or `Merged`; otherwise stop and report why. Without one: the first Work order entry that qualifies and has no open row PR; `node apps/apple/scripts/parity-status.mjs` lists them, with open row PRs and merged rows still `In review`. Never take M6. No `Todo` left: open one docs PR marking the last row `Done`, then stop.
 4. **Dispatch one subagent** (`general-purpose`, `isolation: worktree`, background) with the brief below, filled in for the row. When it reports, relay to the user: the PR link, the render, the deviations from web, and anything that needs their decision. Show the render with `SendUserFile`.
 5. **Shepherd the PR until the user merges it.** Watch CI with a Monitor. Notify the user when the PR is up and when CI is green. For each review:
    - verify every claim against the code;
