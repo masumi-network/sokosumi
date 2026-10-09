@@ -6,6 +6,12 @@ import {
 import { withRelatedProject } from "@vercel/related-projects";
 import { v4 as uuidv4 } from "uuid";
 
+// Blank means unset, so a copied `KEY=` line does not fail startup.
+const minimumBuildSchema = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.coerce.number().int().positive().optional(),
+);
+
 /**
  * Environment variables schema for Core API
  * This ensures the app isn't built with invalid env vars.
@@ -280,12 +286,8 @@ const baseEnvSchema = z.object({
    * Oldest macOS build `/v1` still serves, per distribution channel; older
    * builds get 426 `client_update_required` (ADR 0053). Unset: no minimum.
    */
-  MACOS_DEVELOPER_ID_MINIMUM_BUILD: z.coerce
-    .number()
-    .int()
-    .positive()
-    .optional(),
-  MACOS_APP_STORE_MINIMUM_BUILD: z.coerce.number().int().positive().optional(),
+  MACOS_DEVELOPER_ID_MINIMUM_BUILD: minimumBuildSchema,
+  MACOS_APP_STORE_MINIMUM_BUILD: minimumBuildSchema,
 
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),

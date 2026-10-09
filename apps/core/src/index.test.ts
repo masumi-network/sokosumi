@@ -179,6 +179,15 @@ describe("core index", () => {
     );
     expect(v1Response.status).toBe(426);
 
+    // A removed operation still answers 426, not route_not_found, so an
+    // outdated build sees one kind for both.
+    const removedResponse = await fetchHandler(
+      new Request("http://localhost/v1/users/u1/preferred-organization", {
+        headers,
+      }),
+    );
+    expect(removedResponse.status).toBe(426);
+
     const authResponse = await fetchHandler(
       new Request("http://localhost/auth/open-api/generate-schema", {
         headers,

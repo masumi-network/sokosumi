@@ -97,11 +97,15 @@ describe("appleClientMinimumBuildMiddleware", () => {
   });
 
   it("leaves User-Agent builds below the first DMG alone, since their channel is unknown", async () => {
-    const response = await request({
-      "User-Agent": "Sokosumi/42 CFNetwork/3860.100.1 Darwin/26.0.0",
+    const firstDMG = await request({
+      "User-Agent": "Sokosumi/3125 CFNetwork/3860.100.1 Darwin/26.0.0",
     });
+    expect(firstDMG.status).toBe(426);
 
-    expect(response.status).toBe(200);
+    const beforeFirstDMG = await request({
+      "User-Agent": "Sokosumi/3124 CFNetwork/3860.100.1 Darwin/26.0.0",
+    });
+    expect(beforeFirstDMG.status).toBe(200);
   });
 
   it("serves requests from other clients", async () => {
