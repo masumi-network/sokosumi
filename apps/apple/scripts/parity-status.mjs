@@ -88,11 +88,14 @@ function main() {
   for (const [id, row] of parity.rows) {
     if (!row.status.startsWith("In review")) continue;
     const number = /#(\d+)/.exec(row.status)?.[1];
-    if (!number) continue;
-    const pr = JSON.parse(run("gh", ["pr", "view", number, "--json", "state,mergedAt,mergeCommit"]));
-    if (pr.state !== "MERGED") continue;
+    const branch = /`(claude\/apple-parity-[^`]+)`/.exec(row.status)?.[1];
+    if (!number && !branch) continue;
+    const pr = number
+      ? JSON.parse(run("gh", ["pr", "view", number, "--json", "number,state,mergedAt,mergeCommit"]))
+      : JSON.parse(run("gh", ["pr", "list", "--head", branch, "--state", "merged", "--json", "number,state,mergedAt,mergeCommit"]))[0];
+    if (pr?.state !== "MERGED") continue;
     stale += 1;
-    out.push(`  ${id}  #${number} merged ${pr.mergedAt.slice(0, 10)} as squash ${pr.mergeCommit.oid.slice(0, 9)}`);
+    out.push(`  ${id}  #${pr.number} merged ${pr.mergedAt.slice(0, 10)} as squash ${pr.mergeCommit.oid.slice(0, 9)}`);
   }
   if (stale === 0) out.push("  none");
 
