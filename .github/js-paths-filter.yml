@@ -57,6 +57,7 @@ design-md:
 # turbo and Vercel contract tests read the workflows, turbo.json, the
 # workspace file, every app vercel.json, .vercelignore, and the web build
 # wrapper. The migration step test reads the migration order test. The
-# /reset-db tests import the Neon client.
+# /reset-db tests import the Neon client. The Mac app version test reads the
+# Release Please config, the version xcconfig and the Xcode project.
 ci-config:
-  - "{*.md,**/*.md,*.mdc,**/*.mdc,package.json,**/package.json,.github/**,scripts/ci/**,scripts/cloud-agent-db/neon-api.mjs,turbo.json,pnpm-workspace.yaml,.vercelignore,apps/*/vercel.json,apps/web/scripts/**,packages/database/src/helpers/migration-prefix-order.test.ts}"
+  - "{*.md,**/*.md,*.mdc,**/*.mdc,package.json,**/package.json,.github/**,scripts/ci/**,scripts/cloud-agent-db/neon-api.mjs,turbo.json,pnpm-workspace.yaml,.vercelignore,apps/*/vercel.json,apps/web/scripts/**,packages/database/src/helpers/migration-prefix-order.test.ts,apps/apple/release-please-config.json,apps/apple/Version.xcconfig,apps/apple/Sokosumi.xcodeproj/project.pbxproj}"
