@@ -21,8 +21,8 @@ describe("JS CI caches", () => {
         savers.push(file);
       }
     }
-    // apple.yml saves Mint, Swift packages and Xcode's compilation cache
-    // from main pushes.
+    // apple.yml's Warm Apple caches job saves Mint, Swift packages and
+    // Xcode's compilation cache from main (schedule / workflow_dispatch).
     assert.deepEqual(savers.sort(), ["apple.yml", "next-build-cache.yml"]);
 
     const warm = await readRepoFile(
@@ -62,5 +62,77 @@ describe("JS CI caches", () => {
         /DATABASE_URL: "postgresql:\/\/user:password@localhost:5432\/sokosumi"/,
       );
     }
+  });
+});
+
+function jobBlock(yaml, jobId) {
+  const match = yaml.match(
+    new RegExp(`(?:^|\\n)  ${jobId}:\\n([\\s\\S]*?)(?=\\n  [a-zA-Z]|$)`),
+  );
+  assert.ok(match, `missing job ${jobId}`);
+  return match[0];
+}
+
+describe("Apple CI triggers", () => {
+  it("keeps required check names and stops test/lint on push to main", async () => {
+    const yaml = await readRepoFile(".github", "workflows", "apple.yml");
+    const test = jobBlock(yaml, "test");
+    const lint = jobBlock(yaml, "lint");
+    const warm = jobBlock(yaml, "warm");
+    const publish = jobBlock(yaml, "publish");
+
+    assert.match(test, /name: Xcode test/);
+    assert.match(lint, /name: Swift lint and format/);
+    assert.match(warm, /name: Warm Apple caches/);
+    assert.match(publish, /name: Publish macOS DMG/);
+
+    assert.match(
+      test,
+      /if: github\.event_name == 'pull_request' && needs\.changes\.outputs\.apple == 'true'/,
+    );
+    assert.match(
+      lint,
+      /if: github\.event_name == 'pull_request' && needs\.changes\.outputs\.apple == 'true'/,
+    );
+    assert.doesNotMatch(test, /github\.event_name == 'push'/);
+    assert.doesNotMatch(lint, /github\.event_name == 'push'/);
+
+    assert.match(
+      warm,
+      /if: github\.event_name == 'schedule' \|\| github\.event_name == 'workflow_dispatch'/,
+    );
+    assert.match(yaml, /cron: "17 3 \* \* \*"/);
+
+    assert.doesNotMatch(publish, /needs:/);
+    assert.match(
+      publish,
+      /if: github\.event_name == 'push' \|\| github\.event_name == 'workflow_dispatch'/,
+    );
+
+    const spmKey =
+      /\${{ runner\.os }}-spm-\${{ hashFiles\('apps\/apple\/Sokosumi\.xcworkspace\/xcshareddata\/swiftpm\/Package\.resolved'\) }}/;
+    const mintKey =
+      /\${{ runner\.os }}-mint-\${{ hashFiles\('apps\/apple\/Mintfile'\) }}/;
+    const casKey = /\${{ runner\.os }}-xcode-cas-\${{ github\.run_id }}/;
+    for (const key of [spmKey, casKey]) {
+      assert.match(test, key);
+      assert.match(warm, key);
+    }
+    assert.match(lint, mintKey);
+    assert.match(warm, mintKey);
+  });
+});
+
+describe("CodeQL JS drafts", () => {
+  it("skips draft PRs and re-runs on ready_for_review", async () => {
+    const yaml = await readRepoFile(".github", "workflows", "codeql.yml");
+    assert.match(
+      yaml,
+      /types: \[opened, synchronize, reopened, ready_for_review\]/,
+    );
+    assert.match(
+      yaml,
+      /if: github\.event_name != 'pull_request' \|\| !github\.event\.pull_request\.draft/,
+    );
   });
 });
