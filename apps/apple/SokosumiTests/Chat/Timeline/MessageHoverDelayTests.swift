@@ -159,6 +159,23 @@
         #expect(settled.bar && settled.fill, "The chrome returns once the list stops: \(settled)")
       }
 
+      /// The bar is built only while the pointer is on the row (or focus or the picker holds it): every realized row
+      /// carried a hidden one, and with it two variants of eight controls for SwiftUI to lay out and hit-test on
+      /// every scroll step (M6). The bar brings its own right-click area (M7), so a row hosts two context-menu views
+      /// while it has a bar and one without.
+      @Test func onlyARowUnderThePointerBuildsItsActionBar() async throws {
+        let (host, window) = try await Self.host(delay: .seconds(60), flag: TranscriptScrollActivity())
+        defer { window.orderOut(nil) }
+        func menuAreas(_ view: NSView) -> Int {
+          (view is MessageContextMenuView ? 1 : 0) + view.subviews.reduce(0) { $0 + menuAreas($1) }
+        }
+        host.layoutSubtreeIfNeeded()
+        #expect(menuAreas(host) == 1, "A row nobody points at builds no bar: \(menuAreas(host)) context-menu views")
+        try await hover(Self.pointer, in: host, window: window)
+        host.layoutSubtreeIfNeeded()
+        #expect(menuAreas(host) == 2, "The row under the pointer builds its bar, still hidden until the rest: \(menuAreas(host))")
+      }
+
       /// The real room and Thread: a row hovered before a wheel gesture keeps no fill while the gesture moves the list,
       /// for a trackpad's phased events and a mouse wheel's unphased ones.
       @Test(arguments: [(thread: false, phased: true), (thread: false, phased: false), (thread: true, phased: true)])

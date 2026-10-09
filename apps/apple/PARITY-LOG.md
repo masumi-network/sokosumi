@@ -4894,3 +4894,48 @@ Unverified: a real pointer and trackpad in the signed app (the tests and the har
 
 How to test: open a long room, rest the pointer over the transcript and scroll with the trackpad or a wheel: no row lights up and no bar appears while the list moves; stop, and after a moment the row under the pointer shows its fill and bar. Move the pointer onto another row: its bar follows after the same short wait. Tab into a row's bar with Full Keyboard Access: it shows at once.
 
+## Slice M6 — scrolling under a resting pointer
+
+Branch `claude/apple-transcript-lighter-rows-main`, on `origin/main` `bb6cf0bc9` (M8's [#5898](https://github.com/masumi-network/sokosumi/pull/5898) and the title bar's [#5911](https://github.com/masumi-network/sokosumi/pull/5911) merged; the work was measured on #5898's head `4d6c1232d` and moved over as one change). Draft [#5915](https://github.com/masumi-network/sokosumi/pull/5915). Web and Core were read-only. Harness, sources and method: [scrolling-hover-harness.md](docs/scrolling-hover-harness.md).
+
+### The recording, checked frame by frame
+
+The user's 10 s recording of `#Sokosumi` (signed `apple-latest`, 2026-10-08) holds 341 frames and twelve gaps over 100 ms. Six of them change no pixel (the 650 ms one at 4.35 s among them): idle, not hitches. Of the rest, the two at 3.48 s and 3.88 s sit on "Loading older messages…", the others mid-flick. A second report on 2026-10-09 (a screenshot of `#Everyone`) showed an X link preview's picture covering "Everyone" in the title bar.
+
+### What the profile names
+
+Time Profiler, attached to the hover harness (600 fixture messages, six trackpad flicks, a resting pointer fed as tracking events), over the 11.5 s of flicks:
+
+| Build | Main thread | `NSHostingView.layout()` | `MessageRowView.body` | Frames over 25 ms |
+| --- | --- | --- | --- | --- |
+| #5898, no pointer | 2,529 ms | 1,453 ms | 109 ms | 8 |
+| #5898, pointer resting | 3,237 / 3,221 ms | 2,008 / 1,991 ms | 113 / 128 ms | 27 / 20 |
+| this change, pointer resting | 2,705 / 2,491 ms | 1,664 / 1,509 ms | 84 / 82 ms | 16 / 8 |
+
+The pointer's cost is SwiftUI's hover pass after every scroll step (`EventBindingManager.enqueueHoverUpdateIfNeeded` → `NSHostingView.didRequestHoverUpdate`, 9 %; the responder-tree build and `HoverEventDispatcher` 4–5 % each) and the layout it drags along. Candidates the user named, checked: per-row hover state is the bar's (see M8, #5898); image decoding already runs on the decode queue (`png_read_*` off the main thread); Seen by and result previews do not appear in the profile (every app symbol together is under 4 %).
+
+Rejected on the way: `allowsHitTesting(false)` on the list while the reader drives it cut the pointer's cost by about 40 % but stopped the wheel from scrolling the hosted room and Thread (offset 17,943 → 17,943; `ThreadPaginationTests` and `TranscriptScrollingTests` failed), because SwiftUI routes wheel events through hit testing. `onHover` for the row's `onContinuousHover` measured no change.
+
+### Changes
+
+- **Lighter rows.** `MessageRowView` builds its action bar only while `isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker` (`buildsActionBar`); before, every realized row carried a hidden bar, two `ViewThatFits` variants of about eight controls. User decision, 2026-10-09: Full Keyboard Access no longer tabs through a hidden bar on every message; the keyboard and VoiceOver reach every action through the row's menu and accessibility actions (M7).
+- **Title bar edge (fixed on `main` by [#5911](https://github.com/masumi-network/sokosumi/pull/5911), the same `.scrollEdgeEffectStyle(.hard, for: .top)` on both transcripts).** This slice adds the cause and the check: in the key window the automatic and the soft top edge draw nothing, so a light picture scrolled under the title bar hid the room's name; an inactive window dims it (why the first `NSHostingView` captures missed it). Render: [title-bar-over-light-picture.png](docs/images/title-bar-over-light-picture.png), half size, the key window of the scene harness (`TitleApp.swift`: the app's split view, `RoomNavigationStack`, header and inspector) with a near-white screenshot under the title, before (top, the name hidden) and with the hard edge (bottom).
+
+### Tests
+
+- `MessageHoverDelayTests/onlyARowUnderThePointerBuildsItsActionBar`: an unhovered row hosts one `MessageContextMenuView` (its own), a hovered row two (the bar brings its own right-click area, M7). Before the change it **failed** with 2 on the unhovered row; after, it passes.
+- The title bar edge has no test seam: the test host is never the active app, and the bug shows only in the key window. The scene harness's key-window captures are the check (`keycap.sh`), before and after #5911's edge.
+- `SokoBotFeedbackToolbarTests` drew its hovered row once, 300 ms after the hover; with the bar built on the hover and shown after the rest, a loaded full run missed it (3 failures). Its `hovered` now retakes the drawing until the toolbar is in it, up to 2 s, as `MessageHoverDelayTests` waits.
+
+### Verification
+
+All from `apps/apple` with this change on #5898's head `4d6c1232d`; logs and result bundles in the session scratchpad:
+- `xcodebuild test -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -enableCodeCoverage NO` — **1,875 tests, 1,874 passed, 1 failed** (CoreAPI 1, Auth 35, Chat 1,147, Realtime 57, Workspace 193 all passed; app 442, 441 passed; `b-full2.xcresult`). The failure is the Known-flaky `MessageEditComposerChromeTests/anOverLimitDraftShowsTheHintAndCountOnOneLineUnderTheField`; `-only-testing:` it with `SokoBotFeedbackToolbarTests`, `ThreadParentMarkTests` and `MessageHoverDelayTests` passed **21 of 21** (`b-rerun.xcresult`). The run before the toolbar wait had 5 failures: those 3 toolbar cases, the OCR case and `ThreadParentMarkTests/closingTheThreadAfterTheHoldLeavesTheRoomOnTheParent` (the Thread mark's hold, under load), which passed on the rerun.
+- `xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build` — **BUILD SUCCEEDED**, no warning in the changed files.
+- `swift build --package-path Packages/SokosumiWorkspace --triple arm64-apple-ios17.0 --sdk <iPhoneOS 27.0 SDK> --scratch-path <scratch>` — **Build complete**; the scratch path was deleted.
+- `mint run swiftformat --lint .` — **0/600 files require formatting**; `mint run swiftlint lint --strict` — **0 violations in 600 files**. No task-owned test host or harness remained running.
+- On `origin/main` `bb6cf0bc9` with the change moved over: `MessageHoverDelayTests`, `SokoBotFeedbackToolbarTests`, `MessageContextMenuTests`, `MessageReactIconTests` and `TranscriptScrollingTests` passed **34 of 34** (`b-main.xcresult`); SwiftFormat 0/600, SwiftLint strict 0 violations; `node --test scripts/ci/__tests__/apple-parity.test.mjs` **5 of 5**.
+
+Unverified: the signed app against Core (the user's own rooms, a real trackpad and pointer, a real X preview under the title), Full Keyboard Access and VoiceOver on screen; the older-page insertion from the recording is not reproduced or measured, because the harness loads every message up front.
+
+How to test: in a long room, rest the pointer over the transcript and flick: the list keeps up, no row lights up while it moves. Scroll a message with a light picture or link preview to the top of the window while the window is active: the room's name stays readable over a dark band. Point at a message: its bar appears after the short wait, as in #5898.

@@ -151,6 +151,13 @@ import SwiftUI
       showsHoverChrome || focusedAction != nil || showsReactionPicker
     }
 
+    /// The bar exists only while the pointer is on the row or focus or the picker holds it, hidden until it shows:
+    /// a hidden bar on every realized row cost SwiftUI layout and hit testing on every scroll step (M6). The
+    /// keyboard and VoiceOver reach every action through the row's menu and accessibility actions (M7).
+    private var buildsActionBar: Bool {
+      isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker
+    }
+
     /// Persisted mention shell (thinking or failed); nil for ordinary rows.
     private var mentionShell: MentionThoughtShell? {
       MentionThoughtShell(message: message)
@@ -424,7 +431,7 @@ import SwiftUI
         }
       }
       .overlay(alignment: .topTrailing) {
-        if showsActionChrome {
+        if showsActionChrome, buildsActionBar {
           ViewThatFits(in: .horizontal) {
             actionControls(compact: false)
             actionControls(compact: true)
