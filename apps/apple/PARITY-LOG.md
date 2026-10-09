@@ -4939,3 +4939,30 @@ All from `apps/apple` with this change on #5898's head `4d6c1232d`; logs and res
 Unverified: the signed app against Core (the user's own rooms, a real trackpad and pointer, a real X preview under the title), Full Keyboard Access and VoiceOver on screen; the older-page insertion from the recording is not reproduced or measured, because the harness loads every message up front.
 
 How to test: in a long room, rest the pointer over the transcript and flick: the list keeps up, no row lights up while it moves. Scroll a message with a light picture or link preview to the top of the window while the window is active: the room's name stays readable over a dark band. Point at a message: its bar appears after the short wait, as in #5898.
+## 24f2 fix — the Unreads row rests muted
+
+Follow-up to the 24f1 fix (#5897), on the user's go (2026-10-09). Branch `claude/apple-unreads-row-rests-muted` on `origin/main` `31e7cdf4a`.
+
+### Web (at `31e7cdf4a`)
+
+`ChatUnreadNavRows` ([chat-unread-nav-rows.tsx](<../web/src/components/chat/chat-unread-nav-rows.tsx>)): with the filter off, the Unreads button carries `THREADS_ROW_CLASS` (:327-329), the muted rest of label and icon that the Threads row uses; on, `bg-primary-quaternary text-primary-variant font-medium` (:320-326). The `Inbox` icon and label take the button's colour (:350-363).
+
+### Cause and fix
+
+`ConversationSidebarView.unreadsRow` drew the label `.primary` while off, so it stood at full strength beside the muted Threads row. Now it is `.secondary` while off; the icon was already secondary, and the on state keeps the accent.
+
+### Tests (red first, then green)
+
+- App, `NativeWindowTests/CrossRoomThreadsViewTests.theThreadsAndUnreadsRowsRestMuted(dark:)` (replaces #5897's `theThreadsRowRestsMutedWithNothingUnread`, which used Unreads as its full-strength reference): the unselected sidebar with `controlActiveState` key; at rest Threads and Unreads match within 0.1, and an unread Threads row is stronger than both its own rest and Unreads by more than 0.15. Red before the fix: at rest Unreads 0.354 against Threads 0.518 (light), 0.931 against 0.703 (dark); unread, Threads equal to Unreads. Vision reads text only locally, so on CI the test checks the fixture alone.
+
+Render: [unreads-row-rests-muted.png](docs/images/unreads-row-rests-muted.png), half size; top before, bottom after; light then dark; each pair nothing unread, then three unread Threads.
+
+### Verification
+
+All from `apps/apple` on `31e7cdf4a` plus this change:
+- `xcodebuild test -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -enableCodeCoverage NO` — **1,869 tests, 1,868 passed, 1 failed** (CoreAPI 1, Auth 35, Chat 1,147, Realtime 57, Workspace 193 all passed; app 436, 435 passed). The failure is `MessageEditComposerChromeTests.anOverLimitDraftShowsTheHintAndCountOnOneLineUnderTheField`: Vision did not find "Too long to send as text" among the over-limit draft's lines. That suite then passed 3/3 alone (`test-without-building -only-testing:SokosumiTests/NativeWindowTests/MessageEditComposerChromeTests`); this change touches no composer file.
+- `xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build` — **BUILD SUCCEEDED**.
+- `swift build --package-path Packages/SokosumiWorkspace --triple arm64-apple-ios17.0 --sdk <iPhoneOS SDK> --scratch-path <scratch>` — **Build complete**; the scratch path was deleted.
+- `mint run swiftformat --lint .` — **0/599 files require formatting**; `mint run swiftlint lint --strict` — **0 violations in 599 files**. No task-owned test host remained running.
+
+Unverified: the row in a running app, including toggling the filter, was not exercised.
