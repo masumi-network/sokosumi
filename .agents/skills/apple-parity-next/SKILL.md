@@ -29,8 +29,8 @@ One fresh session carries one row of `apps/apple/PARITY.md` from `Todo` to merge
    - answer once with technical reasoning;
    - never re-request review.
 
-   Resolve conflicts by merging `main`, never by rebasing or force-pushing. Regenerate `openapi.json` with `scripts/update-core-api.py`; never hand-merge it. Re-run a CI job only when its log shows an infrastructure flake or a known-flaky test listed in the Resume checkpoint. Done when the user has merged the PR.
-6. **Mark the row Done.** From a fresh branch on the new `origin/main`, open one draft docs PR (`docs(apple): mark parity <row> done`) that sets this row's Status cell to `Done` with its merge date and squash SHA, keeping its unverified list. Done when that PR is open.
+   Resolve conflicts by merging `main`, never by rebasing or force-pushing. Regenerate `openapi.json` with `scripts/update-core-api.py`; never hand-merge it. Re-run a CI job once when its log shows an infrastructure flake, a known-flaky test listed in the Resume checkpoint, or a failing test in code this PR did not touch; report a second failure instead of re-running again. Done when the user has merged the PR.
+6. **Mark the row Done.** From a fresh branch on the new `origin/main`, open one draft docs PR (`docs(apple): mark parity <row> done`) that sets this row's Status cell to `Done — [#<PR>](…)` with its merge date and squash SHA, keeping its unverified list. Then remove the row's subagent worktree with `git worktree remove --force <path>`, and its Xcode derived data: the `~/Library/Developer/Xcode/DerivedData/Sokosumi-*` folder whose `info.plist` `WorkspacePath` lies inside that worktree. Done when that PR is open and both are gone.
 
 ## Subagent brief
 
@@ -39,12 +39,13 @@ Fill in every item. Name concrete files and SHAs, and keep claims about web beha
 - **Base**: the exact `origin/main` SHA and the branch `claude/apple-parity-<row>-<slug>`.
 - **Read first**: root `AGENTS.md` and the `docs/agents/` files it requires for code work, `apps/apple/AGENTS.md`, `VISION.md`, the PARITY sections for the row, its dependencies and its neighbours, any ADR the row cites, and the app-scoped `swiftui-expert-skill`.
 - **Setup**: `pnpm install --frozen-lockfile` before the first commit, so the hooks run.
+- **Shell**: the worktree isolation guard refuses any command it cannot prove stays inside the worktree: chained commands, `git -C`, and paths built at run time. Run one command per call with literal absolute paths inside the worktree, and write files with Edit/Write.
 - **Audit**: name the web and Core files to read at the current `main` SHA, and phrase web behaviour as numbered questions for the subagent to answer with file:line. Row text is a snapshot, so the subagent corrects stale row text in the same PR. It stops and reports only when web itself is unclear or a stop condition above applies.
 - **Split**: child rows (`<row>1`, `<row>2`) only when the audit shows independent features. Record both in PARITY and implement one.
 - **Build**: portable model and networking in `Packages/` with UI-free tests using fixed IDs and time; native SwiftUI in the app; reuse the existing seam. Native Mac affordances win over copying web markup: keep clickable controls and native toolbar items, and record each deviation in PARITY.
 - **Tests first**: every new test is shown to fail before the fix. Render fixtures host the view over the window background, so nothing renders transparent. Save a combined light/dark PNG at an absolute path, and commit a half-size copy under `apps/apple/docs/images/`.
 - **PARITY**:
-  - this row's Status cell set to `In review — [#<PR>](…)`, with corrected text; its status lives in that cell only;
+  - this row's Status cell set to ``In review — branch `claude/apple-parity-<row>-<slug>` ``, with corrected text; its status lives in that cell only, and step 6 writes the PR number once it has merged;
   - a slice section appended to `PARITY-LOG.md`, which holds the row's notes;
   - this row's id removed from the Work order;
   - `node --test scripts/ci/__tests__/apple-parity.test.mjs` passing.
@@ -53,7 +54,6 @@ Fill in every item. Name concrete files and SHAs, and keep claims about web beha
 - **Done**: the checks in VISION.md's "Iteration loop" pass, with exact commands and counts recorded. Re-run the known-flaky tests, which fail more often while another session builds; never disable them. Close any test host. Keep the worktree's derived data until the PR merges, so review fixes rebuild incrementally.
 - **Delivery**:
   - the slice lands as one Conventional Commit, and each later review fix as one more; a draft PR whose title equals the slice commit's subject;
-  - re-check the PR number right before committing the PARITY edit;
   - never rebase or force-push; fetch and merge `origin/main` before a push onto an existing PR branch; after pushing, fetch and confirm the remote has the commit;
   - no Linear issues, no review requests;
   - never end a turn with its own background command still running.
