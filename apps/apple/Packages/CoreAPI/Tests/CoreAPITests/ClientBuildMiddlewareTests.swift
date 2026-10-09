@@ -38,6 +38,17 @@ struct ClientBuildMiddlewareTests {
     #expect(try notFound.body.json.message == "User not found")
   }
 
+  @Test func anOversizedNotFoundPassesThrough() async throws {
+    let message = String(repeating: "x", count: 70 * 1024)
+    let body = #"{"error":"NotFound","message":"\#(message)","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/v1/users/me","method":"GET"}}"#
+    let response = try await client(StubTransport(status: 404, body: body), channel: .developerID).getUsersId(path: .init(id: "me"))
+    guard case let .notFound(notFound) = response else {
+      Issue.record("expected 404, got \(response)")
+      return
+    }
+    #expect(try notFound.body.json.message == message)
+  }
+
   private func client(_ transport: StubTransport, channel: DistributionChannel) throws -> Client {
     try Client.connecting(
       to: #require(URL(string: "https://core.example/v1")),

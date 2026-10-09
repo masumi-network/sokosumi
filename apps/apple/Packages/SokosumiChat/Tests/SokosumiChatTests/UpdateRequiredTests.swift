@@ -23,6 +23,13 @@ struct UpdateRequiredTests {
     #expect(friendlyMessage(for: CoreUpdateRequired(channel: .appStore)).contains("App Store"))
   }
 
+  @Test func theRoleProbeDoesNotHideAnUpdate() async throws {
+    let error = await #expect(throws: ClientError.self) {
+      try await ChatService().organizationOwnerOrAdminIfReadable(client: client(channel: .appStore), organizationId: "org_1")
+    }
+    #expect(try updateRequired(in: #require(error)) == CoreUpdateRequired(channel: .appStore))
+  }
+
   private func client(channel: DistributionChannel) throws -> Client {
     try Client.connecting(
       to: #require(URL(string: "https://core.example/v1")),

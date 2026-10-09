@@ -25,6 +25,7 @@ public struct CoreUpdateRequired: Error, Equatable, Sendable {
 public struct ClientBuildMiddleware: ClientMiddleware {
   static let headerName = HTTPField.Name("X-Sokosumi-Client")!
   private static let updateKinds: [Int: String] = [426: "client_update_required", 404: "route_not_found"]
+  private static let maxEnvelopeBytes = 64 * 1024
 
   let channel: DistributionChannel
   let build: String
@@ -44,15 +45,24 @@ public struct ClientBuildMiddleware: ClientMiddleware {
     var request = request
     request.headerFields[Self.headerName] = "macos-\(channel.rawValue)/\(build)"
     let (response, responseBody) = try await next(request, body, baseURL)
-    guard let kind = Self.updateKinds[response.status.code], let responseBody else {
+    // Core's error envelope is small; a body known to be larger is not one, so it passes untouched.
+    guard let kind = Self.updateKinds[response.status.code], let responseBody,
+          responseBody.length.fits(Self.maxEnvelopeBytes) else {
       return (response, responseBody)
     }
     // Collect once, then hand the bytes on: the collected stream cannot be replayed.
-    let bytes = try await Array(collecting: responseBody, upTo: 64 * 1024)
+    let bytes = try await Array(collecting: responseBody, upTo: Self.maxEnvelopeBytes)
     let json = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any]
     if json?["kind"] as? String == kind {
       throw CoreUpdateRequired(channel: channel)
     }
     return (response, HTTPBody(bytes))
+  }
+}
+
+private extension HTTPBody.Length {
+  func fits(_ limit: Int) -> Bool {
+    guard case let .known(length) = self else { return true }
+    return length <= limit
   }
 }
