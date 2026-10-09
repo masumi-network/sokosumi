@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, useQueryStates } from "nuqs";
 import { useRef, useState } from "react";
+import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,13 +25,15 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { refreshProjectSocialAccountStatistics } from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
 import type { projectService } from "@/lib/services/project.service";
-import { SocialPostMetrics } from "./social-post-metrics";
+import { SocialPostPerformanceCard } from "./social-post-performance-card";
 
 const ACCOUNT_METRIC_LABELS: Record<string, string> = {
   followers_count: "followers",
   follows_count: "following",
   following_count: "following",
   tweet_count: "posts",
+  post_count: "posts",
+  quote_count: "quotes",
   listed_count: "lists",
   posts_liked_count: "postsLiked",
   viewCount: "views",
@@ -366,13 +369,20 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 space-y-1">
-                    <h4 className="break-words font-medium">
-                      {account.displayName ??
-                        account.externalHandle ??
-                        SOCIAL_PROVIDERS.find(
-                          (provider) => provider.id === account.provider,
-                        )?.name ??
-                        account.provider}
+                    <h4 className="flex items-center gap-2 font-medium">
+                      <SocialPostProviderIcon
+                        provider={account.provider}
+                        className="size-5 shrink-0"
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0 break-words">
+                        {account.displayName ??
+                          account.externalHandle ??
+                          SOCIAL_PROVIDERS.find(
+                            (provider) => provider.id === account.provider,
+                          )?.name ??
+                          account.provider}
+                      </span>
                     </h4>
                     <p className="text-muted-foreground text-xs">
                       {SOCIAL_PROVIDERS.find(
@@ -572,48 +582,17 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
             {t("empty")}
           </p>
         ) : null}
-        <ul className="space-y-3">
+        <ul className="grid items-start gap-4 lg:grid-cols-2">
           {posts.map((post) => (
-            <li key={post.id} className="space-y-3 rounded-lg border p-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="font-medium">
-                  {accountsById.get(post.connectionId)?.displayName ??
-                    accountsById.get(post.connectionId)?.externalHandle ??
-                    SOCIAL_PROVIDERS.find(
-                      (provider) => provider.id === post.provider,
-                    )?.name ??
-                    post.provider}
-                </p>
-                <p className="text-muted-foreground text-xs">
-                  {post.publishedAt
-                    ? formatDate(post.publishedAt)
-                    : t("dateUnavailable")}
-                </p>
-              </div>
-              <p className="text-sm whitespace-pre-wrap break-words">
-                {post.text || t("mediaPost")}
-              </p>
-              {post.url ? (
-                <a
-                  className="inline-block text-sm underline underline-offset-4"
-                  href={post.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  {t("openPost")}
-                </a>
-              ) : null}
-              <SocialPostMetrics
-                statistics={{
-                  metrics: post.metrics,
-                  fetchedAt: post.fetchedAt,
-                  refreshAttemptedAt: null,
-                  error: null,
-                }}
-              />
-              {post.additionalMetrics.length
-                ? renderMetrics(post.additionalMetrics)
-                : null}
+            <li key={post.id} className="min-w-0">
+              <SocialPostPerformanceCard
+                post={post}
+                account={accountsById.get(post.connectionId)}
+              >
+                {post.additionalMetrics.length
+                  ? renderMetrics(post.additionalMetrics)
+                  : null}
+              </SocialPostPerformanceCard>
             </li>
           ))}
         </ul>

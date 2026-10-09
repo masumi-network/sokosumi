@@ -550,7 +550,7 @@ export function ProjectSocialPosts({
             </p>
           ) : null}
           {post.status === "PUBLISHED" ? (
-            <SocialPostMetrics statistics={post.statistics} compact />
+            <SocialPostMetrics statistics={post.statistics} variant="compact" />
           ) : null}
           {post.status === "PUBLISHED" ? (
             <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">

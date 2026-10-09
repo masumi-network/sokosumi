@@ -31,10 +31,15 @@ vi.mock("next-intl", async () => {
   return {
     useFormatter: () =>
       createTestFormatter({ timeZone: "America/Los_Angeles" }),
-    useTranslations: () =>
+    useTranslations: (
+      namespace:
+        | "App.Projects.SocialPosts.statistics"
+        | "App.Projects.SocialPosts.preview",
+    ) =>
       createTranslator({
         locale: "en",
-        messages: en.App.Projects.SocialPosts.statistics,
+        messages: en,
+        namespace,
       }),
   };
 });
@@ -136,6 +141,60 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("SocialPostStatistics account history", () => {
+  it("keeps zero distinct from unavailable and shows exact values for compact counts", async () => {
+    mocks.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        posts: [{ ...post, metrics: { ...post.metrics, impressions: 15000 } }],
+      }),
+    });
+    renderStatistics();
+    const preview = await screen.findByTestId("social-post-preview");
+    const card = preview.closest("article");
+    if (!card) throw new Error("Missing performance card");
+    const metrics = within(card);
+    expect(metrics.getAllByTitle("Unavailable")).toHaveLength(2);
+    for (const value of metrics.getAllByTitle("Unavailable")) {
+      expect(value).toHaveTextContent("Unavailable");
+    }
+    expect(metrics.getByTitle("0")).toHaveTextContent("0");
+    expect(metrics.getByTitle("15,000")).toHaveTextContent("15K");
+    expect(metrics.getByText("Launch account")).toBeVisible();
+    expect(metrics.getByText("Launch account")).not.toHaveClass("truncate");
+  });
+  it("uses the platform preview for imported posts without draft-only media or time hints", async () => {
+    mocks.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [{ ...account, provider: "instagram" }],
+        posts: [{ ...post, provider: "instagram", publishedAt: null }],
+      }),
+    });
+    renderStatistics();
+    const preview = await screen.findByTestId("social-post-preview");
+    expect(preview).toHaveAttribute("data-provider", "instagram");
+    expect(within(preview).getAllByText("launch")).toHaveLength(2);
+    expect(within(preview).getByText(post.text)).toBeVisible();
+    expect(
+      within(preview).getByText("Publication date unavailable"),
+    ).toBeVisible();
+    expect(
+      within(preview).queryByText(en.App.Projects.SocialPosts.preview.now),
+    ).not.toBeInTheDocument();
+    expect(
+      within(preview).queryByText(
+        en.App.Projects.SocialPosts.preview.instagram.mediaRequired,
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: en.App.Projects.SocialPosts.statistics.openPost,
+      }),
+    ).toHaveAttribute("href", post.url);
+    expect(screen.getByText("Likes / reactions")).toBeVisible();
+  });
   it("shows a retryable error for a successful HTTP response containing an error body", async () => {
     mocks.fetch.mockResolvedValueOnce({
       ok: true,
@@ -167,9 +226,13 @@ describe("SocialPostStatistics account history", () => {
     expect(
       accountCard("Launch account").getByText("Last 28 days"),
     ).toBeVisible();
+    expect(screen.getByText("Link clicks")).not.toBeVisible();
+    fireEvent.click(screen.getByText("More metrics"));
     expect(screen.getByText("Link clicks")).toBeVisible();
     expect(
-      screen.getByRole("link", { name: "Open post on platform" }),
+      screen.getByRole("link", {
+        name: en.App.Projects.SocialPosts.statistics.openPost,
+      }),
     ).toHaveAttribute("href", post.url);
     expect(
       screen.queryByRole("button", { name: /edit|schedule|post now/i }),
@@ -197,6 +260,7 @@ describe("SocialPostStatistics account history", () => {
           timeZone: "UTC",
           timeZoneName: "short",
         }),
+        { exact: false },
       ),
     ).toBeVisible();
     expect(screen.getByRole("heading", { name: "Brand page" })).toBeVisible();

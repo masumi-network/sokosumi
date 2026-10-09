@@ -17,6 +17,12 @@ export interface SocialPostPreviewContentProps {
   text: string;
   /** Publish time; null reads as "now" (a draft or a post going out now). */
   timestamp: Date | null;
+  /** Preformatted publication time, including unavailable dates and time zones. */
+  timestampLabel?: string;
+  /** Imported history may not include media even when the published post has it. */
+  showMediaPlaceholder?: boolean;
+  /** Hide decorative feed controls when a preview is paired with real metrics. */
+  showEngagementActions?: boolean;
 }
 
 export function accountName(

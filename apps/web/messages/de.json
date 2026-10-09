@@ -2436,7 +2436,7 @@
           "drafts": "Entwürfe",
           "attention": "Braucht Aufmerksamkeit",
           "accounts": "Konten",
-          "statistics": "Statistiken"
+          "statistics": "Leistung"
         },
         "empty": {
           "drafts": "Noch keine Entwürfe."
@@ -2612,6 +2612,7 @@
           "empty": "Keine importierten Beiträge entsprechen diesen Filtern. Synchronisiere ein Konto oder setze die Filter zurück.",
           "refresh": "Statistiken aktualisieren",
           "loadMore": "Weitere Beiträge laden",
+          "moreMetrics": "Weitere Kennzahlen",
           "unavailable": "Nicht verfügbar",
           "notFetched": "Statistiken wurden noch nicht abgerufen.",
           "updatedAt": "Aktualisiert am {date}",
@@ -2648,7 +2649,7 @@
           "historyLimited": "Der Verlauf ist unvollständig oder durch die Plattform eingeschränkt. Prüfe die Kontoberechtigungen und synchronisiere erneut.",
           "dateUnavailable": "Veröffentlichungsdatum nicht verfügbar",
           "mediaPost": "Medienbeitrag",
-          "openPost": "Beitrag auf der Plattform öffnen",
+          "openPost": "Beitrag ansehen",
           "accountMetrics": {
             "followers": "Follower",
             "following": "Gefolgte Konten",
@@ -2691,6 +2692,7 @@
             "linkClicks": "Linkklicks",
             "replies": "Antworten",
             "reposts": "Erneut geteilte Beiträge",
+            "quotes": "Zitate",
             "dislikes": "Negative Bewertungen"
           },
           "periods": {
@@ -3035,8 +3037,8 @@
         "label": "Social-Media-Plattformen"
       },
       "statisticsNeedProject": {
-        "title": "Wähle ein Projekt, um Statistiken zu sehen",
-        "body": "Kontostatistiken gehören zu einem Projekt. Wähle eines, um seine verbundenen Konten und veröffentlichten Inhalte zu bewerten."
+        "title": "Wähle ein Projekt, um die Leistung zu sehen",
+        "body": "Die Kontoleistung gehört zu einem Projekt. Wähle eines, um seine verbundenen Konten und veröffentlichten Inhalte zu bewerten."
       }
     },
     "Error": {

@@ -2436,7 +2436,7 @@
           "drafts": "Borradores",
           "attention": "Requiere atención",
           "accounts": "Cuentas",
-          "statistics": "Estadísticas"
+          "statistics": "Rendimiento"
         },
         "empty": {
           "drafts": "Aún no hay borradores."
@@ -2612,6 +2612,7 @@
           "empty": "Ninguna publicación importada coincide con estos filtros. Sincroniza una cuenta o borra los filtros.",
           "refresh": "Actualizar estadísticas",
           "loadMore": "Cargar más publicaciones",
+          "moreMetrics": "Más métricas",
           "unavailable": "No disponible",
           "notFetched": "Todavía no se han obtenido estadísticas.",
           "updatedAt": "Actualizadas el {date}",
@@ -2648,7 +2649,7 @@
           "historyLimited": "El historial está incompleto o limitado por la plataforma. Revisa los permisos y vuelve a sincronizar.",
           "dateUnavailable": "Fecha de publicación no disponible",
           "mediaPost": "Publicación multimedia",
-          "openPost": "Abrir publicación en la plataforma",
+          "openPost": "Ver publicación",
           "accountMetrics": {
             "followers": "Seguidores",
             "following": "Cuentas seguidas",
@@ -2691,6 +2692,7 @@
             "linkClicks": "Clics en enlaces",
             "replies": "Respuestas",
             "reposts": "Republicaciones",
+            "quotes": "Citas",
             "dislikes": "No me gusta"
           },
           "periods": {
@@ -3035,8 +3037,8 @@
         "label": "Plataformas de redes sociales"
       },
       "statisticsNeedProject": {
-        "title": "Elige un proyecto para ver estadísticas",
-        "body": "Las estadísticas pertenecen a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
+        "title": "Elige un proyecto para ver el rendimiento",
+        "body": "El rendimiento de las cuentas pertenece a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
       }
     },
     "Error": {
