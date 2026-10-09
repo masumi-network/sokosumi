@@ -1,6 +1,6 @@
 # Core route patterns
 
-Required before adding or changing a Core `/v1` route; [`apps/core/AGENTS.md`](../../apps/core/AGENTS.md) points here.
+Required before adding, changing, or removing a Core `/v1` route; [`apps/core/AGENTS.md`](../../apps/core/AGENTS.md) points here.
 Paths are relative to `apps/core/` unless stated otherwise.
 
 ## Creating a New Route
@@ -119,7 +119,19 @@ Temporary duplication rule during deprecation:
 
 - Limited duplication between `/me` and deprecated `/{id}` handlers is acceptable during rollout.
 - Duplication must be temporary and tracked with a removal ticket/sunset date.
-- Remove deprecated routes and duplicated logic once clients are migrated.
+- Remove deprecated routes and duplicated logic once clients are migrated, as [Removing an Operation](#removing-an-operation) defines.
+
+## Removing an Operation
+
+A client counts as migrated only when every installed Apple build has stopped calling the operation. Installed builds keep calling whatever their CoreAPI snapshot selected, so removing an operation (method and path) that any version of `apps/apple/Packages/CoreAPI/Sources/CoreAPI/openapi.json` ever selected is a one-way door: those builds get a 404 and show "Couldn't reach Core. Check your connection and try again."
+
+A PR that removes such an operation:
+
+1. Lists each removed operation the Apple app ever selected. From the repository root, `git log -S'<path>' -- apps/apple/Packages/CoreAPI/Sources/CoreAPI/openapi.json` shows when the snapshot added and dropped it.
+2. States which installed builds break (every build published from `main` before the Apple commit that dropped the operation) and the message they show.
+3. Gets the user's explicit go-ahead before merge.
+
+`src/routes/v1/apple-client-operations.openapi.test.ts` fails while the in-tree snapshot still selects an operation Core no longer serves. Refreshing the snapshot clears the test, not the installed builds, so the three steps still apply.
 
 ## Cursor-Based Pagination
 
