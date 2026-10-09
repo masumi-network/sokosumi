@@ -30,6 +30,7 @@
 /* Begin PBXFileReference section */
 		E172F721304F3FBC00C517E4 /* Sokosumi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sokosumi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E174B010304F3FBD00C517E4 /* SokosumiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SokosumiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E17F0001304F3FBD00C517E4 /* Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Version.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -74,6 +75,7 @@
 		E172F718304F3FBC00C517E4 = {
 			isa = PBXGroup;
 			children = (
+				E17F0001304F3FBD00C517E4 /* Version.xcconfig */,
 				E172F723304F3FBC00C517E4 /* Sokosumi */,
 				E174B011304F3FBD00C517E4 /* SokosumiTests */,
 				E172F722304F3FBC00C517E4 /* Products */,
@@ -356,6 +358,7 @@
 		};
 		E172F745304F3FBD00C517E4 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E17F0001304F3FBD00C517E4 /* Version.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -376,7 +379,6 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sokosumi.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "$(SOKOSUMI_PROVISIONING_PROFILE)";
@@ -395,6 +397,7 @@
 		};
 		E172F746304F3FBD00C517E4 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E17F0001304F3FBD00C517E4 /* Version.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -415,7 +418,6 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sokosumi.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "$(SOKOSUMI_PROVISIONING_PROFILE)";
