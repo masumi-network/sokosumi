@@ -327,7 +327,8 @@ struct ConversationSidebarView: View {
           Text("Unreads")
             .lineLimit(1)
             .fontWeight(isOn ? .medium : .regular)
-            .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+            // Off, it rests muted like the Threads row (web's `THREADS_ROW_CLASS`).
+            .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
         } icon: {
           Image(systemName: "tray")
             .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
