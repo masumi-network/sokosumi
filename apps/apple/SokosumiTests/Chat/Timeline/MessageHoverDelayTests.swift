@@ -159,6 +159,51 @@
         #expect(settled.bar && settled.fill, "The chrome returns once the list stops: \(settled)")
       }
 
+      /// The bar is built only while the pointer is on the row (or focus or the picker holds it): every realized row
+      /// carried a hidden one, and with it two variants of eight controls for SwiftUI to lay out and hit-test on
+      /// every scroll step (M6). The bar brings its own right-click area (M7), so a row hosts two context-menu views
+      /// while it has a bar and one without.
+      @Test func onlyARowUnderThePointerBuildsItsActionBar() async throws {
+        let (host, window) = try await Self.host(delay: .seconds(60), flag: TranscriptScrollActivity())
+        defer { window.orderOut(nil) }
+        func menuAreas(_ view: NSView) -> Int {
+          (view is MessageContextMenuView ? 1 : 0) + view.subviews.reduce(0) { $0 + menuAreas($1) }
+        }
+        host.layoutSubtreeIfNeeded()
+        #expect(menuAreas(host) == 1, "A row nobody points at builds no bar: \(menuAreas(host)) context-menu views")
+        try await hover(Self.pointer, in: host, window: window)
+        host.layoutSubtreeIfNeeded()
+        #expect(menuAreas(host) == 2, "The row under the pointer builds its bar, still hidden until the rest: \(menuAreas(host))")
+        try await Self.leave(host, window: window)
+        #expect(menuAreas(host) == 1, "The pointer leaving drops the bar: \(menuAreas(host))")
+        // Add reaction from the row's menu (M7) opens the picker on the bar, so the bar is built for it.
+        try #require(Self.menuArea(in: host)).perform(.addReaction)
+        try await Task.sleep(for: .milliseconds(100))
+        host.layoutSubtreeIfNeeded()
+        #expect(menuAreas(host) == 2, "The open reaction picker holds the bar: \(menuAreas(host))")
+      }
+
+      private static func menuArea(in view: NSView) -> MessageContextMenuView? {
+        view as? MessageContextMenuView ?? view.subviews.lazy.compactMap { menuArea(in: $0) }.first
+      }
+
+      /// The pointer leaves every tracking area, as `hover` enters them.
+      private static func leave(_ host: NSView, window: NSWindow) async throws {
+        func trackingAreas(_ view: NSView) -> [NSTrackingArea] {
+          view.trackingAreas + view.subviews.flatMap(trackingAreas)
+        }
+        for area in trackingAreas(host) {
+          let exited = try #require(NSEvent.enterExitEvent(
+            with: .mouseExited, location: NSPoint(x: -10, y: -10), modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: window.windowNumber, context: nil, eventNumber: 0,
+            trackingNumber: Int(bitPattern: Unmanaged.passUnretained(area).toOpaque()), userData: nil
+          ))
+          (area.owner as? NSResponder)?.mouseExited(with: exited)
+        }
+        try await Task.sleep(for: .milliseconds(100))
+        host.layoutSubtreeIfNeeded()
+      }
+
       /// The real room and Thread: a row hovered before a wheel gesture keeps no fill while the gesture moves the list,
       /// for a trackpad's phased events and a mouse wheel's unphased ones.
       @Test(arguments: [(thread: false, phased: true), (thread: false, phased: false), (thread: true, phased: true)])
