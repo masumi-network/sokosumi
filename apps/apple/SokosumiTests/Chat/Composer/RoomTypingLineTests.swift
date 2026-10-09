@@ -157,12 +157,33 @@
         #expect(field.convert(field.bounds, to: nil) == fieldFrame, "The text field does not move.")
         let rows = changedRows(typing, from: quiet)
         let scale = CGFloat(typing.pixelsHigh) / quietSize.height
-        // The card ends 8 pt of bottom padding plus the line above the pane's bottom edge.
+        // The card ends one 20 pt inset above the pane's bottom edge; the line stands in that inset.
         let first = try #require(rows.first, "The line draws who is typing.")
         let last = try #require(rows.last)
-        #expect(CGFloat(first) / scale > quietSize.height - 24, "The line sits under the composer card, not in it.")
+        #expect(CGFloat(first) / scale > quietSize.height - 20, "The line sits under the composer card, not in it.")
         #expect(CGFloat(last - first) / scale < 16, "The line is a single line of caption text.")
         #expect(CGFloat(last) / scale < quietSize.height - 3, "The line keeps clear of the window's bottom edge.")
+      }
+
+      /// One inset from the pane's left, right and bottom edges to the card's border (web `px-5`).
+      @Test func theCardSitsOneInsetFromEachEdge() async throws {
+        let fixture = try RoomTypingFixture()
+        defer { fixture.close() }
+        let bitmap = try await fixture.bitmap()
+        let scale = CGFloat(bitmap.pixelsHigh) / fixture.host.fittingSize.height
+        let background = try #require(bitmap.colorAt(x: 1, y: bitmap.pixelsHigh - 2)?.usingColorSpace(.deviceRGB))
+        func ink(_ col: Int, _ row: Int) -> Bool {
+          guard let color = bitmap.colorAt(x: col, y: row)?.usingColorSpace(.deviceRGB) else { return false }
+          return abs(color.redComponent - background.redComponent) + abs(color.greenComponent - background.greenComponent)
+            + abs(color.blueComponent - background.blueComponent) > 0.05
+        }
+        let middleRow = bitmap.pixelsHigh / 2, middleColumn = bitmap.pixelsWide / 2
+        let left = try #require((0 ..< bitmap.pixelsWide).first { ink($0, middleRow) })
+        let right = try #require((0 ..< bitmap.pixelsWide).reversed().first { ink($0, middleRow) })
+        let bottom = try #require((0 ..< bitmap.pixelsHigh).reversed().first { ink(middleColumn, $0) })
+        // The border's stroke straddles the card's edge, so its ink starts half a point outside it.
+        let insets = [left, bitmap.pixelsWide - 1 - right, bitmap.pixelsHigh - 1 - bottom].map { CGFloat($0) / scale }
+        #expect(insets.allSatisfy { abs($0 - 19.5) <= 1 }, "Left, right and bottom insets: \(insets).")
       }
 
       @Test(arguments: [false, true])
