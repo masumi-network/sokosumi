@@ -20,6 +20,8 @@ Ruled out on the way: making the list content non-hit-testable while scrolling r
 
 Every insertion of an older page cost one long frame, 55–65 ms at an 800 pt window, while `PreparedTranscript` preparation took 5–18 ms off the main thread. Time Profiler over the 17 insertion windows names SwiftUI's lazy stack: `LazyStack.measureEstimates` → `lengthAndSpacing` measures every realized row again (14 ms per insertion), on top of the transcript's ordinary update pass. The cost follows the realized rows, not the page: 44 / 64 / 79 ms at 400 / 800 / 1,200 pt windows, and 68 / 61 / 57 ms for pages of 10 / 30 / 60. Controls on the same harness: 30 rows appended below the reader cost 33 ms (one ordinary update); prepending far from the top cost the same as at the top; a bare `ScrollView { LazyVStack { ForEach { Text } } }` with the same texts drops a frame on a prepend and none on an append. Ruled out, each measured against the 55–65 ms baseline with no change beyond noise: `.scrollPosition` and `.scrollTargetLayout` off, a bottom size-change anchor, no row `.id`, a ForEach without `enumerated()`, Equatable message rows (row bodies 750 → 131 per run), unchanged arrays passed through `displayedTranscript` and `overlaying`, no boundary spinner, no `Text.LayoutKey` reader and no hidden clamp text in `ExpandableMessageBody`.
 
+**Reading position (found after the first numbers, from the user's real-trackpad recording).** The probe also checks whether a landing keeps the reader on the rows they saw: the document is flipped, so the offset has to follow the growth above. On `origin/main` it kept 0 of 17: the offset stays while 4,000 pt land above, and the reader is put on the page's own first rows, although the scroll position names the old first row as the page lands. The room now places that row back itself (below).
+
 So the room keeps the insertion but moves it out of the motion: an older page's rows wait until the scroll rests, and a page brings 100 rows instead of 30.
 
 | Build (3 runs each, alternating) | Pages | Landings while content moves | Frames over 25 ms | Over budget |
@@ -859,7 +861,11 @@ struct MinimalList: View {
     let landings = gaps.enumerated().filter { $0.element.grew > 500 }.map { index, gap in
       // How far content moved in each of the five frames before and after (0 = at rest).
       let around = gaps[max(0, index - 5) ..< min(gaps.count, index + 6)].map { abs($0.jump).rounded() }
+      // A flipped document keeps the rows on screen only if the offset follows the growth above them.
+      let shifted = gaps[index ..< min(gaps.count, index + 6)].reduce(0) { $0 + $1.jump }
+      let kept = (scroll.documentView?.isFlipped ?? false) ? abs(shifted - gap.grew) < 50 : abs(shifted) < 50
       return ["at_ms": ms(gap.at), "ms": gap.ms.rounded(), "grew": gap.grew.rounded(), "moved_pt_around": around,
+              "shifted": shifted.rounded(), "kept": kept,
        "moving": flickWindows.contains { gap.at >= $0.0 && gap.at <= $0.1 + 0.05 }] as [String: Any]
     }
     let sorted = gaps.map(\.ms).sorted()
@@ -873,6 +879,7 @@ struct MinimalList: View {
       "inserts": insertWindows,
       "moving_over_25ms": moving.count, "moving_over_budget_ms": moving.reduce(0) { $0 + $1.ms - 16.67 }.rounded(),
       "landings": landings,
+      "document_flipped": scroll.documentView?.isFlipped ?? false,
       "flicks_ms": flickWindows.map { [ms($0.0), ms($0.1)] },
       "begin_frames_ms": beginFrames.map { $0.rounded() },
       "begins_at_ms": begins.map(ms),
@@ -888,7 +895,8 @@ struct MinimalList: View {
 <!-- file: paging_table.py -->
 ```python
 """One line per paging run: page landings (frames where the document grew by 500 pt or more), how many fell while
-content moved (2 pt or more in any of the five frames either side), and frames over 25 ms.
+content moved (2 pt or more in any of the five frames either side), how many kept the reader on the rows they saw
+(the offset followed the growth within 50 pt over six frames), and frames over 25 ms.
 
 usage: paging_table.py <run.json>...
 """
@@ -900,7 +908,7 @@ for path in sys.argv[1:]:
     landings = run['landings']
     moving = [l for l in landings if max(l['moved_pt_around'][:5] + l['moved_pt_around'][6:], default=0) >= 2]
     print(f"{path.rsplit('/', 1)[-1]}: pages {run['requests'] - 1}, landings {len(landings)} "
-          f"(while moving {len(moving)}), landing frame mean {sum(l['ms'] for l in landings) / max(len(landings), 1):.0f} ms, "
+          f"(while moving {len(moving)}, reader kept {sum(1 for l in landings if l.get('kept'))}), landing frame mean {sum(l['ms'] for l in landings) / max(len(landings), 1):.0f} ms, "
           f"frames over 25 ms {run['frames_over_25ms']} ({run['time_over_budget_ms']:.0f} ms over budget), max {run['max_ms']:.0f} ms")
 ```
 

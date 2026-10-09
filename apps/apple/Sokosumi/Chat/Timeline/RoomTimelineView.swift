@@ -10,12 +10,10 @@ import SwiftUI
   struct RoomTimelineView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @State private var preparedTranscript: PreparedTranscript?
-    /// An older page prepared while the reader scrolled (M6). Rows inserted above the realized ones make the lazy list
-    /// measure every realized row again, a dropped frame in mid-flick, so its rows land once the scroll rests.
+    /// An older page, prepared and waiting for the list to land it (M6). Rows inserted above the realized ones make the
+    /// lazy list measure every realized row again, a dropped frame in mid-flick, so they land once the scroll rests,
+    /// and the list puts the rows the reader saw back where they were.
     @State private var waitingTranscript: PreparedTranscript?
-    /// An older page's rows just landed: the list keeps its bottom while they grow it, so the rows on screen stay put
-    /// even when the reader rests against the top edge (where the scroll position follows the edge, not a row).
-    @State private var landingOlderRows = false
     @State private var scrollActivity = TranscriptScrollActivity()
     let roomId: String
 
@@ -33,33 +31,25 @@ import SwiftUI
       RoomTranscriptContent(roomId: roomId, messages: prepared?.overlaying(input.messages) ?? [],
                             hasLiveMessages: !input.messages.isEmpty, preparedTranscript: prepared,
                             scrollActivity: scrollActivity, olderPageWaits: prepared?.lacksRowsAbove(in: input.messages) ?? false,
-                            landingOlderRows: landingOlderRows) {
+                            hasWaitingPage: waitingTranscript != nil) {
         if let waiting = waitingTranscript, !scrollActivity.isScrolling {
-          commit(waiting)
+          waitingTranscript = nil
+          preparedTranscript = waiting
+          return true
         }
+        return false
       }
       .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: roomId))
       .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
       .task(id: input) {
         guard let next = try? await PreparedTranscript.prepare(input, reusing: waitingTranscript ?? preparedTranscript), !Task.isCancelled else { return }
-        if scrollActivity.isScrolling, next.prependsRows(to: preparedTranscript) {
+        if next.prependsRows(to: preparedTranscript) {
           waitingTranscript = next
         } else {
-          commit(next)
+          waitingTranscript = nil
+          preparedTranscript = next
         }
       }
-      .task(id: landingOlderRows) {
-        // Long enough for the lazy list to lay the landed rows out; an image growing below the reader later must not
-        // move the rows on screen.
-        guard landingOlderRows, await (try? Task.sleep(for: .milliseconds(500))) != nil else { return }
-        landingOlderRows = false
-      }
-    }
-
-    private func commit(_ next: PreparedTranscript) {
-      landingOlderRows = next.prependsRows(to: preparedTranscript)
-      waitingTranscript = nil
-      preparedTranscript = next
     }
   }
 
@@ -82,7 +72,7 @@ import SwiftUI
     @State private var jumpCompletion: CheckedContinuation<Bool, Never>?
     @State private var quoteTarget: String?
     @State private var scrollPosition = ScrollPosition(idType: String.self)
-    @State private var landingGrowth = LandingGrowth()
+    @State private var firstRows = FirstRowsPlacement()
     @State private var quoteFocusRequest: String?
 
     let roomId: String
@@ -94,9 +84,10 @@ import SwiftUI
     /// An older page is preparing or waits for the scroll to rest: its boundary row stays loading and asks for no
     /// further page.
     let olderPageWaits: Bool
-    /// An older page's rows are landing: size changes keep the bottom (M6, row 04).
-    let landingOlderRows: Bool
-    let landWaitingPage: () -> Void
+    /// An older page is prepared and waits for the list to land it.
+    let hasWaitingPage: Bool
+    /// Lands the waiting page's rows unless the reader scrolls; true when it did.
+    let landWaitingPage: () -> Bool
 
     private var room: Components.Schemas.ChatRoom? {
       workspaces.rooms.first { $0.id == roomId }
@@ -374,6 +365,12 @@ import SwiftUI
                 }
               }
               .background {
+                // Where the first rows sit in the viewport, so an older page landing above them can leave them there.
+                if index < 2 {
+                  Color.clear.onGeometryChange(for: CGRect.self) { $0.frame(in: .scrollView) } action: { frame in
+                    firstRows.record(index, id: message.id, frame: frame)
+                  }
+                }
                 if quoteTarget == message.id {
                   Color.clear.onScrollVisibilityChange(threshold: 0.01) { visible in
                     if visible {
@@ -402,14 +399,13 @@ import SwiftUI
           proxy.scrollTo("timeline-bottom", anchor: .bottom)
         }
         .scrollPosition($scrollPosition)
-        .defaultScrollAnchor(scrollIntent.followsLatest || landingOlderRows ? .bottom : nil, for: .sizeChanges)
-        .task(id: landingOlderRows) {
-          // M6, row 04: where landed rows grew the list above a reader at the top edge and the offset never followed
-          // them (seen on the 1x, Reduce Motion CI runner), move it by that growth.
-          landingGrowth.reset()
-          guard landingOlderRows, await (try? Task.sleep(for: .milliseconds(100))) != nil,
-                let offset = landingGrowth.correctedOffset, !userIsScrolling else { return }
-          scrollPosition.scrollTo(y: offset)
+        .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
+        .onChange(of: hasWaitingPage) { _, waits in
+          if waits, !userIsScrolling {
+            Task { @MainActor in
+              landWaitingPageInPlace()
+            }
+          }
         }
         .onChange(of: messages.contains(where: { $0.id == quoteTarget }) ? quoteTarget : nil, initial: true) { _, target in
           guard let target else { return }
@@ -435,14 +431,10 @@ import SwiftUI
           if scrollActivity.isScrolling != scrolling {
             scrollActivity.isScrolling = scrolling
           }
-          // Only a list at rest takes the rows: a jump's scroll animation is motion too. They land once it has rested
-          // a moment: a gesture ending against the top edge is still settling there when it reports idle, and rows
-          // landed before it settles are pushed down under the reader (CI runner). The room view lands them only if
-          // the reader has not started scrolling again.
-          if phase == .idle, olderPageWaits {
+          // Only a list at rest takes the rows: a jump's scroll animation is motion too.
+          if phase == .idle, hasWaitingPage {
             Task { @MainActor in
-              try? await Task.sleep(for: .milliseconds(300))
-              landWaitingPage()
+              landWaitingPageInPlace()
             }
           }
           if phase.endsJumpMark {
@@ -486,7 +478,7 @@ import SwiftUI
           }
         }
         .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
-          landingGrowth.track(from: oldEdges, to: edges, landing: landingOlderRows && !userIsScrolling)
+          firstRows.viewport = (edges.topInset, edges.viewportHeight)
           if workspaces.timeline.historicalAnchor == nil,
              oldEdges.offsetY != edges.offsetY,
              userIsScrolling || oldEdges.nearBottom != edges.nearBottom {
@@ -529,6 +521,15 @@ import SwiftUI
     private func pinAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard workspaces.canUsePins, message.parentMessageId == nil, canReactToMessage(message) else { return nil }
       return { try await workspaces.setPinned(!workspaces.isPinned(message), messageId: message.id, auth: auth) }
+    }
+
+    /// Lands the waiting older page and puts the rows that were first back where they sat in the viewport (row 04). The
+    /// list does not do it by itself: its scroll position names the first row as the page lands, yet the reader ended up
+    /// on the page's own first rows (a real trackpad, the paging harness, the CI runner).
+    private func landWaitingPageInPlace() {
+      let placement = firstRows.placement
+      guard landWaitingPage(), let placement else { return }
+      scrollPosition.scrollTo(id: placement.id, anchor: placement.anchor)
     }
 
     private func completeVisibleJump(_ target: String) {
@@ -588,29 +589,30 @@ import SwiftUI
     }
   }
 
-  /// Growth of the list above a reader at the top edge while older rows land, that the offset has not followed (M6).
-  /// A plain object: the geometry callback writes it on every change without updating the view.
-  @MainActor private final class LandingGrowth {
-    private var unfollowed: CGFloat = 0
-    private var offset: CGFloat = 0
+  /// Where the transcript's first two rows sit in the viewport (M6, row 04). A plain object: the geometry callbacks
+  /// write it on every change without updating the view.
+  @MainActor private final class FirstRowsPlacement {
+    /// The inset above the visible rows and their height.
+    var viewport: (topInset: CGFloat, height: CGFloat) = (0, 0)
+    private var rows: [Int: (id: String, frame: CGRect)] = [:]
 
-    /// Where the offset belongs once the growth is applied, or nil when the list moved it itself.
-    var correctedOffset: CGFloat? {
-      unfollowed > 1 ? offset + unfollowed : nil
-    }
-
-    func reset() {
-      unfollowed = 0
-    }
-
-    func track(from old: TranscriptScrollEdges, to new: TranscriptScrollEdges, landing: Bool) {
-      offset = new.offsetY
-      guard landing, old.nearTop || unfollowed > 0 else { return }
-      if abs(new.offsetY - old.offsetY) < 1 {
-        unfollowed += new.contentHeight - old.contentHeight
-      } else {
-        unfollowed = 0
+    /// A row on screen and the anchor that puts it back at the same height. The second row first: the first row can lose
+    /// its day pill once rows from the same day land above it, which moves its text by the pill.
+    var placement: (id: String, anchor: UnitPoint)? {
+      guard viewport.height > 0 else { return nil }
+      for index in [1, 0] {
+        guard let row = rows[index], row.frame.maxY > viewport.topInset,
+              row.frame.minY < viewport.topInset + viewport.height else { continue }
+        // `scrollTo(id:anchor:)` lines the row's point at `anchor` up with the viewport's: top + f × (H − h) = top.
+        let room = viewport.height - row.frame.height
+        let fraction = abs(room) < 1 ? 0 : (row.frame.minY - viewport.topInset) / room
+        return (row.id, UnitPoint(x: 0, y: fraction))
       }
+      return nil
+    }
+
+    func record(_ index: Int, id: String, frame: CGRect) {
+      rows[index] = (id, frame)
     }
   }
 #endif
