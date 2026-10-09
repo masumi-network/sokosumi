@@ -123,15 +123,18 @@ Temporary duplication rule during deprecation:
 
 ## Removing an Operation
 
-A client counts as migrated only when every installed Apple build has stopped calling the operation. Installed builds keep calling whatever their CoreAPI snapshot selected, so removing an operation (method and path) that any version of `apps/apple/Packages/CoreAPI/Sources/CoreAPI/openapi.json` ever selected is a one-way door: those builds get a 404 and show "Couldn't reach Core. Check your connection and try again."
+A client counts as migrated only when every installed Apple build has stopped calling the operation. Installed builds keep calling whatever their CoreAPI snapshot selected, so removing an operation (method and path) that any version of `apps/apple/Packages/CoreAPI/Sources/CoreAPI/openapi.json` ever selected is a one-way door: those builds get a 404. A build that sends `X-Sokosumi-Client` reads the 404's `route_not_found` kind and tells the person to update; an older build shows "Couldn't reach Core. Check your connection and try again."
 
 A PR that removes such an operation:
 
 1. Lists each removed operation the Apple app ever selected. From the repository root, `git log -S'<path>' -- apps/apple/Packages/CoreAPI/Sources/CoreAPI/openapi.json` shows when the snapshot added and dropped it.
 2. States which installed builds break (every build published from `main` before the Apple commit that dropped the operation) and the message they show.
-3. Gets the user's explicit go-ahead before merge.
+3. Names the first published build per channel that no longer calls it. Before merge, `MACOS_DEVELOPER_ID_MINIMUM_BUILD` and `MACOS_APP_STORE_MINIMUM_BUILD` on production Core are raised to those builds, so older builds get 426 `client_update_required` and an update prompt instead. [ADR 0053](../adr/0053-core-turns-away-outdated-apple-builds.md) has the header, the channels and how to find a build number.
+4. Gets the user's explicit go-ahead before merge.
 
-`src/routes/v1/apple-client-operations.openapi.test.ts` fails while the in-tree snapshot still selects an operation Core no longer serves. Refreshing the snapshot clears the test, not the installed builds, so the three steps still apply.
+`src/routes/v1/apple-client-operations.openapi.test.ts` fails while the in-tree snapshot still selects an operation Core no longer serves. Refreshing the snapshot clears the test, not the installed builds, so the four steps still apply.
+
+Only Core's catch-all answers `route_not_found`. Never answer a missing resource with that kind: the app would tell the person to update.
 
 ## Cursor-Based Pagination
 
