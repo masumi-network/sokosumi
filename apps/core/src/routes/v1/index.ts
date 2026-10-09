@@ -90,11 +90,11 @@ app.openAPIRegistry.registerComponent("parameters", "SokosumiClient", {
   name: "X-Sokosumi-Client",
   in: "header",
   description:
-    "Native Apple client build, `macos-developer-id/<build>` or `macos-app-store/<build>`. A build older than its channel's minimum gets 426 with `kind: client_update_required` on every operation (ADR 0053).",
+    "Native Mac app build, `macos/<build>`. A build older than the minimum gets 426 with `kind: client_update_required` on every operation (ADR 0053).",
   required: false,
   schema: {
     type: "string",
-    example: "macos-developer-id/7993",
+    example: "macos/8040",
   },
 });
 

@@ -9,37 +9,36 @@ import Testing
 struct UpdateRequiredTests {
   @Test func outdatedBuildOpensTheUpdateScreen() async throws {
     let state = WorkspaceSession()
-    await #expect(throws: ClientError.self) { try await state.load(client: client(channel: .developerID)) }
-    #expect(state.phase == .updateRequired(.developerID))
+    await #expect(throws: ClientError.self) { try await state.load(client: client()) }
+    #expect(state.phase == .updateRequired)
   }
 
   @Test func inlineErrorsTellThePersonToUpdate() async throws {
     let error = await #expect(throws: ClientError.self) {
-      try await client(channel: .developerID).getUsersIdWorkspaces(path: .init(id: "me"))
+      try await client().getUsersIdWorkspaces(path: .init(id: "me"))
     }
     let message = try friendlyMessage(for: #require(error))
     #expect(message.contains("out of date"))
-    #expect(message.contains(latestDownloadURL.absoluteString))
-    #expect(friendlyMessage(for: CoreUpdateRequired(channel: .appStore)).contains("App Store"))
+    #expect(message.contains("https://github.com/masumi-network/sokosumi/releases/download/macos-latest/Sokosumi.dmg"))
   }
 
   @Test func theRoleProbeDoesNotHideAnUpdate() async throws {
     let error = await #expect(throws: ClientError.self) {
-      try await ChatService().organizationOwnerOrAdminIfReadable(client: client(channel: .appStore), organizationId: "org_1")
+      try await ChatService().organizationOwnerOrAdminIfReadable(client: client(), organizationId: "org_1")
     }
-    #expect(try updateRequired(in: #require(error)) == CoreUpdateRequired(channel: .appStore))
+    #expect(try updateRequired(in: #require(error)) == CoreUpdateRequired())
   }
 
-  private func client(channel: DistributionChannel) throws -> Client {
+  private func client() throws -> Client {
     try Client.connecting(
       to: #require(URL(string: "https://core.example/v1")),
       transport: OutdatedTransport(),
-      middlewares: [ClientBuildMiddleware(channel: channel, build: "2")]
+      middlewares: [ClientBuildMiddleware(build: "2")]
     )
   }
 }
 
-/// Core's answer to a build below its channel's minimum.
+/// Core's answer to a build below the minimum.
 private struct OutdatedTransport: ClientTransport {
   func send(
     _: HTTPRequest,

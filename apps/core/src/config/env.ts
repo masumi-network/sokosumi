@@ -283,11 +283,10 @@ const baseEnvSchema = z.object({
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
   /**
-   * Oldest macOS build `/v1` still serves, per distribution channel; older
-   * builds get 426 `client_update_required` (ADR 0053). Unset: no minimum.
+   * Oldest macOS build `/v1` still serves; older builds get 426
+   * `client_update_required` (ADR 0053). Unset: no minimum.
    */
-  MACOS_DEVELOPER_ID_MINIMUM_BUILD: minimumBuildSchema,
-  MACOS_APP_STORE_MINIMUM_BUILD: minimumBuildSchema,
+  MACOS_MINIMUM_BUILD: minimumBuildSchema,
 
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),

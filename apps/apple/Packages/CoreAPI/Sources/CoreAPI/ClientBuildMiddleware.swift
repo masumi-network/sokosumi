@@ -2,36 +2,22 @@ import Foundation
 import HTTPTypes
 import OpenAPIRuntime
 
-/// Where a build was published; each channel numbers its builds on its own (ADR 0053).
-public enum DistributionChannel: String, Sendable {
-  /// The notarized `apple-latest` disk image, numbered by the Apple workflow run.
-  case developerID = "developer-id"
-  /// Xcode Cloud: TestFlight and the App Store.
-  case appStore = "app-store"
-}
-
-/// Core no longer serves this build: it is below its channel's minimum, or it
-/// called an operation Core has removed.
+/// Core no longer serves this build: it is below the minimum, or it called an
+/// operation Core has removed.
 public struct CoreUpdateRequired: Error, Equatable, Sendable {
-  public let channel: DistributionChannel
-
-  public init(channel: DistributionChannel) {
-    self.channel = channel
-  }
+  public init() {}
 }
 
-/// Names the build on every Core request (`X-Sokosumi-Client: macos-<channel>/<build>`) and turns
+/// Names the build on every Core request (`X-Sokosumi-Client: macos/<build>`, ADR 0053) and turns
 /// Core's `client_update_required` 426 and `route_not_found` 404 into `CoreUpdateRequired`.
 public struct ClientBuildMiddleware: ClientMiddleware {
   static let headerName = HTTPField.Name("X-Sokosumi-Client")!
   private static let updateKinds: [Int: String] = [426: "client_update_required", 404: "route_not_found"]
   private static let maxEnvelopeBytes = 64 * 1024
 
-  let channel: DistributionChannel
   let build: String
 
-  public init(channel: DistributionChannel, build: String) {
-    self.channel = channel
+  public init(build: String) {
     self.build = build
   }
 
@@ -43,7 +29,7 @@ public struct ClientBuildMiddleware: ClientMiddleware {
     next: @Sendable (HTTPRequest, HTTPBody?, URL) async throws -> (HTTPResponse, HTTPBody?)
   ) async throws -> (HTTPResponse, HTTPBody?) {
     var request = request
-    request.headerFields[Self.headerName] = "macos-\(channel.rawValue)/\(build)"
+    request.headerFields[Self.headerName] = "macos/\(build)"
     let (response, responseBody) = try await next(request, body, baseURL)
     // Core's error envelope is small; a body known to be larger is not one, so it passes untouched.
     guard let kind = Self.updateKinds[response.status.code], let responseBody,
@@ -54,7 +40,7 @@ public struct ClientBuildMiddleware: ClientMiddleware {
     let bytes = try await Array(collecting: responseBody, upTo: Self.maxEnvelopeBytes)
     let json = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any]
     if json?["kind"] as? String == kind {
-      throw CoreUpdateRequired(channel: channel)
+      throw CoreUpdateRequired()
     }
     return (response, HTTPBody(bytes))
   }
