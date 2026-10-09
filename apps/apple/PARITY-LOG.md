@@ -4958,7 +4958,7 @@ Ruled out, each against the baseline with no change beyond noise: `.scrollPositi
 
 User decision, 2026-10-09 (asked with these numbers): both of the following now; cutting each row's measure is a follow-up.
 
-- **An older page's rows wait for the scroll to rest.** `RoomTimelineView` holds a prepared snapshot that adds rows above the shown first row (`PreparedTranscript.prependsRows(to:)`) while the reader scrolls, and lands it when the scroll phase ends. While a page prepares or waits (`lacksRowsAbove(in:)`), the boundary row stays "Loading older messages…" and no further page is asked for; before, the next page was asked for in the ~17 ms between the page merging and its snapshot. The scroll state moved up from `RoomTranscriptContent` to the room view, which reads it only in its preparation task.
+- **An older page's rows wait for the scroll to rest.** `RoomTimelineView` holds a prepared snapshot that adds rows above the shown first row (`PreparedTranscript.prependsRows(to:)`) while the reader scrolls, and lands it once the list is idle (a jump's scroll animation counts as motion). While a page prepares or waits (`lacksRowsAbove(in:)`), the boundary row stays "Loading older messages…" and no further page is asked for; before, the next page was asked for in the ~17 ms between the page merging and its snapshot. The scroll state moved up from `RoomTranscriptContent` to the room view, which reads it only in its preparation task.
 - **An older page brings 100 rows** (`RoomTimeline`, Core's maximum and the latest page's size) instead of web's 30. A jump window and a gap page keep 30.
 
 ### Before and after
@@ -4976,9 +4976,9 @@ After the change every landing sits among frames that moved at most 1 pt. The la
 
 - `SokosumiChatTests/RoomTimelineTests/olderPageAsksForAHundredRows`: failed with `limit=30`, passes.
 - `SokosumiChatTests/PreparedTranscriptTests/onlyRowsAboveTheFirstRowArePrepended`: failed against a stub returning false, passes; also covers `lacksRowsAbove(in:)`.
-- `NativeWindowTests/RoomOlderPageTests/anOlderPageWaitsForTheScrollToRest` (room, fake Core at the URLSession transport): on `origin/main`'s view the rows landed mid-gesture (document 2,223 → 4,299 pt) and a third page was asked for; passes 3 of 3. A gesture of zero-delta wheel events reads as idle to SwiftUI, so the test rocks ±3 pt at the top.
+- `NativeWindowTests/RoomOlderPageTests/anOlderPageWaitsForTheScrollToRest` (room, fake Core at the URLSession transport): on `origin/main`'s view the rows landed mid-gesture (document 2,223 → 4,299 pt) and a third page was asked for; passes 3 of 3, and once the gesture ends the rows on screen move at most 16 backing pixels (review, Grok). A gesture of zero-delta wheel events reads as idle to SwiftUI, so the test rocks ±3 pt at the top.
 - `NativeWindowTests/RoomOlderPageTests/anOlderPageKeepsTheReadingPosition` (row 04): the rows on screen move at most 16 backing pixels when a page lands at rest; passes before and after.
-- `ThreadPaginationTests` now shares the page protocol and the rendered-shift check with the room test (`TranscriptPageFixture.swift`).
+- `ThreadPaginationTests` now shares the page protocol, the rendered-shift check and the scroll event with the room test (`TranscriptPageFixture.swift`).
 
 ### Verification
 

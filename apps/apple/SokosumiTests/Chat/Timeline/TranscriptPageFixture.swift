@@ -91,6 +91,13 @@
     }
   }
 
+  /// One trackpad scroll event of `delta` points in `phase` (1 began, 2 changed, 4 ended), sent to the transcript.
+  @MainActor func sendTranscriptScroll(_ scroll: NSScrollView, delta: Int32, phase: Int64) throws {
+    let event = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: delta, wheel2: 0, wheel3: 0))
+    event.setIntegerValueField(.scrollWheelEventScrollPhase, value: phase)
+    try scroll.scrollWheel(with: #require(NSEvent(cgEvent: event)))
+  }
+
   /// Whether rows already on screen stayed put while a page was inserted above them.
   enum TranscriptReadingPosition {
     /// Sub-pixel / antialias drift is not a product failure. A jump of about a message row is.

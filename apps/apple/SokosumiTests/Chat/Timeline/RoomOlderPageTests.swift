@@ -25,7 +25,7 @@
         let scroll = try await loadedTranscriptScrollView(in: host)
         #expect(TranscriptPageProtocol.requests.withLock { $0 } == 1, "Initial layout must not drain older pages.")
         try await scrollUntilTheOlderPageIsAsked(scroll)
-        try sendScroll(scroll, delta: 0, phase: 4)
+        try sendTranscriptScroll(scroll, delta: 0, phase: 4)
         // Settle elastic scrolling before measuring the pending page insertion.
         try await Task.sleep(for: .milliseconds(300))
         host.layoutSubtreeIfNeeded()
@@ -56,7 +56,7 @@
         try TranscriptPageProtocol.releaseHeldPage()
         // Fingers still on the trackpad, rocking a little at the top. (A gesture of zero deltas reads as idle.)
         for index in 0 ..< 30 {
-          try sendScroll(scroll, delta: index.isMultiple(of: 2) ? 3 : -3, phase: 2)
+          try sendTranscriptScroll(scroll, delta: index.isMultiple(of: 2) ? 3 : -3, phase: 2)
           host.layoutSubtreeIfNeeded()
           try await Task.sleep(for: .milliseconds(20))
         }
@@ -64,10 +64,14 @@
         #expect(abs(documentHeight(scroll) - height) < 100,
                 "The page's rows wait while the reader scrolls: document \(documentHeight(scroll)) pt, was \(height) pt.")
         #expect(TranscriptPageProtocol.requests.withLock { $0 } == 2, "No further page is asked for while one waits.")
-        try sendScroll(scroll, delta: 0, phase: 4)
+        let before = try TranscriptReadingPosition.snapshot(host)
+        try sendTranscriptScroll(scroll, delta: 0, phase: 4)
         _ = try await waitForView(in: host, timeoutMessage: "The waiting rows did not land once the scroll ended: document \(documentHeight(scroll)) pt, was \(height) pt") {
           documentHeight(scroll) > height + 500 ? scroll : nil
         }
+        try await Task.sleep(for: .milliseconds(300))
+        host.layoutSubtreeIfNeeded()
+        try await TranscriptReadingPosition.expectStable(host, before: before)
       }
 
       private func makeWindow(_ state: WorkspaceState) -> (NSWindow, NSView) {
@@ -86,7 +90,7 @@
       /// Wheels up, in a gesture that has not ended, until the room asks for its older page.
       private func scrollUntilTheOlderPageIsAsked(_ scroll: NSScrollView) async throws {
         for index in 0 ..< 80 {
-          try sendScroll(scroll, delta: 80, phase: index == 0 ? 1 : 2)
+          try sendTranscriptScroll(scroll, delta: 80, phase: index == 0 ? 1 : 2)
           try await Task.sleep(for: .milliseconds(20))
           if TranscriptPageProtocol.requests.withLock({ $0 }) > 1 {
             return
@@ -109,12 +113,6 @@
         _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
         try #require(state.timeline.messages.count == 30 && state.transcriptHasMore)
         return (state, session)
-      }
-
-      private func sendScroll(_ scroll: NSScrollView, delta: Int32, phase: Int64) throws {
-        let event = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: delta, wheel2: 0, wheel3: 0))
-        event.setIntegerValueField(.scrollWheelEventScrollPhase, value: phase)
-        try scroll.scrollWheel(with: #require(NSEvent(cgEvent: event)))
       }
 
       private func message(_ index: Int) -> Components.Schemas.ChatRoomMessage {

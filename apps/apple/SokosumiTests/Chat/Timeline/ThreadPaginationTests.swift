@@ -71,13 +71,13 @@
 
       private func scrollToBoundary(_ scroll: NSScrollView) async throws {
         for index in 0 ..< 80 {
-          try sendScroll(scroll, delta: 80, phase: index == 0 ? 1 : 2)
+          try sendTranscriptScroll(scroll, delta: 80, phase: index == 0 ? 1 : 2)
           try await Task.sleep(for: .milliseconds(20))
           if TranscriptPageProtocol.requests.withLock({ $0 }) > 1 {
             break
           }
         }
-        try sendScroll(scroll, delta: 0, phase: 4)
+        try sendTranscriptScroll(scroll, delta: 0, phase: 4)
         // Settle elastic scrolling before measuring the pending page insertion.
         try await Task.sleep(for: .milliseconds(300))
       }
@@ -98,12 +98,6 @@
         ])
         _ = try await state.thread.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.thread.timeline.generation)
         return (state, session)
-      }
-
-      private func sendScroll(_ scroll: NSScrollView, delta: Int32, phase: Int64) throws {
-        let event = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: delta, wheel2: 0, wheel3: 0))
-        event.setIntegerValueField(.scrollWheelEventScrollPhase, value: phase)
-        try scroll.scrollWheel(with: #require(NSEvent(cgEvent: event)))
       }
 
       private func message(_ index: Int, parent: String?) -> Components.Schemas.ChatRoomMessage {

@@ -410,7 +410,8 @@ import SwiftUI
           if scrollActivity.isScrolling != scrolling {
             scrollActivity.isScrolling = scrolling
           }
-          if !scrolling, olderPageWaits {
+          // Only a list at rest takes the rows: a jump's scroll animation is motion too.
+          if phase == .idle, olderPageWaits {
             landWaitingPage()
           }
           if phase.endsJumpMark {
