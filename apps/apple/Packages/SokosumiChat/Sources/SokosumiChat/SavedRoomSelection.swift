@@ -7,10 +7,11 @@ import Foundation
 ///
 /// Keys are `sokosumi.selectedRoom.v2.` plus length-prefixed
 /// `userId` / personal-or-organization / `organizationId` parts.
-/// `v2` replaced the unscoped `sokosumi.selectedRoomId` key; that leftover
-/// is not read.
+/// `v2` replaced the unscoped `sokosumi.selectedRoomId` key. Load and save
+/// drop that leftover without reading it.
 public struct SavedRoomSelection {
   private let defaults: UserDefaults
+  private static let leftoverKey = "sokosumi.selectedRoomId"
   private func key(userId: String, organizationId: String?) -> String {
     let parts = [userId, organizationId == nil ? "personal" : "organization", organizationId ?? ""]
     return "sokosumi.selectedRoom.v2." + parts.map { "\($0.utf8.count):\($0)" }.joined()
@@ -23,9 +24,11 @@ public struct SavedRoomSelection {
 
   public func save(_ id: String, userId: String, organizationId: String?) {
     defaults.set(id, forKey: key(userId: userId, organizationId: organizationId))
+    defaults.removeObject(forKey: Self.leftoverKey)
   }
 
   public func load(userId: String, organizationId: String?) -> String? {
-    defaults.string(forKey: key(userId: userId, organizationId: organizationId))
+    defaults.removeObject(forKey: Self.leftoverKey)
+    return defaults.string(forKey: key(userId: userId, organizationId: organizationId))
   }
 }

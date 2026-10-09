@@ -157,8 +157,6 @@ function getEmailLocaleCookieValue(
     return null;
   }
 
-  let legacyLocale: null | string = null;
-
   for (const rawCookie of cookieHeader.split(";")) {
     const separatorIndex = rawCookie.indexOf("=");
 
@@ -167,30 +165,23 @@ function getEmailLocaleCookieValue(
     }
 
     const cookieName = rawCookie.slice(0, separatorIndex).trim();
-    const cookieValue = rawCookie.slice(separatorIndex + 1).trim();
+    if (cookieName !== LOCALE_COOKIE_NAME) {
+      continue;
+    }
 
+    const cookieValue = rawCookie.slice(separatorIndex + 1).trim();
     if (!cookieValue) {
       continue;
     }
 
-    const decoded = (() => {
-      try {
-        return decodeURIComponent(cookieValue);
-      } catch {
-        return cookieValue;
-      }
-    })();
-
-    if (cookieName === LOCALE_COOKIE_NAME) {
-      return decoded;
-    }
-
-    if (cookieName === "locale" && legacyLocale === null) {
-      legacyLocale = decoded;
+    try {
+      return decodeURIComponent(cookieValue);
+    } catch {
+      return cookieValue;
     }
   }
 
-  return legacyLocale;
+  return null;
 }
 
 export function getEmailLocale(

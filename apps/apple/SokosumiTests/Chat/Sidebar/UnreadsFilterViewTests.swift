@@ -137,7 +137,7 @@
       }
 
       /// The strongest ink in a recognized line: the darkest pixel in light, the brightest in dark.
-      private static func ink(of line: RecognizedLine, in bitmap: NSBitmapImageRep, dark: Bool) throws -> CGFloat {
+      static func ink(of line: RecognizedLine, in bitmap: NSBitmapImageRep, dark: Bool) throws -> CGFloat {
         let width = CGFloat(bitmap.pixelsWide), height = CGFloat(bitmap.pixelsHigh)
         let columns = Int(line.box.minX * width) ..< Int(line.box.maxX * width)
         let rows = Int((1 - line.box.maxY) * height) ..< Int((1 - line.box.minY) * height)
@@ -188,5 +188,5 @@
   }
 
   /// A line Vision read, with its normalized bounding box.
-  private typealias RecognizedLine = (text: String, box: CGRect)
+  typealias RecognizedLine = (text: String, box: CGRect)
 #endif
