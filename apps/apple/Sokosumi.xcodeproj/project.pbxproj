@@ -12,6 +12,7 @@
 		E173A001304F3FBD00C517E4 /* SokosumiChat in Frameworks */ = {isa = PBXBuildFile; productRef = E173A002304F3FBD00C517E4 /* SokosumiChat */; };
 		E174B027304F3FBD00C517E4 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = E174B052304F3FBD00C517E4 /* OpenAPIRuntime */; };
 		E17BD001304F3FBD00C517E4 /* BeautifulMermaid in Frameworks */ = {isa = PBXBuildFile; productRef = E17BD002304F3FBD00C517E4 /* BeautifulMermaid */; };
+		E17C5001304F3FBD00C517E4 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = E17C5002304F3FBD00C517E4 /* Sparkle */; };
 		E176D030304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */ = {isa = PBXBuildFile; productRef = E176D031304F3FBD00C517E4 /* SokosumiRealtime */; };
 		E179D030304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */ = {isa = PBXBuildFile; productRef = E179D031304F3FBD00C517E4 /* SokosumiWorkspace */; };
 /* End PBXBuildFile section */
@@ -56,6 +57,7 @@
 				E179D030304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */,
 				E174B027304F3FBD00C517E4 /* OpenAPIRuntime in Frameworks */,
 				E17BD001304F3FBD00C517E4 /* BeautifulMermaid in Frameworks */,
+				E17C5001304F3FBD00C517E4 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -114,6 +116,7 @@
 				E179D031304F3FBD00C517E4 /* SokosumiWorkspace */,
 				E174B052304F3FBD00C517E4 /* OpenAPIRuntime */,
 				E17BD002304F3FBD00C517E4 /* BeautifulMermaid */,
+				E17C5002304F3FBD00C517E4 /* Sparkle */,
 			);
 			productName = Sokosumi;
 			productReference = E172F721304F3FBC00C517E4 /* Sokosumi.app */;
@@ -178,6 +181,7 @@
 				E174B050304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */,
 				E174B051304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "swift-http-types" */,
 				E17BD003304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "beautiful-mermaid-swift" */,
+				E17C5003304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E172F722304F3FBC00C517E4 /* Products */;
@@ -558,6 +562,14 @@
 				version = 1.0.4;
 			};
 		};
+		E17C5003304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = exactVersion;
+				version = 2.10.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -600,6 +612,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E17BD003304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "beautiful-mermaid-swift" */;
 			productName = BeautifulMermaid;
+		};
+		E17C5002304F3FBD00C517E4 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E17C5003304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

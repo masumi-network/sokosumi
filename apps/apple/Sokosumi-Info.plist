@@ -41,8 +41,35 @@
 	<string>https://api.sokosumi.com/v1</string>
 	<key>SokosumiWebBaseURL</key>
 	<string>https://app.sokosumi.com</string>
-	<!-- ADR 0053. Publish macOS DMG passes developer-id; Xcode Cloud builds keep the default. -->
+	<!--
+	  ADR 0053. Publish macOS DMG passes developer-id, which also starts
+	  Sparkle's updater; every other build keeps the default and never checks.
+	-->
 	<key>SokosumiDistributionChannel</key>
 	<string>$(SOKOSUMI_DISTRIBUTION_CHANNEL:default=app-store)</string>
+	<!--
+	  Sparkle (ADR 0053). The feed address and the public key are baked into
+	  every shipped app: changing either strands the installs that have the
+	  old one. SUPublicEDKey is the repository variable SPARKLE_ED_PUBLIC_KEY,
+	  which Publish macOS DMG checks the exported app against.
+	-->
+	<key>SUFeedURL</key>
+	<string>https://github.com/masumi-network/sokosumi/releases/download/macos-latest/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>AnbvmfH4JmqtAFt2fzEMNaht4Ify6QH7/MgyoL0zQEY=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+	<!-- The update prompt offers automatic downloading, unticked. -->
+	<key>SUAllowsAutomaticUpdates</key>
+	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
+	<key>SUEnableSystemProfiling</key>
+	<false/>
+	<!-- The app is sandboxed: Sparkle installs through its launcher service. -->
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
 </dict>
 </plist>

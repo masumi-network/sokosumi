@@ -29,10 +29,16 @@ enum CoreSettings {
   /// default, marks a local build that Core never turns away.
   static var clientBuildMiddleware: ClientBuildMiddleware {
     ClientBuildMiddleware(
-      channel: (Bundle.main.object(forInfoDictionaryKey: "SokosumiDistributionChannel") as? String)
-        .flatMap(DistributionChannel.init(rawValue:)) ?? .appStore,
+      channel: distributionChannel,
       build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
     )
+  }
+
+  /// `SokosumiDistributionChannel` from the Info.plist: `developer-id` only in
+  /// the published download, `app-store` for every other build.
+  static var distributionChannel: DistributionChannel {
+    (Bundle.main.object(forInfoDictionaryKey: "SokosumiDistributionChannel") as? String)
+      .flatMap(DistributionChannel.init(rawValue:)) ?? .appStore
   }
 
   static var setupURL: URL {

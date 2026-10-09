@@ -39,7 +39,7 @@ The Xcode navigator follows the physical source folders. Start with `Sokosumi/Ap
 
 | Location | Responsibility |
 | --- | --- |
-| `Sokosumi/App` | Scenes, root navigation, environment configuration |
+| `Sokosumi/App` | Scenes, root navigation, environment configuration and the Sparkle updater (`AppUpdater`, Developer ID builds only) |
 | `Sokosumi/Authentication` | Sign-in UI, system-browser integration and Keychain adapter for `TokenStore` |
 | `Sokosumi/Chat/Sidebar` | Conversation list and account/workspace menus |
 | `Sokosumi/Chat/Timeline` | Scrolling, message rows, status rows, the mark a jump leaves and the spotlight it casts (`JumpSpotlightClock`), Seen by on the newest message (`SeenByButton`) and the room header, whose name is a title bar button (`RoomHeaderModifier`) |

@@ -6,7 +6,7 @@ import OpenAPIRuntime
 public enum DistributionChannel: String, Sendable {
   /// The notarized `apple-latest` disk image, numbered by the Apple workflow run.
   case developerID = "developer-id"
-  /// Xcode Cloud: TestFlight and the App Store.
+  /// Every other build: local builds, and TestFlight installs from before that track was removed.
   case appStore = "app-store"
 }
 
