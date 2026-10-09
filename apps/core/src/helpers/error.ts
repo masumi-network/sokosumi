@@ -209,6 +209,17 @@ export const badGateway = (
 };
 
 /**
+ * 426 Upgrade Required
+ * The client build is older than the server still serves
+ */
+export const upgradeRequired = (
+  message: string = "Upgrade Required",
+  metadata?: HTTPExceptionMetadata,
+): HTTPException => {
+  return createHTTPException(426, message, metadata);
+};
+
+/**
  * 503 Service Unavailable
  * The server is not ready to handle the request
  */
