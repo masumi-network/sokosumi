@@ -5,6 +5,9 @@
 #
 #   apps/apple/scripts/test-check-appcast.sh
 #
+# It also runs check-exported-app.sh on an unsigned bundle, which must fail
+# naming the step rather than stopping silently.
+#
 # `Swift lint and format` runs it on pull requests. It never touches the real
 # Sparkle key.
 
@@ -33,7 +36,11 @@ if args[1] == "keygen" {
   print(try key.signature(for: data).base64EncodedString())
 }
 SWIFT
-swiftc -O -o "$WORK/sign" "$WORK/sign.swift" 2>/dev/null
+if ! swiftc -O -o "$WORK/sign" "$WORK/sign.swift" 2> "$WORK/swiftc.log"; then
+  cat "$WORK/swiftc.log" >&2
+  echo "::error::swiftc cannot build the test signing tool" >&2
+  exit 1
+fi
 
 "$WORK/sign" keygen > "$WORK/key"
 "$WORK/sign" keygen > "$WORK/other-key"
@@ -199,6 +206,14 @@ reject "notes without the release link" "description" check "$WORK/no-link.xml"
 
 appcast "$WORK/two-items.xml" extra="<item><title>beta</title></item>"
 reject "an appcast with more than one item" "one item" check "$WORK/two-items.xml"
+
+# check-exported-app.sh: an unsigned bundle must fail by name, not silently.
+UNSIGNED="$WORK/Unsigned.app"
+mkdir -p "$UNSIGNED/Contents/MacOS"
+cp "$WORK/sign" "$UNSIGNED/Contents/MacOS/Sokosumi"
+cp "$APP/Contents/Info.plist" "$UNSIGNED/Contents/Info.plist"
+reject "an exported app codesign cannot read" "::error::codesign" \
+  "$SCRIPTS/check-exported-app.sh" "$UNSIGNED"
 
 if ((failures > 0)); then
   echo "$failures appcast check test(s) failed" >&2

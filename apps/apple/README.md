@@ -30,17 +30,28 @@ as an update, but it is offered the next Stable release.
    every Conventional Commit touching `apps/apple/**` since the last release,
    picks the next version from them (`feat` raises the minor, `fix` the
    patch), bumps [`Version.xcconfig`](Version.xcconfig) and writes the
-   section in `CHANGELOG.md` beside it.
+   section in `CHANGELOG.md` beside it. Commits that touch only
+   `apps/apple/docs` or `apps/apple/.agents` stay out of the changelog
+   (`exclude-paths`).
 2. A human reviews and merges the Release PR. That tags `macos-v<version>`
-   and creates its GitHub release.
-3. The tag push runs `Publish macOS DMG` in `apple.yml`, which builds,
-   notarizes and signs that commit, attaches the disk image to the
-   `macos-v<version>` release, and replaces `Sokosumi.dmg` and `appcast.xml`
-   on `macos-latest`. Installed apps see the update on their next check.
+   and creates its GitHub release; the same workflow run hands GitHub's
+   Latest badge straight back to the newest `cli-v*` release.
+3. The tag push runs `Publish macOS DMG` in `apple.yml`, which refuses a tag
+   on a commit that is not on `main`, then builds, notarizes and signs that
+   commit, attaches the disk image to the `macos-v<version>` release, and
+   replaces `Sokosumi.dmg` and `appcast.xml` on `macos-latest`. Installed
+   apps see the update on their next check.
 
 Before the first release (1.0.0) merges, `bootstrap-sha` in
 `release-please-config.json` moves to the then-current `main` so earlier
-commits stay out of the changelog.
+commits stay out of the changelog. Delete the old `apple-latest` release
+only after 1.0.0 is on `macos-latest`; until then it is the only Stable
+download.
+
+A manual run of `apple.yml` (`workflow_dispatch`) builds, notarizes and signs
+the appcast with the production Sparkle key, and uploads both as run
+artifacts without touching a release. Those artifacts are real update
+candidates for every installed app, so share them as carefully as a release.
 
 Maintainers: the signing credentials behind the publish job are set up once by
 [`scripts/setup-release-signing.sh`](scripts/setup-release-signing.sh), and

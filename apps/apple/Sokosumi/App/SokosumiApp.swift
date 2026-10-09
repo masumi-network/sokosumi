@@ -36,7 +36,7 @@ struct SokosumiApp: App {
     }
     .commands {
       CommandGroup(after: .appInfo) {
-        if updater.isEnabled {
+        if AppUpdater.isPublishBuild {
           Button("Check for Updates…") {
             updater.checkForUpdates()
           }

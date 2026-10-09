@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Fails unless an exported Developer ID app can update itself with Sparkle
-# (SOK-1328, ADR 0053). A build that misses any of these still builds,
+# (SOK-1328, ADR 0054). A build that misses any of these still builds,
 # notarizes and opens, and then never learns about another release.
 #
 #   SPARKLE_ED_PUBLIC_KEY=<base64> apps/apple/scripts/check-exported-app.sh <Sokosumi.app>
@@ -30,7 +30,10 @@ plist_value() {
 
 [[ -d "$SPARKLE/Versions/B/XPCServices/Installer.xpc" ]] \
   || fail "Sparkle.framework with its Installer.xpc is not embedded in $APP"
-otool -L "$APP/Contents/MacOS/Sokosumi" | grep -q '@rpath/Sparkle.framework' \
+# Captured first: `grep -q` closing the pipe early would fail otool with
+# SIGPIPE, and pipefail would report a missing link that is there.
+LINKS="$(otool -L "$APP/Contents/MacOS/Sokosumi" || true)"
+grep -q '@rpath/Sparkle.framework' <<<"$LINKS" \
   || fail "the Sokosumi executable does not link Sparkle.framework"
 
 [[ "$(plist_value SUFeedURL "$PLIST")" == "$FEED_URL" ]] \
@@ -42,7 +45,10 @@ otool -L "$APP/Contents/MacOS/Sokosumi" | grep -q '@rpath/Sparkle.framework' \
 
 ENTITLEMENTS="$(mktemp)"
 trap 'rm -f "$ENTITLEMENTS"' EXIT
-codesign -d --entitlements - --xml "$APP" > "$ENTITLEMENTS" 2>/dev/null
+if ! codesign -d --entitlements - --xml "$APP" > "$ENTITLEMENTS"; then
+  echo "::error::codesign cannot read the signed entitlements of $APP"
+  exit 1
+fi
 [[ "$(plist_value com.apple.security.app-sandbox "$ENTITLEMENTS")" == "true" ]] \
   || fail "the app is not sandboxed"
 BUNDLE_ID="$(plist_value CFBundleIdentifier "$PLIST")"

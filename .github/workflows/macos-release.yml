@@ -39,7 +39,28 @@ jobs:
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
       - uses: googleapis/release-please-action@v5
+        id: release
         with:
           token: ${{ steps.app-token.outputs.token }}
           config-file: apps/apple/release-please-config.json
           manifest-file: apps/apple/.release-please-manifest.json
+
+      - name: Keep GitHub's Latest badge on the CLI
+        # GitHub makes the new macos-v release Latest the moment Release Please
+        # creates it, and Latest means the CLI's newest release. Hand the badge
+        # back now rather than after the Mac build, which takes many minutes;
+        # the tag run in apple.yml never makes any release Latest.
+        if: steps.release.outputs['apps/apple--release_created'] == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          STABLE_TAG: ${{ steps.release.outputs['apps/apple--tag_name'] }}
+        run: |
+          CLI_TAG="$(gh release list --exclude-drafts --exclude-pre-releases --limit 100 \
+            --json tagName,publishedAt \
+            --jq '[.[] | select(.tagName | startswith("cli-v"))] | sort_by(.publishedAt) | last | .tagName // empty')"
+          if [ -n "$CLI_TAG" ]; then
+            gh release edit "$CLI_TAG" --latest
+          else
+            gh release edit "$STABLE_TAG" --latest=false
+          fi

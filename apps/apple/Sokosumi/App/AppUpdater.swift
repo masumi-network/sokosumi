@@ -9,29 +9,25 @@ import Sparkle
 final class AppUpdater: ObservableObject {
   /// True only in the publish build. The updater code below compiles in every
   /// build, so pull requests type-check it too.
-  static var isCompiledIn: Bool {
+  static let isPublishBuild: Bool = {
     #if SOKOSUMI_UPDATER
       true
     #else
       false
     #endif
-  }
+  }()
 
   @Published private(set) var canCheckForUpdates = false
   private let controller: SPUStandardUpdaterController?
 
-  init(enabled: Bool = AppUpdater.isCompiledIn) {
-    guard enabled else {
+  init() {
+    guard Self.isPublishBuild else {
       controller = nil
       return
     }
     let controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     self.controller = controller
     controller.updater.publisher(for: \.canCheckForUpdates).assign(to: &$canCheckForUpdates)
-  }
-
-  var isEnabled: Bool {
-    controller != nil
   }
 
   func checkForUpdates() {
