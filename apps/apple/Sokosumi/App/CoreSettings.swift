@@ -28,11 +28,7 @@ enum CoreSettings {
   /// Names this build on every Core request (ADR 0053). Build 1, the project
   /// default, marks a local build that Core never turns away.
   static var clientBuildMiddleware: ClientBuildMiddleware {
-    ClientBuildMiddleware(
-      channel: (Bundle.main.object(forInfoDictionaryKey: "SokosumiDistributionChannel") as? String)
-        .flatMap(DistributionChannel.init(rawValue:)) ?? .appStore,
-      build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
-    )
+    ClientBuildMiddleware(build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1")
   }
 
   static var setupURL: URL {
