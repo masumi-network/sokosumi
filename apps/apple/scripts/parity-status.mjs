@@ -77,7 +77,7 @@ function main() {
   const out = [`${ref} ${sha}`];
 
   const open = JSON.parse(run("gh", ["pr", "list", "--state", "open", "--limit", "200", "--json", "number,headRefName,isDraft,title"]))
-    .filter((pr) => pr.headRefName.startsWith("claude/apple-parity-"));
+    .filter((pr) => /^claude\/apple-parity-[0-9]/.test(pr.headRefName));
   const openRowIds = new Set(
     open.map((pr) => /^claude\/apple-parity-([0-9][0-9a-z]*)-/.exec(pr.headRefName)?.[1]).filter(Boolean),
   );
