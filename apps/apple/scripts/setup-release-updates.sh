@@ -274,7 +274,7 @@ if command -v op >/dev/null 2>&1 && op vault list >/dev/null 2>&1; then
   else
     # A template file, not field=value arguments, so the key never shows up in
     # the process list.
-    printf '{"title":"%s","category":"PASSWORD","fields":[{"id":"password","type":"CONCEALED","purpose":"PASSWORD","label":"password","value":"%s"},{"id":"notesPlain","type":"STRING","purpose":"NOTES","label":"notesPlain","value":"Sparkle EdDSA private key for the Sokosumi Mac app (%s). Public key: %s. GitHub secret: SPARKLE_ED_PRIVATE_KEY. Restore with: generate_keys --account %s -f <file>. ADR 0053."}]}' \
+    printf '{"title":"%s","category":"PASSWORD","fields":[{"id":"password","type":"CONCEALED","purpose":"PASSWORD","label":"password","value":"%s"},{"id":"notesPlain","type":"STRING","purpose":"NOTES","label":"notesPlain","value":"Sparkle EdDSA private key for the Sokosumi Mac app (%s). Public key: %s. GitHub secret: SPARKLE_ED_PRIVATE_KEY. Restore with: generate_keys --account %s -f <file>. ADR 0054."}]}' \
       "$ITEM_TITLE" "$SPARKLE_PRIVATE_KEY" "$REPO" "$PUBLIC_KEY" "$KEY_ACCOUNT" > "$WORK/item.json"
     if op item create --vault "$VAULT" --template "$WORK/item.json" >/dev/null 2>&1 \
        && op item get "$ITEM_TITLE" --vault "$VAULT" >/dev/null 2>&1; then
