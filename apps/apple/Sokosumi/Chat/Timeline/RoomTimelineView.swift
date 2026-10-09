@@ -10,6 +10,10 @@ import SwiftUI
   struct RoomTimelineView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @State private var preparedTranscript: PreparedTranscript?
+    /// An older page prepared while the reader scrolled (M6). Rows inserted above the realized ones make the lazy list
+    /// measure every realized row again, a dropped frame in mid-flick, so its rows land once the scroll rests.
+    @State private var waitingTranscript: PreparedTranscript?
+    @State private var scrollActivity = TranscriptScrollActivity()
     let roomId: String
 
     private var preparationInput: PreparedTranscript.Input {
@@ -24,13 +28,24 @@ import SwiftUI
       let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
       // Keep scroll state below this boundary so scrolling does not rebuild the projection.
       RoomTranscriptContent(roomId: roomId, messages: prepared?.overlaying(input.messages) ?? [],
-                            hasLiveMessages: !input.messages.isEmpty, preparedTranscript: prepared)
-        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: roomId))
-        .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
-        .task(id: input) {
-          guard let prepared = try? await PreparedTranscript.prepare(input, reusing: preparedTranscript), !Task.isCancelled else { return }
-          preparedTranscript = prepared
+                            hasLiveMessages: !input.messages.isEmpty, preparedTranscript: prepared,
+                            scrollActivity: scrollActivity, olderPageWaits: prepared?.lacksRowsAbove(in: input.messages) ?? false) {
+        if let waiting = waitingTranscript {
+          waitingTranscript = nil
+          preparedTranscript = waiting
         }
+      }
+      .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: roomId))
+      .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
+      .task(id: input) {
+        guard let next = try? await PreparedTranscript.prepare(input, reusing: waitingTranscript ?? preparedTranscript), !Task.isCancelled else { return }
+        if scrollActivity.isScrolling, next.prependsRows(to: preparedTranscript) {
+          waitingTranscript = next
+        } else {
+          waitingTranscript = nil
+          preparedTranscript = next
+        }
+      }
     }
   }
 
@@ -42,7 +57,6 @@ import SwiftUI
     /// lands. Require a trip away from the top before auto-loading.
     @State private var transcriptWasAwayFromTop = false
     @State private var scrollIntent = TimelineScrollIntent()
-    @State private var scrollActivity = TranscriptScrollActivity()
     @State private var pendingBottomAlignment = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     /// The mark the last jump left on the row it landed on (row 25b1). The open thread keeps its own.
@@ -60,6 +74,12 @@ import SwiftUI
     let messages: [Components.Schemas.ChatRoomMessage]
     let hasLiveMessages: Bool
     let preparedTranscript: PreparedTranscript?
+    /// Whether the reader drives the list; the room view reads it to hold an older page (M6).
+    let scrollActivity: TranscriptScrollActivity
+    /// An older page is preparing or waits for the scroll to rest: its boundary row stays loading and asks for no
+    /// further page.
+    let olderPageWaits: Bool
+    let landWaitingPage: () -> Void
 
     private var room: Components.Schemas.ChatRoom? {
       workspaces.rooms.first { $0.id == roomId }
@@ -179,6 +199,10 @@ import SwiftUI
         }
         .onDisappear { jumpCompletion?.resume(returning: false)
           jumpCompletion = nil
+          // The room view outlives this list (another workspace or room swaps it): no scroll is left driving it.
+          if scrollActivity.isScrolling {
+            scrollActivity.isScrolling = false
+          }
         }
         .onChange(of: roomId) { _, _ in
           jumpMark = nil
@@ -237,8 +261,8 @@ import SwiftUI
       return ScrollViewReader { proxy in
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
-            if workspaces.transcriptHasMore {
-              PageBoundaryRow(copy: .transcript(isGap: false), status: workspaces.timeline.oldestBoundaryStatus) {
+            if workspaces.transcriptHasMore || olderPageWaits {
+              PageBoundaryRow(copy: .transcript(isGap: false), status: olderPageWaits ? .loading : workspaces.timeline.oldestBoundaryStatus) {
                 scrollIntent.readOlder()
                 workspaces.loadOlderMessages(auth: auth)
               }
@@ -386,6 +410,9 @@ import SwiftUI
           if scrollActivity.isScrolling != scrolling {
             scrollActivity.isScrolling = scrolling
           }
+          if !scrolling, olderPageWaits {
+            landWaitingPage()
+          }
           if phase.endsJumpMark {
             jumpMark = jumpMark?.readerScrolled(at: jumpMarkClock.now)
           }
@@ -454,7 +481,7 @@ import SwiftUI
                   userIsScrolling: userIsScrolling,
                   isNearTop: isNearTop,
                   hasMore: workspaces.transcriptHasMore,
-                  isLoading: workspaces.transcriptLoading || workspaces.transcriptLoadingOlder
+                  isLoading: workspaces.transcriptLoading || workspaces.transcriptLoadingOlder || olderPageWaits
                 ) else { return }
           if nextIntent != scrollIntent {
             scrollIntent = nextIntent

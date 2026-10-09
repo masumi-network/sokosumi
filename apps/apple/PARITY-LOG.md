@@ -4939,6 +4939,57 @@ All from `apps/apple` with this change on #5898's head `4d6c1232d`; logs and res
 Unverified: the signed app against Core (the user's own rooms, a real trackpad and pointer, a real X preview under the title), Full Keyboard Access and VoiceOver on screen; the older-page insertion from the recording is not reproduced or measured, because the harness loads every message up front.
 
 How to test: in a long room, rest the pointer over the transcript and flick: the list keeps up, no row lights up while it moves. Scroll a message with a light picture or link preview to the top of the window while the window is active: the room's name stays readable over a dark band. Point at a message: its bar appears after the short wait, as in #5898.
+
+## Slice M6 — older pages while scrolling
+
+Branch `claude/apple-older-page-scroll-hitch` on `origin/main` `6d23da936` (#5915 merged). Web and Core were read-only. Harness, sources and method: "Older pages under a scroll" in [scrolling-hover-harness.md](docs/scrolling-hover-harness.md).
+
+### The measurement
+
+The recording's two content-moving gaps (3.48 s, 3.88 s) sit on "Loading older messages…". `PagingProbe.swift` opens `RoomTimelineView` on the latest 100 of 600 fixture messages with `transcriptHasMore`, serves older pages from a fake Core at the URLSession transport (150 ms a page) and plays six upward flicks; each display-link frame records the scroll offset and document height. On `origin/main` every one of 17 page insertions drew one 55–65 ms frame (three runs); `PreparedTranscript.prepare` took 5–18 ms off the main thread.
+
+### What the profile names
+
+Time Profiler, attached, over the 120 ms after each insertion: SwiftUI's lazy stack measures every realized row again when rows are prepended (`LazyStack.measureEstimates` → `lengthAndSpacing`, 14 ms an insertion), on top of the transcript's ordinary update. It follows the realized rows, not the page: 44 / 64 / 79 ms at 400 / 800 / 1,200 pt windows; 68 / 61 / 57 ms for pages of 10 / 30 / 60. Controls: 30 rows appended below the reader 33 ms (an ordinary update), a prepend far from the top the same as at the top, and a bare `LazyVStack` of the same texts drops a frame on a prepend and none on an append.
+
+Ruled out, each against the baseline with no change beyond noise: `.scrollPosition` and `.scrollTargetLayout` off; `.defaultScrollAnchor(.bottom, for: .sizeChanges)`; no row `.id`; a ForEach without `enumerated()`; Equatable `MessageRowView` (row bodies 750 → 131 a run; a publish that changes nothing lost 35 % of its over-budget time, insertions none); unchanged arrays passed through `displayedTranscript`, `applyThreadUnreadReplyCounts` and `overlaying`; no boundary spinner; no `Text.LayoutKey` reader and no hidden clamp text in `ExpandableMessageBody`.
+
+### Changes
+
+User decision, 2026-10-09 (asked with these numbers): both of the following now; cutting each row's measure is a follow-up.
+
+- **An older page's rows wait for the scroll to rest.** `RoomTimelineView` holds a prepared snapshot that adds rows above the shown first row (`PreparedTranscript.prependsRows(to:)`) while the reader scrolls, and lands it when the scroll phase ends. While a page prepares or waits (`lacksRowsAbove(in:)`), the boundary row stays "Loading older messages…" and no further page is asked for; before, the next page was asked for in the ~17 ms between the page merging and its snapshot. The scroll state moved up from `RoomTranscriptContent` to the room view, which reads it only in its preparation task.
+- **An older page brings 100 rows** (`RoomTimeline`, Core's maximum and the latest page's size) instead of web's 30. A jump window and a gap page keep 30.
+
+### Before and after
+
+Six flicks with a 300 ms finger lift, 600 messages, three runs each, alternating; a landing is "while moving" when any of the five frames either side moved 2 pt or more:
+
+| Build | Pages | Landings while content moves | Frames over 25 ms | Over budget |
+| --- | --- | --- | --- | --- |
+| `origin/main` `6d23da936` | 17 of 30 rows | 14 / 14 / 15 | 35 / 30 / 30 | 1,095 / 1,059 / 946 ms |
+| this change | 5 of 100 rows | 0 / 0 / 0 | 19 / 20 / 17 | 411 / 427 / 376 ms |
+
+After the change every landing sits among frames that moved at most 1 pt. The landing frame itself still costs 44–64 ms.
+
+### Tests (red first, then green)
+
+- `SokosumiChatTests/RoomTimelineTests/olderPageAsksForAHundredRows`: failed with `limit=30`, passes.
+- `SokosumiChatTests/PreparedTranscriptTests/onlyRowsAboveTheFirstRowArePrepended`: failed against a stub returning false, passes; also covers `lacksRowsAbove(in:)`.
+- `NativeWindowTests/RoomOlderPageTests/anOlderPageWaitsForTheScrollToRest` (room, fake Core at the URLSession transport): on `origin/main`'s view the rows landed mid-gesture (document 2,223 → 4,299 pt) and a third page was asked for; passes 3 of 3. A gesture of zero-delta wheel events reads as idle to SwiftUI, so the test rocks ±3 pt at the top.
+- `NativeWindowTests/RoomOlderPageTests/anOlderPageKeepsTheReadingPosition` (row 04): the rows on screen move at most 16 backing pixels when a page lands at rest; passes before and after.
+- `ThreadPaginationTests` now shares the page protocol and the rendered-shift check with the room test (`TranscriptPageFixture.swift`).
+
+### Verification
+
+From `apps/apple`; logs and result bundles in the session scratchpad:
+- `xcodebuild test -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -enableCodeCoverage NO` — **1,880 tests, 1,879 passed, 1 failed** (CoreAPI 1, Auth 35, Chat 1,149, Realtime 57, Workspace 193 all passed; app 445, 444 passed). The failure is the Known-flaky `MessageEditComposerChromeTests/anOverLimitDraftShowsTheHintAndCountOnOneLineUnderTheField` (OCR); its suite passed 4 of 4 on rerun.
+- `xcodebuild … build` (macOS, Debug) — **BUILD SUCCEEDED**; `swift build --package-path Packages/SokosumiWorkspace --triple arm64-apple-ios17.0 --sdk <iPhoneOS 27.0 SDK>` — **Build complete**, scratch path deleted.
+- `mint run swiftformat --lint .` — **0/602 files require formatting**; `mint run swiftlint lint --strict` — **0 violations in 602 files**; `node --test scripts/ci/__tests__/apple-parity.test.mjs` — **7 of 7**.
+
+Unverified: the signed app against Core (real page latency, a real trackpad and pointer, the user's own `#Sokosumi`); a Thread's older replies still land mid-scroll (`ReplyThreadView`, not changed here).
+
+How to test: in a long room, flick up to the top: "Loading older messages…" shows while the flick runs, and the older messages appear above once it settles, with the messages on screen staying where they are. Flick again to read further back.
 ## 24f2 fix — the Unreads row rests muted
 
 Follow-up to the 24f1 fix (#5897), on the user's go (2026-10-09). Branch `claude/apple-unreads-row-rests-muted` on `origin/main` `31e7cdf4a`.
