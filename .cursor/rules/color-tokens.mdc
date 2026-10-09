@@ -63,7 +63,6 @@ the token, not at the call site:
 | `--on-media-tertiary` | hairline, ring or border drawn on media |
 | `--on-media-quaternary` | hover wash under a control on media |
 | `--media-ground` | the opaque ground behind media, and ink on light media |
-| `--hero-wash` | the gradient laid over the landing photograph |
 | `--background-muted` | quieter label on an inverted (`bg-foreground`) surface |
 | `--ring-halo`, `--destructive-halo` | the soft glow outside a focus ring |
 
