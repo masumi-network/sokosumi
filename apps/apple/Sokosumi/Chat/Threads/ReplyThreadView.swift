@@ -57,7 +57,7 @@ import SwiftUI
     @State private var scrollIntent = TimelineScrollIntent()
     @State private var olderBoundaryVisible = false
     @State private var visibleMessageID: String?
-    @State private var userIsScrolling = false
+    @State private var scrollActivity = TranscriptScrollActivity()
     @State private var pendingBottomAlignment = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     @State private var jumpError: String?
@@ -123,6 +123,10 @@ import SwiftUI
       }
     }
 
+    private var userIsScrolling: Bool {
+      scrollActivity.isScrolling
+    }
+
     var body: some View {
       content
         .alert("Couldn’t load message", isPresented: Binding(get: { jumpError != nil }, set: {
@@ -136,7 +140,7 @@ import SwiftUI
           scrollIntent = TimelineScrollIntent()
           olderBoundaryVisible = false
           visibleMessageID = nil
-          userIsScrolling = false
+          scrollActivity.isScrolling = false
           pendingBottomAlignment = false
         }
     }
@@ -191,6 +195,7 @@ import SwiftUI
               Color.clear.frame(height: 17).id("thread-bottom")
             }
             .scrollTargetLayout()
+            .environment(\.transcriptScrollActivity, scrollActivity)
             .padding(.horizontal)
             .padding(.top)
           }
@@ -219,7 +224,10 @@ import SwiftUI
             proxy.scrollTo("thread-bottom", anchor: .bottom)
           }
           .onScrollPhaseChange { _, phase in
-            userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+            let scrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+            if scrollActivity.isScrolling != scrolling {
+              scrollActivity.isScrolling = scrolling
+            }
             if phase.endsJumpMark {
               Task { @MainActor in workspaces.thread.readerScrolled() }
             }
@@ -257,6 +265,7 @@ import SwiftUI
             }
           }
         }
+        .scrollEdgeEffectStyle(.hard, for: .top)
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
           if let notice = ReadOnlyDirectNotice(room: currentRoom) {
