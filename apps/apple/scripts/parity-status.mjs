@@ -3,6 +3,7 @@
 // Run from the repository root: node apps/apple/scripts/parity-status.mjs [--ref <rev>]
 // --ref reads PARITY from another revision, such as HEAD on a docs branch.
 import { execFileSync } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /** Web and Core paths whose changes can move Apple chat parity. */
@@ -123,4 +124,5 @@ function main() {
   console.log(out.join("\n"));
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+// realpath: run through a symlink, argv[1] keeps the link while import.meta.url resolves it.
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) main();
