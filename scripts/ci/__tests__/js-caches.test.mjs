@@ -120,6 +120,22 @@ describe("Apple CI triggers", () => {
     }
     assert.match(lint, mintKey);
     assert.match(warm, mintKey);
+
+    assert.match(warm, /uses: actions\/cache\/restore@v6/);
+    assert.match(warm, /uses: actions\/cache\/save@v6/);
+    assert.doesNotMatch(warm, /uses: actions\/cache@v6\n/);
+    assert.match(
+      warm,
+      /if: \${{ !cancelled\(\) && github\.ref == 'refs\/heads\/main' && steps\.spm-cache\.outputs\.cache-hit != 'true' }}/,
+    );
+    assert.match(
+      warm,
+      /if: \${{ !cancelled\(\) && github\.ref == 'refs\/heads\/main' && steps\.cas-cache\.outputs\.cache-hit != 'true' }}/,
+    );
+    assert.match(
+      warm,
+      /if: \${{ !cancelled\(\) && github\.ref == 'refs\/heads\/main' && steps\.mint-cache\.outputs\.cache-hit != 'true' }}/,
+    );
   });
 });
 

@@ -270,21 +270,21 @@ jobs:
         run: xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipPackageUpdates -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" COMPILATION_CACHE_KEEP_CAS_DIRECTORY=YES build-for-testing -enableCodeCoverage NO -resultBundlePath "$RUNNER_TEMP/Sokosumi.xcresult"
 
       - name: Save Swift package checkouts
-        if: ${{ !cancelled() && steps.spm-cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.spm-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v6
         with:
           path: ${{ runner.temp }}/SourcePackages
           key: ${{ runner.os }}-spm-${{ hashFiles('apps/apple/Sokosumi.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
 
       - name: Save Xcode compilation cache
-        if: ${{ !cancelled() && steps.cas-cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.cas-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v6
         with:
           path: ${{ runner.temp }}/CompilationCache
           key: ${{ runner.os }}-xcode-cas-${{ github.run_id }}
 
       - name: Delete superseded Xcode compilation caches
-        if: ${{ !cancelled() && steps.cas-cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.cas-cache.outputs.cache-hit != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -296,8 +296,9 @@ jobs:
       - name: Install Mint
         run: brew install mint
 
-      - name: Cache Mint packages
-        uses: actions/cache@v6
+      - name: Restore Mint packages
+        id: mint-cache
+        uses: actions/cache/restore@v6
         with:
           path: ~/.mint
           key: ${{ runner.os }}-mint-${{ hashFiles('apps/apple/Mintfile') }}
@@ -306,6 +307,13 @@ jobs:
         working-directory: apps/apple
         run: mint bootstrap
 
+      - name: Save Mint packages
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.mint-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.mint
+          key: ${{ runner.os }}-mint-${{ hashFiles('apps/apple/Mintfile') }}
+
   # The rolling download. Every Apple change that reaches main replaces the
   # single `apple-latest` prerelease, so
   # https://github.com/masumi-network/sokosumi/releases/download/apple-latest/Sokosumi.dmg
@@ -313,9 +321,9 @@ jobs:
   #
   # No `needs: test`: `Xcode test` is pull_request-only, and a skipped needed
   # job skips its dependents. The Default Branch ruleset already required
-  # `Xcode test` on the PR that merged. Do not add `needs` on `changes` or
-  # `warm` either — `changes` is skipped on schedule, and a skipped need
-  # would skip Publish on Apple main pushes.
+  # `Xcode test` on the PR that merged. Do not add `needs: warm` (or `test`)
+  # — warm's `if` is false on push, so that need would skip Publish on every
+  # Apple main push. `changes` does run on push; it is not the skip cause.
   #
   # Deliberately NOT gated on `lint`. SwiftLint and SwiftFormat are style
   # checks and cannot make a binary broken, so withholding a working,
