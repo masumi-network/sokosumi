@@ -13,6 +13,9 @@ import SwiftUI
     /// An older page prepared while the reader scrolled (M6). Rows inserted above the realized ones make the lazy list
     /// measure every realized row again, a dropped frame in mid-flick, so its rows land once the scroll rests.
     @State private var waitingTranscript: PreparedTranscript?
+    /// An older page's rows just landed: the list keeps its bottom while they grow it, so the rows on screen stay put
+    /// even when the reader rests against the top edge (where the scroll position follows the edge, not a row).
+    @State private var landingOlderRows = false
     @State private var scrollActivity = TranscriptScrollActivity()
     let roomId: String
 
@@ -29,10 +32,10 @@ import SwiftUI
       // Keep scroll state below this boundary so scrolling does not rebuild the projection.
       RoomTranscriptContent(roomId: roomId, messages: prepared?.overlaying(input.messages) ?? [],
                             hasLiveMessages: !input.messages.isEmpty, preparedTranscript: prepared,
-                            scrollActivity: scrollActivity, olderPageWaits: prepared?.lacksRowsAbove(in: input.messages) ?? false) {
+                            scrollActivity: scrollActivity, olderPageWaits: prepared?.lacksRowsAbove(in: input.messages) ?? false,
+                            landingOlderRows: landingOlderRows) {
         if let waiting = waitingTranscript {
-          waitingTranscript = nil
-          preparedTranscript = waiting
+          commit(waiting)
         }
       }
       .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: roomId))
@@ -42,10 +45,21 @@ import SwiftUI
         if scrollActivity.isScrolling, next.prependsRows(to: preparedTranscript) {
           waitingTranscript = next
         } else {
-          waitingTranscript = nil
-          preparedTranscript = next
+          commit(next)
         }
       }
+      .task(id: landingOlderRows) {
+        // Long enough for the lazy list to lay the landed rows out; an image growing below the reader later must not
+        // move the rows on screen.
+        guard landingOlderRows, await (try? Task.sleep(for: .milliseconds(500))) != nil else { return }
+        landingOlderRows = false
+      }
+    }
+
+    private func commit(_ next: PreparedTranscript) {
+      landingOlderRows = next.prependsRows(to: preparedTranscript)
+      waitingTranscript = nil
+      preparedTranscript = next
     }
   }
 
@@ -79,6 +93,8 @@ import SwiftUI
     /// An older page is preparing or waits for the scroll to rest: its boundary row stays loading and asks for no
     /// further page.
     let olderPageWaits: Bool
+    /// An older page's rows are landing: size changes keep the bottom (M6, row 04).
+    let landingOlderRows: Bool
     let landWaitingPage: () -> Void
 
     private var room: Components.Schemas.ChatRoom? {
@@ -385,7 +401,7 @@ import SwiftUI
           proxy.scrollTo("timeline-bottom", anchor: .bottom)
         }
         .scrollPosition($scrollPosition)
-        .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
+        .defaultScrollAnchor(scrollIntent.followsLatest || landingOlderRows ? .bottom : nil, for: .sizeChanges)
         .onChange(of: messages.contains(where: { $0.id == quoteTarget }) ? quoteTarget : nil, initial: true) { _, target in
           guard let target else { return }
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {

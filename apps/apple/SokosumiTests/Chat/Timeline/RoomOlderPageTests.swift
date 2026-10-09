@@ -24,7 +24,7 @@
         defer { window.orderOut(nil) }
         let scroll = try await loadedTranscriptScrollView(in: host)
         #expect(TranscriptPageProtocol.requests.withLock { $0 } == 1, "Initial layout must not drain older pages.")
-        try await scrollUntilTheOlderPageIsAsked(scroll)
+        try await scrollUntilTheOlderPageIsAsked(scroll, pastTheTop: true)
         try sendTranscriptScroll(scroll, delta: 0, phase: 4)
         // Settle elastic scrolling before measuring the pending page insertion.
         try await Task.sleep(for: .milliseconds(300))
@@ -87,12 +87,17 @@
         scroll.documentView?.frame.height ?? 0
       }
 
-      /// Wheels up, in a gesture that has not ended, until the room asks for its older page.
-      private func scrollUntilTheOlderPageIsAsked(_ scroll: NSScrollView) async throws {
+      /// Wheels up, in a gesture that has not ended, until the room asks for its older page; with `pastTheTop`, on
+      /// against the top edge, where a reader who flicks up rests (and where the CI runner's reader stopped).
+      private func scrollUntilTheOlderPageIsAsked(_ scroll: NSScrollView, pastTheTop: Bool = false) async throws {
         for index in 0 ..< 80 {
           try sendTranscriptScroll(scroll, delta: 80, phase: index == 0 ? 1 : 2)
           try await Task.sleep(for: .milliseconds(20))
           if TranscriptPageProtocol.requests.withLock({ $0 }) > 1 {
+            for _ in 0 ..< (pastTheTop ? 3 : 0) {
+              try sendTranscriptScroll(scroll, delta: 80, phase: 2)
+              try await Task.sleep(for: .milliseconds(20))
+            }
             return
           }
         }

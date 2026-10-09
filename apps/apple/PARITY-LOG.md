@@ -4959,6 +4959,7 @@ Ruled out, each against the baseline with no change beyond noise: `.scrollPositi
 User decision, 2026-10-09 (asked with these numbers): both of the following now; cutting each row's measure is a follow-up.
 
 - **An older page's rows wait for the scroll to rest.** `RoomTimelineView` holds a prepared snapshot that adds rows above the shown first row (`PreparedTranscript.prependsRows(to:)`) while the reader scrolls, and lands it once the list is idle (a jump's scroll animation counts as motion). While a page prepares or waits (`lacksRowsAbove(in:)`), the boundary row stays "Loading older messages…" and no further page is asked for; before, the next page was asked for in the ~17 ms between the page merging and its snapshot. The scroll state moved up from `RoomTranscriptContent` to the room view, which reads it only in its preparation task.
+- **Landed rows keep the reader in place at the top edge.** For 500 ms after an older page's rows land, size changes keep the list's bottom (`defaultScrollAnchor(.bottom, for: .sizeChanges)`). A reader resting against the top edge is where landings now happen, and there the scroll position follows the edge, not a row: on the CI runner (1x, Reduce Motion) both room tests showed rows 10… in place of 40… after landing (−71 px). Locally the shift did not reproduce; the keep-position test now rests against the edge as the runner did.
 - **An older page brings 100 rows** (`RoomTimeline`, Core's maximum and the latest page's size) instead of web's 30. A jump window and a gap page keep 30.
 
 ### Before and after
