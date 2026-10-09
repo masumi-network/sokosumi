@@ -311,6 +311,7 @@ export {
   hasCoreApiOAuthScope,
   hasOfflineAccessOAuthScope,
   OAUTH_PROVIDER_SCOPES,
+  OAUTH_SCOPE_CORE_API,
 } from "./oauth-scopes.js";
 export {
   isReactJsonFencePrefixCandidate,

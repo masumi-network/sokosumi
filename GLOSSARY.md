@@ -30,6 +30,10 @@ _Avoid_: Job, run (unless a UI label), treating a Task as an Agent hire
 A vendor AI actor for Tasks and chat. Discovered on `/agents`. Not an Agent; not hired.
 _Avoid_: Agent (when meaning this), Soko Bot
 
+**Vendor grant**:
+A workspace's decision about whether one vendor's Coworkers may act across that workspace on behalf of its members: pending, granted, denied, or revoked. Denied and revoked stand until a person reopens access. Distinct from Coworker workspace access, which is per Coworker.
+_Avoid_: Permission, workspace access (when meaning this)
+
 ### Soko Bot
 
 **Soko Bot**:
@@ -165,6 +169,14 @@ _Avoid_: Per-post approval, connector approval
 **Social post**:
 One piece of content a Project intends to publish through exactly one Project social connection at one planned time. Not a Job or a Task.
 _Avoid_: Job, Task
+
+**Social statistics**:
+Available metrics for a connected social account and its published content, with freshness, metric periods, units, and accessible-history coverage. Account totals retain the provider's metric period; a publication-date filter selects posts and does not define when engagement occurred.
+_Avoid_: Engagement over the selected period, treating an unavailable counter as zero
+
+**Social account post**:
+A read-only cached publication retrieved from a connected account's provider history, including posts created outside Sokosumi. Distinct from a schedulable Social post; identified by the connected account and provider post ID.
+_Avoid_: Draft, scheduled Social post, importing history as publishable content
 
 ### Task payments
 

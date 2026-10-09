@@ -19,6 +19,7 @@ export const SOCIAL_TABS = [
   "calendar",
   "drafts",
   "attention",
+  "statistics",
   "accounts",
 ] as const;
 export type SocialTab = (typeof SOCIAL_TABS)[number];

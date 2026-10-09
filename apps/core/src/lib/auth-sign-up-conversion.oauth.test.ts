@@ -7,6 +7,7 @@ import { jwt, oAuthProxy } from "better-auth/plugins";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { afterNewSession } from "./auth-new-session";
+import { recordSignUpContext } from "./auth-sign-up-context";
 import {
   claimSignUpConversion,
   oauthSignUpOptions,
@@ -24,6 +25,7 @@ const fixture = vi.hoisted(() => {
   }
   const rows: Row[] = [];
   const attributions: string[] = [];
+  const contexts: Record<string, unknown>[] = [];
   let failAttribution = false;
   const verification = {
     async createMany({ data }: { data: Omit<Row, "id">[] }) {
@@ -86,7 +88,19 @@ const fixture = vi.hoisted(() => {
   return {
     rows,
     attributions,
+    contexts,
     verification,
+    oauthClient: {
+      async findUnique({ where }: { where: { clientId: string } }) {
+        return where.clientId === "cmo" ? { signUpOrigin: "cmo" } : null;
+      },
+    },
+    signUpContext: {
+      async create({ data }: { data: Record<string, unknown> }) {
+        contexts.push(data);
+        return data;
+      },
+    },
     setFailure(value: boolean) {
       failAttribution = value;
     },
@@ -138,6 +152,7 @@ function createAuth(origin = CORE, proxy = false) {
         grantTypes: ["authorization_code"],
         responseTypes: ["code"],
         redirectUris: [CLIENT],
+        signUpOrigin: "cmo",
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -165,7 +180,12 @@ function createAuth(origin = CORE, proxy = false) {
     },
     databaseHooks: {
       user: {
-        create: { after: (user, ctx) => recordSignUpConversion(user.id, ctx) },
+        create: {
+          after: async (user, ctx) => {
+            await recordSignUpConversion(user.id, ctx);
+            await recordSignUpContext(user.id);
+          },
+        },
       },
     },
     hooks: { after: createAuthMiddleware(afterNewSession) },
@@ -219,6 +239,7 @@ async function socialFlow(
     oauth?: boolean;
     prompt?: string;
     existing?: boolean;
+    signUpContext?: string;
   } = {},
 ) {
   const origin = options.proxy ? PREVIEW : CORE;
@@ -267,6 +288,9 @@ async function socialFlow(
         .digest("base64url"),
       code_challenge_method: "S256",
       ...(options.prompt ? { prompt: options.prompt } : {}),
+      ...(options.signUpContext
+        ? { signup_context: options.signUpContext }
+        : {}),
     });
     const response = await instance.auth.handler(
       new Request(`${origin}/auth/oauth2/authorize?${query}`, {
@@ -334,6 +358,7 @@ describe("installed Better Auth social sign-up flows", () => {
   beforeEach(() => {
     fixture.rows.length = 0;
     fixture.attributions.length = 0;
+    fixture.contexts.length = 0;
     fixture.setFailure(false);
   });
 
@@ -365,6 +390,9 @@ describe("installed Better Auth social sign-up flows", () => {
         `${WEB}/auth/callback/signup?provider=${provider}`,
       );
       const userId = String(flow.store.user[0].id);
+      expect(fixture.contexts).toEqual([
+        { userId, origin: "sokosumi", entries: {}, clientId: null },
+      ]);
       fixture.setFailure(true);
       const utm = {
         utm_source: "owned-test",
@@ -396,6 +424,8 @@ describe("installed Better Auth social sign-up flows", () => {
         `${WEB}/auth/callback/signin?provider=${provider}`,
       );
       expect(fixture.rows).toHaveLength(0);
+      // Only the email sign-up that created the user recorded a context.
+      expect(fixture.contexts).toHaveLength(1);
     },
   );
 
@@ -405,9 +435,14 @@ describe("installed Better Auth social sign-up flows", () => {
     { provider: "google" as const, proxy: true, prompt: undefined },
     { provider: "microsoft" as const, proxy: true, prompt: "create" },
   ])(
-    "counts CMO $provider signup before continuing (proxy=$proxy, prompt=$prompt)",
+    "counts CMO $provider signup and records its context before continuing (proxy=$proxy, prompt=$prompt)",
     async ({ provider, proxy, prompt }) => {
-      const flow = await socialFlow(provider, { oauth: true, proxy, prompt });
+      const flow = await socialFlow(provider, {
+        oauth: true,
+        proxy,
+        prompt,
+        signUpContext: JSON.stringify({ url: "nmkr.io" }),
+      });
       const signup = new URL(flow.response.headers.get("location") ?? "");
       expect(signup.origin + signup.pathname).toBe(`${WEB}/signup`);
       expect(signup.searchParams.get("state")).toBe("client-state");
@@ -417,6 +452,15 @@ describe("installed Better Auth social sign-up flows", () => {
       // request back without asking which account to continue as.
       expect(signup.searchParams.has("prompt")).toBe(false);
       const userId = String(flow.store.user[0].id);
+      // The authorize query crossed the provider callback in the OAuth state.
+      expect(fixture.contexts).toEqual([
+        {
+          userId,
+          origin: "cmo",
+          entries: { url: "nmkr.io" },
+          clientId: "cmo",
+        },
+      ]);
       expect(await claimSignUpConversion(userId)).toBe(provider);
       const continued = await flow.auth.handler(
         new Request(`${flow.origin}/auth/oauth2/continue`, {

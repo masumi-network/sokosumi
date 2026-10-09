@@ -1,5 +1,6 @@
 "use client";
 
+import { MousePointer2 } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -185,8 +186,9 @@ export function StudioTemplateCarousel({
     <div className="w-full space-y-5 py-4">
       <div className="space-y-2 px-4 text-center">
         <h2 className="text-xl font-medium">{labels.emptyTitle}</h2>
-        <p className="text-muted-foreground text-sm text-pretty">
-          {labels.emptyBody}
+        <p className="text-muted-foreground flex items-center justify-center gap-2 text-sm text-pretty">
+          <MousePointer2 aria-hidden className="size-4 shrink-0" />
+          <span>{labels.emptyBody}</span>
         </p>
       </div>
       <Carousel

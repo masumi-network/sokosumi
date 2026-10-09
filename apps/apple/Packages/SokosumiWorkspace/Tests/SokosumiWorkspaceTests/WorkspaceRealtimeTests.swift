@@ -62,7 +62,7 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
       }
       messagesGETReleased = false
     }
-    let next = responses.removeFirst()
+    let next = try nextScriptedResponse(&responses, operationID: operationID)
     if pauseNextRoomsGET, operationID == "get/chats/rooms" {
       pauseNextRoomsGET = false
       await withCheckedContinuation { roomsGETWaiter = $0
@@ -212,7 +212,8 @@ private func realtimeState(
   defaults.removePersistentDomain(forName: suite)
   let state = WorkspaceState(
     savedRoom: SavedRoomSelection(defaults: defaults),
-    instanceStore: MemoryRealtimeClientInstanceIdStore(stored: instanceId)
+    instanceStore: MemoryRealtimeClientInstanceIdStore(stored: instanceId),
+    recoverySleep: recoveryTimersNeverFire
   )
   state.setWindowVisible(true, window: realtimeWindow)
   state.clientResolver = { client }
@@ -353,6 +354,165 @@ struct WorkspaceRealtimeTests {
     #expect(state.displayedTranscript.map(\.content) == ["first", "from web"])
     // No extra history GET: the row arrived over the wire.
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 1)
+  }
+
+  /// Row 38e1: the turn's completion arrives as a full update carrying the descriptors (web hydrates
+  /// `resultPreviews` from the realtime DTO), so the row reads its cards without a reload, through the room's
+  /// workspace.
+  @Test func aCompletionUpdateBringsTheDescriptorsAndTheRowReadsItsCards() async throws {
+    let replyId = "550e8400-e29b-41d4-a716-446655440730"
+    let card = "7d1f0c2a-0000-4000-8000-000000000001"
+    let locked = "7d1f0c2a-0000-4000-8000-000000000002"
+    let results = """
+    {"data":[{"id":"\(card)","state":"available","capturedAt":"\(realtimeTimestamp)","kind":"file","title":"plan.pdf",\
+    "status":null,"sourceHref":"/drive/files/f1?scope=org&organizationId=org_1"},{"id":"\(locked)","state":"unavailable"}],\
+    "meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+    """
+    let (state, auth, transport) = try realtimeState([
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [realtimeMessageJSON(id: replyId, roomId: roomA, content: "")])),
+      (200, results)
+    ])
+    // No realtime connection here, so the open room's fallback poll reads history every 3 s while a window is
+    // active; with none active it waits (and nothing is marked read), so the script holds exactly the reads this test
+    // makes however slow the run.
+    state.setWindowVisible(false, window: realtimeWindow)
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let placeholder = try #require(state.transcriptMessages.first { $0.id == replyId })
+    #expect(MessageResultPreviews.descriptorIds(of: placeholder).isEmpty)
+
+    let answered = try await decodeRealtimeMessages([
+      realtimeMessageJSON(id: replyId, roomId: roomA, content: "Here is the plan.", editedAt: nil)
+        .replacingOccurrences(of: #""unfurls":null}"#,
+                              with: #""unfurls":null,"resultPreviews":[{"id":"\#(card)","capturedAt":"\#(realtimeTimestamp)"},{"id":"\#(locked)","capturedAt":"\#(realtimeTimestamp)"}]}"#)
+    ])
+    state.applyRealtimeMessage(roomId: roomA, eventType: .update, message: answered[0])
+    let reply = try #require(state.transcriptMessages.first { $0.id == replyId })
+    #expect(MessageResultPreviews.descriptorIds(of: reply) == [card, locked])
+
+    let previews = try await state.messageResultPreviews(reply, auth: auth)
+    #expect(previews.count == 2)
+    #expect(transport.operationIDs.last == "getChatRoomMessageResults")
+    let request = try #require(transport.requests.last)
+    #expect(request.path?.hasSuffix("/chats/rooms/\(roomA)/messages/\(replyId)/results") == true)
+    #expect(HTTPField.Name("X-Organization-Slug").flatMap { request.headerFields[$0] } == "acme")
+    state.reset()
+  }
+
+  @Test func aProjectPickRepliesToTheBotAndLandsInTheRoomAtOnce() async throws {
+    let questionId = "550e8400-e29b-41d4-a716-446655440731"
+    let replyId = "550e8400-e29b-41d4-a716-446655440732"
+    let preview = "7d1f0c2a-0000-4000-8000-000000000007"
+    let books = "0b5e0e7a-0000-4000-8000-0000000000a1"
+    let results = """
+    {"data":[{"id":"\(preview)","state":"available","capturedAt":"\(realtimeTimestamp)","kind":"project_selection",\
+    "title":"Choose a project","status":null,"sourceHref":"/projects",\
+    "projectOptions":[{"id":"\(books)","name":"Books","identifier":null,"logo":null}]}],\
+    "meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+    """
+    let botSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_1","ownerUserId":"user_1","presence":"online"}}"#
+    let question = realtimeMessageJSON(id: questionId, roomId: roomA, content: "Which project?")
+      .replacingOccurrences(of: #"{"type":"user","user":{"id":"user_2","name":"Ada","email":"ada@example.com","presence":"offline"}}"#, with: botSender)
+    let (state, auth, transport) = try realtimeState([
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [question])),
+      (200, results),
+      (201, realtimeCreatedBody(id: replyId, roomId: roomA, content: #"Use project \"Books\" (project ID: \#(books))."#))
+    ])
+    // As above: no window active, so the fallback poll takes no scripted answer.
+    state.setWindowVisible(false, window: realtimeWindow)
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let asked = try #require(state.transcriptMessages.first { $0.id == questionId })
+
+    try await state.selectProject(books, preview: preview, question: asked, auth: auth)
+    #expect(Array(transport.operationIDs.suffix(2)) == ["getChatRoomMessageResults", "post/chats/rooms/{id}/messages"])
+    #expect(transport.requests.suffix(2).allSatisfy { request in
+      HTTPField.Name("X-Organization-Slug").flatMap { request.headerFields[$0] } == "acme"
+    })
+    let body = try #require(transport.bodies.last)
+    let sent = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    #expect(sent["mentionedSokoBotIds"] as? [String] == ["bot_1"])
+    #expect(sent["clientMessageId"] as? String == ProjectSelection.clientMessageId(
+      userId: "user_1", roomId: roomA, messageId: questionId, previewId: preview, projectId: books
+    ))
+    let reply = try #require(state.transcriptMessages.last)
+    #expect(reply.id == replyId)
+    #expect(ProjectSelectionReply(content: reply.content) == ProjectSelectionReply(projectId: books, name: "Books"))
+    state.reset()
+  }
+
+  /// Row 38h2: Approve on a decision card resolves the owner's decision through the coordinator's client, with no
+  /// workspace header (decisions are the owner's); a 401 reaches the card as the session's rejection (which signs out).
+  @Test func aDecisionResolvesForItsOwnerOutsideTheWorkspace() async throws {
+    let decisionId = "3c4d5e6f-0000-4000-8000-0000000000d1"
+    let settled = """
+    {"data":{"id":"\(decisionId)","turnId":"3c4d5e6f-0000-4000-8000-0000000000e1","toolName":"hire_agent",\
+    "proposal":{"agentId":"agent_123","maxCredits":25},"reason":"Hire Scout","status":"ACCEPTED",\
+    "expiresAt":"\(realtimeTimestamp)","resolvedAt":"\(realtimeTimestamp)","resultingEntityId":"job_1",\
+    "createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)"},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+    """
+    let rejected = #"{"error":"Unauthorized","message":"Session expired","meta":{"timestamp":"\#(realtimeTimestamp)","requestId":"req-1","path":"/x","method":"POST"}}"#
+    let (state, auth, transport) = try realtimeState([
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])),
+      (200, settled),
+      (401, rejected)
+    ])
+    // With no window active the open room's fallback poll waits, so the script holds exactly these reads.
+    state.setWindowVisible(false, window: realtimeWindow)
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+
+    try await state.resolveSokoBotDecision(decisionId, .accept, auth: auth)
+    #expect(transport.operationIDs.last == "resolveMySokoBotDecision")
+    let request = try #require(transport.requests.last)
+    #expect(request.path?.hasSuffix("/soko-bots/me/decisions/\(decisionId)") == true)
+    #expect(HTTPField.Name("X-Organization-Slug").flatMap { request.headerFields[$0] } == nil)
+    let body = try #require(transport.bodies.last)
+    #expect(try JSONSerialization.jsonObject(with: body) as? [String: String] == ["resolution": "ACCEPT"])
+
+    await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
+      try await state.resolveSokoBotDecision(decisionId, .reject, auth: auth)
+    }
+    #expect(transport.operationIDs.suffix(2) == ["resolveMySokoBotDecision", "resolveMySokoBotDecision"])
+    #expect(try JSONSerialization.jsonObject(with: #require(transport.bodies.last)) as? [String: String] == ["resolution": "REJECT"])
+    state.reset()
+  }
+
+  /// Row 38e2: a card's protected output loads through the coordinator's client in the open workspace, as web's
+  /// proxy forwards the session; a 401 reaches the caller as the session's rejection (which signs out).
+  @Test func aResultOutputLoadsInTheOpenWorkspace() async throws {
+    let rejected = #"{"error":"Unauthorized","message":"Session expired","meta":{"timestamp":"\#(realtimeTimestamp)","requestId":"req-1","path":"/x","method":"GET"}}"#
+    let (state, auth, transport) = try realtimeState([
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])),
+      (200, "%PDF-1.7 report"),
+      (401, rejected)
+    ])
+    // With no window active the open room's fallback poll waits, so the script holds exactly these reads.
+    state.setWindowVisible(false, window: realtimeWindow)
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+
+    let file = try await state.resultOutput(.jobFile(jobId: "job-1", fileId: "blob-1", download: true), fileName: "report.pdf", auth: auth)
+    #expect(try Data(contentsOf: file.url) == Data("%PDF-1.7 report".utf8))
+    #expect(file.url.lastPathComponent == "report.pdf")
+    #expect(transport.operationIDs.last == "get/jobs/{id}/files/{fileId}/content")
+    let request = try #require(transport.requests.last)
+    #expect(request.path?.hasSuffix("/jobs/job-1/files/blob-1/content?download=true") == true)
+    #expect(HTTPField.Name("X-Organization-Slug").flatMap { request.headerFields[$0] } == "acme")
+
+    await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
+      try await state.resultOutput(.studioAsset(projectId: "p1", assetId: "a1"), fileName: "fox.png", auth: auth)
+    }
+    #expect(transport.operationIDs.last == "get/projects/{id}/image-studio/assets/{assetId}/content")
+    state.reset()
   }
 
   @Test func renameRowRetitlesTheOpenGroupDirect() async throws {
@@ -1394,6 +1554,38 @@ struct WorkspaceRealtimeTests {
     #expect(state.roomReads.roomId == roomB && state.roomReads.marks.isEmpty)
     await waitForRealtimeIdle(state)
     #expect(state.roomReadReceipts.readers.map(\.participant.id) == ["pat"])
+    state.reset()
+  }
+
+  /// Row 31b2: the Members inspector reads its room through the same receipts, so a live `chat_room_read` moves a
+  /// member out of "Not read yet" and up the list; another room's roster takes no live mark from the open one.
+  @Test func membersInspectorFollowsTheOpenRoomsReadEvents() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, _) = try realtimeState([
+      (200, workspacesBody()), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA, roomB], userMembers: seenByMembers)),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let open = try #require(state.rooms.first { $0.id == roomA })
+    let other = try #require(state.rooms.first { $0.id == roomB })
+    func roster(_ room: Components.Schemas.ChatRoom) -> RoomRosterGroups {
+      RoomRoster.groups(in: room, currentUserId: state.currentUserId, receipts: state.readReceipts(for: room))
+    }
+
+    #expect(roster(open).people.map(\.id) == [.human("user_1"), .human("pat")])
+    #expect(roster(open).neverRead.map(\.id) == [.human("kim")])
+
+    fake.deliver(.roomRead(.init(roomId: roomA, userId: "kim", lastReadAt: readAt(minutes: 10))))
+    for _ in 0 ..< 1000 where roster(open).neverRead.count == 1 {
+      await Task.yield()
+    }
+    #expect(roster(open).people.map(\.id) == [.human("user_1"), .human("kim"), .human("pat")])
+    #expect(roster(open).people.map(\.lastReadAt) == [nil, readAt(minutes: 10), readAt(minutes: 5)])
+    #expect(roster(open).neverRead.isEmpty)
+    #expect(roster(other).neverRead.map(\.id) == [.human("kim")])
     state.reset()
   }
 }

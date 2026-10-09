@@ -21,16 +21,19 @@ public final class ThreadSession: ObservableObject {
   @Published public private(set) var mute: ThreadMuteState?
   public let timeline = RoomTimeline()
   public let outbox: RoomOutbox
-  public let recovery = ChatRefreshScheduler()
+  public let recovery: ChatRefreshScheduler
   public private(set) var loadTask: Task<Void, Never>?
   private var transcriptObservation: AnyCancellable?
   private let service = ChatService()
   private let now: () -> Date
   private let makeId: () -> String
 
-  public init(now: @escaping () -> Date = Date.init, makeId: @escaping () -> String = { UUID().uuidString }) {
+  /// `recoverySleep` paces the recovery timer.
+  public init(now: @escaping () -> Date = Date.init, makeId: @escaping () -> String = { UUID().uuidString },
+              recoverySleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
     self.now = now
     self.makeId = makeId
+    recovery = ChatRefreshScheduler(sleep: recoverySleep)
     outbox = RoomOutbox(now: now)
     transcriptObservation = timeline.$messages.sink { [weak outbox] in outbox?.reconcile(messages: $0) }
   }
@@ -187,6 +190,7 @@ public final class ThreadSession: ObservableObject {
     sender: Components.Schemas.ChatRoomUserParticipant,
     mentions: [ComposerMention] = [],
     quote: Components.Schemas.ChatRoomMessageQuote? = nil,
+    skills: [Components.Schemas.ChatRoomMessageSkill] = [],
     settled: @escaping (Result<Message, Error>) -> Void
   ) -> Bool {
     let draft = ComposerContent(content)
@@ -194,12 +198,13 @@ public final class ThreadSession: ObservableObject {
     let id = makeId()
     let shell = OutboundShell(
       clientTurnId: id, roomId: parent.roomId, parentMessageId: parent.id,
-      content: draft.text, quote: quote, createdAt: now(), sender: sender
+      content: draft.text, quote: quote, skills: skills, createdAt: now(), sender: sender
     )
     outbox.enqueue(shell, send: { [service] in
       try await service.createMessage(
         client: client, roomId: parent.roomId, content: draft.text, clientMessageId: id,
-        parentMessageId: parent.id, mentions: mentions, quote: quote, organizationSlug: organizationSlug
+        parentMessageId: parent.id, mentions: mentions, quote: quote, skillIds: skills.map(\.id),
+        organizationSlug: organizationSlug
       )
     }, confirmed: { [weak self] message in
       guard let self else { return }

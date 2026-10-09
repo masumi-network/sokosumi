@@ -1,8 +1,78 @@
-import { describe, expect, it } from "vitest";
+import { Hono } from "hono";
+import { describe, expect, it, vi } from "vitest";
+
+import type { AuthVariables } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import usersRouter from "./index";
 
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    user: { findUnique: vi.fn().mockResolvedValue({ id: "user_1" }) },
+  },
+}));
+
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+  return {
+    ...actual,
+    workspaceRepository: {
+      ...actual.workspaceRepository,
+      resolveWorkspaceForContext: vi
+        .fn()
+        .mockRejectedValue(new actual.PersonalWorkspaceMissingError()),
+    },
+  };
+});
+
+describe("users routes for coworkers", () => {
+  it("answers 403 for a route outside the coworker list before resolving the context workspace", async () => {
+    const app = new Hono<{ Variables: AuthVariables }>();
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "coworker",
+        coworkerId: "cow_1",
+        vendorId: TEST_VENDOR_ID,
+        context: { userId: "user_1", organizationId: null },
+      });
+      await next();
+    });
+    app.route("/users", usersRouter);
+
+    const response = await app.request("http://localhost/users/me/preferences");
+
+    expect(response.status).toBe(403);
+  });
+});
+
 describe("users routes OpenAPI contract", () => {
+  it.each(["/{id}/workspaces", "/{id}/workspaces/preferred"])(
+    "documents %s GET's own 400, not the context binding's",
+    (path) => {
+      const doc = usersRouter.getOpenAPI31Document({
+        openapi: "3.1.0",
+        info: { title: "Users API", version: "1.0.0" },
+      });
+      const response = doc.paths?.[path]?.get?.responses?.["400"];
+
+      expect(response).toMatchObject({
+        description: expect.not.stringContaining(
+          "context_organization_required",
+        ),
+      });
+    },
+  );
+
   it("mounts the registered lookup at /registered without a duplicated segment", () => {
     const doc = usersRouter.getOpenAPI31Document({
       openapi: "3.1.0",

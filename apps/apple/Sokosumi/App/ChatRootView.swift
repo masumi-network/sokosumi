@@ -34,6 +34,8 @@ struct ChatRootView: View {
       }
       return .handled
     })
+    // Row 38e2: result cards load protected outputs with this window's session and workspace.
+    .environment(\.resultOutputLoader, WorkspaceResultOutputLoader(workspaces: workspaces, auth: auth))
     .modifier(InviteLinkSheet(presentation: $inviteLink))
     .modifier(PresenceLifecycleModifier())
     .modifier(ChatNotificationLifecycleModifier())

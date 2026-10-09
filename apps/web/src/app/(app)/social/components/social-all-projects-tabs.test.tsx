@@ -39,6 +39,7 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "sections.calendar",
       "sections.drafts",
+      "sections.statistics",
       "sections.accounts",
     ]);
     expect(screen.getByText("Calendar panel")).toBeVisible();
@@ -51,6 +52,9 @@ describe("SocialAllProjectsTabs", () => {
 
     await user.click(screen.getByRole("tab", { name: "sections.drafts" }));
     expect(screen.getByText("choose a project for drafts")).toBeVisible();
+
+    await user.click(screen.getByRole("tab", { name: "sections.statistics" }));
+    expect(screen.getByText("choose a project for statistics")).toBeVisible();
 
     await user.click(screen.getByRole("tab", { name: "sections.accounts" }));
     expect(screen.getByText("choose a project for accounts")).toBeVisible();

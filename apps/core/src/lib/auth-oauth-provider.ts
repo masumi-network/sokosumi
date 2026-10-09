@@ -1,4 +1,5 @@
 import { setTimeout } from "node:timers/promises";
+import { hasRequestState } from "@better-auth/core/context";
 import {
   getOAuthProviderState,
   type OAuthOptions,
@@ -82,6 +83,37 @@ function withoutCreatePrompt(query: string): string {
 }
 
 /**
+ * Where a sign-in inside an OAuth request holds the request's signed authorize
+ * query, as `query`. Email code and password sign-ins send it back as the
+ * signed `oauth_query`, which the OAuth provider keeps in its per-request
+ * state. A social sign-in carries it through the provider's callback (and the
+ * preview OAuth proxy) in the OAuth state's server context.
+ */
+async function authorizeQueryCarriers(): Promise<{ query?: unknown }[]> {
+  const carriers = [
+    await getOAuthProviderState(),
+    (await getOAuthState())?.serverContext,
+  ];
+  return carriers.filter((carrier) => carrier != null);
+}
+
+/**
+ * The signed authorize query of the OAuth request a sign-in runs inside, or
+ * null outside one.
+ */
+export async function readOAuthAuthorizeQuery(): Promise<URLSearchParams | null> {
+  if (!(await hasRequestState())) {
+    return null;
+  }
+  for (const { query } of await authorizeQueryCarriers()) {
+    if (typeof query === "string" && query) {
+      return new URLSearchParams(query);
+    }
+  }
+  return null;
+}
+
+/**
  * A session that starts inside an OAuth request answers its `prompt=create`.
  * The provider's after hook then continues the request, but strips only
  * `login` (Better Auth 1.7.7), so `create` would send the new account back
@@ -101,14 +133,10 @@ export async function answerCreatePromptWithNewSession(
   if (!started || started.session.id === ctx.context.session?.session.id) {
     return;
   }
-  const oauthRequest = await getOAuthProviderState();
-  if (oauthRequest?.query) {
-    oauthRequest.query = withoutCreatePrompt(oauthRequest.query);
-  }
-  // A social sign-up carries the request through the provider's callback.
-  const serverContext = (await getOAuthState())?.serverContext;
-  if (typeof serverContext?.query === "string") {
-    serverContext.query = withoutCreatePrompt(serverContext.query);
+  for (const carrier of await authorizeQueryCarriers()) {
+    if (typeof carrier.query === "string") {
+      carrier.query = withoutCreatePrompt(carrier.query);
+    }
   }
 }
 
