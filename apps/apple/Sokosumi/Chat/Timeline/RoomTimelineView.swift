@@ -82,6 +82,7 @@ import SwiftUI
     @State private var jumpCompletion: CheckedContinuation<Bool, Never>?
     @State private var quoteTarget: String?
     @State private var scrollPosition = ScrollPosition(idType: String.self)
+    @State private var landingGrowth = LandingGrowth()
     @State private var quoteFocusRequest: String?
 
     let roomId: String
@@ -402,6 +403,14 @@ import SwiftUI
         }
         .scrollPosition($scrollPosition)
         .defaultScrollAnchor(scrollIntent.followsLatest || landingOlderRows ? .bottom : nil, for: .sizeChanges)
+        .task(id: landingOlderRows) {
+          // M6, row 04: where landed rows grew the list above a reader at the top edge and the offset never followed
+          // them (seen on the 1x, Reduce Motion CI runner), move it by that growth.
+          landingGrowth.reset()
+          guard landingOlderRows, await (try? Task.sleep(for: .milliseconds(100))) != nil,
+                let offset = landingGrowth.correctedOffset, !userIsScrolling else { return }
+          scrollPosition.scrollTo(y: offset)
+        }
         .onChange(of: messages.contains(where: { $0.id == quoteTarget }) ? quoteTarget : nil, initial: true) { _, target in
           guard let target else { return }
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
@@ -477,6 +486,7 @@ import SwiftUI
           }
         }
         .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
+          landingGrowth.track(from: oldEdges, to: edges, landing: landingOlderRows && !userIsScrolling)
           if workspaces.timeline.historicalAnchor == nil,
              oldEdges.offsetY != edges.offsetY,
              userIsScrolling || oldEdges.nearBottom != edges.nearBottom {
@@ -578,4 +588,29 @@ import SwiftUI
     }
   }
 
+  /// Growth of the list above a reader at the top edge while older rows land, that the offset has not followed (M6).
+  /// A plain object: the geometry callback writes it on every change without updating the view.
+  @MainActor private final class LandingGrowth {
+    private var unfollowed: CGFloat = 0
+    private var offset: CGFloat = 0
+
+    /// Where the offset belongs once the growth is applied, or nil when the list moved it itself.
+    var correctedOffset: CGFloat? {
+      unfollowed > 1 ? offset + unfollowed : nil
+    }
+
+    func reset() {
+      unfollowed = 0
+    }
+
+    func track(from old: TranscriptScrollEdges, to new: TranscriptScrollEdges, landing: Bool) {
+      offset = new.offsetY
+      guard landing, old.nearTop || unfollowed > 0 else { return }
+      if abs(new.offsetY - old.offsetY) < 1 {
+        unfollowed += new.contentHeight - old.contentHeight
+      } else {
+        unfollowed = 0
+      }
+    }
+  }
 #endif

@@ -31,12 +31,15 @@
         host.layoutSubtreeIfNeeded()
         let before = try TranscriptReadingPosition.snapshot(host)
         let height = documentHeight(scroll)
+        let beforeOffset = scroll.contentView.bounds.minY
         try TranscriptPageProtocol.releaseHeldPage()
         _ = try await waitForView(in: host, timeoutMessage: "The older page's rows did not land: document \(documentHeight(scroll)) pt, was \(height) pt") {
           documentHeight(scroll) > height + 500 ? scroll : nil
         }
         try await Task.sleep(for: .milliseconds(300))
         host.layoutSubtreeIfNeeded()
+        Attachment.record("before: offset \(beforeOffset) pt of \(height) pt; after: offset \(scroll.contentView.bounds.minY) pt of \(documentHeight(scroll)) pt",
+                          named: "landed-page-offsets.txt")
         try await TranscriptReadingPosition.expectStable(host, before: before)
       }
 
