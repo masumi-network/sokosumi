@@ -99,6 +99,28 @@
         #expect(quietTexts.count == 1, "\(quietTexts)")
       }
 
+      /// Web's row at rest (`THREADS_ROW_CLASS`): with nothing unread and the view closed, the Threads label is
+      /// muted, fainter than the Unreads row beside it; an unread Thread brings it to full strength.
+      @Test(arguments: [false, true])
+      func theThreadsRowRestsMutedWithNothingUnread(dark: Bool) async throws {
+        let quiet = try await Self.renderSidebar([Self.room(Self.general, "general")], threadsOpen: false, key: true, dark: dark,
+                                                 name: "threads-row-rest-quiet-\(dark ? "dark" : "light").png")
+        let counted = try await Self.renderSidebar([Self.room(Self.general, "general", unreadThreads: 3)], threadsOpen: false, key: true, dark: dark,
+                                                   name: "threads-row-rest-count-\(dark ? "dark" : "light").png")
+        // Vision reads text only on a local run (the CI runner returns nil). It reads each row's glyph as a
+        // stray leading character, so a row is found by its label's end.
+        guard let quietLines = try RoomThreadOverviewGroupsViewTests.recognizedText(in: quiet),
+              let countedLines = try RoomThreadOverviewGroupsViewTests.recognizedText(in: counted) else { return }
+        func ink(_ fragment: String, _ lines: [RecognizedLine], _ bitmap: NSBitmapImageRep) throws -> CGFloat {
+          try UnreadsFilterViewTests.ink(of: #require(lines.first { $0.text.hasSuffix(fragment) }, "\(lines.map(\.text))"), in: bitmap, dark: dark)
+        }
+        let quietThreads = try ink("Threads", quietLines, quiet), quietUnreads = try ink("Unreads", quietLines, quiet)
+        #expect(dark ? quietThreads < quietUnreads - 0.15 : quietThreads > quietUnreads + 0.15,
+                "At rest Threads \(quietThreads) is fainter than Unreads \(quietUnreads).")
+        let countedThreads = try ink("Threads", countedLines, counted), countedUnreads = try ink("Unreads", countedLines, counted)
+        #expect(abs(countedThreads - countedUnreads) < 0.1, "Unread, Threads \(countedThreads) is full strength like Unreads \(countedUnreads).")
+      }
+
       // MARK: Fixtures
 
       private static func room(_ id: String, _ name: String, unreadThreads: Int = 0, mentions: Int = 0) -> Components.Schemas.ChatRoom {
@@ -161,11 +183,17 @@
         return bitmap
       }
 
-      /// The real sidebar with the Threads view open, so the Threads row is the selected one.
-      private static func renderSidebar(_ rooms: [Components.Schemas.ChatRoom], dark: Bool, name: String) async throws -> NSBitmapImageRep {
+      /// The real sidebar. `threadsOpen` selects the Threads row, as while its view is open; closed, nothing is
+      /// selected. `key` draws it as the reader's key window does (the test host cannot take key status): an
+      /// inactive sidebar greys the rows' default text, which hid a label that never chose a colour.
+      private static func renderSidebar(
+        _ rooms: [Components.Schemas.ChatRoom], threadsOpen: Bool = true, key: Bool = false, dark: Bool, name: String
+      ) async throws -> NSBitmapImageRep {
         let state = WorkspaceState()
         state.rooms = rooms
-        state.showThreadsView()
+        if threadsOpen {
+          state.showThreadsView()
+        }
         // The List paints its own background; the account footer below it has none, because in the app the
         // split view's sidebar column shows through. Hosted bare, it would record as transparent pixels, so the
         // fixture puts the appearance's window background behind the whole sidebar.
@@ -173,7 +201,8 @@
           .environmentObject(state).environmentObject(AuthState())
           .frame(width: 260, height: 200)
           .background(.background)
-          .environment(\.colorScheme, dark ? .dark : .light))
+          .environment(\.colorScheme, dark ? .dark : .light)
+          .environment(\.controlActiveState, key ? .key : .inactive))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 260, height: 200), styleMask: [.titled], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         window.contentView = host
@@ -183,7 +212,7 @@
         host.layoutSubtreeIfNeeded()
         // The Threads row is the List's selection while the view is open.
         let selected = views(NSTableRowView.self, in: host).filter(\.isSelected)
-        #expect(selected.count == 1, "The Threads row is selected while its view is open.")
+        #expect(selected.count == (threadsOpen ? 1 : 0), "The Threads row is selected exactly while its view is open.")
         // As in `OpenRoomAttentionTests`: `cacheDisplay` cannot composite the selection material, so the
         // bitmap leaves it out and shows the selected row's own content.
         selected.flatMap { views(NSVisualEffectView.self, in: $0) }.forEach { $0.isHidden = true }
