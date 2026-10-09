@@ -61,7 +61,9 @@ public struct PreparedTranscript: Sendable {
         if oldSources[message.id] == message.content, let document = reusable?.documents[message.id] {
           documents[message.id] = document
         } else {
-          documents[message.id] = MessageMarkdown(message.content, baseURL: input.baseURL, mentions: input.mentions, channels: input.channels)
+          documents[message.id] = MessageMarkdown(
+            message.content, baseURL: input.baseURL, mentions: input.mentions, channels: input.channels, diagrams: true
+          )
         }
       }
       return Self(input: input, documents: documents)

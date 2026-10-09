@@ -28,6 +28,21 @@ public struct RoomReader: Equatable, Sendable {
   }
 }
 
+/// What one roster row says about a member (web `RoomMemberReadState`): when they last read the room, or that
+/// they never have.
+public enum RoomMemberReadState: Equatable, Sendable {
+  case read(Date)
+  case unread
+
+  /// The read time a roster row states; nil for a member who never opened the room.
+  public var lastReadAt: Date? {
+    switch self {
+    case let .read(date): date
+    case .unread: nil
+    }
+  }
+}
+
 /// Room read receipts for the open room (web `useRoomReadReceipts`): the room payload's per-member Room
 /// last-read is the floor and the live marks the ceiling, so a dropped connection leaves the last values
 /// standing and the next room payload heals them. Receipts count people: Coworkers and Soko Bots are not on
@@ -39,11 +54,13 @@ public struct RoomReadReceipts: Equatable, Sendable {
   public let readers: [RoomReader]
   /// Roster humans with no Room last-read at all, in roster order. Every member, for a guest viewer.
   public let nonReaders: [Participant]
+  private let readStates: [String: RoomMemberReadState]
 
   public init(room: Components.Schemas.ChatRoom?, currentUserId: String, liveReads: [String: Date]) {
     guard let room else {
       readers = []
       nonReaders = []
+      readStates = [:]
       return
     }
     // Read times do not cross the organization boundary: Core already empties the payload for a guest, and
@@ -63,6 +80,17 @@ public struct RoomReadReceipts: Equatable, Sendable {
       left.reader.lastReadAt != right.reader.lastReadAt ? left.reader.lastReadAt > right.reader.lastReadAt : left.order < right.order
     }.map(\.reader)
     self.nonReaders = nonReaders
+    // A guest is told nothing either way: "not read yet" about a host member is still a read time.
+    readStates = isGuestViewer ? [:] : Dictionary(
+      readers.map { ($0.reader.participant.id, RoomMemberReadState.read($0.reader.lastReadAt)) } + nonReaders.map { ($0.id, .unread) },
+      uniquingKeysWith: { first, _ in first }
+    )
+  }
+
+  /// Web `readStateFor`: what one roster row says about a member. Nil where the row stays silent: the viewer,
+  /// anyone off the human roster (a Coworker or Soko Bot has no read state) and every member for a guest viewer.
+  public func readState(for userId: String) -> RoomMemberReadState? {
+    readStates[userId]
   }
 
   /// The readers whose mark had reached `moment` (an equal mark counts), most-recent-read first.

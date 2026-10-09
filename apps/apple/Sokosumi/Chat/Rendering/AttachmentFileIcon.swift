@@ -6,11 +6,12 @@ import SwiftUI
 
 struct AttachmentFileIcon: View {
   let filename: String
-  let url: URL
+  /// Names the type when the file name has no extension.
+  var url: URL?
 
   private var fileExtension: String {
     let ext = (filename as NSString).pathExtension
-    return ext.isEmpty ? url.pathExtension : ext
+    return ext.isEmpty ? url?.pathExtension ?? "" : ext
   }
 
   var body: some View {

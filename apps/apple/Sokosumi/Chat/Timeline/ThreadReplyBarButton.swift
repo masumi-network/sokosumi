@@ -19,7 +19,7 @@ struct ThreadReplyBarButton: View {
     // Web's `useNow({ updateInterval: 60_000 })`: now, then every minute. `.everyMinute` would read the start
     // of the minute and understate the age by up to a minute.
     TimelineView(.periodic(from: .now, by: 60)) { context in
-      let age = bar.lastReplyAt.map { threadReplyAgeLabel(since: $0, now: context.date, locale: locale) }
+      let age = bar.lastReplyAt.map { relativeAgeLabel(since: $0, now: context.date, unitsStyle: .abbreviated, locale: locale) }
       let button = Button(action: open) {
         label(age: age)
       }

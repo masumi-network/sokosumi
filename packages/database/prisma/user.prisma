@@ -58,6 +58,7 @@ model User {
 
   // UTM Attribution
   utmAttribution UTMAttribution?
+  signUpContext  SignUpContext?
 
   // Vendor membership and coworker assignments
   vendorMembers           VendorMember[]

@@ -525,11 +525,6 @@ export const adminTaskListItemSchema = z
     status: taskStatusSchema.openapi({ example: TaskStatus.RUNNING }),
     createdAt: dateTimeSchema,
     owner: adminTaskOwnerSchema,
-    /** @deprecated Use `owner`. */
-    user: adminTaskOwnerSchema.openapi({
-      deprecated: true,
-      description: "Deprecated. Use owner instead.",
-    }),
     organization: z
       .object({
         id: z.string().openapi({ example: "org_123" }),
@@ -557,11 +552,6 @@ export const adminTaskDetailSchema = z
   .object({
     task: taskSchema,
     owner: adminTaskOwnerSchema,
-    /** @deprecated Use `owner`. */
-    user: adminTaskOwnerSchema.openapi({
-      deprecated: true,
-      description: "Deprecated. Use owner instead.",
-    }),
     organization: z
       .object({
         id: z.string().openapi({ example: "org_123" }),

@@ -578,6 +578,29 @@
       #expect(input.captureDraft() == "- [site](https://example.com/)\n")
     }
 
+    /// Row 11a: opening the link editor shows a hidden bar without storing it; saving the link keeps it shown.
+    @Test func linkEditorShowsAHiddenToolbarWithoutStoringIt() throws {
+      let suite = "MacComposerTextInputTests." + UUID().uuidString
+      let defaults = try #require(UserDefaults(suiteName: suite))
+      defer { defaults.removePersistentDomain(forName: suite) }
+      let preferences = ComposerPreferences(defaults: defaults)
+      preferences.toolbarVisible = false
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("item")
+      input.setSelectedRange(NSRange(location: 0, length: 4))
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.toolbar = ComposerToolbarVisibility(preferences: preferences)
+      commands.beginLink()
+      #expect(commands.linkEditor?.text == "item")
+      #expect(commands.toolbar.isVisible)
+      #expect(!preferences.toolbarVisible)
+      guard let editor = commands.linkEditor else { return }
+      commands.saveLink(editor, text: "site", url: "https://example.com")
+      #expect(commands.toolbar.isVisible)
+      #expect(!preferences.toolbarVisible)
+    }
+
     @Test func formattingSelectionPreservesTextSelectionAndUndo() {
       let input = MacComposerTextInput.InputView()
       let delegate = UndoDelegate()

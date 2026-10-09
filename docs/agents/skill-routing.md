@@ -38,6 +38,8 @@ Core HTTP logging uses evlog. Conventions live in [`apps/core/AGENTS.md`](../../
 
 Web (`@sentry/nextjs`, `apps/web/sentry.*.config.ts`) and Core (`apps/core/src/lib/sentry.ts`, plus evlog's Sentry Logs drain) report to Sentry org `masumi`; Web's project is `sokosumi`. Query it through the Sentry MCP connector when the session has one, otherwise [`.agents/skills/sentry-cli/`](../../.agents/skills/sentry-cli/). Both stay silent without a DSN, so local and cloud-agent runs report nothing.
 
+A reported Core `requestId` (it is in every error body's `meta`) is one query in Sentry Logs, region `https://de.sentry.io`: `requestId:<id>`. Its wide event carries `actor` (`user`, `coworker`, `sokoBot`, or none when authentication failed), `path` (the route template) and `tags[status,number]`, which together tell which credential made the call and how it ended. Filter across requests by `path` and `actor`; `user.id` is not a searchable attribute.
+
 ### Apple (apps/apple only)
 
 Native SwiftUI work uses `swiftui-expert-skill` (from `avdlee/swiftui-agent-skill`), installed app-scoped under `apps/apple/.agents/skills/` — never the repo root. Load it when writing, reviewing, or refactoring SwiftUI for macOS/iOS. Install or update with `apps/apple` as cwd: `npx skills add https://github.com/avdlee/swiftui-agent-skill -s swiftui-expert-skill -y`. The repo's second skill, `update-swiftui-apis`, is intentionally not installed (skill maintenance; requires Sosumi MCP).

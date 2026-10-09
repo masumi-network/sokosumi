@@ -7,9 +7,13 @@ import SokosumiChat
 public extension WorkspaceState {
   /// Room read receipts for the room the transcript shows; empty when it shows none.
   var roomReadReceipts: RoomReadReceipts {
-    let room = transcriptRoomId.flatMap { id in rooms.first { $0.id == id } }
-    return RoomReadReceipts(room: room, currentUserId: currentUserId,
-                            liveReads: roomReads.roomId == room?.id ? roomReads.marks : [:])
+    readReceipts(for: transcriptRoomId.flatMap { id in rooms.first { $0.id == id } })
+  }
+
+  /// Room read receipts for `room`, the payload's marks with the live marks on top while it is the open room. The
+  /// Members inspector (row 31b2) reads its room through this, as the transcript's Seen by does.
+  func readReceipts(for room: Components.Schemas.ChatRoom?) -> RoomReadReceipts {
+    RoomReadReceipts(room: room, currentUserId: currentUserId, liveReads: roomReads.roomId == room?.id ? roomReads.marks : [:])
   }
 }
 

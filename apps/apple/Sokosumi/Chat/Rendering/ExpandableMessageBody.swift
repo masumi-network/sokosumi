@@ -14,9 +14,17 @@ struct ExpandableMessageBody<Content: View>: View {
   @State private var contentHeight: CGFloat = 0
   @State private var collapsedHeight: CGFloat = 0
   @State private var completeLineHeight: CGFloat?
+  @State private var allowances: [MessageClampAllowance] = []
+
+  /// Sixteen lines' height, plus the part of each block above it that web's line clamp does not count as lines.
+  private var clampLimit: CGFloat {
+    allowances.sorted { $0.top < $1.top }.reduce(collapsedHeight) { limit, allowance in
+      allowance.top < limit ? limit + allowance.uncounted : limit
+    }
+  }
 
   private var overflows: Bool {
-    clampHeight && collapsedHeight > 0 && contentHeight > collapsedHeight + 1
+    clampHeight && collapsedHeight > 0 && contentHeight > clampLimit + 1
   }
 
   var body: some View {
@@ -37,14 +45,16 @@ struct ExpandableMessageBody<Content: View>: View {
                   line.typographicBounds.rect.offsetBy(dx: origin.x, dy: origin.y)
                 }
               }
-              let height = completeLineBoundary(lines, limit: collapsedHeight)
+              let height = completeLineBoundary(lines, limit: clampLimit)
               Color.clear.onChange(of: height, initial: true) { _, height in
                 completeLineHeight = height
               }
             }
           }
         }
-        .frame(height: !expanded && overflows ? completeLineHeight ?? collapsedHeight : nil, alignment: .top)
+        .coordinateSpace(.named(MessageClampAllowance.space))
+        .onPreferenceChange(MessageClampAllowance.Key.self) { allowances = $0 }
+        .frame(height: !expanded && overflows ? completeLineHeight ?? clampLimit : nil, alignment: .top)
         .clipped()
         .contentShape(Rectangle())
       if clampHeight, expanded || overflows {
@@ -71,6 +81,37 @@ struct ExpandableMessageBody<Content: View>: View {
     }
     .onChange(of: source) { _, _ in
       expanded = false
+    }
+  }
+}
+
+/// Height inside a body that web's `line-clamp` does not count as lines: a block that draws no line box of its own
+/// (row 10d's Mermaid figure: its flex caption, scrolling preview and padding). The body adds it to its sixteen lines
+/// when the block starts above the cut.
+struct MessageClampAllowance: Equatable {
+  static let space = "MessageClampBody"
+  /// The block's top in the body.
+  let top: CGFloat
+  let uncounted: CGFloat
+
+  struct Key: PreferenceKey {
+    static let defaultValue: [MessageClampAllowance] = []
+    static func reduce(value: inout [MessageClampAllowance], nextValue: () -> [MessageClampAllowance]) {
+      value += nextValue()
+    }
+  }
+}
+
+extension View {
+  /// Reports `uncounted` points of this view as outside the enclosing body's line count.
+  func messageClampAllowance(_ uncounted: CGFloat) -> some View {
+    background {
+      GeometryReader { proxy in
+        Color.clear.preference(
+          key: MessageClampAllowance.Key.self,
+          value: [MessageClampAllowance(top: proxy.frame(in: .named(MessageClampAllowance.space)).minY, uncounted: uncounted)]
+        )
+      }
     }
   }
 }

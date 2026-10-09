@@ -24,10 +24,17 @@ helper at the top of the handler:
 | Helper | Import | Use when |
 | --- | --- | --- |
 | `requireUserContext` | `@/middleware/auth` | Task/job grant-gated flows only. Coworker context may be **unbound** (no vendor grant yet) so delegated create can park as `GRANT_PENDING`. |
-| `requireAuthorizedUserContext` | `@/helpers/coworker-user-context-binding` | **Default** for user-scoped routes (profile, credits, projects, org metadata, …). Coworker must pass binding: DENIED/REVOKED → reject; GRANTED → allow; else baseline assignee/sibling task; else reject. |
+| `requireAuthorizedUserContext` | `@/helpers/coworker-user-context-binding` | **Default** for user-scoped routes (profile, credits, projects, org metadata, …). Coworker must pass binding: DENIED/REVOKED → reject; GRANTED → allow; else baseline assignee/sibling task; else reject. A route that binds through it, directly or through a helper, wraps its route in `withCoworkerContextHeaderParameters` (`src/lib/hono-openapi-headers.test.ts` enforces it). |
 | `requireOwnerUserContext` | `@/middleware/auth` | Human/owner-only surfaces (notifications, history, billing, member lists, …). Interactive user session only; no coworker. |
 | `requireUserAuthContext` | `@/middleware/auth` | Must be the real interactive session user (admin role, consent). Rejects coworker. |
 | `resolveUserContext` | `@/middleware/auth` | Task-collaboration routes that accept standalone coworker keys but still apply user-scoped gates (organization seat, Calendar beta). Returns the effective user, or `null` for a standalone coworker key. |
+
+**Data from other workspaces.** The binding authorizes the context workspace
+only. An agent-callable route that returns data from the user's other
+workspaces (organization lists, per-organization reads) passes those
+organizations through `filterAuthorizedOrganizationIds`, so a vendor sees only
+workspaces that granted it or hold its baseline task. Review checks this for
+every route on the agent allowlist.
 
 Policy details and decision order: `src/helpers/coworker-user-context-binding.ts`
 and the `UserContext` JSDoc in `src/middleware/auth.ts`. Vendor grant semantics
@@ -308,7 +315,7 @@ For internal async-ack sync routes (immediate `200` response + background execut
 | `pnpm --filter @sokosumi/core vercel-build` | Vercel: `prisma:generate`, build, then `prisma migrate deploy` |
 | `pnpm core:start`                 | Run production build     |
 | `pnpm --filter core lint`         | Lint core app            |
-| `pnpm --filter core write-openapi-snapshot` | Writes `packages/core-client/openapi-core.snapshot.json` (gitignored) from the in-memory v1 router for `openapi-ts` |
+| `pnpm --filter core write-openapi-snapshot` | Builds Core's workspace dependencies through turbo, then writes `packages/core-client/openapi-core.snapshot.json` (gitignored) from the in-memory v1 router for `openapi-ts` |
 | `pnpm --filter @sokosumi/core-client generate:snapshot` | Runs the snapshot script + regenerates `packages/core-client/src/generated` (no running Core server) |
 | `pnpm --filter @sokosumi/core-client generate` | Regenerates the Core client from `http://localhost:8787/v1/openapi.json` (Core must be running) |
 
@@ -346,7 +353,7 @@ Environment variables required by Vitest (or by code under test) must be set in 
 - Internal tokens have full access; user tokens and session-authenticated requests are scoped to the authenticated user
 - Session cookies must be forwarded with requests (`credentials: "include"`) and rely on the Better Auth handler configuration documented above
 - Use `c.var.user` for direct user access, or `c.get("auth")` for full auth context
-- Coworker and Soko Bot tokens may only `GET` `/users/{id}`, its `/credits`, `/organizations`, and `/organizations/{id}/credits` (`src/routes/v1/users/user-coworker-route-allowlist.ts`); every other `/users` route answers them 403. Mounting a new user route for agents means extending that allowlist
+- Coworker and Soko Bot tokens may only `GET` `/users/{id}`, its `/credits`, `/organizations`, `/organizations/{id}/credits`, `/workspaces`, and `/workspaces/preferred` (`src/routes/v1/users/user-coworker-route-allowlist.ts`); every other `/users` route answers them 403. Both workspace reads skip the context binding and narrow their result instead (`AGENT_SELF_FILTERING_USER_SUBPATH_PATTERNS`). Mounting a new user route for agents means extending that allowlist
 
 ### Error Handling
 

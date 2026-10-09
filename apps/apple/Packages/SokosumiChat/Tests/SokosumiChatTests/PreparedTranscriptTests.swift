@@ -14,6 +14,13 @@ struct PreparedTranscriptTests {
     #expect(next.documents["two"] == nil)
   }
 
+  /// Row 10d: transcript bodies (rooms, Directs, Threads) draw `mermaid` fences, as web's `ChannelMessageText` does.
+  @Test func transcriptBodiesDrawMermaidFences() async throws {
+    let prepared = try await PreparedTranscript.prepare(input([message("one", "```mermaid\nflowchart TD\nA --> B\n```")]), reusing: nil)
+    let block = try #require(prepared.documents["one"]?.blocks.first)
+    #expect(block.diagram == MermaidDiagram(source: "flowchart TD\nA --> B", complete: true, overLimit: false))
+  }
+
   @Test func resolvingContextIsNotReusedAcrossOrigins() async throws {
     let messages = [message("one", "[Room](/chat)")]
     let first = try await PreparedTranscript.prepare(input(messages), reusing: nil)

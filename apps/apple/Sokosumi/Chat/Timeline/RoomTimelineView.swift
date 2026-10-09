@@ -81,6 +81,22 @@ import SwiftUI
       return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful, auth: auth) }
     }
 
+    /// Row 38e1: a settled row with result descriptors reads its cards through the coordinator.
+    private func resultPreviewsAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> [Components.Schemas.ChatResultPreview])? {
+      guard !MessageResultPreviews.descriptorIds(of: message).isEmpty else { return nil }
+      return { try await workspaces.messageResultPreviews(message, auth: auth) }
+    }
+
+    /// Row 38h1: picking a project on the row's question card replies to the bot that asked.
+    private func selectProjectAction(for message: Components.Schemas.ChatRoomMessage) -> (String, String) async throws -> Void {
+      { previewId, projectId in try await workspaces.selectProject(projectId, preview: previewId, question: message, auth: auth) }
+    }
+
+    /// Row 38h2: Approve or Reject on a decision card resolves the owner's decision.
+    private var resolveDecisionAction: (String, SokoBotDecision.Resolution) async throws -> Void {
+      { decisionId, resolution in try await workspaces.resolveSokoBotDecision(decisionId, resolution, auth: auth) }
+    }
+
     private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
       guard workspaces.canSendToSelf(message) else { return nil }
       return { try await workspaces.sendMessageToSelf(message, auth: auth) }
@@ -301,6 +317,9 @@ import SwiftUI
                                  onSendToSelf: sendToSelfAction(for: message),
                                  sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
                                  onSokoBotFeedback: sokoBotFeedbackAction(for: message),
+                                 loadResultPreviews: resultPreviewsAction(for: message),
+                                 selectProject: selectProjectAction(for: message),
+                                 resolveDecision: resolveDecisionAction,
                                  horizontalInset: 12,
                                  streamThinking: isCoworkerStreamOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
                                  newestEndsInAttachment: message.id == newestMessageId && MessageMarkdown.endsWithAttachmentRun(message.content),

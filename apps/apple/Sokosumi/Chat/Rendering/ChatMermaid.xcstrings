@@ -1,0 +1,414 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Close" : {
+      "comment" : "Closes the enlarged Mermaid diagram sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schließen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar"
+          }
+        }
+      }
+    },
+    "Copy source" : {
+      "comment" : "Copies a Mermaid diagram's source text.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy source"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelltext kopieren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar código"
+          }
+        }
+      }
+    },
+    "Could not copy. Select the diagram source below and copy it manually." : {
+      "comment" : "After copying a Mermaid diagram's source failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not copy. Select the diagram source below and copy it manually."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopieren fehlgeschlagen. Wähle den Diagramm-Quelltext unten aus und kopiere ihn manuell."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo copiar. Selecciona el código del diagrama de abajo y cópialo manualmente."
+          }
+        }
+      }
+    },
+    "Diagram source" : {
+      "comment" : "Disclosure that shows a Mermaid diagram's source text.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagram source"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagramm-Quelltext"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código del diagrama"
+          }
+        }
+      }
+    },
+    "Enlarge" : {
+      "comment" : "Opens a Mermaid diagram in a larger, zoomable sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enlarge"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vergrößern"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ampliar"
+          }
+        }
+      }
+    },
+    "Flowchart. The complete text is available under Diagram source." : {
+      "comment" : "Accessibility description of a drawn Mermaid flowchart.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flowchart. The complete text is available under Diagram source."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flussdiagramm. Der vollständige Text steht unter Diagramm-Quelltext."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagrama de flujo. El texto completo está disponible en Código del diagrama."
+          }
+        }
+      }
+    },
+    "Mermaid flowchart" : {
+      "comment" : "Title of a Mermaid flowchart in a message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mermaid flowchart"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mermaid-Flussdiagramm"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagrama de flujo Mermaid"
+          }
+        }
+      }
+    },
+    "Only eight diagrams can render in one message section. View or copy this source below." : {
+      "comment" : "Status of the ninth or later Mermaid diagram in one message section.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only eight diagrams can render in one message section. View or copy this source below."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pro Nachrichtenabschnitt können nur acht Diagramme dargestellt werden. Unten kannst du diesen Quelltext ansehen oder kopieren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo se pueden mostrar ocho diagramas por sección del mensaje. Puedes ver o copiar este código abajo."
+          }
+        }
+      }
+    },
+    "Preparing diagram…" : {
+      "comment" : "Status of a Mermaid diagram while it draws.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing diagram…"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagramm wird vorbereitet…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparando el diagrama…"
+          }
+        }
+      }
+    },
+    "Scroll to inspect the diagram. Use zoom controls to adjust its size." : {
+      "comment" : "Explains the enlarged Mermaid diagram sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scroll to inspect the diagram. Use zoom controls to adjust its size."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scrolle, um das Diagramm zu erkunden. Passe die Größe mit den Zoom-Steuerelementen an."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desplázate para explorar el diagrama. Usa los controles de zoom para ajustar su tamaño."
+          }
+        }
+      }
+    },
+    "Source copied." : {
+      "comment" : "After copying a Mermaid diagram's source.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source copied."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelltext kopiert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código copiado."
+          }
+        }
+      }
+    },
+    "This diagram could not be rendered. Check its syntax in the source below." : {
+      "comment" : "Status of a Mermaid diagram the renderer could not draw.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This diagram could not be rendered. Check its syntax in the source below."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Diagramm konnte nicht dargestellt werden. Prüfe die Syntax im Quelltext unten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo mostrar este diagrama. Revisa la sintaxis del código de abajo."
+          }
+        }
+      }
+    },
+    "This diagram exceeds the rendering limit. View or copy its source below." : {
+      "comment" : "Status of a Mermaid diagram over the size, line, word or edge limit.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This diagram exceeds the rendering limit. View or copy its source below."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Diagramm überschreitet das Darstellungslimit. Unten kannst du den Quelltext ansehen oder kopieren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este diagrama supera el límite de renderizado. Puedes ver o copiar su código abajo."
+          }
+        }
+      }
+    },
+    "This diagram uses unsupported syntax or features. View or copy its source below." : {
+      "comment" : "Status of a Mermaid diagram the source policy refuses.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This diagram uses unsupported syntax or features. View or copy its source below."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Diagramm verwendet nicht unterstützte Syntax oder Funktionen. Unten kannst du den Quelltext ansehen oder kopieren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este diagrama usa sintaxis o funciones no compatibles. Puedes ver o copiar su código abajo."
+          }
+        }
+      }
+    },
+    "Waiting for the diagram to finish…" : {
+      "comment" : "Status of a Mermaid diagram whose fence has not closed yet, while a reply streams.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for the diagram to finish…"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Diagramm wird noch empfangen…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperando a que termine el diagrama…"
+          }
+        }
+      }
+    },
+    "Zoom in" : {
+      "comment" : "Makes the enlarged Mermaid diagram larger.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom in"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vergrößern"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acercar"
+          }
+        }
+      }
+    },
+    "Zoom out" : {
+      "comment" : "Makes the enlarged Mermaid diagram smaller.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom out"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verkleinern"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alejar"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

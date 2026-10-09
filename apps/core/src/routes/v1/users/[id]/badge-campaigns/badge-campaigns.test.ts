@@ -4,8 +4,8 @@ import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
+  applyUserRouteMiddleware,
   type UserRouteVariables,
-  usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
 
 import { ANNOUNCED_FEATURES } from "@/schemas/badge-campaign.schema";
@@ -64,7 +64,7 @@ function createApp() {
   app.onError(errorHandler);
 
   const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
-  userByIdApp.use("*", usersPathUserContextMiddleware);
+  applyUserRouteMiddleware(userByIdApp);
   mountGetUserBadgeCampaigns(userByIdApp);
   mountPostUserBadgeCampaignSeen(userByIdApp);
   app.route("/:id", userByIdApp);

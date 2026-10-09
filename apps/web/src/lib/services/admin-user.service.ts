@@ -49,6 +49,16 @@ export const adminUserService = {
     }));
   },
 
+  /** The user with this id, or null when none exists. */
+  async getUser(userId: string) {
+    return coreClient.getUserById(userId);
+  },
+
+  /** How the user signed up, or null for accounts with no sign-up recorded. */
+  async getUserSignUp(userId: string) {
+    return coreClient.getUserSignUp(userId);
+  },
+
   async listUsers(
     params: ListAdminUsersParams = {},
   ): Promise<AdminUserOverviewPage> {

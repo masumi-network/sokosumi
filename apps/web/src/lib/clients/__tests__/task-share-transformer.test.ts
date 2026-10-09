@@ -119,7 +119,7 @@ describe("task response transformers with a null share", () => {
     const result = await getAdminTaskResponseTransformer({
       data: {
         task: buildTask(),
-        user: { id: "user_1", name: "Ada", email: "ada@example.com" },
+        owner: { id: "user_1", name: "Ada", email: "ada@example.com" },
         organization: null,
       },
       meta: { ...meta },

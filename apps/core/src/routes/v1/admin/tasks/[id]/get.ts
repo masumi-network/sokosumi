@@ -58,11 +58,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name: task.owner.name,
           email: task.owner.email,
         },
-        user: {
-          id: task.owner.id,
-          name: task.owner.name,
-          email: task.owner.email,
-        },
         organization: task.organization,
       }),
     );

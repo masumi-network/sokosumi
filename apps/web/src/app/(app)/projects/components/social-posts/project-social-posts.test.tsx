@@ -24,6 +24,7 @@ import {
   cancelProjectSocialPost,
   createProjectSocialPost,
   publishProjectSocialPost,
+  refreshProjectSocialPostStatistics,
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
@@ -97,6 +98,10 @@ const MESSAGES: Record<string, string> = {
   "sections.drafts": "Drafts",
   "sections.attention": "Needs attention",
   "sections.accounts": "Accounts",
+  "sections.statistics": "Statistics",
+  "statistics.refresh": "Refresh statistics",
+  "statistics.refreshFailed":
+    "Failed to refresh statistics. Previous results are retained.",
   "connectPrompt.title": "Connect an account to start posting",
   "connectPrompt.body": "Posts go out from this project's accounts.",
   "connectPrompt.action": "Connect X, YouTube, LinkedIn…",
@@ -236,6 +241,7 @@ vi.mock("@/lib/actions/project/action", () => ({
   cancelProjectSocialPost: vi.fn(),
   createProjectSocialPost: vi.fn(),
   publishProjectSocialPost: vi.fn(),
+  refreshProjectSocialPostStatistics: vi.fn(),
   scheduleProjectSocialPost: vi.fn(),
   updateProjectSocialPost: vi.fn(),
 }));
@@ -540,6 +546,7 @@ describe("ProjectSocialPosts", () => {
 
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Drafts 1",
+      "Statistics ",
     ]);
     expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
 
@@ -578,6 +585,7 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Calendar ",
       "Drafts 1",
+      "Statistics ",
       "Accounts 1",
     ]);
     expect(screen.getByText("Calendar panel")).toBeVisible();
@@ -754,7 +762,7 @@ describe("ProjectSocialPosts", () => {
     expect(saveDraft).toBeDisabled();
 
     const textarea = within(dialog).getByLabelText("Text");
-    await user.type(textarea, "x".repeat(281));
+    fireEvent.change(textarea, { target: { value: "x".repeat(281) } });
     expect(screen.getByTestId("social-post-character-count")).toHaveTextContent(
       "281 / 280",
     );
@@ -2029,6 +2037,55 @@ describe("ProjectSocialPosts", () => {
     });
     expect(refreshMock).toHaveBeenCalledOnce();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("refreshes a managed published post from its preview and keeps metrics on failure", async () => {
+    const next = {
+      ...PUBLISHED_POST,
+      statistics: {
+        metrics: {
+          views: 7,
+          impressions: null,
+          likes: 0,
+          comments: null,
+          shares: null,
+          saves: null,
+        },
+        fetchedAt: new Date("2026-10-08T08:00:00Z"),
+        refreshAttemptedAt: new Date("2026-10-08T08:00:00Z"),
+        error: null,
+      },
+    };
+    vi.mocked(refreshProjectSocialPostStatistics)
+      .mockResolvedValueOnce({ ok: true, value: next })
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { code: "BAD_INPUT", message: "Denied" },
+      });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[PUBLISHED_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId={PUBLISHED_POST.id}
+      />,
+    );
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Refresh statistics" }),
+    );
+    expect(await within(dialog).findByText("7")).toBeVisible();
+    expect(refreshProjectSocialPostStatistics).toHaveBeenCalledWith({
+      projectId: PUBLISHED_POST.projectId,
+      postId: PUBLISHED_POST.id,
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Refresh statistics" }),
+    );
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Previous results are retained",
+    );
+    expect(within(dialog).getByText("7")).toBeVisible();
   });
 
   it("opens a linked published post in the preview with its external link", () => {
