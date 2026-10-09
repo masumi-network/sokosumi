@@ -8,8 +8,7 @@ public struct CoreUpdateRequired: Error, Equatable, Sendable {
   public init() {}
 }
 
-/// Names the build on every Core request (`X-Sokosumi-Client: macos-developer-id/<build>`; the
-/// token stays because shipped builds send it, ADR 0053) and turns
+/// Names the build on every Core request (`X-Sokosumi-Client: macos/<build>`, ADR 0053) and turns
 /// Core's `client_update_required` 426 and `route_not_found` 404 into `CoreUpdateRequired`.
 public struct ClientBuildMiddleware: ClientMiddleware {
   static let headerName = HTTPField.Name("X-Sokosumi-Client")!
@@ -30,7 +29,7 @@ public struct ClientBuildMiddleware: ClientMiddleware {
     next: @Sendable (HTTPRequest, HTTPBody?, URL) async throws -> (HTTPResponse, HTTPBody?)
   ) async throws -> (HTTPResponse, HTTPBody?) {
     var request = request
-    request.headerFields[Self.headerName] = "macos-developer-id/\(build)"
+    request.headerFields[Self.headerName] = "macos/\(build)"
     let (response, responseBody) = try await next(request, body, baseURL)
     // Core's error envelope is small; a body known to be larger is not one, so it passes untouched.
     guard let kind = Self.updateKinds[response.status.code], let responseBody,

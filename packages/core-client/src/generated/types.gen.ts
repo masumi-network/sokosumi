@@ -8231,7 +8231,7 @@ export type ContextUserId = string;
 export type ContextOrganizationId = string;
 
 /**
- * Native Mac app build, `macos-developer-id/<build>`. A build older than the minimum gets 426 with `kind: client_update_required` on every operation (ADR 0053).
+ * Native Mac app build, `macos/<build>`. A build older than the minimum gets 426 with `kind: client_update_required` on every operation (ADR 0053).
  */
 export type SokosumiClient = string;
 

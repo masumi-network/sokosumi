@@ -35,7 +35,7 @@ describe("appleClientMinimumBuildMiddleware", () => {
 
   it("answers 426 client_update_required with the download link below the minimum", async () => {
     const response = await request({
-      [APPLE_CLIENT_HEADER]: "macos-developer-id/7999",
+      [APPLE_CLIENT_HEADER]: "macos/7999",
     });
 
     expect(response.status).toBe(426);
@@ -48,10 +48,18 @@ describe("appleClientMinimumBuildMiddleware", () => {
 
   it("serves a build at the minimum", async () => {
     const response = await request({
-      [APPLE_CLIENT_HEADER]: "macos-developer-id/8000",
+      [APPLE_CLIENT_HEADER]: "macos/8000",
     });
 
     expect(response.status).toBe(200);
+  });
+
+  it("still reads macos-developer-id, which DMG builds sent before #5922", async () => {
+    const response = await request({
+      [APPLE_CLIENT_HEADER]: "macos-developer-id/7999",
+    });
+
+    expect(response.status).toBe(426);
   });
 
   it("no longer reads the retired app-store channel", async () => {
@@ -64,7 +72,7 @@ describe("appleClientMinimumBuildMiddleware", () => {
 
   it("never gates build 1, the unpublished project default", async () => {
     const response = await request({
-      [APPLE_CLIENT_HEADER]: "macos-developer-id/1",
+      [APPLE_CLIENT_HEADER]: "macos/1",
     });
 
     expect(response.status).toBe(200);
@@ -74,7 +82,7 @@ describe("appleClientMinimumBuildMiddleware", () => {
     getEnvMock.mockReturnValue({});
 
     const response = await request({
-      [APPLE_CLIENT_HEADER]: "macos-developer-id/2",
+      [APPLE_CLIENT_HEADER]: "macos/2",
     });
 
     expect(response.status).toBe(200);

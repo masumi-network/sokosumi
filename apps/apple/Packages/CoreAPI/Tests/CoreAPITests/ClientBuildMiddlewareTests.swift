@@ -9,7 +9,7 @@ struct ClientBuildMiddlewareTests {
     let transport = StubTransport(status: 204, body: "")
     _ = try? await client(transport).getUsersId(path: .init(id: "me"))
     let header = try #require(HTTPField.Name("X-Sokosumi-Client"))
-    #expect(transport.lastRequest?.headerFields[header] == "macos-developer-id/7993")
+    #expect(transport.lastRequest?.headerFields[header] == "macos/7993")
   }
 
   @Test func clientUpdateRequiredThrowsUpdateRequired() async throws {
