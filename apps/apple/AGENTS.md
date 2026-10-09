@@ -107,10 +107,10 @@ CI holds no Apple certificates for the gate job, so `Xcode test` overrides with 
 - **Signing is mandatory, not decoration.** The app is `ENABLE_APP_SANDBOX = YES` and `ENABLE_HARDENED_RUNTIME = YES`, so an ad-hoc-signed build that a user downloads is quarantined and Gatekeeper refuses it outright. Notarization is what makes the disk image open on a machine that did not build it. The six secrets this needs are set by [`scripts/setup-release-signing.sh`](scripts/setup-release-signing.sh); do not hand-roll them. One is a Developer ID provisioning profile, which the Associated Domains entitlement requires; `scripts/setup-release-signing.sh profile` replaces it alone when it expires.
 - **Two distribution channels, one owner each. Do not blur them.**
   - **Direct download** (the `apple-latest` disk image) is built by `Publish macOS DMG` in GitHub Actions, signed with Developer ID and notarized. This is the link anyone can click.
-  - **App Store and TestFlight** are built by **Xcode Cloud**, which holds the distribution certificates and uploads to App Store Connect. `ci_scripts/ci_post_clone.sh` exists for those builds.
+  - **App Store and TestFlight** are built by **Xcode Cloud**, which holds the distribution certificates and uploads to App Store Connect. The `TestFlight (Internal)` workflow builds `main` nightly at 00:00 CET (an On a Schedule start condition, set in App Store Connect), not on each push, so a merged Apple change reaches testers the next day. `ci_scripts/ci_post_clone.sh` exists for those builds.
 
   Neither is a fallback for the other: Developer ID and App Store are different certificates and different review paths, and Actions cannot upload to App Store Connect the way Xcode Cloud does. Do not add an App Store leg to Actions, and do not add a Developer ID DMG to Xcode Cloud.
-- **Xcode Cloud does not run on pull requests, and cannot be a required status check.** A start condition filtered to `apps/apple/**` reports nothing at all on a change it excludes, so a required context would hang every non-Apple PR forever. See [docs/xcode-cloud-required-check.md](docs/xcode-cloud-required-check.md).
+- **Xcode Cloud does not run on pull requests or pushes, and cannot be a required status check.** It starts only on its schedule, and a commit it does not build carries no Xcode Cloud status at all, so a required context would hang every PR forever. See [docs/xcode-cloud-required-check.md](docs/xcode-cloud-required-check.md).
 
 ## App-Specific Gotchas
 

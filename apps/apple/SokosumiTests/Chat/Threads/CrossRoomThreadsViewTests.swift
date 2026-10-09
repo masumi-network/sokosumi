@@ -99,14 +99,14 @@
         #expect(quietTexts.count == 1, "\(quietTexts)")
       }
 
-      /// Web's row at rest (`THREADS_ROW_CLASS`): with nothing unread and the view closed, the Threads label is
-      /// muted, fainter than the Unreads row beside it; an unread Thread brings it to full strength.
+      /// Web's rest class (`THREADS_ROW_CLASS`) on both entries: with nothing unread and the view closed, Threads
+      /// rests muted like the Unreads row (filter off) beside it; an unread Thread brings only Threads to full strength.
       @Test(arguments: [false, true])
-      func theThreadsRowRestsMutedWithNothingUnread(dark: Bool) async throws {
+      func theThreadsAndUnreadsRowsRestMuted(dark: Bool) async throws {
         let quiet = try await Self.renderSidebar([Self.room(Self.general, "general")], threadsOpen: false, key: true, dark: dark,
-                                                 name: "threads-row-rest-quiet-\(dark ? "dark" : "light").png")
+                                                 name: "nav-rows-rest-quiet-\(dark ? "dark" : "light").png")
         let counted = try await Self.renderSidebar([Self.room(Self.general, "general", unreadThreads: 3)], threadsOpen: false, key: true, dark: dark,
-                                                   name: "threads-row-rest-count-\(dark ? "dark" : "light").png")
+                                                   name: "nav-rows-rest-count-\(dark ? "dark" : "light").png")
         // Vision reads text only on a local run (the CI runner returns nil). It reads each row's glyph as a
         // stray leading character, so a row is found by its label's end.
         guard let quietLines = try RoomThreadOverviewGroupsViewTests.recognizedText(in: quiet),
@@ -114,11 +114,15 @@
         func ink(_ fragment: String, _ lines: [RecognizedLine], _ bitmap: NSBitmapImageRep) throws -> CGFloat {
           try UnreadsFilterViewTests.ink(of: #require(lines.first { $0.text.hasSuffix(fragment) }, "\(lines.map(\.text))"), in: bitmap, dark: dark)
         }
+        /// Whether `strong` is drawn at least 0.15 stronger than `faint`.
+        func stronger(_ strong: CGFloat, than faint: CGFloat) -> Bool {
+          dark ? strong > faint + 0.15 : strong < faint - 0.15
+        }
         let quietThreads = try ink("Threads", quietLines, quiet), quietUnreads = try ink("Unreads", quietLines, quiet)
-        #expect(dark ? quietThreads < quietUnreads - 0.15 : quietThreads > quietUnreads + 0.15,
-                "At rest Threads \(quietThreads) is fainter than Unreads \(quietUnreads).")
+        #expect(abs(quietThreads - quietUnreads) < 0.1, "At rest Threads \(quietThreads) and Unreads \(quietUnreads) match.")
         let countedThreads = try ink("Threads", countedLines, counted), countedUnreads = try ink("Unreads", countedLines, counted)
-        #expect(abs(countedThreads - countedUnreads) < 0.1, "Unread, Threads \(countedThreads) is full strength like Unreads \(countedUnreads).")
+        #expect(stronger(countedThreads, than: quietThreads), "Unread Threads \(countedThreads) over resting \(quietThreads).")
+        #expect(stronger(countedThreads, than: countedUnreads), "Unread Threads \(countedThreads) over Unreads \(countedUnreads).")
       }
 
       // MARK: Fixtures
