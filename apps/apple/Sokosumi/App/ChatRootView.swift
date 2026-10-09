@@ -116,18 +116,16 @@ struct ChatRootView: View {
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
-    case let .updateRequired(channel):
+    case .updateRequired:
       VStack(spacing: 8) {
         Text("Update Sokosumi")
           .font(.headline)
-        Text(updateMessage(channel))
+        Text(updateMessage)
           .font(.callout)
           .foregroundStyle(.secondary)
           .multilineTextAlignment(.center)
         HStack {
-          if channel == .developerID {
-            Link("Download Update", destination: latestDownloadURL)
-          }
+          Link("Download Update", destination: latestDownloadURL)
           Button("Sign out") {
             auth.signOut()
           }

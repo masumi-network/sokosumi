@@ -6,7 +6,6 @@ import { errorHandler } from "@/helpers/error-handler";
 import {
   APPLE_CLIENT_HEADER,
   appleClientMinimumBuildMiddleware,
-  MACOS_DOWNLOAD_URL,
 } from "./apple-client-minimum-build";
 
 const { getEnvMock } = vi.hoisted(() => ({ getEnvMock: vi.fn() }));
@@ -31,81 +30,61 @@ function request(headers: Record<string, string>) {
 
 describe("appleClientMinimumBuildMiddleware", () => {
   beforeEach(() => {
-    getEnvMock.mockReturnValue({
-      MACOS_DEVELOPER_ID_MINIMUM_BUILD: 8000,
-      MACOS_APP_STORE_MINIMUM_BUILD: 40,
-    });
+    getEnvMock.mockReturnValue({ MACOS_MINIMUM_BUILD: 8000 });
   });
 
-  it("answers 426 client_update_required with the download link below the Developer ID minimum", async () => {
+  it("answers 426 client_update_required with the download link below the minimum", async () => {
     const response = await request({
-      [APPLE_CLIENT_HEADER]: "macos-developer-id/7999",
+      [APPLE_CLIENT_HEADER]: "macos/7999",
     });
 
     expect(response.status).toBe(426);
     const body = (await response.json()) as { kind: string; message: string };
     expect(body.kind).toBe("client_update_required");
-    expect(body.message).toContain(MACOS_DOWNLOAD_URL);
+    expect(body.message).toContain(
+      "https://github.com/masumi-network/sokosumi/releases/download/macos-latest/Sokosumi.dmg",
+    );
   });
 
-  it("serves a Developer ID build at the minimum", async () => {
+  it("serves a build at the minimum", async () => {
     const response = await request({
-      [APPLE_CLIENT_HEADER]: "macos-developer-id/8000",
+      [APPLE_CLIENT_HEADER]: "macos/8000",
     });
 
     expect(response.status).toBe(200);
   });
 
-  it("gates each channel by its own minimum", async () => {
-    const outdated = await request({
-      [APPLE_CLIENT_HEADER]: "macos-app-store/39",
-    });
-    expect(outdated.status).toBe(426);
-    const body = (await outdated.json()) as { message: string };
-    expect(body.message).toContain("App Store");
-
-    const current = await request({
-      [APPLE_CLIENT_HEADER]: "macos-app-store/40",
-    });
-    expect(current.status).toBe(200);
+  it("reads only macos/<build>", async () => {
+    for (const value of ["macos-developer-id/7999", "macos-app-store/39"]) {
+      const response = await request({ [APPLE_CLIENT_HEADER]: value });
+      expect(response.status).toBe(200);
+    }
   });
 
-  it("never gates build 1, the unpublished project default", async () => {
-    const response = await request({
-      [APPLE_CLIENT_HEADER]: "macos-developer-id/1",
-    });
-
-    expect(response.status).toBe(200);
-  });
-
-  it("serves every build while the channel has no minimum", async () => {
-    getEnvMock.mockReturnValue({});
-
-    const response = await request({
-      [APPLE_CLIENT_HEADER]: "macos-developer-id/2",
-    });
-
-    expect(response.status).toBe(200);
-  });
-
-  it("gates a published build that predates the header by its User-Agent", async () => {
+  it("ignores the User-Agent", async () => {
     const response = await request({
       "User-Agent": "Sokosumi/6362 CFNetwork/3860.100.1 Darwin/26.0.0",
     });
 
-    expect(response.status).toBe(426);
+    expect(response.status).toBe(200);
   });
 
-  it("leaves User-Agent builds below the first DMG alone, since their channel is unknown", async () => {
-    const firstDMG = await request({
-      "User-Agent": "Sokosumi/3125 CFNetwork/3860.100.1 Darwin/26.0.0",
+  it("never gates build 1, the unpublished project default", async () => {
+    const response = await request({
+      [APPLE_CLIENT_HEADER]: "macos/1",
     });
-    expect(firstDMG.status).toBe(426);
 
-    const beforeFirstDMG = await request({
-      "User-Agent": "Sokosumi/3124 CFNetwork/3860.100.1 Darwin/26.0.0",
+    expect(response.status).toBe(200);
+  });
+
+  it("serves every build while no minimum is set", async () => {
+    getEnvMock.mockReturnValue({});
+
+    const response = await request({
+      [APPLE_CLIENT_HEADER]: "macos/2",
     });
-    expect(beforeFirstDMG.status).toBe(200);
+
+    expect(response.status).toBe(200);
   });
 
   it("serves requests from other clients", async () => {

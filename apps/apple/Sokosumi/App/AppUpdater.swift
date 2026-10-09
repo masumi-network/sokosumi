@@ -1,18 +1,27 @@
 import Combine
-import CoreAPI
 import Sparkle
 
-/// Sparkle's standard updater for the Developer ID download (ADR 0053): a daily
+/// Sparkle's standard updater for the published download (ADR 0054): a daily
 /// check of the `macos-latest` appcast, the standard prompt with release notes,
 /// and **Check for Updates…** in the app menu. Feed, key and schedule come from
-/// the Info.plist. Every other build (ad hoc, Debug, local) never starts it and
-/// shows no menu item.
+/// the Info.plist. Only `Publish macOS DMG` compiles it in (`SOKOSUMI_UPDATER=YES`);
+/// ad hoc, Debug and local builds never start it and show no menu item.
 final class AppUpdater: ObservableObject {
+  /// True only in the publish build. The updater code below compiles in every
+  /// build, so pull requests type-check it too.
+  static var isCompiledIn: Bool {
+    #if SOKOSUMI_UPDATER
+      true
+    #else
+      false
+    #endif
+  }
+
   @Published private(set) var canCheckForUpdates = false
   private let controller: SPUStandardUpdaterController?
 
-  init(channel: DistributionChannel) {
-    guard channel == .developerID else {
+  init(enabled: Bool = AppUpdater.isCompiledIn) {
+    guard enabled else {
       controller = nil
       return
     }

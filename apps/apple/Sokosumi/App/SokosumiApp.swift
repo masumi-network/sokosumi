@@ -8,7 +8,7 @@ import SwiftUI
 struct SokosumiApp: App {
   @StateObject private var auth = AuthState()
   @StateObject private var workspaces: WorkspaceState
-  @StateObject private var updater = AppUpdater(channel: CoreSettings.distributionChannel)
+  @StateObject private var updater = AppUpdater()
   /// Device-local clock preference; every window's timestamps read it from the environment.
   @AppStorage(TimeFormatPreference.defaultsKey) private var timeFormat: TimeFormatPreference = .auto
 

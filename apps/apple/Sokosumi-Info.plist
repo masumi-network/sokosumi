@@ -42,16 +42,11 @@
 	<key>SokosumiWebBaseURL</key>
 	<string>https://app.sokosumi.com</string>
 	<!--
-	  ADR 0053. Publish macOS DMG passes developer-id, which also starts
-	  Sparkle's updater; every other build keeps the default and never checks.
-	-->
-	<key>SokosumiDistributionChannel</key>
-	<string>$(SOKOSUMI_DISTRIBUTION_CHANNEL:default=app-store)</string>
-	<!--
-	  Sparkle (ADR 0053). The feed address and the public key are baked into
+	  Sparkle (ADR 0054). The feed address and the public key are baked into
 	  every shipped app: changing either strands the installs that have the
 	  old one. SUPublicEDKey is the repository variable SPARKLE_ED_PUBLIC_KEY,
-	  which Publish macOS DMG checks the exported app against.
+	  which Publish macOS DMG checks the exported app against. Only the
+	  publish build starts the updater (SOKOSUMI_UPDATER).
 	-->
 	<key>SUFeedURL</key>
 	<string>https://github.com/masumi-network/sokosumi/releases/download/macos-latest/appcast.xml</string>
