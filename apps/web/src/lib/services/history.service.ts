@@ -19,17 +19,6 @@ export interface ListHistoryParams {
 
 export type { TransactionHistoryItem };
 
-function toHistoryDate(value: Date | string): Date {
-  return value instanceof Date ? value : new Date(value);
-}
-
-function mapHistoryItem(item: TransactionHistoryItem): TransactionHistoryItem {
-  return {
-    ...item,
-    consumedAt: toHistoryDate(item.consumedAt),
-  };
-}
-
 /**
  * The credit ledger behind Transactions.
  *
@@ -56,7 +45,7 @@ export const historyService = (() => {
     });
 
     return {
-      history: result.data.map(mapHistoryItem),
+      history: result.data,
       pagination: result.meta?.pagination ?? null,
     };
   }
