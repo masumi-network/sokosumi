@@ -84,7 +84,6 @@ struct ProjectSelectionCard: View {
       }
     }
     .padding(12)
-    // Web's `max-w-sm`.
     .frame(maxWidth: 384, alignment: .leading)
     .background(.background, in: .rect(cornerRadius: 8))
     .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12)))
@@ -187,7 +186,6 @@ struct ProjectPickerList: View {
           }
           .padding(4)
         }
-        // Web's list stops at 288 pt (`max-h-72`).
         .frame(maxHeight: 288)
         .fixedSize(horizontal: false, vertical: true)
       }

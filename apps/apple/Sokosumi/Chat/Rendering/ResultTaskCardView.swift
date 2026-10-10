@@ -43,7 +43,6 @@ struct ResultTaskCardView: View {
     .padding(12)
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(.background, in: .rect(cornerRadius: 8))
-    // Web's `hover:border-primary hover:shadow-sm`.
     .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(isHovered ? AnyShapeStyle(.tint) : AnyShapeStyle(Color.primary.opacity(0.12))))
     .shadow(color: .black.opacity(isHovered ? 0.08 : 0), radius: 2, y: 1)
     .contentShape(.rect(cornerRadius: 8))
@@ -75,7 +74,7 @@ struct ResultTaskCardView: View {
   }
 
   private var titleText: Text {
-    // A font on the whole run replaces the identifier's caption (web's `text-xs`).
+    // A font on the whole run replaces the identifier's caption.
     let name = Text(verbatim: task.name).font(.callout.weight(.medium))
     guard let identifier = task.identifier else { return name }
     let prefix = Text(verbatim: identifier).font(.caption).fontWeight(.regular).foregroundStyle(.secondary).monospacedDigit()
@@ -355,7 +354,6 @@ private struct TaskCardFacts: View {
   }
 }
 
-/// A small glyph tight beside its text, as web's `gap-1` icon rows.
 private struct TaskMetaLabelStyle: LabelStyle {
   func makeBody(configuration: Configuration) -> some View {
     HStack(spacing: 4) {
