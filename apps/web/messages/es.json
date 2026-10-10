@@ -4912,8 +4912,8 @@
         }
       },
       "SocialAccounts": {
-        "connected": "está conectado",
-        "notConnected": "no está conectado",
+        "connected": "{provider} está conectado",
+        "notConnected": "{provider} no está conectado",
         "success": "Cuenta conectada correctamente",
         "error": "No se pudo conectar {provider}",
         "loadErrorTitle": "No se pudieron cargar las cuentas conectadas",

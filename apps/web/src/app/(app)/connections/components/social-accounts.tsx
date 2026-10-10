@@ -60,7 +60,11 @@ export function SocialAccounts({ accounts }: SocialAccountsProps) {
           <div key={provider} className="flex items-center gap-2 px-4 py-4">
             {SOCIAL_PROVIDER_ICONS[provider]}
             <p className="flex-1">
-              {account ? t("connected") : t("notConnected")}
+              {account
+                ? t("connected", { provider: SOCIAL_PROVIDER_NAMES[provider] })
+                : t("notConnected", {
+                    provider: SOCIAL_PROVIDER_NAMES[provider],
+                  })}
             </p>
             <Button
               disabled={loading}
