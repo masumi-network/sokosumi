@@ -1482,6 +1482,105 @@ describe("ProjectSocialPosts", () => {
     expect(within(dialog).getByTestId("social-post-media")).toBeVisible();
   });
 
+  it("uploads every chosen file in one pick", async () => {
+    uploadDriveFileMock
+      .mockResolvedValueOnce({
+        pathname: "drive/users/user_1/one.png",
+        fileUrl:
+          "https://store.public.blob.vercel-storage.com/drive/users/user_1/one.png",
+      })
+      .mockResolvedValueOnce({
+        pathname: "drive/users/user_1/two.png",
+        fileUrl:
+          "https://store.public.blob.vercel-storage.com/drive/users/user_1/two.png",
+      });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const input = dialog.querySelector('input[type="file"]');
+    expect(input).not.toBeNull();
+    const one = new File(["a"], "one.png", { type: "image/png" });
+    const two = new File(["b"], "two.png", { type: "image/png" });
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(one);
+    dataTransfer.items.add(two);
+
+    await act(async () => {
+      fireEvent.change(input as HTMLInputElement, {
+        target: { files: dataTransfer.files },
+      });
+    });
+
+    await waitFor(() => {
+      expect(uploadDriveFileMock).toHaveBeenCalledTimes(2);
+    });
+    expect(
+      within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
+    ).toHaveLength(2);
+  });
+
+  it("attaches a pasted image and a dropped image", async () => {
+    uploadDriveFileMock
+      .mockResolvedValueOnce({
+        pathname: "drive/users/user_1/pasted.png",
+        fileUrl:
+          "https://store.public.blob.vercel-storage.com/drive/users/user_1/pasted.png",
+      })
+      .mockResolvedValueOnce({
+        pathname: "drive/users/user_1/dropped.png",
+        fileUrl:
+          "https://store.public.blob.vercel-storage.com/drive/users/user_1/dropped.png",
+      });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const surface = within(dialog).getByTestId("social-post-composer-surface");
+    const pasted = new File(["p"], "pasted.png", { type: "image/png" });
+    const dropped = new File(["d"], "dropped.png", { type: "image/png" });
+
+    await act(async () => {
+      fireEvent.paste(surface, {
+        clipboardData: {
+          items: [{ kind: "file", getAsFile: () => pasted }],
+        },
+      });
+    });
+    await waitFor(() => {
+      expect(uploadDriveFileMock).toHaveBeenCalledWith(pasted, {
+        scope: "org",
+        organizationId: "org_1",
+      });
+    });
+
+    const dropTransfer = new DataTransfer();
+    dropTransfer.items.add(dropped);
+    await act(async () => {
+      fireEvent.drop(surface, { dataTransfer: dropTransfer });
+    });
+    await waitFor(() => {
+      expect(uploadDriveFileMock).toHaveBeenCalledTimes(2);
+    });
+    expect(
+      within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
+    ).toHaveLength(2);
+  });
+
   it("schedules a new post with an ISO timestamp and the viewer timezone", async () => {
     freezeClock();
     const user = userEvent.setup();

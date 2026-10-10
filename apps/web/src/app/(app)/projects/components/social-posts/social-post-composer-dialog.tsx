@@ -17,7 +17,13 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Check, ImagePlus, Plus, Upload } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useRef, useState } from "react";
+import {
+  type ClipboardEvent,
+  type DragEvent,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
@@ -317,8 +323,22 @@ export function SocialPostComposerDialog({
     setMedia((current) => current.filter((ref) => ref.pathname !== pathname));
   }
 
-  async function handleUpload(file: File): Promise<void> {
-    if (isBusy || uploadInFlightRef.current) return;
+  function filesFromClipboard(data: DataTransfer | null): File[] {
+    const items = data?.items;
+    if (!items) return [];
+    const files: File[] = [];
+    for (const item of items) {
+      if (item.kind !== "file") continue;
+      const file = item.getAsFile();
+      if (file && file.size > 0) files.push(file);
+    }
+    return files;
+  }
+
+  async function uploadOne(
+    file: File,
+    attached: SocialPostMediaRef[],
+  ): Promise<SocialPostMediaRef | null> {
     const candidate = buildSocialPostMediaRef({
       name: file.name,
       size: file.size,
@@ -331,16 +351,13 @@ export function SocialPostComposerDialog({
           provider: socialPostProviderLabel(provider),
         }),
       );
-      return;
+      return null;
     }
-    const rejection = mediaRejection([...media, candidate]);
+    const rejection = mediaRejection([...attached, candidate]);
     if (rejection) {
       toast.error(mediaErrorText(rejection.reason, rejection.by));
-      return;
+      return null;
     }
-
-    uploadInFlightRef.current = true;
-    setUploadPending(true);
     try {
       const uploaded = await uploadDriveFile(file, driveStore);
       const ref = buildSocialPostMediaRef({
@@ -351,19 +368,56 @@ export function SocialPostComposerDialog({
       });
       if (!ref || !uploaded.fileUrl) {
         toast.error(t("composer.media.uploadFailed"));
-        return;
+        return null;
       }
       setMedia((current) => [...current, ref]);
+      return ref;
     } catch (error) {
       toast.error(
         isDriveFileUploadDuplicate(error)
           ? t("composer.media.uploadDuplicate")
           : t("composer.media.uploadFailed"),
       );
+      return null;
+    }
+  }
+
+  async function handleUploadFiles(files: readonly File[]): Promise<void> {
+    if (files.length === 0 || isBusy || uploadInFlightRef.current) return;
+    uploadInFlightRef.current = true;
+    setUploadPending(true);
+    let attached = media;
+    try {
+      for (const file of files) {
+        const ref = await uploadOne(file, attached);
+        if (ref) attached = [...attached, ref];
+      }
     } finally {
       uploadInFlightRef.current = false;
       setUploadPending(false);
     }
+  }
+
+  function handleComposerPaste(event: ClipboardEvent<HTMLDivElement>): void {
+    const files = filesFromClipboard(event.clipboardData);
+    if (files.length === 0) return;
+    event.preventDefault();
+    void handleUploadFiles(files);
+  }
+
+  function handleComposerDragOver(event: DragEvent<HTMLDivElement>): void {
+    if (!Array.from(event.dataTransfer.types).includes("Files")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleComposerDrop(event: DragEvent<HTMLDivElement>): void {
+    const files = Array.from(event.dataTransfer.files).filter(
+      (file) => file.size > 0,
+    );
+    if (files.length === 0) return;
+    event.preventDefault();
+    void handleUploadFiles(files);
   }
 
   /**
@@ -679,6 +733,9 @@ export function SocialPostComposerDialog({
     >
       <div
         className="flex min-h-0 flex-1 flex-col"
+        data-testid="social-post-composer-surface"
+        onDragOver={handleComposerDragOver}
+        onDrop={handleComposerDrop}
         onKeyDown={(event) => {
           if (
             event.key === "Enter" &&
@@ -694,6 +751,7 @@ export function SocialPostComposerDialog({
             runPrimary();
           }
         }}
+        onPaste={handleComposerPaste}
       >
         <div className="app-scrollbar grid auto-rows-min min-h-0 flex-1 grid-cols-1 overflow-y-auto md:flex md:flex-row md:overflow-hidden">
           <form
@@ -827,12 +885,11 @@ export function SocialPostComposerDialog({
                     ref={fileInputRef}
                     accept={accept}
                     className="hidden"
+                    multiple
                     onChange={(event) => {
-                      const file = event.target.files?.[0];
+                      const files = Array.from(event.target.files ?? []);
                       event.target.value = "";
-                      if (file) {
-                        void handleUpload(file);
-                      }
+                      void handleUploadFiles(files);
                     }}
                     type="file"
                   />
