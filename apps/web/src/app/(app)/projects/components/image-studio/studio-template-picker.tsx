@@ -37,7 +37,7 @@ function TemplateButton({
       className={cn(
         "bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo flex cursor-pointer gap-2 rounded-xl text-left outline-none focus-visible:ring-[3px]",
         large
-          ? "border-border flex-col overflow-hidden border p-2 shadow-lg"
+          ? "border-border flex-col overflow-hidden border p-2"
           : "min-h-11 shrink-0 items-center p-1 pr-3",
         large && (dimensional ? "relative left-1/2 w-48 sm:w-56" : "w-full"),
       )}
