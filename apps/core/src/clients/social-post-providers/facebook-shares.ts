@@ -30,3 +30,11 @@ export function facebookInsightShareCount(
   }
   return null;
 }
+
+/** Graph `0` is untrusted unless Insights reports a share count. */
+export function facebookShareCount(
+  graphCount: number | null,
+  insightPayload: Record<string, unknown> | null,
+): number | null {
+  return facebookInsightShareCount(insightPayload) ?? (graphCount || null);
+}

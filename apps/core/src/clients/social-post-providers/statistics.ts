@@ -4,7 +4,7 @@ import {
 } from "@sokosumi/utils";
 
 import { deleteProjectSocialSession, record } from "@/clients/composio.client";
-import { facebookInsightShareCount } from "@/clients/social-post-providers/facebook-shares";
+import { facebookShareCount } from "@/clients/social-post-providers/facebook-shares";
 import {
   ComposioToolError,
   createSocialPostToolSession,
@@ -166,7 +166,8 @@ export async function fetchSocialPostStatistics(
         metrics.comments = counter(
           record(record(post?.comments)?.summary)?.total_count,
         );
-        metrics.shares = counter(record(post?.shares)?.count);
+        const graphShares = counter(record(post?.shares)?.count);
+        metrics.shares = graphShares || null;
         // Insights requires read_insights in addition to basic engagement access.
         // Keep available engagement counters if the connection lacks that scope.
         try {
@@ -176,8 +177,7 @@ export async function fetchSocialPostStatistics(
             period: "lifetime",
           });
           metrics.views = insightValues(insightPayload).post_media_view ?? null;
-          metrics.shares =
-            facebookInsightShareCount(insightPayload) ?? metrics.shares;
+          metrics.shares = facebookShareCount(graphShares, insightPayload);
         } catch (error) {
           context.signal?.throwIfAborted();
           if (

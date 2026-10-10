@@ -198,6 +198,23 @@ describe("fetchSocialPostStatistics", () => {
     ).resolves.toEqual({ ...unavailable, likes: 0 });
   });
 
+  it("does not store a Facebook Graph share zero when insights are missing", async () => {
+    stubSession((slug) =>
+      slug === "FACEBOOK_GET_POST"
+        ? toolResult({
+            reactions: { summary: { total_count: 2 } },
+            shares: { count: 0 },
+          })
+        : {
+            successful: false,
+            error: { message: "Missing insight permission", status: 403 },
+          },
+    );
+    await expect(
+      fetchSocialPostStatistics({ ...input, provider: "facebook" }),
+    ).resolves.toEqual({ ...unavailable, likes: 2, shares: null });
+  });
+
   it.each([
     new Error("transport timeout"),
     { successful: false, error: { message: "Rate limited", status: 429 } },
