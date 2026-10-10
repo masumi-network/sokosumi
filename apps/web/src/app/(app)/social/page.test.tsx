@@ -96,11 +96,13 @@ vi.mock("@/app/projects/components/project-social-accounts", () => ({
   ProjectSocialAccounts: (props: {
     connections: { id: string }[];
     projectId: string;
+    connectDisabled?: boolean;
   }) => (
     <div
       data-testid="social-accounts"
       data-connections={props.connections.length}
       data-project={props.projectId}
+      data-connect-disabled={String(Boolean(props.connectDisabled))}
     />
   ),
 }));
@@ -348,6 +350,10 @@ describe("SocialPage", () => {
       "data-project",
       "project-1",
     );
+    expect(screen.getByTestId("social-accounts")).toHaveAttribute(
+      "data-connect-disabled",
+      "false",
+    );
     // One read per list: drafts and needs attention. Scheduled, published
     // and canceled posts are left to the calendar tab.
     expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(2);
@@ -402,6 +408,26 @@ describe("SocialPage", () => {
       "post-deep",
     );
   });
+
+  it.each([
+    ["closing", { closingAt: new Date("2026-10-01T00:00:00.000Z") }],
+    ["closed", { closedAt: new Date("2026-10-01T00:00:00.000Z") }],
+  ])(
+    "disables account connect when the project is %s",
+    async (_label, extra) => {
+      projectServiceMock.getProjectById.mockResolvedValue({
+        ...PROJECT,
+        ...extra,
+      });
+
+      await visit({ projectId: "project-1" });
+
+      expect(screen.getByTestId("social-accounts")).toHaveAttribute(
+        "data-connect-disabled",
+        "true",
+      );
+    },
+  );
 
   it("does not fetch a post when the URL names none", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
