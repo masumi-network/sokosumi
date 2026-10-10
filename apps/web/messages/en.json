@@ -2551,6 +2551,7 @@
           "canceled": "Post canceled.",
           "conflict": "This post was changed elsewhere. Reloading the latest version.",
           "failed": "Something went wrong. Try again.",
+          "missingPost": "Couldn't open this post.",
           "unauthenticated": "Please log in to continue.",
           "unauthenticatedAction": "Log in",
           "published": "Post published.",

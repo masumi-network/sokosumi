@@ -75,12 +75,14 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
     connections: { id: string }[];
     projectId: string;
     selectedPostId?: string;
+    requestedPostId?: string;
   }) => (
     <div
       data-testid="social-posts"
       data-connections={props.connections.map((c) => c.id).join(",")}
       data-order={props.posts.map((post) => post.id).join(",")}
       data-project={props.projectId}
+      data-requested={props.requestedPostId ?? ""}
       data-selected={props.selectedPostId}
     >
       {props.actions}
@@ -375,6 +377,29 @@ describe("SocialPage", () => {
     await visit({ projectId: "project-1" });
 
     expect(projectServiceMock.getSocialPost).not.toHaveBeenCalled();
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-requested",
+      "",
+    );
+  });
+
+  it("still names a missing post so the list can tell the reader", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.getSocialPost.mockResolvedValue(null);
+
+    await visit({ projectId: "project-1", postId: "post-gone" });
+
+    expect(projectServiceMock.getSocialPost).toHaveBeenCalledWith(
+      "project-1",
+      "post-gone",
+    );
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-requested",
+      "post-gone",
+    );
+    expect(screen.getByTestId("social-posts")).not.toHaveAttribute(
+      "data-selected",
+    );
   });
 
   /**

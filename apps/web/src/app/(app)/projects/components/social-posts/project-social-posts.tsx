@@ -19,7 +19,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
@@ -94,6 +94,8 @@ interface ProjectSocialPostsProps {
    * The post a link names (`?postId=`), opened in a preview without changing tabs.
    */
   selectedPostId?: string;
+  /** The same `?postId=` even when that post is gone, so the page can say so. */
+  requestedPostId?: string;
 }
 
 /** Statuses whose previous attempt already ran, so the publish action reads as a retry. */
@@ -173,6 +175,7 @@ export function ProjectSocialPosts({
   nextCursors,
   projectId,
   selectedPostId,
+  requestedPostId,
   previewOnly = false,
   returnFocus,
 }: ProjectSocialPostsProps) {
@@ -217,6 +220,11 @@ export function ProjectSocialPosts({
     setPreviewTarget(linkedPost);
     setPreviewOpen(Boolean(linkedPost));
   }
+
+  useEffect(() => {
+    if (!requestedPostId || selectedPostId) return;
+    toast.error(t("toasts.missingPost"));
+  }, [requestedPostId, selectedPostId, t]);
 
   function handleCloseAutoFocus(event: Event) {
     if (!returnFocus) return;
