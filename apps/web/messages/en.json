@@ -3030,6 +3030,11 @@
         "body": "Choose a project to see and finish its drafts."
       },
       "loading": "Loading Social…",
+      "error": {
+        "title": "Unable to load Social",
+        "description": "Try again in a moment.",
+        "retry": "Try again"
+      },
       "pickProject": "Choose a project",
       "platforms": {
         "label": "Social platforms"

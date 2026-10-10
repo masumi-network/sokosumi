@@ -3030,6 +3030,11 @@
         "body": "Wähle ein Projekt, um seine Entwürfe anzusehen und fertigzustellen."
       },
       "loading": "Social wird geladen…",
+      "error": {
+        "title": "Social konnte nicht geladen werden",
+        "description": "Versuche es gleich noch einmal.",
+        "retry": "Erneut versuchen"
+      },
       "pickProject": "Projekt auswählen",
       "platforms": {
         "label": "Social-Media-Plattformen"

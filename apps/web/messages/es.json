@@ -3030,6 +3030,11 @@
         "body": "Elige un proyecto para ver y terminar sus borradores."
       },
       "loading": "Cargando Social…",
+      "error": {
+        "title": "No se pudo cargar Social",
+        "description": "Inténtalo de nuevo en un momento.",
+        "retry": "Intentar de nuevo"
+      },
       "pickProject": "Elegir un proyecto",
       "platforms": {
         "label": "Plataformas de redes sociales"
