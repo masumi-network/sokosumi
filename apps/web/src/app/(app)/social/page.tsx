@@ -24,6 +24,7 @@ import { SocialCalendarPreviewProvider } from "./components/social-calendar-prev
 import { SocialComposeProvider } from "./components/social-compose-context";
 import { SocialNewPostMenu } from "./components/social-new-post-menu";
 import { SocialPageShell } from "./components/social-page-shell";
+import { SocialViewSwitcher } from "./components/social-view-switcher";
 
 // Wait for the current session and project access before rendering.
 export const instant = false;
@@ -134,36 +135,49 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     <SocialPageShell title={t("title")}>
       <SocialCalendarPreviewProvider>
         <SocialComposeProvider>
-          <ProjectSocialPosts
-            accounts={
-              <ProjectSocialAccounts
-                projectId={project.id}
-                connections={connections}
-              />
-            }
-            actions={
-              <SocialNewPostMenu
-                project={{ id: project.id, name: project.name }}
-                sokoBotId={sokoBot?.id ?? null}
-              />
-            }
-            calendar={
-              <SocialCalendar
-                calendar={calendar}
-                lockedProjectId={project.id}
-              />
-            }
-            connections={activeConnections}
-            nextCursors={Object.fromEntries(
-              SECTION_ORDER.map((section, index) => [
-                section,
-                pages[index].nextCursor,
-              ]),
-            )}
+          <SocialViewSwitcher
             posts={posts}
-            projectId={project.id}
-            selectedPostId={selectedPost?.id}
-          />
+            connections={activeConnections}
+            projectName={project.name}
+            availableTabs={[
+              "calendar",
+              "drafts",
+              "attention",
+              "statistics",
+              "accounts",
+            ]}
+          >
+            <ProjectSocialPosts
+              accounts={
+                <ProjectSocialAccounts
+                  projectId={project.id}
+                  connections={connections}
+                />
+              }
+              actions={
+                <SocialNewPostMenu
+                  project={{ id: project.id, name: project.name }}
+                  sokoBotId={sokoBot?.id ?? null}
+                />
+              }
+              calendar={
+                <SocialCalendar
+                  calendar={calendar}
+                  lockedProjectId={project.id}
+                />
+              }
+              connections={activeConnections}
+              nextCursors={Object.fromEntries(
+                SECTION_ORDER.map((section, index) => [
+                  section,
+                  pages[index].nextCursor,
+                ]),
+              )}
+              posts={posts}
+              projectId={project.id}
+              selectedPostId={selectedPost?.id}
+            />
+          </SocialViewSwitcher>
         </SocialComposeProvider>
       </SocialCalendarPreviewProvider>
     </SocialPageShell>

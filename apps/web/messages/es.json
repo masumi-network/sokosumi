@@ -3221,6 +3221,45 @@
       "statisticsNeedProject": {
         "title": "Elige un proyecto para ver el rendimiento",
         "body": "El rendimiento de las cuentas pertenece a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
+      },
+      "taskHub": {
+        "title": "¿Qué quieres hacer?",
+        "projectContext": "Trabajando en {project}",
+        "createPost": {
+          "title": "Crear Nueva Publicación",
+          "description": "Redactar y programar una publicación en tus cuentas conectadas",
+          "action": "Comenzar"
+        },
+        "viewSchedule": {
+          "title": "Ver Calendario",
+          "description": "Ver qué se publicará y cuándo",
+          "action": "Abrir Calendario"
+        },
+        "fixFailed": {
+          "title": "Arreglar {count, plural, one {# Publicación Fallida} other {# Publicaciones Fallidas}}",
+          "description": "Revisar y reintentar publicaciones que no pudieron publicarse",
+          "action": "Arreglar Ahora"
+        },
+        "reviewPerformance": {
+          "title": "Revisar Rendimiento",
+          "description": "Verificar cómo están funcionando tus publicaciones",
+          "action": "Ver Estadísticas"
+        },
+        "recentActivity": {
+          "title": "Actividad Reciente",
+          "description": "Tus últimas publicaciones y borradores",
+          "untitled": "Publicación sin título",
+          "status": {
+            "published": "Publicado",
+            "scheduled": "Programado",
+            "draft": "Borrador guardado",
+            "failed": "Error al publicar",
+            "missed": "Perdido",
+            "cancelled": "Cancelado",
+            "unknown": "Desconocido",
+            "publishing": "Publicando"
+          }
+        }
       }
     },
     "Error": {
