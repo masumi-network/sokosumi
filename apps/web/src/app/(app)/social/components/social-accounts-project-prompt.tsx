@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/popover";
 
 interface SocialAccountsProjectPromptProps {
-  kind?: "accounts" | "drafts" | "statistics";
+  kind?: "accounts" | "drafts";
   notice?: string;
 }
 
@@ -31,12 +31,7 @@ export function SocialAccountsProjectPrompt({
   kind = "accounts",
   notice,
 }: SocialAccountsProjectPromptProps) {
-  const copy =
-    kind === "drafts"
-      ? "draftsNeedProject"
-      : kind === "statistics"
-        ? "statisticsNeedProject"
-        : "accountsNeedProject";
+  const copy = kind === "drafts" ? "draftsNeedProject" : "accountsNeedProject";
   const t = useTranslations("App.Social");
   const router = useRouter();
   const { projectId, switchHref } = useProjectScope();

@@ -142,11 +142,16 @@ function response(accountValue = account, nextCursor: string | null = null) {
     },
   };
 }
-function renderStatistics(searchParams = "") {
+function renderStatistics(
+  searchParams = "",
+  scope: { projectId: string } | { workspaceId: string } = {
+    projectId: "project-1",
+  },
+) {
   return render(
     <TestQueryProvider>
       <NuqsTestingAdapter searchParams={searchParams}>
-        <SocialPostStatistics projectId="project-1" />
+        <SocialPostStatistics {...scope} />
       </NuqsTestingAdapter>
     </TestQueryProvider>,
   );
@@ -436,5 +441,26 @@ describe("SocialPostStatistics account history", () => {
     expect(
       screen.getByRole("link", { name: "Manage accounts" }),
     ).toHaveAttribute("href", "/social?projectId=project-1&tab=accounts");
+  });
+
+  it("reads workspace statistics and hides Sync on the all-projects view", async () => {
+    renderStatistics("", { workspaceId: "workspace-1" });
+    expect(await screen.findByText(post.text)).toBeVisible();
+    const url = new URL(mocks.fetch.mock.calls[0][0], "https://web.test");
+    expect(url.pathname).toBe("/api/workspaces/workspace-1/social-statistics");
+    expect(
+      screen.queryByRole("button", { name: /sync/i }),
+    ).not.toBeInTheDocument();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "More actions" }));
+    expect(
+      await screen.findByRole("menuitem", { name: "Export CSV" }),
+    ).toHaveAttribute(
+      "href",
+      expect.stringContaining(
+        "/api/workspaces/workspace-1/social-statistics/export?",
+      ),
+    );
   });
 });

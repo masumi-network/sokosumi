@@ -27,8 +27,9 @@ import { recordSocialPerformanceSnapshot } from "@/services/social-performance-s
 import { socialSyncReadModel } from "@/services/social-sync-read";
 
 interface AccountStatisticsScope {
-  projectId: string;
   workspaceId: string;
+  /** When omitted, every connected account in the workspace is in scope. */
+  projectId?: string;
 }
 interface ListSocialAccountStatisticsInput extends AccountStatisticsScope {
   provider?: string;
@@ -91,9 +92,55 @@ const EMPTY_STATISTICS: SocialAccountStatistics = {
   consecutiveFailures: 0,
 };
 
+type StatisticsConnection = Prisma.ProjectSocialConnectionGetPayload<{
+  include: { _count: { select: { accountPosts: true } } };
+}>;
+
+function accountFromRecord(record: StatisticsConnection) {
+  if (!isProjectSocialProvider(record.provider)) return null;
+  const statistics =
+    socialAccountStatisticsSchema.safeParse(record.statistics).data ?? null;
+  return socialAccountStatisticsAccountSchema.parse({
+    id: record.id,
+    provider: record.provider,
+    externalHandle: record.externalHandle,
+    displayName: record.displayName,
+    avatarUrl: record.avatarUrl,
+    status: record.status,
+    connectedAt: record.connectedAt,
+    disconnectedAt: record.disconnectedAt,
+    statistics,
+    postCount: record._count.accountPosts,
+    sync: socialSyncReadModel({
+      status: record.status,
+      performanceHeadFetchedAt: record.performanceHeadFetchedAt,
+      performanceRefreshAttemptedAt: record.performanceRefreshAttemptedAt,
+      performanceRefreshRequestedAt: record.performanceRefreshRequestedAt,
+      statistics,
+    }),
+  });
+}
+
 /** Reuse the connected-account Project/workspace guard; raw credentials never leave Core. */
 async function scopedConnections(input: AccountStatisticsScope) {
-  const summaries = await listProjectSocialConnections(input);
+  if (!input.projectId) {
+    const records = await prisma.projectSocialConnection.findMany({
+      where: {
+        project: { workspaceId: input.workspaceId },
+        status: { not: "disconnected" },
+      },
+      include: { _count: { select: { accountPosts: true } } },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    return records.flatMap((record) => {
+      const account = accountFromRecord(record);
+      return account ? [{ record, account }] : [];
+    });
+  }
+  const summaries = await listProjectSocialConnections({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+  });
   const records = await prisma.projectSocialConnection.findMany({
     where: {
       id: { in: summaries.map((account) => account.id) },
@@ -105,29 +152,8 @@ async function scopedConnections(input: AccountStatisticsScope) {
   });
   return records.flatMap((record) => {
     const summary = summaries.find((account) => account.id === record.id);
-    const statistics =
-      socialAccountStatisticsSchema.safeParse(record.statistics).data ?? null;
-    return summary
-      ? [
-          {
-            record,
-            account: socialAccountStatisticsAccountSchema.parse({
-              ...summary,
-              statistics,
-              postCount: record._count.accountPosts,
-              sync: socialSyncReadModel({
-                status: record.status,
-                performanceHeadFetchedAt: record.performanceHeadFetchedAt,
-                performanceRefreshAttemptedAt:
-                  record.performanceRefreshAttemptedAt,
-                performanceRefreshRequestedAt:
-                  record.performanceRefreshRequestedAt,
-                statistics,
-              }),
-            }),
-          },
-        ]
-      : [];
+    const account = accountFromRecord(record);
+    return summary && account ? [{ record, account }] : [];
   });
 }
 
@@ -269,6 +295,7 @@ export async function exportSocialAccountStatistics(
 /** One provider page per request; continuations use only the server's cached cursor. */
 export async function refreshSocialAccountStatistics(
   input: AccountStatisticsScope & {
+    projectId: string;
     userId: string;
     connectionId: string;
     continueHistory?: boolean;
