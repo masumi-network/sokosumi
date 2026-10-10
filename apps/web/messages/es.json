@@ -2561,7 +2561,6 @@
         "needsReconnectLink": "Volver a conectar la cuenta",
         "viewPost": "Ver publicación",
         "publishedAt": "Publicada {date}",
-        "failedAt": "Falló {date}",
         "attempts": "{count, plural, one {# intento} other {# intentos}}",
         "actions": {
           "publishNow": "Publicar ahora",
