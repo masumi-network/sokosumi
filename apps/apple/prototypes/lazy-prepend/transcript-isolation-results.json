@@ -1,0 +1,1096 @@
+{
+  "date": "2026-10-10",
+  "environment": {
+    "macOS": "27.0.1 (26A434)",
+    "Xcode": "27.0 (27A266a)",
+    "architecture": "arm64",
+    "configuration": "Release",
+    "team": "GVWN7HXYJB",
+    "certificate": "Developer ID Application: utxo AG (GVWN7HXYJB)",
+    "window_pt": [
+      1100,
+      800
+    ]
+  },
+  "method": {
+    "initial_messages": 100,
+    "page_size": 100,
+    "publications_per_run": 5,
+    "final_messages": 600,
+    "response_latency_ms": 150,
+    "actual_gap_window_ms": [
+      0,
+      700
+    ],
+    "nominal_timestamp_window_ms": [
+      -50,
+      700
+    ],
+    "note": "Actual callback scheduling intervals and display-link timestamp intervals are distinct; neither is a presented-frame hitch duration. Runs were sequential with no concurrent build or second benchmark."
+  },
+  "runs": [
+    {
+      "name": "baseline-1",
+      "piece_level": null,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 368,
+      "publication_at_ms": [],
+      "actual_callback_maxima_ms": [],
+      "display_link_timestamp_maxima_ms": [
+        63,
+        70,
+        61,
+        76,
+        70
+      ],
+      "preparation_ms": [
+        17,
+        17,
+        16,
+        16,
+        17
+      ]
+    },
+    {
+      "name": "piece-0-1",
+      "piece_level": 0,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 0,
+      "publication_at_ms": [
+        769,
+        2568,
+        4321,
+        6110,
+        7900
+      ],
+      "actual_callback_maxima_ms": [
+        17,
+        17,
+        17,
+        17,
+        25
+      ],
+      "display_link_timestamp_maxima_ms": [
+        17,
+        17,
+        17,
+        17,
+        17
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "piece-1-1",
+      "piece_level": 1,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 0,
+      "publication_at_ms": [
+        768,
+        2510,
+        4281,
+        6052,
+        7743
+      ],
+      "actual_callback_maxima_ms": [
+        33,
+        17,
+        20,
+        19,
+        17
+      ],
+      "display_link_timestamp_maxima_ms": [
+        34,
+        17,
+        17,
+        17,
+        17
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "piece-2-1",
+      "piece_level": 2,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 0,
+      "publication_at_ms": [
+        773,
+        2591,
+        4391,
+        6202,
+        8000
+      ],
+      "actual_callback_maxima_ms": [
+        33,
+        23,
+        27,
+        34,
+        33
+      ],
+      "display_link_timestamp_maxima_ms": [
+        36,
+        17,
+        17,
+        38,
+        36
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "piece-3-1",
+      "piece_level": 3,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 0,
+      "publication_at_ms": [
+        723,
+        2434,
+        4163,
+        5870,
+        7596
+      ],
+      "actual_callback_maxima_ms": [
+        19,
+        33,
+        24,
+        33,
+        24
+      ],
+      "display_link_timestamp_maxima_ms": [
+        17,
+        37,
+        17,
+        38,
+        17
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "piece-3-2",
+      "piece_level": 3,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 0,
+      "publication_at_ms": [
+        773,
+        2567,
+        4311,
+        6102,
+        7891
+      ],
+      "actual_callback_maxima_ms": [
+        37,
+        32,
+        32,
+        32,
+        35
+      ],
+      "display_link_timestamp_maxima_ms": [
+        45,
+        37,
+        36,
+        34,
+        40
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "piece-4-1",
+      "piece_level": 4,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 54,
+      "publication_at_ms": [
+        753,
+        2584,
+        4364,
+        6158,
+        7943
+      ],
+      "actual_callback_maxima_ms": [
+        62,
+        46,
+        40,
+        34,
+        32
+      ],
+      "display_link_timestamp_maxima_ms": [
+        74,
+        55,
+        47,
+        50,
+        35
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "piece-4-2",
+      "piece_level": 4,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 54,
+      "publication_at_ms": [
+        770,
+        2589,
+        4389,
+        6165,
+        7968
+      ],
+      "actual_callback_maxima_ms": [
+        64,
+        56,
+        58,
+        40,
+        46
+      ],
+      "display_link_timestamp_maxima_ms": [
+        75,
+        65,
+        64,
+        47,
+        53
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "piece-5-1",
+      "piece_level": 5,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 52,
+      "publication_at_ms": [
+        771,
+        2542,
+        4376,
+        6213,
+        7974
+      ],
+      "actual_callback_maxima_ms": [
+        67,
+        67,
+        67,
+        56,
+        50
+      ],
+      "display_link_timestamp_maxima_ms": [
+        65,
+        63,
+        66,
+        56,
+        50
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "piece-6-1",
+      "piece_level": 6,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 54,
+      "publication_at_ms": [
+        773,
+        2592,
+        4404,
+        6156,
+        7954
+      ],
+      "actual_callback_maxima_ms": [
+        67,
+        33,
+        50,
+        50,
+        50
+      ],
+      "display_link_timestamp_maxima_ms": [
+        59,
+        33,
+        49,
+        43,
+        45
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "piece-7-1",
+      "piece_level": 7,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 0,
+      "publication_at_ms": [
+        769,
+        2568,
+        4373,
+        6111,
+        7849
+      ],
+      "actual_callback_maxima_ms": [
+        36,
+        37,
+        33,
+        35,
+        50
+      ],
+      "display_link_timestamp_maxima_ms": [
+        37,
+        17,
+        33,
+        36,
+        40
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "piece-8-1",
+      "piece_level": 8,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 0,
+      "publication_at_ms": [
+        768,
+        2572,
+        4378,
+        6144,
+        7937
+      ],
+      "actual_callback_maxima_ms": [
+        50,
+        50,
+        33,
+        33,
+        33
+      ],
+      "display_link_timestamp_maxima_ms": [
+        45,
+        49,
+        34,
+        33,
+        33
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "piece-9-1",
+      "piece_level": 9,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 0,
+      "publication_at_ms": [
+        773,
+        2577,
+        4383,
+        6137,
+        7944
+      ],
+      "actual_callback_maxima_ms": [
+        39,
+        36,
+        50,
+        50,
+        33
+      ],
+      "display_link_timestamp_maxima_ms": [
+        39,
+        37,
+        45,
+        45,
+        33
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "piece-10-1",
+      "piece_level": 10,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 0,
+      "publication_at_ms": [
+        772,
+        2581,
+        4348,
+        6159,
+        7954
+      ],
+      "actual_callback_maxima_ms": [
+        58,
+        50,
+        50,
+        50,
+        50
+      ],
+      "display_link_timestamp_maxima_ms": [
+        58,
+        44,
+        45,
+        50,
+        44
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "no-menu-1",
+      "piece_level": 4,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 54,
+      "publication_at_ms": [
+        760,
+        2594,
+        4416,
+        6248,
+        8054
+      ],
+      "actual_callback_maxima_ms": [
+        68,
+        67,
+        67,
+        50,
+        50
+      ],
+      "display_link_timestamp_maxima_ms": [
+        68,
+        60,
+        66,
+        49,
+        45
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "labels-1",
+      "piece_level": 4,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 54,
+      "publication_at_ms": [
+        771,
+        2546,
+        4374,
+        6172,
+        7990
+      ],
+      "actual_callback_maxima_ms": [
+        56,
+        54,
+        50,
+        55,
+        48
+      ],
+      "display_link_timestamp_maxima_ms": [
+        50,
+        55,
+        45,
+        55,
+        39
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "no-quote-parse-1",
+      "piece_level": 4,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 54,
+      "publication_at_ms": [
+        771,
+        2557,
+        4397,
+        6222,
+        8032
+      ],
+      "actual_callback_maxima_ms": [
+        69,
+        67,
+        50,
+        54,
+        50
+      ],
+      "display_link_timestamp_maxima_ms": [
+        70,
+        67,
+        50,
+        55,
+        48
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "reaction-stack-1",
+      "piece_level": 4,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 54,
+      "publication_at_ms": [
+        774,
+        2536,
+        4367,
+        6196,
+        8006
+      ],
+      "actual_callback_maxima_ms": [
+        50,
+        68,
+        67,
+        50,
+        67
+      ],
+      "display_link_timestamp_maxima_ms": [
+        49,
+        69,
+        64,
+        51,
+        60
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "no-intrinsic-1",
+      "piece_level": 4,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 54,
+      "publication_at_ms": [
+        745,
+        2527,
+        4306,
+        6131,
+        7956
+      ],
+      "actual_callback_maxima_ms": [
+        67,
+        50,
+        51,
+        54,
+        50
+      ],
+      "display_link_timestamp_maxima_ms": [
+        64,
+        49,
+        52,
+        54,
+        44
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "core-only-1",
+      "piece_level": 4,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 36,
+      "publication_at_ms": [
+        777,
+        2571,
+        4371,
+        6189,
+        7998
+      ],
+      "actual_callback_maxima_ms": [
+        67,
+        54,
+        54,
+        50,
+        33
+      ],
+      "display_link_timestamp_maxima_ms": [
+        67,
+        55,
+        55,
+        47,
+        33
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "piece-11-1",
+      "piece_level": 11,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 51,
+      "publication_at_ms": [
+        773,
+        2582,
+        4370,
+        6176,
+        7965
+      ],
+      "actual_callback_maxima_ms": [
+        50,
+        50,
+        34,
+        33,
+        50
+      ],
+      "display_link_timestamp_maxima_ms": [
+        42,
+        46,
+        35,
+        34,
+        41
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "id-pair-control-2",
+      "piece_level": 11,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 51,
+      "publication_at_ms": [
+        777,
+        2526,
+        4275,
+        6043,
+        7848
+      ],
+      "actual_callback_maxima_ms": [
+        50,
+        33,
+        50,
+        37,
+        33
+      ],
+      "display_link_timestamp_maxima_ms": [
+        39,
+        33,
+        51,
+        17,
+        34
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "id-pair-control-3",
+      "piece_level": 11,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 51,
+      "publication_at_ms": [
+        770,
+        2526,
+        4323,
+        6135,
+        7900
+      ],
+      "actual_callback_maxima_ms": [
+        35,
+        33,
+        33,
+        50,
+        50
+      ],
+      "display_link_timestamp_maxima_ms": [
+        36,
+        33,
+        33,
+        38,
+        40
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "id-pair-base-1",
+      "piece_level": 4,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 54,
+      "publication_at_ms": [
+        775,
+        2545,
+        4359,
+        6182,
+        7992
+      ],
+      "actual_callback_maxima_ms": [
+        57,
+        54,
+        58,
+        50,
+        50
+      ],
+      "display_link_timestamp_maxima_ms": [
+        58,
+        54,
+        51,
+        48,
+        50
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "id-pair-base-2",
+      "piece_level": 4,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 54,
+      "publication_at_ms": [
+        771,
+        2587,
+        4417,
+        6251,
+        8077
+      ],
+      "actual_callback_maxima_ms": [
+        71,
+        67,
+        67,
+        54,
+        50
+      ],
+      "display_link_timestamp_maxima_ms": [
+        71,
+        65,
+        62,
+        54,
+        45
+      ],
+      "preparation_ms": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "room-id-1",
+      "piece_level": -1,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 214,
+      "publication_at_ms": [
+        784,
+        2563,
+        4364,
+        6130,
+        7917
+      ],
+      "actual_callback_maxima_ms": [
+        58,
+        53,
+        51,
+        44,
+        70
+      ],
+      "display_link_timestamp_maxima_ms": [
+        56,
+        49,
+        44,
+        50,
+        65
+      ],
+      "preparation_ms": [
+        17,
+        17,
+        16,
+        15,
+        16
+      ]
+    },
+    {
+      "name": "room-id-2",
+      "piece_level": -1,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 214,
+      "publication_at_ms": [
+        804,
+        2585,
+        4380,
+        6152,
+        7945
+      ],
+      "actual_callback_maxima_ms": [
+        61,
+        49,
+        53,
+        50,
+        69
+      ],
+      "display_link_timestamp_maxima_ms": [
+        62,
+        50,
+        49,
+        47,
+        66
+      ],
+      "preparation_ms": [
+        17,
+        15,
+        16,
+        16,
+        16
+      ]
+    },
+    {
+      "name": "room-base-1",
+      "piece_level": -1,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 369,
+      "publication_at_ms": [
+        799,
+        2578,
+        4353,
+        6144,
+        7942
+      ],
+      "actual_callback_maxima_ms": [
+        53,
+        73,
+        53,
+        67,
+        67
+      ],
+      "display_link_timestamp_maxima_ms": [
+        60,
+        74,
+        59,
+        65,
+        76
+      ],
+      "preparation_ms": [
+        17,
+        17,
+        17,
+        16,
+        16
+      ]
+    },
+    {
+      "name": "room-base-2",
+      "piece_level": -1,
+      "requests": 6,
+      "messages_end": 600,
+      "row_bodies": 368,
+      "publication_at_ms": [
+        812,
+        2592,
+        4379,
+        6149,
+        7960
+      ],
+      "actual_callback_maxima_ms": [
+        58,
+        54,
+        33,
+        58,
+        47
+      ],
+      "display_link_timestamp_maxima_ms": [
+        64,
+        62,
+        58,
+        72,
+        59
+      ],
+      "preparation_ms": [
+        17,
+        17,
+        16,
+        16,
+        16
+      ]
+    }
+  ],
+  "profile": {
+    "file": "piece-4.trace",
+    "duration_s": 11.943165,
+    "nominal_maxima_ms": [
+      90,
+      71,
+      85,
+      68,
+      70
+    ],
+    "actual_maxima_ms": [
+      90,
+      71,
+      84,
+      68,
+      70
+    ],
+    "SwiftUI_cause_data": false,
+    "CPU_windows": "Five approximate publication windows, -50 to +160ms, aligned by calibrated mach_absolute_time and trace wall clock; no captured native publication signpost.",
+    "main_sample_ms": 374.7,
+    "inclusive_nonadditive_ms": {
+      "AG_graph_update": 234.6,
+      "layout_sizeThatFits": 146.1,
+      "LazyStack_measureEstimates": 93.2,
+      "ScrollView_sizeThatFits": 84.7,
+      "RootGeometry": 69.1
+    }
+  },
+  "native_id_binding_tests": {
+    "methods": 9,
+    "runs": 11,
+    "passed_runs": 9,
+    "failed_runs": 2,
+    "failures": [
+      {
+        "failureText": "Expectation failed: try visibleMessageIDs(in: host)?.contains(beforeMessage) == true: The message in the middle of the viewport stays visible after the older page lands.",
+        "targetName": "SokosumiTests",
+        "testIdentifier": 1,
+        "testIdentifierString": "NativeWindowTests/RoomOlderPageTests/anOlderPageKeepsTheReadingPosition()",
+        "testIdentifierURL": "test://com.apple.xcode/Sokosumi/SokosumiTests/NativeWindowTests/RoomOlderPageTests/anOlderPageKeepsTheReadingPosition()",
+        "testName": "anOlderPageKeepsTheReadingPosition()"
+      },
+      {
+        "failureText": "Expectation failed: try visibleMessageIDs(in: host)?.contains(beforeMessage) == true: The message in the middle of the viewport stays visible after the older page lands.",
+        "targetName": "SokosumiTests",
+        "testIdentifier": 2,
+        "testIdentifierString": "NativeWindowTests/RoomOlderPageTests/anOlderPageWaitsForTheScrollToRest()",
+        "testIdentifierURL": "test://com.apple.xcode/Sokosumi/SokosumiTests/NativeWindowTests/RoomOlderPageTests/anOlderPageWaitsForTheScrollToRest()",
+        "testName": "anOlderPageWaitsForTheScrollToRest()"
+      }
+    ],
+    "configuration": "team-signed Debug; clean ID binding migration; no manual point correction"
+  },
+  "restored_native_tests": {
+    "methods": 9,
+    "runs": 11,
+    "passed_runs": 11,
+    "failed_runs": 0,
+    "configuration": "team-signed Debug; restored production ScrollPosition/FirstRowsPlacement"
+  }
+}

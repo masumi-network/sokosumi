@@ -1,0 +1,794 @@
+{
+  "environment": {
+    "date": "2026-10-10",
+    "macOS": "27.0.1 (26A434)",
+    "Xcode": "27.0 (27A266a)",
+    "architecture": "arm64",
+    "signing_team": "GVWN7HXYJB",
+    "optimized": true,
+    "viewport_points": [
+      1100,
+      800
+    ],
+    "metric": "main-thread display-link callback gap; not presented-frame hitch duration"
+  },
+  "wrapped": {
+    "summary": {
+      "prepend": {
+        "publications": 15,
+        "median_max_callback_gap_ms": 16.932250000536442,
+        "worst_callback_gap_ms": 32.384749967604876,
+        "publications_over_25_ms": 3,
+        "nonpublication_worst_callback_gap_ms": 16.757916659116745
+      },
+      "append": {
+        "publications": 15,
+        "median_max_callback_gap_ms": 16.71658328268677,
+        "worst_callback_gap_ms": 32.32162503991276,
+        "publications_over_25_ms": 2,
+        "nonpublication_worst_callback_gap_ms": 16.871875035576522
+      }
+    },
+    "runs": [
+      {
+        "callback_count": 638,
+        "direction": "append",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 32.32162503991276,
+            "over_25_ms": 1,
+            "page": 1,
+            "rows": 200,
+            "uptime": 348758.4914640417
+          },
+          {
+            "max_callback_gap_ms": 16.71658328268677,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 348760.61217929167
+          },
+          {
+            "max_callback_gap_ms": 16.720083367545158,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 348762.7380456667
+          },
+          {
+            "max_callback_gap_ms": 16.714249970391393,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 348764.87144295836
+          },
+          {
+            "max_callback_gap_ms": 16.708916693460196,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 348767.0022561667
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 16.8248750269413,
+        "page_size": 100,
+        "single_line": false
+      },
+      {
+        "callback_count": 635,
+        "direction": "append",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 16.745666682254523,
+            "over_25_ms": 0,
+            "page": 1,
+            "rows": 200,
+            "uptime": 348772.50115437503
+          },
+          {
+            "max_callback_gap_ms": 32.24454162409529,
+            "over_25_ms": 1,
+            "page": 2,
+            "rows": 300,
+            "uptime": 348774.62270383333
+          },
+          {
+            "max_callback_gap_ms": 17.924999992828816,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 348776.70821275003
+          },
+          {
+            "max_callback_gap_ms": 16.690583317540586,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 348778.832594625
+          },
+          {
+            "max_callback_gap_ms": 16.75979170249775,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 348780.96234175004
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 16.871875035576522,
+        "page_size": 100,
+        "single_line": false
+      },
+      {
+        "callback_count": 636,
+        "direction": "append",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 16.744833323173225,
+            "over_25_ms": 0,
+            "page": 1,
+            "rows": 200,
+            "uptime": 348814.16705695837
+          },
+          {
+            "max_callback_gap_ms": 16.692749981302768,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 348816.2805224167
+          },
+          {
+            "max_callback_gap_ms": 16.701374959666282,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 348818.40253487503
+          },
+          {
+            "max_callback_gap_ms": 16.682000015862286,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 348820.535490625
+          },
+          {
+            "max_callback_gap_ms": 16.69545832555741,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 348822.652448875
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 16.712999960873276,
+        "page_size": 100,
+        "single_line": false
+      },
+      {
+        "callback_count": 634,
+        "direction": "prepend",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 32.384749967604876,
+            "over_25_ms": 1,
+            "page": 1,
+            "rows": 200,
+            "uptime": 348744.57103887503
+          },
+          {
+            "max_callback_gap_ms": 16.932250000536442,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 348746.69199662504
+          },
+          {
+            "max_callback_gap_ms": 22.520666650962085,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 348748.78569325
+          },
+          {
+            "max_callback_gap_ms": 22.25929166888818,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 348750.9187327917
+          },
+          {
+            "max_callback_gap_ms": 16.723291657399386,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 348753.0272265417
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 16.750958340708166,
+        "page_size": 100,
+        "single_line": false
+      },
+      {
+        "callback_count": 632,
+        "direction": "prepend",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 32.26029162760824,
+            "over_25_ms": 1,
+            "page": 1,
+            "rows": 200,
+            "uptime": 348786.465192625
+          },
+          {
+            "max_callback_gap_ms": 17.734208318870515,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 348788.56830337504
+          },
+          {
+            "max_callback_gap_ms": 20.204250002279878,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 348790.651111125
+          },
+          {
+            "max_callback_gap_ms": 16.705291636753827,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 348792.776177375
+          },
+          {
+            "max_callback_gap_ms": 16.73149998532608,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 348794.8947783334
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 16.74962497781962,
+        "page_size": 100,
+        "single_line": false
+      },
+      {
+        "callback_count": 628,
+        "direction": "prepend",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 32.30008337413892,
+            "over_25_ms": 1,
+            "page": 1,
+            "rows": 200,
+            "uptime": 348800.3707281667
+          },
+          {
+            "max_callback_gap_ms": 16.690374992322177,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 348802.4614051667
+          },
+          {
+            "max_callback_gap_ms": 16.68570830952376,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 348804.468928875
+          },
+          {
+            "max_callback_gap_ms": 16.68791670817882,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 348806.597346125
+          },
+          {
+            "max_callback_gap_ms": 16.68483333196491,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 348808.7263624167
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 16.757916659116745,
+        "page_size": 100,
+        "single_line": false
+      }
+    ]
+  },
+  "single-line": {
+    "summary": {
+      "prepend": {
+        "publications": 15,
+        "median_max_callback_gap_ms": 33.314166706986725,
+        "worst_callback_gap_ms": 33.34208333399147,
+        "publications_over_25_ms": 12,
+        "nonpublication_worst_callback_gap_ms": 16.903624986298382
+      },
+      "append": {
+        "publications": 15,
+        "median_max_callback_gap_ms": 16.70295832445845,
+        "worst_callback_gap_ms": 33.32637494895607,
+        "publications_over_25_ms": 1,
+        "nonpublication_worst_callback_gap_ms": 19.24954168498516
+      }
+    },
+    "runs": [
+      {
+        "callback_count": 634,
+        "direction": "append",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 33.32637494895607,
+            "over_25_ms": 1,
+            "page": 1,
+            "rows": 200,
+            "uptime": 348939.45896633336
+          },
+          {
+            "max_callback_gap_ms": 16.756083350628614,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 348941.57708025
+          },
+          {
+            "max_callback_gap_ms": 16.979916661512107,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 348943.687927625
+          },
+          {
+            "max_callback_gap_ms": 16.782500024419278,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 348945.80161583336
+          },
+          {
+            "max_callback_gap_ms": 16.75120834261179,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 348947.9273952917
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 19.24954168498516,
+        "page_size": 100,
+        "single_line": true
+      },
+      {
+        "callback_count": 635,
+        "direction": "append",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 16.755749995354563,
+            "over_25_ms": 0,
+            "page": 1,
+            "rows": 200,
+            "uptime": 348953.411362875
+          },
+          {
+            "max_callback_gap_ms": 16.684708301909268,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 348955.5412676667
+          },
+          {
+            "max_callback_gap_ms": 16.69975003460422,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 348957.6723815
+          },
+          {
+            "max_callback_gap_ms": 16.688333358615637,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 348959.76000358333
+          },
+          {
+            "max_callback_gap_ms": 16.686958319041878,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 348961.86186945834
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 16.716833342798054,
+        "page_size": 100,
+        "single_line": true
+      },
+      {
+        "callback_count": 636,
+        "direction": "append",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 16.701708373147994,
+            "over_25_ms": 0,
+            "page": 1,
+            "rows": 200,
+            "uptime": 348995.2022044167
+          },
+          {
+            "max_callback_gap_ms": 16.700416628737003,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 348997.3344182917
+          },
+          {
+            "max_callback_gap_ms": 16.706958296708763,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 348999.4227316667
+          },
+          {
+            "max_callback_gap_ms": 16.70295832445845,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 349001.55370908335
+          },
+          {
+            "max_callback_gap_ms": 16.696708335075527,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 349003.68445920834
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 16.7287916992791,
+        "page_size": 100,
+        "single_line": true
+      },
+      {
+        "callback_count": 631,
+        "direction": "prepend",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 33.32066664006561,
+            "over_25_ms": 1,
+            "page": 1,
+            "rows": 200,
+            "uptime": 348925.5741295834
+          },
+          {
+            "max_callback_gap_ms": 16.81929168989882,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 348927.7040305
+          },
+          {
+            "max_callback_gap_ms": 33.20375003386289,
+            "over_25_ms": 1,
+            "page": 3,
+            "rows": 400,
+            "uptime": 348929.8362388334
+          },
+          {
+            "max_callback_gap_ms": 28.532333322800696,
+            "over_25_ms": 1,
+            "page": 4,
+            "rows": 500,
+            "uptime": 348931.92658525
+          },
+          {
+            "max_callback_gap_ms": 33.32383336964995,
+            "over_25_ms": 1,
+            "page": 5,
+            "rows": 600,
+            "uptime": 348934.00424287503
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 16.903624986298382,
+        "page_size": 100,
+        "single_line": true
+      },
+      {
+        "callback_count": 635,
+        "direction": "prepend",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 33.34208333399147,
+            "over_25_ms": 1,
+            "page": 1,
+            "rows": 200,
+            "uptime": 348967.38473333337
+          },
+          {
+            "max_callback_gap_ms": 33.325208351016045,
+            "over_25_ms": 1,
+            "page": 2,
+            "rows": 300,
+            "uptime": 348969.505006375
+          },
+          {
+            "max_callback_gap_ms": 33.32395834149793,
+            "over_25_ms": 1,
+            "page": 3,
+            "rows": 400,
+            "uptime": 348971.63699433336
+          },
+          {
+            "max_callback_gap_ms": 16.698625055141747,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 348973.76998079167
+          },
+          {
+            "max_callback_gap_ms": 33.314166706986725,
+            "over_25_ms": 1,
+            "page": 5,
+            "rows": 600,
+            "uptime": 348975.9028605417
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 16.751916671637446,
+        "page_size": 100,
+        "single_line": true
+      },
+      {
+        "callback_count": 632,
+        "direction": "prepend",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 17.83612504368648,
+            "over_25_ms": 0,
+            "page": 1,
+            "rows": 200,
+            "uptime": 348981.41155233333
+          },
+          {
+            "max_callback_gap_ms": 33.334333333186805,
+            "over_25_ms": 1,
+            "page": 2,
+            "rows": 300,
+            "uptime": 348983.5188477917
+          },
+          {
+            "max_callback_gap_ms": 33.30962499603629,
+            "over_25_ms": 1,
+            "page": 3,
+            "rows": 400,
+            "uptime": 348985.6512225
+          },
+          {
+            "max_callback_gap_ms": 33.31250004703179,
+            "over_25_ms": 1,
+            "page": 4,
+            "rows": 500,
+            "uptime": 348987.7694340417
+          },
+          {
+            "max_callback_gap_ms": 33.33095833659172,
+            "over_25_ms": 1,
+            "page": 5,
+            "rows": 600,
+            "uptime": 348989.9007764584
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 16.703791683539748,
+        "page_size": 100,
+        "single_line": true
+      }
+    ]
+  },
+  "profiled_single_line": {
+    "prepend": {
+      "callback_measurements": {
+        "callback_count": 630,
+        "direction": "prepend",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 33.32474996568635,
+            "over_25_ms": 1,
+            "page": 1,
+            "rows": 200,
+            "uptime": 349067.07070079166
+          },
+          {
+            "max_callback_gap_ms": 16.6828750516288,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 349069.19374270836
+          },
+          {
+            "max_callback_gap_ms": 16.68612495996058,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 349071.2624209167
+          },
+          {
+            "max_callback_gap_ms": 33.31745835021138,
+            "over_25_ms": 1,
+            "page": 4,
+            "rows": 500,
+            "uptime": 349073.392763125
+          },
+          {
+            "max_callback_gap_ms": 33.845208352431655,
+            "over_25_ms": 1,
+            "page": 5,
+            "rows": 600,
+            "uptime": 349075.5237122084
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 21.57070831162855,
+        "page_size": 100,
+        "single_line": true
+      },
+      "trace_duration_s": 14.962279,
+      "lanes": {
+        "hangs": {
+          "metrics": {
+            "count": 0,
+            "total_duration_ms": 0,
+            "worst_duration_ms": 0,
+            "severity_buckets": {
+              "lt_250ms": 0,
+              "250ms_1s": 0,
+              "gt_1s": 0
+            }
+          },
+          "top_offenders": []
+        },
+        "hitches": {
+          "metrics": {
+            "count": 0,
+            "total_hitch_ms": 0,
+            "worst_hitch_ms": 0,
+            "per_process": {},
+            "system_hitches": 0,
+            "app_hitches": 0,
+            "narrative_breakdown": {}
+          },
+          "top_offenders": []
+        },
+        "swiftui": {
+          "metrics": {
+            "total_events": 0,
+            "unique_views": 0,
+            "total_duration_ms": 0.0,
+            "severity_breakdown": {},
+            "update_type_breakdown": {},
+            "category_breakdown": {}
+          },
+          "top_offenders": []
+        },
+        "swiftui-causes": {
+          "metrics": {
+            "total_edges": 0,
+            "unique_sources": 0,
+            "unique_destinations": 0,
+            "top_labels": {}
+          },
+          "top_offenders": []
+        }
+      }
+    },
+    "append": {
+      "callback_measurements": {
+        "callback_count": 627,
+        "direction": "append",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 16.750500013586134,
+            "over_25_ms": 0,
+            "page": 1,
+            "rows": 200,
+            "uptime": 349104.7854825417
+          },
+          {
+            "max_callback_gap_ms": 16.69470831984654,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 349106.918265125
+          },
+          {
+            "max_callback_gap_ms": 16.677041712682694,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 349109.00412037503
+          },
+          {
+            "max_callback_gap_ms": 16.74541662214324,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 349111.00838841667
+          },
+          {
+            "max_callback_gap_ms": 16.685416689142585,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 349113.12771537504
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 16.743333369959146,
+        "page_size": 100,
+        "single_line": true
+      },
+      "trace_duration_s": 15.084366,
+      "lanes": {
+        "hangs": {
+          "metrics": {
+            "count": 1,
+            "total_duration_ms": 369.61,
+            "worst_duration_ms": 369.61,
+            "severity_buckets": {
+              "lt_250ms": 0,
+              "250ms_1s": 1,
+              "gt_1s": 0
+            }
+          },
+          "top_offenders": [
+            {
+              "start_ms": 14714.76,
+              "duration_ms": 369.61,
+              "hang_type": "Microhang",
+              "thread": "Main Thread (0x136d989) (ScrollReproduction, pid: 87243)"
+            }
+          ]
+        },
+        "hitches": {
+          "metrics": {
+            "count": 0,
+            "total_hitch_ms": 0,
+            "worst_hitch_ms": 0,
+            "per_process": {},
+            "system_hitches": 0,
+            "app_hitches": 0,
+            "narrative_breakdown": {}
+          },
+          "top_offenders": []
+        },
+        "swiftui": {
+          "metrics": {
+            "total_events": 0,
+            "unique_views": 0,
+            "total_duration_ms": 0.0,
+            "severity_breakdown": {},
+            "update_type_breakdown": {},
+            "category_breakdown": {}
+          },
+          "top_offenders": []
+        },
+        "swiftui-causes": {
+          "metrics": {
+            "total_edges": 0,
+            "unique_sources": 0,
+            "unique_destinations": 0,
+            "top_labels": {}
+          },
+          "top_offenders": []
+        }
+      }
+    }
+  }
+}
