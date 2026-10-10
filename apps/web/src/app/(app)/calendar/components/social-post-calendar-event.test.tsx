@@ -57,6 +57,13 @@ describe("Social post calendar event", () => {
   beforeEach(() => {
     openPreview.current = null;
   });
+  it("names the compact workspace card in one phrase", () => {
+    renderCard({}, "compact");
+    expect(
+      screen.getByRole("button", { name: "12:00 PM, X post, Scheduled" }),
+    ).toBeInTheDocument();
+  });
+
   it("opens a Social post through the in-place preview instead of a project link", () => {
     openPreview.current = vi.fn();
     renderCard();
@@ -144,7 +151,11 @@ describe("Social post calendar event", () => {
   });
   it("opens the exact post and shows the X brand, project, scheduler, and attachments", () => {
     renderCard();
-    expect(screen.getByRole("link")).toHaveAttribute(
+    expect(
+      screen.getByRole("link", {
+        name: "X · @team, 12:00 PM, Project: Launch project, Launch news, Scheduled, Scheduled by Albina, 2 attachments",
+      }),
+    ).toHaveAttribute(
       "href",
       "/social?projectId=project&postId=post#social-post-post",
     );

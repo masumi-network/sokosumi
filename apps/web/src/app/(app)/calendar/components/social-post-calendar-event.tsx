@@ -66,11 +66,17 @@ function CompactSocialPostCalendarEvent({
     media: item.previewMedia?.kind ?? "none",
     count: item.attachmentCount,
   });
+  const accessibleName = [
+    formatter.dateTime(item.scheduledAt, "time", { timeZone }),
+    label,
+    statuses(item.status),
+  ].join(", ");
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
+          aria-label={accessibleName}
           className="bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo"
           data-testid="calendar-social-post"
         >
@@ -117,6 +123,19 @@ function SocialPostPreviewCard({
     : providerLabel;
   const className =
     "bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-stretch gap-1 overflow-hidden rounded-md p-1.5 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo";
+  const accessibleName = [
+    account,
+    formatter.dateTime(item.scheduledAt, "time", { timeZone }),
+    t("project", { name: item.projectName }),
+    item.text || t("mediaOnly"),
+    statuses(item.status),
+    scheduler,
+    item.attachmentCount > 1
+      ? t("attachments", { count: item.attachmentCount })
+      : null,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(", ");
   const content = (
     <>
       <span className="flex w-full min-w-0 items-center gap-1">
@@ -184,6 +203,7 @@ function SocialPostPreviewCard({
   return openPreview ? (
     <button
       type="button"
+      aria-label={accessibleName}
       className={className}
       data-testid="calendar-social-post"
       onClick={(event) =>
@@ -195,6 +215,7 @@ function SocialPostPreviewCard({
   ) : (
     <Link
       href={socialPostHref(item)}
+      aria-label={accessibleName}
       className={className}
       data-testid="calendar-social-post"
     >
