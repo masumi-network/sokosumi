@@ -1490,4 +1490,35 @@ describe("social posts service", () => {
       }),
     );
   });
+
+  it("clears retry state when a scheduled post is edited after a failed attempt", async () => {
+    socialPostFindFirstMock.mockResolvedValue({
+      ...scheduledPost,
+      lastError: "X is unavailable",
+      attemptCount: 2,
+      nextAttemptAt: FUTURE,
+    });
+    const { updateSocialPost } = await loadService();
+
+    await updateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: scheduledPost.revision,
+      text: "Fixed copy",
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          text: "Fixed copy",
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
+        }),
+      }),
+    );
+  });
 });

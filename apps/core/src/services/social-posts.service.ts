@@ -651,6 +651,9 @@ export async function updateSocialPost(
       ? {
           scheduledByUserId: input.userId,
           scheduledByCoworkerId: input.coworkerId ?? null,
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
         }
       : {};
   const currentProvider = requireProvider(post.provider);
