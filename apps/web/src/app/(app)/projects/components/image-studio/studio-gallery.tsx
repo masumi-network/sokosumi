@@ -108,7 +108,7 @@ export function StudioGallery({
                 >
                   <figure
                     className={cn(
-                      "group bg-card-background relative overflow-hidden rounded-xl transition-[background-color,transform,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-md",
+                      "group bg-card-background border-border relative overflow-hidden rounded-xl border transition-colors duration-200 hover:bg-card-background-hover",
                       selected && "ring-primary ring-2",
                     )}
                     data-asset-id={asset.id}
@@ -185,7 +185,7 @@ export function StudioGallery({
                       aria-label={selected ? labels.deselect : labels.select}
                       aria-pressed={selected}
                       className={cn(
-                        "hit-area absolute top-2 left-2 flex size-6 items-center justify-center rounded-md border shadow-sm transition-colors",
+                        "hit-area absolute top-2 left-2 flex size-6 items-center justify-center rounded-md border transition-colors",
                         "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
                         selected
                           ? "border-primary bg-primary text-primary-foreground"
