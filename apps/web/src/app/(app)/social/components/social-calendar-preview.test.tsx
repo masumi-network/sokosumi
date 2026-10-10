@@ -158,7 +158,34 @@ describe("Social calendar previews", () => {
       </NuqsTestingAdapter>,
     );
     fireEvent.click(screen.getByRole("button", { name: "Open post" }));
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith(copy));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(copy);
+    expect(screen.getByRole("button", { name: "actions.retry" })).toBeVisible();
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it("retries an in-dialog preview load", async () => {
+    const user = userEvent.setup();
+    load.mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce({
+      post: { id: "scheduled-post", projectId: "post-project" },
+      connections: [],
+    });
+    render(
+      <NuqsTestingAdapter>
+        <SocialCalendarPreviewProvider>
+          <CalendarPost />
+        </SocialCalendarPreviewProvider>
+      </NuqsTestingAdapter>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open post" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("toasts.failed");
+    await user.click(screen.getByRole("button", { name: "actions.retry" }));
+    await waitFor(() =>
+      expect(screen.getByRole("dialog")).toHaveAttribute(
+        "data-post",
+        "scheduled-post",
+      ),
+    );
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(toastError).not.toHaveBeenCalled();
   });
 });
