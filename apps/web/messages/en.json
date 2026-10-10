@@ -2602,6 +2602,7 @@
           "publishedFrom": "Published from (UTC)",
           "publishedUntil": "Published until (UTC)",
           "clearFilters": "Clear filters",
+          "clearAll": "Clear all filters",
           "loading": "Loading statistics…",
           "loadFailed": "Failed to load statistics",
           "retry": "Try again",

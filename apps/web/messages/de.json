@@ -2875,7 +2875,8 @@
             "activeFilters": "{count} aktiv",
             "accountDescription": "Wähle ein Konto, um seine Performance zu untersuchen. Vergleiche veröffentlichte Inhalte, beobachtetes Wachstum und die auf der Plattform verfügbaren Kennzahlen.",
             "moreActions": "More actions"
-          }
+          },
+          "clearAll": "Clear all filters"
         }
       },
       "Detail": {
