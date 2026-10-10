@@ -43,6 +43,7 @@ const MESSAGES: Record<string, string> = {
   account: "{provider} account",
   connect: "Connect {provider} account",
   connectAccount: "Connect account",
+  empty: "No accounts yet.",
   comingSoon: "Coming soon",
   connectComingSoon: "{provider} (coming soon)",
   actions: "Actions for {account}",
@@ -239,6 +240,18 @@ describe("ProjectSocialAccounts", () => {
         disconnectedAt: new Date("2026-09-03T10:05:00.000Z"),
       }),
     });
+  });
+
+  it("shows an empty state when the project has no accounts", () => {
+    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+
+    expect(screen.getByText("No accounts yet.")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Connect account" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByTestId(/project-social-connection-/),
+    ).not.toBeInTheDocument();
   });
 
   it("explains missing provider configuration instead of reporting an expired request", async () => {

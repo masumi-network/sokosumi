@@ -2374,6 +2374,7 @@
         "account": "Cuenta de {provider}",
         "connect": "Conectar cuenta de {provider}",
         "connectAccount": "Conectar X, YouTube, LinkedIn…",
+        "empty": "Aún no hay cuentas.",
         "actions": "Acciones de {account}",
         "reconnect": "Volver a conectar",
         "replace": "Reemplazar",
