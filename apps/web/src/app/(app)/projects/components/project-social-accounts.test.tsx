@@ -38,8 +38,7 @@ const { refreshMock, toastErrorMock, toastSuccessMock, toastWarningMock } =
 
 const MESSAGES: Record<string, string> = {
   title: "Social accounts",
-  description:
-    "Connect social accounts to this project. Draft, schedule, and publish posts on any connected platform.",
+  description: "Used to draft, schedule, and publish.",
   account: "{provider} account",
   connect: "Connect {provider} account",
   connectAccount: "Connect account",
@@ -191,6 +190,7 @@ describe("ProjectSocialAccounts", () => {
   it("only uses message keys the catalog defines", () => {
     const catalog = messages.App.Projects.ProjectSocialAccounts;
     expect(catalog.connectAccount).toBe("Connect account");
+    expect(catalog.description).toBe("Used to draft, schedule, and publish.");
     for (const key of Object.keys(MESSAGES)) {
       const value = key
         .split(".")

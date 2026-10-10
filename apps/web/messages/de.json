@@ -2366,7 +2366,7 @@
       },
       "ProjectSocialAccounts": {
         "title": "Social-Media-Konten",
-        "description": "Verbinde Social-Media-Konten mit diesem Projekt. Entwirf, plane und veröffentliche Beiträge auf jeder verbundenen Plattform.",
+        "description": "Zum Entwerfen, Planen und Veröffentlichen.",
         "account": "{provider}-Konto",
         "connect": "{provider}-Konto verbinden",
         "connectAccount": "Konto verbinden",
