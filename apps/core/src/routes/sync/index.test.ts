@@ -78,6 +78,21 @@ vi.mock("@/services/social-post-publisher.service", () => ({
   }),
 }));
 
+vi.mock("@/services/social-account-sync", () => ({
+  collectSocialPerformance: vi.fn().mockResolvedValue({
+    accountsProcessed: 0,
+    pagesCollected: 0,
+    accountsCompleted: 0,
+    accountsFailed: 0,
+    accountsSkippedReauth: 0,
+    accountsSkippedBackoff: 0,
+    rateLimitHits: 0,
+  }),
+  runDueSocialAccountSync: vi.fn(),
+  scheduleSocialAccountRefresh: vi.fn(),
+  requestSocialAccountRefresh: vi.fn(),
+}));
+
 vi.mock("@/services/notification-publish-sync.service", () => ({
   retryNotificationPublishes: vi
     .fn()
