@@ -128,9 +128,7 @@ jobs:
         # CoreAPI dominates compilation with its large generated sources.
         # Compile it as one module; TARGET_NAME selects it and the default
         # keeps single-file compilation for the other targets.
-        # CI never reads the IDE symbol index. Disable its compiler output in
-        # both this build and the cache warmer so their cache inputs match.
-        run: xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipPackageUpdates -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" COMPILATION_CACHE_KEEP_CAS_DIRECTORY=YES COMPILER_INDEX_STORE_ENABLE=NO 'SWIFT_COMPILATION_MODE=$(SOKOSUMI_TEST_COMPILATION_MODE_$(TARGET_NAME):default=singlefile)' SOKOSUMI_TEST_COMPILATION_MODE_CoreAPI=wholemodule build-for-testing -enableCodeCoverage NO -showBuildTimingSummary -resultBundlePath "$RUNNER_TEMP/Sokosumi.xcresult"
+        run: xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipPackageUpdates -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" COMPILATION_CACHE_KEEP_CAS_DIRECTORY=YES 'SWIFT_COMPILATION_MODE=$(SOKOSUMI_TEST_COMPILATION_MODE_$(TARGET_NAME):default=singlefile)' SOKOSUMI_TEST_COMPILATION_MODE_CoreAPI=wholemodule build-for-testing -enableCodeCoverage NO -showBuildTimingSummary -resultBundlePath "$RUNNER_TEMP/Sokosumi.xcresult"
 
       # Swift Testing runs a whole test target in one app-host process, and
       # `@Suite(.serialized) NativeWindowTests` (shared NSApplication window
@@ -274,7 +272,7 @@ jobs:
 
       - name: Build Sokosumi workspace scheme for testing
         working-directory: apps/apple
-        run: xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipPackageUpdates -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" COMPILATION_CACHE_KEEP_CAS_DIRECTORY=YES COMPILER_INDEX_STORE_ENABLE=NO 'SWIFT_COMPILATION_MODE=$(SOKOSUMI_TEST_COMPILATION_MODE_$(TARGET_NAME):default=singlefile)' SOKOSUMI_TEST_COMPILATION_MODE_CoreAPI=wholemodule build-for-testing -enableCodeCoverage NO -showBuildTimingSummary -resultBundlePath "$RUNNER_TEMP/Sokosumi.xcresult"
+        run: xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipPackageUpdates -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" COMPILATION_CACHE_KEEP_CAS_DIRECTORY=YES 'SWIFT_COMPILATION_MODE=$(SOKOSUMI_TEST_COMPILATION_MODE_$(TARGET_NAME):default=singlefile)' SOKOSUMI_TEST_COMPILATION_MODE_CoreAPI=wholemodule build-for-testing -enableCodeCoverage NO -showBuildTimingSummary -resultBundlePath "$RUNNER_TEMP/Sokosumi.xcresult"
 
       - name: Save Swift package checkouts
         if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.spm-cache.outputs.cache-hit != 'true' }}
