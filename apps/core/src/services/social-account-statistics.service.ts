@@ -13,7 +13,10 @@ import {
   socialAccountStatisticsProviderPageSchema,
   socialAccountStatisticsSchema,
 } from "@/schemas/social-account-statistics.schema";
-import { listProjectSocialConnections } from "@/services/project-social-connections.service";
+import {
+  listProjectSocialConnections,
+  projectExecutorUserId,
+} from "@/services/project-social-connections.service";
 import { recordSocialPerformanceSnapshot } from "@/services/social-performance-snapshots.service";
 import { socialSyncReadModel } from "@/services/social-sync-read";
 
@@ -186,7 +189,7 @@ export async function refreshSocialAccountStatistics(
       await fetchSocialAccountStatisticsPage({
         provider: record.provider,
         connectedAccountId: record.composioConnectedAccountId,
-        executorUserId: record.connectorUserId,
+        executorUserId: projectExecutorUserId(input.projectId),
         externalAccountId: record.externalAccountId,
         externalHandle: record.externalHandle,
         cursor: input.continueHistory ? previous.historyNextCursor : null,

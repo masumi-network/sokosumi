@@ -22,9 +22,15 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: mocks.transaction,
 }));
-vi.mock("@/services/project-social-connections.service", () => ({
-  listProjectSocialConnections: mocks.listAccounts,
-}));
+vi.mock(
+  "@/services/project-social-connections.service",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/services/project-social-connections.service")
+    >()),
+    listProjectSocialConnections: mocks.listAccounts,
+  }),
+);
 vi.mock("@/clients/social-post-providers/account-statistics", () => ({
   fetchSocialAccountStatisticsPage: mocks.provider,
 }));
@@ -195,7 +201,7 @@ describe("Social account statistics", () => {
     expect(mocks.provider).toHaveBeenCalledWith({
       provider: "x",
       connectedAccountId: "ca-one",
-      executorUserId: "connector",
+      executorUserId: `sokosumi:project-executor:${projectId}`,
       externalAccountId: "external-account",
       externalHandle: "launch",
       cursor: null,
