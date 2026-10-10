@@ -45,6 +45,8 @@ import { cn } from "@/lib/utils";
 interface ProjectSocialAccountsProps {
   connections: ProjectSocialConnection[];
   projectId: string;
+  /** Closing or closed projects cannot start a new connect. */
+  connectDisabled?: boolean;
 }
 
 interface PendingConfirmation {
@@ -88,6 +90,7 @@ function isExpiredIntentError(error: ActionError): boolean {
 export function ProjectSocialAccounts({
   connections,
   projectId,
+  connectDisabled = false,
 }: ProjectSocialAccountsProps) {
   const router = useRouter();
   const t = useTranslations("App.Projects.ProjectSocialAccounts");
@@ -300,6 +303,7 @@ export function ProjectSocialAccounts({
   async function handleStartOver(
     connection: ProjectSocialConnection,
   ): Promise<void> {
+    if (connectDisabled) return;
     if (disconnectInFlightRef.current || isBusy) {
       showFeedback({ kind: "error", message: t("errors.inFlight") });
       return;
@@ -524,7 +528,7 @@ export function ProjectSocialAccounts({
                       type="button"
                       variant="outline"
                       size="sm"
-                      disabled={isBusy}
+                      disabled={isBusy || connectDisabled}
                       loading={isRowPending && pendingAction === "startOver"}
                       onClick={() => {
                         void handleStartOver(connection);

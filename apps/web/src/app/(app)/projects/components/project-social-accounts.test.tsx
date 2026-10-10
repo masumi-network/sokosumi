@@ -459,6 +459,27 @@ describe("ProjectSocialAccounts", () => {
     expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
   });
 
+  it("disables Start over on a closed project", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialAccounts
+        connectDisabled
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            status: "pending",
+          }),
+        ]}
+      />,
+    );
+
+    const startOver = screen.getByRole("button", { name: "Start over" });
+    expect(startOver).toBeDisabled();
+    await user.click(startOver);
+    expect(disconnectProjectSocialConnection).not.toHaveBeenCalled();
+    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
+  });
+
   it.each([null, "ca_known"])(
     "verifies a callback with connection ID %s using the initiated connection id",
     async (callbackConnectionId) => {
