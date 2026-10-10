@@ -145,3 +145,10 @@ from these captures. Keep the reproduction open as a draft.
 
 No production rendering, scrolling, streaming, or restoration behavior changed
 in this follow-up. This at-rest fixture does not verify those production flows.
+
+## Follow-up
+
+[Shared rich-row isolation](rich-layout-isolation.md) screens selection, row
+interaction/alert chrome, singleton Markdown containers, and a content-only row
+with identical production rich children. The full row shell contributes CPU-heavy
+graph/layout work, but no tested control removes the shared stalls.

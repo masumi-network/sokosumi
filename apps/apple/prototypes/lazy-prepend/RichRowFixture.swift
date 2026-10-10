@@ -8,11 +8,28 @@ import SokosumiWorkspace
 import SwiftUI
 import Synchronization
 
-/// Fixture data only. Rendering uses the production MessageRowView and its children unchanged.
+/// Fixture data and diagnostics; rendering reuses production components in the copied workspace.
 @MainActor enum RichRowFixture {
   static let omittedComponent = ProcessInfo.processInfo.environment["REPRO_OMIT"] ?? "none"
+  static let diagnostics = ProcessInfo.processInfo.environment["REPRO_DIAGNOSTICS"] == "1"
   static let auth = AuthState(store: InMemoryTokenStore())
   static let workspace = WorkspaceState()
+  static var renderEvaluations: [Int: Int] = [:]
+  static var bodyEvaluations: [String: Int] = [:]
+
+  static func message(at row: Int) -> Components.Schemas.ChatRoomMessage {
+    if diagnostics {
+      renderEvaluations[row, default: 0] += 1
+    }
+    return messages[row]
+  }
+
+  static func recordBody(_ id: String) {
+    if diagnostics {
+      bodyEvaluations[id, default: 0] += 1
+    }
+  }
+
   static let messages: [Components.Schemas.ChatRoomMessage] = (0 ..< 600).map { index in
     let names = ["Patrick Tobler", "Francis Luz", "Andreas", "Phil"]
     let person = index % names.count
@@ -61,6 +78,39 @@ import Synchronization
     // Generate the same local image before any measured publication; no live service is required.
     _ = FixtureMedia.imageData
     URLProtocol.registerClass(FixtureMedia.self)
+  }
+}
+
+/// The fixture's displayed content, with the same production children and no unused row state/chrome.
+struct FixtureContentRow: View {
+  let message: Components.Schemas.ChatRoomMessage
+  let document: MessageMarkdown?
+
+  var body: some View {
+    HStack(alignment: .top, spacing: 14) {
+      ParticipantProfileButton(sender: message.sender) {
+        ParticipantAvatar(imageURL: messageSenderImage(message.sender), name: messageSenderName(message.sender), size: MessageRowView.avatarDiameter)
+      }
+      VStack(alignment: .leading, spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+          ParticipantProfileButton(sender: message.sender) {
+            Text(messageSenderName(message.sender)).fontWeight(.semibold).foregroundStyle(.primary).lineLimit(1)
+          }
+          DeliveryFeedback(pendingSince: nil, sentAt: nil, timestamp: message.createdAt)
+        }
+        if let quote = message.quote {
+          MessageQuoteView(quote: quote).id(quote.messageId + quote.snippet)
+        }
+        MessageMarkdownView(source: message.content, preparedDocument: document)
+        if !message.reactions.isEmpty {
+          MessageReactionsView(reactions: message.reactions)
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .padding(.vertical, 4)
+    .padding(.horizontal, 12)
+    .padding(.top, 8)
   }
 }
 
@@ -116,8 +166,8 @@ private final nonisolated class FixtureMedia: URLProtocol, @unchecked Sendable {
 
 /// Used only by the copied Markdown view; the enabled branch keeps production selection.
 extension View {
-  @ViewBuilder func reproductionBodySelection() -> some View {
-    if RichRowFixture.omittedComponent == "body-selection" {
+  @ViewBuilder func reproductionBodySelection(nested: Bool = false) -> some View {
+    if RichRowFixture.omittedComponent == "all-selection" || (!nested && RichRowFixture.omittedComponent == "body-selection") {
       textSelection(.disabled)
     } else {
       textSelection(.enabled)

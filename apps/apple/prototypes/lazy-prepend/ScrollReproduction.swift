@@ -56,7 +56,7 @@ struct ScrollReproduction: View {
       LazyVStack(alignment: .leading, spacing: 0) {
         ForEach(rows, id: \.self) { row in
           if revealing {
-            boundedRow(row).id(row)
+            measuredRow(row).id(row)
               .onDisappear { probe.visibleRows.remove(row) }
               .onScrollVisibilityChange(threshold: 0.1) { visible in
                 if visible {
@@ -73,6 +73,17 @@ struct ScrollReproduction: View {
     }
   }
 
+  @ViewBuilder private func measuredRow(_ row: Int) -> some View {
+    if probe.diagnostics {
+      boundedRow(row)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+          probe.rowHeights[row] = height
+        }
+    } else {
+      boundedRow(row)
+    }
+  }
+
   @ViewBuilder private func boundedRow(_ row: Int) -> some View {
     if probe.fixedRowHeight {
       renderedRow(row).frame(height: 160, alignment: .top).clipped()
@@ -85,10 +96,14 @@ struct ScrollReproduction: View {
     #if RICH_ROWS
       VStack(alignment: .leading, spacing: 0) {
         if let prepared {
-          let message = RichRowFixture.messages[row]
-          MessageRowView(preparedDocument: prepared.document(for: message), message: message,
-                         isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                         horizontalInset: 12)
+          let message = RichRowFixture.message(at: row)
+          if probe.omittedComponent == "content-only" {
+            FixtureContentRow(message: message, document: prepared.document(for: message))
+          } else {
+            MessageRowView(preparedDocument: prepared.document(for: message), message: message,
+                           isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+                           horizontalInset: 12)
+          }
         }
       }
     #else
@@ -146,11 +161,13 @@ struct ScrollReproduction: View {
   let revealRows: Bool
   let fixedRowHeight: Bool
   let omittedComponent: String
+  let diagnostics: Bool
   var insertsPages: Bool {
     direction != "no-insertion"
   }
 
   var visibleRows: Set<Int> = []
+  var rowHeights: [Int: CGFloat] = [:]
   var inputFingerprint: String?
   var richRows: Bool {
     #if RICH_ROWS
@@ -168,6 +185,9 @@ struct ScrollReproduction: View {
     let rows: Int
     var revealedRow: Int?
     var visibleRowIDs: [Int] = []
+    var visibleRowHeights: [Double] = []
+    var renderEvaluations: [Int: Int] = [:]
+    var bodyEvaluations: [String: Int] = [:]
   }
 
   private var marks: [Publication] = []
@@ -180,11 +200,12 @@ struct ScrollReproduction: View {
     revealRows = env["REPRO_REVEAL_ROWS"] == "1"
     fixedRowHeight = env["REPRO_FIXED_ROW_HEIGHT"] == "1"
     omittedComponent = env["REPRO_OMIT"] ?? "none"
+    diagnostics = env["REPRO_DIAGNOSTICS"] == "1"
     pageSize = Int(env["REPRO_PAGE_SIZE"] ?? "100") ?? 100
     precondition(["prepend", "append", "no-insertion"].contains(direction))
     precondition((1 ... 100).contains(pageSize))
     super.init()
-    precondition(["none", "body-selection", "clamp", "code-highlighting"].contains(omittedComponent))
+    precondition(["none", "body-selection", "clamp", "code-highlighting", "all-selection", "row-interactions", "row-alerts", "flat-text", "flat-markdown", "content-only"].contains(omittedComponent))
     precondition(richRows || omittedComponent == "none")
     precondition(insertsPages || (richRows && revealRows), "No-insertion control needs visible rich rows")
     precondition(!richRows || !singleLine, "Single-line mode applies only to the bare control")
@@ -202,6 +223,10 @@ struct ScrollReproduction: View {
   }
 
   func mark(page: Int, rows: Int) {
+    #if RICH_ROWS
+      RichRowFixture.renderEvaluations = [:]
+      RichRowFixture.bodyEvaluations = [:]
+    #endif
     marks.append(Publication(time: ProcessInfo.processInfo.systemUptime, page: page, rows: rows, revealedRow: nil))
     if insertsPages {
       os_signpost(.event, log: log, name: "Insert page", "page=%d rows=%d", page, rows)
@@ -218,6 +243,13 @@ struct ScrollReproduction: View {
     precondition(visibleRows.contains(row), "Incoming row \(row) was not revealed")
     marks[page - 1].revealedRow = row
     marks[page - 1].visibleRowIDs = visibleRows.sorted()
+    if diagnostics {
+      marks[page - 1].visibleRowHeights = visibleRows.sorted().map { Double(rowHeights[$0]!) }
+    }
+    #if RICH_ROWS
+      marks[page - 1].renderEvaluations = RichRowFixture.renderEvaluations
+      marks[page - 1].bodyEvaluations = RichRowFixture.bodyEvaluations
+    #endif
   }
 
   func finish(rows: Int) {
@@ -237,6 +269,13 @@ struct ScrollReproduction: View {
       if let row = mark.revealedRow {
         result["revealed_row"] = row
         result["visible_row_ids"] = mark.visibleRowIDs
+        if diagnostics {
+          result["visible_row_heights"] = mark.visibleRowHeights
+        }
+        if richRows, diagnostics {
+          result["render_evaluations"] = Dictionary(uniqueKeysWithValues: mark.renderEvaluations.map { (String($0.key), $0.value) })
+          result["body_evaluations"] = mark.bodyEvaluations
+        }
       }
       return result
     }
@@ -247,6 +286,7 @@ struct ScrollReproduction: View {
                                  "row_kind": richRows ? "production-rich" : "plain", "reveal_rows": revealRows,
                                  "fixed_row_height": fixedRowHeight,
                                  "omitted_component": omittedComponent,
+                                 "diagnostics": diagnostics,
                                  "page_size": pageSize, "final_rows": rows, "callback_count": callbacks.count,
                                  "nonpublication_max_callback_gap_ms": nonpublication.map(\.ms).max() ?? 0,
                                  "insertions": insertions]

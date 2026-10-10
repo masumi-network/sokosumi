@@ -153,6 +153,21 @@ and shared graph/layout work; prepend retains extra root/scroll sizing. See
 [raw timings](no-insertion-measurements.json) and
 [profile evidence](no-insertion-profile-summary.json) for the method and limits.
 
+## Shared row-layout controls
+
+The [shared rich-row isolation](rich-layout-isolation.md) compares the full row,
+`--omit content-only`, and `--omit flat-markdown` with identical rich content,
+visible IDs, and separately checked heights. The full row shell contributes
+measurable graph/layout work, but content-only still stalls. Singleton Markdown
+wrapper removal gives little consistent benefit; no production fix is included.
+
+Additional screens use `--omit all-selection`, `--omit row-interactions`,
+`--omit row-alerts`, and `--omit flat-text`. Controls change only copied source.
+Use `--direction no-insertion --pairs 1` for one fresh component screen and
+`--diagnostics` for separate height/evaluation checks. Diagnostics are off by
+default. Repeat and interleave against a fresh same-build `--omit none` baseline.
+See the report for the 27-run three-way comparison, CPU profiles, and limits.
+
 ## Run
 
 Requires an Apple Silicon Mac on macOS 26+ and Xcode 27. The build script uses the
