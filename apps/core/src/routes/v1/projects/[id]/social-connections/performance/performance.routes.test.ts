@@ -82,6 +82,13 @@ const result = socialPerformanceResponseSchema.parse({
     },
   },
   daily: [],
+  consistency: {
+    from: null,
+    until: null,
+    selectedFrom: "2026-10-01",
+    selectedUntil: "2026-10-07",
+    daily: [],
+  },
   comparisons: { accounts: [], providers: [], formats: [] },
   heatmap: {
     timezone: "UTC",

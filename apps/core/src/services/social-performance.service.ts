@@ -32,6 +32,8 @@ const METRIC_KEYS: MetricKey[] = [
   "saves",
 ];
 const DAY = 86_400_000;
+/** Collected posting history shown on the calendar, independent of the preset. */
+const CONSISTENCY_DAYS = 365;
 const MINIMUM_SAMPLE_SIZE = 10;
 const snapshotSchema = z.object({
   connectionId: z.uuid(),
@@ -292,6 +294,58 @@ function uniquePosts(posts: Post[]) {
   return [...latest.values()];
 }
 
+function shiftIsoDate(day: string, days: number): string {
+  const date = new Date(`${day}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** Posting days for the calendar. The preset cohort stays on `daily`. */
+function buildConsistency(input: {
+  posts: Post[];
+  postKind: SocialPerformanceQuery["postKind"] | undefined;
+  endDate: string;
+  selectedFrom: string;
+  selectedUntil: string;
+  localDate: (value: string | Date) => string;
+}): SocialPerformanceResponse["consistency"] {
+  const capDate = shiftIsoDate(input.endDate, -CONSISTENCY_DAYS);
+  const groups = groupPosts(
+    input.posts.filter((post) => {
+      if (!post.publishedAt || !matches(post, { postKind: input.postKind }))
+        return false;
+      const date = input.localDate(post.publishedAt);
+      return date >= capDate && date <= input.endDate;
+    }),
+    (post) => input.localDate(post.publishedAt ?? input.endDate),
+  );
+  const from = [...groups.keys()].sort()[0] ?? null;
+  const daily: SocialPerformanceResponse["consistency"]["daily"] = [];
+  if (from) {
+    for (
+      let day = new Date(`${from}T12:00:00Z`);
+      day.toISOString().slice(0, 10) <= input.endDate;
+      day = new Date(day.getTime() + DAY)
+    ) {
+      const date = day.toISOString().slice(0, 10);
+      const posts = groups.get(date) ?? [];
+      const measured = aggregate(posts.map(interactions)).total;
+      daily.push({
+        date,
+        postCount: posts.length,
+        interactions: posts.length === 0 ? 0 : measured,
+      });
+    }
+  }
+  return {
+    from,
+    until: from ? input.endDate : null,
+    selectedFrom: input.selectedFrom,
+    selectedUntil: input.selectedUntil,
+    daily,
+  };
+}
+
 /** Pure aggregation of verified cache data. Publication cohorts are not event-time analytics. */
 export function buildSocialPerformance(input: {
   accounts: Account[];
@@ -373,6 +427,15 @@ export function buildSocialPerformance(input: {
       previousSummary.interactions.total,
     );
 
+  const now = input.now ?? new Date();
+  const consistency = buildConsistency({
+    posts: input.deduplicatePosts ? uniquePosts(selectedPosts) : selectedPosts,
+    postKind: input.query.postKind,
+    endDate: localParts(now).date,
+    selectedFrom: localParts(range.from).date,
+    selectedUntil: localParts(range.until).date,
+    localDate: (value) => localParts(value).date,
+  });
   const dailyGroups = groupPosts(
     current,
     (post) => localParts(post.publishedAt ?? range.from).date,
@@ -592,6 +655,7 @@ export function buildSocialPerformance(input: {
     accounts: input.accounts,
     summary: { current: currentSummary, previous: previousSummary, deltas },
     daily,
+    consistency,
     comparisons: {
       accounts: input.accounts.map((account) => ({
         connectionId: account.id,
@@ -666,7 +730,8 @@ export async function listSocialPerformance(
       parsedQuery.error.issues[0]?.message ?? "Invalid performance query",
     );
   const query = parsedQuery.data;
-  const range = getRange(query, new Date());
+  const now = new Date();
+  const range = getRange(query, now);
   const page = await listSocialAccountStatistics({
     projectId: input.projectId,
     workspaceId: input.workspaceId,
@@ -683,11 +748,12 @@ export async function listSocialPerformance(
     accounts,
     query,
     range,
+    now,
     projectIds: [input.projectId],
     workspaceId: input.workspaceId,
     includeAllPosts: input.includeAllPosts,
   });
-  return buildSocialPerformance(cache);
+  return buildSocialPerformance({ ...cache, now });
 }
 
 /** Each project passes the existing account-read scope guard before combining raw cohorts. */
@@ -700,7 +766,8 @@ export async function listWorkspaceSocialPerformance(
       parsedQuery.error.issues[0]?.message ?? "Invalid performance query",
     );
   const query = parsedQuery.data;
-  const range = getRange(query, new Date());
+  const now = new Date();
+  const range = getRange(query, now);
   const projects = await prisma.project.findMany({
     where: {
       workspaceId: input.workspaceId,
@@ -745,13 +812,18 @@ export async function listWorkspaceSocialPerformance(
     accounts,
     query,
     range,
+    now,
     projectIds: projects
       .filter((project) => !query.projectId || project.id === query.projectId)
       .map((project) => project.id),
     workspaceId: input.workspaceId,
     includeAllPosts: input.includeAllPosts,
   });
-  const response = buildSocialPerformance({ ...cache, deduplicatePosts: true });
+  const response = buildSocialPerformance({
+    ...cache,
+    now,
+    deduplicatePosts: true,
+  });
   const currentUniquePosts = uniquePosts(cache.posts).filter(
     (post) =>
       matches(post, query) && inPublicationRange(post, range.from, range.until),
@@ -812,16 +884,23 @@ async function readSocialPerformanceCache(input: {
   accounts: Account[];
   query: SocialPerformanceQuery;
   range: ReturnType<typeof getRange>;
+  now: Date;
   projectIds: string[];
   workspaceId: string;
   includeAllPosts?: boolean;
 }) {
   const { accounts, query, range } = input;
   const connectionId = { in: accounts.map((account) => account.id) };
-  const earliest =
+  const presetEarliest =
     range.previousFrom < range.baselineFrom
       ? range.previousFrom
       : range.baselineFrom;
+  const consistencyFrom = new Date(
+    input.now.getTime() - (CONSISTENCY_DAYS + 2) * DAY,
+  );
+  const earliest =
+    consistencyFrom < presetEarliest ? consistencyFrom : presetEarliest;
+  const latest = range.until > input.now ? range.until : input.now;
   const scope = {
     connectionId,
     connection: {
@@ -834,7 +913,7 @@ async function readSocialPerformanceCache(input: {
   };
   const [rows, snapshots, missingPublicationDateCount] = await Promise.all([
     prisma.socialAccountPost.findMany({
-      where: { ...scope, publishedAt: { gte: earliest, lte: range.until } },
+      where: { ...scope, publishedAt: { gte: earliest, lte: latest } },
       include: { connection: { select: { provider: true } } },
     }),
     prisma.socialPerformanceSnapshot.findMany({

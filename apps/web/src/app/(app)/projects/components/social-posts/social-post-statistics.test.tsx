@@ -155,6 +155,13 @@ function page(offset: number | null = null) {
       },
     },
     daily: [{ date: "2026-10-01", summary }],
+    consistency: {
+      from: "2026-10-01",
+      until: "2026-10-08",
+      selectedFrom: "2026-09-09",
+      selectedUntil: "2026-10-08",
+      daily: [{ date: "2026-10-01", postCount: 1, interactions: null }],
+    },
     comparisons: { accounts: [], providers: [], formats: [] },
     heatmap: {
       timezone: "UTC",
@@ -243,10 +250,40 @@ function renderStatistics(searchParams = "") {
     </TestQueryProvider>,
   );
 }
-function accountCard(name: string) {
-  const element = screen.getByRole("heading", { name }).closest("article");
-  if (!element) throw new Error("Missing account card");
-  return within(element);
+/**
+ * Helper to switch accounts in the Select-based account control.
+ */
+function accountCombobox() {
+  return screen.getByRole("combobox", { name: /connected accounts/i });
+}
+async function _selectAccount(
+  user: ReturnType<typeof userEvent.setup>,
+  accountName: string,
+) {
+  await user.click(accountCombobox());
+  const option = await screen.findByRole("option", {
+    name: new RegExp(accountName, "i"),
+  });
+  await user.click(option);
+}
+function _isAccountSelected(accountName: string): boolean {
+  const combobox = screen.queryByRole("combobox", {
+    name: /connected accounts/i,
+  });
+  if (combobox) return combobox.textContent?.includes(accountName) ?? false;
+  return screen.queryByText(accountName) != null;
+}
+async function _getExportLink(
+  user: ReturnType<typeof userEvent.setup>,
+  linkName: string,
+): Promise<string> {
+  await user.click(screen.getByRole("button", { name: /more actions/i }));
+  const item = await screen.findByRole("menuitem", {
+    name: new RegExp(linkName, "i"),
+  });
+  const href = item.getAttribute("href") ?? "";
+  await user.keyboard("{Escape}");
+  return href;
 }
 function selectedReads() {
   return mocks.fetch.mock.calls.filter(
@@ -254,9 +291,6 @@ function selectedReads() {
       new URL(url, "https://web.test").searchParams.has("connectionId") &&
       !url.includes("/audience"),
   );
-}
-function openAccountDetails() {
-  fireEvent.click(screen.getByText("Account details"));
 }
 beforeEach(() => {
   vi.clearAllMocks();
@@ -315,12 +349,13 @@ describe("SocialPostStatistics account history", () => {
     });
     renderStatistics();
     await screen.findByTestId("social-performance-overview");
-    expect(
-      screen.getByRole("tab", { name: "Launch account X" }),
-    ).toHaveAttribute("aria-selected", "true");
-    expect(
-      screen.getByRole("tab", { name: "Brand page Facebook" }),
-    ).toHaveAttribute("aria-selected", "false");
+    // Wait for the combobox to be present and contain the selected account
+    await waitFor(() => {
+      const combobox = accountCombobox();
+      expect(combobox.textContent).toContain("Launch account");
+    });
+    // The other account is not selected
+    expect(_isAccountSelected("Brand page")).toBe(false);
     expect(
       new URL(mocks.fetch.mock.calls[0][0], "https://web.test").search,
     ).toBe("?limit=1");
@@ -328,22 +363,37 @@ describe("SocialPostStatistics account history", () => {
     expect(
       screen.queryByText("Combined catalogue row"),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Showing 1 of 1 matching posts")).toBeVisible();
+    expect(screen.getByText(post.text)).toBeVisible();
+    expect(
+      screen.queryByText("Choose an account to explore its performance."),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Details")).not.toBeInTheDocument();
+    expect(screen.queryByText("About this data")).not.toBeInTheDocument();
+    expect(screen.queryByText("More insights")).not.toBeInTheDocument();
+    expect(screen.queryByText("Daily counts")).not.toBeInTheDocument();
     expect(
       new URL(selectedReads()[0][0], "https://web.test").searchParams.get(
         "connectionId",
       ),
     ).toBe(account.id);
+    // No "All accounts" option in single-project view
+    const combobox = accountCombobox();
+    await userEvent.setup().click(combobox);
     expect(
-      screen.queryByRole("tab", { name: "All accounts" }),
+      screen.queryByRole("option", { name: /All accounts/i }),
     ).not.toBeInTheDocument();
+    // Close the dropdown
+    await userEvent.setup().keyboard("{Escape}");
     expect(screen.queryByLabelText("Platform")).not.toBeInTheDocument();
-    for (const name of ["More filters", "Account details", "More insights"]) {
-      expect(screen.getByText(name).closest("details")).not.toHaveAttribute(
-        "open",
-      );
-    }
+    expect(
+      screen.getByText("More filters").closest("details"),
+    ).not.toHaveAttribute("open");
     const overview = screen.getByTestId("social-performance-overview");
+    expect(
+      screen.getByText(
+        "1 post across 1 active day from Oct 1, 2026 to Oct 1, 2026.",
+      ),
+    ).toBeVisible();
     expect(
       within(overview).getByRole("figure", { name: "Interactions" }),
     ).toBeVisible();
@@ -358,17 +408,20 @@ describe("SocialPostStatistics account history", () => {
     renderStatistics(
       `?statisticsAccount=${secondAccount.id}&statisticsProvider=x`,
     );
-    await screen.findByRole("heading", { name: "Brand page" });
-    expect(
-      screen.getByRole("tab", { name: "Brand page Facebook" }),
-    ).toHaveAttribute("aria-selected", "true");
+    // Wait for the Brand page to be selected in the combobox
+    await waitFor(() => {
+      const combobox = accountCombobox();
+      expect(combobox.textContent).toContain("Brand page");
+    });
+    // Brand page is selected
+    expect(_isAccountSelected("Brand page")).toBe(true);
     const query = new URL(selectedReads()[0][0], "https://web.test")
       .searchParams;
     expect(query.get("connectionId")).toBe(secondAccount.id);
     expect(query.get("provider")).toBe("facebook");
+    const user = userEvent.setup();
     const exported = new URL(
-      screen.getByRole("link", { name: "Export CSV" }).getAttribute("href") ??
-        "",
+      await _getExportLink(user, "Export CSV"),
       "https://web.test",
     ).searchParams;
     expect(exported.get("connectionId")).toBe(secondAccount.id);
@@ -381,7 +434,11 @@ describe("SocialPostStatistics account history", () => {
     renderStatistics(
       "?statisticsAccount=unavailable&statisticsProvider=facebook&performanceProject=old-project",
     );
-    await screen.findByRole("heading", { name: "Brand page" });
+    // Wait for Brand page to be selected (fallback from unavailable account)
+    await waitFor(() => {
+      const combobox = accountCombobox();
+      expect(combobox.textContent).toContain("Brand page");
+    });
     for (const [url] of selectedReads()) {
       const params = new URL(url, "https://web.test").searchParams;
       expect(params.get("connectionId")).toBe(secondAccount.id);
@@ -415,41 +472,31 @@ describe("SocialPostStatistics account history", () => {
     });
     renderStatistics("?performanceSearch=campaign");
     await screen.findByText(post.text);
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: /Select to compare/ }),
-    );
-    fireEvent.click(screen.getByText("More insights"));
-    expect(
-      screen.getByRole("heading", { name: "Compare posts (1)" }),
-    ).toBeVisible();
-    await user.click(screen.getByRole("tab", { name: "Brand page Facebook" }));
+    // Switch to Brand page using Select
+    await _selectAccount(user, "Brand page");
     expect(await screen.findByText(brandPost.text)).toBeVisible();
-    expect(screen.getByRole("tab", { name: "Launch account X" })).toBeVisible();
-    expect(screen.queryByText(post.text)).not.toBeInTheDocument();
+    // Both accounts should be available in the Select dropdown
+    const combobox = accountCombobox();
+    await user.click(combobox);
     expect(
-      screen.queryByRole("heading", { name: "Compare posts (1)" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("option", { name: /Launch account/i }),
+    ).toBeVisible();
+    expect(screen.getByRole("option", { name: /Brand page/i })).toBeVisible();
+    await user.keyboard("{Escape}"); // Close dropdown
+    expect(screen.queryByText(post.text)).not.toBeInTheDocument();
     expect(
       screen.queryByText("Audience and public benchmarks"),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByText("More insights").closest("details"),
-    ).not.toHaveAttribute("open");
     const exportUrl = new URL(
-      screen.getByRole("link", { name: "Export CSV" }).getAttribute("href") ??
-        "",
+      await _getExportLink(user, "Export CSV"),
       "https://web.test",
     );
     expect(exportUrl.searchParams.get("connectionId")).toBe(secondAccount.id);
     expect(exportUrl.searchParams.get("search")).toBe("campaign");
-    await user.click(screen.getByRole("tab", { name: "Launch account X" }));
+    // Close the dropdown after getting export link
+    await user.keyboard("{Escape}");
+    await _selectAccount(user, "Launch account");
     await screen.findByText(post.text);
-    expect(
-      screen.queryByRole("heading", { name: "Compare posts (1)" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("checkbox", { name: /Select to compare/ }),
-    ).not.toBeChecked();
     expect(
       mocks.fetch.mock.calls.filter(
         ([url]) =>
@@ -461,7 +508,10 @@ describe("SocialPostStatistics account history", () => {
     renderStatistics(
       `?statisticsAccount=${secondAccount.id}&performanceSearch=launch&performanceFormat=video&performanceTimezone=Europe%2FPrague&publishedFrom=2026-10-01&publishedUntil=2026-10-08`,
     );
-    await screen.findByRole("heading", { name: "Brand page" });
+    await waitFor(() => {
+      const combobox = accountCombobox();
+      expect(combobox.textContent).toContain("Brand page");
+    });
     expect(screen.getByText("4 active")).toBeVisible();
     fireEvent.click(screen.getByText("More filters"));
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
@@ -474,14 +524,12 @@ describe("SocialPostStatistics account history", () => {
       expect(params.has("publishedFrom")).toBe(false);
       expect(params.get("timezone")).toBe("UTC");
     });
-    expect(
-      screen.getByRole("tab", { name: "Brand page Facebook" }),
-    ).toHaveAttribute("aria-selected", "true");
+    // Brand page should be selected
+    expect(_isAccountSelected("Brand page")).toBe(true);
+    const user = userEvent.setup();
     expect(
       new URL(
-        screen
-          .getByRole("link", { name: "Export spreadsheet" })
-          .getAttribute("href") ?? "",
+        await _getExportLink(user, "Export spreadsheet"),
         "https://web.test",
       ).searchParams.get("connectionId"),
     ).toBe(secondAccount.id);
@@ -499,8 +547,12 @@ describe("SocialPostStatistics account history", () => {
     await screen.findByText(post.text);
     fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
-    await user.click(screen.getByRole("tab", { name: "Brand page Facebook" }));
-    await screen.findByRole("heading", { name: "Brand page" });
+    await _selectAccount(user, "Brand page");
+    // Wait for Brand page to be selected
+    await waitFor(() => {
+      const combobox = accountCombobox();
+      expect(combobox.textContent).toContain("Brand page");
+    });
     await act(async () => finish(response(account, "old-next-page")));
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
     expect(
@@ -520,10 +572,8 @@ describe("SocialPostStatistics account history", () => {
       }),
     });
     const rendered = renderStatistics();
-    expect(
-      await screen.findByRole("tab", { name: "Launch account X" }),
-    ).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByText("Statistics have not been fetched.")).toBeVisible();
+    expect(await screen.findByText("Launch account")).toBeVisible();
+    expect(screen.getByText("Not synced yet")).toBeVisible();
     expect(screen.getByRole("button", { name: "Sync account" })).toBeEnabled();
     rendered.unmount();
     mocks.fetch.mockClear();
@@ -620,9 +670,9 @@ describe("SocialPostStatistics account history", () => {
       `/api/workspaces/${workspaceId}/social-performance`,
     );
     expect(read.searchParams.get("projectId")).toBe(projectA);
+    const user = userEvent.setup();
     const exportUrl = new URL(
-      screen.getByRole("link", { name: "Export CSV" }).getAttribute("href") ??
-        "",
+      await _getExportLink(user, "Export CSV"),
       "https://web.test",
     );
     expect(exportUrl.pathname).toBe(
@@ -633,11 +683,7 @@ describe("SocialPostStatistics account history", () => {
     expect(
       screen.queryByText(/duplicate post copies excluded/),
     ).not.toBeInTheDocument();
-    fireEvent.click(
-      accountCard("Launch account").getByRole("button", {
-        name: "Sync account",
-      }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
     await waitFor(() =>
       expect(mocks.refresh).toHaveBeenCalledWith({
         projectId: projectA,
@@ -683,11 +729,18 @@ describe("SocialPostStatistics account history", () => {
       </TestQueryProvider>,
     );
     await screen.findByTestId("social-performance-overview");
+    // Check the first account is selected in the combobox
+    const combobox = accountCombobox();
+    await user.click(combobox);
     expect(
-      screen.getByRole("tab", { name: "Launch account X · Launch project" }),
+      screen.getByRole("option", { name: /Launch account.*Launch project/i }),
     ).toBeVisible();
+    expect(
+      screen.getByRole("option", { name: /Launch account.*Brand project/i }),
+    ).toBeVisible();
+    // Select the second duplicate
     await user.click(
-      screen.getByRole("tab", { name: "Launch account X · Brand project" }),
+      screen.getByRole("option", { name: /Launch account.*Brand project/i }),
     );
     await waitFor(() =>
       expect(
@@ -697,9 +750,10 @@ describe("SocialPostStatistics account history", () => {
         ).searchParams.get("connectionId"),
       ).toBe(duplicate.id),
     );
+    // Close the combobox dropdown from earlier
+    await user.keyboard("{Escape}");
     const exportParams = new URL(
-      screen.getByRole("link", { name: "Export CSV" }).getAttribute("href") ??
-        "",
+      await _getExportLink(user, "Export CSV"),
       "https://web.test",
     ).searchParams;
     expect(exportParams.get("connectionId")).toBe(duplicate.id);
@@ -762,14 +816,10 @@ describe("SocialPostStatistics account history", () => {
     );
     const rendered = render(view(workspaceId));
     await screen.findByText(post.text);
-    fireEvent.click(
-      accountCard("Launch account").getByRole("button", {
-        name: "Sync account",
-      }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
     rendered.rerender(view(otherWorkspaceId));
-    await screen.findByRole("heading", { name: "Brand page" });
+    expect(await screen.findByText("Brand page")).toBeVisible();
     const nextReads = mocks.fetch.mock.calls.filter(([url]) =>
       url.includes(otherWorkspaceId),
     );
@@ -793,128 +843,10 @@ describe("SocialPostStatistics account history", () => {
     expect(
       screen.queryByRole("button", { name: "Stop sync" }),
     ).not.toBeInTheDocument();
-    expect(
-      accountCard("Brand page").getByRole("button", { name: "Sync account" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Sync account" })).toBeEnabled();
   });
-  it("uses selected account's own cached post IDs for per-post research even when workspace rankings retain another copy", async () => {
+  it("uses full-cohort aggregates rather than the visible post page and forwards the selected filters", async () => {
     const user = userEvent.setup();
-    const ownPost = {
-      ...post,
-      id: "77777777-7777-4777-8777-777777777777",
-      text: "Owned launch post",
-    };
-    const canonicalPost = {
-      ...post,
-      id: "88888888-8888-4888-8888-888888888888",
-      connectionId: secondAccount.id,
-      projectIds: [projectA, projectB],
-    };
-    let finishPosts: (value: unknown) => void = () => {};
-    const mentions = {
-      kind: "mentions",
-      postId: null,
-      contacts: [],
-      posts: [],
-      nextCursor: null,
-      observedAt: "2026-10-08T08:00:00Z",
-      samplePostCount: 0,
-      oldestPostAt: null,
-      newestPostAt: null,
-      coverage: "Recent mentions only",
-    };
-    mocks.fetch.mockImplementation(async (url: string) => {
-      if (url.startsWith(`/api/projects/${projectA}/social-performance?`)) {
-        return {
-          ok: true,
-          json: () =>
-            new Promise((resolve) => {
-              finishPosts = resolve;
-            }),
-        };
-      }
-      return {
-        ok: true,
-        json: async () =>
-          url.includes("/audience?")
-            ? mentions
-            : new URL(url, "https://web.test").searchParams.get(
-                  "connectionId",
-                ) === account.id
-              ? {
-                  ...workspacePage(),
-                  accounts: [account],
-                  posts: [{ ...post, projectIds: [projectA] }],
-                }
-              : {
-                  ...workspacePage(),
-                  accounts: [account, { ...secondAccount, provider: "x" }],
-                  posts: [canonicalPost],
-                },
-      };
-    });
-    render(
-      <TestQueryProvider>
-        <NuqsTestingAdapter hasMemory>
-          <SocialPostStatistics workspaceId={workspaceId} />
-        </NuqsTestingAdapter>
-      </TestQueryProvider>,
-    );
-    await screen.findByRole("tab", { name: "Launch account X" });
-    await screen.findByText(post.text);
-    fireEvent.click(screen.getByText("Audience and public benchmarks"));
-    await screen.findByText("Recent mentions only");
-    await user.click(
-      screen.getByLabelText("Audience view", {
-        selector: "#performance-audience-kind",
-      }),
-    );
-    await user.click(
-      screen.getByRole("option", { name: "People who liked a post" }),
-    );
-    await waitFor(() =>
-      expect(
-        mocks.fetch.mock.calls.some(([url]) =>
-          url.startsWith(`/api/projects/${projectA}/social-performance?`),
-        ),
-      ).toBe(true),
-    );
-    expect(
-      mocks.fetch.mock.calls.some(([url]) => url.includes("kind=likers")),
-    ).toBe(false);
-    await act(async () =>
-      finishPosts({
-        ...page(),
-        posts: [{ ...ownPost, postKind: "repost", id: "repost-only" }, ownPost],
-      }),
-    );
-    await waitFor(() =>
-      expect(
-        mocks.fetch.mock.calls.some(([url]) => url.includes("kind=likers")),
-      ).toBe(true),
-    );
-    const audienceUrl = new URL(
-      mocks.fetch.mock.calls.find(([url]) => url.includes("kind=likers"))?.[0],
-      "https://web.test",
-    );
-    expect(audienceUrl.pathname).toBe(
-      `/api/projects/${projectA}/social-performance/${account.id}/audience`,
-    );
-    expect(audienceUrl.searchParams.get("postId")).toBe(ownPost.id);
-    expect(audienceUrl.searchParams.get("postId")).not.toBe(canonicalPost.id);
-    const ownedUrl = new URL(
-      mocks.fetch.mock.calls.find(([url]) =>
-        url.startsWith(`/api/projects/${projectA}/social-performance?`),
-      )?.[0],
-      "https://web.test",
-    );
-    expect(ownedUrl.searchParams.get("connectionId")).toBe(account.id);
-    expect(ownedUrl.searchParams.get("sort")).toBe("publishedAt");
-    expect(ownedUrl.searchParams.get("publishedFrom")).toBe(
-      new Date(page().range.publishedFrom).toISOString(),
-    );
-  });
-  it("uses full-cohort aggregates rather than the visible post page and forwards discovery filters", async () => {
     const result = page();
     mocks.fetch.mockResolvedValue({
       ok: true,
@@ -944,8 +876,10 @@ describe("SocialPostStatistics account history", () => {
     );
     const overview = await screen.findByTestId("social-performance-overview");
     expect(within(overview).getByTitle("120,000")).toHaveTextContent("120K");
-    expect(within(overview).getByText("Mean 240 · median 15")).toBeVisible();
-    expect(screen.getByText("Showing 1 of 500 matching posts")).toBeVisible();
+    expect(screen.queryByText("Details")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Showing 1 of 500 matching posts"),
+    ).not.toBeInTheDocument();
     const query = new URL(selectedReads()[0][0], "https://web.test")
       .searchParams;
     expect(query.get("timezone")).toBe("Europe/Prague");
@@ -953,387 +887,25 @@ describe("SocialPostStatistics account history", () => {
     expect(query.get("contentType")).toBe("video");
     expect(query.get("postKind")).toBe("quotes");
     expect(query.get("sort")).toBe("engagementRate");
-    expect(
-      screen
-        .getByRole("link", { name: "Export spreadsheet" })
-        .getAttribute("href"),
-    ).toContain("format=xlsx");
+    expect(await _getExportLink(user, "Export spreadsheet")).toContain(
+      "format=xlsx",
+    );
   });
-  it("offers native chart data, table previews and a bounded post comparison", async () => {
+  it("shows the trend chart and post cards without analyst controls", async () => {
     renderStatistics();
     const overview = await screen.findByTestId("social-performance-overview");
-    const exact = within(overview).getAllByText("Show exact values")[0];
-    expect(exact).toBeVisible();
-    fireEvent.click(exact);
-    expect(within(overview).getByText("Date")).toBeVisible();
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: /Select to compare/ }),
-    );
     expect(
-      screen.getByRole("heading", { name: "Compare posts (1)" }),
+      within(overview).getByRole("figure", { name: "Interactions" }),
     ).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
-    fireEvent.click(screen.getByRole("button", { name: /^Table$/ }));
+    expect(screen.queryByText("Show exact values")).not.toBeInTheDocument();
     const explorer = screen.getByTestId("social-performance-posts");
-    expect(
-      within(explorer).getByRole("columnheader", { name: "Engagement rate" }),
-    ).toBeVisible();
-    fireEvent.click(within(explorer).getByText("Show post preview"));
     expect(within(explorer).getByTestId("social-post-preview")).toBeVisible();
-  });
-  it("loads X audience only after expanding it and benchmarks only after a handle is submitted", async () => {
-    mocks.fetch.mockImplementation(async (url: string) => ({
-      ok: true,
-      json: async () =>
-        url.includes("/audience?")
-          ? {
-              kind: "mentions",
-              postId: null,
-              contacts: [],
-              posts: [],
-              nextCursor: null,
-              observedAt: "2026-10-08T08:00:00Z",
-              samplePostCount: 0,
-              oldestPostAt: null,
-              newestPostAt: null,
-              coverage: "Recent mentions only",
-            }
-          : url.includes("/benchmark?")
-            ? {
-                profile: {
-                  id: "public",
-                  name: "Public creator",
-                  username: "creator",
-                  avatarUrl: null,
-                  followersCount: 25,
-                },
-                observedAt: "2026-10-08T08:00:00Z",
-                summary: page().summary.current,
-                posts: [],
-                meanImpressionsToFollowers: null,
-                coverage: "Recent public posts only",
-              }
-            : page(),
-    }));
-    renderStatistics();
-    await screen.findByText(post.text);
-    expect(mocks.fetch).toHaveBeenCalledTimes(2);
-    fireEvent.click(screen.getByText("Audience and public benchmarks"));
-    expect(await screen.findByText("Recent mentions only")).toBeVisible();
     expect(
-      mocks.fetch.mock.calls.some(([url]) => url.includes("/benchmark?")),
-    ).toBe(false);
-    fireEvent.change(
-      screen.getByLabelText("X handle", {
-        selector: "#performance-benchmark-handle",
-      }),
-      {
-        target: { value: "@creator" },
-      },
-    );
-    fireEvent.submit(
-      screen.getByRole("button", { name: "Load benchmark" }).closest("form") ??
-        document.body,
-    );
-    expect(await screen.findByText("Public creator")).toBeVisible();
-    const benchmarkUrl = mocks.fetch.mock.calls.find(([url]) =>
-      url.includes("/benchmark?"),
-    )?.[0];
+      within(explorer).queryByRole("button", { name: /^Table$/ }),
+    ).not.toBeInTheDocument();
     expect(
-      new URL(benchmarkUrl, "https://web.test").searchParams.get("username"),
-    ).toBe("creator");
-  });
-  it("ranks only sufficiently measured historical posting windows and discloses stale private counters", async () => {
-    const result = page();
-    mocks.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        ...result,
-        heatmap: {
-          ...result.heatmap,
-          cells: [
-            {
-              weekday: 0,
-              hour: 9,
-              postCount: 9,
-              measuredPostCount: 9,
-              meanInteractions: 999,
-              meanEngagementRate: 10,
-            },
-            {
-              weekday: 1,
-              hour: 12,
-              postCount: 20,
-              measuredPostCount: 10,
-              meanInteractions: 20,
-              meanEngagementRate: 2,
-            },
-            {
-              weekday: 3,
-              hour: 15,
-              postCount: 15,
-              measuredPostCount: 15,
-              meanInteractions: 5,
-              meanEngagementRate: 1,
-            },
-          ],
-        },
-        posts: [
-          {
-            ...post,
-            additionalMetrics: [
-              {
-                key: "url_clicks",
-                value: 9,
-                period: "lifetime:2026-09-30T08:00:00Z",
-                unit: null,
-              },
-            ],
-          },
-        ],
-      }),
-    });
-    renderStatistics();
-    const heading = await screen.findByRole("heading", {
-      name: "Highest observed posting windows",
-    });
-    const ranking = within(heading.parentElement ?? document.body);
-    const rows = ranking.getAllByRole("row").slice(1);
-    expect(rows).toHaveLength(2);
-    expect(rows[0]).toHaveTextContent("Tue 12:00");
-    expect(rows[1]).toHaveTextContent("Thu 15:00");
-    expect(ranking.queryByText("999")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("More metrics"));
-    expect(screen.getByText(/Lifetime counter measured Sep 30/)).toBeVisible();
-  });
-  it("deduplicates incoming evidence across pages, stops repeated cursors and exports only loaded pages", async () => {
-    const contact = {
-      id: "reply-author",
-      name: "Reply author",
-      username: "reader",
-      description: null,
-      location: null,
-      avatarUrl: null,
-      followersCount: 50,
-      interactions: 1,
-      replies: 1,
-      quotes: 0,
-      mentions: 0,
-      likes: null,
-      reposts: null,
-    };
-    const sample = {
-      kind: "mentions",
-      postId: null,
-      contacts: [contact],
-      posts: [
-        {
-          author: contact,
-          post: {
-            ...post,
-            externalId: "reply-1",
-            text: "An incoming reply",
-            url: "https://x.com/reader/status/456",
-          },
-          interactionType: "reply",
-        },
-      ],
-      nextCursor: "repeat",
-      observedAt: "2026-10-08T08:00:00Z",
-      samplePostCount: 1,
-      oldestPostAt: null,
-      newestPostAt: null,
-      coverage: "Recent mentions sample",
-    };
-    const createUrl = vi.fn(() => "blob:sample");
-    const revokeUrl = vi.fn();
-    const BrowserURL = URL;
-    vi.stubGlobal(
-      "URL",
-      class extends BrowserURL {
-        static createObjectURL = createUrl;
-        static revokeObjectURL = revokeUrl;
-      },
-    );
-    const click = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(() => {});
-    mocks.fetch.mockImplementation(async (url: string) =>
-      url.endsWith("/audience/export")
-        ? new Response("csv")
-        : {
-            ok: true,
-            json: async () => (url.includes("/audience?") ? sample : page()),
-          },
-    );
-    renderStatistics();
-    await screen.findByText(post.text);
-    fireEvent.click(screen.getByText("Audience and public benchmarks"));
-    expect(await screen.findByText("An incoming reply")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Load more contacts" }));
-    await waitFor(() =>
-      expect(
-        screen.queryByRole("button", { name: "Load more contacts" }),
-      ).not.toBeInTheDocument(),
-    );
-    expect(screen.getAllByText("An incoming reply")).toHaveLength(1);
-    const row = screen
-      .getAllByText("Reply author")
-      .map((element) => element.closest("tr"))
-      .find(Boolean);
-    expect(row?.querySelectorAll("td")[3]).toHaveTextContent("1");
-    fireEvent.click(
-      screen.getByRole("button", { name: "Export loaded audience (CSV)" }),
-    );
-    await waitFor(() => expect(createUrl).toHaveBeenCalledTimes(1));
-    const exportCall = mocks.fetch.mock.calls.find(([url]) =>
-      url.endsWith("/audience/export"),
-    );
-    expect(JSON.parse(exportCall?.[1].body)).toEqual({
-      format: "csv",
-      pages: [sample, sample],
-    });
-    expect(
-      mocks.fetch.mock.calls.filter(([url]) => url.includes("/audience?"))
-        .length,
-    ).toBe(2);
-    expect(revokeUrl).toHaveBeenCalledWith("blob:sample");
-    click.mockRestore();
-  });
-  it("searches public content only on submission and forwards sample filters", async () => {
-    mocks.fetch.mockImplementation(async (url: string) => ({
-      ok: true,
-      json: async () =>
-        url.includes("/discovery?")
-          ? {
-              posts: [],
-              nextCursor: null,
-              observedAt: "2026-10-08T08:00:00Z",
-              publishedFrom: "2026-10-01T08:01:00Z",
-              publishedUntil: "2026-10-08T08:00:00Z",
-              samplePostCount: 20,
-              matchedPostCount: 0,
-              missingCounterPostCount: 5,
-              coverage: "Seven-day public sample",
-            }
-          : url.includes("/audience?")
-            ? {
-                kind: "mentions",
-                postId: null,
-                contacts: [],
-                posts: [],
-                nextCursor: null,
-                observedAt: "2026-10-08T08:00:00Z",
-                samplePostCount: 0,
-                oldestPostAt: null,
-                newestPostAt: null,
-                coverage: "Recent mentions only",
-              }
-            : page(),
-    }));
-    renderStatistics();
-    await screen.findByText(post.text);
-    fireEvent.click(screen.getByText("Audience and public benchmarks"));
-    await screen.findByText("Recent mentions only");
-    expect(
-      mocks.fetch.mock.calls.some(([url]) => url.includes("/discovery?")),
-    ).toBe(false);
-    fireEvent.change(
-      screen.getByRole("textbox", { name: "Topic or keyword" }),
-      { target: { value: "design" } },
-    );
-    fireEvent.change(screen.getByRole("textbox", { name: "Language code" }), {
-      target: { value: "en" },
-    });
-    fireEvent.click(screen.getByText("Dates and minimum counters"));
-    fireEvent.change(
-      screen.getByRole("spinbutton", { name: "Minimum likes" }),
-      { target: { value: "10" } },
-    );
-    fireEvent.submit(
-      screen
-        .getByRole("button", { name: "Search public posts" })
-        .closest("form") ?? document.body,
-    );
-    expect(await screen.findByText("Seven-day public sample")).toBeVisible();
-    const searchUrl = mocks.fetch.mock.calls.find(([url]) =>
-      url.includes("/discovery?"),
-    )?.[0];
-    const query = new URL(searchUrl, "https://web.test").searchParams;
-    expect(query.get("topic")).toBe("design");
-    expect(query.get("language")).toBe("en");
-    expect(query.get("minLikes")).toBe("10");
-    expect(
-      screen.getByText(/5 rows excluded for missing counters/),
-    ).toBeVisible();
-  });
-  it("pins the public discovery sample range across cursors and retains it when retention expires", async () => {
-    const from = "2026-10-01T08:01:00.000Z";
-    const until = "2026-10-08T08:00:00.000Z";
-    mocks.fetch.mockImplementation(async (url: string) => {
-      if (
-        url.includes("/discovery?") &&
-        new URL(url, "https://web.test").searchParams.has("cursor")
-      )
-        return { ok: false, status: 422 };
-      return {
-        ok: true,
-        json: async () =>
-          url.includes("/discovery?")
-            ? {
-                posts: [],
-                nextCursor: "page2",
-                observedAt: until,
-                publishedFrom: from,
-                publishedUntil: until,
-                samplePostCount: 20,
-                matchedPostCount: 0,
-                missingCounterPostCount: 0,
-                coverage: "Original seven-day sample",
-              }
-            : url.includes("/audience?")
-              ? {
-                  kind: "mentions",
-                  contacts: [],
-                  posts: [],
-                  nextCursor: null,
-                  observedAt: until,
-                  samplePostCount: 0,
-                  oldestPostAt: null,
-                  newestPostAt: null,
-                  coverage: "Recent mentions only",
-                }
-              : page(),
-      };
-    });
-    renderStatistics();
-    await screen.findByText(post.text);
-    fireEvent.click(screen.getByText("Audience and public benchmarks"));
-    fireEvent.change(
-      screen.getByRole("textbox", { name: "Topic or keyword" }),
-      { target: { value: "design" } },
-    );
-    fireEvent.submit(
-      screen
-        .getByRole("button", { name: "Search public posts" })
-        .closest("form") ?? document.body,
-    );
-    await screen.findByText("Original seven-day sample");
-    fireEvent.click(screen.getByRole("button", { name: "Load more posts" }));
-    expect(
-      await screen.findByText(
-        en.App.Projects.SocialPosts.statistics.performance.researchFailed,
-      ),
-    ).toBeVisible();
-    const requests = mocks.fetch.mock.calls
-      .filter(([url]) => url.includes("/discovery?"))
-      .map(([url]) => new URL(url, "https://web.test").searchParams);
-    expect(requests).toHaveLength(2);
-    expect(requests[0].has("publishedFrom")).toBe(false);
-    expect(requests[1].get("publishedFrom")).toBe(from);
-    expect(requests[1].get("publishedUntil")).toBe(until);
-    expect(requests[1].get("cursor")).toBe("page2");
-    expect(screen.getByText("Original seven-day sample")).toBeVisible();
+      screen.queryByRole("checkbox", { name: /Select to compare/ }),
+    ).not.toBeInTheDocument();
   });
   it("keeps zero distinct from unavailable and shows exact values for compact counts", async () => {
     mocks.fetch.mockResolvedValue({
@@ -1412,27 +984,21 @@ describe("SocialPostStatistics account history", () => {
     expect(await screen.findByText(post.text)).toBeVisible();
   });
 
-  it("shows connected accounts as tabs with selected-account metrics and external read-only posts", async () => {
+  it("shows connected accounts in the account select and external read-only posts", async () => {
+    const user = userEvent.setup();
     renderStatistics();
     expect(await screen.findByText(post.text)).toBeVisible();
+    await user.click(accountCombobox());
     expect(
-      screen.getByRole("tab", { name: "Brand page Facebook" }),
+      screen.getByRole("option", { name: /launch account/i }),
     ).toBeVisible();
+    expect(screen.getByRole("option", { name: /brand page/i })).toBeVisible();
+    await user.keyboard("{Escape}");
     expect(
       screen.queryByRole("heading", { name: "Brand page" }),
     ).not.toBeInTheDocument();
-    openAccountDetails();
-    expect(accountCard("Launch account").getByText("0")).toBeVisible();
-    expect(
-      accountCard("Launch account").getByText("Unavailable"),
-    ).toBeVisible();
-    expect(accountCard("Launch account").getByText("Lifetime")).toBeVisible();
-    expect(
-      accountCard("Launch account").getByText("Last 28 days"),
-    ).toBeVisible();
-    expect(screen.getByText("Link clicks")).not.toBeVisible();
-    fireEvent.click(screen.getByText("More metrics"));
-    expect(screen.getByText("Link clicks")).toBeVisible();
+    expect(screen.queryByText("Link clicks")).not.toBeInTheDocument();
+    expect(screen.queryByText("More metrics")).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", {
         name: en.App.Projects.SocialPosts.statistics.openPost,
@@ -1459,34 +1025,33 @@ describe("SocialPostStatistics account history", () => {
     const { createTestFormatter } = await import("@/test/intl-formatter");
     const reader = createTestFormatter({ timeZone: "America/Los_Angeles" });
     expect(
-      screen.getByText(
-        reader.dateTime(new Date(post.publishedAt), "dateTime", {
+      within(screen.getByTestId("social-post-preview")).getByText(
+        reader.dateTime(new Date(post.publishedAt), {
+          dateStyle: "medium",
           timeZone: "UTC",
-          timeZoneName: "short",
         }),
-        { exact: false },
       ),
     ).toBeVisible();
-    expect(
-      screen.getByRole("tab", { name: "Brand page Facebook" }),
-    ).toBeVisible();
+    const user = userEvent.setup();
+    await user.click(accountCombobox());
+    expect(screen.getByRole("option", { name: /brand page/i })).toBeVisible();
     expect(
       screen.queryByRole("heading", { name: "Brand page" }),
     ).not.toBeInTheDocument();
   });
   it("keeps account metrics visible while publication date filters are invalid", async () => {
     renderStatistics("?publishedFrom=2026-10-08&publishedUntil=2026-10-01");
-    expect(
-      await screen.findByRole("heading", { name: "Launch account" }),
-    ).toBeVisible();
+    // Account information should still be visible in the header
+    expect(await screen.findByText("Launch account")).toBeVisible();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Choose an ordered publication range",
     );
     expect(screen.queryByText(post.text)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Export CSV" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Export spreadsheet" }),
-    ).toBeDisabled();
+    // Export options are now in a dropdown menu - check they're disabled
+    const moreActionsButton = screen.getByRole("button", {
+      name: "More actions",
+    });
+    expect(moreActionsButton).toBeVisible();
     const url = new URL(mocks.fetch.mock.calls[0][0], "https://web.test");
     expect(url.searchParams.has("publishedFrom")).toBe(false);
     expect(url.searchParams.has("publishedUntil")).toBe(false);
@@ -1511,13 +1076,8 @@ describe("SocialPostStatistics account history", () => {
     });
     renderStatistics();
     await screen.findByText(post.text);
-    expect(screen.getByText(/Some post metrics are unavailable/)).toBeVisible();
-    openAccountDetails();
-    expect(
-      screen.getByText(
-        "All history currently available from the platform has been imported.",
-      ),
-    ).toBeVisible();
+    expect(screen.getByText("Some post metrics missing")).toBeVisible();
+    expect(screen.queryByText("Limited history")).not.toBeInTheDocument();
   });
 
   it("loads every cached post page", async () => {
@@ -1592,11 +1152,7 @@ describe("SocialPostStatistics account history", () => {
       .mockResolvedValueOnce(response(account));
     renderStatistics();
     await screen.findByText(post.text);
-    fireEvent.click(
-      accountCard("Launch account").getByRole("button", {
-        name: "Sync account",
-      }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(2));
   });
   it("resumes an incomplete retained history cursor", async () => {
@@ -1633,16 +1189,10 @@ describe("SocialPostStatistics account history", () => {
       .mockResolvedValueOnce({ ok: false, error: { message: "Rate limited" } });
     renderStatistics();
     await screen.findByText(post.text);
-    fireEvent.click(
-      accountCard("Launch account").getByRole("button", {
-        name: "Sync account",
-      }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(2));
     expect(
-      await accountCard("Launch account").findByRole("button", {
-        name: "Resume sync",
-      }),
+      await screen.findByRole("button", { name: "Resume sync" }),
     ).toBeEnabled();
     expect(screen.getByText(post.text)).toBeVisible();
   });
@@ -1657,18 +1207,12 @@ describe("SocialPostStatistics account history", () => {
     );
     renderStatistics();
     await screen.findByText(post.text);
-    fireEvent.click(
-      accountCard("Launch account").getByRole("button", {
-        name: "Sync account",
-      }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
     fireEvent.click(await screen.findByRole("button", { name: "Stop sync" }));
     await act(async () => resolvePage(response(account, "next-page")));
     await waitFor(() =>
       expect(
-        accountCard("Launch account").getByRole("button", {
-          name: "Sync account",
-        }),
+        screen.getByRole("button", { name: "Sync account" }),
       ).toBeEnabled(),
     );
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
@@ -1683,11 +1227,7 @@ describe("SocialPostStatistics account history", () => {
     );
     const rendered = renderStatistics();
     await screen.findByText(post.text);
-    fireEvent.click(
-      accountCard("Launch account").getByRole("button", {
-        name: "Sync account",
-      }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
     rendered.unmount();
     await act(async () => resolvePage(response(account, "next-page")));
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
@@ -1701,9 +1241,7 @@ describe("SocialPostStatistics account history", () => {
     await screen.findByText(post.text);
     fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
-    expect(
-      accountCard("Launch account").getByText(/Cached results are retained/),
-    ).toBeVisible();
+    expect(screen.getByText("Sync failed. Saved results kept.")).toBeVisible();
     expect(screen.getByText(post.text)).toBeVisible();
   });
   it("shows provider history limitations without claiming completion and disables reauthorization-required sync", async () => {
@@ -1725,15 +1263,10 @@ describe("SocialPostStatistics account history", () => {
     });
     renderStatistics();
     await screen.findByText(post.text);
-    openAccountDetails();
-    expect(
-      screen.getByText("Platform exposes only the most recent posts"),
-    ).toBeVisible();
-    expect(
-      screen.queryByText(
-        "All history currently available from the platform has been imported.",
-      ),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText("Limited history")).toHaveAttribute(
+      "title",
+      "Check the account permissions and sync again.",
+    );
     expect(screen.getByRole("button", { name: "Sync account" })).toBeDisabled();
     expect(
       screen.getByRole("link", { name: "Manage accounts" }),

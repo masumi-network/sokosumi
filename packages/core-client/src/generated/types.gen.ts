@@ -5964,6 +5964,7 @@ export type SocialPerformanceResponse = {
         date: Date;
         summary: SocialPerformanceSummary;
     }>;
+    consistency: SocialPerformanceConsistency;
     comparisons: {
         accounts: Array<{
             connectionId: string;
@@ -6072,6 +6073,18 @@ export type SocialPerformanceRate = {
     mean: number | null;
     median: number | null;
     measuredPostCount: number;
+};
+
+export type SocialPerformanceConsistency = {
+    from: Date | null;
+    until: Date | null;
+    selectedFrom: Date;
+    selectedUntil: Date;
+    daily: Array<{
+        date: Date;
+        postCount: number;
+        interactions: number | null;
+    }>;
 };
 
 export type SocialPerformancePost = SocialAccountPost & {
@@ -8527,6 +8540,7 @@ export type WorkspaceSocialPerformanceResponse = {
         date: Date;
         summary: SocialPerformanceSummary;
     }>;
+    consistency: SocialPerformanceConsistency;
     comparisons: {
         accounts: Array<{
             connectionId: string;

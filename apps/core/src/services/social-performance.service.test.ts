@@ -312,6 +312,69 @@ describe("social performance aggregation", () => {
     expect(result.heatmap.cells).toHaveLength(168);
     expect(result.heatmap.minimumSampleSize).toBe(10);
   });
+  it("builds calendar history through today and leaves the preset cohort unchanged", () => {
+    const now = new Date("2026-10-10T12:00:00Z");
+    const posts = [
+      post(1, { publishedAt: "2026-10-02T12:00:00Z" }),
+      post(2, { publishedAt: "2026-04-01T12:00:00Z" }),
+      post(3, { publishedAt: "2025-10-10T12:00:00Z" }),
+      post(4, { publishedAt: "2025-10-09T12:00:00Z" }),
+      post(5, { publishedAt: "2026-05-01T12:00:00Z", postKind: "reply" }),
+    ];
+    const result = build(posts, { now });
+    expect(result.summary.current.postCount).toBe(1);
+    expect(result.daily).toHaveLength(7);
+    expect(
+      result.daily.reduce((sum, day) => sum + day.summary.postCount, 0),
+    ).toBe(1);
+    expect(result.consistency).toMatchObject({
+      from: "2025-10-10",
+      until: "2026-10-10",
+      selectedFrom: "2026-10-01",
+      selectedUntil: "2026-10-07",
+    });
+    expect(result.consistency.daily).toHaveLength(366);
+    expect(result.consistency.daily[0]).toMatchObject({
+      date: "2025-10-10",
+      postCount: 1,
+    });
+    expect(result.consistency.daily.at(-1)?.date).toBe("2026-10-10");
+    expect(
+      result.consistency.daily.find((day) => day.date === "2026-04-01"),
+    ).toMatchObject({ postCount: 1 });
+    expect(
+      result.consistency.daily.find((day) => day.date === "2026-04-02"),
+    ).toMatchObject({ postCount: 0, interactions: 0 });
+    expect(
+      result.consistency.daily.find((day) => day.date === "2026-05-01"),
+    ).toMatchObject({ postCount: 0 });
+    expect(
+      result.consistency.daily.some((day) => day.date === "2025-10-09"),
+    ).toBe(false);
+    const searched = build(posts, {
+      now,
+      query: { ...query, search: "missing" },
+    });
+    expect(searched.summary.current.postCount).toBe(0);
+    expect(searched.consistency.from).toBe("2025-10-10");
+    expect(build([], { now }).consistency).toMatchObject({
+      from: null,
+      until: null,
+      daily: [],
+    });
+    const recentOnly = build(
+      [post(1, { publishedAt: "2026-10-02T12:00:00Z" })],
+      { now },
+    );
+    expect(recentOnly.consistency).toMatchObject({
+      from: "2026-10-02",
+      until: "2026-10-10",
+    });
+    expect(recentOnly.consistency.daily).toHaveLength(9);
+    expect(
+      recentOnly.consistency.daily.some((day) => day.date < "2026-10-02"),
+    ).toBe(false);
+  });
   it("requires ten measured earlier posts for an account-specific median multiplier", () => {
     const baseline = Array.from({ length: 10 }, (_, index) =>
       post(index + 2, { publishedAt: "2026-09-20T12:00:00Z" }),
@@ -497,6 +560,16 @@ describe("social performance cache access", () => {
       }),
     );
     expect(mocks.posts.mock.calls[0][0]).not.toHaveProperty("take");
+    const publishedAt = mocks.posts.mock.calls[0][0].where.publishedAt as {
+      gte: Date;
+      lte: Date;
+    };
+    expect(publishedAt.lte.getTime()).toBeGreaterThanOrEqual(
+      Date.parse("2026-10-07T23:59:59.999Z"),
+    );
+    expect(publishedAt.gte.getTime()).toBeLessThanOrEqual(
+      Date.now() - 365 * 86_400_000,
+    );
     expect(result.summary.current.postCount).toBe(1);
     expect(result.posts).toHaveLength(1);
   });
