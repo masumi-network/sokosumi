@@ -234,7 +234,7 @@ async function topSkills(): Promise<SkillCatalogItem[]> {
 }
 
 /** Only results that contain the query; name matches first, then by installs. */
-export function rankSkillMatches(
+function rankSkillMatches(
   items: readonly SkillCatalogItem[],
   query: string,
 ): SkillCatalogItem[] {
