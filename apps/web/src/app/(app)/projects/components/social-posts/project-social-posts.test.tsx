@@ -30,6 +30,7 @@ import {
 } from "@/lib/actions/project/action";
 import { createTestFormatter } from "@/test/intl-formatter";
 import { TestQueryProvider } from "@/test/query-provider";
+import { stubLoadedImage } from "@/test/stub-pending-image-load";
 
 import { loadMoreSocialPosts } from "./actions";
 import { writeRememberedComposerAccounts } from "./social-post-composer-accounts";
@@ -1706,6 +1707,90 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(screen.getByRole("dialog")).getByTestId("social-post-accounts"),
     ).toBeVisible();
+  });
+
+  it("keeps the network logo on a composer chip without a photo", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const chip = within(screen.getByRole("dialog")).getByRole("button", {
+      name: "X @sokosumi",
+    });
+    expect(within(chip).getByTestId("social-post-account-logo")).toBeVisible();
+    expect(
+      within(chip).queryByTestId("social-post-account-photo"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(chip).queryByTestId("social-post-account-logo-badge"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the account photo with a network logo badge", async () => {
+    const restore = stubLoadedImage();
+    const photo =
+      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect width='8' height='8' fill='%23111'/></svg>";
+    try {
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection({ avatarUrl: photo })]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const chip = within(screen.getByRole("dialog")).getByRole("button", {
+        name: "X @sokosumi",
+      });
+      await waitFor(() => {
+        expect(
+          within(chip).getByTestId("social-post-account-photo"),
+        ).toHaveAttribute("src", photo);
+      });
+      expect(
+        within(chip).getByTestId("social-post-account-logo"),
+      ).toBeVisible();
+      expect(
+        within(chip).getByTestId("social-post-account-logo-badge"),
+      ).toBeVisible();
+    } finally {
+      restore();
+    }
+  });
+
+  it("falls back to the network logo when the account photo fails", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection({ avatarUrl: "https://example.invalid/missing.png" }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const chip = within(screen.getByRole("dialog")).getByRole("button", {
+      name: "X @sokosumi",
+    });
+    await waitFor(() => {
+      expect(
+        within(chip).queryByTestId("social-post-account-photo"),
+      ).not.toBeInTheDocument();
+    });
+    expect(within(chip).getByTestId("social-post-account-logo")).toBeVisible();
+    expect(
+      within(chip).queryByTestId("social-post-account-logo-badge"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders media thumbnails in a linked post preview", () => {
