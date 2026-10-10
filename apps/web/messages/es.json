@@ -2517,9 +2517,9 @@
             "now": "Ahora"
           },
           "timezone": {
-            "yours": "Las horas están en tu zona horaria, {zone}.",
-            "goesOut": "Sale el {date}, tu hora ({zone}).",
-            "postZone": "Programada para {date} en {zone}."
+            "yours": "Tu zona horaria: {zone}",
+            "goesOut": "Sale el {date} ({zone})",
+            "postZone": "Programada como {date} ({zone})"
           },
           "platforms": "Límites por plataforma",
           "platformLimit": "{provider}: {format} · {count} / {limit}",

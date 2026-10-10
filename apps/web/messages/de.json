@@ -2517,9 +2517,9 @@
             "now": "Jetzt"
           },
           "timezone": {
-            "yours": "Zeiten in deiner Zeitzone, {zone}.",
-            "goesOut": "Erscheint am {date}, deine Zeit ({zone}).",
-            "postZone": "Geplant für {date} in {zone}."
+            "yours": "Deine Zeitzone: {zone}",
+            "goesOut": "Erscheint {date} ({zone})",
+            "postZone": "Geplant als {date} ({zone})"
           },
           "platforms": "Limits pro Plattform",
           "platformLimit": "{provider}-{format} · {count} / {limit}",
