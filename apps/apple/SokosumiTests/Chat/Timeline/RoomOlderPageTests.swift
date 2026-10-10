@@ -29,6 +29,8 @@
         // Settle elastic scrolling before measuring the pending page insertion.
         try await Task.sleep(for: .milliseconds(300))
         host.layoutSubtreeIfNeeded()
+        let beforeMessages = try visibleMessageIDs(in: host)
+        let beforeMessage = beforeMessages.map { $0[$0.count / 2] }
         let before = try TranscriptReadingPosition.snapshot(host)
         let height = documentHeight(scroll)
         let beforeOffset = scroll.contentView.bounds.minY
@@ -40,6 +42,9 @@
         host.layoutSubtreeIfNeeded()
         Attachment.record("before: offset \(beforeOffset) pt of \(height) pt; after: offset \(scroll.contentView.bounds.minY) pt of \(documentHeight(scroll)) pt",
                           named: "landed-page-offsets.txt")
+        if let beforeMessage {
+          #expect(try visibleMessageIDs(in: host)?.contains(beforeMessage) == true, "The message in the middle of the viewport stays visible after the older page lands.")
+        }
         try await TranscriptReadingPosition.expectStable(host, before: before)
       }
 
@@ -82,6 +87,8 @@
         }
         #expect(streamed, "Visible Markdown updates while the older page stays deferred.")
         #expect(abs(documentHeight(scroll) - height) < 100, "Streaming must not release the older prefix.")
+        let beforeMessages = try visibleMessageIDs(in: host)
+        let beforeMessage = beforeMessages.map { $0[$0.count / 2] }
         let before = try TranscriptReadingPosition.snapshot(host)
         let beforeOffset = scroll.contentView.bounds.minY
         try sendTranscriptScroll(scroll, delta: 0, phase: 4)
@@ -92,7 +99,26 @@
         host.layoutSubtreeIfNeeded()
         Attachment.record("before: offset \(beforeOffset) pt of \(height) pt; after: offset \(scroll.contentView.bounds.minY) pt of \(documentHeight(scroll)) pt",
                           named: "held-page-offsets.txt")
+        if let beforeMessage {
+          #expect(try visibleMessageIDs(in: host)?.contains(beforeMessage) == true, "The message in the middle of the viewport stays visible after the older page lands.")
+        }
         try await TranscriptReadingPosition.expectStable(host, before: before)
+      }
+
+      /// Pixel similarity alone can miss a jump between rows with repeated fixture text. Keep a middle row
+      /// visible; the boundary row can change when its day pill disappears after insertion.
+      private func visibleMessageIDs(in host: NSView) throws -> [String]? {
+        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+        guard let lines = try TranscriptScrollingTests.recognizedLines(in: bitmap) else { return nil }
+        let messages = lines.compactMap { line -> String? in
+          guard let header = line.range(of: #"^Message\s*\d+"#, options: .regularExpression),
+                let digits = line[header].range(of: #"\d+"#, options: .regularExpression) else { return nil }
+          return String(line[digits])
+        }
+        try #require(!messages.isEmpty, "Expected visible message headers; OCR read: \(lines)")
+        Attachment.record("visible: \(messages)", named: "older-page-message-identity.txt")
+        return messages
       }
 
       private func makeWindow(_ state: WorkspaceState) -> (NSWindow, NSView) {

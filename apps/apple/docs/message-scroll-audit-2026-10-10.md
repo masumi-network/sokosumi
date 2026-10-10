@@ -231,3 +231,78 @@ bundles, scoped hitch reports, and both traces are saved in
 `RoomTimelineView.list.swift`; native comparisons are `list-native-tests.xcresult`
 and `lazy-native-control.xcresult`, with the focused retry in
 `lazy-scrolling-retry.xcresult`.
+
+### Minimal native List fix and realistic Core pages
+
+The follow-up corrects two limitations of the initial fixture above. Delivering
+synthetic wheel events directly to List's scroll view did not reproduce a native
+scroll gesture: the 80 pt movement, missing older request, and 220 pt growth jump
+are not accepted as product failures. Native queued scroller dragging verified
+normal room scrolling and history streaming. Pinned growth, including tall
+content, also passed. Native accessibility scrolling moved through visible
+messages; three actions recorded no presentation hitches in the scoped trace.
+Trackpad phase behavior remains unverified: this host's event-posting preflight
+returned false, and no permissions were changed.
+
+A minimal `ScrollViewReader` jump from a task, with one `Task.yield()` before
+`scrollTo`, restored message-link landing. All six room/thread parameter runs
+passed. Older-page restoration still failed: after an explicit Core request and
+native scrolling to the top, OCR read **Message 40 before insertion and Message
+10 afterward**. Removing the manual page correction failed; yielding before the
+page's ID correction also failed in three repeated runs. The pixel comparison
+alone had passed despite this identity change. The existing older-page tests now
+reuse the accurate OCR helper from the message-link tests and check visible
+message identity as well as pixel stability. The identity check uses a middle
+visible row: LazyVStack correctly reveals row 39 when the boundary day pill
+disappears, while retaining rows 40–46. Requiring the first OCR header to remain
+identical would mistake this boundary change for a history jump. The helper
+retains its existing fallback when Vision is unavailable on CI.
+
+The repeatable performance comparison used the same 600-message mixed corpus,
+100 initially loaded rows, five 100-row older Core pages, and a 150 ms fixture
+response delay. Each run completed six requests and published all 600 rows.
+The reader rested before each insertion. Three alternating, standalone pairs
+measured the following main-thread display-callback gaps:
+
+| Run | List first publication | LazyVStack first publication | List worst publication | LazyVStack worst publication |
+| --- | --- | --- | --- | --- |
+| 1 | 326 ms | 48 ms | 333 ms | 69 ms |
+| 2 | 329 ms | 65 ms | 329 ms | 83 ms |
+| 3 | 355 ms | 69 ms | 355 ms | 72 ms |
+
+These scheduling gaps are not FPS or presentation delays. The at-rest Instruments
+captures reported zero presentation hitches for both variants; without animated
+scrolling, that does not demonstrate responsive insertion. The earlier 30-row
+control does not establish a performance advantage for realistic 100-row pages.
+
+Time Profiler sampled 352 ms of main-thread CPU in the first List publication
+window (50 ms before through 700 ms after publication; startup excluded). Dominant
+inclusive stacks were `OutlineListCoordinator.update` (232 ms), table updates
+(220 ms), automatic inserted/visible row heights (211 ms), and row mounting
+(140 ms). SwiftUI graph work accounted for 245 ms, layout sizing 40 ms, and
+`MessageRowView.body` 13 ms. These weights overlap and must not be added.
+Markdown preparation took 16 ms on a background thread, with none sampled on
+main; image decoding was also background work. This one insertion attributes
+CPU cost to native List row updates and automatic heights. It does not establish
+SwiftUI invalidation causes or presented-frame latency.
+
+**Decision: retain LazyVStack.** The small fix resolves message links, but List
+still loses the reader's message on older-page insertion and produces longer
+main-thread callback gaps in the realistic page comparison. No List code, extra timers, or native
+scroll-controller bridge is included in the PR.
+
+Follow-up artifacts are in `/tmp/sokosumi-apple-list-fix-20261010`: the three
+`list-core-pair-*` / `lazy-core-pair-*` JSON pairs, `list-yield-both.xcresult`,
+`lazy-middle-identity.xcresult`, `list-core-pages.trace`,
+`lazy-core-pages.trace`, and `list-core-cpu.trace`. CPU attribution is saved in
+`list-core-first-publication-stacks.json` and `list-core-cpu.time-profile.xml`.
+All build/test hosts used team signing and in-memory auth.
+
+The production LazyVStack control passed both older-page tests with OCR enabled
+(including streamed content while history waits), all five growth checks, and
+all four room/thread scrolling and message-link parameter cases. The media
+completion assertion now waits with the existing bounded view helper rather
+than racing the asynchronous image request. Results are in
+`lazy-middle-identity.xcresult` (paging/growth) and `lazy-media-wait.xcresult`
+(scrolling/message links). Strict SwiftLint, SwiftFormat, diff whitespace, and
+the documentation script-reference check passed.
