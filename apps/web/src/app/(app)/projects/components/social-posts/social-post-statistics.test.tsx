@@ -264,30 +264,22 @@ describe("SocialPostStatistics account history", () => {
       ).searchParams.get("cursor"),
     ).toBe("next-post");
   });
-  it("syncs all account history pages sequentially and refreshes visible cache after each page", async () => {
+  it("enqueues one refresh per account and never walks history in the browser", async () => {
     mocks.refresh
       .mockResolvedValueOnce(response(account, "provider-page-2"))
-      .mockResolvedValueOnce(response(account))
       .mockResolvedValueOnce(response(secondAccount));
     renderStatistics();
     await screen.findByText(post.text);
     fireEvent.click(screen.getByRole("button", { name: "Sync all accounts" }));
-    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(2));
     expect(mocks.refresh.mock.calls.map(([params]) => params)).toEqual([
       {
         projectId: "project-1",
         connectionId: account.id,
-        continueHistory: false,
-      },
-      {
-        projectId: "project-1",
-        connectionId: account.id,
-        continueHistory: true,
       },
       {
         projectId: "project-1",
         connectionId: secondAccount.id,
-        continueHistory: false,
       },
     ]);
     await waitFor(() =>
@@ -295,36 +287,8 @@ describe("SocialPostStatistics account history", () => {
         screen.getByRole("button", { name: "Sync all accounts" }),
       ).toBeEnabled(),
     );
-    expect(mocks.fetch).toHaveBeenCalledTimes(4);
   });
-  it("continues history when account metrics are unavailable but a next page exists", async () => {
-    const result = response(account, "provider-page-2");
-    mocks.refresh
-      .mockResolvedValueOnce({
-        ...result,
-        value: {
-          ...result.value,
-          account: {
-            ...result.value.account,
-            statistics: {
-              ...result.value.account.statistics,
-              error: "Account insights unavailable",
-              metricWarning: "Some post metrics unavailable",
-            },
-          },
-        },
-      })
-      .mockResolvedValueOnce(response(account));
-    renderStatistics();
-    await screen.findByText(post.text);
-    fireEvent.click(
-      accountCard("Launch account").getByRole("button", {
-        name: "Sync account",
-      }),
-    );
-    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(2));
-  });
-  it("resumes an incomplete retained history cursor", async () => {
+  it("enqueues a single refresh for an incomplete retained history cursor", async () => {
     mocks.fetch.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -344,60 +308,11 @@ describe("SocialPostStatistics account history", () => {
       expect(mocks.refresh).toHaveBeenCalledWith({
         projectId: "project-1",
         connectionId: account.id,
-        continueHistory: true,
       }),
-    );
-  });
-  it("retains the returned resume cursor when a follow-up cache read fails", async () => {
-    mocks.fetch
-      .mockResolvedValueOnce({ ok: true, json: async () => page() })
-      .mockResolvedValue({ ok: false });
-    mocks.refresh
-      .mockResolvedValueOnce(response(account, "retained-next-page"))
-      .mockResolvedValueOnce({ ok: false, error: { message: "Rate limited" } });
-    renderStatistics();
-    await screen.findByText(post.text);
-    fireEvent.click(
-      accountCard("Launch account").getByRole("button", {
-        name: "Sync account",
-      }),
-    );
-    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(2));
-    expect(
-      await accountCard("Launch account").findByRole("button", {
-        name: "Resume sync",
-      }),
-    ).toBeEnabled();
-    expect(screen.getByText(post.text)).toBeVisible();
-  });
-
-  it("stops after the in-flight page when canceled", async () => {
-    let resolvePage: (value: ReturnType<typeof response>) => void = () => {};
-    mocks.refresh.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolvePage = resolve;
-        }),
-    );
-    renderStatistics();
-    await screen.findByText(post.text);
-    fireEvent.click(
-      accountCard("Launch account").getByRole("button", {
-        name: "Sync account",
-      }),
-    );
-    fireEvent.click(await screen.findByRole("button", { name: "Stop sync" }));
-    await act(async () => resolvePage(response(account, "next-page")));
-    await waitFor(() =>
-      expect(
-        accountCard("Launch account").getByRole("button", {
-          name: "Sync account",
-        }),
-      ).toBeEnabled(),
     );
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
-  it("does not request another page after unmount", async () => {
+  it("does not enqueue again after unmount", async () => {
     let resolvePage: (value: ReturnType<typeof response>) => void = () => {};
     mocks.refresh.mockImplementation(
       () =>
