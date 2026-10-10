@@ -56,7 +56,7 @@ const MESSAGES: Record<string, string> = {
   unknownHandle: "Unknown account",
   "replaceDialog.title": "Replace this account?",
   "replaceDialog.description":
-    "The current account will be disconnected before you connect a replacement.",
+    "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
   "replaceDialog.confirm": "Replace account",
   "disconnectDialog.title": "Disconnect this account?",
   "disconnectDialog.description":
@@ -998,6 +998,9 @@ describe("ProjectSocialAccounts", () => {
 
     await chooseAccountAction(user, "Replace");
     const replaceDialog = screen.getByRole("alertdialog");
+    expect(replaceDialog).toHaveTextContent(
+      "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
+    );
     expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
     await user.click(
       within(replaceDialog).getByRole("button", { name: "Replace account" }),
