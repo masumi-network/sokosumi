@@ -681,6 +681,11 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(prompt).getByText("Posts go out from this project's accounts."),
     ).toBeVisible();
+    expect(
+      within(prompt).getByRole("button", {
+        name: "Connect X, YouTube, LinkedIn…",
+      }),
+    ).toHaveClass("h-11", "md:h-8");
     await user.click(
       within(prompt).getByRole("button", {
         name: "Connect X, YouTube, LinkedIn…",
@@ -2386,10 +2391,15 @@ describe("ProjectSocialPosts", () => {
     expect(within(row).getByText("3 attempts")).toBeVisible();
     expect(within(row).getByText("Failed")).toBeVisible();
     // Retry is the one thing left to do, so it sits on the row.
-    expect(within(row).getByRole("button", { name: "Retry" })).toBeVisible();
+    expect(within(row).getByRole("button", { name: "Retry" })).toHaveClass(
+      "h-11",
+      "md:h-8",
+    );
 
     await openRowMenu(user, "post-failed");
-    expect(screen.getByRole("menuitem", { name: "Reschedule" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "Reschedule" })).toHaveClass(
+      "min-h-11",
+    );
     expect(
       screen.queryByRole("menuitem", { name: "Retry" }),
     ).not.toBeInTheDocument();
@@ -2742,6 +2752,10 @@ describe("ProjectSocialPosts", () => {
     expect(getTab("Drafts")).toHaveTextContent("Drafts 1+");
 
     await openTab(user, "Drafts");
+    expect(screen.getByRole("button", { name: "Load more" })).toHaveClass(
+      "h-11",
+      "md:h-8",
+    );
     await user.click(screen.getByRole("button", { name: "Load more" }));
     await waitFor(() => expect(screen.getByText("Older draft")).toBeVisible());
     expect(loadMoreSocialPosts).toHaveBeenCalledWith({
