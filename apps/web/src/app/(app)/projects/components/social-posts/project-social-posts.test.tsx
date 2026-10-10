@@ -2572,7 +2572,9 @@ describe("ProjectSocialPosts", () => {
 
     await openTab(user, "Needs attention");
     const row = screen.getByTestId("social-post-post-failed");
-    expect(within(row).getByText("Rate limited. Try again later.")).toBeVisible();
+    expect(
+      within(row).getByText("Rate limited. Try again later."),
+    ).toBeVisible();
     expect(
       within(row).queryByText("X rejected the post (429 too many requests)"),
     ).not.toBeInTheDocument();
