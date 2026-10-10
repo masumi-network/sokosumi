@@ -8,6 +8,7 @@ The direct-download Mac app updates itself with Sparkle. Release Please versions
 - **Serve the appcast from `apps/web`.** It would tie every Mac release to a web deploy.
 - **A Beta track in Sparkle now.** Deferred: Beta builds are a single rolling `macos-beta` prerelease that testers install by hand. A Sparkle Beta track would need one release per Beta build, so that a feed item never changes under its signature.
 - **Sparkle in every build.** The Mac App Store forbids self-updaters and TestFlight already updates Alpha builds, so Sparkle is compiled into the Developer ID build only.
+  - *2026-10-09:* the TestFlight track and Alpha builds were removed, so the Developer ID build is the only published build. Sparkle is linked into every build of the app target, and the updater starts only in the build `Publish macOS DMG` archives with the `SOKOSUMI_UPDATER` compile condition, never in ad hoc, Debug or local builds.
 
 ## Consequences
 

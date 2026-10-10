@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "c89462dc2d3fc1b0c3874b196732988057c59572",
+  "packages": {
+    "apps/apple": {
+      "release-type": "simple",
+      "component": "macos",
+      "include-component-in-tag": true,
+      "include-v-in-tag": true,
+      "initial-version": "1.0.0",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [{ "type": "generic", "path": "Version.xcconfig" }],
+      "exclude-paths": ["apps/apple/docs", "apps/apple/.agents"],
+      "changelog-sections": [
+        { "type": "feat", "section": "Features" },
+        { "type": "fix", "section": "Bug Fixes" },
+        { "type": "style", "section": "Design" },
+        { "type": "perf", "section": "Performance" },
+        { "type": "revert", "section": "Reverts" },
+        { "type": "refactor", "section": "Refactoring", "hidden": true },
+        { "type": "docs", "section": "Documentation", "hidden": true },
+        { "type": "build", "section": "Build", "hidden": true },
+        { "type": "ci", "section": "CI", "hidden": true },
+        { "type": "test", "section": "Tests", "hidden": true },
+        { "type": "chore", "section": "Chores", "hidden": true }
+      ]
+    }
+  }
+}

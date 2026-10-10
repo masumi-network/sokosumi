@@ -1,0 +1,66 @@
+name: macOS release
+
+# Release Please keeps the Mac app's Release PR open (apps/apple/release-please-config.json).
+# Merging it tags macos-v<version> and creates the GitHub release; the tag push starts the
+# Apple workflow. Both need the masumi GitHub App's token: a Release PR opened with
+# GITHUB_TOKEN runs no checks, and a tag it pushes starts no workflow.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the release App
+        env:
+          APP_ID: ${{ secrets.RELEASE_APP_ID }}
+          APP_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_KEY" ]; then
+            echo "::error::RELEASE_APP_ID and RELEASE_APP_PRIVATE_KEY must be set. Run apps/apple/scripts/setup-release-updates.sh."
+            exit 1
+          fi
+
+      - name: Mint the release App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: apps/apple/release-please-config.json
+          manifest-file: apps/apple/.release-please-manifest.json
+
+      - name: Keep GitHub's Latest badge on the CLI
+        # GitHub makes the new macos-v release Latest the moment Release Please
+        # creates it, and Latest means the CLI's newest release. Hand the badge
+        # back now rather than after the Mac build, which takes many minutes;
+        # the tag run in apple.yml never makes any release Latest.
+        if: steps.release.outputs['apps/apple--release_created'] == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          STABLE_TAG: ${{ steps.release.outputs['apps/apple--tag_name'] }}
+        run: |
+          CLI_TAG="$(gh release list --exclude-drafts --exclude-pre-releases --limit 100 \
+            --json tagName,publishedAt \
+            --jq '[.[] | select(.tagName | startswith("cli-v"))] | sort_by(.publishedAt) | last | .tagName // empty')"
+          if [ -n "$CLI_TAG" ]; then
+            gh release edit "$CLI_TAG" --latest
+          else
+            gh release edit "$STABLE_TAG" --latest=false
+          fi

@@ -400,7 +400,8 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
 fi
 printf '\n'
 say "Next: merge an Apple change to main. The 'Publish macOS DMG' job builds,"
-say "notarizes and attaches the disk image to the apple-latest prerelease."
+say "notarizes and attaches the disk image to the macos-beta prerelease"
+say "(the Beta build); a merged Release PR publishes it to macos-latest."
 pause "Press Enter to finish."
 
 finish
