@@ -22,6 +22,16 @@ import { toast } from "sonner";
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -171,6 +181,13 @@ export function SocialPostComposerDialog({
   const [pending, setPending] = useState<PendingSubmit>(null);
   const [uploadPending, setUploadPending] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [initial] = useState(() => ({
+    text: post?.text ?? "",
+    media: post?.media ?? [],
+    scheduledAt: post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
+    connectionId: post?.socialConnection?.id ?? connections[0]?.id ?? "",
+  }));
 
   const isScheduleOnly = mode.kind === "schedule";
   const isBusy = pending !== null || uploadPending;
@@ -648,6 +665,22 @@ export function SocialPostComposerDialog({
   );
 
   const hasContent = trimmedText !== "" || media.length > 0;
+  const isDirty =
+    mode.kind === "create"
+      ? trimmedText !== "" || media.length > 0 || scheduledAt !== ""
+      : text !== initial.text ||
+        !sameSocialPostMedia(media, initial.media) ||
+        scheduledAt !== initial.scheduledAt ||
+        (connectionIds[0] ?? "") !== initial.connectionId;
+
+  function handleComposerOpenChange(nextOpen: boolean): void {
+    if (!nextOpen && isDirty) {
+      setDiscardOpen(true);
+      return;
+    }
+    onOpenChange(nextOpen);
+  }
+
   const footerMessage = scheduledAtTooSoon ? (
     <p id={scheduledAtErrorId} className="text-destructive">
       {t("composer.scheduledAtTooSoon")}
@@ -665,7 +698,7 @@ export function SocialPostComposerDialog({
   return (
     <TaskFormModal
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleComposerOpenChange}
       onCloseAutoFocus={onCloseAutoFocus}
       title={title}
       cancelLabel={t("composer.dismiss")}
@@ -1020,6 +1053,23 @@ export function SocialPostComposerDialog({
         onOpenChange={setPickerOpen}
         onSelect={handleSelectDriveFile}
       />
+
+      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <AlertDialogContent data-task-form-portal="">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("composer.discardTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("composer.discardDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("composer.keepEditing")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onOpenChange(false)}>
+              {t("composer.discard")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TaskFormModal>
   );
 }

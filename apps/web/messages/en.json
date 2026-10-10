@@ -2536,6 +2536,10 @@
           "noAccountsTitle": "No account connected yet",
           "connectAccount": "Connect account",
           "dismiss": "Cancel",
+          "discardTitle": "Discard changes?",
+          "discardDescription": "Your changes will be lost.",
+          "discard": "Discard",
+          "keepEditing": "Keep editing",
           "previewEmpty": "Your post shows here as you write.",
           "pickAccount": "Pick an account to post to."
         },

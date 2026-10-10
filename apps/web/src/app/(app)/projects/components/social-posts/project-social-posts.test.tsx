@@ -166,6 +166,10 @@ const MESSAGES: Record<string, string> = {
   "composer.edit": "Edit",
   "composer.close": "Close",
   "composer.dismiss": "Cancel",
+  "composer.discardTitle": "Discard changes?",
+  "composer.discardDescription": "Your changes will be lost.",
+  "composer.discard": "Discard",
+  "composer.keepEditing": "Keep editing",
   "composer.when": "When",
   "composer.scheduleFor": "Schedule for {date}",
   "composer.rescheduleFor": "Reschedule for {date}",
@@ -779,6 +783,113 @@ describe("ProjectSocialPosts", () => {
       "280 / 280",
     );
     expect(saveDraft).toBeEnabled();
+  });
+
+  it("closes an empty composer without asking", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("asks before discarding an unsaved new post", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Unsaved");
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    const alert = screen.getByRole("alertdialog");
+    expect(within(alert).getByText("Discard changes?")).toBeVisible();
+    expect(within(alert).getByText("Your changes will be lost.")).toBeVisible();
+    expect(dialog).toBeVisible();
+
+    await user.click(
+      within(alert).getByRole("button", { name: "Keep editing" }),
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Text")).toHaveValue("Unsaved");
+
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Discard",
+      }),
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closes after a successful save without asking", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Saved draft");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalled();
+    });
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("asks before discarding an edited post", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Drafts");
+    await openRowMenu(user, "post-draft");
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await openRowMenu(user, "post-draft");
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const editor = screen.getByRole("dialog");
+    fireEvent.change(within(editor).getByLabelText("Text"), {
+      target: { value: "Changed draft" },
+    });
+    await user.click(within(editor).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("alertdialog")).toBeVisible();
+    expect(editor).toBeVisible();
   });
 
   it("shows where the post goes at the top of the composer", async () => {

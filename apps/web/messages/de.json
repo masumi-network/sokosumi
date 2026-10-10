@@ -2536,6 +2536,10 @@
           "noAccountsTitle": "Noch kein Konto verbunden",
           "connectAccount": "Konto verbinden",
           "dismiss": "Abbrechen",
+          "discardTitle": "Änderungen verwerfen?",
+          "discardDescription": "Deine Änderungen gehen verloren.",
+          "discard": "Verwerfen",
+          "keepEditing": "Weiter bearbeiten",
           "previewEmpty": "Hier erscheint dein Post, während du schreibst.",
           "pickAccount": "Wähle ein Konto, auf dem gepostet wird."
         },
