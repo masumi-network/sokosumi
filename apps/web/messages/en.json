@@ -2574,7 +2574,7 @@
         },
         "connectPrompt": {
           "title": "Connect an account to start posting",
-          "body": "Posts go out from the X, Instagram, LinkedIn, Facebook and YouTube accounts connected to this project.",
+          "body": "Posts go out from this project's accounts.",
           "action": "Connect X, YouTube, LinkedIn…"
         },
         "preview": {
