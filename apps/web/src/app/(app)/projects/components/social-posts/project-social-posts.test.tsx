@@ -618,7 +618,7 @@ describe("ProjectSocialPosts", () => {
     expect(screen.queryByText("Calendar panel")).not.toBeInTheDocument();
   });
 
-  it("gives tabs 44px phone targets and scrolls from the start", () => {
+  it("sizes the tab row like Tasks: content-width pills, action on the right", () => {
     render(
       <ProjectSocialPosts
         accounts={<p>Accounts panel</p>}
@@ -632,17 +632,18 @@ describe("ProjectSocialPosts", () => {
 
     const tablist = screen.getByRole("tablist");
     expect(tablist).toHaveClass(
-      "min-h-11",
-      "flex-1",
-      "min-w-0",
-      "justify-start",
-      "overflow-x-auto",
+      "w-fit",
+      "bg-card-background",
+      "max-sm:justify-start",
+      "max-sm:overflow-x-auto",
     );
-    expect(tablist).not.toHaveClass("md:w-fit");
-    expect(tablist.parentElement).toHaveClass("gap-3");
+    expect(tablist).not.toHaveClass("min-h-11", "flex-1");
+    expect(tablist.parentElement).toHaveClass("min-w-0", "flex-1");
+    expect(tablist.parentElement?.parentElement).toHaveClass("justify-between");
     for (const tab of screen.getAllByRole("tab")) {
-      expect(tab).toHaveClass("min-h-11", "shrink-0");
+      expect(tab).not.toHaveClass("min-h-11");
     }
+    expect(screen.getByRole("button", { name: "Page action" })).toBeVisible();
   });
 
   it("opens a linked draft preview without changing the calendar tab", async () => {
