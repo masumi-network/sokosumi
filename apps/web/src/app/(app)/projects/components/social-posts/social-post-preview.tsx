@@ -201,16 +201,13 @@ function LinkedInPreview({
               linkClassName="text-social-linkedin-link font-semibold"
             />
             {fold.folded ? (
-              <>
-                …{" "}
-                <button
-                  type="button"
-                  className="text-muted-foreground hover:text-social-linkedin-link hover:underline"
-                  onClick={fold.expand}
-                >
-                  {t("linkedin.seeMore")}
-                </button>
-              </>
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-social-linkedin-link ms-1 hover:underline"
+                onClick={fold.expand}
+              >
+                {t("linkedin.seeMore")}
+              </button>
             ) : null}
           </p>
         </div>
