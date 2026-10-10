@@ -243,13 +243,8 @@ function renderStatistics(searchParams = "") {
     </TestQueryProvider>,
   );
 }
-function accountCard(name: string) {
-  const element = screen.getByRole("heading", { name }).closest("article");
-  if (!element) throw new Error("Missing account card");
-  return within(element);
-}
 /**
- * Helper to switch accounts in the new Select-based UI
+ * Helper to switch accounts in the Select-based account control.
  */
 function accountCombobox() {
   return screen.getByRole("combobox", { name: /connected accounts/i });
@@ -1471,25 +1466,19 @@ describe("SocialPostStatistics account history", () => {
     expect(await screen.findByText(post.text)).toBeVisible();
   });
 
-  // TODO: Account details disclosure removed in UX redesign - re-evaluate if needed
-  it.skip("shows connected accounts as tabs with selected-account metrics and external read-only posts", async () => {
+  it("shows connected accounts in the account select and external read-only posts", async () => {
+    const user = userEvent.setup();
     renderStatistics();
     expect(await screen.findByText(post.text)).toBeVisible();
+    await user.click(accountCombobox());
     expect(
-      screen.getByRole("tab", { name: "Brand page Facebook" }),
+      screen.getByRole("option", { name: /launch account/i }),
     ).toBeVisible();
+    expect(screen.getByRole("option", { name: /brand page/i })).toBeVisible();
+    await user.keyboard("{Escape}");
     expect(
       screen.queryByRole("heading", { name: "Brand page" }),
     ).not.toBeInTheDocument();
-    // openAccountDetails();
-    expect(accountCard("Launch account").getByText("0")).toBeVisible();
-    expect(
-      accountCard("Launch account").getByText("Unavailable"),
-    ).toBeVisible();
-    expect(accountCard("Launch account").getByText("Lifetime")).toBeVisible();
-    expect(
-      accountCard("Launch account").getByText("Last 28 days"),
-    ).toBeVisible();
     expect(screen.getByText("Link clicks")).not.toBeVisible();
     fireEvent.click(screen.getByText("More metrics"));
     expect(screen.getByText("Link clicks")).toBeVisible();
@@ -1552,8 +1541,7 @@ describe("SocialPostStatistics account history", () => {
     expect(url.searchParams.has("publishedUntil")).toBe(false);
   });
 
-  // TODO: Account details disclosure removed in UX redesign - re-evaluate if needed
-  it.skip("shows missing post metrics as a warning without claiming missing history", async () => {
+  it("shows missing post metrics as a warning without claiming missing history", async () => {
     mocks.fetch.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -1573,12 +1561,14 @@ describe("SocialPostStatistics account history", () => {
     renderStatistics();
     await screen.findByText(post.text);
     expect(screen.getByText(/Some post metrics are unavailable/)).toBeVisible();
-    // openAccountDetails();
     expect(
       screen.getByText(
         "All history currently available from the platform has been imported.",
       ),
     ).toBeVisible();
+    expect(
+      screen.queryByText(/History is incomplete or limited/),
+    ).not.toBeInTheDocument();
   });
 
   it("loads every cached post page", async () => {
@@ -1745,8 +1735,7 @@ describe("SocialPostStatistics account history", () => {
     expect(screen.getByText(/Cached results are retained/)).toBeVisible();
     expect(screen.getByText(post.text)).toBeVisible();
   });
-  // TODO: Account details disclosure removed in UX redesign - re-evaluate if needed
-  it.skip("shows provider history limitations without claiming completion and disables reauthorization-required sync", async () => {
+  it("shows provider history limitations without claiming completion and disables reauthorization-required sync", async () => {
     mocks.fetch.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -1765,9 +1754,8 @@ describe("SocialPostStatistics account history", () => {
     });
     renderStatistics();
     await screen.findByText(post.text);
-    // openAccountDetails();
     expect(
-      screen.getByText("Platform exposes only the most recent posts"),
+      screen.getByText(/History is incomplete or limited by the platform/),
     ).toBeVisible();
     expect(
       screen.queryByText(

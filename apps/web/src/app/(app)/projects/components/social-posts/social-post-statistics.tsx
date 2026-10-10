@@ -789,6 +789,10 @@ export function SocialPostStatistics({
                       >
                         {t("historyLimited")}
                       </p>
+                    ) : snapshot?.historyComplete ? (
+                      <p className="text-muted-foreground text-xs">
+                        {t("historyComplete")}
+                      </p>
                     ) : null}
                   </>
                 );
