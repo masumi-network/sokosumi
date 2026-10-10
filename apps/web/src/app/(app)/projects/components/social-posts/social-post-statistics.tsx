@@ -10,7 +10,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Download, Search } from "lucide-react";
+import { Download } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
@@ -27,20 +27,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { refreshProjectSocialAccountStatistics } from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
 import { SocialPerformanceOverview } from "./social-performance-overview";
 import { SocialPerformancePosts } from "./social-performance-posts";
 import { SocialPerformanceResearch } from "./social-performance-research";
-import { ACCOUNT_METRIC_LABELS } from "./social-post-metrics";
 
 type StatisticsPage =
   | SocialPerformanceResponse
   | WorkspaceSocialPerformanceResponse;
 type Account = StatisticsPage["accounts"][number];
-type Metric = NonNullable<Account["statistics"]>["metrics"][number];
 
 export function SocialPostStatistics({
   projectId,
@@ -445,51 +443,6 @@ export function SocialPostStatistics({
     setSync((current) => (current ? { ...current, stopping: true } : null));
   }
 
-  function metricLabel(metric: Metric) {
-    const key = `accountMetrics.${ACCOUNT_METRIC_LABELS[metric.key] ?? metric.key}`;
-    return t.has(key)
-      ? t(key)
-      : metric.key
-          .replace(/([a-z])([A-Z])/g, "$1 $2")
-          .replaceAll(/[_.-]/g, " ");
-  }
-  function renderMetrics(metrics: Metric[]) {
-    return (
-      <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-4">
-        {metrics.map((metric, index) => (
-          <div
-            key={`${metric.key}-${metric.period}-${index}`}
-            className="space-y-1"
-          >
-            <dt className="text-muted-foreground break-words">
-              {metricLabel(metric)}
-            </dt>
-            <dd className="font-medium tabular-nums">
-              {metric.value == null
-                ? t("unavailable")
-                : formatter.number(metric.value)}
-              {metric.unit &&
-              metric.unit !== "count" &&
-              metric.value != null ? (
-                <span className="text-muted-foreground ms-1 font-normal">
-                  {t.has(`units.${metric.unit}`)
-                    ? t(`units.${metric.unit}`)
-                    : metric.unit}
-                </span>
-              ) : null}
-            </dd>
-            {metric.period ? (
-              <dd className="text-muted-foreground text-xs">
-                {t.has(`periods.${metric.period}`)
-                  ? t(`periods.${metric.period}`)
-                  : metric.period.replaceAll(/[_-]/g, " ")}
-              </dd>
-            ) : null}
-          </div>
-        ))}
-      </dl>
-    );
-  }
   function formatDate(value: string | Date) {
     return formatter.dateTime(new Date(value), "dateTime", {
       timeZone: "UTC",
@@ -565,187 +518,213 @@ export function SocialPostStatistics({
             performanceProject: null,
           });
         }}
-        className="min-w-0 gap-4"
+        className="min-w-0 space-y-6"
       >
-        {eligibleAccounts.length ? (
-          <TabsList
-            aria-label={t("performance.accountTabs")}
-            className="app-scrollbar h-auto w-full max-w-full justify-start overflow-x-auto p-1"
-          >
-            {eligibleAccounts.map((account) => {
-              const duplicate =
-                workspaceId &&
-                eligibleAccounts.some(
-                  (other) =>
-                    other.id !== account.id &&
-                    other.provider === account.provider &&
-                    (other.externalHandle ?? other.displayName) ===
-                      (account.externalHandle ?? account.displayName),
-                );
-              const subtitle =
-                (SOCIAL_PROVIDERS.find(
-                  (provider) => provider.id === account.provider,
-                )?.name ?? account.provider) +
-                (duplicate
-                  ? ` · ${projectNames[accountProjectId(account.id)] ?? ""}`
-                  : "");
-              return (
-                <TabsTrigger
-                  key={account.id}
-                  value={account.id}
-                  className="h-auto flex-none items-center gap-2 px-3 py-2"
-                >
-                  <SocialPostProviderIcon
-                    provider={account.provider}
-                    className="size-4 shrink-0"
-                    aria-hidden
-                  />
-                  <span className="min-w-0 max-w-52 text-start">
-                    <span
-                      className="block truncate"
-                      title={accountName(account)}
-                    >
-                      {accountName(account)}
-                    </span>
-                    <span
-                      className="text-muted-foreground block truncate text-xs font-normal"
-                      title={subtitle}
-                    >
-                      {subtitle}
-                    </span>
-                  </span>
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-        ) : null}
         <TabsContent
           key={runScopeKey}
           value={selectedAccount?.id ?? "none"}
-          className="min-w-0 space-y-5"
+          className="min-w-0 space-y-6"
         >
-          <section className="space-y-3" aria-label={t("accountsTitle")}>
-            <div role="status" className="text-muted-foreground text-sm">
-              {sync
-                ? t(sync.stopping ? "stoppingSync" : "syncProgress", {
-                    completed: sync.completed,
-                    total: sync.total,
-                    pages: sync.pages,
-                  })
-                : ""}
-            </div>
-            {sync ? (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={sync.stopping}
-                onClick={handleCancel}
-              >
-                {t("stopSync")}
-              </Button>
-            ) : null}
-            <div>
-              {(selectedAccount
-                ? [
-                    firstPage?.accounts.find(
-                      (account) => account.id === selectedAccount.id,
-                    ) ?? selectedAccount,
-                  ]
-                : []
-              ).map((account) => {
-                const snapshot = account.statistics;
-                return (
-                  <article
-                    key={account.id}
-                    className="min-w-0 space-y-3 rounded-lg border p-4"
+          {/* Unified header: account selector + identity + actions */}
+          {selectedAccount ? (
+            <section className="flex flex-wrap items-start justify-between gap-4 rounded-lg border p-4">
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                {/* Account selector */}
+                {eligibleAccounts.length > 1 ? (
+                  <Select
+                    value={selectedAccount.id}
+                    onValueChange={(value) => {
+                      if (
+                        !eligibleAccounts.some(
+                          (account) => account.id === value,
+                        )
+                      )
+                        return;
+                      void setFilters({
+                        statisticsAccount: value,
+                        statisticsProvider: null,
+                        performanceProject: null,
+                      });
+                    }}
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0 space-y-1">
-                        <h4 className="flex items-center gap-2 font-medium">
-                          <SocialPostProviderIcon
-                            provider={account.provider}
-                            className="size-5 shrink-0"
-                            aria-hidden="true"
-                          />
-                          <span className="min-w-0 break-words">
-                            {account.displayName ??
-                              account.externalHandle ??
-                              SOCIAL_PROVIDERS.find(
-                                (provider) => provider.id === account.provider,
-                              )?.name ??
-                              account.provider}
-                          </span>
-                        </h4>
-                        <p className="text-muted-foreground text-xs">
-                          {SOCIAL_PROVIDERS.find(
-                            (provider) => provider.id === account.provider,
-                          )?.name ?? account.provider}
-                          {account.externalHandle
-                            ? ` · ${account.externalHandle}`
-                            : ""}
-                        </p>
-                        <p className="text-muted-foreground text-xs">
-                          {snapshot?.fetchedAt
-                            ? t("updatedAt", {
-                                date: formatDate(snapshot.fetchedAt),
-                              })
-                            : t("notFetched")}
-                        </p>
-                        {workspaceId ? (
-                          <p className="text-muted-foreground text-xs">
-                            {
-                              projects.find(
-                                (project) =>
-                                  project.id === accountProjectId(account.id),
-                              )?.name
-                            }
-                          </p>
-                        ) : null}
+                    <SelectTrigger className="w-auto min-w-[200px]">
+                      <div className="flex items-center gap-2">
+                        <SocialPostProviderIcon
+                          provider={selectedAccount.provider}
+                          className="size-4 shrink-0"
+                          aria-hidden
+                        />
+                        <SelectValue>
+                          {accountName(selectedAccount)}
+                        </SelectValue>
                       </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        loading={
-                          sync?.accountId === account.id && !sync.stopping
-                        }
-                        disabled={
-                          Boolean(sync) ||
-                          account.status !== "active" ||
-                          !accountProjectId(account.id)
-                        }
-                        onClick={() => void handleSync([account])}
-                      >
-                        {snapshot?.historyNextCursor &&
-                        !snapshot.historyComplete
-                          ? t("resumeSync")
-                          : t("syncAccount")}
-                      </Button>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {eligibleAccounts.map((account) => {
+                        const duplicate =
+                          workspaceId &&
+                          eligibleAccounts.some(
+                            (other) =>
+                              other.id !== account.id &&
+                              other.provider === account.provider &&
+                              (other.externalHandle ?? other.displayName) ===
+                                (account.externalHandle ?? account.displayName),
+                          );
+                        const subtitle =
+                          (SOCIAL_PROVIDERS.find(
+                            (provider) => provider.id === account.provider,
+                          )?.name ?? account.provider) +
+                          (duplicate
+                            ? ` · ${projectNames[accountProjectId(account.id)] ?? ""}`
+                            : "");
+                        return (
+                          <SelectItem key={account.id} value={account.id}>
+                            <div className="flex items-center gap-2">
+                              <SocialPostProviderIcon
+                                provider={account.provider}
+                                className="size-4 shrink-0"
+                                aria-hidden
+                              />
+                              <div className="min-w-0">
+                                <div className="truncate">
+                                  {accountName(account)}
+                                </div>
+                                <div className="text-muted-foreground truncate text-xs">
+                                  {subtitle}
+                                </div>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <SocialPostProviderIcon
+                      provider={selectedAccount.provider}
+                      className="size-5 shrink-0"
+                      aria-hidden
+                    />
+                    <div className="min-w-0">
+                      <div className="font-medium">
+                        {accountName(selectedAccount)}
+                      </div>
                     </div>
-                    {account.status !== "active" ? (
-                      <p className="text-semantic-warning text-sm">
-                        {t("reconnectHint")}{" "}
-                        <Link
-                          className="underline underline-offset-4"
-                          href={manageAccountsHref(account.id)}
-                        >
-                          {t("manageAccounts")}
-                        </Link>
+                  </div>
+                )}
+
+                {/* Account identity and freshness */}
+                <div className="text-muted-foreground min-w-0 space-y-0.5 text-sm">
+                  {selectedAccount.externalHandle ? (
+                    <p className="truncate">{selectedAccount.externalHandle}</p>
+                  ) : null}
+                  {(() => {
+                    const snapshot =
+                      firstPage?.accounts.find(
+                        (account) => account.id === selectedAccount.id,
+                      )?.statistics ?? selectedAccount.statistics;
+                    return snapshot?.fetchedAt ? (
+                      <p className="truncate">
+                        {t("updatedAt", {
+                          date: formatDate(snapshot.fetchedAt),
+                        })}
                       </p>
-                    ) : null}
-                    {snapshot?.error || syncErrors[account.id] ? (
+                    ) : (
+                      <p>{t("notFetched")}</p>
+                    );
+                  })()}
+                  {workspaceId ? (
+                    <p className="truncate">
+                      {
+                        projects.find(
+                          (project) =>
+                            project.id === accountProjectId(selectedAccount.id),
+                        )?.name
+                      }
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* Actions: Sync and Export in dropdown */}
+              <div className="flex items-center gap-2">
+                {sync ? (
+                  <>
+                    <span className="text-muted-foreground text-sm">
+                      {t(sync.stopping ? "stoppingSync" : "syncProgress", {
+                        completed: sync.completed,
+                        total: sync.total,
+                        pages: sync.pages,
+                      })}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={sync.stopping}
+                      onClick={handleCancel}
+                    >
+                      {t("stopSync")}
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={
+                      selectedAccount.status !== "active" ||
+                      !accountProjectId(selectedAccount.id)
+                    }
+                    onClick={() => void handleSync([selectedAccount])}
+                  >
+                    {(() => {
+                      const snapshot =
+                        firstPage?.accounts.find(
+                          (account) => account.id === selectedAccount.id,
+                        )?.statistics ?? selectedAccount.statistics;
+                      return snapshot?.historyNextCursor &&
+                        !snapshot.historyComplete
+                        ? t("resumeSync")
+                        : t("syncAccount");
+                    })()}
+                  </Button>
+                )}
+              </div>
+
+              {/* Status warnings */}
+              {selectedAccount.status !== "active" ? (
+                <p className="text-semantic-warning w-full text-sm">
+                  {t("reconnectHint")}{" "}
+                  <Link
+                    className="underline underline-offset-4"
+                    href={manageAccountsHref(selectedAccount.id)}
+                  >
+                    {t("manageAccounts")}
+                  </Link>
+                </p>
+              ) : null}
+              {(() => {
+                const snapshot =
+                  firstPage?.accounts.find(
+                    (account) => account.id === selectedAccount.id,
+                  )?.statistics ?? selectedAccount.statistics;
+                return (
+                  <>
+                    {snapshot?.error || syncErrors[selectedAccount.id] ? (
                       <p
                         role="status"
-                        className="text-semantic-warning text-sm"
+                        className="text-semantic-warning w-full text-sm"
                       >
-                        {syncErrors[account.id] ??
+                        {syncErrors[selectedAccount.id] ??
                           t("accountMetricsIncomplete")}
                       </p>
                     ) : null}
                     {snapshot?.metricWarning ? (
                       <p
                         role="status"
-                        className="text-semantic-warning text-sm"
+                        className="text-semantic-warning w-full text-sm"
                       >
                         {t("postMetricsIncomplete")}
                       </p>
@@ -753,348 +732,173 @@ export function SocialPostStatistics({
                     {snapshot?.historyError ? (
                       <p
                         role="status"
-                        className="text-semantic-warning text-sm"
+                        className="text-semantic-warning w-full text-sm"
                       >
                         {t("historyLimited")}
                       </p>
                     ) : null}
-                    <details className="group space-y-3">
-                      <summary className="text-muted-foreground w-fit cursor-pointer rounded-sm py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
-                        {t("performance.accountDetails")}
-                      </summary>
-                      {snapshot?.metrics.length ? (
-                        renderMetrics(snapshot.metrics)
-                      ) : (
-                        <p className="text-muted-foreground text-sm">
-                          {snapshot?.fetchedAt
-                            ? t("accountMetricsUnavailable")
-                            : t("accountNotFetched")}
-                        </p>
-                      )}
+                  </>
+                );
+              })()}
+            </section>
+          ) : null}
 
-                      <p className="text-muted-foreground text-xs">
-                        {t("syncHint")}
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        {t("importedCount", { count: account.postCount })}
-                        {snapshot?.historyFetchedAt
-                          ? ` · ${t("updatedAt", { date: formatDate(snapshot.historyFetchedAt) })}`
-                          : ""}
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        {snapshot?.historyComplete
-                          ? t("historyComplete")
-                          : snapshot?.historyNextCursor
-                            ? t("historyPartial")
-                            : t("historyNotFetched")}
-                      </p>
-                      {snapshot?.historyError ? (
-                        <div role="status" className="space-y-1 text-sm">
-                          <p className="text-muted-foreground break-words">
-                            {snapshot.historyError}
-                          </p>
-                        </div>
-                      ) : null}
-                    </details>
-                  </article>
+          {/* Date range controls (no separate bordered box) */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              {(["7", "30", "90"] as const).map((days) => (
+                <Button
+                  key={days}
+                  size="sm"
+                  variant={
+                    (filters.performanceRange ??
+                      (!filters.publishedFrom && !filters.publishedUntil
+                        ? "30"
+                        : null)) === days
+                      ? "default"
+                      : "outline"
+                  }
+                  aria-pressed={
+                    filters.performanceRange === days ||
+                    (days === "30" &&
+                      !filters.publishedFrom &&
+                      !filters.publishedUntil)
+                  }
+                  onClick={() => handlePreset(days)}
+                >
+                  {t("performance.lastDays", { days })}
+                </Button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(["csv", "xlsx"] as const).map((exportFormat) => {
+                const content = (
+                  <>
+                    <Download className="size-4" aria-hidden />
+                    {t(
+                      exportFormat === "csv"
+                        ? "performance.exportCsv"
+                        : "performance.exportXlsx",
+                    )}
+                  </>
+                );
+                return (
+                  <Button
+                    key={exportFormat}
+                    size="sm"
+                    variant="outline"
+                    asChild={validRange}
+                    disabled={!validRange}
+                  >
+                    {validRange ? (
+                      <a
+                        href={`${apiPath}/export?${performanceParams}&format=${exportFormat}`}
+                      >
+                        {content}
+                      </a>
+                    ) : (
+                      content
+                    )}
+                  </Button>
                 );
               })}
             </div>
-          </section>
-          <section
-            className="space-y-4 rounded-xl border p-4"
-            aria-label={t("performance.filters")}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap gap-2">
-                {(["7", "30", "90"] as const).map((days) => (
-                  <Button
-                    key={days}
-                    size="sm"
-                    variant={
-                      (filters.performanceRange ??
-                        (!filters.publishedFrom && !filters.publishedUntil
-                          ? "30"
-                          : null)) === days
-                        ? "default"
-                        : "outline"
-                    }
-                    aria-pressed={
-                      filters.performanceRange === days ||
-                      (days === "30" &&
-                        !filters.publishedFrom &&
-                        !filters.publishedUntil)
-                    }
-                    onClick={() => handlePreset(days)}
-                  >
-                    {t("performance.lastDays", { days })}
-                  </Button>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {(["csv", "xlsx"] as const).map((exportFormat) => {
-                  const content = (
-                    <>
-                      <Download className="size-4" aria-hidden />
-                      {t(
-                        exportFormat === "csv"
-                          ? "performance.exportCsv"
-                          : "performance.exportXlsx",
-                      )}
-                    </>
-                  );
-                  return (
-                    <Button
-                      key={exportFormat}
-                      size="sm"
-                      variant="outline"
-                      asChild={validRange}
-                      disabled={!validRange}
-                    >
-                      {validRange ? (
-                        <a
-                          href={`${apiPath}/export?${performanceParams}&format=${exportFormat}`}
-                        >
-                          {content}
-                        </a>
-                      ) : (
-                        content
-                      )}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-            <details className="group">
-              <summary className="text-muted-foreground flex w-fit cursor-pointer items-center gap-2 rounded-sm py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
-                {t("performance.moreFilters")}
-                {advancedFilterCount ? (
-                  <span className="text-foreground text-xs">
-                    {t("performance.activeFilters", {
-                      count: advancedFilterCount,
-                    })}
-                  </span>
-                ) : null}
-              </summary>
-              <div className="mt-4 flex flex-wrap items-end gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="statistics-from">{t("publishedFrom")}</Label>
-                  <Input
-                    id="statistics-from"
-                    type="date"
-                    value={filters.publishedFrom ?? ""}
-                    onChange={(event) =>
-                      void setFilters({
-                        publishedFrom: event.target.value || null,
-                        performanceRange: null,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="statistics-until">
-                    {t("publishedUntil")}
-                  </Label>
-                  <Input
-                    id="statistics-until"
-                    type="date"
-                    value={filters.publishedUntil ?? ""}
-                    min={filters.publishedFrom ?? undefined}
-                    aria-invalid={!validRange}
-                    onChange={(event) =>
-                      void setFilters({
-                        publishedUntil: event.target.value || null,
-                        performanceRange: null,
-                      })
-                    }
-                  />
-                </div>
+          </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="performance-timezone">
-                    {t("performance.timezone")}
-                  </Label>
-                  <Select
-                    value={filters.performanceTimezone}
-                    onValueChange={(value) =>
-                      void setFilters({ performanceTimezone: value })
-                    }
-                  >
-                    <SelectTrigger
-                      id="performance-timezone"
-                      className="w-full sm:w-52"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {["UTC", ...Intl.supportedValuesOf("timeZone")].map(
-                        (zone) => (
-                          <SelectItem key={zone} value={zone}>
-                            {zone.replaceAll("_", " ")}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
+          {/* Advanced filters disclosure */}
+          <details className="group">
+            <summary className="text-muted-foreground flex w-fit cursor-pointer items-center gap-2 rounded-sm py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+              {t("performance.moreFilters")}
+              {advancedFilterCount ? (
+                <span className="text-foreground text-xs">
+                  {t("performance.activeFilters", {
+                    count: advancedFilterCount,
+                  })}
+                </span>
+              ) : null}
+            </summary>
+            <div className="mt-4 flex flex-wrap items-end gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="statistics-from">{t("publishedFrom")}</Label>
+                <Input
+                  id="statistics-from"
+                  type="date"
+                  value={filters.publishedFrom ?? ""}
+                  onChange={(event) =>
                     void setFilters({
-                      statisticsProvider: null,
-                      performanceProject: null,
-                      publishedFrom: null,
-                      publishedUntil: null,
+                      publishedFrom: event.target.value || null,
                       performanceRange: null,
-                      performanceSearch: null,
-                      performanceFormat: null,
-                      performancePostKind: null,
-                      performanceSort: null,
-                      performanceTimezone: null,
                     })
                   }
-                >
-                  {t("clearFilters")}
-                </Button>
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="statistics-until">{t("publishedUntil")}</Label>
+                <Input
+                  id="statistics-until"
+                  type="date"
+                  value={filters.publishedUntil ?? ""}
+                  min={filters.publishedFrom ?? undefined}
+                  aria-invalid={!validRange}
+                  onChange={(event) =>
+                    void setFilters({
+                      publishedUntil: event.target.value || null,
+                      performanceRange: null,
+                    })
+                  }
+                />
               </div>
 
-              <div className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="space-y-2">
-                  <Label htmlFor="performance-search">
-                    {t("performance.searchPosts")}
-                  </Label>
-                  <div className="relative">
-                    <Search
-                      className="text-muted-foreground pointer-events-none absolute start-3 top-3 size-4"
-                      aria-hidden
-                    />
-                    <Input
-                      id="performance-search"
-                      className="ps-9"
-                      value={filters.performanceSearch ?? ""}
-                      maxLength={200}
-                      onChange={(event) =>
-                        void setFilters({
-                          performanceSearch: event.target.value || null,
-                        })
-                      }
-                      placeholder={t("performance.searchPlaceholder")}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="performance-format">
-                    {t("performance.contentType")}
-                  </Label>
-                  <Select
-                    value={filters.performanceFormat ?? "all"}
-                    onValueChange={(value) =>
-                      void setFilters({
-                        performanceFormat:
-                          value === "all"
-                            ? null
-                            : (value as NonNullable<
-                                typeof filters.performanceFormat
-                              >),
-                      })
-                    }
+              <div className="space-y-2">
+                <Label htmlFor="performance-timezone">
+                  {t("performance.timezone")}
+                </Label>
+                <Select
+                  value={filters.performanceTimezone}
+                  onValueChange={(value) =>
+                    void setFilters({ performanceTimezone: value })
+                  }
+                >
+                  <SelectTrigger
+                    id="performance-timezone"
+                    className="w-full sm:w-52"
                   >
-                    <SelectTrigger id="performance-format" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        {t("performance.allFormats")}
-                      </SelectItem>
-                      {(
-                        [
-                          "text",
-                          "image",
-                          "video",
-                          "carousel",
-                          "link",
-                          "unknown",
-                        ] as const
-                      ).map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {t(`performance.formats.${value}`)}
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["UTC", ...Intl.supportedValuesOf("timeZone")].map(
+                      (zone) => (
+                        <SelectItem key={zone} value={zone}>
+                          {zone.replaceAll("_", " ")}
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="performance-kind">
-                    {t("performance.postKind")}
-                  </Label>
-                  <Select
-                    value={filters.performancePostKind}
-                    onValueChange={(value) =>
-                      void setFilters({
-                        performancePostKind:
-                          value as typeof filters.performancePostKind,
-                      })
-                    }
-                  >
-                    <SelectTrigger id="performance-kind" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(
-                        [
-                          "posts",
-                          "replies",
-                          "quotes",
-                          "reposts",
-                          "all",
-                        ] as const
-                      ).map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {t(`performance.kinds.${value}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="performance-sort">
-                    {t("performance.sort")}
-                  </Label>
-                  <Select
-                    value={filters.performanceSort}
-                    onValueChange={(value) =>
-                      void setFilters({
-                        performanceSort:
-                          value as typeof filters.performanceSort,
-                      })
-                    }
-                  >
-                    <SelectTrigger id="performance-sort" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(
-                        [
-                          "interactions",
-                          "publishedAt",
-                          "views",
-                          "impressions",
-                          "likes",
-                          "engagementRate",
-                          "baselineMultiplier",
-                        ] as const
-                      ).map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {t(`performance.sorts.${value}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                      ),
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
-            </details>
-          </section>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  void setFilters({
+                    statisticsProvider: null,
+                    performanceProject: null,
+                    publishedFrom: null,
+                    publishedUntil: null,
+                    performanceRange: null,
+                    performanceTimezone: "UTC",
+                    performanceSearch: null,
+                    performanceFormat: null,
+                    performancePostKind: "posts",
+                    performanceSort: "interactions",
+                  })
+                }
+              >
+                {t("clearAll")}
+              </Button>
+            </div>
+          </details>
+
           {!validRange ? (
             <p role="alert" className="text-semantic-destructive text-sm">
               {t("performance.invalidRange")}
