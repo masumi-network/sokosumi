@@ -28,16 +28,26 @@ const account = {
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.accounts.mockResolvedValue([account]);
-  mocks.refresh.mockResolvedValue({});
+  mocks.refresh.mockResolvedValue({
+    account: { statistics: { historyComplete: false } },
+  });
   mocks.attempt.mockResolvedValue({ count: 1 });
 });
 describe("periodic performance collection", () => {
   it("uses the stored project/workspace, respects cancellation, and isolates a revoked account", async () => {
     mocks.accounts.mockResolvedValue([account, { ...account, id: "next" }]);
     mocks.refresh.mockRejectedValueOnce(new Error("revoked"));
-    expect(
-      await collectSocialPerformance({ shouldContinue: () => true }),
-    ).toEqual({ refreshed: 1, failed: 1 });
+    mocks.refresh.mockResolvedValueOnce({
+      account: { statistics: { historyComplete: true } },
+    });
+    const result = await collectSocialPerformance({
+      shouldContinue: () => true,
+    });
+    expect(result).toMatchObject({
+      accountsProcessed: 1,
+      accountsFailed: 1,
+      pagesCollected: 1,
+    });
     expect(mocks.refresh).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
@@ -148,12 +158,15 @@ describe("periodic performance collection", () => {
       controller.abort();
       throw new DOMException("Deadline", "AbortError");
     });
-    expect(
-      await collectSocialPerformance({
-        shouldContinue: () => true,
-        abortSignal: controller.signal,
-      }),
-    ).toEqual({ refreshed: 0, failed: 0 });
+    const result = await collectSocialPerformance({
+      shouldContinue: () => true,
+      abortSignal: controller.signal,
+    });
+    expect(result).toMatchObject({
+      accountsProcessed: 0,
+      accountsFailed: 0,
+      pagesCollected: 0,
+    });
     expect(mocks.attempt).toHaveBeenCalledTimes(1);
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
