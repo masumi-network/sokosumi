@@ -53,12 +53,13 @@ export function PreviewAvatar({
   );
 }
 
-const TOKEN_PATTERN = /(https?:\/\/[^\s]+|#[\p{L}\p{N}_]+|@[\p{L}\p{N}_.]+)/gu;
+const TOKEN_PATTERN =
+  /(https?:\/\/[^\s]+|www\.[^\s]+|#[\p{L}\p{N}_]+|@[\p{L}\p{N}_.]+)/gu;
 const URL_DISPLAY_MAX = 25;
 
 /** Links show without their scheme and shortened, the way X and LinkedIn do. */
 function displayUrl(url: string): string {
-  const bare = url.replace(/^https?:\/\/(www\.)?/, "");
+  const bare = url.replace(/^(https?:\/\/)?(www\.)?/, "");
   return bare.length > URL_DISPLAY_MAX
     ? `${bare.slice(0, URL_DISPLAY_MAX - 1)}…`
     : bare;
@@ -80,20 +81,20 @@ export function PreviewRichText({
     if (index % 2 === 0) {
       return <Fragment key={index}>{part}</Fragment>;
     }
-    if (!part.startsWith("http")) {
+    if (part.startsWith("www.") || part.startsWith("http")) {
+      const url = part.replace(URL_TRAILING_PUNCT, "");
+      const trail = part.slice(url.length);
       return (
-        <span key={index} className={linkClassName}>
-          {part}
-        </span>
+        <Fragment key={index}>
+          <span className={linkClassName}>{displayUrl(url)}</span>
+          {trail}
+        </Fragment>
       );
     }
-    const url = part.replace(URL_TRAILING_PUNCT, "");
-    const trail = part.slice(url.length);
     return (
-      <Fragment key={index}>
-        <span className={linkClassName}>{displayUrl(url)}</span>
-        {trail}
-      </Fragment>
+      <span key={index} className={linkClassName}>
+        {part}
+      </span>
     );
   });
 }
