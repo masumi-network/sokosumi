@@ -2690,7 +2690,10 @@
             "dayEngagementUnavailable": "{date}: Interaktionen nicht verfügbar",
             "dayOutside": "{date}: außerhalb der erfassten Historie",
             "legendNone": "Keine",
-            "legendMore": "Mehr"
+            "legendMore": "Mehr",
+            "moreActions": "Weitere Aktionen",
+            "exportCsv": "CSV exportieren",
+            "exportXlsx": "Tabelle exportieren"
           },
           "accountsTitle": "Verbundene Konten",
           "postsTitle": "Veröffentlichte Kontobeiträge",

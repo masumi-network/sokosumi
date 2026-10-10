@@ -2690,7 +2690,10 @@
             "dayEngagementUnavailable": "{date}: interacciones no disponibles",
             "dayOutside": "{date}: fuera del historial recopilado",
             "legendNone": "Ninguna",
-            "legendMore": "Más"
+            "legendMore": "Más",
+            "moreActions": "Más acciones",
+            "exportCsv": "Exportar CSV",
+            "exportXlsx": "Exportar hoja de cálculo"
           },
           "accountsTitle": "Cuentas conectadas",
           "postsTitle": "Publicaciones de las cuentas",

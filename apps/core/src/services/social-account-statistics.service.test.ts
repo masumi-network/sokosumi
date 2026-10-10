@@ -33,6 +33,7 @@ vi.mock("@/services/social-performance-snapshots.service", () => ({
 }));
 
 import {
+  exportSocialAccountStatistics,
   listSocialAccountStatistics,
   refreshSocialAccountStatistics,
 } from "./social-account-statistics.service";
@@ -166,6 +167,25 @@ describe("Social account statistics", () => {
       date: "2026-10-01",
       postCount: 1,
     });
+  });
+  it("exports every matching cached post without paging", async () => {
+    const publishedFrom = new Date("2026-10-01T00:00:00Z");
+    const result = await exportSocialAccountStatistics({
+      ...scope,
+      connectionId,
+      publishedFrom,
+    });
+    expect(result.posts).toHaveLength(1);
+    expect(result.accountName(connectionId)).toBe("Launch");
+    expect(mocks.posts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          connectionId: { in: [connectionId] },
+          publishedAt: { gte: publishedFrom },
+        },
+      }),
+    );
+    expect(mocks.posts.mock.calls[0][0].take).toBeUndefined();
   });
   it("pages cached history and keeps the account totals on every page", async () => {
     const second = {
