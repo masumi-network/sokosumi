@@ -195,6 +195,7 @@ export function SocialPostComposerDialog({
   const providers = socialPostComposerProviders(
     post?.provider,
     selectedConnections.map((connection) => connection.provider),
+    connections.map((connection) => connection.provider),
   );
   // One text goes to every selected account, so the strictest one rules.
   const provider = providers.reduce((strictest, candidate) =>
