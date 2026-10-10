@@ -746,6 +746,10 @@ export function SocialPostComposerDialog({
     </p>
   ) : needsAccount ? (
     <p>{t("composer.pickAccount")}</p>
+  ) : overLimit ? (
+    <p className="text-destructive" data-testid="social-post-too-long">
+      {t("composer.tooLong")}
+    </p>
   ) : null;
   const requirementHintLines = requirementHints.map(
     ({ provider: neededBy, issue }) => ({

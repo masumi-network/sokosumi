@@ -2534,7 +2534,8 @@
           "connectAccount": "Connect account",
           "dismiss": "Cancel",
           "previewEmpty": "Your post shows here as you write.",
-          "pickAccount": "Pick an account to post to."
+          "pickAccount": "Pick an account to post to.",
+          "tooLong": "Text length is over the limit."
         },
         "cancelDialog": {
           "title": "Cancel this post?",
