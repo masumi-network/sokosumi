@@ -2522,7 +2522,7 @@
           "platformLimit": "{provider}: {format} · {count} / {limit}",
           "formats": {
             "post": "publicación",
-            "mediaPost": "publicación con imagen o video",
+            "mediaPost": "publicación con imagen o vídeo",
             "video": "vídeo"
           },
           "publishNow": "Publicar ahora",
