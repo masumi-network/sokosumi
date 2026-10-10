@@ -78,6 +78,26 @@ describe("SocialPostPreview", () => {
     );
   });
 
+  it("keeps the X handle and time when the display name is long", () => {
+    render(
+      <SocialPostPreview
+        account={{
+          ...ACCOUNT,
+          displayName: "Sokosumi Headquarters International",
+        }}
+        media={[]}
+        provider="x"
+        text="Launch day"
+        timestamp={null}
+      />,
+    );
+
+    expect(
+      screen.getByText("Sokosumi Headquarters International"),
+    ).toBeVisible();
+    expect(screen.getByText("@sokosumi · now")).toBeVisible();
+  });
+
   it("falls back to initials and the handle when the profile is missing", () => {
     render(
       <SocialPostPreview

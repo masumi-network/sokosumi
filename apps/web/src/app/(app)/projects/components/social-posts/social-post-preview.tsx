@@ -133,9 +133,9 @@ function XPreview({
     <div className="flex gap-3 px-4 pt-3 pb-2">
       <PreviewAvatar account={account} name={name} className="size-10" />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1 leading-5">
-          <span className="truncate font-bold">{name}</span>
-          <span className="text-muted-foreground truncate">
+        <div className="flex min-w-0 items-center gap-1 leading-5">
+          <span className="min-w-0 truncate font-bold">{name}</span>
+          <span className="text-muted-foreground shrink-0">
             {handle ? `${handle} · ${time}` : time}
           </span>
           <MoreHorizontal
