@@ -1520,6 +1520,7 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.getByTestId("social-posts-section-drafts"),
     ).not.toHaveTextContent("Scheduled text");
+    expect(refreshMock).toHaveBeenCalledOnce();
   });
 
   it("prefills the editor and sends the observed revision", async () => {
@@ -1743,6 +1744,7 @@ describe("ProjectSocialPosts", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Post canceled.");
+    expect(refreshMock).toHaveBeenCalledOnce();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("social-posts-selected"),
@@ -1937,6 +1939,7 @@ describe("ProjectSocialPosts", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Post published.");
+    expect(refreshMock).toHaveBeenCalledOnce();
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });

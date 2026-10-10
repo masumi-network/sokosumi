@@ -289,11 +289,11 @@ export function ProjectSocialPosts({
 
   function handleSaved(post: SocialPost): void {
     setPosts((current) => upsertPost(current, post));
-    // Follow the post to the tab that shows it now, so a new draft, a
-    // scheduled draft or a failed publish stays in view.
-    if (previewOnly) router.refresh();
-    else
-      showTab(sectionOf(post) ?? (calendar !== undefined ? "calendar" : null));
+    // Calendar entries are server-rendered. Refresh so a schedule, cancel,
+    // publish or retry shows up there, not only in this list.
+    router.refresh();
+    if (previewOnly) return;
+    showTab(sectionOf(post) ?? (calendar !== undefined ? "calendar" : null));
   }
 
   async function handleConfirmCancel(): Promise<void> {
