@@ -566,11 +566,12 @@ model ProjectSocialConnection {
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
 
-  project      Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  audits       ProjectSocialConnectionAudit[]
-  intents      ProjectSocialConnectionIntent[]
-  socialPosts  SocialPost[]
-  accountPosts SocialAccountPost[]
+  project              Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  audits               ProjectSocialConnectionAudit[]
+  intents              ProjectSocialConnectionIntent[]
+  socialPosts          SocialPost[]
+  accountPosts         SocialAccountPost[]
+  performanceSnapshots SocialPerformanceSnapshot[]
 
   @@unique([projectId, activeExternalAccountKey])
   @@map("project_social_connection")
@@ -594,7 +595,24 @@ model SocialAccountPost {
 
   @@unique([connectionId, externalId], map: "social_account_post_connectionId_externalId_key")
   @@index([connectionId, publishedAt, id], map: "social_account_post_connectionId_publishedAt_id_idx")
+  @@index([connectionId, fetchedAt], map: "social_account_post_connectionId_fetchedAt_idx")
   @@map("social_account_post")
+}
+
+/// Observed daily account metrics. Post observations live on SocialAccountPost
+/// and are read by connectionId + fetchedAt, not copied into this row.
+model SocialPerformanceSnapshot {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  connectionId     String    @db.Uuid
+  date             DateTime  @db.Date
+  metrics          Json
+  fetchedAt        DateTime
+  profileFetchedAt DateTime?
+
+  connection ProjectSocialConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, date], map: "social_performance_snapshot_connectionId_date_key")
+  @@map("social_performance_snapshot")
 }
 
 model ProjectSocialConnectionIntent {

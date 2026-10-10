@@ -11,6 +11,7 @@ import {
   projectComposioResponse,
   record,
 } from "@/clients/composio.client";
+import { facebookInsightShareCount } from "@/clients/social-post-providers/facebook-shares";
 import {
   ComposioToolError,
   createSocialPostToolSession,
@@ -217,13 +218,21 @@ function requiredList(
   key: string,
   max = 100,
 ): Record<string, unknown>[] {
-  if (
-    !Array.isArray(data?.[key]) ||
-    data[key].length > max ||
-    data[key].some((item: unknown) => record(item) === null)
-  )
+  if (!Array.isArray(data?.[key]))
     throw new TypeError("Invalid statistics response");
-  return objects(data[key]);
+  return objects(data[key]).slice(0, max);
+}
+
+function isXRepost(item: Record<string, unknown>): boolean {
+  return objects(item.referenced_tweets).some(
+    (ref) => string(ref.type) === "retweeted",
+  );
+}
+
+function xShareCount(count: Record<string, unknown> | null): number | null {
+  return counter(
+    count?.organic_repost_count ?? count?.repost_count ?? count?.retweet_count,
+  );
 }
 function insights(data: Record<string, unknown> | null): SocialAccountMetric[] {
   const result: SocialAccountMetric[] = [];
@@ -290,7 +299,7 @@ async function readNativeHistory(
         { name: "max_results", value: "100", type: "query" },
         {
           name: "post.fields",
-          value: "created_at,public_metrics,note_post",
+          value: "created_at,public_metrics,note_post,referenced_tweets",
           type: "query",
         },
       ]
@@ -309,6 +318,22 @@ async function readNativeHistory(
       value: context.cursor,
       type: "query",
     });
+  return readNativeJson(
+    context,
+    endpoint,
+    parameters,
+    isX
+      ? `https://api.twitter.com/2/users/${context.externalAccountId}/tweets`
+      : undefined,
+  );
+}
+
+async function readNativeJson(
+  context: SocialAccountStatisticsContext,
+  endpoint: string,
+  parameters: { name: string; value: string; type: string }[],
+  aliasEndpoint?: string,
+): Promise<Record<string, unknown>> {
   const request = async (target: string) => {
     const response = await projectComposioFetch(
       "/api/v3.1/tools/execute/proxy",
@@ -323,7 +348,7 @@ async function readNativeHistory(
         },
       },
     );
-    if (isX && [400, 403, 422].includes(response.status)) {
+    if (aliasEndpoint && [400, 403, 422].includes(response.status)) {
       const detail = await response.clone().text();
       if (
         /(same[- ]domain|cross[- ]domain|domain.{0,100}(match|allowed|mismatch)|(?:match|allowed).{0,100}domain)/i.test(
@@ -345,10 +370,9 @@ async function readNativeHistory(
     // Composio rejects hosts outside the toolkit's configured domain. Older
     // Twitter auth configs use twitter.com; retry only this fixed trusted alias
     // and only on the proxy's domain-validation rejection, never API failures.
-    if (!isX || !(error instanceof ProxyDomainMismatchError)) throw error;
-    result = await request(
-      `https://api.twitter.com/2/users/${context.externalAccountId}/tweets`,
-    );
+    if (!aliasEndpoint || !(error instanceof ProxyDomainMismatchError))
+      throw error;
+    result = await request(aliasEndpoint);
   }
   const data = record(result.data);
   if (
@@ -359,6 +383,49 @@ async function readNativeHistory(
   )
     throw new TypeError("Account history unavailable");
   return data;
+}
+
+/** Public timeline stays usable when organic metrics are denied. */
+async function enrichXOrganicReposts(
+  context: SocialAccountStatisticsContext,
+  posts: AccountPost[],
+) {
+  const cutoff = Date.now() - 30 * 86_400_000;
+  const eligible = posts.filter(
+    (entry) =>
+      /^\d{1,19}$/.test(entry.externalId) &&
+      entry.publishedAt !== null &&
+      new Date(entry.publishedAt).getTime() > cutoff,
+  );
+  if (!eligible.length) return;
+  try {
+    const data = await readNativeJson(
+      context,
+      "https://api.x.com/2/tweets",
+      [
+        {
+          name: "ids",
+          value: eligible.map((entry) => entry.externalId).join(","),
+          type: "query",
+        },
+        { name: "post.fields", value: "organic_metrics", type: "query" },
+      ],
+      "https://api.twitter.com/2/tweets",
+    );
+    for (const item of requiredList(data, "data")) {
+      const entry = eligible.find((post) => post.externalId === item.id);
+      const organic = xShareCount(record(item.organic_metrics));
+      if (
+        !entry ||
+        organic === null ||
+        (entry.metrics.shares !== null && entry.metrics.shares >= organic)
+      )
+        continue;
+      entry.metrics.shares = organic;
+    }
+  } catch {
+    context.signal?.throwIfAborted();
+  }
 }
 
 async function profile(
@@ -575,7 +642,8 @@ async function history(
       for (const item of requiredList(data, "data")) {
         if (
           item.author_id !== undefined &&
-          item.author_id !== context.externalAccountId
+          item.author_id !== context.externalAccountId &&
+          !isXRepost(item)
         )
           continue;
         const entry = post(
@@ -593,12 +661,13 @@ async function history(
           impressions: counter(count?.impression_count),
           likes: counter(count?.like_count),
           comments: counter(count?.reply_count),
-          shares: counter(count?.repost_count ?? count?.retweet_count),
+          shares: xShareCount(count),
           saves: counter(count?.bookmark_count),
         };
         entry.additionalMetrics = counts(count, ["quote_count"]);
         result.posts.push(entry);
       }
+      await enrichXOrganicReposts(context, result.posts);
       result.nextCursor = cursor(record(data.meta)?.next_token);
       if (record(data.meta)?.next_token && !result.nextCursor)
         throw new TypeError("Invalid history pagination");
@@ -718,6 +787,7 @@ async function history(
             entry.metrics.views = counter(count?.viewCount);
             entry.metrics.likes = counter(count?.likeCount);
             entry.metrics.comments = counter(count?.commentCount);
+            // YouTube Data API does not report shares; omit rather than store 0.
             entry.additionalMetrics = counts(count, ["dislikeCount"]);
           }
         } catch {
@@ -807,33 +877,33 @@ async function enrichMetaHistory(
     await Promise.all(
       result.posts.slice(start, start + 3).map(async (entry) => {
         try {
-          const values = insights(
-            await read(
-              context.provider === "instagram"
-                ? "INSTAGRAM_GET_IG_MEDIA_INSIGHTS"
-                : "FACEBOOK_GET_POST_INSIGHTS",
-              context.provider === "instagram"
-                ? {
-                    ig_media_id: entry.externalId,
-                    metric: [
-                      "views",
-                      "reach",
-                      "saved",
-                      "likes",
-                      "comments",
-                      "shares",
-                      "total_interactions",
-                      "reposts",
-                    ],
-                    period: "lifetime",
-                  }
-                : {
-                    post_id: entry.externalId,
-                    metrics: "post_media_view,post_total_media_view_unique",
-                    period: "lifetime",
-                  },
-            ),
+          const payload = await read(
+            context.provider === "instagram"
+              ? "INSTAGRAM_GET_IG_MEDIA_INSIGHTS"
+              : "FACEBOOK_GET_POST_INSIGHTS",
+            context.provider === "instagram"
+              ? {
+                  ig_media_id: entry.externalId,
+                  metric: [
+                    "views",
+                    "reach",
+                    "saved",
+                    "likes",
+                    "comments",
+                    "shares",
+                    "total_interactions",
+                    "reposts",
+                  ],
+                  period: "lifetime",
+                }
+              : {
+                  post_id: entry.externalId,
+                  metrics:
+                    "post_media_view,post_total_media_view_unique,post_activity_by_action_type",
+                  period: "lifetime",
+                },
           );
+          const values = insights(payload);
           const lookup = new Map(values.map((item) => [item.key, item.value]));
           entry.metrics.views = counter(
             lookup.get(
@@ -847,6 +917,9 @@ async function enrichMetaHistory(
               counter(lookup.get("comments")) ?? entry.metrics.comments;
             entry.metrics.shares = counter(lookup.get("shares"));
             entry.metrics.saves = counter(lookup.get("saved"));
+          } else {
+            entry.metrics.shares =
+              facebookInsightShareCount(payload) ?? entry.metrics.shares;
           }
           entry.additionalMetrics = values.filter(
             (item) =>
@@ -857,6 +930,7 @@ async function enrichMetaHistory(
                 "shares",
                 "saved",
                 "post_media_view",
+                "post_activity_by_action_type",
               ].includes(item.key),
           );
           if (
@@ -958,15 +1032,19 @@ export async function fetchSocialAccountStatisticsPage(
       await enrichMetaHistory(context, read, result, mediaTypes);
     } catch (error) {
       context.signal?.throwIfAborted();
-      result.posts = [];
-      result.nextCursor = null;
-      result.historyError =
-        context.provider === "youtube" && isYouTubeQuotaError(error)
-          ? YOUTUBE_QUOTA_ERROR
-          : statisticsFailureMessage(
-              error,
-              `${label} published history is unavailable. Check the connection permissions or try again later.`,
-            );
+      if (result.posts.length > 0) {
+        result.metricWarning = `${label} published posts were imported, but some post insights are unavailable.`;
+      } else {
+        result.posts = [];
+        result.nextCursor = null;
+        result.historyError =
+          context.provider === "youtube" && isYouTubeQuotaError(error)
+            ? YOUTUBE_QUOTA_ERROR
+            : statisticsFailureMessage(
+                error,
+                `${label} published history is unavailable. Check the connection permissions or try again later.`,
+              );
+      }
     }
   } catch (error) {
     context.signal?.throwIfAborted();
