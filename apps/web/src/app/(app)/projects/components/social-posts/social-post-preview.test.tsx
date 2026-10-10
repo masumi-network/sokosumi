@@ -78,6 +78,25 @@ describe("SocialPostPreview", () => {
     );
   });
 
+  it("highlights a www address and leaves the period as text", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="See www.example.com/launch."
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByText("example.com/launch")).toHaveClass(
+      "text-social-x-link",
+    );
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "See example.com/launch.",
+    );
+  });
+
   it("keeps the X handle and time when the display name is long", () => {
     render(
       <SocialPostPreview
