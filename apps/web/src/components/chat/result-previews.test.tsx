@@ -223,6 +223,32 @@ describe("chat result cards", () => {
       expect(html).not.toContain('aria-label="Open source: Launch campaign"');
     },
   );
+  it("shows now on a draft social card with no publish time", () => {
+    const html = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{
+          ...task,
+          kind: "social_post",
+          status: "DRAFT",
+          summary: "Our launch",
+          capturedAt: new Date("2026-10-06T10:00:00Z"),
+          social: {
+            provider: "x",
+            account: {
+              displayName: "Sokosumi",
+              handle: "sokosumi",
+              avatarUrl: null,
+            },
+            timestamp: null,
+          },
+          outputs: [],
+        }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(html).toContain("now");
+    expect(html).not.toContain("2026-10-06");
+  });
   it("renders an unavailable card without a resource link", () => {
     const html = renderToStaticMarkup(
       <ResultPreviewCard
