@@ -1,5 +1,15 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  STUDIO_SELECT_NONE_CLASS,
+  STUDIO_TOUCH_CALLOUT_NONE_CLASS,
+} from "./studio-carousel-paint";
 import { TEST_LABELS } from "./studio-fixtures";
 import { StudioTemplateCarousel } from "./studio-template-picker";
 
@@ -34,6 +44,7 @@ beforeEach(() => {
   mocks.reduceMotion = false;
 });
 afterEach(() => {
+  document.body.classList.remove(STUDIO_SELECT_NONE_CLASS);
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -145,6 +156,11 @@ describe("the empty studio carousel", () => {
   });
 
   it("keeps the centered preview clear and places neighboring cards behind it", () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
     mount();
     const viewport = mocks.api.rootNode();
     vi.spyOn(viewport, "getBoundingClientRect").mockReturnValue(
@@ -160,6 +176,9 @@ describe("the empty studio carousel", () => {
       ([event]) => event === "scroll",
     )![1];
     act(() => paint());
+    act(() => paint());
+    expect(frames).toHaveLength(1);
+    act(() => frames[0]?.(0));
     const center = screen.getByRole("button", { name: "poster" });
     const outer = screen.getByRole("button", { name: "product-announcement" });
     expect(center.style.transform).toContain("scale(1)");
@@ -169,11 +188,67 @@ describe("the empty studio carousel", () => {
     expect(
       center.querySelector<HTMLElement>("[data-template-preview]")!.style
         .filter,
-    ).toBe("blur(0px)");
+    ).toBe("");
     expect(
       outer.querySelector<HTMLElement>("[data-template-preview]")!.style.filter,
-    ).not.toBe("blur(0px)");
+    ).toBe("");
+    expect(Number(center.style.opacity || 1)).toBeGreaterThan(0);
     expect(center.textContent).toBe("poster");
+    expect(center).toHaveAttribute("data-studio-snap-target");
+    const region = screen.getByRole("region", { name: "templates" });
+    const startDrag = mocks.api.on.mock.calls.find(
+      ([event]) => event === "pointerDown",
+    )![1];
+    const endDrag = mocks.api.on.mock.calls.find(
+      ([event]) => event === "pointerUp",
+    )![1];
+    act(() => startDrag());
+    expect(region).toHaveAttribute("data-studio-dragging");
+    expect(center.style.willChange).toBe("transform");
+    act(() => endDrag());
+    expect(region).not.toHaveAttribute("data-studio-dragging");
+    expect(center.style.willChange).toBe("");
+  });
+
+  it("keeps cards and the canvas unselectable on click and only locks the document while dragging", () => {
+    const { apply } = mount();
+    const card = screen.getByRole("button", { name: "poster" });
+    const carousel = screen.getByRole("region", { name: "templates" });
+    const item = card.closest("[data-slot=carousel-item]");
+    expect(card.className).toContain(STUDIO_SELECT_NONE_CLASS);
+    expect(card.className).toContain(STUDIO_TOUCH_CALLOUT_NONE_CLASS);
+    expect(carousel.className).toContain(STUDIO_SELECT_NONE_CLASS);
+    expect(item?.className).toContain(STUDIO_SELECT_NONE_CLASS);
+    expect(document.body).not.toHaveClass(STUDIO_SELECT_NONE_CLASS);
+
+    fireEvent.click(card);
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(document.body).not.toHaveClass(STUDIO_SELECT_NONE_CLASS);
+    fireEvent.doubleClick(card);
+    expect(document.body).not.toHaveClass(STUDIO_SELECT_NONE_CLASS);
+
+    const startDrag = mocks.api.on.mock.calls.find(
+      ([event]) => event === "pointerDown",
+    )![1];
+    const endDrag = mocks.api.on.mock.calls.find(
+      ([event]) => event === "pointerUp",
+    )![1];
+    const pointerDown = createEvent.pointerDown(carousel);
+    const mouseDown = createEvent.mouseDown(carousel);
+    const preventPointer = vi.spyOn(pointerDown, "preventDefault");
+    const preventMouse = vi.spyOn(mouseDown, "preventDefault");
+    fireEvent(carousel, pointerDown);
+    fireEvent(carousel, mouseDown);
+    expect(preventPointer).toHaveBeenCalled();
+    expect(preventMouse).toHaveBeenCalled();
+    act(() => startDrag());
+    expect(document.body).toHaveClass(STUDIO_SELECT_NONE_CLASS);
+    fireEvent.pointerCancel(carousel);
+    expect(document.body).not.toHaveClass(STUDIO_SELECT_NONE_CLASS);
+    act(() => startDrag());
+    expect(document.body).toHaveClass(STUDIO_SELECT_NONE_CLASS);
+    act(() => endDrag());
+    expect(document.body).not.toHaveClass(STUDIO_SELECT_NONE_CLASS);
   });
 
   it("does not hover-scroll with reduced motion and still allows keyboard navigation", () => {
