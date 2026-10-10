@@ -2373,7 +2373,7 @@
         "description": "Connect social accounts to this project. Draft, schedule, and publish posts on any connected platform.",
         "account": "{provider} account",
         "connect": "Connect {provider} account",
-        "connectAccount": "Connect X, YouTube, LinkedIn…",
+        "connectAccount": "Connect account",
         "actions": "Actions for {account}",
         "reconnect": "Reconnect",
         "replace": "Replace",
