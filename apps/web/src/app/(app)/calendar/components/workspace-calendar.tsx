@@ -8,13 +8,15 @@ import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
 import {
+  ProjectSocialProvider,
+  type ProjectSocialProvider as ProjectSocialProviderValue,
   TaskStatus,
   type TaskStatus as TaskStatusValue,
   type WorkspaceCalendarEntry,
   type WorkspaceCalendarItem,
   type WorkspaceCalendarSource,
 } from "@sokosumi/core-client";
-import { isValidTimezone } from "@sokosumi/utils";
+import { isValidTimezone, socialPostProviderLabel } from "@sokosumi/utils";
 import {
   addDays,
   addMonths,
@@ -111,9 +113,19 @@ type CalendarView = (typeof CALENDAR_VIEWS)[number];
 // already shows what is coming up, so its calendar has no agenda list.
 const SOCIAL_CALENDAR_VIEWS = ["month", "week"] as const;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
+const SOCIAL_POST_PROVIDERS = Object.values(ProjectSocialProvider);
 
 function isCalendarStatus(value: string | null): value is TaskStatusValue {
   return value !== null && CALENDAR_STATUSES.some((status) => status === value);
+}
+
+function isSocialPostProvider(
+  value: string | null,
+): value is ProjectSocialProviderValue {
+  return (
+    value !== null &&
+    SOCIAL_POST_PROVIDERS.some((provider) => provider === value)
+  );
 }
 
 export interface CalendarCoworker {
@@ -191,6 +203,9 @@ const calendarParsers = {
   scope: parseAsStringLiteral(["owned", "workspace"]).withDefault("workspace"),
   socialOnly: parseAsBoolean.withDefault(false),
   status: parseAsStringEnum<TaskStatusValue>(CALENDAR_STATUSES),
+  provider: parseAsStringEnum<ProjectSocialProviderValue>(
+    SOCIAL_POST_PROVIDERS,
+  ),
   timezone: parseAsString,
   view: parseAsStringLiteral(CALENDAR_VIEWS),
 };
@@ -886,6 +901,7 @@ export function WorkspaceCalendar({
           state.assigneeId === null &&
           state.assigneeUserId === null &&
           state.status === null &&
+          (state.provider === null || item.provider === state.provider) &&
           (selectedSourceId === null || item.sourceId === selectedSourceId)
         );
       return (
@@ -1182,8 +1198,31 @@ export function WorkspaceCalendar({
         ]
       : []),
     // A coworker, human or task status chosen while Social-only is on would
-    // empty the calendar: a Social post has none of the three.
+    // empty the calendar: a Social post has none of the three. Posts have
+    // a platform filter instead.
     ...(socialOnly ? [] : runFilterSections()),
+    ...(socialOnly
+      ? [
+          {
+            id: "provider",
+            label: t("socialPost.platform"),
+            icon: Share2,
+            value: state.provider,
+            allLabel: tFilters("all"),
+            options: SOCIAL_POST_PROVIDERS.map((provider) => ({
+              value: provider,
+              label: socialPostProviderLabel(provider),
+            })),
+            onChange: (provider: string | null) =>
+              void setState(
+                {
+                  provider: isSocialPostProvider(provider) ? provider : null,
+                },
+                { shallow: false },
+              ),
+          },
+        ]
+      : []),
     {
       id: "timezone",
       label: t("timezone.label"),
@@ -1314,6 +1353,7 @@ export function WorkspaceCalendar({
                     assigneeId: null,
                     assigneeUserId: null,
                     status: null,
+                    provider: state.socialOnly ? null : state.provider,
                   },
                   { shallow: false },
                 )
@@ -1348,6 +1388,7 @@ export function WorkspaceCalendar({
                   (state.assigneeId !== null ||
                     state.assigneeUserId !== null ||
                     state.status !== null)) ||
+                (socialOnly && state.provider !== null) ||
                 selectedSourceId !== null
               }
             />

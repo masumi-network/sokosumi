@@ -7461,7 +7461,8 @@
         "scheduledBy": "Programado por {name}",
         "unknownScheduler": "usuario desconocido",
         "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}",
-        "compactLabel": "{media, select, image {{count, plural, one {Publicación de {provider} con imagen} other {Publicación de {provider} con # imágenes}}} gif {Publicación de {provider} con GIF} video {Publicación de {provider} con vídeo} other {Publicación de {provider}}}"
+        "compactLabel": "{media, select, image {{count, plural, one {Publicación de {provider} con imagen} other {Publicación de {provider} con # imágenes}}} gif {Publicación de {provider} con GIF} video {Publicación de {provider} con vídeo} other {Publicación de {provider}}}",
+        "platform": "Plataforma"
       },
       "socialOnly": {
         "label": "Solo publicaciones sociales"

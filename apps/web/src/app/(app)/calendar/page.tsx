@@ -16,6 +16,7 @@ const PRESERVED_CALENDAR_PARAMS = [
   "scope",
   "socialOnly",
   "status",
+  "provider",
   "view",
   "timezone",
 ] as const satisfies ReadonlyArray<keyof CalendarPageSearchParams>;
