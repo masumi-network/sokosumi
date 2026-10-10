@@ -2423,6 +2423,7 @@
       },
       "SocialPosts": {
         "loadMore": "Load more",
+        "loadMoreError": "Couldn't load more.",
         "loading": "Loading…",
         "title": "Social posts",
         "newPost": "New post",

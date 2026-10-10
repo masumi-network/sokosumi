@@ -81,6 +81,7 @@ const {
 const MESSAGES: Record<string, string> = {
   title: "Social posts",
   loadMore: "Load more",
+  loadMoreError: "Couldn't load more.",
   loading: "Loading…",
   description: "Draft text posts for X and schedule them from this Project.",
   newPost: "New post",
@@ -2211,6 +2212,38 @@ describe("ProjectSocialPosts", () => {
     expect(getTab("Drafts")).toHaveTextContent("Drafts 2");
     expect(
       screen.queryByRole("button", { name: "Load more" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows an inline error and retries when loading more fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(loadMoreSocialPosts)
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValueOnce({
+        posts: [buildPost({ id: "older", text: "Older draft" })],
+        nextCursor: null,
+      });
+    render(
+      <ProjectSocialPosts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        nextCursors={{ drafts: "drafts-cursor" }}
+      />,
+    );
+
+    await openTab(user, "Drafts");
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+
+    expect(
+      await screen.findByTestId("social-load-more-error"),
+    ).toHaveTextContent("Couldn't load more.");
+    expect(toastErrorMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() => expect(screen.getByText("Older draft")).toBeVisible());
+    expect(
+      screen.queryByTestId("social-load-more-error"),
     ).not.toBeInTheDocument();
   });
 

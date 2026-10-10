@@ -2423,6 +2423,7 @@
       },
       "SocialPosts": {
         "loadMore": "Mehr laden",
+        "loadMoreError": "Mehr konnte nicht geladen werden.",
         "loading": "Wird geladen…",
         "title": "Social-Media-Beiträge",
         "newPost": "Neuer Beitrag",

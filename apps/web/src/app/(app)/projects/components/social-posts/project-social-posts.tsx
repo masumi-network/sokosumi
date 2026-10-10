@@ -183,6 +183,7 @@ export function ProjectSocialPosts({
   const [posts, setPosts] = useState(initialPosts);
   const [cursors, setCursors] = useState(nextCursors ?? {});
   const [loadingSection, setLoadingSection] = useState<SectionKey | null>(null);
+  const [loadMoreError, setLoadMoreError] = useState<SectionKey | null>(null);
   const [tabParam, setTabParam] = useQueryState(
     "tab",
     parseAsStringLiteral(SOCIAL_TABS),
@@ -193,6 +194,7 @@ export function ProjectSocialPosts({
     setSyncedPosts(initialPosts);
     setPosts(initialPosts);
     setCursors(nextCursors ?? {});
+    setLoadMoreError(null);
   }
   const [composer, setComposer] = useState<SocialPostComposerMode | null>(null);
   // Social's top-level New post menu opens a fresh composer through context.
@@ -275,13 +277,14 @@ export function ProjectSocialPosts({
     if (!cursor || loadingSection) return;
     const source = initialPosts;
     setLoadingSection(section);
+    setLoadMoreError(null);
     try {
       const page = await loadMoreSocialPosts({ projectId, section, cursor });
       if (sourceRef.current !== source) return;
       setPosts((current) => page.posts.reduce(upsertPost, current));
       setCursors((current) => ({ ...current, [section]: page.nextCursor }));
     } catch {
-      toast.error(t("toasts.failed"));
+      setLoadMoreError(section);
     } finally {
       setLoadingSection(null);
     }
@@ -722,19 +725,30 @@ export function ProjectSocialPosts({
                     </div>
                   )}
                   {cursor ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={loadingSection !== null}
-                      onClick={() => {
-                        void handleLoadMore(section);
-                      }}
-                    >
-                      {loadingSection === section
-                        ? t("loading")
-                        : t("loadMore")}
-                    </Button>
+                    <div className="space-y-2">
+                      {loadMoreError === section ? (
+                        <p
+                          className="text-destructive text-sm"
+                          data-testid="social-load-more-error"
+                          role="alert"
+                        >
+                          {t("loadMoreError")}
+                        </p>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={loadingSection !== null}
+                        onClick={() => {
+                          void handleLoadMore(section);
+                        }}
+                      >
+                        {loadingSection === section
+                          ? t("loading")
+                          : t("loadMore")}
+                      </Button>
+                    </div>
                   ) : null}
                 </TabsContent>
               );
