@@ -416,6 +416,28 @@ describe("WorkspaceCalendar Social-only view", () => {
       expect(screen.getByTestId("calendar-week")).toBeInTheDocument();
     });
 
+    it("uses one-line chips in week view so seven columns stay readable", () => {
+      renderCalendar(
+        { includeSocialPosts: true, socialPostsOnly: true },
+        "?timezone=UTC&view=week",
+      );
+
+      const chip = screen.getByTestId("calendar-social-post");
+      expect(chip).toHaveTextContent("compactLabel");
+      expect(chip).not.toHaveTextContent("Launch news");
+    });
+
+    it("keeps the full post card on the month", () => {
+      renderCalendar(
+        { includeSocialPosts: true, socialPostsOnly: true },
+        "?timezone=UTC&view=month",
+      );
+
+      expect(screen.getByTestId("calendar-social-post")).toHaveTextContent(
+        "Launch news",
+      );
+    });
+
     it("ignores a socialOnly=false left in the URL by the workspace calendar", () => {
       renderCalendar(
         { includeSocialPosts: true, socialPostsOnly: true },
