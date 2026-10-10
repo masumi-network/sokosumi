@@ -1810,6 +1810,9 @@ describe("ProjectSocialPosts", () => {
       "social-post-needs-reconnect",
     );
     expect(warning).toHaveTextContent("Account needs reconnecting");
+    expect(
+      within(warning).getByRole("link", { name: "Reconnect the account" }),
+    ).toHaveAttribute("href", `/social?projectId=${PROJECT_ID}&tab=accounts`);
   });
 
   it("does not warn about reconnecting when the connection is active", () => {

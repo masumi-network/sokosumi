@@ -2,6 +2,7 @@
 
 import type { SocialPost } from "@sokosumi/core-client";
 import { ExternalLink } from "lucide-react";
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -77,10 +78,17 @@ export function SocialPostPreviewDialog({
         </DialogHeader>
         {post?.connectionNeedsReconnect ? (
           <p
-            className="text-muted-foreground text-sm"
+            className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
             data-testid="social-post-needs-reconnect"
+            role="status"
           >
-            {t("needsReconnect")}
+            <span>{t("needsReconnect")}</span>
+            <Link
+              className="font-medium underline-offset-4 hover:underline"
+              href={`/social?projectId=${encodeURIComponent(post.projectId)}&tab=accounts`}
+            >
+              {t("needsReconnectLink")}
+            </Link>
           </p>
         ) : null}
         {post ? (
