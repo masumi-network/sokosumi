@@ -191,8 +191,11 @@ describe("SocialPostStatistics account history", () => {
       screen.getByRole("heading", { name: "Posting consistency" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "Account performance" }),
+      screen.getByRole("region", { name: "Account performance" }),
     ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Account performance" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("More filters")).toBeVisible();
     expect(screen.getByTestId("social-performance-overview")).toBeVisible();
     expect(screen.getByText("Posts")).toBeVisible();
