@@ -910,7 +910,10 @@ export function SocialPostComposerDialog({
             </div>
 
             {isScheduleOnly ? null : (
-              <div className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8">
+              <div
+                className="order-1 space-y-3 border-t px-6 py-5 md:order-none md:px-8"
+                data-testid="social-post-composer-editor"
+              >
                 <textarea
                   id={textId}
                   aria-invalid={overLimit || undefined}
@@ -1017,7 +1020,8 @@ export function SocialPostComposerDialog({
 
             <section
               aria-labelledby={scheduledAtId}
-              className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8"
+              className="order-3 space-y-3 border-t px-6 py-5 md:order-none md:px-8"
+              data-testid="social-post-composer-when"
             >
               <div className="space-y-1">
                 <h3 id={scheduledAtId} className="text-sm font-semibold">
@@ -1081,7 +1085,7 @@ export function SocialPostComposerDialog({
           {previewAccount || hasContent ? (
             <aside
               aria-label={t("preview.open")}
-              className="bg-background-muted order-1 flex shrink-0 flex-col gap-3 border-t px-6 py-5 md:order-none md:app-scrollbar md:w-96 md:overflow-y-auto md:border-t-0 md:border-s md:px-6"
+              className="bg-background-muted order-2 flex shrink-0 flex-col gap-3 border-t px-6 py-5 md:order-none md:app-scrollbar md:w-96 md:overflow-y-auto md:border-t-0 md:border-s md:px-6"
             >
               <p className="text-muted-foreground text-xs font-medium">
                 {t("preview.open")}

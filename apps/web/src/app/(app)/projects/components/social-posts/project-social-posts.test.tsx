@@ -993,6 +993,27 @@ describe("ProjectSocialPosts", () => {
     ).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("puts the editor above the preview on a phone", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByTestId("social-post-composer-editor"),
+    ).toHaveClass("order-1");
+    expect(within(dialog).getByRole("complementary")).toHaveClass("order-2");
+    expect(within(dialog).getByTestId("social-post-composer-when")).toHaveClass(
+      "order-3",
+    );
+  });
+
   it("remembers the accounts a New post used last time", async () => {
     const user = userEvent.setup();
     const connections = [
