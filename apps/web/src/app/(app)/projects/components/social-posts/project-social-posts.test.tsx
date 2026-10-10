@@ -2126,7 +2126,7 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("orders Needs attention by latest change and leaves canceled posts out", async () => {
+  it("orders Needs attention by latest failure and leaves canceled posts out", async () => {
     const user = userEvent.setup();
     const canceled = buildPost({
       id: "post-canceled",
@@ -2139,13 +2139,23 @@ describe("ProjectSocialPosts", () => {
     });
     const failed = {
       ...FAILED_POST,
-      updatedAt: new Date("2026-09-10T10:05:00.000Z"),
+      updatedAt: new Date("2026-09-08T10:00:00.000Z"),
+      lastAttemptAt: new Date("2026-09-12T10:05:00.000Z"),
+      lastAttempt: {
+        ...FAILED_POST.lastAttempt!,
+        finishedAt: new Date("2026-09-12T10:05:00.000Z"),
+      },
     };
     const missed = {
       ...FAILED_POST,
       id: "post-missed",
       status: "MISSED" as const,
-      updatedAt: new Date("2026-09-12T10:00:00.000Z"),
+      updatedAt: new Date("2026-09-15T10:00:00.000Z"),
+      lastAttemptAt: new Date("2026-09-08T10:00:00.000Z"),
+      lastAttempt: {
+        ...FAILED_POST.lastAttempt!,
+        finishedAt: new Date("2026-09-08T10:00:00.000Z"),
+      },
     };
     render(
       <ProjectSocialPosts
@@ -2159,8 +2169,8 @@ describe("ProjectSocialPosts", () => {
     const attention = screen.getByTestId("social-posts-section-attention");
     const rows = within(attention).getAllByRole("listitem");
     expect(rows.map((row) => row.getAttribute("data-testid"))).toEqual([
-      "social-post-post-missed",
       "social-post-post-failed",
+      "social-post-post-missed",
     ]);
     expect(
       screen.queryByTestId("social-post-post-canceled"),

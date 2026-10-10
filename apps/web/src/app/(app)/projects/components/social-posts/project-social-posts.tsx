@@ -103,14 +103,27 @@ function timeOf(value: Date | null): number {
   return value ? new Date(value).getTime() : 0;
 }
 
+function failureTimeOf(post: SocialPost): number {
+  return timeOf(
+    post.lastAttempt?.finishedAt ??
+      post.lastAttemptAt ??
+      post.scheduledAt ??
+      post.updatedAt,
+  );
+}
+
 function sectionOf(post: SocialPost): SectionKey | undefined {
   return SECTION_ORDER.find((section) =>
     SECTION_STATUSES[section].includes(post.status),
   );
 }
 
-function sortSection(posts: SocialPost[]): SocialPost[] {
-  return [...posts].sort((a, b) => timeOf(b.updatedAt) - timeOf(a.updatedAt));
+function sortSection(posts: SocialPost[], section: SectionKey): SocialPost[] {
+  return [...posts].sort((a, b) =>
+    section === "attention"
+      ? failureTimeOf(b) - failureTimeOf(a)
+      : timeOf(b.updatedAt) - timeOf(a.updatedAt),
+  );
 }
 
 function formatHandle(handle: string | null): string | null {
@@ -227,6 +240,7 @@ export function ProjectSocialPosts({
   function postsIn(section: SectionKey): SocialPost[] {
     return sortSection(
       posts.filter((post) => SECTION_STATUSES[section].includes(post.status)),
+      section,
     );
   }
 
