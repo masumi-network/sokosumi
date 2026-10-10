@@ -2387,7 +2387,7 @@
         },
         "replaceDialog": {
           "title": "¿Reemplazar esta cuenta?",
-          "description": "La cuenta actual se desconectará antes de conectar un reemplazo.",
+          "description": "Todos los borradores y las publicaciones programadas de esta cuenta pasarán a la nueva. Si quieres conservarlas aquí, añade otra cuenta en lugar de reemplazarla.",
           "confirm": "Reemplazar cuenta"
         },
         "disconnectDialog": {
