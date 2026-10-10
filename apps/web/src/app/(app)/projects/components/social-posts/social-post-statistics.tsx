@@ -265,12 +265,6 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       </dl>
     );
   }
-  function formatDate(value: string | Date) {
-    return formatter.dateTime(new Date(value), "dateTime", {
-      timeZone: "UTC",
-      timeZoneName: "short",
-    });
-  }
   function formatUpdated(value: string | Date) {
     return formatter.dateTime(new Date(value), {
       dateStyle: "medium",
