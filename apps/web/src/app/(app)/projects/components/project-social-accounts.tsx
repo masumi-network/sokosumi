@@ -33,6 +33,7 @@ import {
   finalizeProjectSocialConnection,
   initiateProjectSocialConnection,
 } from "@/lib/actions/project/action";
+import { refreshSocialAccountPerformance } from "@/lib/actions/project/social-performance-refresh.action";
 import { useComposioOAuthPopup } from "@/lib/composio/use-composio-oauth-popup";
 import { cn } from "@/lib/utils";
 
@@ -102,6 +103,9 @@ export function ProjectSocialAccounts({
   const [pendingConfirmation, setPendingConfirmation] =
     useState<PendingConfirmation | null>(null);
   const isBusy = pendingAction !== null;
+  const [refreshingConnection, setRefreshingConnection] = useState<
+    string | null
+  >(null);
 
   useMountEffect(() => {
     isMountedRef.current = true;
@@ -129,6 +133,24 @@ export function ProjectSocialAccounts({
     if (isMountedRef.current) {
       setPendingAction(null);
       setPendingTarget(null);
+    }
+  }
+
+  async function handleSyncNow(connectionId: string): Promise<void> {
+    setRefreshingConnection(connectionId);
+    try {
+      await refreshSocialAccountPerformance({ projectId, connectionId });
+      showFeedback({
+        kind: "success",
+        message: t("syncQueued"),
+      });
+    } catch (_error) {
+      showFeedback({
+        kind: "error",
+        message: t("syncFailed"),
+      });
+    } finally {
+      setRefreshingConnection(null);
     }
   }
 
@@ -500,6 +522,17 @@ export function ProjectSocialAccounts({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {connection.status === "active" ? (
+                          <DropdownMenuItem
+                            disabled={refreshingConnection === connection.id}
+                            onSelect={() => {
+                              void handleSyncNow(connection.id);
+                            }}
+                          >
+                            <RefreshCw className="size-4" aria-hidden />
+                            {t("syncNow")}
+                          </DropdownMenuItem>
+                        ) : null}
                         {canReplace ? (
                           <DropdownMenuItem
                             onSelect={() => {
