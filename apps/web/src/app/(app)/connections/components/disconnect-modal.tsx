@@ -18,6 +18,10 @@ import {
 } from "@/components/ui/dialog";
 import { useReauthGate } from "@/hooks/use-reauth-gate";
 import { authClient } from "@/lib/auth/auth.client";
+import {
+  SOCIAL_PROVIDER_NAMES,
+  type SocialProvider,
+} from "@/lib/auth/social-providers";
 
 interface DisconnectModalProps {
   account: Account;
@@ -38,6 +42,8 @@ export default function DisconnectModal({
   const [loading, setLoading] = useState(false);
 
   const { providerId } = account;
+  const provider =
+    SOCIAL_PROVIDER_NAMES[providerId as SocialProvider] ?? providerId;
 
   const reauthGate = useReauthGate({ accounts });
 
@@ -69,11 +75,11 @@ export default function DisconnectModal({
         return;
       }
 
-      toast.error(result.error.message ?? t("error", { provider: providerId }));
+      toast.error(result.error.message ?? t("error", { provider }));
     } catch {
       // A rejected call leaves no result to read, so without this the spinner
       // would clear and the viewer would never learn the account is still on.
-      toast.error(t("error", { provider: providerId }));
+      toast.error(t("error", { provider }));
     } finally {
       setLoading(false);
     }
@@ -85,10 +91,10 @@ export default function DisconnectModal({
         <DialogContent className="w-[80vw] max-w-md!">
           <DialogHeader>
             <DialogTitle className="text-center text-lg font-medium">
-              {t("title", { provider: providerId })}
+              {t("title", { provider })}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground text-center text-base">
-              {t("description", { provider: providerId })}
+              {t("description", { provider })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex w-full items-center justify-around! gap-1.5">
