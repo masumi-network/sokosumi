@@ -2574,6 +2574,11 @@
           "description": "La publicación saldrá de inmediato en lugar de esperar a la hora programada.",
           "confirm": "Publicar ahora"
         },
+        "retryDialog": {
+          "title": "¿Reintentar esta publicación?",
+          "description": "La publicación saldrá ahora.",
+          "confirm": "Reintentar"
+        },
         "connectPrompt": {
           "title": "Conecta una cuenta para empezar a publicar",
           "body": "Las publicaciones salen de las cuentas de X, Instagram, LinkedIn, Facebook y YouTube conectadas a este proyecto.",

@@ -180,6 +180,9 @@ const MESSAGES: Record<string, string> = {
   "publishDialog.description":
     "The post goes out to X right away instead of waiting for its scheduled time.",
   "publishDialog.confirm": "Publish now",
+  "retryDialog.title": "Retry this post?",
+  "retryDialog.description": "The post goes out now.",
+  "retryDialog.confirm": "Retry",
   "toasts.published": "Post published.",
   "toasts.publishFailed": "Publishing failed: {error}",
   "toasts.created": "Draft saved.",
@@ -1929,11 +1932,15 @@ describe("ProjectSocialPosts", () => {
 
     const alert = screen.getByRole("alertdialog");
     expect(
-      within(alert).getByRole("heading", { name: "Publish this post now?" }),
+      within(alert).getByRole("heading", { name: "Retry this post?" }),
     ).toBeVisible();
-    await user.click(
-      within(alert).getByRole("button", { name: "Publish now" }),
-    );
+    expect(within(alert).getByText("The post goes out now.")).toBeVisible();
+    expect(
+      within(alert).queryByRole("heading", {
+        name: "Publish this post now?",
+      }),
+    ).not.toBeInTheDocument();
+    await user.click(within(alert).getByRole("button", { name: "Retry" }));
 
     await waitFor(() => {
       expect(publishProjectSocialPost).toHaveBeenCalledWith({

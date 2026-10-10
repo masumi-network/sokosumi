@@ -2574,6 +2574,11 @@
           "description": "Der Beitrag wird sofort veröffentlicht, statt auf den geplanten Zeitpunkt zu warten.",
           "confirm": "Jetzt veröffentlichen"
         },
+        "retryDialog": {
+          "title": "Diesen Beitrag erneut versuchen?",
+          "description": "Der Beitrag wird jetzt veröffentlicht.",
+          "confirm": "Erneut versuchen"
+        },
         "connectPrompt": {
           "title": "Verbinde ein Konto, um zu posten",
           "body": "Beiträge werden über die X-, Instagram-, LinkedIn-, Facebook- und YouTube-Konten dieses Projekts veröffentlicht.",

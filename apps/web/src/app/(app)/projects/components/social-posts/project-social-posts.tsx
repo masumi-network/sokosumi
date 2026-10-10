@@ -483,6 +483,11 @@ export function ProjectSocialPosts({
     );
   }
 
+  const publishCopy =
+    publishTarget && RETRY_STATUSES.includes(publishTarget.status)
+      ? "retryDialog"
+      : "publishDialog";
+
   function renderPost(post: SocialPost) {
     const handle = formatHandle(post.socialConnection?.externalHandle ?? null);
     const creatorLabel = post.creator.name
@@ -881,9 +886,9 @@ export function ProjectSocialPosts({
       >
         <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("publishDialog.title")}</AlertDialogTitle>
+            <AlertDialogTitle>{t(`${publishCopy}.title`)}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("publishDialog.description")}
+              {t(`${publishCopy}.description`)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -897,7 +902,7 @@ export function ProjectSocialPosts({
                 void handleConfirmPublish();
               }}
             >
-              {t("publishDialog.confirm")}
+              {t(`${publishCopy}.confirm`)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
