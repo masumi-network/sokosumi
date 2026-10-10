@@ -104,7 +104,7 @@ const MESSAGES: Record<string, string> = {
     "Failed to refresh statistics. Previous results are retained.",
   "connectPrompt.title": "Connect an account to start posting",
   "connectPrompt.body": "Posts go out from this project's accounts.",
-  "connectPrompt.action": "Connect X, YouTube, LinkedIn…",
+  "connectPrompt.action": "Connect account",
   selectedPost: "Selected post",
   "empty.drafts": "No drafts yet.",
   "emptyHint.drafts": "Save a post as a draft to finish it later.",
@@ -631,7 +631,7 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
     await user.click(
       within(prompt).getByRole("button", {
-        name: "Connect X, YouTube, LinkedIn…",
+        name: "Connect account",
       }),
     );
 

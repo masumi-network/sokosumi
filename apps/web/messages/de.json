@@ -2575,7 +2575,7 @@
         "connectPrompt": {
           "title": "Verbinde ein Konto, um zu posten",
           "body": "Beiträge werden über die X-, Instagram-, LinkedIn-, Facebook- und YouTube-Konten dieses Projekts veröffentlicht.",
-          "action": "X, YouTube, LinkedIn … verbinden"
+          "action": "Konto verbinden"
         },
         "preview": {
           "label": "{provider}-Vorschau",

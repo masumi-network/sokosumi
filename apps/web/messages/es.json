@@ -2575,7 +2575,7 @@
         "connectPrompt": {
           "title": "Conecta una cuenta para empezar a publicar",
           "body": "Las publicaciones salen de las cuentas de X, Instagram, LinkedIn, Facebook y YouTube conectadas a este proyecto.",
-          "action": "Conectar X, YouTube, LinkedIn…"
+          "action": "Conectar cuenta"
         },
         "preview": {
           "label": "Vista previa de {provider}",
