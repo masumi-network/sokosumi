@@ -111,6 +111,7 @@ export function SocialPostComposerDialog({
   const formatter = useFormatter();
   const viewerTimezone = resolveTimezone();
   const textId = useId();
+  const characterCountId = useId();
   const isMobile = useIsMobile();
   const accountsLabelId = useId();
   const scheduledAtId = useId();
@@ -789,9 +790,10 @@ export function SocialPostComposerDialog({
               <div className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8">
                 <textarea
                   id={textId}
+                  aria-describedby={characterCountId}
                   aria-invalid={overLimit || undefined}
                   aria-label={t("composer.text")}
-                  className="placeholder:text-muted-foreground field-sizing-content min-h-40 w-full resize-none border-0 bg-transparent px-0 text-base leading-relaxed shadow-none outline-none"
+                  className="placeholder:text-muted-foreground field-sizing-content min-h-40 w-full resize-none rounded-md border-0 bg-transparent px-0 text-base leading-relaxed shadow-none outline-none focus-visible:ring-ring-halo focus-visible:ring-[3px] aria-invalid:ring-destructive-halo"
                   disabled={isBusy}
                   onChange={(event) => setText(event.target.value)}
                   placeholder={t("composer.textPlaceholder")}
@@ -843,6 +845,7 @@ export function SocialPostComposerDialog({
                       overLimit ? "text-destructive" : "text-muted-foreground",
                     )}
                     data-testid="social-post-character-count"
+                    id={characterCountId}
                   >
                     {t("composer.characters", {
                       count: text.length,
