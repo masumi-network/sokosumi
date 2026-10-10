@@ -288,8 +288,13 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
   const statusAccount = selectedAccount ?? accounts[0];
   const statusSnapshot = statusAccount?.statistics;
 
+  const advancedFilterCount = [
+    !preset && Boolean(filters.publishedFrom || filters.publishedUntil),
+  ].filter(Boolean).length;
+
   return (
     <div className="space-y-6" data-testid="social-statistics">
+      <h2 className="text-lg font-semibold">{t("title")}</h2>
       <div role="status" className="text-muted-foreground text-sm">
         {query.isPending ? t("loading") : ""}
       </div>
@@ -337,7 +342,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
                     {selectedAccount ? (
                       <SocialPostProviderIcon
                         provider={selectedAccount.provider}
-                        className="size-4 shrink-0"
+                        className="text-foreground size-4 shrink-0"
                         aria-hidden
                       />
                     ) : null}
@@ -421,18 +426,10 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
               {t("postMetricsIncomplete")}
             </p>
           ) : null}
-          {statusSnapshot?.historyComplete ? (
-            <p className="text-muted-foreground text-xs">
-              {t("historyComplete")}
-            </p>
-          ) : null}
           {statusSnapshot?.historyError ? (
-            <div role="status" className="space-y-1 text-sm">
-              <p className="text-semantic-warning">{t("historyLimited")}</p>
-              <p className="text-muted-foreground break-words">
-                {statusSnapshot.historyError}
-              </p>
-            </div>
+            <p role="status" className="text-semantic-warning text-sm">
+              {t("historyLimited")}
+            </p>
           ) : null}
         </section>
       ) : null}
@@ -442,28 +439,27 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
             key={days}
             size="sm"
             type="button"
+            className={preset === days ? undefined : "text-foreground"}
             variant={preset === days ? "default" : "outline"}
+            aria-pressed={preset === days}
             onClick={() => handlePreset(days)}
           >
             {t("performance.lastDays", { days: Number(days) })}
           </Button>
         ))}
       </div>
-      {headline ? (
-        <SocialPerformanceOverview
-          headline={headline}
-          impressionBased={impressionBased}
-        />
-      ) : null}
-      {headline?.daily.length ? (
-        <PerformanceTrendChart
-          days={headline.daily}
-          impressionBased={impressionBased}
-        />
-      ) : null}
-      <section className="space-y-4" aria-label={t("postsTitle")}>
-        <h3 className="text-sm font-semibold">{t("postsTitle")}</h3>
-        <div className="flex flex-wrap items-end gap-3">
+      <details className="group">
+        <summary className="text-muted-foreground flex w-fit cursor-pointer items-center gap-2 rounded-sm py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+          {t("performance.moreFilters")}
+          {advancedFilterCount ? (
+            <span className="text-foreground text-xs">
+              {t("performance.activeFilters", {
+                count: advancedFilterCount,
+              })}
+            </span>
+          ) : null}
+        </summary>
+        <div className="mt-4 flex flex-wrap items-end gap-3">
           <div className="space-y-2">
             <Label htmlFor="statistics-from">{t("publishedFrom")}</Label>
             <Input
@@ -510,11 +506,26 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
             {t("clearFilters")}
           </Button>
         </div>
-        {!validRange ? (
-          <p role="alert" className="text-semantic-destructive text-sm">
-            {t("invalidRange")}
-          </p>
-        ) : null}
+      </details>
+      {!validRange ? (
+        <p role="alert" className="text-semantic-destructive text-sm">
+          {t("invalidRange")}
+        </p>
+      ) : null}
+      {headline ? (
+        <SocialPerformanceOverview
+          headline={headline}
+          impressionBased={impressionBased}
+        />
+      ) : null}
+      {headline?.daily.length ? (
+        <PerformanceTrendChart
+          days={headline.daily}
+          impressionBased={impressionBased}
+        />
+      ) : null}
+      <section className="space-y-4" aria-label={t("postsTitle")}>
+        <h3 className="text-sm font-semibold">{t("postsTitle")}</h3>
         {!query.isPending &&
         !query.isError &&
         validRange &&
