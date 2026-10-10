@@ -4,44 +4,6 @@ import type { SocialPost } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
-export const ACCOUNT_METRIC_LABELS: Record<string, string> = {
-  followers_count: "followers",
-  follows_count: "following",
-  following_count: "following",
-  tweet_count: "posts",
-  post_count: "posts",
-  quote_count: "quotes",
-  listed_count: "lists",
-  posts_liked_count: "postsLiked",
-  viewCount: "views",
-  videoCount: "videos",
-  subscriberCount: "subscribers",
-  accounts_engaged: "engagedAccounts",
-  total_interactions: "interactions",
-  profile_links_taps: "profileLinkClicks",
-  page_media_view: "views",
-  page_post_engagements: "engagement",
-  page_video_views: "video_views",
-  page_daily_follows_unique: "newFollowers",
-  page_daily_unfollows_unique: "lostFollowers",
-  page_total_actions: "actions",
-  page_total_media_view_unique: "reach",
-  estimatedMinutesWatched: "watch_time",
-  averageViewDuration: "averageWatchDuration",
-  averageViewPercentage: "averageViewedPercent",
-  subscribersGained: "newSubscribers",
-  subscribersLost: "lostSubscribers",
-  post_media_view: "views",
-  post_total_media_view_unique: "reach",
-  url_clicks: "linkClicks",
-  saved: "saves",
-  like_count: "likes",
-  comment_count: "comments",
-  share_count: "shares",
-  save_count: "saves",
-  likes_count: "likes_received",
-};
-
 export const SOCIAL_METRIC_KEYS = [
   "views",
   "impressions",
@@ -123,19 +85,18 @@ export function SocialPostMetrics({
           );
         })}
       </dl>
-      <p className="text-muted-foreground text-xs">
-        {statistics?.fetchedAt
-          ? t("updatedAt", {
-              date: formatter.dateTime(
-                new Date(statistics.fetchedAt),
-                "dateTime",
-                summary
-                  ? { timeZone: "UTC", timeZoneName: "short" }
-                  : undefined,
-              ),
-            })
-          : t("notFetched")}
-      </p>
+      {summary ? null : (
+        <p className="text-muted-foreground text-xs">
+          {statistics?.fetchedAt
+            ? t("updatedAt", {
+                date: formatter.dateTime(
+                  new Date(statistics.fetchedAt),
+                  "dateTime",
+                ),
+              })
+            : t("notFetched")}
+        </p>
+      )}
       {statistics?.error ? (
         <p role="status" className="text-semantic-warning text-xs">
           {t("refreshFailed")}

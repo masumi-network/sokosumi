@@ -39,7 +39,6 @@ import { refreshProjectSocialAccountStatistics } from "@/lib/actions/project/act
 import { useSession } from "@/lib/auth/auth.client";
 import { SocialPerformanceOverview } from "./social-performance-overview";
 import { SocialPerformancePosts } from "./social-performance-posts";
-import { SocialPerformanceResearch } from "./social-performance-research";
 
 type StatisticsPage =
   | SocialPerformanceResponse
@@ -223,13 +222,6 @@ export function SocialPostStatistics({
     refetchOnWindowFocus: false,
   });
   const firstPage = query.data?.pages[0];
-  const postProjects = Object.fromEntries(
-    (query.data?.pages ?? []).flatMap((page) =>
-      "workspaceId" in page
-        ? page.posts.map((post) => [post.id, post.projectIds])
-        : [],
-    ),
-  );
   function manageAccountsHref(accountId?: string) {
     const ownerProject = accountId ? accountProjectId(accountId) : projectId;
     return ownerProject
@@ -450,9 +442,9 @@ export function SocialPostStatistics({
   }
 
   function formatDate(value: string | Date) {
-    return formatter.dateTime(new Date(value), "dateTime", {
+    return formatter.dateTime(new Date(value), {
+      dateStyle: "medium",
       timeZone: "UTC",
-      timeZoneName: "short",
     });
   }
   function accountName(account: Account) {
@@ -476,12 +468,7 @@ export function SocialPostStatistics({
 
   return (
     <div className="space-y-6" data-testid="social-statistics">
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold">{t("title")}</h2>
-        <p className="text-muted-foreground text-sm">
-          {t("performance.accountDescription")}
-        </p>
-      </div>
+      <h2 className="text-lg font-semibold">{t("title")}</h2>
       <div role="status" className="text-muted-foreground text-sm">
         {catalogue.isPending || (selectedAccount && query.isPending)
           ? t("loading")
@@ -534,9 +521,8 @@ export function SocialPostStatistics({
           {/* Unified header: account selection, identity, freshness, and actions */}
           {selectedAccount ? (
             <section className="space-y-3 rounded-lg border p-4">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                {/* Account selector + identity */}
-                <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex w-full min-w-0 flex-col gap-1 sm:w-auto sm:flex-1 sm:flex-row sm:items-center sm:gap-3">
                   {eligibleAccounts.length > 1 ? (
                     <Select
                       value={selectedAccount.id}
@@ -625,20 +611,14 @@ export function SocialPostStatistics({
                     </div>
                   )}
 
-                  {/* Account identity and freshness */}
-                  <div className="text-muted-foreground min-w-0 space-y-0.5 text-sm">
-                    {selectedAccount.externalHandle ? (
-                      <p className="truncate">
-                        {selectedAccount.externalHandle}
-                      </p>
-                    ) : null}
+                  <div className="text-muted-foreground min-w-0 text-sm">
                     {(() => {
                       const snapshot =
                         firstPage?.accounts.find(
                           (account) => account.id === selectedAccount.id,
                         )?.statistics ?? selectedAccount.statistics;
                       return snapshot?.fetchedAt ? (
-                        <p className="truncate">
+                        <p>
                           {t("updatedAt", {
                             date: formatDate(snapshot.fetchedAt),
                           })}
@@ -647,17 +627,6 @@ export function SocialPostStatistics({
                         <p>{t("notFetched")}</p>
                       );
                     })()}
-                    {workspaceId ? (
-                      <p className="truncate">
-                        {
-                          projects.find(
-                            (project) =>
-                              project.id ===
-                              accountProjectId(selectedAccount.id),
-                          )?.name
-                        }
-                      </p>
-                    ) : null}
                   </div>
                 </div>
 
@@ -786,12 +755,9 @@ export function SocialPostStatistics({
                       <p
                         role="status"
                         className="text-semantic-warning text-sm"
+                        title={t("historyLimitedHint")}
                       >
                         {t("historyLimited")}
-                      </p>
-                    ) : snapshot?.historyComplete ? (
-                      <p className="text-muted-foreground text-xs">
-                        {t("historyComplete")}
                       </p>
                     ) : null}
                   </>
@@ -1063,19 +1029,6 @@ export function SocialPostStatistics({
               <SocialPerformancePosts
                 key={`posts:${runScopeKey}`}
                 data={performance}
-                projectNames={projectNames}
-                postProjects={postProjects}
-              />
-              <SocialPerformanceResearch
-                key={`research:${runScopeKey}`}
-                projectId={projectId}
-                workspaceId={workspaceId}
-                connectionProjects={connectionProjects}
-                projectNames={projectNames}
-                data={performance}
-                filterContext={JSON.stringify(
-                  Object.fromEntries(performanceParams),
-                )}
               />
               {query.hasNextPage ? (
                 <Button

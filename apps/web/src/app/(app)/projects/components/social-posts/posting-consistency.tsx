@@ -80,14 +80,9 @@ export function PostingConsistency({
       aria-labelledby="posting-consistency"
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 id="posting-consistency" className="text-base font-semibold">
-            {t("performance.consistency")}
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            {t("performance.consistencyHint")}
-          </p>
-        </div>
+        <h2 id="posting-consistency" className="text-base font-semibold">
+          {t("performance.consistency")}
+        </h2>
         <div className="flex gap-2">
           <Button
             type="button"
@@ -227,36 +222,6 @@ export function PostingConsistency({
         ))}
         <span>{t("performance.legendMore")}</span>
       </div>
-      <details>
-        <summary className="text-muted-foreground w-fit cursor-pointer text-xs">
-          {t("performance.consistencyTable")}
-        </summary>
-        <table className="mt-2 w-full text-sm">
-          <caption className="sr-only">{t("performance.consistency")}</caption>
-          <thead>
-            <tr>
-              <th className="text-start font-medium">
-                {t("performance.date")}
-              </th>
-              <th className="text-end font-medium">{t("performance.posts")}</th>
-              <th className="text-end font-medium">
-                {t("performance.interactions")}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filled.map((day) => (
-              <tr key={day.date}>
-                <td>{day.date}</td>
-                <td className="text-end tabular-nums">{day.posts}</td>
-                <td className="text-end tabular-nums">
-                  {day.engagement == null ? t("unavailable") : day.engagement}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </details>
     </section>
   );
 }
