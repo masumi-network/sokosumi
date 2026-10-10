@@ -36,6 +36,7 @@ const item: SocialPostCalendarItem = {
 function renderCard(
   overrides: Partial<SocialPostCalendarItem> = {},
   variant: "compact" | "preview" = "preview",
+  showThumb = false,
 ) {
   return render(
     <NextIntlClientProvider
@@ -48,6 +49,7 @@ function renderCard(
         timeZone="UTC"
         item={{ ...item, ...overrides }}
         variant={variant}
+        showThumb={showThumb}
       />
     </NextIntlClientProvider>,
   );
@@ -94,8 +96,56 @@ describe("Social post calendar event", () => {
         screen.getByRole("button", { name: new RegExp(label) }),
       ).toBeInTheDocument();
       expect(screen.queryByRole("link")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("calendar-social-post-thumb"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByTestId("social-post-provider-icon"),
+      ).toBeInTheDocument();
     },
   );
+  it("shows a square first image on a week chip and keeps the platform logo", () => {
+    renderCard(
+      { previewMedia: { fileUrl: "https://example.com/a.png", kind: "image" } },
+      "compact",
+      true,
+    );
+    const thumb = screen.getByTestId("calendar-social-post-thumb");
+    const image = thumb.querySelector("img");
+    expect(image).toHaveAttribute("src", "https://example.com/a.png");
+    expect(image).toHaveAttribute("loading", "lazy");
+    expect(image).toHaveClass("object-cover");
+    expect(screen.getByTestId("social-post-provider-icon")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /X post with 2 images/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("12:00 PM")).toBeInTheDocument();
+  });
+  it("shows a video first-frame on a week chip and keeps the platform logo", () => {
+    renderCard(
+      {
+        previewMedia: { fileUrl: "https://example.com/a.mp4", kind: "video" },
+        attachmentCount: 1,
+      },
+      "compact",
+      true,
+    );
+    expect(
+      screen.getByTestId("calendar-social-post-thumb").querySelector("video"),
+    ).toHaveAttribute("src", "https://example.com/a.mp4");
+    expect(screen.getByTestId("social-post-provider-icon")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /X post with video/ }),
+    ).toBeInTheDocument();
+  });
+  it("uses a muted tile for a text-only week chip and keeps the platform logo", () => {
+    renderCard({ previewMedia: null, attachmentCount: 0 }, "compact", true);
+    const thumb = screen.getByTestId("calendar-social-post-thumb");
+    expect(thumb.querySelector("img")).toBeNull();
+    expect(thumb.querySelector("video")).toBeNull();
+    expect(screen.getByTestId("social-post-provider-icon")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /X post/ })).toBeInTheDocument();
+  });
   it("previews the first image attachment", () => {
     const { container } = renderCard({
       previewMedia: { fileUrl: "https://example.com/a.png", kind: "image" },

@@ -731,6 +731,7 @@ function CalendarView({
               return (
                 <SocialPostCalendarEvent
                   item={item}
+                  showThumb={socialOnly && view === "week"}
                   timeZone={timeZone}
                   variant={socialPostVariant}
                 />

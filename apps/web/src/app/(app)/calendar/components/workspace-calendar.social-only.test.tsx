@@ -416,7 +416,7 @@ describe("WorkspaceCalendar Social-only view", () => {
       expect(screen.getByTestId("calendar-week")).toBeInTheDocument();
     });
 
-    it("uses one-line chips in week view so seven columns stay readable", () => {
+    it("uses compact chips with a square preview in week view so seven columns stay readable", () => {
       renderCalendar(
         { includeSocialPosts: true, socialPostsOnly: true },
         "?timezone=UTC&view=week",
@@ -425,6 +425,23 @@ describe("WorkspaceCalendar Social-only view", () => {
       const chip = screen.getByTestId("calendar-social-post");
       expect(chip).toHaveTextContent("compactLabel");
       expect(chip).not.toHaveTextContent("Launch news");
+      expect(
+        screen.getByTestId("calendar-social-post-thumb"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId("social-post-provider-icon"),
+      ).toBeInTheDocument();
+    });
+
+    it("leaves mixed week posts as one line without a media tile", () => {
+      renderCalendar({ includeSocialPosts: true }, "?timezone=UTC&view=week");
+
+      expect(screen.getByTestId("calendar-social-post")).toHaveTextContent(
+        "compactLabel",
+      );
+      expect(
+        screen.queryByTestId("calendar-social-post-thumb"),
+      ).not.toBeInTheDocument();
     });
 
     it("keeps the full post card on the month", () => {

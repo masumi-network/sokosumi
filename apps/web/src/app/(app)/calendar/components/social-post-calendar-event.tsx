@@ -14,6 +14,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
+import { cn } from "@/lib/utils";
 
 /** Failed and missed posts need the word, not only a coloured mark. */
 function needsStatusLabel(status: SocialPostCalendarItem["status"]) {
@@ -40,22 +41,33 @@ export function SocialPostCalendarEvent({
   item,
   timeZone,
   variant = "preview",
+  showThumb = false,
 }: {
   item: SocialPostCalendarItem;
   timeZone: string;
   variant?: "compact" | "preview";
+  /** Square media preview on Social's week chips. Workspace compact stays one line. */
+  showThumb?: boolean;
 }) {
   if (variant === "compact") {
-    return <CompactSocialPostCalendarEvent item={item} timeZone={timeZone} />;
+    return (
+      <CompactSocialPostCalendarEvent
+        item={item}
+        showThumb={showThumb}
+        timeZone={timeZone}
+      />
+    );
   }
   return <SocialPostPreviewCard item={item} timeZone={timeZone} />;
 }
 
 function CompactSocialPostCalendarEvent({
   item,
+  showThumb,
   timeZone,
 }: {
   item: SocialPostCalendarItem;
+  showThumb: boolean;
   timeZone: string;
 }) {
   const t = useTranslations("App.Calendar.socialPost");
@@ -66,28 +78,52 @@ function CompactSocialPostCalendarEvent({
     media: item.previewMedia?.kind ?? "none",
     count: item.attachmentCount,
   });
+  const time = (
+    <span className="text-muted-foreground shrink-0 tabular-nums">
+      {formatter.dateTime(item.scheduledAt, "time", { timeZone })}
+    </span>
+  );
+  const badge = (
+    <SocialPostStatusBadge
+      status={item.status}
+      label={statuses(item.status)}
+      showLabel={needsStatusLabel(item.status)}
+    />
+  );
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo"
+          className={cn(
+            "bg-background text-foreground press hover:bg-muted border-border flex w-full min-w-0 cursor-pointer select-none items-center overflow-hidden rounded border text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring-halo focus-visible:ring-2 focus-visible:outline-none",
+            showThumb ? "gap-1.5 px-1.5 py-1" : "gap-1 px-1.5 py-1",
+          )}
           data-testid="calendar-social-post"
         >
+          {showThumb ? (
+            <CompactSocialPostThumb media={item.previewMedia} />
+          ) : null}
           <SocialPostProviderIcon
             provider={item.provider}
             aria-hidden
             className="size-3 shrink-0"
           />
-          <span className="text-muted-foreground shrink-0 tabular-nums">
-            {formatter.dateTime(item.scheduledAt, "time", { timeZone })}
-          </span>
-          <span className="min-w-0 flex-1 truncate">{label}</span>
-          <SocialPostStatusBadge
-            status={item.status}
-            label={statuses(item.status)}
-            showLabel={needsStatusLabel(item.status)}
-          />
+          {showThumb ? (
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="flex min-w-0 items-center gap-1">
+                {time}
+                <span className="ms-auto shrink-0">{badge}</span>
+              </span>
+              <span className="min-w-0 truncate">{label}</span>
+            </span>
+          ) : (
+            <>
+              {time}
+              <span className="min-w-0 flex-1 truncate">{label}</span>
+              {badge}
+            </>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-1.5">
@@ -204,19 +240,45 @@ function SocialPostPreviewCard({
 }
 
 /**
+ * Square first-frame on a week chip. Text-only posts keep a muted tile so
+ * the platform logo beside it stays the brand mark.
+ */
+function CompactSocialPostThumb({
+  media,
+}: {
+  media: SocialPostCalendarItem["previewMedia"];
+}) {
+  return (
+    <span
+      aria-hidden
+      className="bg-muted relative size-8 shrink-0 overflow-hidden rounded-md"
+      data-testid="calendar-social-post-thumb"
+    >
+      {media ? <SocialPostCalendarPreview media={media} fill /> : null}
+    </span>
+  );
+}
+
+/**
  * The post's first attachment, as the reader will see it in the feed. It is
  * decorative here: the text and status already name the post, and the whole
  * card is the link.
  */
 function SocialPostCalendarPreview({
+  fill = false,
   media,
 }: {
+  fill?: boolean;
   media: NonNullable<SocialPostCalendarItem["previewMedia"]>;
 }) {
   return (
     <span
       aria-hidden
-      className="bg-muted relative block aspect-video w-full overflow-hidden rounded"
+      className={
+        fill
+          ? "absolute inset-0"
+          : "bg-muted relative block aspect-video w-full overflow-hidden rounded"
+      }
     >
       {media.kind === "video" ? (
         <>
@@ -227,8 +289,13 @@ function SocialPostCalendarPreview({
             preload="metadata"
             src={media.fileUrl}
           />
-          <span className="bg-background text-foreground absolute inset-0 m-auto flex size-6 items-center justify-center rounded-full">
-            <Play className="size-3 fill-current" />
+          <span
+            className={cn(
+              "bg-background text-foreground absolute inset-0 m-auto flex items-center justify-center rounded-full",
+              fill ? "size-4" : "size-6",
+            )}
+          >
+            <Play className={cn("fill-current", fill ? "size-2" : "size-3")} />
           </span>
         </>
       ) : (
