@@ -37,6 +37,11 @@ describe("socialPostComposerIssue", () => {
     ["youtube", "Hello", [VIDEO], null],
     ["instagram", "Hello", [ref("image", "image/png")], "unsupported_type"],
     ["x", "Hello", [IMAGE, VIDEO], "mixed_media"],
+    ["x", "   ", [], "text_or_media_required"],
+    ["linkedin", "   ", [], "text_required"],
+    ["facebook", "", [], "text_or_media_required"],
+    ["facebook", "Hello", [], null],
+    ["facebook", "", [IMAGE], null],
   ] as const)(
     "scores %s text=%s media=%s",
     (provider, text, media, expected) => {
@@ -61,6 +66,12 @@ describe("socialPostComposerProviders", () => {
       socialPostComposerProviders(undefined, ["x", "linkedin", "x"]),
     ).toEqual(["x", "linkedin"]);
   });
+
+  it("keeps facebook when it is the only selected connection", () => {
+    expect(socialPostComposerProviders("x", ["facebook"])).toEqual([
+      "facebook",
+    ]);
+  });
 });
 
 describe("socialPostComposerAccept", () => {
@@ -78,6 +89,16 @@ describe("socialPostComposerAccept", () => {
     );
     expect(socialPostComposerAccept(["x", "tiktok"])).toBe("video/mp4");
   });
+
+  it("accepts nothing when no provider is selected", () => {
+    expect(socialPostComposerAccept([])).toBe("");
+  });
+
+  it("keeps jpeg when facebook and linkedin are both selected", () => {
+    expect(socialPostComposerAccept(["facebook", "linkedin"])).toBe(
+      "image/jpeg,image/png,video/mp4",
+    );
+  });
 });
 
 describe("socialPostComposerFormat", () => {
@@ -87,5 +108,6 @@ describe("socialPostComposerFormat", () => {
     expect(socialPostComposerFormat("instagram")).toBe("mediaPost");
     expect(socialPostComposerFormat("youtube")).toBe("video");
     expect(socialPostComposerFormat("tiktok")).toBe("video");
+    expect(socialPostComposerFormat("facebook")).toBe("post");
   });
 });
