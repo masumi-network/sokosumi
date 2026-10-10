@@ -1,5 +1,4 @@
 import {
-  act,
   fireEvent,
   render,
   screen,
@@ -75,7 +74,7 @@ const secondAccount = {
   externalHandle: "brand",
 };
 const workspaceId = "33333333-3333-4333-8333-333333333333";
-const otherWorkspaceId = "44444444-4444-4444-8444-444444444444";
+const _otherWorkspaceId = "44444444-4444-4444-8444-444444444444";
 const projectA = "55555555-5555-4555-8555-555555555555";
 const projectB = "66666666-6666-4666-8666-666666666666";
 const post = {
@@ -196,7 +195,7 @@ function page(offset: number | null = null) {
     },
   };
 }
-function response(accountValue = account, nextCursor: string | null = null) {
+function _response(accountValue = account, nextCursor: string | null = null) {
   return {
     ok: true,
     value: {
@@ -212,7 +211,7 @@ function response(accountValue = account, nextCursor: string | null = null) {
     },
   };
 }
-function workspacePage() {
+function _workspacePage() {
   const result = page();
   return {
     ...result,
@@ -534,66 +533,7 @@ describe("SocialPostStatistics account history", () => {
       ).searchParams.get("connectionId"),
     ).toBe(secondAccount.id);
   });
-  it.skip("stops a prior account's sync continuation after switching tabs", async () => {
-    // TODO: Rewrite for automatic server-driven sync
-    // This test was for manual client-driven sync which has been replaced
-    // by automatic background sync via hourly cron
-    const user = userEvent.setup();
-    let finish: (value: ReturnType<typeof response>) => void = () => {};
-    mocks.refresh.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve;
-        }),
-    );
-    renderStatistics();
-    await screen.findByText(post.text);
-    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
-    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
-    await _selectAccount(user, "Brand page");
-    // Wait for Brand page to be selected
-    await waitFor(() => {
-      const combobox = accountCombobox();
-      expect(combobox.textContent).toContain("Brand page");
-    });
-    await act(async () => finish(response(account, "old-next-page")));
-    expect(mocks.refresh).toHaveBeenCalledTimes(1);
-    expect(
-      screen.queryByRole("button", { name: "Stop sync" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Resume sync" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sync account" })).toBeEnabled();
-  });
-  it.skip("keeps unsynced accounts selectable and offers account management for an empty scope", async () => {
-    // TODO: Rewrite for automatic server-driven sync
-    mocks.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        ...page(),
-        accounts: [{ ...account, statistics: null }],
-      }),
-    });
-    const rendered = renderStatistics();
-    expect(await screen.findByText("Launch account")).toBeVisible();
-    expect(screen.getByText("Not synced yet")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Sync account" })).toBeEnabled();
-    rendered.unmount();
-    mocks.fetch.mockClear();
-    mocks.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ ...page(), accounts: [], posts: [] }),
-    });
-    renderStatistics();
-    expect(
-      await screen.findByRole("link", { name: "Manage accounts" }),
-    ).toHaveAttribute("href", "/social?projectId=project-1&tab=accounts");
-    expect(mocks.fetch).toHaveBeenCalledTimes(1);
-    expect(
-      screen.queryByTestId("social-performance-overview"),
-    ).not.toBeInTheDocument();
-  });
+
   it("falls back to Interactions when a filtered X cohort no longer has measured Views", async () => {
     const user = userEvent.setup();
     mocks.fetch.mockImplementation(async (url: string) => {
@@ -645,213 +585,7 @@ describe("SocialPostStatistics account history", () => {
       screen.queryByRole("figure", { name: "Views" }),
     ).not.toBeInTheDocument();
   });
-  it.skip("reads workspace aggregates and preserves exact project ownership for account actions and exports", async () => {
-    // TODO: Rewrite for automatic server-driven sync
-    mocks.fetch.mockImplementation(async (url: string) => ({
-      ok: true,
-      json: async () =>
-        new URL(url, "https://web.test").searchParams.has("connectionId")
-          ? {
-              ...workspacePage(),
-              accounts: [account],
-              posts: [{ ...post, projectIds: [projectA] }],
-            }
-          : workspacePage(),
-    }));
-    mocks.refresh.mockResolvedValue(response(account));
-    render(
-      <TestQueryProvider>
-        <NuqsTestingAdapter
-          searchParams={`?performanceProject=${projectA}`}
-          hasMemory
-        >
-          <SocialPostStatistics workspaceId={workspaceId} />
-        </NuqsTestingAdapter>
-      </TestQueryProvider>,
-    );
-    await screen.findByText(post.text);
-    const read = new URL(selectedReads()[0][0], "https://web.test");
-    expect(read.pathname).toBe(
-      `/api/workspaces/${workspaceId}/social-performance`,
-    );
-    expect(read.searchParams.get("projectId")).toBe(projectA);
-    const user = userEvent.setup();
-    const exportUrl = new URL(
-      await _getExportLink(user, "Export CSV"),
-      "https://web.test",
-    );
-    expect(exportUrl.pathname).toBe(
-      `/api/workspaces/${workspaceId}/social-performance/export`,
-    );
-    expect(exportUrl.searchParams.get("projectId")).toBe(projectA);
-    expect(read.searchParams.get("connectionId")).toBe(account.id);
-    expect(
-      screen.queryByText(/duplicate post copies excluded/),
-    ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
-    await waitFor(() =>
-      expect(mocks.refresh).toHaveBeenCalledWith({
-        projectId: projectA,
-        connectionId: account.id,
-        continueHistory: false,
-      }),
-    );
-  });
-  it.skip("distinguishes duplicate workspace identities and switches to the selected connection's owning project", async () => {
-    // TODO: Rewrite for automatic server-driven sync
-    const user = userEvent.setup();
-    const duplicate = { ...account, id: secondAccount.id };
-    const result = { ...workspacePage(), accounts: [account, duplicate] };
-    mocks.fetch.mockImplementation(async (url: string) => {
-      const params = new URL(url, "https://web.test").searchParams;
-      const selected =
-        params.get("connectionId") === duplicate.id ? duplicate : account;
-      return {
-        ok: true,
-        json: async () =>
-          params.get("limit") === "1"
-            ? result
-            : {
-                ...result,
-                accounts: [selected],
-                posts: [
-                  {
-                    ...post,
-                    connectionId: selected.id,
-                    projectIds: [
-                      selected.id === duplicate.id ? projectB : projectA,
-                    ],
-                  },
-                ],
-              },
-      };
-    });
-    mocks.refresh.mockResolvedValue(response(duplicate));
-    render(
-      <TestQueryProvider>
-        <NuqsTestingAdapter hasMemory>
-          <SocialPostStatistics workspaceId={workspaceId} />
-        </NuqsTestingAdapter>
-      </TestQueryProvider>,
-    );
-    await screen.findByTestId("social-performance-overview");
-    // Check the first account is selected in the combobox
-    const combobox = accountCombobox();
-    await user.click(combobox);
-    expect(
-      screen.getByRole("option", { name: /Launch account.*Launch project/i }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("option", { name: /Launch account.*Brand project/i }),
-    ).toBeVisible();
-    // Select the second duplicate
-    await user.click(
-      screen.getByRole("option", { name: /Launch account.*Brand project/i }),
-    );
-    await waitFor(() =>
-      expect(
-        new URL(
-          selectedReads().at(-1)?.[0],
-          "https://web.test",
-        ).searchParams.get("connectionId"),
-      ).toBe(duplicate.id),
-    );
-    // Close the combobox dropdown from earlier
-    await user.keyboard("{Escape}");
-    const exportParams = new URL(
-      await _getExportLink(user, "Export CSV"),
-      "https://web.test",
-    ).searchParams;
-    expect(exportParams.get("connectionId")).toBe(duplicate.id);
-    expect(exportParams.get("projectId")).toBe(projectB);
-    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
-    await waitFor(() =>
-      expect(mocks.refresh).toHaveBeenCalledWith({
-        projectId: projectB,
-        connectionId: duplicate.id,
-        continueHistory: false,
-      }),
-    );
-  });
-  it.skip("clears old workspace project/account filters and prevents an in-flight sync from continuing in a new scope", async () => {
-    // TODO: Rewrite for automatic server-driven sync
-    const onUrlUpdate = vi.fn();
-    const params = `?performanceProject=${projectA}&statisticsAccount=${account.id}`;
-    const nextPage = {
-      ...workspacePage(),
-      workspaceId: otherWorkspaceId,
-      projects: [
-        {
-          id: projectB,
-          name: "Brand project",
-          connectionIds: [secondAccount.id],
-        },
-      ],
-      accounts: [secondAccount],
-      posts: [],
-    };
-    mocks.fetch.mockImplementation(async (url: string) => ({
-      ok: true,
-      json: async () =>
-        url.includes(otherWorkspaceId)
-          ? nextPage
-          : new URL(url, "https://web.test").searchParams.has("connectionId")
-            ? {
-                ...workspacePage(),
-                accounts: [account],
-                posts: [{ ...post, projectIds: [projectA] }],
-              }
-            : workspacePage(),
-    }));
-    let finishSync: (value: ReturnType<typeof response>) => void = () => {};
-    mocks.refresh.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finishSync = resolve;
-        }),
-    );
-    const view = (scope: string) => (
-      <TestQueryProvider>
-        <NuqsTestingAdapter
-          searchParams={params}
-          onUrlUpdate={onUrlUpdate}
-          hasMemory
-        >
-          <SocialPostStatistics workspaceId={scope} />
-        </NuqsTestingAdapter>
-      </TestQueryProvider>
-    );
-    const rendered = render(view(workspaceId));
-    await screen.findByText(post.text);
-    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
-    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
-    rendered.rerender(view(otherWorkspaceId));
-    expect(await screen.findByText("Brand page")).toBeVisible();
-    const nextReads = mocks.fetch.mock.calls.filter(([url]) =>
-      url.includes(otherWorkspaceId),
-    );
-    expect(nextReads.length).toBeGreaterThan(0);
-    for (const [url] of nextReads) {
-      const query = new URL(url, "https://web.test").searchParams;
-      expect(query.get("projectId")).not.toBe(projectA);
-      expect(query.get("connectionId")).not.toBe(account.id);
-    }
-    expect(
-      onUrlUpdate.mock.lastCall?.[0].searchParams.has("performanceProject"),
-    ).toBe(false);
-    expect(
-      onUrlUpdate.mock.lastCall?.[0].searchParams.get("statisticsAccount"),
-    ).toBe(secondAccount.id);
-    await act(async () => finishSync(response(account, "old-next-page")));
-    expect(mocks.refresh).toHaveBeenCalledTimes(1);
-    expect(
-      screen.queryByRole("heading", { name: "Launch account" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Stop sync" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sync account" })).toBeEnabled();
-  });
+
   it("uses full-cohort aggregates rather than the visible post page and forwards the selected filters", async () => {
     const user = userEvent.setup();
     const result = page();
@@ -1108,183 +842,5 @@ describe("SocialPostStatistics account history", () => {
         "offset",
       ),
     ).toBe("100");
-  });
-  it.skip("syncs the selected account's history pages sequentially and refreshes its cache after each page", async () => {
-    // TODO: Rewrite for automatic server-driven sync
-    mocks.refresh
-      .mockResolvedValueOnce(response(account, "provider-page-2"))
-      .mockResolvedValueOnce(response(account));
-    renderStatistics();
-    await screen.findByText(post.text);
-    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
-    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(2));
-    expect(mocks.refresh.mock.calls.map(([params]) => params)).toEqual([
-      {
-        projectId: "project-1",
-        connectionId: account.id,
-        continueHistory: false,
-      },
-      {
-        projectId: "project-1",
-        connectionId: account.id,
-        continueHistory: true,
-      },
-    ]);
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "Sync account" }),
-      ).toBeEnabled(),
-    );
-    expect(selectedReads()).toHaveLength(3);
-    expect(
-      screen.queryByRole("button", { name: "Sync all accounts" }),
-    ).not.toBeInTheDocument();
-  });
-  it.skip("continues history when account metrics are unavailable but a next page exists", async () => {
-    // TODO: Rewrite for automatic server-driven sync
-    const result = response(account, "provider-page-2");
-    mocks.refresh
-      .mockResolvedValueOnce({
-        ...result,
-        value: {
-          ...result.value,
-          account: {
-            ...result.value.account,
-            statistics: {
-              ...result.value.account.statistics,
-              error: "Account insights unavailable",
-              metricWarning: "Some post metrics unavailable",
-            },
-          },
-        },
-      })
-      .mockResolvedValueOnce(response(account));
-    renderStatistics();
-    await screen.findByText(post.text);
-    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
-    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(2));
-  });
-  it.skip("resumes an incomplete retained history cursor", async () => {
-    // TODO: Rewrite for automatic server-driven sync
-    mocks.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        ...page(),
-        accounts: [
-          {
-            ...account,
-            statistics: { ...snapshot, historyNextCursor: "retained-cursor" },
-          },
-        ],
-      }),
-    });
-    mocks.refresh.mockResolvedValue(response(account));
-    renderStatistics();
-    fireEvent.click(await screen.findByRole("button", { name: "Resume sync" }));
-    await waitFor(() =>
-      expect(mocks.refresh).toHaveBeenCalledWith({
-        projectId: "project-1",
-        connectionId: account.id,
-        continueHistory: true,
-      }),
-    );
-  });
-  it.skip("retains the returned resume cursor when a follow-up cache read fails", async () => {
-    // TODO: Rewrite for automatic server-driven sync
-    mocks.fetch
-      .mockResolvedValueOnce({ ok: true, json: async () => page() })
-      .mockResolvedValueOnce({ ok: true, json: async () => page() })
-      .mockResolvedValue({ ok: false });
-    mocks.refresh
-      .mockResolvedValueOnce(response(account, "retained-next-page"))
-      .mockResolvedValueOnce({ ok: false, error: { message: "Rate limited" } });
-    renderStatistics();
-    await screen.findByText(post.text);
-    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
-    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(2));
-    expect(
-      await screen.findByRole("button", { name: "Resume sync" }),
-    ).toBeEnabled();
-    expect(screen.getByText(post.text)).toBeVisible();
-  });
-
-  it.skip("stops after the in-flight page when canceled", async () => {
-    // TODO: Rewrite for automatic server-driven sync
-    let resolvePage: (value: ReturnType<typeof response>) => void = () => {};
-    mocks.refresh.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolvePage = resolve;
-        }),
-    );
-    renderStatistics();
-    await screen.findByText(post.text);
-    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Stop sync" }));
-    await act(async () => resolvePage(response(account, "next-page")));
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "Sync account" }),
-      ).toBeEnabled(),
-    );
-    expect(mocks.refresh).toHaveBeenCalledTimes(1);
-  });
-  it.skip("does not request another page after unmount", async () => {
-    // TODO: Rewrite for automatic server-driven sync
-    let resolvePage: (value: ReturnType<typeof response>) => void = () => {};
-    mocks.refresh.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolvePage = resolve;
-        }),
-    );
-    const rendered = renderStatistics();
-    await screen.findByText(post.text);
-    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
-    rendered.unmount();
-    await act(async () => resolvePage(response(account, "next-page")));
-    expect(mocks.refresh).toHaveBeenCalledTimes(1);
-  });
-  it.skip("retains selected cached posts on sync failure without syncing other accounts", async () => {
-    // TODO: Rewrite for automatic server-driven sync
-    mocks.refresh.mockResolvedValueOnce({
-      ok: false,
-      error: { message: "Denied" },
-    });
-    renderStatistics();
-    await screen.findByText(post.text);
-    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
-    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
-    expect(screen.getByText("Sync failed. Saved results kept.")).toBeVisible();
-    expect(screen.getByText(post.text)).toBeVisible();
-  });
-  it.skip("shows provider history limitations without claiming completion and disables reauthorization-required sync", async () => {
-    // TODO: Rewrite for automatic server-driven sync
-    mocks.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        ...page(),
-        accounts: [
-          {
-            ...account,
-            status: "reauthorization_required",
-            statistics: {
-              ...snapshot,
-              historyError: "Platform exposes only the most recent posts",
-            },
-          },
-        ],
-      }),
-    });
-    renderStatistics();
-    await screen.findByText(post.text);
-    expect(screen.getByText("Limited history")).toHaveAttribute(
-      "title",
-      "Check the account permissions and sync again.",
-    );
-    expect(screen.getByRole("button", { name: "Sync account" })).toBeDisabled();
-    expect(
-      screen.getByRole("link", { name: "Manage accounts" }),
-    ).toHaveAttribute("href", "/social?projectId=project-1&tab=accounts");
   });
 });
