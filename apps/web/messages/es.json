@@ -2634,7 +2634,10 @@
             "sparkline": "{metric} en los días seleccionados",
             "accountTabs": "Cuentas conectadas",
             "trends": "Rendimiento a lo largo del tiempo",
-            "trendMetric": "Métrica del gráfico"
+            "trendMetric": "Métrica del gráfico",
+            "moreActions": "Más acciones",
+            "exportCsv": "Exportar CSV",
+            "exportXlsx": "Exportar hoja de cálculo"
           },
           "accountsTitle": "Cuentas conectadas",
           "postsTitle": "Publicaciones de las cuentas",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { Download, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
@@ -8,6 +9,12 @@ import { useRef, useState } from "react";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -265,6 +272,19 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       </dl>
     );
   }
+  function exportHref(format: "csv" | "xlsx") {
+    const params = new URLSearchParams({ format });
+    if (filters.statisticsProvider)
+      params.set("provider", filters.statisticsProvider);
+    if (filters.statisticsAccount)
+      params.set("connectionId", filters.statisticsAccount);
+    if (typeof publishedFrom === "string")
+      params.set("publishedFrom", `${publishedFrom}T00:00:00.000Z`);
+    if (typeof publishedUntil === "string")
+      params.set("publishedUntil", `${publishedUntil}T23:59:59.999Z`);
+    return `/api/projects/${encodeURIComponent(projectId)}/social-statistics/export?${params}`;
+  }
+
   function formatDate(value: string | Date) {
     return formatter.dateTime(new Date(value), "dateTime", {
       timeZone: "UTC",
@@ -377,32 +397,70 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
                 )}
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              loading={Boolean(enqueueingId)}
-              disabled={
-                Boolean(enqueueingId) ||
-                (selectedAccount
-                  ? selectedAccount.status !== "active"
-                  : !accounts.some((account) => account.status === "active"))
-              }
-              onClick={() =>
-                void handleSync(
-                  selectedAccount
-                    ? [selectedAccount]
-                    : accounts.filter((account) => account.status === "active"),
-                )
-              }
-            >
-              {statusSnapshot?.historyNextCursor &&
-              !statusSnapshot.historyComplete
-                ? t("resumeSync")
-                : selectedAccount || accounts.length === 1
-                  ? t("syncAccount")
-                  : t("syncAll")}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                loading={Boolean(enqueueingId)}
+                disabled={
+                  Boolean(enqueueingId) ||
+                  (selectedAccount
+                    ? selectedAccount.status !== "active"
+                    : !accounts.some((account) => account.status === "active"))
+                }
+                onClick={() =>
+                  void handleSync(
+                    selectedAccount
+                      ? [selectedAccount]
+                      : accounts.filter(
+                          (account) => account.status === "active",
+                        ),
+                  )
+                }
+              >
+                {statusSnapshot?.historyNextCursor &&
+                !statusSnapshot.historyComplete
+                  ? t("resumeSync")
+                  : selectedAccount || accounts.length === 1
+                    ? t("syncAccount")
+                    : t("syncAll")}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    aria-label={t("performance.moreActions")}
+                  >
+                    <MoreVertical className="size-4" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {(["csv", "xlsx"] as const).map((exportFormat) => {
+                    const label = t(
+                      exportFormat === "csv"
+                        ? "performance.exportCsv"
+                        : "performance.exportXlsx",
+                    );
+                    return validRange ? (
+                      <DropdownMenuItem key={exportFormat} asChild>
+                        <a href={exportHref(exportFormat)} download>
+                          <Download className="size-4" aria-hidden />
+                          {label}
+                        </a>
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem key={exportFormat} disabled>
+                        <Download className="size-4" aria-hidden />
+                        {label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
           {statusAccount?.status && statusAccount.status !== "active" ? (
             <p className="text-semantic-warning text-sm">

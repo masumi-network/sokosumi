@@ -41623,6 +41623,139 @@ export type GetProjectsByIdSocialConnectionsStatisticsResponses = {
 
 export type GetProjectsByIdSocialConnectionsStatisticsResponse = GetProjectsByIdSocialConnectionsStatisticsResponses[keyof GetProjectsByIdSocialConnectionsStatisticsResponses];
 
+export type GetProjectsByIdSocialConnectionsStatisticsExportData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        provider?: ProjectSocialProvider;
+        connectionId?: string;
+        publishedFrom?: Date;
+        publishedUntil?: Date;
+        format?: 'csv' | 'xlsx';
+    };
+    url: '/projects/{id}/social-connections/statistics/export';
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsExportErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsExportError = GetProjectsByIdSocialConnectionsStatisticsExportErrors[keyof GetProjectsByIdSocialConnectionsStatisticsExportErrors];
+
+export type GetProjectsByIdSocialConnectionsStatisticsExportResponses = {
+    /**
+     * Statistics export
+     */
+    200: string;
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsExportResponse = GetProjectsByIdSocialConnectionsStatisticsExportResponses[keyof GetProjectsByIdSocialConnectionsStatisticsExportResponses];
+
 export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData = {
     body: RefreshSocialAccountStatisticsRequest;
     headers?: {

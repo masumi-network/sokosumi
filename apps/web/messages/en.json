@@ -2634,7 +2634,10 @@
             "sparkline": "{metric} over the selected days",
             "accountTabs": "Connected accounts",
             "trends": "Performance over time",
-            "trendMetric": "Chart metric"
+            "trendMetric": "Chart metric",
+            "moreActions": "More actions",
+            "exportCsv": "Export CSV",
+            "exportXlsx": "Export spreadsheet"
           },
           "accountsTitle": "Connected accounts",
           "postsTitle": "Published account posts",

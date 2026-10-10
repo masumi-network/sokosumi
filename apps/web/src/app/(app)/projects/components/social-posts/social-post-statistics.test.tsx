@@ -5,6 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import en from "@/../messages/en.json";
@@ -195,6 +196,7 @@ describe("SocialPostStatistics account history", () => {
     expect(
       screen.getByRole("combobox", { name: "Connected accounts" }),
     ).toBeVisible();
+    expect(screen.getByRole("button", { name: "More actions" })).toBeVisible();
     expect(screen.getByText("Link clicks")).toBeVisible();
     expect(
       screen.getByRole("link", { name: "Open post on platform" }),
@@ -202,6 +204,24 @@ describe("SocialPostStatistics account history", () => {
     expect(
       screen.queryByRole("button", { name: /edit|schedule|post now/i }),
     ).not.toBeInTheDocument();
+  });
+  it("offers CSV and spreadsheet downloads for the selected filters", async () => {
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "More actions" }));
+    expect(
+      await screen.findByRole("menuitem", { name: "Export CSV" }),
+    ).toHaveAttribute(
+      "href",
+      expect.stringContaining(
+        "/api/projects/project-1/social-statistics/export?",
+      ),
+    );
+    expect(
+      screen.getByRole("menuitem", { name: "Export spreadsheet" }),
+    ).toHaveAttribute("href", expect.stringContaining("format=xlsx"));
   });
   it("hides the trend chart when the selected period has no daily points", async () => {
     mocks.fetch.mockResolvedValue({
