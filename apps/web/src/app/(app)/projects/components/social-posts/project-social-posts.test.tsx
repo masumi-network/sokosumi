@@ -1208,6 +1208,11 @@ describe("ProjectSocialPosts", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "New post" }));
+    expect(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Connect account",
+      }),
+    ).toHaveClass("h-11", "md:h-8");
     await user.click(
       within(screen.getByRole("dialog")).getByRole("button", {
         name: "Connect account",
@@ -1355,6 +1360,13 @@ describe("ProjectSocialPosts", () => {
 
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    ).toHaveClass("h-11", "md:h-8");
+    expect(within(dialog).getByRole("button", { name: "Upload" })).toHaveClass(
+      "h-11",
+      "md:h-8",
+    );
     await user.type(within(dialog).getByLabelText("Text"), "With media");
     await user.click(
       within(dialog).getByRole("button", { name: "Add from Drive" }),
