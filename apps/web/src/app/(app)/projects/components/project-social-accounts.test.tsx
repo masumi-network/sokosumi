@@ -26,6 +26,7 @@ import {
   finalizeProjectSocialConnection,
   initiateProjectSocialConnection,
 } from "@/lib/actions/project/action";
+import { refreshSocialAccountPerformance } from "@/lib/actions/project/social-performance-refresh.action";
 import messages from "../../../../../messages/en.json";
 
 const { refreshMock, toastErrorMock, toastSuccessMock, toastWarningMock } =
@@ -47,6 +48,9 @@ const MESSAGES: Record<string, string> = {
   connectComingSoon: "{provider} (coming soon)",
   actions: "Actions for {account}",
   reconnect: "Reconnect",
+  syncNow: "Sync now",
+  syncQueued: "Performance sync queued in background",
+  syncFailed: "Failed to queue sync. Try again later.",
   replace: "Replace",
   disconnect: "Disconnect",
   "status.active": "Connected",
@@ -117,6 +121,10 @@ vi.mock("@/lib/actions/project/action", () => ({
   initiateProjectSocialConnection: vi.fn(),
 }));
 
+vi.mock("@/lib/actions/project/social-performance-refresh.action", () => ({
+  refreshSocialAccountPerformance: vi.fn(),
+}));
+
 vi.mock("@/lib/actions/composio/action", () => ({
   completeComposioAuthCallbackAction: vi.fn(),
 }));
@@ -166,7 +174,7 @@ function buildDisconnectResult(
 
 async function chooseAccountAction(
   user: ReturnType<typeof userEvent.setup>,
-  action: "Replace" | "Disconnect",
+  action: "Replace" | "Disconnect" | "Sync now",
   account = "@sokosumi",
 ): Promise<void> {
   await user.click(
@@ -818,6 +826,48 @@ describe("ProjectSocialAccounts", () => {
         "Reconnect the same account that is already linked to this project.",
       );
     });
+  });
+
+  it("enqueues a background sync from the account menu", async () => {
+    const user = userEvent.setup();
+    vi.mocked(refreshSocialAccountPerformance).mockResolvedValue({
+      success: true,
+    });
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+      />,
+    );
+
+    await chooseAccountAction(user, "Sync now");
+    await waitFor(() => {
+      expect(refreshSocialAccountPerformance).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        connectionId: "connection-1",
+      });
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith(
+      "Performance sync queued in background",
+    );
+  });
+
+  it("hides Sync now when the account needs reconnection", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[buildConnection({ status: "reauthorization_required" })]}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for @sokosumi" }),
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Sync now" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reconnect" })).toBeVisible();
   });
 
   it("reports failed disconnects after deliberate confirmation", async () => {

@@ -170,4 +170,98 @@ describe("periodic performance collection", () => {
     expect(mocks.attempt).toHaveBeenCalledTimes(1);
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
+
+  it("asks only for active accounts and does not cap the candidate set", async () => {
+    await collectSocialPerformance({ shouldContinue: () => true });
+    expect(mocks.accounts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: "active" }),
+      }),
+    );
+    expect(mocks.accounts.mock.calls[0][0].take).toBeUndefined();
+  });
+
+  it("skips a recently failed account until the backoff window elapses", async () => {
+    const now = new Date("2026-10-08T12:00:00Z");
+    mocks.accounts.mockResolvedValue([
+      {
+        ...account,
+        status: "active",
+        performanceRefreshAttemptedAt: new Date("2026-10-08T11:50:00Z"),
+        statistics: {
+          metrics: [],
+          fetchedAt: "2026-10-08T10:00:00Z",
+          refreshAttemptedAt: "2026-10-08T11:50:00Z",
+          error: "provider timeout",
+          historyNextCursor: null,
+          historyComplete: true,
+          historyFetchedAt: null,
+          historyError: null,
+        },
+      },
+    ]);
+    const result = await collectSocialPerformance({
+      shouldContinue: () => true,
+      now,
+    });
+    expect(result.accountsSkippedBackoff).toBe(1);
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.attempt).not.toHaveBeenCalled();
+  });
+
+  it("retries after the backoff window and marks unauthorized accounts for reauth", async () => {
+    const now = new Date("2026-10-08T12:00:00Z");
+    mocks.accounts.mockResolvedValue([
+      {
+        ...account,
+        status: "active",
+        performanceRefreshAttemptedAt: new Date("2026-10-08T11:00:00Z"),
+        statistics: {
+          metrics: [],
+          fetchedAt: "2026-10-08T08:00:00Z",
+          refreshAttemptedAt: "2026-10-08T11:00:00Z",
+          error: "provider timeout",
+          historyNextCursor: null,
+          historyComplete: true,
+          historyFetchedAt: null,
+          historyError: null,
+        },
+      },
+    ]);
+    mocks.refresh.mockRejectedValueOnce(
+      new Error("Unauthorized: token expired"),
+    );
+    const result = await collectSocialPerformance({
+      shouldContinue: () => true,
+      now,
+    });
+    expect(result.accountsSkippedReauth).toBe(1);
+    expect(result.accountsFailed).toBe(0);
+    expect(mocks.attempt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "connection", status: "active" },
+        data: { status: "reauthorization_required" },
+      }),
+    );
+  });
+
+  it("stops at the deadline after processing as many accounts as fit", async () => {
+    mocks.accounts.mockResolvedValue(
+      Array.from({ length: 8 }, (_, index) => ({
+        ...account,
+        id: `connection-${index}`,
+        status: "active",
+      })),
+    );
+    let started = 0;
+    mocks.refresh.mockImplementation(() => {
+      started += 1;
+      return { account: { statistics: { historyComplete: true } } };
+    });
+    const result = await collectSocialPerformance({
+      shouldContinue: () => started < 3,
+    });
+    expect(result.accountsProcessed).toBe(3);
+    expect(mocks.refresh).toHaveBeenCalledTimes(3);
+  });
 });

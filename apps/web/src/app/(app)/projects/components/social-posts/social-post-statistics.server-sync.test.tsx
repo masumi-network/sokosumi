@@ -27,7 +27,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 vi.mock("@/lib/actions/project/social-performance-refresh.action", () => ({
-  refreshSocialAccountPerformanceAction: mocks.refreshAction,
+  refreshSocialAccountPerformance: mocks.refreshAction,
 }));
 
 vi.mock("next-intl", async () => {
@@ -358,8 +358,7 @@ describe("SocialPostStatistics server-driven sync", () => {
 
     mocks.fetch.mockResolvedValueOnce({
       ok: true,
-      // biome-ignore lint/suspicious/noExplicitAny: test fixture with modified types
-      json: async () => page([reauthAccount as any]),
+      json: async () => page([reauthAccount as never]),
     });
 
     renderStatistics();
@@ -385,8 +384,7 @@ describe("SocialPostStatistics server-driven sync", () => {
 
     mocks.fetch.mockResolvedValueOnce({
       ok: true,
-      // biome-ignore lint/suspicious/noExplicitAny: test fixture with modified types
-      json: async () => page([reauthAccount as any]),
+      json: async () => page([reauthAccount as never]),
     });
 
     renderStatistics();
@@ -413,8 +411,7 @@ describe("SocialPostStatistics server-driven sync", () => {
 
     mocks.fetch.mockResolvedValueOnce({
       ok: true,
-      // biome-ignore lint/suspicious/noExplicitAny: test fixture with modified types
-      json: async () => page([incompleteAccount as any]),
+      json: async () => page([incompleteAccount as never]),
     });
 
     renderStatistics();
@@ -440,8 +437,7 @@ describe("SocialPostStatistics server-driven sync", () => {
 
     mocks.fetch.mockResolvedValueOnce({
       ok: true,
-      // biome-ignore lint/suspicious/noExplicitAny: test fixture with modified types
-      json: async () => page([errorAccount as any]),
+      json: async () => page([errorAccount as never]),
     });
 
     renderStatistics();
