@@ -69,6 +69,28 @@ const snapshot = {
   metricWarning: null,
 };
 
+function accountSync(
+  status:
+    | "fresh"
+    | "stale"
+    | "queued"
+    | "running"
+    | "reauth_required"
+    | "partial",
+  extras: Record<string, unknown> = {},
+) {
+  return {
+    status,
+    mayAutoRequest: status === "stale",
+    dataVersion: status,
+    dataFetchedAt: snapshot.fetchedAt,
+    headFetchedAt: snapshot.fetchedAt,
+    lastError: null,
+    partialWarnings: [],
+    ...extras,
+  };
+}
+
 const account = {
   id: "11111111-1111-4111-8111-111111111111",
   provider: "x",
@@ -77,6 +99,7 @@ const account = {
   status: "active",
   statistics: snapshot,
   postCount: 1,
+  sync: accountSync("fresh"),
 };
 
 const secondAccount = {
@@ -270,6 +293,10 @@ describe("SocialPostStatistics server-driven sync", () => {
         fetchedAt: minutesAgo(120),
         refreshAttemptedAt: minutesAgo(120),
       },
+      sync: accountSync("stale", {
+        dataFetchedAt: minutesAgo(120),
+        headFetchedAt: minutesAgo(120),
+      }),
     };
     mockPages([staleAccount]);
 
@@ -287,13 +314,9 @@ describe("SocialPostStatistics server-driven sync", () => {
         fetchedAt: minutesAgo(120),
         refreshAttemptedAt: minutesAgo(120),
       },
-      sync: {
-        status: "queued",
-        mayAutoRequest: false,
-        dataVersion: "queued-1",
-      },
+      sync: accountSync("queued", { dataVersion: "queued-1" }),
     };
-    mockPages([queuedAccount as never]);
+    mockPages([queuedAccount]);
 
     renderStatistics();
 
@@ -328,6 +351,10 @@ describe("SocialPostStatistics server-driven sync", () => {
         fetchedAt: minutesAgo(120),
         refreshAttemptedAt: minutesAgo(120),
       },
+      sync: accountSync("stale", {
+        dataFetchedAt: minutesAgo(120),
+        headFetchedAt: minutesAgo(120),
+      }),
     };
     mockPages([freshFirst, staleSecond]);
 
@@ -436,6 +463,10 @@ describe("SocialPostStatistics server-driven sync", () => {
         fetchedAt: minutesAgo(120),
         refreshAttemptedAt: minutesAgo(120),
       },
+      sync: accountSync("stale", {
+        dataFetchedAt: minutesAgo(120),
+        headFetchedAt: minutesAgo(120),
+      }),
     };
     const staleSecond = {
       ...secondAccount,
@@ -444,6 +475,10 @@ describe("SocialPostStatistics server-driven sync", () => {
         fetchedAt: minutesAgo(120),
         refreshAttemptedAt: minutesAgo(120),
       },
+      sync: accountSync("stale", {
+        dataFetchedAt: minutesAgo(120),
+        headFetchedAt: minutesAgo(120),
+      }),
     };
     mockPages([staleFirst, staleSecond]);
 
@@ -466,6 +501,7 @@ describe("SocialPostStatistics server-driven sync", () => {
         fetchedAt: minutesAgo(120),
         refreshAttemptedAt: minutesAgo(1),
       },
+      sync: accountSync("running"),
     };
     mockPages([inFlight]);
 

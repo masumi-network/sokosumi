@@ -38,16 +38,6 @@ type StatisticsPage =
   | SocialPerformanceResponse
   | WorkspaceSocialPerformanceResponse;
 type Account = StatisticsPage["accounts"][number];
-type AccountSync = {
-  status?: string;
-  mayAutoRequest?: boolean;
-  dataVersion?: string;
-};
-
-function accountSync(account: Account): AccountSync | undefined {
-  if (!("sync" in account) || account.sync == null) return undefined;
-  return account.sync as AccountSync;
-}
 
 export function SocialPostStatistics({
   projectId,
@@ -194,22 +184,7 @@ export function SocialPostStatistics({
   const checkAndRefreshIfStale = useCallback(
     (account: Account) => {
       if (!selectedProjectId || account.status !== "active") return;
-      const sync = accountSync(account);
-      if (sync) {
-        if (!sync.mayAutoRequest) return;
-      } else {
-        const threshold = 3_600_000;
-        const now = Date.now();
-        const stats = account.statistics;
-        const isStale =
-          !stats?.fetchedAt ||
-          now - new Date(stats.fetchedAt).getTime() > threshold;
-        const isSyncingNow = Boolean(
-          stats?.refreshAttemptedAt &&
-            now - new Date(stats.refreshAttemptedAt).getTime() < 300_000,
-        );
-        if (isSyncingNow || !isStale) return;
-      }
+      if (!account.sync?.mayAutoRequest) return;
       if (queuedRefreshIds.current.has(account.id)) return;
       queuedRefreshIds.current.add(account.id);
       setSyncingAccountId(account.id);
@@ -368,9 +343,7 @@ export function SocialPostStatistics({
     if (!selectedAccount || scopeChangePending) return;
     checkAndRefreshIfStale(selectedAccount);
   }, [selectedAccount, scopeChangePending, checkAndRefreshIfStale]);
-  const selectedSync = selectedAccount
-    ? accountSync(selectedAccount)
-    : undefined;
+  const selectedSync = selectedAccount?.sync;
   useEffect(() => {
     if (!selectedAccount || scopeChangePending) return;
     if (selectedSync?.status !== "queued" && selectedSync?.status !== "running")
@@ -403,12 +376,8 @@ export function SocialPostStatistics({
   }
   function isAccountSyncing(account: Account) {
     if (syncingAccountId === account.id) return true;
-    const status = accountSync(account)?.status;
-    if (status === "queued" || status === "running") return true;
-    const attemptedAt = accountSnapshot(account)?.refreshAttemptedAt;
-    return Boolean(
-      attemptedAt && Date.now() - new Date(attemptedAt).getTime() < 300_000,
-    );
+    const status = account.sync?.status;
+    return status === "queued" || status === "running";
   }
   function accountName(account: Account) {
     return (
