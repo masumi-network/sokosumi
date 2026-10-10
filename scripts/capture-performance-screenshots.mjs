@@ -1,300 +1,271 @@
-import { mkdirSync } from "fs";
-import { join } from "path";
+import { mkdirSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const WEB_ROOT = join(REPO_ROOT, "apps/web");
+const PAGE_MODULE =
+  "/src/app/(app)/projects/components/social-posts/__tests__/performance-auto-sync-page.tsx";
 const artifactsDir = "/opt/cursor/artifacts/performance-screenshots";
-const repoDir = join(process.cwd(), "docs/images/performance-screenshots");
+const repoDir = join(REPO_ROOT, "docs/images/performance-screenshots");
+
 mkdirSync(artifactsDir, { recursive: true });
 mkdirSync(repoDir, { recursive: true });
 
-const X_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`;
-const CHEVRON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>`;
-const MORE = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>`;
-const REFRESH = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>`;
+const requireFromWeb = createRequire(join(WEB_ROOT, "package.json"));
 
-function themeVars(theme) {
-  const dark = theme === "dark";
-  return {
-    dark,
-    bg: dark ? "#0a0a0a" : "#ffffff",
-    fg: dark ? "#fafafa" : "#0a0a0a",
-    muted: dark ? "#a1a1aa" : "#71717a",
-    border: dark ? "#27272a" : "#e4e4e7",
-    card: dark ? "#0a0a0a" : "#ffffff",
-    input: dark ? "#18181b" : "#ffffff",
-    popover: dark ? "#18181b" : "#ffffff",
-    warning: dark ? "#fbbf24" : "#b45309",
-    success: dark ? "#34d399" : "#059669",
-    hover: dark ? "#27272a" : "#f4f4f5",
-    destructive: dark ? "#f87171" : "#dc2626",
-  };
+async function importFromWeb(specifier) {
+  return import(pathToFileURL(requireFromWeb.resolve(specifier)).href);
 }
 
-function headerBlock(v, status) {
-  const statusLine =
-    status === "syncing"
-      ? `<p>Syncing…</p>`
-      : status === "reconnect"
-        ? `<p>Not synced yet</p>`
-        : `<p>Updated Oct 10, 2026</p>`;
-  const warning =
-    status === "reconnect"
-      ? `<p class="warning">Reconnect this account before syncing statistics. <a href="#">Manage accounts</a></p>`
-      : "";
-
-  return `
-    <section class="header" data-testid="performance-header">
-      <div class="header-row">
-        <div class="identity">
-          <button class="select" type="button" aria-label="Connected accounts">
-            <span class="select-label">${X_ICON}<span>Masumi</span></span>
-            ${CHEVRON}
-          </button>
-          <div class="freshness">${statusLine}</div>
-        </div>
-        <button class="icon-btn" type="button" aria-label="More actions">${MORE}</button>
-      </div>
-      ${warning}
-    </section>`;
-}
-
-function overviewBlock() {
-  return `
-    <div class="presets">
-      <button class="chip" type="button">Last 7 days</button>
-      <button class="chip chip-active" type="button">Last 30 days</button>
-      <button class="chip" type="button">Last 90 days</button>
-    </div>
-    <div class="metrics">
-      <div><p class="metric-label">Posts</p><p class="metric-value">14</p></div>
-      <div><p class="metric-label">Views</p><p class="metric-value">1,373</p></div>
-      <div><p class="metric-label">Impressions</p><p class="metric-value">334K</p></div>
-      <div><p class="metric-label">Interactions</p><p class="metric-value">918</p></div>
-    </div>`;
-}
-
-function settingsBlock(v, { menuOpen }) {
-  return `
-    <section class="settings settings-frame" data-testid="settings-accounts">
-      <h1>Social accounts</h1>
-      <p class="lede">Connect social accounts to this project. Draft, schedule, and publish posts on any connected platform.</p>
-      <ul class="account-list">
-        <li class="account-row">
-          <span class="provider-badge">${X_ICON}</span>
-          <div class="account-copy">
-            <p class="handle">@masumi</p>
-            <p class="meta"><span>X account</span><span class="status"><span class="dot"></span>Connected</span></p>
-          </div>
-          <div class="account-actions">
-            <button class="icon-btn" type="button" aria-label="Actions for @masumi" data-testid="settings-menu-trigger">${MORE}</button>
-            ${
-              menuOpen
-                ? `<div class="menu" data-testid="settings-menu">
-              <button class="menu-item" type="button">${REFRESH}<span>Sync now</span></button>
-              <button class="menu-item" type="button">Replace</button>
-              <button class="menu-item menu-danger" type="button">Disconnect</button>
-            </div>`
-                : ""
-            }
-          </div>
-        </li>
-      </ul>
-    </section>`;
-}
-
-function pageCSS(v) {
-  return `
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: Inter, system-ui, -apple-system, sans-serif;
-      background: ${v.bg};
-      color: ${v.fg};
-      padding: 2rem 1rem;
-      line-height: 1.5;
-    }
-    .wrap { max-width: 960px; margin: 0 auto; }
-    h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; }
-    .lede { color: ${v.muted}; font-size: 0.875rem; margin-bottom: 1.25rem; }
-    .header, .metrics, .account-list {
-      border: 1px solid ${v.border};
-      border-radius: 0.5rem;
-      background: ${v.card};
-    }
-    .header { padding: 1rem; margin-bottom: 1rem; }
-    .header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; }
-    .identity { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; min-width: 0; }
-    .select {
-      display: inline-flex; align-items: center; justify-content: space-between; gap: 0.5rem;
-      min-width: 200px; height: 2.5rem; padding: 0 0.75rem;
-      border: 1px solid ${v.border}; border-radius: 0.375rem; background: ${v.input};
-      color: ${v.fg}; font: inherit; font-size: 0.875rem; font-weight: 500;
-    }
-    .select-label { display: inline-flex; align-items: center; gap: 0.5rem; }
-    .freshness { color: ${v.muted}; font-size: 0.875rem; }
-    .icon-btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 2.5rem; height: 2.5rem; border: 1px solid ${v.border}; border-radius: 0.375rem;
-      background: ${v.input}; color: ${v.fg};
-    }
-    .warning { color: ${v.warning}; font-size: 0.875rem; margin-top: 0.75rem; }
-    .warning a { color: inherit; }
-    .presets { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
-    .chip {
-      height: 2rem; padding: 0 0.75rem; border: 1px solid ${v.border}; border-radius: 0.375rem;
-      background: ${v.input}; color: ${v.fg}; font: inherit; font-size: 0.875rem;
-    }
-    .chip-active { background: ${v.fg}; color: ${v.bg}; border-color: ${v.fg}; }
-    .metrics {
-      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem;
-      padding: 1.25rem; margin-bottom: 1rem;
-    }
-    .metric-label { color: ${v.muted}; font-size: 0.875rem; }
-    .metric-value { font-size: 1.5rem; font-weight: 600; }
-    .settings { max-width: 720px; overflow: visible; }
-    .settings-frame { padding-bottom: 9rem; }
-    .account-list { list-style: none; }
-    .account-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; position: relative; }
-    .provider-badge {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 2.25rem; height: 2.25rem; border: 1px solid ${v.border}; border-radius: 0.375rem;
-    }
-    .account-copy { min-width: 10rem; flex: 1; }
-    .handle { font-size: 0.875rem; font-weight: 500; }
-    .meta { color: ${v.muted}; font-size: 0.75rem; display: flex; gap: 0.5rem; align-items: center; }
-    .status { display: inline-flex; align-items: center; gap: 0.25rem; }
-    .dot { width: 0.375rem; height: 0.375rem; border-radius: 999px; background: ${v.success}; }
-    .account-actions { position: relative; margin-left: auto; }
-    .menu {
-      position: absolute; right: 0; top: calc(100% + 0.25rem); z-index: 10;
-      min-width: 11rem; padding: 0.25rem; border: 1px solid ${v.border};
-      border-radius: 0.375rem; background: ${v.popover}; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-    }
-    .menu-item {
-      display: flex; align-items: center; gap: 0.5rem; width: 100%;
-      padding: 0.5rem 0.625rem; border: 0; background: transparent; color: ${v.fg};
-      font: inherit; font-size: 0.875rem; border-radius: 0.25rem; text-align: left;
-    }
-    .menu-item:hover { background: ${v.hover}; }
-    .menu-danger { color: ${v.destructive}; }
-    @media (max-width: 640px) {
-      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .select { width: 100%; min-width: 0; }
-      .identity { width: 100%; }
-    }
-  `;
-}
-
-function html(theme, body) {
-  const v = themeVars(theme);
-  return `<!DOCTYPE html>
-<html lang="en" class="${theme}">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>${pageCSS(v)}</style>
-</head>
-<body><div class="wrap">${body}</div></body>
+function pageHtml() {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <script type="module">
+      import "/src/app/globals.css";
+      import ${JSON.stringify(PAGE_MODULE)};
+    </script>
+  </body>
 </html>`;
 }
 
-async function shot(page, name, selector) {
-  const target = selector ? page.locator(selector) : page;
+const FIXTURE_MOCKS = {
+  "next/navigation": `\
+export const useRouter = () => ({ push() {}, replace() {}, refresh() {} });
+export const usePathname = () => "/projects/project-1";
+export const useSearchParams = () => new URLSearchParams();
+`,
+  "next/link": `\
+import { createElement } from "react";
+export default function Link({ href, children, ...props }) {
+  return createElement("a", { href, ...props }, children);
+}
+`,
+  "@/lib/auth/auth.client": `\
+export const useSession = () => ({
+  data: {
+    user: { id: "user-1" },
+    session: { activeOrganizationId: "org-1" },
+  },
+  isPending: false,
+});
+`,
+  "@/lib/actions/project/social-performance-refresh.action": `\
+export async function refreshSocialAccountPerformance() {
+  return { success: true };
+}
+`,
+  "@/lib/actions/project/action": `\
+export async function disconnectProjectSocialConnection() {
+  return { ok: true, value: { providerRevocation: "succeeded" } };
+}
+export async function finalizeProjectSocialConnection() {
+  return { ok: true, value: {} };
+}
+export async function initiateProjectSocialConnection() {
+  return { ok: true, value: { redirectUrl: "https://example.test" } };
+}
+`,
+  "@/lib/actions/composio/action": `\
+export async function completeComposioAuthCallbackAction() {
+  return { ok: true, value: {} };
+}
+`,
+  "@/lib/composio/use-composio-oauth-popup": `\
+export function useComposioOAuthPopup() {
+  return { runPopupOAuth: async () => ({ kind: "in_flight" }) };
+}
+`,
+};
+
+async function shot(page, name, locator) {
   const repoPath = join(repoDir, name);
   const artifactPath = join(artifactsDir, name);
-  const opts = selector
-    ? { path: repoPath }
-    : { path: repoPath, fullPage: true };
-  await target.screenshot(opts);
-  await target.screenshot(
-    selector ? { path: artifactPath } : { path: artifactPath, fullPage: true },
-  );
+  if (locator) {
+    await locator.screenshot({ path: repoPath });
+    await locator.screenshot({ path: artifactPath });
+  } else {
+    await page.screenshot({ path: repoPath, fullPage: true });
+    await page.screenshot({ path: artifactPath, fullPage: true });
+  }
   console.log(`✓ ${name}`);
 }
 
-async function render(page, theme, viewport, body) {
+async function shotUnion(page, locators, name) {
+  const boxes = [];
+  for (const locator of locators) {
+    const box = await locator.boundingBox();
+    if (box) boxes.push(box);
+  }
+  if (boxes.length === 0) throw new Error(`no boxes for ${name}`);
+  const pad = 16;
+  const x = Math.max(0, Math.min(...boxes.map((box) => box.x)) - pad);
+  const y = Math.max(0, Math.min(...boxes.map((box) => box.y)) - pad);
+  const right = Math.max(...boxes.map((box) => box.x + box.width)) + pad;
+  const bottom = Math.max(...boxes.map((box) => box.y + box.height)) + pad;
+  const clip = { x, y, width: right - x, height: bottom - y };
+  await page.screenshot({ path: join(repoDir, name), clip });
+  await page.screenshot({ path: join(artifactsDir, name), clip });
+  console.log(`✓ ${name}`);
+}
+
+async function openShot(page, port, theme, shotName, viewport) {
   await page.setViewportSize(viewport);
   await page.emulateMedia({ colorScheme: theme });
-  await page.setContent(html(theme, body), { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(400);
+  await page.goto(`http://127.0.0.1:${port}/?shot=${shotName}&theme=${theme}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await page.waitForFunction(() => {
+    const root = document.documentElement;
+    return (
+      getComputedStyle(document.body).backgroundColor !== "rgba(0, 0, 0, 0)" ||
+      root.classList.contains("dark") ||
+      root.classList.contains("light")
+    );
+  });
 }
 
 async function main() {
+  const [{ createServer }, { default: react }] = await Promise.all([
+    importFromWeb("vite"),
+    importFromWeb("@vitejs/plugin-react"),
+  ]);
+
+  const server = await createServer({
+    configFile: join(WEB_ROOT, "vitest.config.ts"),
+    root: WEB_ROOT,
+    cacheDir: join(WEB_ROOT, "node_modules/.vite-performance-screenshots"),
+    logLevel: "error",
+    define: { "process.env": JSON.stringify({ NODE_ENV: "development" }) },
+    plugins: [
+      react(),
+      {
+        name: "performance-auto-sync-page",
+        enforce: "pre",
+        resolveId(id) {
+          if (id === "server-only") return "\0fixture-server-only";
+          if (FIXTURE_MOCKS[id]) return `\0fixture:${id}`;
+        },
+        load(id) {
+          if (id === "\0fixture-server-only") return "export {}";
+          if (id.startsWith("\0fixture:")) {
+            return FIXTURE_MOCKS[id.slice("\0fixture:".length)];
+          }
+        },
+        configureServer(devServer) {
+          devServer.middlewares.use((request, response, next) => {
+            const path = request.url?.split("?")[0];
+            if (path !== "/") {
+              next();
+              return;
+            }
+            devServer
+              .transformIndexHtml("/", pageHtml())
+              .then((html) => {
+                response.setHeader("content-type", "text/html");
+                response.end(html);
+              })
+              .catch(next);
+          });
+        },
+      },
+    ],
+    optimizeDeps: {
+      entries: [PAGE_MODULE.slice(1)],
+      exclude: ["next/navigation", "next/link", "server-only"],
+    },
+    server: { host: "127.0.0.1", port: 0, hmr: false },
+  });
+
+  await server.listen();
+  await server.environments.client.warmupRequest(PAGE_MODULE);
+  await server.environments.client.waitForRequestsIdle();
+
+  const address = server.httpServer?.address();
+  if (!address || typeof address === "string") {
+    throw new Error("the page server has no port");
+  }
+
   const browser = await chromium.launch();
-  const page = await browser.newPage();
   const desktop = { width: 1280, height: 900 };
   const mobile = { width: 375, height: 812 };
 
-  for (const theme of ["light", "dark"]) {
-    const v = themeVars(theme);
-    await render(
-      page,
-      theme,
-      desktop,
-      `<h1>Account performance</h1><p class="lede">View performance metrics and insights for your connected social media accounts</p>${headerBlock(v, "updated")}${overviewBlock()}`,
-    );
-    await shot(page, `after-${theme}-desktop.png`);
+  try {
+    for (const theme of ["light", "dark"]) {
+      const page = await browser.newPage();
+      page.on("pageerror", (error) => {
+        console.error(`pageerror (${theme}):`, error.message);
+      });
+
+      await openShot(page, address.port, theme, "updated", desktop);
+      await page.getByTestId("performance-header").waitFor({ timeout: 30_000 });
+      await page.getByText(/^Updated /).waitFor();
+      await shot(page, `after-${theme}-desktop.png`);
+      await shot(
+        page,
+        `header-updated-${theme}.png`,
+        page.getByTestId("performance-header"),
+      );
+
+      await openShot(page, address.port, theme, "syncing", desktop);
+      await page.getByText("Syncing…").waitFor({ timeout: 30_000 });
+      await shot(
+        page,
+        `header-syncing-${theme}.png`,
+        page.getByTestId("performance-header"),
+      );
+
+      await openShot(page, address.port, theme, "settings", {
+        width: 800,
+        height: 640,
+      });
+      await page.getByTestId("project-social-accounts").waitFor({
+        timeout: 30_000,
+      });
+      await page.getByRole("button", { name: "Actions for @masumi" }).click();
+      await page.getByRole("menuitem", { name: "Sync now" }).waitFor();
+      await shotUnion(
+        page,
+        [page.getByTestId("project-social-accounts"), page.getByRole("menu")],
+        `settings-sync-now-${theme}.png`,
+      );
+
+      await page.close();
+    }
+
+    const mobilePage = await browser.newPage();
+
+    await openShot(mobilePage, address.port, "light", "updated", mobile);
+    await mobilePage.getByText(/^Updated /).waitFor({ timeout: 30_000 });
+    await shot(mobilePage, "after-light-mobile.png");
+
+    await openShot(mobilePage, address.port, "dark", "syncing", mobile);
+    await mobilePage.getByText("Syncing…").waitFor({ timeout: 30_000 });
+    await shot(mobilePage, "after-dark-mobile.png");
+
+    await openShot(mobilePage, address.port, "light", "reconnect", desktop);
+    await mobilePage
+      .getByText("Reconnect this account before syncing statistics.")
+      .waitFor({ timeout: 30_000 });
     await shot(
-      page,
-      `header-updated-${theme}.png`,
-      "[data-testid=performance-header]",
+      mobilePage,
+      "header-reconnect-light.png",
+      mobilePage.getByTestId("performance-header"),
     );
 
-    await render(
-      page,
-      theme,
-      desktop,
-      `<h1>Account performance</h1>${headerBlock(v, "syncing")}${overviewBlock()}`,
-    );
-    await shot(
-      page,
-      `header-syncing-${theme}.png`,
-      "[data-testid=performance-header]",
-    );
-
-    await render(
-      page,
-      theme,
-      { width: 800, height: 640 },
-      settingsBlock(v, { menuOpen: true }),
-    );
-    await shot(
-      page,
-      `settings-sync-now-${theme}.png`,
-      "[data-testid=settings-accounts]",
-    );
+    await mobilePage.close();
+  } finally {
+    await browser.close();
+    await server.close();
   }
 
-  const light = themeVars("light");
-  await render(
-    page,
-    "light",
-    mobile,
-    `<h1>Account performance</h1>${headerBlock(light, "updated")}${overviewBlock()}`,
-  );
-  await shot(page, "after-light-mobile.png");
-
-  await render(
-    page,
-    "dark",
-    mobile,
-    `<h1>Account performance</h1>${headerBlock(themeVars("dark"), "syncing")}${overviewBlock()}`,
-  );
-  await shot(page, "after-dark-mobile.png");
-
-  await render(
-    page,
-    "light",
-    desktop,
-    `<h1>Account performance</h1>${headerBlock(light, "reconnect")}${overviewBlock()}`,
-  );
-  await shot(
-    page,
-    "header-reconnect-light.png",
-    "[data-testid=performance-header]",
-  );
-
-  await browser.close();
   console.log(`\nSaved to ${repoDir} and ${artifactsDir}`);
 }
 

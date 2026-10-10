@@ -449,7 +449,10 @@ export function SocialPostStatistics({
         >
           {/* Unified header: account selection, identity, freshness, and actions */}
           {selectedAccount ? (
-            <section className="space-y-3 rounded-lg border p-4">
+            <section
+              className="space-y-3 rounded-lg border p-4"
+              data-testid="performance-header"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex w-full min-w-0 flex-col gap-1 sm:w-auto sm:flex-1 sm:flex-row sm:items-center sm:gap-3">
                   {eligibleAccounts.length > 1 ? (
