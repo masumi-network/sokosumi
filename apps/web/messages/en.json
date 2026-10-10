@@ -2555,6 +2555,7 @@
           "unauthenticatedAction": "Log in",
           "published": "Post published.",
           "publishFailed": "Publishing failed: {error}",
+          "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}"
         },
         "needsReconnect": "Account needs reconnecting",
