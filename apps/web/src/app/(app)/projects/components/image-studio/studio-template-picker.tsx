@@ -11,6 +11,10 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
+import {
+  collectStudioCarouselSlides,
+  paintStudioCarouselDepth,
+} from "./studio-carousel-paint";
 import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
 import type { StudioLabels } from "./types";
 
@@ -59,7 +63,9 @@ function TemplateButton({
         <Image
           alt=""
           className="object-cover"
+          decoding="async"
           fill
+          loading="lazy"
           sizes={
             large
               ? dimensional
@@ -120,36 +126,24 @@ export function StudioTemplateCarousel({
 
   useEffect(() => {
     if (!api) return;
+    const slides = collectStudioCarouselSlides(api.slideNodes());
+    let frame = 0;
     const paintDepth = () => {
-      const viewport = api.rootNode().getBoundingClientRect();
-      const center = viewport.left + viewport.width / 2;
-      for (const slide of api.slideNodes()) {
-        const card = slide.querySelector<HTMLElement>("[data-template-card]");
-        const preview = slide.querySelector<HTMLElement>(
-          "[data-template-preview]",
-        );
-        if (!card || !preview) continue;
-        if (reduceMotion) {
-          card.style.transform = "";
-          preview.style.filter = "";
-          preview.style.opacity = "";
-          slide.style.zIndex = "";
-          continue;
-        }
-        const bounds = slide.getBoundingClientRect();
-        if (!bounds.width) continue;
-        const offset = (bounds.left + bounds.width / 2 - center) / bounds.width;
-        const distance = Math.min(Math.abs(offset), 3);
-        card.style.transform = `translateX(-50%) perspective(1000px) translateZ(${80 - distance * 40}px) rotateY(${-offset * 8}deg) rotateZ(${offset * 3}deg) scale(${1 - distance * 0.1})`;
-        preview.style.filter = `blur(${Math.max(0, distance - 1) * 1.5}px)`;
-        preview.style.opacity = String(1 - distance * 0.15);
-        slide.style.zIndex = String(20 - Math.round(distance * 5));
-      }
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        paintStudioCarouselDepth({
+          viewport: api.rootNode().getBoundingClientRect(),
+          slides,
+          reduceMotion: !!reduceMotion,
+        });
+      });
     };
     paintDepth();
     api.on("scroll", paintDepth);
     api.on("reInit", paintDepth);
     return () => {
+      if (frame) window.cancelAnimationFrame(frame);
       api.off("scroll", paintDepth);
       api.off("reInit", paintDepth);
     };
