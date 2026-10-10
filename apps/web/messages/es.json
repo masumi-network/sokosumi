@@ -2376,6 +2376,7 @@
         "connectAccount": "Conectar X, YouTube, LinkedIn…",
         "actions": "Acciones de {account}",
         "reconnect": "Volver a conectar",
+        "startOver": "Empezar de nuevo",
         "replace": "Reemplazar",
         "disconnect": "Desconectar",
         "unknownHandle": "Cuenta desconocida",
