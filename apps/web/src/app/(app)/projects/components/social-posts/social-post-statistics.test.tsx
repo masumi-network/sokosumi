@@ -198,6 +198,7 @@ describe("SocialPostStatistics account history", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByText("More filters")).toBeVisible();
     expect(screen.getByTestId("social-performance-overview")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Trends" })).toBeVisible();
     expect(screen.getByText("Posts")).toBeVisible();
     expect(screen.getByText("Interactions")).toBeVisible();
     expect(
@@ -209,6 +210,21 @@ describe("SocialPostStatistics account history", () => {
     ).toHaveAttribute("href", post.url);
     expect(
       screen.queryByRole("button", { name: /edit|schedule|post now/i }),
+    ).not.toBeInTheDocument();
+  });
+  it("hides the trend chart when the selected period has no daily points", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        headline: { ...headline, daily: [] },
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(screen.getByTestId("social-performance-overview")).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Trends" }),
     ).not.toBeInTheDocument();
   });
   it("filters cached posts by account, platform and UTC dates while retaining the account overview", async () => {
