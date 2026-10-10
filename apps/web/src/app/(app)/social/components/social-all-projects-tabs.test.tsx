@@ -6,6 +6,16 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
+vi.mock(
+  "@/app/projects/components/social-posts/social-post-statistics",
+  () => ({
+    SocialPostStatistics: ({ workspaceId }: { workspaceId: string }) => (
+      <p data-testid="workspace-performance" data-workspace={workspaceId}>
+        Workspace performance
+      </p>
+    ),
+  }),
+);
 
 // The prompt reaches for the sidebar switcher; here only its copy matters.
 vi.mock("./social-accounts-project-prompt", () => ({
@@ -24,6 +34,7 @@ function renderTabs(searchParams = "", notice?: string) {
   return render(
     <NuqsTestingAdapter searchParams={searchParams}>
       <SocialAllProjectsTabs
+        workspaceId="workspace-1"
         actions={<button type="button">New post</button>}
         calendar={<p>Calendar panel</p>}
         notice={notice}
@@ -54,7 +65,11 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getByText("choose a project for drafts")).toBeVisible();
 
     await user.click(screen.getByRole("tab", { name: "sections.statistics" }));
-    expect(screen.getByText("choose a project for statistics")).toBeVisible();
+    expect(screen.getByText("Workspace performance")).toBeVisible();
+    expect(screen.getByTestId("workspace-performance")).toHaveAttribute(
+      "data-workspace",
+      "workspace-1",
+    );
 
     await user.click(screen.getByRole("tab", { name: "sections.accounts" }));
     expect(screen.getByText("choose a project for accounts")).toBeVisible();
@@ -71,6 +86,13 @@ describe("SocialAllProjectsTabs", () => {
     expect(
       screen.getByRole("tab", { name: "sections.calendar" }),
     ).toHaveAttribute("aria-selected", "true");
+  });
+  it("opens combined workspace performance directly from its existing deep link", () => {
+    renderTabs("?tab=statistics");
+    expect(screen.getByText("Workspace performance")).toBeVisible();
+    expect(
+      screen.queryByText("choose a project for statistics"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows every project's posts on the calendar without asking for a project", () => {

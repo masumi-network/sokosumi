@@ -55,7 +55,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@playwright/test": "^1.64.0",
     "husky": "9.1.7",
+    "playwright": "^1.64.0",
     "portless": "0.15.7",
     "tsx": "4.23.15",
     "turbo": "2.11.7"

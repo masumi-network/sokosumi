@@ -144,4 +144,40 @@ describe("SocialPostPreview", () => {
     );
     expect(screen.getByText("Clip")).toBeVisible();
   });
+  it("renders imported media URLs and video controls without inventing owned file metadata", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[
+          {
+            kind: "image",
+            url: "https://media.example/public-image.jpg",
+            thumbnailUrl: null,
+          },
+          {
+            kind: "video",
+            url: "https://media.example/public-video.mp4",
+            thumbnailUrl: "https://media.example/poster.jpg",
+          },
+        ]}
+        provider="x"
+        text="Published media"
+        timestamp={null}
+        showMediaPlaceholder={false}
+        showEngagementActions={false}
+      />,
+    );
+    const preview = screen.getByTestId("social-post-preview");
+    const image = preview.querySelector(
+      'img[src="https://media.example/public-image.jpg"]',
+    );
+    expect(image).toHaveAttribute("alt", "");
+    const video = preview.querySelector("video");
+    expect(video).toHaveAttribute(
+      "src",
+      "https://media.example/public-video.mp4",
+    );
+    expect(video).toHaveAttribute("poster", "https://media.example/poster.jpg");
+    expect(video).toHaveAttribute("controls");
+  });
 });

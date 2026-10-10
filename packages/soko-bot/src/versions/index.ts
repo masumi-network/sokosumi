@@ -29,6 +29,7 @@ import { v20 } from "./v20.js";
 import { v21 } from "./v21.js";
 import { v22 } from "./v22.js";
 import { v23 } from "./v23.js";
+import { v24 } from "./v24.js";
 
 /** Newest last. To iterate, add `vN.ts` and append it here. */
 export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
@@ -55,8 +56,9 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v21,
   v22,
   v23,
+  v24,
 ];
-export const DEFAULT_SOKO_BOT_VERSION_ID = "v23";
+export const DEFAULT_SOKO_BOT_VERSION_ID = "v24";
 
 export type { SokoBotSkill, SokoBotVersion };
 export { getSokoBotSkill, SOKO_BOT_SKILLS };

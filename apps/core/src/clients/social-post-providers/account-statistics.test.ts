@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   fetchSocialAccountStatisticsPage,
+  parseXAccountPosts,
+  readNativeStatistics,
   type SocialAccountStatisticsContext,
 } from "@/clients/social-post-providers/account-statistics";
 
@@ -56,6 +58,44 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("connected account statistics", () => {
+  it("retains native X format classification when preview URLs or expansions are unavailable", () => {
+    const result = parseXAccountPosts(
+      {
+        data: [
+          {
+            id: "1",
+            author_id: "123",
+            text: "Hidden image URL",
+            attachments: { media_keys: ["image-1"] },
+          },
+          {
+            id: "2",
+            author_id: "123",
+            text: "Missing media expansion",
+            attachments: { media_keys: ["unknown-1"] },
+          },
+          {
+            id: "3",
+            author_id: "123",
+            text: "Carousel without previews",
+            attachments: { media_keys: ["unknown-1", "unknown-2"] },
+          },
+        ],
+        includes: {
+          media: [
+            { media_key: "image-1", type: "photo", url: "javascript:unsafe" },
+          ],
+        },
+      },
+      "123",
+    );
+    expect(result.map((value) => value.contentType)).toEqual([
+      "image",
+      "unknown",
+      "carousel",
+    ]);
+    expect(result.map((value) => value.media)).toEqual([[], [], []]);
+  });
   it("reports YouTube quota exhaustion and skips history requests that cannot succeed", async () => {
     const { requests } = stub(
       () =>
@@ -154,8 +194,10 @@ describe("connected account statistics", () => {
       text: "Outside Sokosumi",
       publishedAt: "2026-01-01T00:00:00.000Z",
       metrics: { likes: 0, impressions: null },
-      additionalMetrics: [{ key: "quote_count", value: 2 }],
     });
+    expect(result.posts[0].additionalMetrics).toContainEqual(
+      expect.objectContaining({ key: "quote_count", value: 2 }),
+    );
     expect(result.nextCursor).toBe("token_2");
     expect(sessions[0]).toMatchObject({
       connected_accounts: { twitter: ["ca_1"] },
@@ -169,6 +211,8 @@ describe("connected account statistics", () => {
       parameters: [
         { name: "max_results", type: "query" },
         { name: "post.fields", type: "query" },
+        { name: "expansions", type: "query" },
+        { name: "media.fields", type: "query" },
       ],
     });
     expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
@@ -430,6 +474,9 @@ describe("connected account statistics", () => {
               channelId: "123",
               description: "Video",
               publishedAt: "2020-01-01T00:00:00Z",
+              thumbnails: {
+                high: { url: "https://i.ytimg.com/vi/v1/hqdefault.jpg" },
+              },
             },
             statistics: {
               viewCount: "100",
@@ -455,6 +502,11 @@ describe("connected account statistics", () => {
       publishedAt: "2020-01-01T00:00:00.000Z",
       metrics: { views: 100, likes: 0, saves: null },
       additionalMetrics: [{ key: "dislikeCount", value: 1 }],
+      contentType: "video",
+      url: "https://www.youtube.com/watch?v=v1",
+      media: [
+        { kind: "image", url: "https://i.ytimg.com/vi/v1/hqdefault.jpg" },
+      ],
     });
     expect(requests[2].arguments).toEqual({
       id: ["v1"],
@@ -475,6 +527,7 @@ describe("connected account statistics", () => {
                   create_time: 0,
                   video_description: "Video",
                   share_url: "https://www.tiktok.com/video/t1",
+                  cover_image_url: "https://cdn.tiktok.com/t1.jpg",
                   like_count: 0,
                   view_count: 5,
                 },
@@ -491,20 +544,224 @@ describe("connected account statistics", () => {
     expect(result.posts[0]).toMatchObject({
       publishedAt: "1970-01-01T00:00:00.000Z",
       metrics: { views: 5, likes: 0 },
+      contentType: "video",
+      url: "https://www.tiktok.com/video/t1",
+      media: [{ kind: "image", url: "https://cdn.tiktok.com/t1.jpg" }],
     });
   });
-  it("explicitly reports LinkedIn personal counters/history unavailable", async () => {
-    const { requests } = stub(() => ({ response_dict: { author_id: "123" } }));
+  it("reports LinkedIn's required approved permissions when native analytics/history are refused", async () => {
+    const { requests } = stub((request) =>
+      request.tool_slug
+        ? { response_dict: { author_id: "123" } }
+        : { status: 403, data: { message: "Access denied" } },
+    );
     const result = await fetchSocialAccountStatisticsPage({
       ...input,
       provider: "linkedin",
     });
-    expect(result.accountError).toContain("not available");
-    expect(result.historyError).toContain("not available");
+    expect(result.accountError).toContain("r_member_postAnalytics");
+    expect(result.historyError).toContain("r_member_social");
     expect(result.posts).toEqual([]);
     expect(requests.map((request) => request.tool_slug)).toEqual([
       "LINKEDIN_GET_MY_INFO",
+      undefined,
+      undefined,
+      undefined,
     ]);
+  });
+  it("reads approved LinkedIn member totals and authored posts with real analytics, pagination and type classification", async () => {
+    const counts: Record<string, number> = {
+      IMPRESSION: 100,
+      REACTION: 0,
+      COMMENT: 2,
+      RESHARE: 3,
+      MEMBERS_REACHED: 80,
+      POST_SAVE: 4,
+      POST_SEND: 5,
+      LINK_CLICKS: 6,
+      FOLLOWER_GAINED_FROM_CONTENT: 7,
+      PROFILE_VIEW_FROM_CONTENT: 8,
+    };
+    const { requests } = stub((request) => {
+      if (request.tool_slug) return { response_dict: { author_id: "123" } };
+      if (request.endpoint?.endsWith("/memberFollowersCount"))
+        return {
+          status: 200,
+          data: { elements: [{ memberFollowersCount: 0 }] },
+        };
+      if (request.endpoint?.endsWith("/posts"))
+        return {
+          status: 200,
+          data: {
+            elements: [
+              {
+                id: "urn:li:ugcPost:789",
+                author: "urn:li:person:123",
+                commentary: "Video post",
+                lifecycleState: "PUBLISHED",
+                publishedAt: 1790856000123,
+                content: { media: { id: "urn:li:video:abc" } },
+              },
+              {
+                id: "urn:li:share:999",
+                author: "urn:li:person:other",
+                commentary: "Other author",
+                lifecycleState: "PUBLISHED",
+              },
+              {
+                id: "urn:li:share:1000",
+                author: "urn:li:person:123",
+                commentary: "Draft",
+                lifecycleState: "DRAFT",
+              },
+            ],
+            paging: {
+              links: [
+                {
+                  rel: "next",
+                  href: "https://api.linkedin.com/rest/posts?q=author&start=5",
+                },
+              ],
+            },
+          },
+        };
+      const type = request.parameters?.find(
+        (value) => value.name === "queryType",
+      )?.value;
+      const entity = request.parameters?.find(
+        (value) => value.name === "entity",
+      )?.value;
+      return {
+        status: 200,
+        data: {
+          elements: [
+            {
+              metricType: type,
+              count: type ? counts[type] : null,
+              ...(entity
+                ? { targetEntity: { ugc: "urn:li:ugcPost:789" } }
+                : {}),
+            },
+          ],
+        },
+      };
+    });
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      provider: "linkedin",
+    });
+    expect(result.accountError).toBeNull();
+    expect(result.historyError).toBeNull();
+    expect(result.metricWarning).toBeNull();
+    expect(result.accountMetrics).toContainEqual({
+      key: "link_clicks",
+      value: 6,
+      period: "lifetime",
+      unit: "count",
+    });
+    expect(result.accountMetrics).toContainEqual({
+      key: "followers_count",
+      value: 0,
+      period: "lifetime",
+      unit: "count",
+    });
+    expect(result.posts).toHaveLength(1);
+    expect(result.posts[0]).toMatchObject({
+      externalId: "urn:li:ugcPost:789",
+      contentType: "video",
+      publishedAt: "2026-10-01T12:00:00.123Z",
+      metrics: { impressions: 100, likes: 0, comments: 2, shares: 3, saves: 4 },
+    });
+    expect(result.posts[0]?.additionalMetrics).toContainEqual({
+      key: "followers_gained_from_content",
+      value: 7,
+      period: "lifetime",
+      unit: "count",
+    });
+    expect(result.nextCursor).toBe("5");
+    for (const request of requests.filter((value) => value.endpoint)) {
+      expect(request.connected_account_id).toBe("ca_1");
+      expect(request.parameters).toEqual(
+        expect.arrayContaining([
+          { name: "Linkedin-Version", value: "202609", type: "header" },
+          { name: "X-Restli-Protocol-Version", value: "2.0.0", type: "header" },
+        ]),
+      );
+    }
+  });
+  it("supports an organization identity with organic totals and distinguishes provider-documented zero activity from expired coverage", async () => {
+    stub((request) => {
+      if (request.tool_slug) return { response_dict: { author_id: "123" } };
+      if (request.endpoint?.endsWith("/posts"))
+        return {
+          status: 200,
+          data: {
+            elements: [
+              {
+                id: "urn:li:share:789",
+                author: "urn:li:organization:123",
+                commentary: "New zero-activity post",
+                lifecycleState: "PUBLISHED",
+                publishedAt: 1790856000000,
+              },
+              {
+                id: "urn:li:share:790",
+                author: "urn:li:organization:123",
+                commentary: "Older post",
+                lifecycleState: "PUBLISHED",
+                publishedAt: 1700000000000,
+              },
+            ],
+            paging: { links: [] },
+          },
+        };
+      if (request.parameters?.some((value) => value.name === "shares"))
+        return { status: 200, data: { elements: [] } };
+      return {
+        status: 200,
+        data: {
+          elements: [
+            {
+              organizationalEntity: "urn:li:organization:123",
+              totalShareStatistics: {
+                impressionCount: 100,
+                likeCount: -1,
+                commentCount: 0,
+                shareCount: 0,
+                clickCount: 10,
+                uniqueImpressionsCount: 80,
+              },
+            },
+          ],
+        },
+      };
+    });
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      provider: "linkedin",
+      externalAccountId: "urn:li:organization:123",
+    });
+    expect(result.accountMetrics).toContainEqual({
+      key: "organic_like_adjustments",
+      value: -1,
+      period: "rolling_12_months_organic",
+      unit: "count",
+    });
+    expect(result.posts[0]?.metrics.impressions).toBe(0);
+    expect(result.posts[1]?.metrics.impressions).toBeNull();
+    expect(result.posts[1]?.additionalMetrics).toEqual([]);
+  });
+  it("does not forward arbitrary endpoints or caller-supplied authentication headers to the native proxy", async () => {
+    const { fetchMock } = stub(() => ({ status: 200, data: {} }));
+    await expect(
+      readNativeStatistics(input, "https://evil.test/users/123", []),
+    ).rejects.toThrow("Unsupported");
+    await expect(
+      readNativeStatistics(input, "https://api.x.com/2/tweets", [
+        { name: "Authorization", value: "Bearer external", type: "header" },
+      ]),
+    ).rejects.toThrow("Unsupported");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
   it("rejects malformed or oversized published lists as errors", async () => {
     stub(() => ({
@@ -707,13 +964,220 @@ describe("connected account statistics", () => {
     });
     expect(requests[0].parameters).toContainEqual({
       name: "post.fields",
-      value: "created_at,public_metrics,note_post",
+      value: "created_at,public_metrics,note_post,attachments,entities",
       type: "query",
     });
     expect(result.posts[0]).toMatchObject({
       text: "Full post",
       metrics: { shares: 4 },
     });
+  });
+  it("classifies replies, self-thread continuations, quotes and reposts and attaches only matching X media", async () => {
+    stub(() => ({
+      status: 200,
+      data: {
+        data: [
+          {
+            id: "1",
+            text: "Reply",
+            referenced_posts: [{ id: "other", type: "replied_to" }],
+            in_reply_to_user_id: "999",
+          },
+          {
+            id: "2",
+            text: "Thread",
+            referenced_tweets: [{ id: "first", type: "replied_to" }],
+            in_reply_to_user_id: "123",
+          },
+          {
+            id: "3",
+            text: "Quote",
+            referenced_posts: [{ id: "source", type: "quoted" }],
+          },
+          {
+            id: "4",
+            text: "Repost",
+            referenced_posts: [{ id: "source", type: "retweeted" }],
+          },
+          { id: "5", text: "Video", attachments: { media_keys: ["v1"] } },
+        ],
+        includes: {
+          media: [
+            {
+              media_key: "v1",
+              type: "video",
+              preview_image_url: "https://pbs.twimg.com/preview.jpg",
+              public_metrics: { view_count: 20 },
+              variants: [
+                {
+                  content_type: "video/mp4",
+                  url: "https://video.twimg.com/video.mp4",
+                  bit_rate: 100,
+                },
+              ],
+            },
+            {
+              media_key: "other",
+              type: "photo",
+              url: "https://pbs.twimg.com/other.jpg",
+            },
+          ],
+        },
+      },
+    }));
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      includeProfile: false,
+    });
+    expect(result.posts.map((entry) => entry.postKind)).toEqual([
+      "reply",
+      "post",
+      "quote",
+      "repost",
+      "post",
+    ]);
+    expect(result.posts[4]).toMatchObject({
+      contentType: "video",
+      metrics: { views: 20 },
+      media: [
+        {
+          kind: "video",
+          url: "https://video.twimg.com/video.mp4",
+          thumbnailUrl: "https://pbs.twimg.com/preview.jpg",
+        },
+      ],
+    });
+  });
+  it("enriches recent owned X posts with private clicks without requesting expired posts", async () => {
+    const recent = new Date().toISOString();
+    const { requests } = stub((request) =>
+      request.endpoint?.endsWith("/2/tweets")
+        ? {
+            status: 200,
+            data: {
+              data: [
+                {
+                  id: "5",
+                  author_id: "123",
+                  non_public_metrics: {
+                    url_link_clicks: 0,
+                    user_profile_clicks: 7,
+                  },
+                  organic_metrics: { impression_count: 30 },
+                },
+              ],
+            },
+          }
+        : {
+            status: 200,
+            data: {
+              data: [
+                {
+                  id: "5",
+                  author_id: "123",
+                  created_at: recent,
+                  text: "Recent",
+                  public_metrics: { like_count: 2 },
+                },
+                {
+                  id: "6",
+                  author_id: "123",
+                  created_at: "2020-01-01T00:00:00Z",
+                  text: "Old",
+                },
+              ],
+            },
+          },
+    );
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      includeProfile: false,
+    });
+    expect(requests[1]).toMatchObject({
+      connected_account_id: "ca_1",
+      endpoint: "https://api.x.com/2/tweets",
+    });
+    expect(requests[1].parameters).toContainEqual({
+      name: "ids",
+      value: "5",
+      type: "query",
+    });
+    expect(result.posts[0].additionalMetrics).toContainEqual(
+      expect.objectContaining({
+        key: "url_link_clicks",
+        value: 0,
+        period: expect.stringMatching(/^lifetime:/),
+      }),
+    );
+    expect(result.posts[0].additionalMetrics).toContainEqual(
+      expect.objectContaining({ key: "user_profile_clicks", value: 7 }),
+    );
+    expect(result.posts[1].additionalMetrics).toContainEqual(
+      expect.objectContaining({ key: "url_link_clicks", value: null }),
+    );
+  });
+  it("keeps X public counters and import progress when private clicks are denied", async () => {
+    stub((request) =>
+      request.endpoint?.endsWith("/2/tweets")
+        ? { status: 403, data: { error: "scope denied" } }
+        : {
+            status: 200,
+            data: {
+              data: [
+                {
+                  id: "5",
+                  created_at: new Date().toISOString(),
+                  public_metrics: { like_count: 3 },
+                },
+              ],
+              meta: { next_token: "next" },
+            },
+          },
+    );
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      includeProfile: false,
+    });
+    expect(result.posts[0].metrics.likes).toBe(3);
+    expect(result.nextCursor).toBe("next");
+    expect(result.historyError).toBeNull();
+    expect(result.metricWarning).toBeNull();
+  });
+  it("maps Instagram carousels and rejects unsafe remote-media URLs", async () => {
+    stub((request) =>
+      request.tool_slug === "INSTAGRAM_GET_IG_USER_MEDIA"
+        ? {
+            data: [
+              {
+                id: "ig1",
+                media_type: "CAROUSEL_ALBUM",
+                children: {
+                  data: [
+                    {
+                      media_type: "IMAGE",
+                      media_url: "https://cdn.instagram.com/image.jpg",
+                    },
+                    {
+                      media_type: "VIDEO",
+                      media_url: "https://cdn.instagram.com/video.mp4",
+                      thumbnail_url: "https://cdn.instagram.com/video.jpg",
+                    },
+                    { media_type: "IMAGE", media_url: "javascript:alert(1)" },
+                  ],
+                },
+              },
+            ],
+          }
+        : { data: [] },
+    );
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      provider: "instagram",
+      includeProfile: false,
+    });
+    expect(result.posts[0].contentType).toBe("carousel");
+    expect(result.posts[0].media).toHaveLength(2);
+    expect(result.posts[0].media[1].kind).toBe("video");
   });
   it("retries only a trusted X host alias on Composio domain rejection and preserves account/query", async () => {
     const { requests } = stub((request) =>
@@ -815,6 +1279,7 @@ describe("connected account statistics", () => {
       metrics: { views: null },
     });
     expect(result.posts[1].publishedAt).toBeNull();
+    expect(result.posts.every((entry) => entry.media.length === 0)).toBe(true);
     expect(result.nextCursor).toBe("next/page==");
     expect(result.historyError).toBeNull();
     expect(result.metricWarning).toContain("details");

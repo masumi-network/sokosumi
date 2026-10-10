@@ -1,4 +1,7 @@
-import type { SocialPostMediaRef } from "@sokosumi/core-client";
+import type {
+  SocialAccountPost,
+  SocialPostMediaRef,
+} from "@sokosumi/core-client";
 import { Fragment } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -11,9 +14,14 @@ export interface SocialPostPreviewAccount {
   avatarUrl: string | null;
 }
 
+/** Provider history supplies public media URLs; compose previews use owned files. */
+export type SocialPostPreviewMedia =
+  | SocialPostMediaRef
+  | NonNullable<SocialAccountPost["media"]>[number];
+
 export interface SocialPostPreviewContentProps {
   account: SocialPostPreviewAccount | null;
-  media: SocialPostMediaRef[];
+  media: SocialPostPreviewMedia[];
   text: string;
   /** Publish time; null reads as "now" (a draft or a post going out now). */
   timestamp: Date | null;
@@ -96,29 +104,34 @@ export function PreviewMediaItem({
   media,
   className,
 }: {
-  media: SocialPostMediaRef;
+  media: SocialPostPreviewMedia;
   className?: string;
 }) {
   const mediaClassName = cn("size-full object-cover", className);
+  const owned = "fileUrl" in media;
+  const url = owned ? media.fileUrl : media.url;
+  const name = owned ? media.name : "";
   if (media.kind === "video") {
     return (
       <video
-        aria-label={media.name}
+        aria-label={name || undefined}
         className={mediaClassName}
         muted
         playsInline
         preload="metadata"
-        src={media.fileUrl}
+        controls
+        poster={owned ? undefined : (media.thumbnailUrl ?? undefined)}
+        src={url}
       />
     );
   }
   return (
     <img
-      alt={media.name}
+      alt={name}
       className={mediaClassName}
       decoding="async"
       loading="lazy"
-      src={media.fileUrl}
+      src={url}
     />
   );
 }
@@ -131,7 +144,7 @@ export function PreviewMediaGrid({
   media,
   className,
 }: {
-  media: SocialPostMediaRef[];
+  media: SocialPostPreviewMedia[];
   className?: string;
 }) {
   if (media.length === 0) return null;
@@ -158,7 +171,10 @@ export function PreviewMediaGrid({
         </div>
       ) : null}
       {rest.slice(0, 3).map((item) => (
-        <div key={item.pathname} className="min-h-0">
+        <div
+          key={"pathname" in item ? item.pathname : item.url}
+          className="min-h-0"
+        >
           <PreviewMediaItem media={item} />
         </div>
       ))}

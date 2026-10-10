@@ -85,19 +85,18 @@ export function SocialPostMetrics({
           );
         })}
       </dl>
-      <p className="text-muted-foreground text-xs">
-        {statistics?.fetchedAt
-          ? t("updatedAt", {
-              date: formatter.dateTime(
-                new Date(statistics.fetchedAt),
-                "dateTime",
-                summary
-                  ? { timeZone: "UTC", timeZoneName: "short" }
-                  : undefined,
-              ),
-            })
-          : t("notFetched")}
-      </p>
+      {summary ? null : (
+        <p className="text-muted-foreground text-xs">
+          {statistics?.fetchedAt
+            ? t("updatedAt", {
+                date: formatter.dateTime(
+                  new Date(statistics.fetchedAt),
+                  "dateTime",
+                ),
+              })
+            : t("notFetched")}
+        </p>
+      )}
       {statistics?.error ? (
         <p role="status" className="text-semantic-warning text-xs">
           {t("refreshFailed")}

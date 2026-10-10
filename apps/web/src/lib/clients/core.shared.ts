@@ -51,6 +51,9 @@ import type {
   GetNotificationsData,
   GetProjectsByIdCalendarData,
   GetProjectsByIdImageStudioData,
+  GetProjectsByIdSocialConnectionsByConnectionIdPerformanceAudienceData,
+  GetProjectsByIdSocialConnectionsByConnectionIdPerformanceDiscoveryData,
+  GetProjectsByIdSocialConnectionsPerformanceData,
   GetProjectsByIdSocialConnectionsStatisticsData,
   GetProjectsByIdSocialPostsData,
   GetProjectsByIdSocialPostsStatisticsData,
@@ -64,6 +67,7 @@ import type {
   GetTasksSummaryData,
   GetTransactionsDailyData,
   GetTransactionsData,
+  GetWorkspacesByIdSocialPerformanceData,
   GetWorkspacesCalendarData,
   JudgeSokoBotLabTurnRequest,
   ListAdminTaskX402PaymentsData,
@@ -279,6 +283,10 @@ import {
   getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
+  getProjectsByIdSocialConnectionsByConnectionIdPerformanceAudience as coreGetProjectsByIdSocialConnectionsByConnectionIdPerformanceAudience,
+  getProjectsByIdSocialConnectionsByConnectionIdPerformanceBenchmark as coreGetProjectsByIdSocialConnectionsByConnectionIdPerformanceBenchmark,
+  getProjectsByIdSocialConnectionsByConnectionIdPerformanceDiscovery as coreGetProjectsByIdSocialConnectionsByConnectionIdPerformanceDiscovery,
+  getProjectsByIdSocialConnectionsPerformance as coreGetProjectsByIdSocialConnectionsPerformance,
   getProjectsByIdSocialConnectionsStatistics as coreGetProjectsByIdSocialConnectionsStatistics,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
   getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
@@ -319,6 +327,7 @@ import {
   getUsersByIdVendorGrants as coreGetUsersByIdVendorGrants,
   getUsersByIdWorkspaces as coreGetUsersByIdWorkspaces,
   getWorkspacesById as coreGetWorkspacesById,
+  getWorkspacesByIdSocialPerformance as coreGetWorkspacesByIdSocialPerformance,
   getWorkspacesCalendar as coreGetWorkspacesCalendar,
   getWorkspacesCalendarSources as coreGetWorkspacesCalendarSources,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
@@ -3363,6 +3372,23 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdSocialConnectionsPerformance(
+    id: string,
+    query?: GetProjectsByIdSocialConnectionsPerformanceData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsPerformance({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch social performance",
+    );
+  }
+
   async function postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh(
     id: string,
     connectionId: string,
@@ -3379,6 +3405,62 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
         }),
       "Failed to refresh social account statistics",
+    );
+  }
+
+  async function getProjectsByIdSocialConnectionsByConnectionIdPerformanceAudience(
+    id: string,
+    connectionId: string,
+    query?: GetProjectsByIdSocialConnectionsByConnectionIdPerformanceAudienceData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdPerformanceAudience({
+          client,
+          path: { id, connectionId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Social audience",
+    );
+  }
+
+  async function getProjectsByIdSocialConnectionsByConnectionIdPerformanceBenchmark(
+    id: string,
+    connectionId: string,
+    username: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdPerformanceBenchmark({
+          client,
+          path: { id, connectionId },
+          query: { username },
+          cache: "no-store",
+        }),
+      "Failed to fetch Social benchmark",
+    );
+  }
+
+  async function getProjectsByIdSocialConnectionsByConnectionIdPerformanceDiscovery(
+    id: string,
+    connectionId: string,
+    query: NonNullable<
+      GetProjectsByIdSocialConnectionsByConnectionIdPerformanceDiscoveryData["query"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdPerformanceDiscovery({
+          client,
+          path: { id, connectionId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch public Social posts",
     );
   }
 
@@ -4725,6 +4807,23 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to resolve workspace DESIGN.md",
+    );
+  }
+
+  async function getWorkspacesByIdSocialPerformance(
+    id: string,
+    query?: GetWorkspacesByIdSocialPerformanceData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetWorkspacesByIdSocialPerformance({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch workspace Social performance",
     );
   }
 
@@ -6222,6 +6321,11 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsStatistics,
     getProjectsByIdSocialConnectionsStatistics,
+    getProjectsByIdSocialConnectionsPerformance,
+    getWorkspacesByIdSocialPerformance,
+    getProjectsByIdSocialConnectionsByConnectionIdPerformanceAudience,
+    getProjectsByIdSocialConnectionsByConnectionIdPerformanceBenchmark,
+    getProjectsByIdSocialConnectionsByConnectionIdPerformanceDiscovery,
     postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
     postProjectsByIdSocialPostsByPostIdStatisticsRefresh,
     getProjectsByIdSocialPostsByPostId,
