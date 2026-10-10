@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   type ActivityDay,
   activityLevel,
-  calendarWeeks,
+  activityTotals,
+  calendarMonthStarts,
+  contributionCalendar,
   fillActivityRange,
   postingStreaks,
+  sparklineSeries,
 } from "./posting-activity";
 
 const days: ActivityDay[] = [
@@ -28,6 +31,11 @@ describe("posting consistency", () => {
     });
   });
 
+  it("counts posts and active days on the publication series only", () => {
+    expect(activityTotals(days)).toEqual({ posts: 4, active: 3 });
+    expect(activityTotals([])).toEqual({ posts: 0, active: 0 });
+  });
+
   it("counts the current streak from the latest day and the longest run", () => {
     expect(postingStreaks(days)).toEqual({ current: 1, longest: 2 });
     expect(
@@ -40,16 +48,44 @@ describe("posting consistency", () => {
 
   it("returns empty streaks and weeks when there is no daily data", () => {
     expect(postingStreaks([])).toEqual({ current: 0, longest: 0 });
-    expect(calendarWeeks([])).toEqual([]);
+    expect(contributionCalendar([])).toEqual([]);
   });
 
-  it("pads the first week to Sunday", () => {
-    const weeks = calendarWeeks([
-      { date: "2026-10-01", posts: 1, engagement: 1 },
-    ]);
-    expect(weeks).toHaveLength(1);
-    expect(weeks[0]?.slice(0, 4)).toEqual([null, null, null, null]);
-    expect(weeks[0]?.[4]?.date).toBe("2026-10-01");
+  it("frames a year of Sundays and counts only the publication range", () => {
+    const weeks = contributionCalendar(days);
+    expect(weeks).toHaveLength(53);
+    for (const week of weeks) {
+      expect(week).toHaveLength(7);
+      expect(new Date(`${week[0]?.date}T00:00:00Z`).getUTCDay()).toBe(0);
+    }
+    const cells = weeks.flat();
+    expect(cells.find((cell) => cell.date === "2026-10-01")).toMatchObject({
+      inRange: true,
+      posts: 1,
+    });
+    expect(cells.find((cell) => cell.date === "2026-10-03")).toMatchObject({
+      inRange: true,
+      posts: 0,
+      engagement: null,
+    });
+    expect(cells.find((cell) => cell.date === "2026-09-30")?.inRange).toBe(
+      false,
+    );
+    const counted = cells
+      .filter((cell) => cell.inRange)
+      .reduce((sum, cell) => sum + cell.posts, 0);
+    expect(counted).toBe(activityTotals(days).posts);
+    expect(counted).toBe(4);
+    const months = calendarMonthStarts(weeks);
+    expect(months.length).toBeGreaterThan(10);
+    for (let index = 1; index < months.length; index += 1) {
+      expect(
+        (months[index] ?? 0) - (months[index - 1] ?? 0),
+      ).toBeGreaterThanOrEqual(2);
+    }
+    expect(
+      weeks[months.at(-1) ?? 0]?.some((cell) => cell.date === "2026-10-01"),
+    ).toBe(true);
   });
 
   it("keeps unavailable engagement distinct from a measured zero", () => {
@@ -58,5 +94,30 @@ describe("posting consistency", () => {
     expect(activityLevel(filled[1]!, "engagement", max)).toBeNull();
     expect(activityLevel(filled[3]!, "engagement", max)).toBe(0);
     expect(activityLevel(filled[0]!, "engagement", max)).toBe(4);
+  });
+
+  it("keeps a short sparkline daily and sums a long range by week", () => {
+    const daily = [1, null, 3];
+    expect(sparklineSeries(daily)).toBe(daily);
+    const long = [
+      1,
+      null,
+      2,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      4,
+      null,
+      5,
+    ];
+    expect(sparklineSeries(long)).toEqual([3, null, 9]);
   });
 });

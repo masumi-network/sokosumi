@@ -463,16 +463,6 @@ export function SocialPerformanceOverview({
             );
           })}
         </div>
-        <PostingConsistency
-          days={data.daily.map((day) => ({
-            date: (typeof day.date === "string"
-              ? day.date
-              : day.date.toISOString()
-            ).slice(0, 10),
-            posts: day.summary.postCount,
-            engagement: day.summary.interactions.total,
-          }))}
-        />
         {/* Data quality note - contextual, not prominent */}
         <details className="group mt-4">
           <summary className="text-muted-foreground hover:text-foreground flex w-fit cursor-pointer list-none items-center gap-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
@@ -510,6 +500,16 @@ export function SocialPerformanceOverview({
           </div>
         </details>
       </section>
+      <PostingConsistency
+        days={data.daily.map((day) => ({
+          date: (typeof day.date === "string"
+            ? day.date
+            : day.date.toISOString()
+          ).slice(0, 10),
+          posts: day.summary.postCount,
+          engagement: day.summary.interactions.total,
+        }))}
+      />
       {/* Trend section - always visible, streamlined */}
       <section
         className="bg-card min-w-0 space-y-4 rounded-xl border p-6"

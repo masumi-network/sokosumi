@@ -9,35 +9,44 @@ import {
   type ActivityMode,
   activityLevel,
   activityMax,
-  calendarWeeks,
+  activityTotals,
+  calendarMonthStarts,
+  contributionCalendar,
   fillActivityRange,
   postingStreaks,
+  sparklineSeries,
 } from "./posting-activity";
 
 const LEVEL_CLASS = [
   "bg-muted",
-  "bg-primary/25",
-  "bg-primary/45",
-  "bg-primary/70",
-  "bg-primary",
+  "bg-primary-quinary dark:bg-primary-tertiary",
+  "bg-primary-quaternary dark:bg-primary-solid",
+  "bg-primary-tertiary dark:bg-primary",
+  "bg-primary-solid dark:bg-chart-1",
 ] as const;
+
+const WEEKDAY_ROWS = [1, 3, 5] as const;
 
 export function PostingConsistency({ days }: { days: ActivityDay[] }) {
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const format = useFormatter();
   const [mode, setMode] = useState<ActivityMode>("posts");
   const filled = fillActivityRange(days);
+  const totals = activityTotals(days);
   const streaks = postingStreaks(days);
-  const weeks = calendarWeeks(days);
+  const weeks = contributionCalendar(days);
+  const monthStarts = calendarMonthStarts(weeks);
   const max = activityMax(filled, mode);
-  const activeDays = filled.filter((day) => day.posts > 0).length;
-  const totalPosts = filled.reduce((sum, day) => sum + day.posts, 0);
 
-  function dayLabel(day: ActivityDay) {
-    const date = format.dateTime(new Date(`${day.date}T12:00:00Z`), {
+  function formatDay(date: string) {
+    return format.dateTime(new Date(`${date}T12:00:00Z`), {
       dateStyle: "medium",
       timeZone: "UTC",
     });
+  }
+
+  function dayLabel(day: ActivityDay) {
+    const date = formatDay(day.date);
     if (mode === "engagement" && day.engagement == null) {
       return t("performance.dayEngagementUnavailable", { date });
     }
@@ -52,7 +61,7 @@ export function PostingConsistency({ days }: { days: ActivityDay[] }) {
 
   return (
     <section
-      className="min-w-0 space-y-3"
+      className="bg-card min-w-0 space-y-4 rounded-xl border p-4 sm:p-6"
       aria-labelledby="posting-consistency"
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -87,63 +96,104 @@ export function PostingConsistency({ days }: { days: ActivityDay[] }) {
           </Button>
         </div>
       </div>
-      <p className="text-sm">
-        {filled.length === 0
-          ? t("performance.consistencyEmpty")
-          : t("performance.consistencySummary", {
-              posts: totalPosts,
-              active: activeDays,
-              current: streaks.current,
-              longest: streaks.longest,
-            })}
-      </p>
-      <div className="flex flex-wrap gap-6 text-sm">
-        <p>
-          <span className="text-muted-foreground">
-            {t("performance.currentStreak")}:{" "}
-          </span>
-          <span className="font-medium tabular-nums">
-            {t("performance.streakDays", { count: streaks.current })}
-          </span>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-sm">
+          {filled.length === 0
+            ? t("performance.consistencyEmpty")
+            : t("performance.consistencySummary", {
+                posts: totals.posts,
+                active: totals.active,
+              })}
         </p>
-        <p>
-          <span className="text-muted-foreground">
-            {t("performance.longestStreak")}:{" "}
-          </span>
-          <span className="font-medium tabular-nums">
-            {t("performance.streakDays", { count: streaks.longest })}
-          </span>
-        </p>
+        {filled.length > 0 ? (
+          <>
+            <p className="bg-muted rounded-full px-3 py-1 text-xs">
+              <span className="text-muted-foreground">
+                {t("performance.currentStreak")}
+              </span>{" "}
+              <span className="font-medium tabular-nums">
+                {t("performance.streakDays", { count: streaks.current })}
+              </span>
+            </p>
+            <p className="bg-muted rounded-full px-3 py-1 text-xs">
+              <span className="text-muted-foreground">
+                {t("performance.longestStreak")}
+              </span>{" "}
+              <span className="font-medium tabular-nums">
+                {t("performance.streakDays", { count: streaks.longest })}
+              </span>
+            </p>
+          </>
+        ) : null}
       </div>
       {weeks.length > 0 ? (
         <div className="overflow-x-auto">
-          <div className="flex w-max gap-1" aria-hidden="true">
-            {weeks.map((week) => (
-              <div
-                key={week.find((day) => day)?.date ?? "pad"}
-                className="flex flex-col gap-1"
+          <div
+            className="grid gap-1"
+            style={{
+              gridTemplateColumns: `2rem repeat(${weeks.length}, minmax(0, 1fr))`,
+              minWidth: `${32 + weeks.length * 15}px`,
+            }}
+            aria-hidden="true"
+          >
+            {WEEKDAY_ROWS.map((weekday) => (
+              <span
+                key={weekday}
+                className="text-muted-foreground text-2xs self-center leading-none"
+                style={{ gridColumn: 1, gridRow: weekday + 2 }}
               >
-                {Array.from({ length: 7 }, (_, row) => {
-                  const day = week[row] ?? null;
-                  if (!day) {
-                    return <span key={row} className="size-3" />;
-                  }
-                  const level = activityLevel(day, mode, max);
-                  return (
-                    <span
-                      key={day.date}
-                      title={dayLabel(day)}
-                      className={cn(
-                        "size-3 rounded-sm",
-                        level == null
-                          ? "border-border bg-background border border-dashed"
-                          : LEVEL_CLASS[level],
-                      )}
-                    />
-                  );
+                {format.dateTime(new Date(Date.UTC(2026, 0, 4 + weekday)), {
+                  weekday: "short",
+                  timeZone: "UTC",
                 })}
-              </div>
+              </span>
             ))}
+            {monthStarts.map((index) => {
+              const cell = weeks[index]?.find((day) =>
+                day.date.endsWith("-01"),
+              );
+              if (!cell) return null;
+              return (
+                <span
+                  key={`month-${cell.date}`}
+                  className="text-muted-foreground text-2xs min-w-0 leading-none whitespace-nowrap"
+                  style={{ gridColumn: index + 2, gridRow: 1 }}
+                >
+                  {format.dateTime(new Date(`${cell.date}T12:00:00Z`), {
+                    month: "short",
+                    timeZone: "UTC",
+                  })}
+                </span>
+              );
+            })}
+            {weeks.map((week, column) =>
+              week.map((day, row) => {
+                const level = day.inRange
+                  ? activityLevel(day, mode, max)
+                  : null;
+                return (
+                  <span
+                    key={day.date}
+                    title={
+                      day.inRange
+                        ? dayLabel(day)
+                        : t("performance.dayOutside", {
+                            date: formatDay(day.date),
+                          })
+                    }
+                    className={cn(
+                      "aspect-square w-full rounded-sm",
+                      day.inRange
+                        ? level == null
+                          ? "border-border border border-dashed"
+                          : LEVEL_CLASS[level]
+                        : undefined,
+                    )}
+                    style={{ gridColumn: column + 2, gridRow: row + 2 }}
+                  />
+                );
+              }),
+            )}
           </div>
         </div>
       ) : null}
@@ -192,6 +242,9 @@ export function PostingConsistency({ days }: { days: ActivityDay[] }) {
   );
 }
 
+const SPARKLINE_WIDTH = 100;
+const SPARKLINE_HEIGHT = 24;
+
 export function MetricSparkline({
   values,
   label,
@@ -199,35 +252,95 @@ export function MetricSparkline({
   values: (number | null)[];
   label: string;
 }) {
-  const measured = values.flatMap((value) => (value == null ? [] : [value]));
+  const series = sparklineSeries(values);
+  const measured = series.flatMap((value) => (value == null ? [] : [value]));
   if (measured.length === 0) return null;
   const min = Math.min(...measured);
   const max = Math.max(...measured);
   const span = max - min || 1;
-  const width = 96;
-  const height = 28;
-  const step = values.length > 1 ? width / (values.length - 1) : width;
-  let path = "";
-  values.forEach((value, index) => {
-    if (value == null) return;
-    const x = index * step;
-    const y = height - ((value - min) / span) * height;
-    path += `${path ? " L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`;
+  const step = series.length > 1 ? SPARKLINE_WIDTH / (series.length - 1) : 0;
+  const points = series.map((value, index) => {
+    if (value == null) return null;
+    const x = series.length === 1 ? SPARKLINE_WIDTH / 2 : index * step;
+    const y =
+      SPARKLINE_HEIGHT - ((value - min) / span) * (SPARKLINE_HEIGHT - 2) - 1;
+    return { x, y };
   });
+  const runs = pointRuns(points);
   return (
     <svg
-      viewBox={`0 0 ${width} ${height}`}
-      className="text-primary mt-2 h-7 w-24"
+      viewBox={`0 0 ${SPARKLINE_WIDTH} ${SPARKLINE_HEIGHT}`}
+      preserveAspectRatio="none"
+      className="mt-2 h-6 w-full"
       role="img"
       aria-label={label}
     >
-      <path
-        d={path}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        vectorEffect="non-scaling-stroke"
-      />
+      {runs.map((run) => (
+        <path
+          key={`area-${run[0]?.x}`}
+          d={areaPath(run)}
+          className="fill-primary-quinary dark:fill-primary-quaternary"
+        />
+      ))}
+      {runs.map((run) => (
+        <path
+          key={`line-${run[0]?.x}`}
+          d={linePath(run)}
+          fill="none"
+          className="stroke-primary"
+          strokeWidth="2"
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
     </svg>
   );
+}
+
+function pointRuns(
+  points: ({ x: number; y: number } | null)[],
+): { x: number; y: number }[][] {
+  const runs: { x: number; y: number }[][] = [];
+  let current: { x: number; y: number }[] = [];
+  for (const point of points) {
+    if (!point) {
+      if (current.length > 0) runs.push(current);
+      current = [];
+      continue;
+    }
+    current.push(point);
+  }
+  if (current.length > 0) runs.push(current);
+  return runs;
+}
+
+function linePath(points: { x: number; y: number }[]): string {
+  const fmt = (value: number) => value.toFixed(1);
+  if (points.length === 1) {
+    return `M0 ${fmt(points[0]?.y ?? 0)} H${SPARKLINE_WIDTH}`;
+  }
+  let path = `M${fmt(points[0]?.x ?? 0)} ${fmt(points[0]?.y ?? 0)}`;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const p0 = points[index - 1] ?? points[index];
+    const p1 = points[index];
+    const p2 = points[index + 1];
+    const p3 = points[index + 2] ?? p2;
+    if (!p0 || !p1 || !p2 || !p3) continue;
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    path += ` C${fmt(cp1x)} ${fmt(cp1y)} ${fmt(cp2x)} ${fmt(cp2y)} ${fmt(p2.x)} ${fmt(p2.y)}`;
+  }
+  return path;
+}
+
+function areaPath(points: { x: number; y: number }[]): string {
+  if (points.length === 1) {
+    const y = (points[0]?.y ?? 0).toFixed(1);
+    return `M0 ${y} H${SPARKLINE_WIDTH} V${SPARKLINE_HEIGHT} H0 Z`;
+  }
+  const last = points.at(-1);
+  const first = points[0];
+  if (!last || !first) return "";
+  return `${linePath(points)} L${last.x.toFixed(1)} ${SPARKLINE_HEIGHT} L${first.x.toFixed(1)} ${SPARKLINE_HEIGHT} Z`;
 }

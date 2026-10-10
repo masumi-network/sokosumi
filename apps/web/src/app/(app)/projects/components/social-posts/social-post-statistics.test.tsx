@@ -377,6 +377,7 @@ describe("SocialPostStatistics account history", () => {
       );
     }
     const overview = screen.getByTestId("social-performance-overview");
+    expect(screen.getByText("1 post across 1 active day.")).toBeVisible();
     expect(
       within(overview).getByRole("figure", { name: "Interactions" }),
     ).toBeVisible();
