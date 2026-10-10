@@ -3105,10 +3105,6 @@
       "pickProject": "Elegir un proyecto",
       "platforms": {
         "label": "Plataformas de redes sociales"
-      },
-      "statisticsNeedProject": {
-        "title": "Elige un proyecto para ver el rendimiento",
-        "body": "El rendimiento de las cuentas pertenece a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
       }
     },
     "Error": {
