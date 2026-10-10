@@ -245,6 +245,12 @@ describe("SocialPostStatistics account history", () => {
       "End date must be on or after",
     );
     expect(screen.queryByText(post.text)).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("social-performance-overview"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Posting consistency" }),
+    ).not.toBeInTheDocument();
     const url = new URL(mocks.fetch.mock.calls[0][0], "https://web.test");
     expect(url.searchParams.has("publishedFrom")).toBe(false);
     expect(url.searchParams.has("publishedUntil")).toBe(false);
