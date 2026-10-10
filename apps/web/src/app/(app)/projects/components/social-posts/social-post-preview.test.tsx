@@ -192,7 +192,7 @@ describe("SocialPostPreview", () => {
     );
   });
 
-  it("shows Instagram's square media frame and asks for media when missing", () => {
+  it("shows Instagram's 4:5 media frame and asks for media when missing", () => {
     const { rerender } = render(
       <SocialPostPreview
         account={ACCOUNT}
@@ -202,7 +202,11 @@ describe("SocialPostPreview", () => {
         timestamp={null}
       />,
     );
-    expect(screen.getByText("instagram.mediaRequired")).toBeVisible();
+    const frame = screen.getByTestId("social-post-preview-instagram-frame");
+    expect(frame).toHaveClass("aspect-[4/5]", "bg-media-ground");
+    expect(screen.getByText("instagram.mediaRequired")).toHaveClass(
+      "text-on-media-muted",
+    );
 
     rerender(
       <SocialPostPreview
@@ -214,6 +218,9 @@ describe("SocialPostPreview", () => {
       />,
     );
     expect(screen.getByRole("img", { name: "a.png" })).toBeVisible();
+    expect(
+      screen.getByTestId("social-post-preview-instagram-frame"),
+    ).toHaveClass("aspect-[4/5]", "bg-media-ground");
   });
 
   it("marks a GIF with a GIF badge", () => {

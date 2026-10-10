@@ -335,11 +335,14 @@ function InstagramPreview({
         <span className="min-w-0 flex-1 truncate font-semibold">{name}</span>
         <MoreHorizontal className="size-5 shrink-0" aria-hidden />
       </div>
-      <div className="bg-muted aspect-square overflow-hidden">
+      <div
+        className="aspect-[4/5] overflow-hidden bg-media-ground"
+        data-testid="social-post-preview-instagram-frame"
+      >
         {first ? (
           <PreviewMediaItem media={first} />
         ) : (
-          <div className="text-muted-foreground flex size-full items-center justify-center px-6 text-center text-xs text-balance">
+          <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
             {t("instagram.mediaRequired")}
           </div>
         )}
