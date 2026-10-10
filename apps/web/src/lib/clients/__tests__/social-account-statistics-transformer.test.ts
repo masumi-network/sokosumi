@@ -51,6 +51,7 @@ describe("social account statistics response transformers", () => {
             posts: [],
             nextCursor: null,
             headline,
+            consistency: { from: null, until: null, daily: [] },
           },
           meta: { timestamp, requestId: "request-1" },
         });
@@ -79,6 +80,7 @@ describe("social account statistics response transformers", () => {
           posts: [],
           nextCursor: null,
           headline,
+          consistency: { from: null, until: null, daily: [] },
         },
         meta: { timestamp, requestId: "request-1" },
       });

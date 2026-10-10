@@ -7,9 +7,13 @@ import {
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { parseCursorPagination } from "@/helpers/pagination";
 import {
+  buildSocialPerformanceConsistency,
+  consistencyLookbackStart,
+  emptySocialPerformanceConsistency,
+} from "@/helpers/social-performance-consistency";
+import {
   buildSocialPerformanceHeadline,
   emptySocialPerformanceHeadline,
-  type HeadlinePost,
 } from "@/helpers/social-performance-headline";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -39,14 +43,14 @@ interface ListSocialAccountStatisticsInput extends AccountStatisticsScope {
   limit?: number;
 }
 
-function headlinePosts(
+function mapAccountPosts(
   rows: Array<{
     publishedAt: Date | null;
     metrics: Prisma.JsonValue;
     additionalMetrics: Prisma.JsonValue;
     connection: { provider: string };
   }>,
-): HeadlinePost[] {
+) {
   return rows.flatMap((row) => {
     if (!isProjectSocialProvider(row.connection.provider)) return [];
     const metrics = socialPostMetricsSchema.safeParse(row.metrics).data;
@@ -64,7 +68,7 @@ function headlinePosts(
             "value" in metric && typeof metric.value === "number"
               ? metric.value
               : null;
-          return [{ key: metric.key, value }];
+          return [{ key: metric.key, value, period: null, unit: null }];
         })
       : [];
     return [
@@ -168,24 +172,39 @@ export async function listSocialAccountStatistics(
     throw badRequest(
       "Statistics cursor is outside the selected account history",
     );
-  const rows = await prisma.socialAccountPost.findMany({
-    where,
-    include: { connection: { select: { provider: true } } },
-    orderBy: [{ publishedAt: { sort: "desc", nulls: "last" } }, { id: "desc" }],
-    take: take + 1,
-    ...(cursor ? { cursor: { id: cursor }, skip } : {}),
-  });
-  const cohort = selected.length
-    ? await prisma.socialAccountPost.findMany({
-        where,
-        select: {
-          publishedAt: true,
-          metrics: true,
-          additionalMetrics: true,
-          connection: { select: { provider: true } },
-        },
-      })
-    : [];
+  const postSelect = {
+    publishedAt: true,
+    metrics: true,
+    additionalMetrics: true,
+    connection: { select: { provider: true } },
+  } as const;
+  const [rows, cohort, consistencyRows] = await Promise.all([
+    prisma.socialAccountPost.findMany({
+      where,
+      include: { connection: { select: { provider: true } } },
+      orderBy: [
+        { publishedAt: { sort: "desc", nulls: "last" } },
+        { id: "desc" },
+      ],
+      take: take + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip } : {}),
+    }),
+    selected.length
+      ? prisma.socialAccountPost.findMany({
+          where,
+          select: postSelect,
+        })
+      : Promise.resolve([]),
+    selected.length === 0
+      ? Promise.resolve([])
+      : prisma.socialAccountPost.findMany({
+          where: {
+            connectionId: { in: selected.map(({ account }) => account.id) },
+            publishedAt: { gte: consistencyLookbackStart() },
+          },
+          select: postSelect,
+        }),
+  ]);
   const posts = rows.slice(0, take).map((row) =>
     socialAccountPostSchema.parse({
       ...row,
@@ -198,11 +217,16 @@ export async function listSocialAccountStatistics(
     nextCursor: rows.length > take ? (posts.at(-1)?.id ?? null) : null,
     headline: selected.length
       ? buildSocialPerformanceHeadline({
-          posts: headlinePosts(cohort),
+          posts: mapAccountPosts(cohort),
           publishedFrom: input.publishedFrom,
           publishedUntil: input.publishedUntil,
         })
       : emptySocialPerformanceHeadline,
+    consistency: selected.length
+      ? buildSocialPerformanceConsistency({
+          posts: mapAccountPosts(consistencyRows),
+        })
+      : emptySocialPerformanceConsistency,
   });
 }
 

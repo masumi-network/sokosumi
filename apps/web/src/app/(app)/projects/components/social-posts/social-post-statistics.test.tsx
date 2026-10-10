@@ -123,6 +123,11 @@ function page(cursor: string | null = null) {
     posts: [post],
     nextCursor: cursor,
     headline,
+    consistency: {
+      from: "2026-10-08",
+      until: "2026-10-08",
+      daily: [{ date: "2026-10-08", postCount: 1, interactions: 4 }],
+    },
   };
 }
 function response(accountValue = account, nextCursor: string | null = null) {
@@ -182,6 +187,9 @@ describe("SocialPostStatistics account history", () => {
   it("shows headline metrics and imported posts without the old account-card grid", async () => {
     renderStatistics();
     expect(await screen.findByText(post.text)).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Posting consistency" }),
+    ).toBeVisible();
     expect(
       screen.getByRole("heading", { name: "Account performance" }),
     ).toBeVisible();

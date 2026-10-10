@@ -162,6 +162,10 @@ describe("Social account statistics", () => {
       }),
     );
     expect(mocks.provider).not.toHaveBeenCalled();
+    expect(result.consistency.daily[0]).toMatchObject({
+      date: "2026-10-01",
+      postCount: 1,
+    });
   });
   it("pages cached history and keeps the account totals on every page", async () => {
     const second = {

@@ -21,6 +21,7 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { refreshProjectSocialAccountStatistics } from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
 import type { projectService } from "@/lib/services/project.service";
+import { PostingConsistency } from "./posting-consistency";
 import { SocialPerformanceOverview } from "./social-performance-overview";
 import { SocialPostMetrics } from "./social-post-metrics";
 
@@ -170,6 +171,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
   const posts = validRange
     ? (query.data?.pages.flatMap((page) => page.posts) ?? [])
     : [];
+  const consistency = query.data?.pages[0]?.consistency;
   const enqueueingRef = useRef(false);
   const mountedRef = useRef(false);
   const [enqueueingId, setEnqueueingId] = useState<string | null>(null);
@@ -506,6 +508,20 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
             selectedAccount?.provider === "x" ||
             selectedAccount?.provider === "linkedin"
           }
+        />
+      ) : null}
+      {consistency ? (
+        <PostingConsistency
+          days={consistency.daily.map((day) => ({
+            date:
+              day.date instanceof Date
+                ? day.date.toISOString().slice(0, 10)
+                : day.date,
+            posts: day.postCount,
+            engagement: day.interactions,
+          }))}
+          selectedFrom={filters.publishedFrom}
+          selectedUntil={filters.publishedUntil}
         />
       ) : null}
       <section className="space-y-4" aria-label={t("postsTitle")}>

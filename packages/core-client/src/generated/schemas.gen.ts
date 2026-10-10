@@ -19917,13 +19917,17 @@ export const SocialAccountStatisticsPageSchema = {
         },
         headline: {
             $ref: '#/components/schemas/SocialPerformanceHeadline'
+        },
+        consistency: {
+            $ref: '#/components/schemas/SocialPerformanceConsistency'
         }
     },
     required: [
         'accounts',
         'posts',
         'nextCursor',
-        'headline'
+        'headline',
+        'consistency'
     ]
 } as const;
 
@@ -20416,6 +20420,59 @@ export const SocialPerformanceHeadlineSchema = {
         'current',
         'previous',
         'deltas',
+        'daily'
+    ]
+} as const;
+
+export const SocialPerformanceConsistencySchema = {
+    type: 'object',
+    properties: {
+        from: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date'
+        },
+        until: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date'
+        },
+        daily: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    postCount: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    interactions: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'date',
+                    'postCount',
+                    'interactions'
+                ]
+            },
+            maxItems: 368
+        }
+    },
+    required: [
+        'from',
+        'until',
         'daily'
     ]
 } as const;
