@@ -2494,7 +2494,7 @@
           "accountOption": "{provider} {handle}",
           "noAccounts": "Verbinde eines, um zu posten oder zu planen. Einen Entwurf kannst du trotzdem speichern.",
           "unknownHandle": "Unbekanntes Konto",
-          "scheduledAtTooSoon": "Wähle einen Zeitpunkt, der mindestens eine Minute in der Zukunft liegt.",
+          "scheduledAtTooSoon": "Wähle einen Zeitpunkt mindestens eine Minute in der Zukunft.",
           "saveDraft": "Entwurf speichern",
           "save": "Speichern",
           "schedule": "Planen",
