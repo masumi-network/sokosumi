@@ -43,6 +43,7 @@ const MESSAGES: Record<string, string> = {
   account: "{provider} account",
   connect: "Connect {provider} account",
   connectAccount: "Connect account",
+  projectClosed: "This project is closed.",
   comingSoon: "Coming soon",
   connectComingSoon: "{provider} (coming soon)",
   actions: "Actions for {account}",
@@ -1013,5 +1014,42 @@ describe("ProjectSocialAccounts", () => {
       );
       expect(refreshMock).toHaveBeenCalledOnce();
     });
+  });
+
+  it("blocks connect, reconnect, and replace on a closed project", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialAccounts
+        connectDisabled
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            externalHandle: "needs-auth",
+            status: "reauthorization_required",
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("This project is closed.")).toBeVisible();
+    const connect = screen.getByRole("button", { name: "Connect account" });
+    expect(connect).toBeDisabled();
+    await user.click(connect);
+    expect(
+      screen.queryByRole("menuitem", { name: "Connect X account" }),
+    ).not.toBeInTheDocument();
+
+    expect(screen.getByRole("button", { name: "Reconnect" })).toBeDisabled();
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for @sokosumi" }),
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Replace" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Disconnect" })).toBeVisible();
+    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
   });
 });

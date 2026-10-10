@@ -2374,6 +2374,7 @@
         "account": "{provider} account",
         "connect": "Connect {provider} account",
         "connectAccount": "Connect X, YouTube, LinkedIn…",
+        "projectClosed": "This project is closed.",
         "actions": "Actions for {account}",
         "reconnect": "Reconnect",
         "replace": "Replace",
