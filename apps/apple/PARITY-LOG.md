@@ -4993,7 +4993,7 @@ Unverified: the signed app against Core (real page latency, a real trackpad and 
 How to test: in a long room, flick up to the top: "Loading older messages…" shows while the flick runs, and the older messages appear above once it settles, with the messages on screen staying where they are. Flick again to read further back.
 ## Slice M6 — row build cost
 
-Follow-up to [#5923](https://github.com/masumi-network/sokosumi/pull/5923) (older pages land once the scroll rests), measured on its head `c66626657`. Findings only: no app change (user decision, 2026-10-09, asked with the numbers below). Web and Core were read-only. Harness, sources and the full tables: "What a landing pays per row" in [scrolling-hover-harness.md](docs/scrolling-hover-harness.md).
+Follow-up to [#5923](https://github.com/masumi-network/sokosumi/pull/5923) (older pages land once the scroll rests), measured on its head `c66626657`. Draft [#5931](https://github.com/masumi-network/sokosumi/pull/5931). Findings only: no app change (user decision, 2026-10-09, asked with the numbers below). Web and Core were read-only. Harness, sources and the full tables: "What a landing pays per row" in [scrolling-hover-harness.md](docs/scrolling-hover-harness.md).
 
 ### What a landing pays
 
