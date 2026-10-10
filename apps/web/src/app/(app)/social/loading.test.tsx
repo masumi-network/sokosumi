@@ -52,7 +52,7 @@ describe("SocialLoading", () => {
       "data-loading-tab",
       "drafts",
     );
-    expect(screen.getByRole("list").children).toHaveLength(4);
+    expect(screen.getByRole("list", { hidden: true }).children).toHaveLength(4);
   });
 
   it("draws account rows when the tab is accounts", async () => {
@@ -64,7 +64,7 @@ describe("SocialLoading", () => {
       "data-loading-tab",
       "accounts",
     );
-    expect(screen.getByRole("list").children).toHaveLength(3);
+    expect(screen.getByRole("list", { hidden: true }).children).toHaveLength(3);
   });
 
   it("draws a post list when the tab is attention", async () => {
@@ -76,7 +76,7 @@ describe("SocialLoading", () => {
       "data-loading-tab",
       "attention",
     );
-    expect(screen.getByRole("list").children).toHaveLength(4);
+    expect(screen.getByRole("list", { hidden: true }).children).toHaveLength(4);
   });
 
   it("draws statistic cards when the tab is statistics", async () => {
@@ -88,7 +88,9 @@ describe("SocialLoading", () => {
       "data-loading-tab",
       "statistics",
     );
-    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("list", { hidden: true }),
+    ).not.toBeInTheDocument();
     expect(
       container.querySelectorAll('[data-slot="skeleton"]').length,
     ).toBeGreaterThan(8);
