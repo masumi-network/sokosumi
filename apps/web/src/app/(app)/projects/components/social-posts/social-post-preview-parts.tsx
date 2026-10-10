@@ -64,6 +64,8 @@ function displayUrl(url: string): string {
     : bare;
 }
 
+const URL_TRAILING_PUNCT = /[.,;:!?)]+$/;
+
 /** Post text with links, hashtags and mentions in the platform's link color. */
 export function PreviewRichText({
   text,
@@ -78,10 +80,20 @@ export function PreviewRichText({
     if (index % 2 === 0) {
       return <Fragment key={index}>{part}</Fragment>;
     }
+    if (!part.startsWith("http")) {
+      return (
+        <span key={index} className={linkClassName}>
+          {part}
+        </span>
+      );
+    }
+    const url = part.replace(URL_TRAILING_PUNCT, "");
+    const trail = part.slice(url.length);
     return (
-      <span key={index} className={linkClassName}>
-        {part.startsWith("http") ? displayUrl(part) : part}
-      </span>
+      <Fragment key={index}>
+        <span className={linkClassName}>{displayUrl(url)}</span>
+        {trail}
+      </Fragment>
     );
   });
 }
