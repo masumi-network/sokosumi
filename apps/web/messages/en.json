@@ -2630,7 +2630,9 @@
             "previousPeriod": "Change from the previous publication period",
             "keyMetrics": "Key metrics",
             "sparkline": "{metric} over the selected days",
-            "accountTabs": "Connected accounts"
+            "accountTabs": "Connected accounts",
+            "trends": "Trends",
+            "trendMetric": "Metric"
           },
           "accountsTitle": "Connected accounts",
           "postsTitle": "Published account posts",

@@ -21,6 +21,7 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { refreshProjectSocialAccountStatistics } from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
 import type { projectService } from "@/lib/services/project.service";
+import { PerformanceTrendChart } from "./performance-trend-chart";
 import { SocialPerformanceOverview } from "./social-performance-overview";
 import { SocialPostMetrics } from "./social-post-metrics";
 
@@ -166,6 +167,9 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
   const selectedAccount =
     accounts.find((account) => account.id === filters.statisticsAccount) ??
     null;
+  const impressionBased =
+    selectedAccount?.provider === "x" ||
+    selectedAccount?.provider === "linkedin";
   const headline = query.data?.pages[0]?.headline;
   const posts = validRange
     ? (query.data?.pages.flatMap((page) => page.posts) ?? [])
@@ -448,10 +452,13 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       {headline ? (
         <SocialPerformanceOverview
           headline={headline}
-          impressionBased={
-            selectedAccount?.provider === "x" ||
-            selectedAccount?.provider === "linkedin"
-          }
+          impressionBased={impressionBased}
+        />
+      ) : null}
+      {headline?.daily.length ? (
+        <PerformanceTrendChart
+          days={headline.daily}
+          impressionBased={impressionBased}
         />
       ) : null}
       <section className="space-y-4" aria-label={t("postsTitle")}>

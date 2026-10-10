@@ -2630,7 +2630,9 @@
             "previousPeriod": "Veränderung gegenüber dem vorherigen Zeitraum",
             "keyMetrics": "Kennzahlen",
             "sparkline": "{metric} an den ausgewählten Tagen",
-            "accountTabs": "Verbundene Konten"
+            "accountTabs": "Verbundene Konten",
+            "trends": "Trends",
+            "trendMetric": "Kennzahl"
           },
           "accountsTitle": "Verbundene Konten",
           "postsTitle": "Veröffentlichte Kontobeiträge",
