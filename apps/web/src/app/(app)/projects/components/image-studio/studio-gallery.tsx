@@ -4,6 +4,11 @@ import { Check, Dices, Download, Loader2, Quote, Shuffle } from "lucide-react";
 import { useFormatter } from "next-intl";
 
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 import { resolveModel } from "./catalog";
@@ -167,37 +172,52 @@ export function StudioGallery({
                       >
                         <Quote aria-hidden className="size-3.5" />
                       </HoverAction>
-                      <a
-                        aria-label={labels.download}
-                        className={HOVER_ACTION_CLASS}
-                        download={`v${asset.version}.${asset.settings?.outputFormat ?? "png"}`}
-                        href={assetContentUrl(asset)}
-                        title={labels.download}
-                      >
-                        <Download aria-hidden className="size-3.5" />
-                      </a>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <a
+                            aria-label={labels.download}
+                            className={HOVER_ACTION_CLASS}
+                            download={`v${asset.version}.${asset.settings?.outputFormat ?? "png"}`}
+                            href={assetContentUrl(asset)}
+                          >
+                            <Download aria-hidden className="size-3.5" />
+                          </a>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" sideOffset={6}>
+                          {labels.download}
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
 
                     {/* Selection is its own control, and always drawn: an
                     empty box that only appears on hover cannot be found on
                     touch and is not a thing a keyboard user can see coming. */}
-                    <button
-                      aria-label={selected ? labels.deselect : labels.select}
-                      aria-pressed={selected}
-                      className={cn(
-                        "hit-area absolute top-2 left-2 flex size-6 items-center justify-center rounded-md border shadow-sm transition-colors",
-                        "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
-                        selected
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-background text-muted-foreground hover:text-foreground",
-                      )}
-                      onClick={() => onToggleSelect(asset.id)}
-                      type="button"
-                    >
-                      {selected ? (
-                        <Check aria-hidden className="size-3.5" />
-                      ) : null}
-                    </button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          aria-label={
+                            selected ? labels.deselect : labels.select
+                          }
+                          aria-pressed={selected}
+                          className={cn(
+                            "hit-area absolute top-2 left-2 flex size-6 items-center justify-center rounded-md border shadow-sm transition-colors",
+                            "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
+                            selected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border bg-background text-muted-foreground hover:text-foreground",
+                          )}
+                          onClick={() => onToggleSelect(asset.id)}
+                          type="button"
+                        >
+                          {selected ? (
+                            <Check aria-hidden className="size-3.5" />
+                          ) : null}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" sideOffset={6}>
+                        {selected ? labels.deselect : labels.select}
+                      </TooltipContent>
+                    </Tooltip>
                   </figure>
                 </li>
               );
@@ -274,15 +294,21 @@ function HoverAction({
   onClick: () => void;
 }) {
   return (
-    <button
-      aria-label={label}
-      className={HOVER_ACTION_CLASS}
-      onClick={onClick}
-      title={label}
-      type="button"
-    >
-      {children}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          aria-label={label}
+          className={HOVER_ACTION_CLASS}
+          onClick={onClick}
+          type="button"
+        >
+          {children}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" sideOffset={6}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
