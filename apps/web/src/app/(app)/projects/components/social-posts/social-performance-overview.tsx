@@ -432,10 +432,12 @@ export function SocialPerformanceOverview({
                         <dd className="tabular-nums">{number(card.median)}</dd>
                       </div>
                       <div className="flex justify-between gap-3">
-                        <dt>{t("performance.coverage")}:</dt>
-                        <dd className="tabular-nums">
-                          {card.measured}/{current.postCount}
-                        </dd>
+                        <dt>
+                          {t("performance.metricCoverage", {
+                            measured: card.measured,
+                            total: current.postCount,
+                          })}
+                        </dt>
                       </div>
                     </dl>
                   </details>
