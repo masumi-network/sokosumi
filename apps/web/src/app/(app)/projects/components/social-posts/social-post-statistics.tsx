@@ -10,7 +10,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { Download, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
@@ -18,6 +18,12 @@ import { useEffect, useRef, useState } from "react";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -525,177 +531,221 @@ export function SocialPostStatistics({
           value={selectedAccount?.id ?? "none"}
           className="min-w-0 space-y-6"
         >
-          {/* Unified header: account selector + identity + actions */}
+          {/* Unified header: account selection, identity, freshness, and actions */}
           {selectedAccount ? (
-            <section className="flex flex-wrap items-start justify-between gap-4 rounded-lg border p-4">
-              <div className="flex min-w-0 flex-1 items-start gap-3">
-                {/* Account selector */}
-                {eligibleAccounts.length > 1 ? (
-                  <Select
-                    value={selectedAccount.id}
-                    onValueChange={(value) => {
-                      if (
-                        !eligibleAccounts.some(
-                          (account) => account.id === value,
+            <section className="space-y-3 rounded-lg border p-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                {/* Account selector + identity */}
+                <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start">
+                  {eligibleAccounts.length > 1 ? (
+                    <Select
+                      value={selectedAccount.id}
+                      onValueChange={(value) => {
+                        if (
+                          !eligibleAccounts.some(
+                            (account) => account.id === value,
+                          )
                         )
-                      )
-                        return;
-                      void setFilters({
-                        statisticsAccount: value,
-                        statisticsProvider: null,
-                        performanceProject: null,
-                      });
-                    }}
-                  >
-                    <SelectTrigger className="w-auto min-w-[200px]">
-                      <div className="flex items-center gap-2">
-                        <SocialPostProviderIcon
-                          provider={selectedAccount.provider}
-                          className="size-4 shrink-0"
-                          aria-hidden
-                        />
-                        <SelectValue>
-                          {accountName(selectedAccount)}
-                        </SelectValue>
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {eligibleAccounts.map((account) => {
-                        const duplicate =
-                          workspaceId &&
-                          eligibleAccounts.some(
-                            (other) =>
-                              other.id !== account.id &&
-                              other.provider === account.provider &&
-                              (other.externalHandle ?? other.displayName) ===
-                                (account.externalHandle ?? account.displayName),
-                          );
-                        const subtitle =
-                          (SOCIAL_PROVIDERS.find(
-                            (provider) => provider.id === account.provider,
-                          )?.name ?? account.provider) +
-                          (duplicate
-                            ? ` · ${projectNames[accountProjectId(account.id)] ?? ""}`
-                            : "");
-                        return (
-                          <SelectItem key={account.id} value={account.id}>
-                            <div className="flex items-center gap-2">
-                              <SocialPostProviderIcon
-                                provider={account.provider}
-                                className="size-4 shrink-0"
-                                aria-hidden
-                              />
-                              <div className="min-w-0">
-                                <div className="truncate">
-                                  {accountName(account)}
-                                </div>
-                                <div className="text-muted-foreground truncate text-xs">
-                                  {subtitle}
+                          return;
+                        void setFilters({
+                          statisticsAccount: value,
+                          statisticsProvider: null,
+                          performanceProject: null,
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="w-full sm:w-auto sm:min-w-[200px]">
+                        <div className="flex items-center gap-2">
+                          <SocialPostProviderIcon
+                            provider={selectedAccount.provider}
+                            className="size-4 shrink-0"
+                            aria-hidden
+                          />
+                          <SelectValue>
+                            {accountName(selectedAccount)}
+                          </SelectValue>
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {eligibleAccounts.map((account) => {
+                          const duplicate =
+                            workspaceId &&
+                            eligibleAccounts.some(
+                              (other) =>
+                                other.id !== account.id &&
+                                other.provider === account.provider &&
+                                (other.externalHandle ?? other.displayName) ===
+                                  (account.externalHandle ??
+                                    account.displayName),
+                            );
+                          const subtitle =
+                            (SOCIAL_PROVIDERS.find(
+                              (provider) => provider.id === account.provider,
+                            )?.name ?? account.provider) +
+                            (duplicate
+                              ? ` · ${projectNames[accountProjectId(account.id)] ?? ""}`
+                              : "");
+                          return (
+                            <SelectItem key={account.id} value={account.id}>
+                              <div className="flex items-center gap-2">
+                                <SocialPostProviderIcon
+                                  provider={account.provider}
+                                  className="size-4 shrink-0"
+                                  aria-hidden
+                                />
+                                <div className="min-w-0">
+                                  <div className="truncate">
+                                    {accountName(account)}
+                                  </div>
+                                  <div className="text-muted-foreground truncate text-xs">
+                                    {subtitle}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <SocialPostProviderIcon
-                      provider={selectedAccount.provider}
-                      className="size-5 shrink-0"
-                      aria-hidden
-                    />
-                    <div className="min-w-0">
-                      <div className="font-medium">
-                        {accountName(selectedAccount)}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <SocialPostProviderIcon
+                        provider={selectedAccount.provider}
+                        className="size-5 shrink-0"
+                        aria-hidden
+                      />
+                      <div className="min-w-0">
+                        <div className="font-medium">
+                          {accountName(selectedAccount)}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Account identity and freshness */}
-                <div className="text-muted-foreground min-w-0 space-y-0.5 text-sm">
-                  {selectedAccount.externalHandle ? (
-                    <p className="truncate">{selectedAccount.externalHandle}</p>
-                  ) : null}
-                  {(() => {
-                    const snapshot =
-                      firstPage?.accounts.find(
-                        (account) => account.id === selectedAccount.id,
-                      )?.statistics ?? selectedAccount.statistics;
-                    return snapshot?.fetchedAt ? (
+                  {/* Account identity and freshness */}
+                  <div className="text-muted-foreground min-w-0 space-y-0.5 text-sm">
+                    {selectedAccount.externalHandle ? (
                       <p className="truncate">
-                        {t("updatedAt", {
-                          date: formatDate(snapshot.fetchedAt),
-                        })}
+                        {selectedAccount.externalHandle}
                       </p>
-                    ) : (
-                      <p>{t("notFetched")}</p>
-                    );
-                  })()}
-                  {workspaceId ? (
-                    <p className="truncate">
-                      {
-                        projects.find(
-                          (project) =>
-                            project.id === accountProjectId(selectedAccount.id),
-                        )?.name
-                      }
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-
-              {/* Actions: Sync and Export in dropdown */}
-              <div className="flex items-center gap-2">
-                {sync ? (
-                  <>
-                    <span className="text-muted-foreground text-sm">
-                      {t(sync.stopping ? "stoppingSync" : "syncProgress", {
-                        completed: sync.completed,
-                        total: sync.total,
-                        pages: sync.pages,
-                      })}
-                    </span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={sync.stopping}
-                      onClick={handleCancel}
-                    >
-                      {t("stopSync")}
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={
-                      selectedAccount.status !== "active" ||
-                      !accountProjectId(selectedAccount.id)
-                    }
-                    onClick={() => void handleSync([selectedAccount])}
-                  >
+                    ) : null}
                     {(() => {
                       const snapshot =
                         firstPage?.accounts.find(
                           (account) => account.id === selectedAccount.id,
                         )?.statistics ?? selectedAccount.statistics;
-                      return snapshot?.historyNextCursor &&
-                        !snapshot.historyComplete
-                        ? t("resumeSync")
-                        : t("syncAccount");
+                      return snapshot?.fetchedAt ? (
+                        <p className="truncate">
+                          {t("updatedAt", {
+                            date: formatDate(snapshot.fetchedAt),
+                          })}
+                        </p>
+                      ) : (
+                        <p>{t("notFetched")}</p>
+                      );
                     })()}
-                  </Button>
-                )}
+                    {workspaceId ? (
+                      <p className="truncate">
+                        {
+                          projects.find(
+                            (project) =>
+                              project.id ===
+                              accountProjectId(selectedAccount.id),
+                          )?.name
+                        }
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Actions: Sync and Export menu */}
+                <div className="flex items-center gap-2">
+                  {sync ? (
+                    <>
+                      <span className="text-muted-foreground text-sm">
+                        {t(sync.stopping ? "stoppingSync" : "syncProgress", {
+                          completed: sync.completed,
+                          total: sync.total,
+                          pages: sync.pages,
+                        })}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={sync.stopping}
+                        onClick={handleCancel}
+                      >
+                        {t("stopSync")}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={
+                          selectedAccount.status !== "active" ||
+                          !accountProjectId(selectedAccount.id)
+                        }
+                        onClick={() => void handleSync([selectedAccount])}
+                      >
+                        {(() => {
+                          const snapshot =
+                            firstPage?.accounts.find(
+                              (account) => account.id === selectedAccount.id,
+                            )?.statistics ?? selectedAccount.statistics;
+                          return snapshot?.historyNextCursor &&
+                            !snapshot.historyComplete
+                            ? t("resumeSync")
+                            : t("syncAccount");
+                        })()}
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            aria-label={t("performance.moreActions")}
+                          >
+                            <MoreVertical className="size-4" aria-hidden />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {(["csv", "xlsx"] as const).map((exportFormat) => {
+                            const label = t(
+                              exportFormat === "csv"
+                                ? "performance.exportCsv"
+                                : "performance.exportXlsx",
+                            );
+                            return validRange ? (
+                              <DropdownMenuItem key={exportFormat} asChild>
+                                <a
+                                  href={`${apiPath}/export?${performanceParams}&format=${exportFormat}`}
+                                >
+                                  <Download className="size-4" aria-hidden />
+                                  {label}
+                                </a>
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem key={exportFormat} disabled>
+                                <Download className="size-4" aria-hidden />
+                                {label}
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Status warnings */}
               {selectedAccount.status !== "active" ? (
-                <p className="text-semantic-warning w-full text-sm">
+                <p className="text-semantic-warning text-sm">
                   {t("reconnectHint")}{" "}
                   <Link
                     className="underline underline-offset-4"
@@ -715,7 +765,7 @@ export function SocialPostStatistics({
                     {snapshot?.error || syncErrors[selectedAccount.id] ? (
                       <p
                         role="status"
-                        className="text-semantic-warning w-full text-sm"
+                        className="text-semantic-warning text-sm"
                       >
                         {syncErrors[selectedAccount.id] ??
                           t("accountMetricsIncomplete")}
@@ -724,7 +774,7 @@ export function SocialPostStatistics({
                     {snapshot?.metricWarning ? (
                       <p
                         role="status"
-                        className="text-semantic-warning w-full text-sm"
+                        className="text-semantic-warning text-sm"
                       >
                         {t("postMetricsIncomplete")}
                       </p>
@@ -732,7 +782,7 @@ export function SocialPostStatistics({
                     {snapshot?.historyError ? (
                       <p
                         role="status"
-                        className="text-semantic-warning w-full text-sm"
+                        className="text-semantic-warning text-sm"
                       >
                         {t("historyLimited")}
                       </p>
@@ -743,66 +793,31 @@ export function SocialPostStatistics({
             </section>
           ) : null}
 
-          {/* Date range controls (no separate bordered box) */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2">
-              {(["7", "30", "90"] as const).map((days) => (
-                <Button
-                  key={days}
-                  size="sm"
-                  variant={
-                    (filters.performanceRange ??
-                      (!filters.publishedFrom && !filters.publishedUntil
-                        ? "30"
-                        : null)) === days
-                      ? "default"
-                      : "outline"
-                  }
-                  aria-pressed={
-                    filters.performanceRange === days ||
-                    (days === "30" &&
-                      !filters.publishedFrom &&
-                      !filters.publishedUntil)
-                  }
-                  onClick={() => handlePreset(days)}
-                >
-                  {t("performance.lastDays", { days })}
-                </Button>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {(["csv", "xlsx"] as const).map((exportFormat) => {
-                const content = (
-                  <>
-                    <Download className="size-4" aria-hidden />
-                    {t(
-                      exportFormat === "csv"
-                        ? "performance.exportCsv"
-                        : "performance.exportXlsx",
-                    )}
-                  </>
-                );
-                return (
-                  <Button
-                    key={exportFormat}
-                    size="sm"
-                    variant="outline"
-                    asChild={validRange}
-                    disabled={!validRange}
-                  >
-                    {validRange ? (
-                      <a
-                        href={`${apiPath}/export?${performanceParams}&format=${exportFormat}`}
-                      >
-                        {content}
-                      </a>
-                    ) : (
-                      content
-                    )}
-                  </Button>
-                );
-              })}
-            </div>
+          {/* Date range controls (simple, no border) */}
+          <div className="flex flex-wrap gap-2">
+            {(["7", "30", "90"] as const).map((days) => (
+              <Button
+                key={days}
+                size="sm"
+                variant={
+                  (filters.performanceRange ??
+                    (!filters.publishedFrom && !filters.publishedUntil
+                      ? "30"
+                      : null)) === days
+                    ? "default"
+                    : "outline"
+                }
+                aria-pressed={
+                  filters.performanceRange === days ||
+                  (days === "30" &&
+                    !filters.publishedFrom &&
+                    !filters.publishedUntil)
+                }
+                onClick={() => handlePreset(days)}
+              >
+                {t("performance.lastDays", { days })}
+              </Button>
+            ))}
           </div>
 
           {/* Advanced filters disclosure */}

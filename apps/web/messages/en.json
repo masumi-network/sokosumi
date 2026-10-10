@@ -2710,6 +2710,7 @@
             "filters": "Performance filters",
             "lastDays": "Last {days} days",
             "timezone": "Display timezone",
+            "moreActions": "More actions",
             "exportCsv": "Export CSV",
             "exportXlsx": "Export spreadsheet",
             "searchPosts": "Search posts",
