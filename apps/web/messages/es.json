@@ -2408,7 +2408,7 @@
           "inFlight": "Ya hay otra acción de cuenta en curso.",
           "popupBlocked": "Tu navegador bloqueó la ventana de autorización. Permite las ventanas emergentes e inténtalo de nuevo.",
           "timeout": "La autorización tardó demasiado. Inténtalo de nuevo.",
-          "providerCallback": "La autorización no se completó. Vuelve a la página Social del proyecto e inténtalo de nuevo.",
+          "providerCallback": "La autorización no se completó. Inténtalo de nuevo.",
           "legacyCallback": "Esta respuesta no permite verificar tu cuenta. Contacta con soporte e inténtalo de nuevo.",
           "verifier": "No pudimos verificar tu cuenta. Inicia la conexión de nuevo.",
           "intent": "Esta solicitud de conexión caducó o ya no es válida. Iníciala de nuevo.",
