@@ -429,6 +429,30 @@ describe("ProjectSocialAccounts", () => {
     );
   });
 
+  it("shows a photo slot when Core sent an avatar", () => {
+    const { rerender } = render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({ avatarUrl: "https://cdn.example/photo.png" }),
+        ]}
+      />,
+    );
+    expect(
+      screen.getByTestId("project-social-account-avatar-connection-1"),
+    ).toBeVisible();
+
+    rerender(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+      />,
+    );
+    expect(
+      screen.queryByTestId("project-social-account-avatar-connection-1"),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows connected and reauthorization-required X account lifecycle controls", async () => {
     const user = userEvent.setup();
     render(
