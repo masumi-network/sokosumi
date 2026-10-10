@@ -169,7 +169,13 @@ describe("SocialPostPreview", () => {
       />,
     );
 
-    expect(screen.getByText("tiktok.videoRequired")).toBeVisible();
+    expect(screen.getByTestId("social-post-preview-tiktok-frame")).toHaveClass(
+      "aspect-[9/16]",
+      "bg-media-ground",
+    );
+    expect(screen.getByText("tiktok.videoRequired")).toHaveClass(
+      "text-on-media-muted",
+    );
   });
 
   it("folds long TikTok caption behind more", async () => {
