@@ -56,6 +56,15 @@ describe("socialPostComposerProviders", () => {
     expect(socialPostComposerProviders(undefined, [])).toEqual(["x"]);
   });
 
+  it("keeps connected networks when every account is deselected", () => {
+    expect(
+      socialPostComposerProviders(undefined, [], ["linkedin", "instagram"]),
+    ).toEqual(["linkedin", "instagram"]);
+    expect(
+      socialPostComposerProviders("x", [], ["linkedin", "instagram"]),
+    ).toEqual(["linkedin", "instagram"]);
+  });
+
   it("lists each selected provider once", () => {
     expect(
       socialPostComposerProviders(undefined, ["x", "linkedin", "x"]),

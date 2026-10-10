@@ -47,15 +47,23 @@ export function socialPostComposerIssue(
 /**
  * The providers the composer validates against: the selected connections win,
  * because Core re-derives the provider from each connection on save and
- * schedule; a post without a selected connection keeps its own provider, and
- * a new post with none falls back to X. Never empty, never repeated.
+ * schedule. With none selected, connected accounts still set the limits so
+ * deselecting everyone does not switch the composer to X. A post with no
+ * connection keeps its own provider; a new post with no accounts at all
+ * falls back to X. Never empty, never repeated.
  */
 export function socialPostComposerProviders(
   postProvider: SocialPostProvider | null | undefined,
   selectedConnectionProviders: readonly SocialPostProvider[],
+  availableConnectionProviders: readonly SocialPostProvider[] = [],
 ): [SocialPostProvider, ...SocialPostProvider[]] {
   const [first, ...rest] = [...new Set(selectedConnectionProviders)];
-  return first ? [first, ...rest] : [postProvider ?? "x"];
+  if (first) return [first, ...rest];
+  const [available, ...availableRest] = [
+    ...new Set(availableConnectionProviders),
+  ];
+  if (available) return [available, ...availableRest];
+  return [postProvider ?? "x"];
 }
 
 /**
