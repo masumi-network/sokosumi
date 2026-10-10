@@ -4,6 +4,11 @@ Standalone diagnostic app. This is not part of the Sokosumi app or its Xcode wor
 It uses one `ScrollView`, one `LazyVStack`, and stable integer row IDs. No network,
 Markdown, media, authentication, position persistence, or custom anchoring.
 
+The subsequent [production transcript isolation](transcript-isolation.md) adds
+the real components in a disposable Apple workspace. The full message row brings
+back 60+ ms delays. Native ID anchoring failed older-page position retention;
+no production fix is included here.
+
 ## Run
 
 Requires an Apple Silicon Mac on macOS 26+ and Xcode 27. The build script uses the
