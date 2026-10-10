@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   downloadSocialPostMedia,
+  parseSocialPostMedia,
   requireSocialPostMedia,
   SocialPostMediaError,
 } from "@/helpers/social-post-media";
@@ -144,10 +145,30 @@ describe("downloadSocialPostMedia", () => {
   });
 });
 
+describe("parseSocialPostMedia", () => {
+  it("returns valid refs", () => {
+    expect(parseSocialPostMedia([IMAGE_REF], "post_1")).toEqual([IMAGE_REF]);
+  });
+
+  it("treats null and undefined as no media", () => {
+    expect(parseSocialPostMedia(null, "post_1")).toEqual([]);
+    expect(parseSocialPostMedia(undefined, "post_1")).toEqual([]);
+  });
+
+  it("ignores malformed media instead of throwing", () => {
+    expect(parseSocialPostMedia([{ pathname: 1 }], "post_1")).toEqual([]);
+    expect(parseSocialPostMedia("not-json", "post_1")).toEqual([]);
+  });
+});
+
 describe("requireSocialPostMedia", () => {
   it("fails permanently when the stored media cannot be read", () => {
     expect(() => requireSocialPostMedia([{ pathname: 1 }], "post_1")).toThrow(
       SocialPostMediaError,
     );
+  });
+
+  it("returns valid refs", () => {
+    expect(requireSocialPostMedia([IMAGE_REF], "post_1")).toEqual([IMAGE_REF]);
   });
 });
