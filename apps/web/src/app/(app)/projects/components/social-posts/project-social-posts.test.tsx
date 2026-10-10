@@ -678,6 +678,9 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(prompt).getByText("Connect an account to start posting"),
     ).toBeVisible();
+    expect(
+      within(prompt).getByText("Posts go out from this project's accounts."),
+    ).toBeVisible();
     await user.click(
       within(prompt).getByRole("button", {
         name: "Connect X, YouTube, LinkedIn…",
