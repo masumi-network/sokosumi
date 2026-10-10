@@ -30,6 +30,17 @@ export function deriveYouTubeTitle(text: string): string {
   return (line ?? "Untitled").slice(0, YOUTUBE_TITLE_LIMIT);
 }
 
+/** Everything after the title line. Empty when the post is only a title. */
+export function deriveYouTubeDescription(text: string): string {
+  const lines = text.split(/\r?\n/);
+  const titleIndex = lines.findIndex((part) => part.trim().length > 0);
+  if (titleIndex === -1) return "";
+  return lines
+    .slice(titleIndex + 1)
+    .join("\n")
+    .trim();
+}
+
 function videoIdOf(data: Record<string, unknown> | null): string | null {
   const candidates = [data?.id, data?.videoId, data?.video_id];
   for (const candidate of candidates) {
@@ -76,7 +87,7 @@ export async function publishYouTubeVideo(
         toolSlug: YOUTUBE_UPLOAD_TOOL_SLUG,
         arguments: {
           title: deriveYouTubeTitle(context.text),
-          description: context.text,
+          description: deriveYouTubeDescription(context.text),
           tags: [],
           categoryId: YOUTUBE_DEFAULT_CATEGORY_ID,
           privacyStatus: "public",
