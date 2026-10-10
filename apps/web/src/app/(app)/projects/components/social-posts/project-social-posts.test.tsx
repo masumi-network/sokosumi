@@ -94,6 +94,7 @@ const MESSAGES: Record<string, string> = {
   attempts: "{count} attempts",
   "actions.publishNow": "Publish now",
   "actions.retry": "Retry",
+  "filters.platform": "Platform",
   "sections.calendar": "Calendar",
   "sections.drafts": "Drafts",
   "sections.attention": "Needs attention",
@@ -567,6 +568,55 @@ describe("ProjectSocialPosts", () => {
       screen.queryByTestId("social-post-post-published"),
     ).not.toBeInTheDocument();
     expect(screen.getAllByRole("list")).toHaveLength(1);
+  });
+
+  it("narrows the draft list by platform and keeps the full tab count", () => {
+    renderUi(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost(),
+          buildPost({
+            id: "post-li",
+            provider: "linkedin",
+            text: "LinkedIn draft",
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+      {
+        wrapper: ({ children }) => (
+          <TestQueryProvider>
+            <NuqsTestingAdapter searchParams="?tab=drafts&provider=linkedin">
+              <SocialComposeProvider>{children}</SocialComposeProvider>
+            </NuqsTestingAdapter>
+          </TestQueryProvider>
+        ),
+      },
+    );
+
+    const drafts = screen.getByTestId("social-posts-section-drafts");
+    expect(within(drafts).getByText("LinkedIn draft")).toBeVisible();
+    expect(
+      within(drafts).queryByTestId("social-post-post-draft"),
+    ).not.toBeInTheDocument();
+    expect(getTab("Drafts")).toHaveTextContent("Drafts 2");
+    expect(screen.getByTestId("social-posts-platform-filter")).toBeVisible();
+  });
+
+  it("hides the platform filter on the calendar tab", () => {
+    render(
+      <ProjectSocialPosts
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("social-posts-platform-filter"),
+    ).not.toBeInTheDocument();
   });
 
   it("opens Social on its calendar, with Accounts as the last tab", async () => {

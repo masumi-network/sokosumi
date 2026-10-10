@@ -2438,6 +2438,9 @@
           "accounts": "Accounts",
           "statistics": "Statistics"
         },
+        "filters": {
+          "platform": "Platform"
+        },
         "empty": {
           "drafts": "No drafts yet."
         },
