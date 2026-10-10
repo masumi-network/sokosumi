@@ -2625,14 +2625,16 @@
           },
           "performance": {
             "lastDays": "Letzte {days} Tage",
+            "moreFilters": "Weitere Filter",
+            "activeFilters": "{count} aktiv",
             "posts": "Beiträge",
             "interactions": "Interaktionen",
             "previousPeriod": "Veränderung gegenüber dem vorherigen Zeitraum",
             "keyMetrics": "Kennzahlen",
             "sparkline": "{metric} an den ausgewählten Tagen",
             "accountTabs": "Verbundene Konten",
-            "trends": "Trends",
-            "trendMetric": "Kennzahl",
+            "trends": "Leistung im Zeitverlauf",
+            "trendMetric": "Diagrammkennzahl",
             "moreActions": "Weitere Aktionen",
             "exportCsv": "CSV exportieren",
             "exportXlsx": "Tabelle exportieren"

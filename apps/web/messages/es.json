@@ -2625,14 +2625,16 @@
           },
           "performance": {
             "lastDays": "Últimos {days} días",
+            "moreFilters": "Más filtros",
+            "activeFilters": "{count} activos",
             "posts": "Publicaciones",
             "interactions": "Interacciones",
             "previousPeriod": "Cambio respecto al período anterior",
             "keyMetrics": "Métricas clave",
             "sparkline": "{metric} en los días seleccionados",
             "accountTabs": "Cuentas conectadas",
-            "trends": "Tendencias",
-            "trendMetric": "Métrica",
+            "trends": "Rendimiento a lo largo del tiempo",
+            "trendMetric": "Métrica del gráfico",
             "moreActions": "Más acciones",
             "exportCsv": "Exportar CSV",
             "exportXlsx": "Exportar hoja de cálculo"

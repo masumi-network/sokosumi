@@ -130,12 +130,14 @@ export function SocialPerformanceOverview({
                   </span>
                 ) : null}
               </div>
-              <MetricSparkline
-                label={t("performance.sparkline", { metric: card.label })}
-                values={headline.daily.map((day) =>
-                  card.key === "postCount" ? day.postCount : day[card.key],
-                )}
-              />
+              <div className="mt-auto">
+                <MetricSparkline
+                  label={t("performance.sparkline", { metric: card.label })}
+                  values={headline.daily.map((day) =>
+                    card.key === "postCount" ? day.postCount : day[card.key],
+                  )}
+                />
+              </div>
             </article>
           );
         })}
