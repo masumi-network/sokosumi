@@ -122,6 +122,40 @@ function isRevisionConflict(error: ActionError): boolean {
   return error.kind === CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT;
 }
 
+const PUBLISH_FAILURE_KIND_COPY = {
+  rate_limited: "failures.rateLimited",
+  timeout: "failures.timeout",
+  unauthorized: "failures.unauthorized",
+  provider_unavailable: "failures.unavailable",
+  rejected: "failures.rejected",
+  provider_rejected: "failures.rejected",
+  media_missing: "failures.mediaMissing",
+  media_type_mismatch: "failures.mediaType",
+} as const;
+
+function publishFailureCopy(
+  post: Pick<SocialPost, "status" | "lastError" | "lastAttempt">,
+  t: (key: string) => string,
+): string | null {
+  const outcome = post.lastAttempt?.outcome;
+  if (outcome === "authorization_revoked") {
+    return t("outcomes.authorizationRevoked");
+  }
+  if (outcome === "connection_inactive") {
+    return t("outcomes.connectionInactive");
+  }
+  if (post.status === "MISSED" || outcome === "missed") {
+    return t("outcomes.missed");
+  }
+  const kind = post.lastAttempt?.errorKind;
+  if (kind && kind in PUBLISH_FAILURE_KIND_COPY) {
+    return t(
+      PUBLISH_FAILURE_KIND_COPY[kind as keyof typeof PUBLISH_FAILURE_KIND_COPY],
+    );
+  }
+  return post.lastError;
+}
+
 function upsertPost(posts: SocialPost[], next: SocialPost): SocialPost[] {
   const index = posts.findIndex((post) => post.id === next.id);
   if (index === -1) return [next, ...posts];
@@ -338,11 +372,8 @@ export function ProjectSocialPosts({
       handleSaved(post);
       if (post.status === "PUBLISHED") {
         toast.success(t("toasts.published"));
-      } else if (post.lastError) {
-        const error =
-          post.lastAttempt?.outcome === "authorization_revoked"
-            ? t("outcomes.authorizationRevoked")
-            : post.lastError;
+      } else if (post.lastError || post.lastAttempt?.errorKind) {
+        const error = publishFailureCopy(post, t) ?? t("toasts.failed");
         toast.error(t("toasts.publishFailed", { error }));
       } else {
         toast.error(t("toasts.failed"));
@@ -464,10 +495,7 @@ export function ProjectSocialPosts({
       ? `${t(`creator.${post.creator.kind}`)} · ${post.creator.name}`
       : t(`creator.${post.creator.kind}`);
     const failedAt = post.lastAttempt?.finishedAt ?? null;
-    const failureReason =
-      post.lastAttempt?.outcome === "authorization_revoked"
-        ? t("outcomes.authorizationRevoked")
-        : post.lastError;
+    const failureReason = publishFailureCopy(post, t);
 
     return (
       <li
@@ -591,8 +619,8 @@ export function ProjectSocialPosts({
               ) : null}
             </div>
           ) : null}
-          {post.status === "MISSED" && post.lastError ? (
-            <p className="text-muted-foreground text-xs">{post.lastError}</p>
+          {post.status === "MISSED" && failureReason ? (
+            <p className="text-muted-foreground text-xs">{failureReason}</p>
           ) : null}
         </div>
         {renderPostActions(post)}

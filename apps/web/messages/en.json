@@ -2429,7 +2429,18 @@
         "moreActions": "Post actions",
         "noAccount": "No account",
         "outcomes": {
-          "authorizationRevoked": "Coworker scheduling access was revoked. Reschedule this post to publish it."
+          "authorizationRevoked": "Coworker scheduling access was revoked. Reschedule this post to publish it.",
+          "connectionInactive": "Account disconnected. Reconnect to retry.",
+          "missed": "Missed the scheduled time."
+        },
+        "failures": {
+          "rateLimited": "Rate limited. Try again later.",
+          "timeout": "Timed out. Try again.",
+          "unauthorized": "Reconnect the account.",
+          "unavailable": "The platform is down. Try again later.",
+          "rejected": "The platform rejected this post.",
+          "mediaMissing": "A file is missing.",
+          "mediaType": "That file type is not allowed."
         },
         "sections": {
           "calendar": "Calendar",
