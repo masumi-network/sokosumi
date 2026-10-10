@@ -313,6 +313,9 @@ export function ProjectSocialAccounts({
   }
 
   const confirmationIsDisconnect = pendingConfirmation?.action === "disconnect";
+  const listedConnections = connections.filter(
+    (connection) => connection.status !== "disconnected",
+  );
 
   return (
     <section
@@ -398,9 +401,9 @@ export function ProjectSocialAccounts({
         </p>
       ) : null}
 
-      {connections.length > 0 ? (
+      {listedConnections.length > 0 ? (
         <ul className="divide-y rounded-lg border">
-          {connections.map((connection) => {
+          {listedConnections.map((connection) => {
             const provider = SOCIAL_PROVIDERS.find(
               ({ id }) => id === connection.provider,
             );
