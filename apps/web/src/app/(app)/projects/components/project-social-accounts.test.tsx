@@ -387,6 +387,31 @@ describe("ProjectSocialAccounts", () => {
     expect(screen.getByRole("menuitem", { name: "Disconnect" })).toBeVisible();
   });
 
+  it("hides disconnected accounts that have no actions", () => {
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-gone",
+            externalHandle: "old-account",
+            status: "disconnected",
+          }),
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("project-social-connection-connection-1"),
+    ).toBeVisible();
+    expect(
+      screen.queryByTestId("project-social-connection-connection-gone"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("@old-account")).not.toBeInTheDocument();
+    expect(screen.queryByText("Disconnected")).not.toBeInTheDocument();
+  });
+
   it.each([null, "ca_known"])(
     "verifies a callback with connection ID %s using the initiated connection id",
     async (callbackConnectionId) => {
