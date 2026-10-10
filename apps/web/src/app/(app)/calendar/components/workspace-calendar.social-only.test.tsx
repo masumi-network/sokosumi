@@ -275,12 +275,52 @@ describe("WorkspaceCalendar Social-only view", () => {
     );
 
     const ids = filterSectionIds();
-    // Scope and source still narrow posts; coworker, human and status do not.
+    // Scope and source still narrow posts; coworker, human and task status
+    // do not. Posts have a platform filter.
     expect(ids).toContain("source");
     expect(ids).toContain("timezone");
+    expect(ids).toContain("provider");
     expect(ids).not.toContain("status");
     expect(ids).not.toContain("coworker");
     expect(ids).not.toContain("human");
+  });
+
+  it("narrows posts by platform", () => {
+    renderCalendar(
+      {
+        includeSocialPosts: true,
+        socialPostsOnly: true,
+        items: [
+          POST,
+          {
+            ...POST,
+            id: "social:li",
+            postId: "li",
+            provider: "linkedin",
+            text: "LinkedIn news",
+          },
+        ],
+      },
+      "?timezone=UTC&view=week&provider=linkedin",
+    );
+
+    expect(renderedEventTitles()).toEqual(["LinkedIn news"]);
+  });
+
+  it("clears the platform when Social-only is turned off", async () => {
+    const onUrlUpdate = vi.fn();
+    const user = userEvent.setup();
+    renderCalendar(
+      { includeSocialPosts: true },
+      "?timezone=UTC&view=week&socialOnly=true&provider=x",
+      onUrlUpdate,
+    );
+
+    await user.click(screen.getByTestId("calendar-social-only"));
+
+    const search = onUrlUpdate.mock.lastCall?.[0].searchParams;
+    expect(search?.get("socialOnly")).toBeNull();
+    expect(search?.get("provider")).toBeNull();
   });
 
   it("says the period holds no posts rather than no releases", () => {

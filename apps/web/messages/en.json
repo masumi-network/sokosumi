@@ -7461,7 +7461,8 @@
         "scheduledBy": "Scheduled by {name}",
         "unknownScheduler": "unknown user",
         "attachments": "{count, plural, one {# attachment} other {# attachments}}",
-        "compactLabel": "{media, select, image {{count, plural, one {{provider} post with image} other {{provider} post with # images}}} gif {{provider} post with GIF} video {{provider} post with video} other {{provider} post}}"
+        "compactLabel": "{media, select, image {{count, plural, one {{provider} post with image} other {{provider} post with # images}}} gif {{provider} post with GIF} video {{provider} post with video} other {{provider} post}}",
+        "platform": "Platform"
       },
       "socialOnly": {
         "label": "Social posts only"
