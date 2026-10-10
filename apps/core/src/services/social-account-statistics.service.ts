@@ -14,6 +14,7 @@ import {
   socialAccountStatisticsSchema,
 } from "@/schemas/social-account-statistics.schema";
 import { listProjectSocialConnections } from "@/services/project-social-connections.service";
+import { recordSocialPerformanceSnapshot } from "@/services/social-performance-snapshots.service";
 
 interface AccountStatisticsScope {
   projectId: string;
@@ -155,7 +156,8 @@ export async function refreshSocialAccountStatistics(
     throw badRequest("Refresh the account before continuing its history");
   const attemptedAt = new Date().toISOString();
   let snapshot: SocialAccountStatistics;
-  let preservePostMetrics = false;
+  const preservePostMetrics = new Set<string>();
+  let profileMeasured = false;
   let posts: ReturnType<
     typeof socialAccountStatisticsProviderPageSchema.parse
   >["posts"] = [];
@@ -177,7 +179,11 @@ export async function refreshSocialAccountStatistics(
       page.accountMetrics.some((metric) => metric.value !== null);
     const refreshProfile =
       measuredProfile && !(page.accountError && previous.metrics.length > 0);
-    preservePostMetrics = page.metricWarning !== null;
+    profileMeasured = refreshProfile;
+    for (const post of page.posts) {
+      if (!Object.values(post.metrics).some((value) => value !== null))
+        preservePostMetrics.add(post.externalId);
+    }
     const historySucceeded = page.historyError === null;
     // Verified partial rows remain useful even when the provider reports a history limit.
     const historyProgress = historySucceeded || page.posts.length > 0;
@@ -261,9 +267,25 @@ export async function refreshSocialAccountStatistics(
           externalId: post.externalId,
         },
         // Partial insights must not erase measured counters or their original age.
-        update: preservePostMetrics
+        update: preservePostMetrics.has(post.externalId)
           ? { text: data.text, publishedAt: data.publishedAt, url: data.url }
           : data,
+      });
+    }
+    if (
+      profileMeasured ||
+      posts.some((post) => !preservePostMetrics.has(post.externalId))
+    ) {
+      await recordSocialPerformanceSnapshot(tx, {
+        connectionId: record.id,
+        metrics: profileMeasured
+          ? snapshot.metrics.map((metric) => ({ ...metric }))
+          : null,
+        profileFetchedAt:
+          profileMeasured && snapshot.fetchedAt
+            ? new Date(snapshot.fetchedAt)
+            : null,
+        fetchedAt: new Date(snapshot.historyFetchedAt ?? attemptedAt),
       });
     }
     const postCount = await tx.socialAccountPost.count({

@@ -249,6 +249,30 @@ describe("connected account statistics", () => {
       ).historyError,
     ).toBeNull();
   });
+  it("keeps imported X posts when pagination is unusable", async () => {
+    stub(() => ({
+      status: 200,
+      data: {
+        data: [
+          {
+            id: "456",
+            author_id: "123",
+            text: "Kept",
+            public_metrics: { like_count: 1 },
+          },
+        ],
+        meta: { next_token: "https://api.x.com/not-a-cursor" },
+      },
+    }));
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      includeProfile: false,
+    });
+    expect(result.posts).toHaveLength(1);
+    expect(result.posts[0]?.text).toBe("Kept");
+    expect(result.historyError).toBeNull();
+    expect(result.metricWarning).toContain("insights");
+  });
   it("rejects nonadvancing or missing pagination rather than falsely completing history", async () => {
     stub(() => ({
       status: 200,
@@ -436,6 +460,7 @@ describe("connected account statistics", () => {
               likeCount: "0",
               dislikeCount: "1",
               favoriteCount: "0",
+              shareCount: "9",
             },
           },
         ],
@@ -453,7 +478,7 @@ describe("connected account statistics", () => {
     });
     expect(result.posts[0]).toMatchObject({
       publishedAt: "2020-01-01T00:00:00.000Z",
-      metrics: { views: 100, likes: 0, saves: null },
+      metrics: { views: 100, likes: 0, shares: null, saves: null },
       additionalMetrics: [{ key: "dislikeCount", value: 1 }],
     });
     expect(requests[2].arguments).toEqual({
@@ -506,15 +531,10 @@ describe("connected account statistics", () => {
       "LINKEDIN_GET_MY_INFO",
     ]);
   });
-  it("rejects malformed or oversized published lists as errors", async () => {
+  it("rejects a non-array published list as an error", async () => {
     stub(() => ({
       status: 200,
-      data: {
-        data: Array.from({ length: 101 }, () => ({
-          id: "x",
-          author_id: "123",
-        })),
-      },
+      data: { data: { id: "x" } },
     }));
     expect(
       (
@@ -524,6 +544,122 @@ describe("connected account statistics", () => {
         })
       ).historyError,
     ).toContain("unavailable");
+  });
+  it("imports an oversized published list up to the page cap", async () => {
+    stub(() => ({
+      status: 200,
+      data: {
+        data: Array.from({ length: 101 }, (_, index) => ({
+          id: String(index + 1),
+          author_id: "123",
+          text: "Post",
+        })),
+      },
+    }));
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      includeProfile: false,
+    });
+    expect(result.posts).toHaveLength(100);
+    expect(result.historyError).toBeNull();
+  });
+  it("keeps a user's X repost and maps organic_repost_count to shares", async () => {
+    const recent = new Date().toISOString();
+    const { requests } = stub((request) =>
+      request.endpoint?.endsWith("/2/tweets")
+        ? {
+            status: 200,
+            data: {
+              data: [
+                {
+                  id: "789",
+                  organic_metrics: { repost_count: 5 },
+                },
+              ],
+            },
+          }
+        : {
+            status: 200,
+            data: {
+              data: [
+                {
+                  id: "789",
+                  author_id: "999",
+                  text: "Original",
+                  created_at: recent,
+                  referenced_tweets: [{ type: "retweeted", id: "1" }],
+                  public_metrics: { repost_count: 1 },
+                },
+                { id: "other", author_id: "999", text: "Someone else" },
+              ],
+            },
+          },
+    );
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      includeProfile: false,
+    });
+    expect(result.posts).toHaveLength(1);
+    expect(result.posts[0]).toMatchObject({
+      externalId: "789",
+      metrics: { shares: 5 },
+    });
+    expect(
+      requests.some((request) => request.endpoint?.endsWith("/2/tweets")),
+    ).toBe(true);
+  });
+  it("maps Facebook shares from post_activity_by_action_type when Graph shares are zero", async () => {
+    stub((request) =>
+      request.tool_slug === "FACEBOOK_GET_POST_INSIGHTS"
+        ? {
+            data: [
+              { name: "post_media_view", values: [{ value: 0 }] },
+              {
+                name: "post_activity_by_action_type",
+                total_value: { value: { share: 6, like: 2 } },
+              },
+            ],
+          }
+        : {
+            status: 200,
+            data: {
+              data: [
+                {
+                  id: "123_1",
+                  message: "Shared",
+                  shares: { count: 0 },
+                  reactions: { summary: { total_count: 2 } },
+                },
+              ],
+            },
+          },
+    );
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      provider: "facebook",
+      includeProfile: false,
+    });
+    expect(result.posts[0]?.metrics.shares).toBe(6);
+    expect(result.historyError).toBeNull();
+  });
+  it("slices oversized Facebook pages instead of failing the page", async () => {
+    stub(() => ({
+      status: 200,
+      data: {
+        data: Array.from({ length: 15 }, (_, index) => ({
+          id: `123_${index + 1}`,
+          message: `Post ${index + 1}`,
+          reactions: { summary: { total_count: 0 } },
+        })),
+      },
+    }));
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      provider: "facebook",
+      includeProfile: false,
+    });
+    expect(result.posts).toHaveLength(10);
+    expect(result.historyError).toBeNull();
   });
   it("folds Facebook daily analytics into labeled window totals without overflowing or inventing zero", async () => {
     stub((request) =>
@@ -707,7 +843,7 @@ describe("connected account statistics", () => {
     });
     expect(requests[0].parameters).toContainEqual({
       name: "post.fields",
-      value: "created_at,public_metrics,note_post",
+      value: "created_at,public_metrics,note_post,referenced_tweets",
       type: "query",
     });
     expect(result.posts[0]).toMatchObject({
