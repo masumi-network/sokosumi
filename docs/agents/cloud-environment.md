@@ -5,20 +5,21 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 ## Cursor Cloud specific instructions
 
-These notes cover non-obvious, durable facts about running this repo in the Cursor Cloud VM. The update script runs Corepack-backed `pnpm install` (`scripts/cloud-agent-db/ensure-pnpm.sh`) then provisions an ephemeral Neon agent database when secrets are present. Node, tooling, and non-DB `.env` values may still come from the VM snapshot.
+These notes cover non-obvious, durable facts about running this repo in the Cursor Cloud VM. `.cursor/environment.json` `install` runs `scripts/cloud-agent-db/cloud-install.sh` (Node 24, Corepack `pnpm install`, Neon provision or local Postgres). `start` runs `scripts/cloud-agent-db/cloud-start.sh`.
 
 Neon provision, teardown, `with-db.mjs`, and auth fixtures live in [`cloud-agent-database.md`](./cloud-agent-database.md). This page covers Node 24 on `PATH` and the local Postgres fallback.
 
 ### Runtime versions
 
-- **Node 24 is the required runtime** (root `.nvmrc` = `lts/krypton`; apps and packages pin `"engines": { "node": "24.x" }` — root `package.json` has no `engines` field). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` report Node 24 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
+- **Node 24 is the required runtime** (root `.nvmrc` = `lts/krypton`; apps and packages pin `"engines": { "node": "24.x" }` — root `package.json` has no `engines` field). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`. `scripts/cloud-agent-db/ensure-node24.sh` installs the current Node 24 tarball under `/opt/node-v24` and symlinks `node`/`npm`/`npx`/`corepack` into `/usr/local/cargo/bin` (first in `PATH`) and `/usr/local/bin`. `node -v` then reports Node 24 in every shell. Do not point those links at nvm's Node 22.
 - **pnpm via Corepack:** Environment `install`/`start` call `scripts/cloud-agent-db/ensure-pnpm.sh`, which `corepack prepare`s the pin in root `package.json` `packageManager` and deletes `~/.local/share/pnpm/.tools/pnpm`. A leftover pnpm 12 standalone placeholder there is not a valid shell script and fails builds with `Syntax error: ")" unexpected`. Read `packageManager` for the version — do not remember a `pnpm -v` number here. Do **not** re-add a `devEngines.packageManager` block: npm reads it on every `npm`/`npx` invocation in the tree and emits `EBADDEVENGINES` warnings (with `onFail: "error"` it refuses to run at all, breaking `npx` at the repo root and from `apps/apple`). `packageManager` alone is what Corepack — locally and on Vercel — actually uses.
 
 ### Database (local PostgreSQL fallback)
 
-When Neon secrets are absent, provision skips and local Postgres remains the fallback (snapshot-oriented).
+When Neon secrets are absent, provision skips and `scripts/cloud-agent-db/ensure-local-postgres.sh` installs PostgreSQL 16, creates the local database, bootstraps `.env`, and applies migrations. `cloud-start.sh` starts that cluster on each boot.
 
-- Local cluster is **PostgreSQL 16** (apt). It is **not started on boot** — start it with `sudo pg_ctlcluster 16 main start` (check with `pg_lsclusters`). DB `core`, role `sokosumi` / password `sokosumi`, on `localhost:5432`.
+- Local cluster is **PostgreSQL 16** (apt). DB `core`, role `sokosumi` / password `sokosumi`, on `localhost:5432`. `cloud-start.sh` runs `sudo pg_ctlcluster 16 main start` when no Neon URL file is present.
+- `ensure-local-postgres.sh` also writes `apps/cmo/.env` when it is missing, with `http://localhost:3100` and Core at `http://localhost:8787`. Those OAuth client values are dummies so CMO boots; Sign in with Sokosumi needs a real client registered on Core.
 - **Gotcha — ambient `DATABASE_URL`:** if the platform still injects a stale Neon URL (`...neon.tech...`, auth fails), `dotenv` does **not** override it. Prefer `with-db.mjs` when a provisioned agent branch exists; otherwise use a login shell (provision injects bashrc) or prefix commands with the local URL. If you see `Authentication failed against the database server` or an unexpected `neon.tech` host without a provisioned agent branch, unset/override `DATABASE_URL`.
 - Schema is already applied on the snapshot DB. After pulling schema changes without a Neon agent branch, run `pnpm prisma:generate` then `pnpm prisma:migrate:deploy`. To inspect local: `PGPASSWORD=sokosumi psql -h localhost -U sokosumi -d core`.
 
