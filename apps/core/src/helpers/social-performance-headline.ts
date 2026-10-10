@@ -1,3 +1,5 @@
+import { socialPostInteractions } from "@/helpers/social-post-engagement";
+
 export interface HeadlinePost {
   provider: HeadlineProvider;
   publishedAt: Date | string | null;
@@ -88,24 +90,9 @@ function absoluteDelta(current: number | null, previous: number | null) {
   return current !== null && previous !== null ? current - previous : null;
 }
 
-/** Same numerator as #5890: unmeasured parts keep the post out of the total. */
+/** Same numerator as the calendar and post cards. YouTube omits shares. */
 export function postInteractions(post: HeadlinePost): number | null {
-  const values = [
-    post.metrics.likes,
-    post.metrics.comments,
-    post.metrics.shares,
-  ];
-  if (post.provider === "instagram") values.push(post.metrics.saves);
-  if (post.provider === "x") {
-    values.push(
-      post.additionalMetrics.find((metric) =>
-        ["quote_count", "quotes"].includes(metric.key),
-      )?.value ?? null,
-    );
-  }
-  return values.some((value) => value === null)
-    ? null
-    : values.reduce<number>((total, value) => total + (value ?? 0), 0);
+  return socialPostInteractions(post);
 }
 
 function totals(posts: HeadlinePost[]): HeadlineTotals {
