@@ -96,7 +96,7 @@ describe("Social post statistics", () => {
     });
     expect(mocks.fetchMetrics).toHaveBeenCalledWith(
       expect.objectContaining({
-        executorUserId: "connector",
+        executorUserId: "sokosumi:project-executor:project",
         externalId: "external",
         connectedAccountId: "connected",
       }),
