@@ -604,6 +604,7 @@ model SocialAccountPost {
 
   @@unique([connectionId, externalId], map: "social_account_post_connectionId_externalId_key")
   @@index([connectionId, publishedAt, id], map: "social_account_post_connectionId_publishedAt_id_idx")
+  @@index([connectionId, fetchedAt], map: "social_account_post_connectionId_fetchedAt_idx")
   @@map("social_account_post")
 }
 
