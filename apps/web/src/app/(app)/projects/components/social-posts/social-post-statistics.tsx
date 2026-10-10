@@ -291,8 +291,11 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
   ].filter(Boolean).length;
 
   return (
-    <div className="space-y-6" data-testid="social-statistics">
-      <h2 className="text-lg font-semibold">{t("title")}</h2>
+    <section
+      className="space-y-6"
+      data-testid="social-statistics"
+      aria-label={t("title")}
+    >
       <div role="status" className="text-muted-foreground text-sm">
         {query.isPending ? t("loading") : ""}
       </div>
@@ -589,6 +592,6 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
           </Button>
         ) : null}
       </section>
-    </div>
+    </section>
   );
 }
