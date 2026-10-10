@@ -60,6 +60,10 @@ vi.mock("next-intl", async () => {
   };
 });
 
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, refresh: refreshMock }),
 }));
@@ -1263,7 +1267,7 @@ describe("WorkspaceCalendar", () => {
       <CalendarError error={new Error("Core unavailable")} reset={reset} />,
     );
 
-    await user.click(screen.getByRole("button", { name: "error.retry" }));
+    await user.click(screen.getByRole("button", { name: "tryAgain" }));
     expect(reset).toHaveBeenCalledOnce();
   });
 });

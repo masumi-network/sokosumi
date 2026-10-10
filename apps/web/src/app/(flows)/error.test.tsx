@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const pushMock = vi.fn();
 
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
 }));
@@ -57,5 +61,6 @@ describe("(flows) error boundary", () => {
 
     expect(screen.getByText("unavailableTitle")).toBeInTheDocument();
     expect(screen.queryByText("title")).toBeNull();
+    expect(screen.queryByText("notified")).toBeNull();
   });
 });

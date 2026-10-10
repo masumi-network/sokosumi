@@ -45,7 +45,7 @@ export function isAdminAccessRequiredError(
  * The outage's counterpart to `UNAUTHENTICATED_ERROR_DIGEST`, and for the same
  * reason: `reason` and the name are gone by the time a deployed browser sees
  * this error, so the boundary had no way to tell a Core stall from a bug and
- * showed "an unexpected error. Our team has been notified" for both. That copy
+ * showed the generic "our team has been notified" card for both. That copy
  * is wrong here. The stall is expected, nobody is fixing it, and waiting a
  * moment is the action that actually works.
  */

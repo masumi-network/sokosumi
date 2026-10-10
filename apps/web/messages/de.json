@@ -1158,10 +1158,6 @@
   },
   "Auth": {
     "Error": {
-      "title": "Etwas ist schiefgelaufen",
-      "description": "Es ist ein unerwarteter Fehler aufgetreten. Unser Team wurde benachrichtigt und wir arbeiten an einer Lösung.",
-      "errorId": "Fehler-ID: {errorId}",
-      "tryAgain": "Erneut versuchen",
       "goLogin": "Zur Anmeldung"
     },
     "Footer": {
@@ -3063,9 +3059,10 @@
     },
     "Error": {
       "title": "Etwas ist schiefgelaufen",
-      "description": "Es ist ein unerwarteter Fehler aufgetreten. Unser Team wurde benachrichtigt und wir arbeiten an einer Lösung.",
+      "description": "Versuche es in einem Moment erneut.",
+      "notified": "Unser Team wurde benachrichtigt.",
       "unavailableTitle": "Vorübergehend nicht verfügbar",
-      "unavailableDescription": "Wir konnten den Dienst nicht erreichen. Das dauert meist nur kurz. Bitte versuche es gleich noch einmal.",
+      "unavailableDescription": "Wir konnten den Dienst nicht erreichen. Versuche es gleich noch einmal.",
       "errorId": "Fehler-ID: {errorId}",
       "tryAgain": "Erneut versuchen",
       "goApp": "Zur App"
@@ -3251,11 +3248,6 @@
         "unauthenticatedAction": "Anmelden",
         "badInput": "Ungültige Planauswahl",
         "general": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
-      },
-      "Error": {
-        "title": "Etwas ist schiefgelaufen",
-        "message": "Beim Laden der Abonnements ist ein Problem aufgetreten. Bitte versuche es später erneut.",
-        "retryButton": "Erneut versuchen"
       }
     },
     "Admin": {
@@ -7465,11 +7457,6 @@
       },
       "pagination": {
         "error": "Weitere Ereignisse konnten nicht geladen werden."
-      },
-      "error": {
-        "title": "Kalender konnte nicht geladen werden",
-        "description": "Bitte versuche es gleich noch einmal.",
-        "retry": "Erneut versuchen"
       },
       "agenda": {
         "upcoming": "Als Nächstes",

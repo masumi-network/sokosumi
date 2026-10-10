@@ -1,16 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ErrorState } from "@/components/common/error-state";
 import { useErrorCardCopy } from "@/hooks/use-error-card-copy";
 import { useUnAuthenticatedErrorHandler } from "@/hooks/use-unauthenticated-error-handler";
 
@@ -26,32 +18,13 @@ export default function Error({
   const { renderIfAuthenticated } = useUnAuthenticatedErrorHandler(error);
 
   return renderIfAuthenticated(
-    <div className="min-h-full w-full">
-      <div className="mx-auto max-w-4xl px-4 py-6">
-        <div className="flex min-h-[80dvh] items-center justify-center">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>{copy.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-muted-foreground">{copy.description}</p>
-              {error.digest && (
-                <p className="text-muted-foreground text-xs">
-                  {t("errorId", { errorId: error.digest })}
-                </p>
-              )}
-            </CardContent>
-            <CardFooter className="flex flex-col gap-4">
-              <Button onClick={reset} variant="primary" className="w-full">
-                {t("tryAgain")}
-              </Button>
-              <Button asChild variant="secondary" className="w-full">
-                <Link href="/">{t("goApp")}</Link>
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      </div>
-    </div>,
+    <ErrorState
+      description={copy.description}
+      error={error}
+      onRetry={reset}
+      secondaryHref="/"
+      secondaryLabel={t("goApp")}
+      title={copy.title}
+    />,
   );
 }

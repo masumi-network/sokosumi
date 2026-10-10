@@ -1158,10 +1158,6 @@
   },
   "Auth": {
     "Error": {
-      "title": "Algo salió mal",
-      "description": "Ocurrió un error inesperado. Nuestro equipo ha sido notificado y estamos trabajando en solucionarlo.",
-      "errorId": "ID de error: {errorId}",
-      "tryAgain": "Intentar de nuevo",
       "goLogin": "Ir a inicio de sesión"
     },
     "Footer": {
@@ -3063,9 +3059,10 @@
     },
     "Error": {
       "title": "Algo salió mal",
-      "description": "Ocurrió un error inesperado. Nuestro equipo ha sido notificado y estamos trabajando en solucionarlo.",
+      "description": "Inténtalo de nuevo en un momento.",
+      "notified": "Nuestro equipo ha sido notificado.",
       "unavailableTitle": "No disponible temporalmente",
-      "unavailableDescription": "No pudimos conectar con el servicio. Suele ser breve, así que inténtalo de nuevo en un momento.",
+      "unavailableDescription": "No pudimos conectar con el servicio. Inténtalo de nuevo en un momento.",
       "errorId": "ID de error: {errorId}",
       "tryAgain": "Intentar de nuevo",
       "goApp": "Ir a la app"
@@ -3251,11 +3248,6 @@
         "unauthenticatedAction": "Iniciar sesión",
         "badInput": "Selección de plan no válida",
         "general": "Algo salió mal. Por favor, inténtalo de nuevo."
-      },
-      "Error": {
-        "title": "Algo salió mal",
-        "message": "Hubo un problema al cargar las suscripciones. Por favor, inténtalo más tarde.",
-        "retryButton": "Intentar de nuevo"
       }
     },
     "Admin": {
@@ -7465,11 +7457,6 @@
       },
       "pagination": {
         "error": "No se pudieron cargar más eventos."
-      },
-      "error": {
-        "title": "No se pudo cargar el calendario",
-        "description": "Vuelve a intentarlo en un momento.",
-        "retry": "Intentar de nuevo"
       },
       "agenda": {
         "upcoming": "A continuación",
