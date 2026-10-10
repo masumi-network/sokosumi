@@ -2595,6 +2595,9 @@
           "accountFallback": "Dein Konto",
           "open": "Vorschau",
           "dialogTitle": "Beitragsvorschau",
+          "offline": "Du bist offline.",
+          "timeout": "Zeitüberschreitung.",
+          "missing": "Beitrag konnte nicht geöffnet werden.",
           "linkedin": {
             "like": "Gefällt mir",
             "comment": "Kommentieren",

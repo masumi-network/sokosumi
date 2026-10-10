@@ -2595,6 +2595,9 @@
           "accountFallback": "Tu cuenta",
           "open": "Vista previa",
           "dialogTitle": "Vista previa de la publicación",
+          "offline": "Estás sin conexión.",
+          "timeout": "Se agotó el tiempo.",
+          "missing": "No se pudo abrir esta publicación.",
           "linkedin": {
             "like": "Recomendar",
             "comment": "Comentar",

@@ -26,6 +26,33 @@ export function useSocialCalendarPreview() {
   return useContext(SocialCalendarPreviewContext);
 }
 
+function isBrowserOffline(): boolean {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+function isTimeoutRejection(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const name = "name" in error ? error.name : undefined;
+  if (name === "AbortError" || name === "TimeoutError") return true;
+  const message =
+    "message" in error && typeof error.message === "string"
+      ? error.message.toLowerCase()
+      : "";
+  return message.includes("timed out") || message.includes("timeout");
+}
+
+function previewLoadErrorCopy(
+  error: unknown,
+  t: (key: string) => string,
+): string {
+  if (isBrowserOffline()) return t("preview.offline");
+  if (isTimeoutRejection(error)) return t("preview.timeout");
+  if (error instanceof Error && error.message === "Social post not found") {
+    return t("preview.missing");
+  }
+  return t("toasts.failed");
+}
+
 /** Preview a calendar post without changing the workspace's project or URL. */
 export function SocialCalendarPreviewProvider({
   children,
@@ -50,8 +77,10 @@ export function SocialCalendarPreviewProvider({
       const next = await loadSocialCalendarPreview({ projectId, postId });
       if (current !== request.current) return;
       setTarget(next);
-    } catch {
-      if (current === request.current) toast.error(t("toasts.failed"));
+    } catch (error) {
+      if (current === request.current) {
+        toast.error(previewLoadErrorCopy(error, t));
+      }
     } finally {
       if (current === request.current) setLoading(false);
     }
