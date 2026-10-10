@@ -367,6 +367,40 @@ describe("connected account statistics", () => {
     });
     expect(JSON.stringify(result)).not.toContain("secret");
   });
+  it("maps Facebook shares from post_activity_by_action_type when Graph shares are zero", async () => {
+    stub((request) =>
+      request.tool_slug === "FACEBOOK_GET_POST_INSIGHTS"
+        ? {
+            data: [
+              { name: "post_media_view", values: [{ value: 0 }] },
+              {
+                name: "post_activity_by_action_type",
+                total_value: { value: { share: 6, like: 2 } },
+              },
+            ],
+          }
+        : {
+            status: 200,
+            data: {
+              data: [
+                {
+                  id: "123_1",
+                  message: "Shared",
+                  shares: { count: 0 },
+                  reactions: { summary: { total_count: 2 } },
+                },
+              ],
+            },
+          },
+    );
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      provider: "facebook",
+      includeProfile: false,
+    });
+    expect(result.posts[0]?.metrics.shares).toBe(6);
+    expect(result.historyError).toBeNull();
+  });
   it("preserves imported Meta posts when optional insights are denied", async () => {
     stub((request) =>
       request.tool_slug
@@ -500,7 +534,7 @@ describe("connected account statistics", () => {
     });
     expect(result.posts[0]).toMatchObject({
       publishedAt: "2020-01-01T00:00:00.000Z",
-      metrics: { views: 100, likes: 0, saves: null },
+      metrics: { views: 100, likes: 0, shares: 0, saves: null },
       additionalMetrics: [{ key: "dislikeCount", value: 1 }],
       contentType: "video",
       url: "https://www.youtube.com/watch?v=v1",
@@ -763,15 +797,10 @@ describe("connected account statistics", () => {
     ).rejects.toThrow("Unsupported");
     expect(fetchMock).not.toHaveBeenCalled();
   });
-  it("rejects malformed or oversized published lists as errors", async () => {
+  it("rejects a published list that is not an array", async () => {
     stub(() => ({
       status: 200,
-      data: {
-        data: Array.from({ length: 101 }, () => ({
-          id: "x",
-          author_id: "123",
-        })),
-      },
+      data: { data: { id: "x" } },
     }));
     expect(
       (
@@ -781,6 +810,24 @@ describe("connected account statistics", () => {
         })
       ).historyError,
     ).toContain("unavailable");
+  });
+  it("imports an oversized published list up to the page cap", async () => {
+    stub(() => ({
+      status: 200,
+      data: {
+        data: Array.from({ length: 101 }, (_, index) => ({
+          id: String(index + 1),
+          author_id: "123",
+          text: "Post",
+        })),
+      },
+    }));
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      includeProfile: false,
+    });
+    expect(result.posts).toHaveLength(100);
+    expect(result.historyError).toBeNull();
   });
   it("folds Facebook daily analytics into labeled window totals without overflowing or inventing zero", async () => {
     stub((request) =>
@@ -1063,7 +1110,10 @@ describe("connected account statistics", () => {
                     url_link_clicks: 0,
                     user_profile_clicks: 7,
                   },
-                  organic_metrics: { impression_count: 30 },
+                  organic_metrics: {
+                    impression_count: 30,
+                    repost_count: 4,
+                  },
                 },
               ],
             },
@@ -1112,6 +1162,7 @@ describe("connected account statistics", () => {
     expect(result.posts[0].additionalMetrics).toContainEqual(
       expect.objectContaining({ key: "user_profile_clicks", value: 7 }),
     );
+    expect(result.posts[0].metrics.shares).toBe(4);
     expect(result.posts[1].additionalMetrics).toContainEqual(
       expect.objectContaining({ key: "url_link_clicks", value: null }),
     );
@@ -1315,5 +1366,48 @@ describe("connected account statistics", () => {
     expect(result.nextCursor).toBe("1000");
     expect(result.historyError).toBeNull();
     expect(result.metricWarning).toContain("details");
+  });
+  it("keeps imported posts when a later history page token is invalid", async () => {
+    stub(() => ({
+      status: 200,
+      data: {
+        data: [
+          {
+            id: "5",
+            author_id: "123",
+            text: "Kept",
+            public_metrics: { like_count: 1 },
+          },
+        ],
+        meta: { next_token: "https://api.x.com/not-a-cursor" },
+      },
+    }));
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      includeProfile: false,
+    });
+    expect(result.posts).toHaveLength(1);
+    expect(result.posts[0]?.text).toBe("Kept");
+    expect(result.historyError).toBeNull();
+    expect(result.metricWarning).toContain("insights");
+  });
+  it("slices oversized provider lists instead of failing the page", async () => {
+    stub(() => ({
+      status: 200,
+      data: {
+        data: Array.from({ length: 15 }, (_, index) => ({
+          id: `123_${index + 1}`,
+          message: `Post ${index + 1}`,
+          reactions: { summary: { total_count: 0 } },
+        })),
+      },
+    }));
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      provider: "facebook",
+      includeProfile: false,
+    });
+    expect(result.posts).toHaveLength(10);
+    expect(result.historyError).toBeNull();
   });
 });

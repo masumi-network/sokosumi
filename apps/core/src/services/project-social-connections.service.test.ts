@@ -30,6 +30,7 @@ const {
   socialConnectionIntentFindUniqueInTransactionMock,
   socialConnectionUpdateMock,
   transactionMock,
+  scheduleSocialAccountRefreshMock,
 } = vi.hoisted(() => ({
   deleteSocialAccountAvatarIfOwnedMock: vi.fn(),
   snapshotSocialAccountAvatarMock: vi.fn(),
@@ -55,6 +56,7 @@ const {
   socialConnectionIntentFindUniqueInTransactionMock: vi.fn(),
   socialConnectionUpdateMock: vi.fn(),
   transactionMock: vi.fn(),
+  scheduleSocialAccountRefreshMock: vi.fn(),
 }));
 
 vi.mock("@/clients/composio.client", async (importOriginal) => ({
@@ -74,6 +76,10 @@ vi.mock("@/lib/social-account-avatar", () => ({
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
   getWebAppBaseUrl: getWebAppBaseUrlMock,
+}));
+
+vi.mock("@/services/social-account-sync", () => ({
+  scheduleSocialAccountRefresh: scheduleSocialAccountRefreshMock,
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -1573,6 +1579,8 @@ describe("project social connections service", () => {
         disconnectedAt: null,
       },
     ]);
+    expect(getProjectSocialConnectedAccountMock).not.toHaveBeenCalled();
+    expect(getConnectedSocialIdentityMock).not.toHaveBeenCalled();
   });
 
   describe("missing profile photos", () => {
@@ -1598,17 +1606,14 @@ describe("project social connections service", () => {
         avatarUrl: photo,
       });
     });
-    async function list() {
-      const { listProjectSocialConnections } = await import(
+    async function refreshStatus() {
+      const { refreshActiveConnectionStatus } = await import(
         "./project-social-connections.service"
       );
-      return listProjectSocialConnections({
-        projectId: PROJECT_ID,
-        workspaceId: WORKSPACE_ID,
-      });
+      return refreshActiveConnectionStatus(active);
     }
     it("fetches and stores a missing photo through the connection's project executor", async () => {
-      expect(await list()).toMatchObject([{ avatarUrl: photo }]);
+      expect(await refreshStatus()).toMatchObject({ avatarUrl: photo });
       expect(getConnectedSocialIdentityMock).toHaveBeenCalledWith({
         provider: "x",
         connectedAccountId: "ca_old",
@@ -1620,19 +1625,22 @@ describe("project social connections service", () => {
       });
     });
     it("reuses a stored photo without querying provider identity", async () => {
-      socialConnectionFindManyMock.mockResolvedValue([
-        { ...active, avatarUrl: photo },
-      ]);
-      expect(await list()).toMatchObject([{ avatarUrl: photo }]);
+      const { refreshActiveConnectionStatus } = await import(
+        "./project-social-connections.service"
+      );
+      expect(
+        await refreshActiveConnectionStatus({ ...active, avatarUrl: photo }),
+      ).toMatchObject({ avatarUrl: photo });
       expect(getConnectedSocialIdentityMock).not.toHaveBeenCalled();
     });
     it("keeps the account usable when photo fetching fails", async () => {
       getConnectedSocialIdentityMock.mockRejectedValue(
         new Error("provider unavailable"),
       );
-      expect(await list()).toMatchObject([
-        { avatarUrl: null, status: "active" },
-      ]);
+      expect(await refreshStatus()).toMatchObject({
+        avatarUrl: null,
+        status: "active",
+      });
       expect(socialConnectionUpdateMock).not.toHaveBeenCalled();
     });
     it("does not use a photo from another identity", async () => {
@@ -1640,7 +1648,7 @@ describe("project social connections service", () => {
         id: "another-account",
         avatarUrl: "https://provider.example/photo.png",
       });
-      expect(await list()).toMatchObject([{ avatarUrl: null }]);
+      expect(await refreshStatus()).toMatchObject({ avatarUrl: null });
       expect(snapshotSocialAccountAvatarMock).not.toHaveBeenCalled();
     });
     it("does not overwrite a replacement made while fetching", async () => {
@@ -1649,9 +1657,9 @@ describe("project social connections service", () => {
         composioConnectedAccountId: "ca_replaced",
         avatarUrl: "https://blob.vercel-storage.com/new.png",
       });
-      expect(await list()).toMatchObject([
-        { avatarUrl: "https://blob.vercel-storage.com/new.png" },
-      ]);
+      expect(await refreshStatus()).toMatchObject({
+        avatarUrl: "https://blob.vercel-storage.com/new.png",
+      });
       expect(socialConnectionUpdateMock).not.toHaveBeenCalled();
       expect(deleteSocialAccountAvatarIfOwnedMock).toHaveBeenCalledWith(
         photo,
@@ -1661,13 +1669,8 @@ describe("project social connections service", () => {
   });
 
   it("marks an active connection as requiring reauthorization when Composio expires it", async () => {
-    socialConnectionFindManyMock.mockResolvedValue([
-      { ...socialConnection, status: "active" },
-    ]);
-    socialConnectionFindUniqueMock.mockResolvedValue({
-      ...socialConnection,
-      status: "active",
-    });
+    const active = { ...socialConnection, status: "active" };
+    socialConnectionFindUniqueMock.mockResolvedValue(active);
     socialConnectionUpdateMock.mockResolvedValue({
       ...socialConnection,
       status: "reauthorization_required",
@@ -1679,18 +1682,13 @@ describe("project social connections service", () => {
       authConfigId: "ac_x",
       connectorUserId: `sokosumi:user:${USER_ID}`,
     });
-    const { listProjectSocialConnections } = await import(
+    const { refreshActiveConnectionStatus } = await import(
       "./project-social-connections.service"
     );
 
-    await expect(
-      listProjectSocialConnections({
-        projectId: PROJECT_ID,
-        workspaceId: WORKSPACE_ID,
-      }),
-    ).resolves.toEqual([
+    await expect(refreshActiveConnectionStatus(active)).resolves.toEqual(
       expect.objectContaining({ status: "reauthorization_required" }),
-    ]);
+    );
     expect(socialConnectionAuditCreateMock).toHaveBeenCalledWith({
       data: {
         projectSocialConnectionId: SOCIAL_CONNECTION_ID,

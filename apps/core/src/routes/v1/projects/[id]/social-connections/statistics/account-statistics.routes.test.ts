@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { forbidden } from "@/helpers/error";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
@@ -10,6 +11,7 @@ import mountList from "./get";
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   refresh: vi.fn(),
+  request: vi.fn(),
   beta: vi.fn(),
   delegation: vi.fn(),
   capability: vi.fn(),
@@ -18,6 +20,9 @@ vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 vi.mock("@/services/social-account-statistics.service", () => ({
   listSocialAccountStatistics: mocks.list,
   refreshSocialAccountStatistics: mocks.refresh,
+}));
+vi.mock("@/services/social-account-sync", () => ({
+  requestSocialAccountRefresh: mocks.request,
 }));
 vi.mock("@/helpers/social-beta-access", () => ({
   requireSocialBetaAccess: mocks.beta,
@@ -87,6 +92,21 @@ beforeEach(() => {
     nextCursor: null,
   });
   mocks.refresh.mockResolvedValue({ account, importedPostCount: 0 });
+  mocks.request.mockResolvedValue(
+    ok({
+      connectionId,
+      accepted: true,
+      sync: {
+        status: "queued",
+        dataFetchedAt: null,
+        headFetchedAt: null,
+        dataVersion: "",
+        mayAutoRequest: false,
+        lastError: null,
+        partialWarnings: [],
+      },
+    }),
+  );
 });
 describe("social account statistics routes", () => {
   it("returns cached account data and scopes publication/account filters", async () => {
@@ -115,14 +135,17 @@ describe("social account statistics routes", () => {
       (await app.request(url, refreshRequest({ continueHistory: true })))
         .status,
     ).toBe(200);
-    expect(mocks.refresh).toHaveBeenCalledWith({
+    expect(mocks.request).toHaveBeenCalledWith({
       projectId,
       workspaceId,
       connectionId,
-      userId: "owner",
-      continueHistory: true,
+      trigger: "manual",
     });
-    mocks.refresh.mockClear();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.list).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId, workspaceId, connectionId }),
+    );
+    mocks.request.mockClear();
     expect(
       (
         await app.request(
@@ -134,6 +157,7 @@ describe("social account statistics routes", () => {
         )
       ).status,
     ).toBe(422);
+    expect(mocks.request).not.toHaveBeenCalled();
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
   it("rejects beta revocation before account reads or refreshes", async () => {

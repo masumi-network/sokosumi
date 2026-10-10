@@ -54,11 +54,31 @@ export const socialAccountStatisticsSchema = z
     historyFetchedAt: dateTimeSchema.nullable(),
     historyError: z.string().nullable(),
     metricWarning: z.string().nullable().default(null),
+    consecutiveFailures: z.number().int().min(0).optional(),
   })
   .openapi("SocialAccountStatistics");
 export type SocialAccountStatistics = z.infer<
   typeof socialAccountStatisticsSchema
 >;
+
+export const socialSyncReadModelSchema = z
+  .object({
+    status: z.enum([
+      "fresh",
+      "stale",
+      "queued",
+      "running",
+      "reauth_required",
+      "partial",
+    ]),
+    dataFetchedAt: dateTimeSchema.nullable(),
+    headFetchedAt: dateTimeSchema.nullable(),
+    dataVersion: z.string(),
+    mayAutoRequest: z.boolean(),
+    lastError: z.string().nullable(),
+    partialWarnings: z.array(z.string()),
+  })
+  .openapi("SocialSyncReadModel");
 
 export const socialAccountStatisticsAccountSchema =
   projectSocialConnectionSchema
@@ -66,6 +86,7 @@ export const socialAccountStatisticsAccountSchema =
       // Optional nullable references let the generated date transformer skip empty snapshots.
       statistics: socialAccountStatisticsSchema.nullable().optional(),
       postCount: z.number().int().min(0),
+      sync: socialSyncReadModelSchema.optional(),
     })
     .openapi("SocialAccountStatisticsAccount");
 

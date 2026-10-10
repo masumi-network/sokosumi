@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
@@ -14,7 +15,8 @@ import {
   refreshSocialAccountStatisticsRequestSchema,
   refreshSocialAccountStatisticsResponseSchema,
 } from "@/schemas/social-account-statistics.schema";
-import { refreshSocialAccountStatistics } from "@/services/social-account-statistics.service";
+import { listSocialAccountStatistics } from "@/services/social-account-statistics.service";
+import { requestSocialAccountRefresh } from "@/services/social-account-sync";
 import { mapProjectSocialConnectionServiceError } from "../../../route-helpers.js";
 
 const route = withCoworkerContextHeaderParameters(
@@ -23,7 +25,7 @@ const route = withCoworkerContextHeaderParameters(
     path: "/{id}/social-connections/{connectionId}/statistics/refresh",
     tags: ["Projects"],
     description:
-      "Refresh account metrics and one page of provider-authored published posts through the connected account. continueHistory uses only the stored provider cursor; it never publishes or edits posts. Failures preserve prior data and expose history coverage.",
+      "Queue a background refresh of cached account statistics. The response is stored data plus sync state and never waits on providers. Cron continues history.",
     request: {
       params: projectSocialConnectionParamsSchema,
       body: {
@@ -38,7 +40,7 @@ const route = withCoworkerContextHeaderParameters(
     responses: {
       200: jsonSuccessResponse(
         refreshSocialAccountStatisticsResponseSchema,
-        "Social account statistics refreshed",
+        "Social account refresh accepted",
       ),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
@@ -57,14 +59,33 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
     const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, connectionId } = c.req.valid("param");
     try {
-      const result = await refreshSocialAccountStatistics({
+      const requested = await requestSocialAccountRefresh({
         projectId,
         workspaceId,
-        userId: actor.userId,
         connectionId,
-        ...c.req.valid("json"),
+        trigger: "manual",
       });
-      return ok(c, refreshSocialAccountStatisticsResponseSchema.parse(result));
+      if (requested.isErr()) {
+        if (requested.error.code === "not_found") {
+          throw notFound("Project social connection not found");
+        }
+        throw badRequest("Reconnect the account before refreshing statistics");
+      }
+      const page = await listSocialAccountStatistics({
+        projectId,
+        workspaceId,
+        connectionId,
+        limit: 1,
+      });
+      const account = page.accounts.find((row) => row.id === connectionId);
+      if (!account) throw notFound("Project social connection not found");
+      return ok(
+        c,
+        refreshSocialAccountStatisticsResponseSchema.parse({
+          account,
+          importedPostCount: 0,
+        }),
+      );
     } catch (error) {
       return mapProjectSocialConnectionServiceError(error);
     }

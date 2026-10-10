@@ -567,6 +567,8 @@ model ProjectSocialConnection {
   performanceRefreshAttemptedAt DateTime?
   /// Successful latest-page observation; attempts do not suppress retries after cancellation.
   performanceHeadFetchedAt      DateTime?
+  /// Manual/connect dirty flag. Cron is the sole provider writer; reads never set this.
+  performanceRefreshRequestedAt DateTime?
   createdAt                     DateTime  @default(now())
   updatedAt                     DateTime  @updatedAt
 
@@ -602,6 +604,7 @@ model SocialAccountPost {
 
   @@unique([connectionId, externalId], map: "social_account_post_connectionId_externalId_key")
   @@index([connectionId, publishedAt, id], map: "social_account_post_connectionId_publishedAt_id_idx")
+  @@index([connectionId, fetchedAt], map: "social_account_post_connectionId_fetchedAt_idx")
   @@map("social_account_post")
 }
 

@@ -120,11 +120,11 @@ function rateDefinition(provider: Post["provider"]) {
 }
 
 function interactions(post: Post): number | null {
-  const values = [
-    post.metrics.likes,
-    post.metrics.comments,
-    post.metrics.shares,
-  ];
+  const shares =
+    post.provider === "youtube" && post.metrics.shares === null
+      ? 0
+      : post.metrics.shares;
+  const values = [post.metrics.likes, post.metrics.comments, shares];
   if (post.provider === "instagram") values.push(post.metrics.saves);
   if (post.provider === "x")
     values.push(

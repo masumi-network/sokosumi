@@ -4,17 +4,12 @@ import type {
   SocialPerformanceResponse,
   WorkspaceSocialPerformanceResponse,
 } from "@sokosumi/core-client";
-import {
-  type InfiniteData,
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { Download, MoreVertical, Search } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import { Button } from "@/components/ui/button";
@@ -34,8 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { useMountEffect } from "@/hooks/use-mount-effect";
-import { refreshProjectSocialAccountStatistics } from "@/lib/actions/project/action";
+import { refreshSocialAccountPerformance } from "@/lib/actions/project/social-performance-refresh.action";
 import { useSession } from "@/lib/auth/auth.client";
 import { SocialPerformanceOverview } from "./social-performance-overview";
 import { SocialPerformancePosts } from "./social-performance-posts";
@@ -54,7 +48,6 @@ export function SocialPostStatistics({
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const formatter = useFormatter();
   const { data: session } = useSession();
-  const queryClient = useQueryClient();
   const [filters, setFilters] = useQueryStates({
     statisticsProvider: parseAsString,
     statisticsAccount: parseAsString,
@@ -107,6 +100,9 @@ export function SocialPostStatistics({
     : `workspace:${workspaceId}`;
   const [filterScope, setFilterScope] = useState(ownerScope);
   const scopeChangePending = filterScope !== ownerScope;
+  const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
+  const queuedRefreshIds = useRef(new Set<string>());
+
   const apiPath = `/api/${projectId ? "projects" : "workspaces"}/${encodeURIComponent(projectId ?? workspaceId)}/social-performance`;
   const catalogue = useQuery({
     queryKey: [...queryScope, "catalogue"],
@@ -164,6 +160,39 @@ export function SocialPostStatistics({
   const selectedProjectId = selectedAccount
     ? accountProjectId(selectedAccount.id)
     : undefined;
+
+  // Mutation for triggering background sync
+  const refreshMutation = useMutation({
+    mutationFn: async (connectionId: string) => {
+      if (!selectedProjectId) throw new Error("No project selected");
+      return await refreshSocialAccountPerformance({
+        projectId: selectedProjectId,
+        connectionId,
+      });
+    },
+    onSuccess: (_data, connectionId) => {
+      setSyncingAccountId(connectionId);
+      setTimeout(() => {
+        void catalogue.refetch();
+        setSyncingAccountId((current) =>
+          current === connectionId ? null : current,
+        );
+      }, 2000);
+    },
+  });
+
+  const checkAndRefreshIfStale = useCallback(
+    (account: Account) => {
+      if (!selectedProjectId || account.status !== "active") return;
+      if (!account.sync?.mayAutoRequest) return;
+      if (queuedRefreshIds.current.has(account.id)) return;
+      queuedRefreshIds.current.add(account.id);
+      setSyncingAccountId(account.id);
+      void refreshMutation.mutate(account.id);
+    },
+    [selectedProjectId, refreshMutation],
+  );
+
   const runScopeKey = JSON.stringify([
     ...queryScope,
     selectedAccount?.id ?? null,
@@ -274,32 +303,6 @@ export function SocialPostStatistics({
       publishedUntil: until.toISOString().slice(0, 10),
     });
   }
-  const runRef = useRef<AbortController | null>(null);
-  const mountedRef = useRef(false);
-  const currentScopeRef = useRef(runScopeKey);
-  const [sync, setSync] = useState<{
-    accountId: string;
-    completed: number;
-    total: number;
-    pages: number;
-    stopping: boolean;
-  } | null>(null);
-  const [syncErrors, setSyncErrors] = useState<Record<string, string>>({});
-  useMountEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      runRef.current?.abort();
-    };
-  });
-  useEffect(() => {
-    if (currentScopeRef.current === runScopeKey) return;
-    currentScopeRef.current = runScopeKey;
-    runRef.current?.abort();
-    runRef.current = null;
-    setSync(null);
-    setSyncErrors({});
-  }, [runScopeKey]);
   useEffect(() => {
     if (!scopeChangePending) return;
     if (filters.performanceProject || filters.statisticsAccount) {
@@ -336,116 +339,45 @@ export function SocialPostStatistics({
     setFilters,
   ]);
 
-  async function handleSync(targets: Account[]) {
-    if (runRef.current || targets.length === 0) return;
-    const run = new AbortController();
-    const runScope = runScopeKey;
-    runRef.current = run;
-    setSyncErrors({});
-    let pages = 0;
-    try {
-      for (const [index, account] of targets.entries()) {
-        if (run.signal.aborted) break;
-        const ownerProjectId = accountProjectId(account.id);
-        if (!ownerProjectId) continue;
-        setSync({
-          accountId: account.id,
-          completed: index,
-          total: targets.length,
-          pages,
-          stopping: false,
-        });
-        let continueHistory =
-          Boolean(account.statistics?.historyNextCursor) &&
-          !account.statistics?.historyComplete;
-        while (!run.signal.aborted) {
-          try {
-            const result = await refreshProjectSocialAccountStatistics({
-              projectId: ownerProjectId,
-              connectionId: account.id,
-              continueHistory,
-            });
-            // A request already sent finishes on Core; cancellation prevents the next page.
-            if (!mountedRef.current || currentScopeRef.current !== runScope)
-              return;
-            if (!result.ok) {
-              setSyncErrors((errors) => ({
-                ...errors,
-                [account.id]: t("accountSyncFailed"),
-              }));
-              break;
-            }
-            pages++;
-            setSync((current) => (current ? { ...current, pages } : null));
-            // Keep the returned cursor even if the follow-up history read fails.
-            queryClient.setQueriesData<InfiniteData<StatisticsPage>>(
-              { queryKey: [...queryScope, "account"] },
-              (current) =>
-                current
-                  ? {
-                      ...current,
-                      pages: current.pages.map((page) => ({
-                        ...page,
-                        accounts: page.accounts.map((cached) =>
-                          cached.id === result.value.account.id
-                            ? result.value.account
-                            : cached,
-                        ),
-                      })),
-                    }
-                  : current,
-            );
-            queryClient.setQueryData<StatisticsPage>(
-              [...queryScope, "catalogue"],
-              (current) =>
-                current
-                  ? {
-                      ...current,
-                      accounts: current.accounts.map((cached) =>
-                        cached.id === result.value.account.id
-                          ? result.value.account
-                          : cached,
-                      ),
-                    }
-                  : current,
-            );
-            await queryClient.invalidateQueries({ queryKey: queryScope });
-            const snapshot = result.value.account.statistics;
-            if (
-              snapshot?.historyError ||
-              snapshot?.historyComplete ||
-              !snapshot?.historyNextCursor
-            )
-              break;
-            continueHistory = true;
-          } catch {
-            if (mountedRef.current && currentScopeRef.current === runScope)
-              setSyncErrors((errors) => ({
-                ...errors,
-                [account.id]: t("accountSyncFailed"),
-              }));
-            break;
-          }
-        }
-      }
-    } finally {
-      if (runRef.current === run) {
-        runRef.current = null;
-        if (mountedRef.current) setSync(null);
-      }
-    }
-  }
-
-  function handleCancel() {
-    runRef.current?.abort();
-    setSync((current) => (current ? { ...current, stopping: true } : null));
-  }
+  useEffect(() => {
+    if (!selectedAccount || scopeChangePending) return;
+    checkAndRefreshIfStale(selectedAccount);
+  }, [selectedAccount, scopeChangePending, checkAndRefreshIfStale]);
+  const selectedSync = selectedAccount?.sync;
+  useEffect(() => {
+    if (!selectedAccount || scopeChangePending) return;
+    if (selectedSync?.status !== "queued" && selectedSync?.status !== "running")
+      return;
+    const id = window.setInterval(() => {
+      void catalogue.refetch();
+      void query.refetch();
+    }, 5_000);
+    return () => window.clearInterval(id);
+  }, [
+    selectedAccount,
+    selectedSync?.status,
+    selectedSync?.dataVersion,
+    scopeChangePending,
+    catalogue.refetch,
+    query.refetch,
+  ]);
 
   function formatDate(value: string | Date) {
     return formatter.dateTime(new Date(value), {
       dateStyle: "medium",
       timeZone: "UTC",
     });
+  }
+  function accountSnapshot(account: Account) {
+    return (
+      firstPage?.accounts.find((row) => row.id === account.id)?.statistics ??
+      account.statistics
+    );
+  }
+  function isAccountSyncing(account: Account) {
+    if (syncingAccountId === account.id) return true;
+    const status = account.sync?.status;
+    return status === "queued" || status === "running";
   }
   function accountName(account: Account) {
     return (
@@ -474,7 +406,8 @@ export function SocialPostStatistics({
           ? t("loading")
           : ""}
       </div>
-      {catalogue.isError || query.isError ? (
+      {(catalogue.isError && !eligibleAccounts.length) ||
+      (query.isError && !performance) ? (
         <div role="alert" className="flex flex-wrap items-center gap-3">
           <p className="text-sm">{t("loadFailed")}</p>
           <Button
@@ -489,8 +422,8 @@ export function SocialPostStatistics({
         </div>
       ) : null}
       {!catalogue.isPending &&
-      !catalogue.isError &&
-      !eligibleAccounts.length ? (
+      !eligibleAccounts.length &&
+      !catalogue.isError ? (
         <p className="text-muted-foreground rounded-xl border border-dashed p-4 text-sm">
           {t("noAccounts")}{" "}
           <Link
@@ -520,7 +453,10 @@ export function SocialPostStatistics({
         >
           {/* Unified header: account selection, identity, freshness, and actions */}
           {selectedAccount ? (
-            <section className="space-y-3 rounded-lg border p-4">
+            <section
+              className="space-y-3 rounded-lg border p-4"
+              data-testid="performance-header"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex w-full min-w-0 flex-col gap-1 sm:w-auto sm:flex-1 sm:flex-row sm:items-center sm:gap-3">
                   {eligibleAccounts.length > 1 ? (
@@ -613,10 +549,10 @@ export function SocialPostStatistics({
 
                   <div className="text-muted-foreground min-w-0 text-sm">
                     {(() => {
-                      const snapshot =
-                        firstPage?.accounts.find(
-                          (account) => account.id === selectedAccount.id,
-                        )?.statistics ?? selectedAccount.statistics;
+                      if (isAccountSyncing(selectedAccount)) {
+                        return <p>{t("performance.syncing")}</p>;
+                      }
+                      const snapshot = accountSnapshot(selectedAccount);
                       return snapshot?.fetchedAt ? (
                         <p>
                           {t("updatedAt", {
@@ -630,88 +566,44 @@ export function SocialPostStatistics({
                   </div>
                 </div>
 
-                {/* Actions: Sync and Export menu */}
+                {/* Actions: Export menu only */}
                 <div className="flex items-center gap-2">
-                  {sync ? (
-                    <>
-                      <span className="text-muted-foreground text-sm">
-                        {t(sync.stopping ? "stoppingSync" : "syncProgress", {
-                          completed: sync.completed,
-                          total: sync.total,
-                          pages: sync.pages,
-                        })}
-                      </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        disabled={sync.stopping}
-                        onClick={handleCancel}
+                        aria-label={t("performance.moreActions")}
                       >
-                        {t("stopSync")}
+                        <MoreVertical className="size-4" aria-hidden />
                       </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={
-                          selectedAccount.status !== "active" ||
-                          !accountProjectId(selectedAccount.id)
-                        }
-                        onClick={() => void handleSync([selectedAccount])}
-                      >
-                        {(() => {
-                          const snapshot =
-                            firstPage?.accounts.find(
-                              (account) => account.id === selectedAccount.id,
-                            )?.statistics ?? selectedAccount.statistics;
-                          return snapshot?.historyNextCursor &&
-                            !snapshot.historyComplete
-                            ? t("resumeSync")
-                            : t("syncAccount");
-                        })()}
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            aria-label={t("performance.moreActions")}
-                          >
-                            <MoreVertical className="size-4" aria-hidden />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {(["csv", "xlsx"] as const).map((exportFormat) => {
-                            const label = t(
-                              exportFormat === "csv"
-                                ? "performance.exportCsv"
-                                : "performance.exportXlsx",
-                            );
-                            return validRange ? (
-                              <DropdownMenuItem key={exportFormat} asChild>
-                                <a
-                                  href={`${apiPath}/export?${performanceParams}&format=${exportFormat}`}
-                                >
-                                  <Download className="size-4" aria-hidden />
-                                  {label}
-                                </a>
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem key={exportFormat} disabled>
-                                <Download className="size-4" aria-hidden />
-                                {label}
-                              </DropdownMenuItem>
-                            );
-                          })}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </>
-                  )}
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {(["csv", "xlsx"] as const).map((exportFormat) => {
+                        const label = t(
+                          exportFormat === "csv"
+                            ? "performance.exportCsv"
+                            : "performance.exportXlsx",
+                        );
+                        return validRange ? (
+                          <DropdownMenuItem key={exportFormat} asChild>
+                            <a
+                              href={`${apiPath}/export?${performanceParams}&format=${exportFormat}`}
+                            >
+                              <Download className="size-4" aria-hidden />
+                              {label}
+                            </a>
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem key={exportFormat} disabled>
+                            <Download className="size-4" aria-hidden />
+                            {label}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 
@@ -734,13 +626,12 @@ export function SocialPostStatistics({
                   )?.statistics ?? selectedAccount.statistics;
                 return (
                   <>
-                    {snapshot?.error || syncErrors[selectedAccount.id] ? (
+                    {snapshot?.error ? (
                       <p
                         role="status"
                         className="text-semantic-warning text-sm"
                       >
-                        {syncErrors[selectedAccount.id] ??
-                          t("accountMetricsIncomplete")}
+                        {t("accountMetricsIncomplete")}
                       </p>
                     ) : null}
                     {snapshot?.metricWarning ? (

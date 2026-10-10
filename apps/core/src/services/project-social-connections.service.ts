@@ -311,7 +311,7 @@ async function fillMissingAvatar(
   }
 }
 
-async function refreshActiveConnectionStatus(
+export async function refreshActiveConnectionStatus(
   connection: ProjectSocialConnectionRecord,
 ): Promise<ProjectSocialConnectionRecord | null> {
   if (connection.status !== "active") {
@@ -456,6 +456,7 @@ export async function finalizeProjectSocialConnection(
   await requireScopedProject(input, prisma, true);
   const intent = await prisma.projectSocialConnectionIntent.findUnique({
     where: { connectionId: input.connectionId },
+    include: { project: { select: { workspaceId: true } } },
   });
   if (!isLiveIntent(intent, input)) {
     throw notFound("Unknown or expired connection");
@@ -490,7 +491,7 @@ export async function finalizeProjectSocialConnection(
         avatarUrl: identity.avatarUrl,
       })
     : null;
-  const { summary, retiredConnection, replacedAvatarUrl } =
+  const { summary, retiredConnection, replacedAvatarUrl, intentAction } =
     await serializableTransaction(async (tx) => {
       await requireLockedOpenProject(tx, input);
       const now = new Date();
@@ -626,6 +627,7 @@ export async function finalizeProjectSocialConnection(
       return {
         summary: mapProjectSocialConnection(connection),
         retiredConnection,
+        intentAction: currentIntent.action,
         // Only a reconnect overwrites the row's avatar. A replaced account's
         // row stays, and its old posts still show that avatar.
         replacedAvatarUrl:
@@ -651,6 +653,16 @@ export async function finalizeProjectSocialConnection(
     await revokeRetiredProjectSocialConnection(retiredConnection);
   }
   await deleteSocialAccountAvatarIfOwned(replacedAvatarUrl, input.projectId);
+
+  void import("@/services/social-account-sync").then(
+    ({ scheduleSocialAccountRefresh }) =>
+      scheduleSocialAccountRefresh({
+        projectId: input.projectId,
+        workspaceId: input.workspaceId,
+        connectionId: summary.id,
+        trigger: intentAction === "reconnect" ? "reauth_resume" : "connect",
+      }),
+  );
 
   return summary;
 }
@@ -705,14 +717,8 @@ export async function listProjectSocialConnections(
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
-  const refreshedConnections = await Promise.all(
-    connections.map(refreshActiveConnectionStatus),
-  );
-  return refreshedConnections
-    .filter(
-      (connection): connection is ProjectSocialConnectionRecord =>
-        connection !== null && connection.status !== "disconnected",
-    )
+  return connections
+    .filter((connection) => connection.status !== "disconnected")
     .map(mapProjectSocialConnection);
 }
 

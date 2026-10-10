@@ -23,7 +23,7 @@
   "crons": [
     {
       "path": "/sync/social-performance",
-      "schedule": "0 * * * *"
+      "schedule": "7,22,37,52 * * * *"
     },
     {
       "path": "/sync/agents",
