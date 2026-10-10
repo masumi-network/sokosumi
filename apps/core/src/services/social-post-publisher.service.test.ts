@@ -155,14 +155,15 @@ describe("social post publisher service", () => {
     socialPostFindFirstMock
       .mockResolvedValueOnce(duePost)
       .mockResolvedValue(null);
-    socialPostUpdateManyMock.mockImplementation((args: { data?: { lastError?: string } }) =>
-      Promise.resolve({
-        count:
-          args?.data?.lastError ===
-          "Missed: Social beta access was lost before the post could be published"
-            ? 0
-            : 1,
-      }),
+    socialPostUpdateManyMock.mockImplementation(
+      (args: { data?: { lastError?: string } }) =>
+        Promise.resolve({
+          count:
+            args?.data?.lastError ===
+            "Missed: Social beta access was lost before the post could be published"
+              ? 0
+              : 1,
+        }),
     );
     attemptFindFirstMock.mockResolvedValue(null);
     attemptAggregateMock.mockResolvedValue({ _max: { attempt: null } });
