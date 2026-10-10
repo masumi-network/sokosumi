@@ -3041,6 +3041,7 @@
       "notified": "Nuestro equipo ha sido notificado.",
       "unavailableTitle": "No disponible temporalmente",
       "unavailableDescription": "No pudimos conectar con el servicio. Inténtalo de nuevo en un momento.",
+      "errorId": "ID de error: {errorId}",
       "tryAgain": "Intentar de nuevo",
       "goApp": "Ir a la app"
     },

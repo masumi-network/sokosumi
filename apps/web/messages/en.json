@@ -3041,6 +3041,7 @@
       "notified": "Our team has been notified.",
       "unavailableTitle": "Temporarily unavailable",
       "unavailableDescription": "We could not reach the service. Try again in a moment.",
+      "errorId": "Error ID: {errorId}",
       "tryAgain": "Try again",
       "goApp": "Go to app"
     },

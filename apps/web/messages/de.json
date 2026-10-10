@@ -3041,6 +3041,7 @@
       "notified": "Unser Team wurde benachrichtigt.",
       "unavailableTitle": "Vorübergehend nicht verfügbar",
       "unavailableDescription": "Wir konnten den Dienst nicht erreichen. Versuche es gleich noch einmal.",
+      "errorId": "Fehler-ID: {errorId}",
       "tryAgain": "Erneut versuchen",
       "goApp": "Zur App"
     },

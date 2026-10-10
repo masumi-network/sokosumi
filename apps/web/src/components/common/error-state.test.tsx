@@ -8,7 +8,8 @@ vi.mock("@sentry/nextjs", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: { errorId?: string }) =>
+    key === "errorId" && values?.errorId ? `Error ID: ${values.errorId}` : key,
 }));
 
 import { CORE_AUTH_UNAVAILABLE_ERROR_DIGEST } from "@/lib/auth/errors";
@@ -39,6 +40,7 @@ describe("ErrorState", () => {
     expect(screen.getByText("title")).toBeVisible();
     expect(screen.getByText("description")).toBeVisible();
     expect(screen.getByText("notified")).toBeVisible();
+    expect(screen.getByText("Error ID: digest-1")).toBeVisible();
     expect(screen.getByRole("link", { name: "goApp" })).toHaveAttribute(
       "href",
       "/",
@@ -66,6 +68,22 @@ describe("ErrorState", () => {
 
     expect(screen.getByText("unavailableTitle")).toBeVisible();
     expect(screen.queryByText("notified")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(`Error ID: ${CORE_AUTH_UNAVAILABLE_ERROR_DIGEST}`),
+    ).toBeVisible();
     expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("hides the error ID when there is no digest", () => {
+    render(
+      <ErrorState
+        description="description"
+        error={new Error("boom")}
+        onRetry={vi.fn()}
+        title="title"
+      />,
+    );
+
+    expect(screen.queryByText(/Error ID:/)).not.toBeInTheDocument();
   });
 });

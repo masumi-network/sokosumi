@@ -55,6 +55,11 @@ export function ErrorState({
           {notified ? (
             <p className="text-muted-foreground text-sm">{t("notified")}</p>
           ) : null}
+          {error.digest ? (
+            <p className="text-muted-foreground text-xs select-all">
+              {t("errorId", { errorId: error.digest })}
+            </p>
+          ) : null}
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
           <Button className="w-full" onClick={onRetry} variant="primary">

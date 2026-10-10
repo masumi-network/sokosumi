@@ -20,6 +20,7 @@ body{color:#000;background:#fff;margin:0;font-family:system-ui,"Segoe UI",Roboto
 @media (prefers-color-scheme:dark){.card{border-color:#333}}
 .card h1{font-size:1.125rem;font-weight:600;margin:0 0 0.5rem}
 .card p{margin:0 0 0.5rem;opacity:0.7}
+.error-id{font-size:0.75rem;user-select:all;cursor:text}
 .actions{display:flex;flex-direction:column;gap:0.75rem;margin-top:1rem}
 .actions button,.actions a{display:block;width:100%;padding:0.5rem 0.75rem;border-radius:0.375rem;font:inherit;text-align:center;text-decoration:none;cursor:pointer}
 .actions button{border:0;background:#111;color:#fff}
@@ -81,6 +82,9 @@ export default function GlobalError({
             <p>Try again in a moment.</p>
             {shouldReportRouteError(error) ? (
               <p>Our team has been notified.</p>
+            ) : null}
+            {error.digest ? (
+              <p className="error-id">Error ID: {error.digest}</p>
             ) : null}
             <div className="actions">
               <button onClick={reset} type="button">
