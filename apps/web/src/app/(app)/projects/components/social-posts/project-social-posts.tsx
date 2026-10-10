@@ -464,6 +464,8 @@ export function ProjectSocialPosts({
       ? `${t(`creator.${post.creator.kind}`)} · ${post.creator.name}`
       : t(`creator.${post.creator.kind}`);
     const failedAt = post.lastAttempt?.finishedAt ?? null;
+    const leadingAt =
+      post.status === "FAILED" && failedAt ? failedAt : post.scheduledAt;
     const failureReason =
       post.lastAttempt?.outcome === "authorization_revoked"
         ? t("outcomes.authorizationRevoked")
@@ -486,13 +488,13 @@ export function ProjectSocialPosts({
         </span>
         <div className="min-w-48 flex-1 space-y-1.5">
           <p className="text-muted-foreground flex min-h-9 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            {post.scheduledAt ? (
+            {leadingAt ? (
               <time
                 className="text-foreground font-medium whitespace-nowrap tabular-nums"
-                dateTime={post.scheduledAt.toISOString()}
+                dateTime={leadingAt.toISOString()}
               >
                 {/* Named, so a reader in another zone does not misread it. */}
-                {formatter.dateTime(post.scheduledAt, "dateTime", {
+                {formatter.dateTime(leadingAt, "dateTime", {
                   timeZoneName: "short",
                 })}
               </time>
@@ -574,22 +576,8 @@ export function ProjectSocialPosts({
               ) : null}
             </div>
           ) : null}
-          {post.status === "FAILED" ? (
-            <div className="space-y-0.5 text-xs">
-              {failureReason ? (
-                <p className="text-destructive">{failureReason}</p>
-              ) : null}
-              {failedAt ? (
-                <time
-                  className="text-muted-foreground"
-                  dateTime={failedAt.toISOString()}
-                >
-                  {t("failedAt", {
-                    date: formatter.dateTime(failedAt, "dateTime"),
-                  })}
-                </time>
-              ) : null}
-            </div>
+          {post.status === "FAILED" && failureReason ? (
+            <p className="text-destructive text-xs">{failureReason}</p>
           ) : null}
           {post.status === "MISSED" && post.lastError ? (
             <p className="text-muted-foreground text-xs">{post.lastError}</p>

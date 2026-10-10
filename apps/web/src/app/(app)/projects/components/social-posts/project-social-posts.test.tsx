@@ -90,7 +90,6 @@ const MESSAGES: Record<string, string> = {
   needsReconnectLink: "Reconnect the account",
   viewPost: "View post",
   publishedAt: "Published {date}",
-  failedAt: "Failed {date}",
   attempts: "{count} attempts",
   "actions.publishNow": "Publish now",
   "actions.retry": "Retry",
@@ -1844,7 +1843,16 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(row).getByText("X rejected the post (403 forbidden)"),
     ).toBeVisible();
-    expect(within(row).getByText("Failed Sep 10, 10:05 AM")).toBeVisible();
+    expect(
+      within(row).getByText(
+        createTestFormatter().dateTime(
+          new Date("2026-09-10T10:05:00.000Z"),
+          "dateTime",
+          { timeZoneName: "short" },
+        ),
+      ),
+    ).toBeVisible();
+    expect(within(row).queryByText(/10:00/)).not.toBeInTheDocument();
     expect(within(row).getByText("3 attempts")).toBeVisible();
     expect(within(row).getByText("Failed")).toBeVisible();
     // Retry is the one thing left to do, so it sits on the row.
