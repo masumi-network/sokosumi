@@ -371,6 +371,34 @@ describe("SocialPostPreview", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("marks a video with a play badge on Instagram and X", () => {
+    const { rerender } = render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="instagram"
+        text="Clip"
+        timestamp={null}
+      />,
+    );
+    expect(screen.getByTestId("social-post-preview-play")).toBeVisible();
+    expect(screen.getByLabelText("a.mp4")).toHaveAttribute(
+      "src",
+      VIDEO.fileUrl,
+    );
+
+    rerender(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="x"
+        text=""
+        timestamp={null}
+      />,
+    );
+    expect(screen.getByTestId("social-post-preview-play")).toBeVisible();
+  });
+
   it("renders a TikTok clip with handle, tags, and a 9:16 frame", () => {
     render(
       <SocialPostPreview
