@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -31,10 +31,16 @@ export function PostingConsistency({ days }: { days: ActivityDay[] }) {
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const format = useFormatter();
   const [mode, setMode] = useState<ActivityMode>("posts");
+  const scroller = useRef<HTMLDivElement>(null);
   const filled = fillActivityRange(days);
   const totals = activityTotals(days);
   const streaks = postingStreaks(days);
   const weeks = contributionCalendar(days);
+  useEffect(() => {
+    const node = scroller.current;
+    if (!node) return;
+    node.scrollLeft = node.scrollWidth;
+  }, [weeks.length]);
   const monthStarts = calendarMonthStarts(weeks);
   const max = activityMax(filled, mode);
 
@@ -127,7 +133,7 @@ export function PostingConsistency({ days }: { days: ActivityDay[] }) {
         ) : null}
       </div>
       {weeks.length > 0 ? (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" ref={scroller}>
           <div
             className="grid gap-1"
             style={{
@@ -182,7 +188,7 @@ export function PostingConsistency({ days }: { days: ActivityDay[] }) {
                           })
                     }
                     className={cn(
-                      "aspect-square w-full rounded-sm",
+                      "aspect-square w-full rounded-xs",
                       day.inRange
                         ? level == null
                           ? "border-border border border-dashed"
@@ -202,7 +208,7 @@ export function PostingConsistency({ days }: { days: ActivityDay[] }) {
         {LEVEL_CLASS.map((levelClass) => (
           <span
             key={levelClass}
-            className={cn("size-3 rounded-sm", levelClass)}
+            className={cn("size-3 rounded-xs", levelClass)}
             aria-hidden
           />
         ))}
