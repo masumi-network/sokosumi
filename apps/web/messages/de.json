@@ -2641,6 +2641,7 @@
           "empty": "Keine importierten Beiträge entsprechen diesen Filtern. Synchronisiere ein Konto oder setze die Filter zurück.",
           "refresh": "Statistiken aktualisieren",
           "loadMore": "Weitere Beiträge laden",
+          "loadMoreError": "Mehr konnte nicht geladen werden.",
           "unavailable": "Nicht verfügbar",
           "notFetched": "Statistiken wurden noch nicht abgerufen.",
           "updatedAt": "Aktualisiert am {date}",
