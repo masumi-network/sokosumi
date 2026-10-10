@@ -28,6 +28,15 @@ const IMAGE: SocialPostMediaRef = {
   kind: "image",
 };
 
+const VIDEO: SocialPostMediaRef = {
+  pathname: "drive/a.mp4",
+  fileUrl: "https://store.public.blob.vercel-storage.com/drive/a.mp4",
+  name: "a.mp4",
+  size: 20,
+  mimeType: "video/mp4",
+  kind: "video",
+};
+
 describe("SocialPostPreview", () => {
   it("renders an X post with name, handle, and highlighted tags and links", () => {
     render(
@@ -204,6 +213,69 @@ describe("SocialPostPreview", () => {
 
     expect(
       screen.queryByRole("button", { name: "facebook.seeMore" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders a YouTube watch card with title, tags, and a play overlay", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="youtube"
+        text={`${"T".repeat(120)}\nFirst clip #sokosumi https://www.example.com/watch`}
+        timestamp={null}
+      />,
+    );
+
+    const preview = screen.getByTestId("social-post-preview");
+    expect(preview).toHaveAttribute("data-provider", "youtube");
+    expect(within(preview).getByText("T".repeat(100))).toBeVisible();
+    expect(within(preview).getByText("Sokosumi HQ")).toBeVisible();
+    expect(within(preview).getByText("#sokosumi")).toHaveClass(
+      "text-social-youtube-link",
+    );
+    expect(within(preview).getByText("example.com/watch")).toBeVisible();
+    expect(preview.querySelector("video")).toHaveAttribute(
+      "src",
+      VIDEO.fileUrl,
+    );
+  });
+
+  it("asks for a video when YouTube has no media", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="youtube"
+        text="Launch day"
+        timestamp={null}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("social-post-preview-youtube-player"),
+    ).toHaveClass("aspect-video", "bg-media-ground");
+    expect(screen.getByText("youtube.videoRequired")).toHaveClass(
+      "text-on-media-muted",
+    );
+  });
+
+  it("folds long YouTube description behind show more", async () => {
+    const user = userEvent.setup();
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="youtube"
+        text={`Title\n${"word ".repeat(80)}`}
+        timestamp={null}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "youtube.seeMore" }));
+
+    expect(
+      screen.queryByRole("button", { name: "youtube.seeMore" }),
     ).not.toBeInTheDocument();
   });
 
