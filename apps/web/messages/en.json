@@ -3221,45 +3221,6 @@
       "statisticsNeedProject": {
         "title": "Choose a project to see performance",
         "body": "Account performance belongs to a project. Choose one to evaluate its connected accounts and published content."
-      },
-      "taskHub": {
-        "title": "What do you want to do?",
-        "projectContext": "Working in {project}",
-        "createPost": {
-          "title": "Create New Post",
-          "description": "Draft and schedule a post across your connected accounts",
-          "action": "Start"
-        },
-        "viewSchedule": {
-          "title": "View Schedule",
-          "description": "See what's going out and when",
-          "action": "Open Calendar"
-        },
-        "fixFailed": {
-          "title": "Fix {count, plural, one {# Failed Post} other {# Failed Posts}}",
-          "description": "Review and retry posts that couldn't be published",
-          "action": "Fix Now"
-        },
-        "reviewPerformance": {
-          "title": "Review Performance",
-          "description": "Check how your posts are performing",
-          "action": "View Stats"
-        },
-        "recentActivity": {
-          "title": "Recent Activity",
-          "description": "Your latest posts and drafts",
-          "untitled": "Untitled post",
-          "status": {
-            "published": "Posted",
-            "scheduled": "Scheduled",
-            "draft": "Draft saved",
-            "failed": "Failed to post",
-            "missed": "Missed",
-            "cancelled": "Cancelled",
-            "unknown": "Unknown",
-            "publishing": "Publishing"
-          }
-        }
       }
     },
     "Error": {

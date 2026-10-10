@@ -3221,45 +3221,6 @@
       "statisticsNeedProject": {
         "title": "Wähle ein Projekt, um die Leistung zu sehen",
         "body": "Die Kontoleistung gehört zu einem Projekt. Wähle eines, um seine verbundenen Konten und veröffentlichten Inhalte zu bewerten."
-      },
-      "taskHub": {
-        "title": "Was möchten Sie tun?",
-        "projectContext": "Arbeiten in {project}",
-        "createPost": {
-          "title": "Neuen Beitrag erstellen",
-          "description": "Entwerfen und planen Sie einen Beitrag über Ihre verbundenen Konten",
-          "action": "Start"
-        },
-        "viewSchedule": {
-          "title": "Zeitplan anzeigen",
-          "description": "Sehen Sie, was wann veröffentlicht wird",
-          "action": "Kalender öffnen"
-        },
-        "fixFailed": {
-          "title": "{count, plural, one {# Fehlgeschlagenen Beitrag} other {# Fehlgeschlagene Beiträge}} beheben",
-          "description": "Überprüfen und erneut veröffentlichen Sie Beiträge, die nicht veröffentlicht werden konnten",
-          "action": "Jetzt beheben"
-        },
-        "reviewPerformance": {
-          "title": "Leistung überprüfen",
-          "description": "Überprüfen Sie, wie Ihre Beiträge abschneiden",
-          "action": "Statistiken anzeigen"
-        },
-        "recentActivity": {
-          "title": "Letzte Aktivität",
-          "description": "Ihre neuesten Beiträge und Entwürfe",
-          "untitled": "Unbenannter Beitrag",
-          "status": {
-            "published": "Veröffentlicht",
-            "scheduled": "Geplant",
-            "draft": "Entwurf gespeichert",
-            "failed": "Veröffentlichung fehlgeschlagen",
-            "missed": "Verpasst",
-            "cancelled": "Abgebrochen",
-            "unknown": "Unbekannt",
-            "publishing": "Wird veröffentlicht"
-          }
-        }
       }
     },
     "Error": {
