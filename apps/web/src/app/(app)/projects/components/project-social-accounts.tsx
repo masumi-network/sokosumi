@@ -342,7 +342,7 @@ export function ProjectSocialAccounts({
               type="button"
               variant="outline"
               size="sm"
-              className="shrink-0"
+              className="h-11 shrink-0 md:h-8"
               loading={pendingAction === "connect"}
             >
               <Plus className="size-4" aria-hidden />
@@ -356,6 +356,7 @@ export function ProjectSocialAccounts({
               return (
                 <DropdownMenuItem
                   key={id}
+                  className="min-h-11"
                   aria-label={
                     comingSoon
                       ? t("connectComingSoon", { provider: name })
@@ -464,6 +465,7 @@ export function ProjectSocialAccounts({
                       type="button"
                       variant="outline"
                       size="sm"
+                      className="h-11 md:h-8"
                       disabled={isBusy}
                       loading={isRowPending && pendingAction === "reconnect"}
                       onClick={() => {
@@ -502,6 +504,7 @@ export function ProjectSocialAccounts({
                       <DropdownMenuContent align="end">
                         {canReplace ? (
                           <DropdownMenuItem
+                            className="min-h-11"
                             onSelect={() => {
                               requestConfirmation("replace", connection);
                             }}
@@ -510,6 +513,7 @@ export function ProjectSocialAccounts({
                           </DropdownMenuItem>
                         ) : null}
                         <DropdownMenuItem
+                          className="min-h-11"
                           variant="destructive"
                           onSelect={() => {
                             requestConfirmation("disconnect", connection);

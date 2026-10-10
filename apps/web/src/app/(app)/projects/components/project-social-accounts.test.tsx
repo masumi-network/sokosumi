@@ -317,6 +317,42 @@ describe("ProjectSocialAccounts", () => {
     expect(screen.getByText("YouTube account")).toBeVisible();
   });
 
+  it("gives Connect, Reconnect, and menu rows 44px phone targets", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            id: "connection-2",
+            externalHandle: "needs-auth",
+            status: "reauthorization_required",
+          }),
+        ]}
+      />,
+    );
+
+    const connect = screen.getByRole("button", { name: "Connect account" });
+    expect(connect).toHaveClass("h-11", "md:h-8");
+    expect(screen.getByRole("button", { name: "Reconnect" })).toHaveClass(
+      "h-11",
+      "md:h-8",
+    );
+
+    await user.click(connect);
+    expect(
+      screen.getByRole("menuitem", { name: "Connect Instagram account" }),
+    ).toHaveClass("min-h-11");
+    await user.keyboard("{Escape}");
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for @needs-auth" }),
+    );
+    expect(screen.getByRole("menuitem", { name: "Replace" })).toHaveClass(
+      "min-h-11",
+    );
+  });
+
   it("shows connected and reauthorization-required X account lifecycle controls", async () => {
     const user = userEvent.setup();
     render(
