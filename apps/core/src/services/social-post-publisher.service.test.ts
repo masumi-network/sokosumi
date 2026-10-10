@@ -155,7 +155,15 @@ describe("social post publisher service", () => {
     socialPostFindFirstMock
       .mockResolvedValueOnce(duePost)
       .mockResolvedValue(null);
-    socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
+    socialPostUpdateManyMock.mockImplementation((args: { data?: { lastError?: string } }) =>
+      Promise.resolve({
+        count:
+          args?.data?.lastError ===
+          "Missed: Social beta access was lost before the post could be published"
+            ? 0
+            : 1,
+      }),
+    );
     attemptFindFirstMock.mockResolvedValue(null);
     attemptAggregateMock.mockResolvedValue({ _max: { attempt: null } });
     attemptCreateMock.mockResolvedValue({ id: ATTEMPT_ID });
@@ -991,7 +999,7 @@ describe("social post publisher service", () => {
     const result = await publishDueSocialPosts(syncContext);
 
     expect(result).toMatchObject({ claimed: 1, published: 0, skipped: 1 });
-    expect(socialPostUpdateManyMock).toHaveBeenCalledTimes(2);
+    expect(socialPostUpdateManyMock).toHaveBeenCalledTimes(3);
     expect(attemptUpdateMock).toHaveBeenCalledTimes(1);
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining("lease"),
@@ -1016,6 +1024,36 @@ describe("social post publisher service", () => {
       skipped: 0,
     });
     expect(socialPostFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("marks leftover scheduled posts missed when the scheduler lost Social beta", async () => {
+    socialPostFindFirstMock.mockReset();
+    socialPostFindFirstMock.mockResolvedValue(null);
+    socialPostUpdateManyMock.mockImplementation(() =>
+      Promise.resolve({ count: 2 }),
+    );
+    const { publishDueSocialPosts } = await loadService();
+
+    const result = await publishDueSocialPosts(syncContext);
+
+    expect(result).toMatchObject({ claimed: 0, missed: 2 });
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        status: "SCHEDULED",
+        scheduledByCoworkerId: null,
+        NOT: {
+          scheduledByUser: {
+            members: { some: { organization: { slug: "utxo" } } },
+          },
+        },
+      },
+      data: {
+        status: "MISSED",
+        lastError:
+          "Missed: Social beta access was lost before the post could be published",
+        revision: { increment: 1 },
+      },
+    });
   });
 
   describe("publishSocialPostNow", () => {

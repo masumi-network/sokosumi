@@ -36,6 +36,8 @@ export const MAX_ATTEMPTS = 3;
 export const RETRY_WINDOW_MS = 15 * 60_000;
 /** A post first seen this long after its planned time is missed, not published. */
 export const MISSED_AFTER_MS = 60 * 60_000;
+export const LOST_SOCIAL_BETA_ERROR =
+  "Missed: Social beta access was lost before the post could be published";
 export const RETRY_BACKOFF_MS = [60_000, 180_000] as const;
 
 /** Leave time for session cleanup and durable settlement before runtime/lease expiry. */
@@ -605,7 +607,24 @@ export async function publishDueSocialPosts(
     });
     result[outcome] += 1;
   }
+  result.missed += await markScheduledPostsLostSocialBeta();
   return result;
+}
+
+async function markScheduledPostsLostSocialBeta(): Promise<number> {
+  const updated = await prisma.socialPost.updateMany({
+    where: {
+      status: "SCHEDULED",
+      scheduledByCoworkerId: null,
+      NOT: { scheduledByUser: SOCIAL_BETA_USER_WHERE },
+    },
+    data: {
+      status: "MISSED",
+      lastError: LOST_SOCIAL_BETA_ERROR,
+      revision: { increment: 1 },
+    },
+  });
+  return updated.count;
 }
 
 /**
