@@ -484,7 +484,10 @@ function TikTokPreview({
 
   return (
     <div className="py-3">
-      <div className="bg-muted relative mx-auto aspect-[9/16] w-full max-w-64 overflow-hidden">
+      <div
+        className="relative mx-auto aspect-[9/16] w-full max-w-64 overflow-hidden bg-media-ground"
+        data-testid="social-post-preview-tiktok-frame"
+      >
         {clip ? (
           <>
             <PreviewMediaItem media={clip} />
@@ -529,7 +532,7 @@ function TikTokPreview({
             </div>
           </>
         ) : (
-          <div className="text-muted-foreground flex size-full items-center justify-center px-6 text-center text-xs text-balance">
+          <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
             {t("tiktok.videoRequired")}
           </div>
         )}
