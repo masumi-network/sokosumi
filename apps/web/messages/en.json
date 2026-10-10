@@ -2572,6 +2572,17 @@
           "description": "The post goes out right away instead of waiting for its scheduled time.",
           "confirm": "Publish now"
         },
+        "bulkRetry": {
+          "selectPost": "Select this post",
+          "selectAll": "Select all posts that can be retried",
+          "selected": "{count} selected",
+          "retrySelected": "Retry selected",
+          "title": "Retry these posts now?",
+          "description": "Each selected post goes out right away. You will see which ones published and which still need attention.",
+          "confirm": "Retry selected",
+          "resultsTitle": "Retry results",
+          "published": "Published"
+        },
         "connectPrompt": {
           "title": "Connect an account to start posting",
           "body": "Posts go out from the X, Instagram, LinkedIn, Facebook and YouTube accounts connected to this project.",

@@ -37,7 +37,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -98,6 +98,23 @@ interface ProjectSocialPostsProps {
 
 /** Statuses whose previous attempt already ran, so the publish action reads as a retry. */
 const RETRY_STATUSES: readonly SocialPostStatus[] = ["FAILED", "MISSED"];
+
+function canRetryPost(post: SocialPost): boolean {
+  return RETRY_STATUSES.includes(post.status) && post.canPublishNow;
+}
+
+function retryLabel(post: SocialPost): string {
+  const text = post.text.trim();
+  if (text) return text.length > 48 ? `${text.slice(0, 47)}…` : text;
+  return post.socialConnection?.externalHandle ?? post.provider;
+}
+
+interface BulkRetryResult {
+  postId: string;
+  label: string;
+  ok: boolean;
+  error?: string;
+}
 
 function timeOf(value: Date | null): number {
   return value ? new Date(value).getTime() : 0;
@@ -203,6 +220,14 @@ export function ProjectSocialPosts({
   const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
   const [publishPending, setPublishPending] = useState(false);
+  const [selectedRetryIds, setSelectedRetryIds] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
+  const [bulkRetryOpen, setBulkRetryOpen] = useState(false);
+  const [bulkRetryPending, setBulkRetryPending] = useState(false);
+  const [bulkRetryResults, setBulkRetryResults] = useState<
+    BulkRetryResult[] | null
+  >(null);
   // The target outlives `previewOpen` so the dialog keeps its content while it
   // animates closed.
   const [previewTarget, setPreviewTarget] = useState<SocialPost | null>(
@@ -221,7 +246,8 @@ export function ProjectSocialPosts({
   function handleCloseAutoFocus(event: Event) {
     if (!returnFocus) return;
     event.preventDefault();
-    if (!composerMode && !cancelTarget && !publishTarget) returnFocus();
+    if (!composerMode && !cancelTarget && !publishTarget && !bulkRetryOpen)
+      returnFocus();
   }
 
   function postsIn(section: SectionKey): SocialPost[] {
@@ -243,6 +269,14 @@ export function ProjectSocialPosts({
   });
   const tab: SocialTab =
     tabParam && tabs.includes(tabParam) ? tabParam : tabs[0];
+  const retryablePosts = postsIn("attention").filter(canRetryPost);
+  const selectedRetryablePosts = retryablePosts.filter((post) =>
+    selectedRetryIds.has(post.id),
+  );
+  const allRetryableSelected =
+    retryablePosts.length > 0 &&
+    selectedRetryablePosts.length === retryablePosts.length;
+  const someRetryableSelected = selectedRetryablePosts.length > 0;
 
   function showTab(next: SocialTab | null): void {
     void setTabParam(next);
@@ -351,6 +385,100 @@ export function ProjectSocialPosts({
       setPublishPending(false);
       setPublishTarget(null);
     }
+  }
+
+  function toggleRetrySelection(postId: string, selected: boolean): void {
+    setSelectedRetryIds((current) => {
+      const next = new Set(current);
+      if (selected) next.add(postId);
+      else next.delete(postId);
+      return next;
+    });
+  }
+
+  function toggleRetryAll(selected: boolean): void {
+    setSelectedRetryIds(
+      selected ? new Set(retryablePosts.map((post) => post.id)) : new Set(),
+    );
+  }
+
+  async function handleConfirmBulkRetry(): Promise<void> {
+    const targets = selectedRetryablePosts;
+    if (targets.length === 0 || bulkRetryPending) return;
+    setBulkRetryPending(true);
+    const results: BulkRetryResult[] = [];
+    const updated: SocialPost[] = [];
+    let sawConflict = false;
+    for (const post of targets) {
+      try {
+        const result = await publishProjectSocialPost({
+          projectId,
+          postId: post.id,
+          revision: post.revision,
+        });
+        if (!result.ok) {
+          if (result.error.code === CommonErrorCode.UNAUTHENTICATED) {
+            handleActionError(result.error);
+            break;
+          }
+          if (isRevisionConflict(result.error)) {
+            sawConflict = true;
+            results.push({
+              postId: post.id,
+              label: retryLabel(post),
+              ok: false,
+              error: t("toasts.conflict"),
+            });
+            continue;
+          }
+          results.push({
+            postId: post.id,
+            label: retryLabel(post),
+            ok: false,
+            error: result.error.message || t("toasts.failed"),
+          });
+          continue;
+        }
+        const next = result.value;
+        updated.push(next);
+        if (next.status === "PUBLISHED") {
+          results.push({
+            postId: post.id,
+            label: retryLabel(post),
+            ok: true,
+          });
+          continue;
+        }
+        results.push({
+          postId: post.id,
+          label: retryLabel(post),
+          ok: false,
+          error:
+            next.lastAttempt?.outcome === "authorization_revoked"
+              ? t("outcomes.authorizationRevoked")
+              : (next.lastError ?? t("toasts.failed")),
+        });
+      } catch (error) {
+        const actionError = toActionRejectionError(error);
+        if (actionError.code === CommonErrorCode.UNAUTHENTICATED) {
+          handleActionError(actionError);
+          break;
+        }
+        results.push({
+          postId: post.id,
+          label: retryLabel(post),
+          ok: false,
+          error: actionError.message || t("toasts.failed"),
+        });
+      }
+    }
+    if (updated.length > 0) {
+      setPosts((current) => updated.reduce(upsertPost, current));
+    }
+    setSelectedRetryIds(new Set());
+    setBulkRetryResults(results);
+    setBulkRetryPending(false);
+    if (sawConflict) router.refresh();
   }
 
   function renderPostActions(post: SocialPost, preview = false) {
@@ -469,6 +597,7 @@ export function ProjectSocialPosts({
         ? t("outcomes.authorizationRevoked")
         : post.lastError;
 
+    const retryable = canRetryPost(post);
     return (
       <li
         key={post.id}
@@ -478,6 +607,17 @@ export function ProjectSocialPosts({
         className="bg-background border-border flex flex-wrap items-start gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] hover:border-primary hover:shadow-sm"
         data-testid={`social-post-${post.id}`}
       >
+        {retryable ? (
+          <Checkbox
+            aria-label={t("bulkRetry.selectPost")}
+            checked={selectedRetryIds.has(post.id)}
+            className="mt-2.5"
+            data-testid={`social-post-select-${post.id}`}
+            onCheckedChange={(value) =>
+              toggleRetrySelection(post.id, value === true)
+            }
+          />
+        ) : null}
         <span
           aria-hidden
           className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border"
@@ -707,6 +847,49 @@ export function ProjectSocialPosts({
                   data-testid={`social-posts-section-${section}`}
                   value={section}
                 >
+                  {section === "attention" && retryablePosts.length > 0 ? (
+                    <div
+                      className="flex flex-wrap items-center gap-3"
+                      data-testid="social-bulk-retry"
+                    >
+                      <Checkbox
+                        aria-label={t("bulkRetry.selectAll")}
+                        checked={
+                          allRetryableSelected
+                            ? true
+                            : someRetryableSelected
+                              ? "indeterminate"
+                              : false
+                        }
+                        data-testid="social-bulk-retry-select-all"
+                        onCheckedChange={(value) =>
+                          toggleRetryAll(value === true)
+                        }
+                      />
+                      <span className="text-muted-foreground text-sm tabular-nums">
+                        {t("bulkRetry.selected", {
+                          count: selectedRetryablePosts.length,
+                        })}
+                      </span>
+                      <Button
+                        className="ms-auto"
+                        disabled={
+                          selectedRetryablePosts.length === 0 ||
+                          bulkRetryPending
+                        }
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setBulkRetryResults(null);
+                          setBulkRetryOpen(true);
+                        }}
+                      >
+                        <RotateCcw className="size-4" aria-hidden />
+                        {t("bulkRetry.retrySelected")}
+                      </Button>
+                    </div>
+                  ) : null}
                   {sectionPosts.length > 0 ? (
                     <ul className="grid gap-2">
                       {sectionPosts.map(renderPost)}
@@ -875,6 +1058,82 @@ export function ProjectSocialPosts({
               {t("publishDialog.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={bulkRetryOpen}
+        onOpenChange={(open) => {
+          if (!open && !bulkRetryPending) {
+            setBulkRetryOpen(false);
+            setBulkRetryResults(null);
+          }
+        }}
+      >
+        <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
+          {bulkRetryResults ? (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t("bulkRetry.resultsTitle")}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("bulkRetry.description")}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <ul
+                className="grid gap-2 text-sm"
+                data-testid="social-bulk-retry-results"
+              >
+                {bulkRetryResults.map((result) => (
+                  <li
+                    key={result.postId}
+                    className="flex flex-col gap-0.5"
+                    data-testid={`social-bulk-retry-result-${result.postId}`}
+                  >
+                    <span className="text-foreground min-w-0 truncate">
+                      {result.label}
+                    </span>
+                    <span
+                      className={
+                        result.ok ? "text-muted-foreground" : "text-destructive"
+                      }
+                    >
+                      {result.ok
+                        ? t("bulkRetry.published")
+                        : (result.error ?? t("toasts.failed"))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t("composer.close")}</AlertDialogCancel>
+              </AlertDialogFooter>
+            </>
+          ) : (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t("bulkRetry.title")}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("bulkRetry.description")}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={bulkRetryPending}>
+                  {t("composer.close")}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  loading={bulkRetryPending}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    void handleConfirmBulkRetry();
+                  }}
+                >
+                  {t("bulkRetry.confirm")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
         </AlertDialogContent>
       </AlertDialog>
     </section>
