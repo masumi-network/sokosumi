@@ -3079,6 +3079,10 @@
         "title": "Conecta tus cuentas de redes sociales",
         "body": "Reúne tus canales en un solo lugar. Elige un proyecto para conectar cuentas y luego crear, programar y publicar tus publicaciones."
       },
+      "attentionNeedProject": {
+        "title": "Requiere atención",
+        "body": "Elige un proyecto para ver las publicaciones que fallaron o se omitieron."
+      },
       "draftsNeedProject": {
         "title": "Borradores",
         "body": "Elige un proyecto para ver y terminar sus borradores."

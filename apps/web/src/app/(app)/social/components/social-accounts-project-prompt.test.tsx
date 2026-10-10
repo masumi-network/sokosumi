@@ -138,6 +138,27 @@ describe("SocialAccountsProjectPrompt", () => {
     );
   });
 
+  it("keeps Needs attention as the destination and hides the account carousel", async () => {
+    const user = userEvent.setup();
+    setup({ kind: "attention" });
+    expect(
+      screen.getByRole("heading", { name: "Needs attention" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Choose a project to see posts that failed or were missed.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("region", { name: "Social platforms" }),
+    ).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Choose a project" }));
+    await user.click(screen.getByRole("option", { name: "Marketing" }));
+    expect(mocks.push).toHaveBeenCalledWith(
+      "/social?projectId=marketing&tab=attention",
+    );
+  });
+
   it("keeps an unavailable-project notice and provides a replacement picker", () => {
     setup({
       notice: "That project is no longer available. Choose another project.",

@@ -7,6 +7,7 @@ import {
   SOCIAL_TAB_TRIGGER_CLASS_NAME,
   SOCIAL_TABS,
   SOCIAL_TABS_LIST_CLASS_NAME,
+  type SocialTab,
 } from "@/app/projects/components/social-posts/constants";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
@@ -20,24 +21,17 @@ import { cn } from "@/lib/utils";
 
 import { SocialAccountsProjectPrompt } from "./social-accounts-project-prompt";
 
-const ALL_PROJECTS_TABS = [
-  "calendar",
-  "drafts",
-  "statistics",
-  "accounts",
-] as const;
-type AllProjectsTab = (typeof ALL_PROJECTS_TABS)[number];
-
-function isAllProjectsTab(value: string | null): value is AllProjectsTab {
-  return ALL_PROJECTS_TABS.some((candidate) => candidate === value);
+function isSocialTab(value: string): value is SocialTab {
+  return SOCIAL_TABS.some((candidate) => candidate === value);
 }
 
 /**
  * Social's tab row on the all-projects view, the same row a project gets.
  *
- * The calendar spans every project. Drafts and accounts belong to one
- * project, so their tabs ask for one rather than disappear: a reader who
- * lands here still sees what Social holds and where to go for it.
+ * The calendar spans every project. Drafts, Needs attention, Performance and
+ * accounts belong to one project, so their tabs ask for one rather than
+ * disappear: a reader who lands here still sees what Social holds and where
+ * to go for it.
  */
 export function SocialAllProjectsTabs({
   actions,
@@ -54,9 +48,7 @@ export function SocialAllProjectsTabs({
     "tab",
     parseAsStringLiteral(SOCIAL_TABS),
   );
-  const tab: AllProjectsTab = isAllProjectsTab(tabParam)
-    ? tabParam
-    : "calendar";
+  const tab = tabParam ?? "calendar";
 
   return (
     <Tabs
@@ -64,7 +56,7 @@ export function SocialAllProjectsTabs({
       data-testid="social-all-projects-tabs"
       value={tab}
       onValueChange={(value) => {
-        if (!isAllProjectsTab(value)) return;
+        if (!isSocialTab(value)) return;
         // The first tab is the default, so it keeps the URL clean.
         void setTabParam(value === "calendar" ? null : value);
       }}
@@ -77,7 +69,7 @@ export function SocialAllProjectsTabs({
             SOCIAL_TABS_LIST_CLASS_NAME,
           )}
         >
-          {ALL_PROJECTS_TABS.map((candidate) => (
+          {SOCIAL_TABS.map((candidate) => (
             <TabsTrigger
               key={candidate}
               className={cn(
@@ -96,7 +88,7 @@ export function SocialAllProjectsTabs({
 
       <TabsContent className="space-y-4" value="calendar">
         {/* The calendar shows every project's posts as they are; picking a
-            project is asked for where it is needed, on Drafts and Accounts.
+            project is asked for where it is needed, on the other tabs.
             Not `notFound()` for a lost id: it came from a switchable scope,
             not from the path, so the repair is to pick another project. */}
         {notice ? <SocialAccountsProjectPrompt notice={notice} /> : null}
@@ -104,6 +96,9 @@ export function SocialAllProjectsTabs({
       </TabsContent>
       <TabsContent value="drafts">
         <SocialAccountsProjectPrompt kind="drafts" />
+      </TabsContent>
+      <TabsContent value="attention">
+        <SocialAccountsProjectPrompt kind="attention" notice={notice} />
       </TabsContent>
       <TabsContent value="statistics">
         <SocialAccountsProjectPrompt kind="statistics" notice={notice} />

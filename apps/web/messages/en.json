@@ -3079,6 +3079,10 @@
         "title": "Connect your social accounts",
         "body": "Bring your channels together. Choose a project to connect accounts, then draft, schedule, and publish your posts."
       },
+      "attentionNeedProject": {
+        "title": "Needs attention",
+        "body": "Choose a project to see posts that failed or were missed."
+      },
       "draftsNeedProject": {
         "title": "Drafts",
         "body": "Choose a project to see and finish its drafts."
