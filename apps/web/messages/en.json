@@ -2594,6 +2594,10 @@
           "instagram": {
             "more": "more",
             "mediaRequired": "Instagram needs an image or video."
+          },
+          "tiktok": {
+            "more": "more",
+            "videoRequired": "TikTok needs a video."
           }
         },
         "statistics": {

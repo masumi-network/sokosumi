@@ -28,6 +28,15 @@ const IMAGE: SocialPostMediaRef = {
   kind: "image",
 };
 
+const VIDEO: SocialPostMediaRef = {
+  pathname: "drive/a.mp4",
+  fileUrl: "https://store.public.blob.vercel-storage.com/drive/a.mp4",
+  name: "a.mp4",
+  size: 20,
+  mimeType: "video/mp4",
+  kind: "video",
+};
+
 describe("SocialPostPreview", () => {
   it("renders an X post with name, handle, and highlighted tags and links", () => {
     render(
@@ -127,7 +136,29 @@ describe("SocialPostPreview", () => {
     ).toHaveLength(2);
   });
 
-  it("uses the generic card for networks without a native layout", () => {
+  it("renders a TikTok clip with handle, tags, and a 9:16 frame", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="tiktok"
+        text="Launch day #sokosumi https://www.example.com/clip"
+        timestamp={null}
+      />,
+    );
+
+    const preview = screen.getByTestId("social-post-preview");
+    expect(preview).toHaveAttribute("data-provider", "tiktok");
+    expect(within(preview).getByText("@sokosumi")).toBeVisible();
+    expect(within(preview).getByText("#sokosumi")).toHaveClass("font-semibold");
+    expect(within(preview).getByText("example.com/clip")).toBeVisible();
+    expect(preview.querySelector("video")).toHaveAttribute(
+      "src",
+      VIDEO.fileUrl,
+    );
+  });
+
+  it("asks for a video when TikTok has no media", () => {
     render(
       <SocialPostPreview
         account={ACCOUNT}
@@ -138,10 +169,43 @@ describe("SocialPostPreview", () => {
       />,
     );
 
+    expect(screen.getByText("tiktok.videoRequired")).toBeVisible();
+  });
+
+  it("folds long TikTok caption behind more", async () => {
+    const user = userEvent.setup();
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="tiktok"
+        text={"word ".repeat(40)}
+        timestamp={null}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "tiktok.more" }));
+
+    expect(
+      screen.queryByRole("button", { name: "tiktok.more" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("uses the generic card for networks without a native layout", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="facebook"
+        text="Hello"
+        timestamp={null}
+      />,
+    );
+
     expect(screen.getByTestId("social-post-preview")).toHaveAttribute(
       "data-provider",
-      "tiktok",
+      "facebook",
     );
-    expect(screen.getByText("Clip")).toBeVisible();
+    expect(screen.getByText("Hello")).toBeVisible();
   });
 });
