@@ -299,7 +299,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       <div role="status" className="text-muted-foreground text-sm">
         {query.isPending ? t("loading") : ""}
       </div>
-      {query.isError ? (
+      {query.isError && !query.isFetchNextPageError ? (
         <div role="alert" className="flex flex-wrap items-center gap-3">
           <p className="text-sm">{t("loadFailed")}</p>
           <Button
@@ -583,13 +583,20 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
           ))}
         </ul>
         {query.hasNextPage && validRange ? (
-          <Button
-            variant="outline"
-            loading={query.isFetchingNextPage}
-            onClick={() => void query.fetchNextPage()}
-          >
-            {t("loadMore")}
-          </Button>
+          <div className="space-y-3">
+            {query.isFetchNextPageError ? (
+              <p className="text-sm" role="alert">
+                {t("loadMoreError")}
+              </p>
+            ) : null}
+            <Button
+              variant="outline"
+              loading={query.isFetchingNextPage}
+              onClick={() => void query.fetchNextPage()}
+            >
+              {t("loadMore")}
+            </Button>
+          </div>
         ) : null}
       </section>
     </section>

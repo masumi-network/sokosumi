@@ -2641,6 +2641,7 @@
           "empty": "Ninguna publicación importada coincide con estos filtros. Sincroniza una cuenta o borra los filtros.",
           "refresh": "Actualizar estadísticas",
           "loadMore": "Cargar más publicaciones",
+          "loadMoreError": "No se pudieron cargar más.",
           "unavailable": "No disponible",
           "notFetched": "Todavía no se han obtenido estadísticas.",
           "updatedAt": "Actualizadas el {date}",

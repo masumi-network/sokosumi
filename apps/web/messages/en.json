@@ -2641,6 +2641,7 @@
           "empty": "No imported posts match these filters. Sync an account or clear the filters.",
           "refresh": "Refresh statistics",
           "loadMore": "Load more posts",
+          "loadMoreError": "Couldn't load more.",
           "unavailable": "Unavailable",
           "notFetched": "Statistics have not been fetched.",
           "updatedAt": "Updated {date}",

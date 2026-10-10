@@ -302,6 +302,32 @@ describe("SocialPostStatistics account history", () => {
       ).searchParams.get("cursor"),
     ).toBe("next-post");
   });
+  it("shows an inline error when loading more posts fails", async () => {
+    mocks.fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => page("next-post") })
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ...page(),
+          posts: [{ ...post, id: "post-2", text: "Second external post" }],
+        }),
+      });
+    renderStatistics();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Load more posts" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't load more.",
+    );
+    expect(
+      screen.queryByText("Failed to load statistics"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(post.text)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Load more posts" }));
+    expect(await screen.findByText("Second external post")).toBeVisible();
+    expect(screen.queryByText("Couldn't load more.")).not.toBeInTheDocument();
+  });
   it("enqueues one refresh per account and never walks history in the browser", async () => {
     mocks.refresh
       .mockResolvedValueOnce(response(account, "provider-page-2"))
