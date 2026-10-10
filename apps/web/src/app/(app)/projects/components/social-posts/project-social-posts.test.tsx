@@ -789,6 +789,36 @@ describe("ProjectSocialPosts", () => {
     ).toBeInTheDocument();
   });
 
+  it("says why Post now is off when the draft is empty", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const postNow = within(dialog).getByRole("button", { name: "Post now" });
+    const trigger = postNow.parentElement;
+    if (!trigger) throw new Error("Post now has no tooltip trigger");
+    expect(postNow).toBeDisabled();
+    expect(postNow).toHaveAttribute("aria-describedby");
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+    trigger.focus();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Add text or media.",
+    );
+
+    await user.hover(trigger);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Add text or media.",
+    );
+  });
+
   it("names every selected network that still needs text or media", async () => {
     const user = userEvent.setup();
     render(
@@ -808,18 +838,46 @@ describe("ProjectSocialPosts", () => {
 
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
-    expect(
-      within(dialog).getByTestId("social-post-requirement-hint"),
-    ).toHaveTextContent("Add text or media.");
-
     await user.click(
       within(dialog).getByRole("button", { name: "Instagram @sokosumi.ig" }),
     );
-    const hint = within(dialog).getByTestId("social-post-requirement-hint");
-    expect(hint).toHaveTextContent("Add text or media.");
-    expect(hint).toHaveTextContent(
+    const postNow = within(dialog).getByRole("button", { name: "Post now" });
+    const trigger = postNow.parentElement;
+    if (!trigger) throw new Error("Post now has no tooltip trigger");
+
+    trigger.focus();
+    const focused = await screen.findByRole("tooltip");
+    expect(focused).toHaveTextContent("Add text or media.");
+    expect(focused).toHaveTextContent(
       "Instagram requires at least one image or video.",
     );
+
+    await user.hover(trigger);
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Add text or media.");
+    expect(tooltip).toHaveTextContent(
+      "Instagram requires at least one image or video.",
+    );
+  });
+
+  it("hides the Post now hint once the draft can post", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.keyboard("Hello");
+    const postNow = within(dialog).getByRole("button", { name: "Post now" });
+    expect(postNow).toBeEnabled();
+    expect(postNow).not.toHaveAttribute("aria-describedby");
+    await user.hover(postNow);
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
   it("opens the composer from New post and blocks over-limit text", async () => {

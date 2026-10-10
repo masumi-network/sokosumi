@@ -24,6 +24,11 @@ import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   type ActionError,
@@ -116,6 +121,7 @@ export function SocialPostComposerDialog({
   const accountsLabelId = useId();
   const scheduledAtId = useId();
   const scheduledAtErrorId = useId();
+  const publishHintId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadInFlightRef = useRef(false);
@@ -651,19 +657,42 @@ export function SocialPostComposerDialog({
     <p id={scheduledAtErrorId} className="text-destructive">
       {t("composer.scheduledAtTooSoon")}
     </p>
-  ) : requirementHints.length > 0 && !isScheduleOnly ? (
-    <div data-testid="social-post-requirement-hint">
-      {requirementHints.map(({ provider: neededBy, issue }) => (
-        <p key={`${neededBy}-${issue}`}>
-          {t(`composer.requirements.${issue}`, {
-            provider: socialPostProviderLabel(neededBy),
-          })}
-        </p>
-      ))}
-    </div>
   ) : needsAccount ? (
     <p>{t("composer.pickAccount")}</p>
   ) : null;
+  const requirementHintLines = requirementHints.map(
+    ({ provider: neededBy, issue }) => ({
+      key: `${neededBy}-${issue}`,
+      text: t(`composer.requirements.${issue}`, {
+        provider: socialPostProviderLabel(neededBy),
+      }),
+    }),
+  );
+  // Post now is off because the draft still needs text or media. The
+  // disabled button ignores pointer events, so the tooltip lives on a
+  // focusable wrapper.
+  const showPublishRequirementHint =
+    primaryAction === "publish" &&
+    !primaryEnabled &&
+    requirementHintLines.length > 0;
+  const primaryButton = (
+    <Button
+      type="button"
+      className="min-w-28"
+      disabled={!primaryEnabled}
+      loading={pending === primaryAction}
+      onClick={runPrimary}
+      aria-describedby={showPublishRequirementHint ? publishHintId : undefined}
+    >
+      {primaryLabel}
+      <kbd
+        aria-hidden
+        className="hidden font-sans text-xs opacity-70 sm:inline"
+      >
+        ⌘↵
+      </kbd>
+    </Button>
+  );
 
   return (
     <TaskFormModal
@@ -999,21 +1028,27 @@ export function SocialPostComposerDialog({
                 {saveLabel}
               </Button>
             ) : null}
-            <Button
-              type="button"
-              className="min-w-28"
-              disabled={!primaryEnabled}
-              loading={pending === primaryAction}
-              onClick={runPrimary}
-            >
-              {primaryLabel}
-              <kbd
-                aria-hidden
-                className="hidden font-sans text-xs opacity-70 sm:inline"
-              >
-                ⌘↵
-              </kbd>
-            </Button>
+            {showPublishRequirementHint ? (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span tabIndex={0} className="inline-flex">
+                      {primaryButton}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {requirementHintLines.map((line) => (
+                      <p key={line.key}>{line.text}</p>
+                    ))}
+                  </TooltipContent>
+                </Tooltip>
+                <span className="sr-only" id={publishHintId}>
+                  {requirementHintLines.map((line) => line.text).join(" ")}
+                </span>
+              </>
+            ) : (
+              primaryButton
+            )}
           </div>
         </div>
       </div>

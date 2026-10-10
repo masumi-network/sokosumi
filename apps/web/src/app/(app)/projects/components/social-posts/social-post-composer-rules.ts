@@ -16,7 +16,7 @@ export type SocialPostComposerIssue =
   | "video_required"
   | SocialPostMediaValidationReason;
 
-/** Missing content the footer can name; media-type failures toast instead. */
+/** Missing content the Post now tooltip can name; media-type failures toast instead. */
 export type SocialPostComposerRequirementIssue = Extract<
   SocialPostComposerIssue,
   | "text_required"
