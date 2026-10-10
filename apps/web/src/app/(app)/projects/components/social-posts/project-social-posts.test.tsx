@@ -151,6 +151,12 @@ const MESSAGES: Record<string, string> = {
   "composer.account": "Account",
   "composer.accounts": "Post to",
   "composer.publishNow": "Post now",
+  "composer.pickAccount": "Pick an account to post to.",
+  "composer.requirements.text_or_media_required": "Add text or media.",
+  "composer.requirements.text_required": "{provider} requires text.",
+  "composer.requirements.media_required":
+    "{provider} requires at least one image or video.",
+  "composer.requirements.video_required": "{provider} requires a video.",
   "toasts.publishedMany": "Post published.",
   "composer.platforms": "Limits per platform",
   "composer.platformLimit": "{provider} {format} · {count} / {limit}",
@@ -781,6 +787,39 @@ describe("ProjectSocialPosts", () => {
         name: "New post",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("names every selected network that still needs text or media", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-ig",
+            provider: "instagram",
+            externalHandle: "sokosumi.ig",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByTestId("social-post-requirement-hint"),
+    ).toHaveTextContent("Add text or media.");
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Instagram @sokosumi.ig" }),
+    );
+    const hint = within(dialog).getByTestId("social-post-requirement-hint");
+    expect(hint).toHaveTextContent("Add text or media.");
+    expect(hint).toHaveTextContent(
+      "Instagram requires at least one image or video.",
+    );
   });
 
   it("opens the composer from New post and blocks over-limit text", async () => {
