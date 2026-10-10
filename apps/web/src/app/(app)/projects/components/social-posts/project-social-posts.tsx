@@ -71,6 +71,7 @@ import {
   SOCIAL_TABS,
   type SocialTab,
 } from "./constants";
+import { socialPostAccountLabel } from "./social-post-account-label";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
 import { SocialPostStatistics } from "./social-post-statistics";
@@ -111,11 +112,6 @@ function sectionOf(post: SocialPost): SectionKey | undefined {
 
 function sortSection(posts: SocialPost[]): SocialPost[] {
   return [...posts].sort((a, b) => timeOf(b.updatedAt) - timeOf(a.updatedAt));
-}
-
-function formatHandle(handle: string | null): string | null {
-  if (!handle) return null;
-  return handle.startsWith("@") ? handle : `@${handle}`;
 }
 
 function isRevisionConflict(error: ActionError): boolean {
@@ -484,7 +480,10 @@ export function ProjectSocialPosts({
   }
 
   function renderPost(post: SocialPost) {
-    const handle = formatHandle(post.socialConnection?.externalHandle ?? null);
+    const accountLabel = socialPostAccountLabel(
+      post.socialConnection,
+      t("noAccount"),
+    );
     const creatorLabel = post.creator.name
       ? `${t(`creator.${post.creator.kind}`)} · ${post.creator.name}`
       : t(`creator.${post.creator.kind}`);
@@ -522,7 +521,7 @@ export function ProjectSocialPosts({
                 })}
               </time>
             ) : null}
-            <span className="min-w-0 truncate">{handle ?? t("noAccount")}</span>
+            <span className="min-w-0 truncate">{accountLabel}</span>
             <SocialPostStatusBadge
               className="order-first"
               label={t(`status.${post.status}`)}
