@@ -2526,7 +2526,7 @@
           "formats": {
             "post": "post",
             "mediaPost": "image or video post",
-            "video": "video (text is the title and description)"
+            "video": "video"
           },
           "publishNow": "Post now",
           "when": "When",
