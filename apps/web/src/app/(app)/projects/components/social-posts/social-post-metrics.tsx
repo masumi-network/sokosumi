@@ -21,6 +21,12 @@ export function SocialPostMetrics({
 }) {
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const formatter = useFormatter();
+  const entries = SOCIAL_METRIC_KEYS.flatMap((key) => {
+    const value = statistics?.metrics[key];
+    if (compact && value == null) return [];
+    return [{ key, value }];
+  });
+  if (compact && entries.length === 0) return null;
   return (
     <div className="space-y-2">
       <dl
@@ -30,33 +36,34 @@ export function SocialPostMetrics({
             : "grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6"
         }
       >
-        {SOCIAL_METRIC_KEYS.map((key) => {
-          const value = statistics?.metrics[key];
-          return (
-            <div key={key} className={compact ? "flex gap-1" : "space-y-1"}>
-              <dt className="text-muted-foreground">{t(`metrics.${key}`)}</dt>
-              <dd className="font-medium tabular-nums">
-                {value == null ? t("unavailable") : formatter.number(value)}
-              </dd>
-            </div>
-          );
-        })}
+        {entries.map(({ key, value }) => (
+          <div key={key} className={compact ? "flex gap-1" : "space-y-1"}>
+            <dt className="text-muted-foreground">{t(`metrics.${key}`)}</dt>
+            <dd className="font-medium tabular-nums">
+              {value == null ? t("unavailable") : formatter.number(value)}
+            </dd>
+          </div>
+        ))}
       </dl>
-      <p className="text-muted-foreground text-xs">
-        {statistics?.fetchedAt
-          ? t("updatedAt", {
-              date: formatter.dateTime(
-                new Date(statistics.fetchedAt),
-                "dateTime",
-              ),
-            })
-          : t("notFetched")}
-      </p>
-      {statistics?.error ? (
-        <p role="status" className="text-semantic-warning text-xs">
-          {t("refreshFailed")}
-        </p>
-      ) : null}
+      {compact ? null : (
+        <>
+          <p className="text-muted-foreground text-xs">
+            {statistics?.fetchedAt
+              ? t("updatedAt", {
+                  date: formatter.dateTime(
+                    new Date(statistics.fetchedAt),
+                    "dateTime",
+                  ),
+                })
+              : t("notFetched")}
+          </p>
+          {statistics?.error ? (
+            <p role="status" className="text-semantic-warning text-xs">
+              {t("refreshFailed")}
+            </p>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
