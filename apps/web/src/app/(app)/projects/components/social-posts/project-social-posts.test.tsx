@@ -189,6 +189,8 @@ const MESSAGES: Record<string, string> = {
   "toasts.conflict":
     "This post was changed elsewhere. Reloading the latest version.",
   "toasts.failed": "Something went wrong. Try again.",
+  "toasts.offline": "You're offline. Try again.",
+  "toasts.timeout": "Timed out. Try again.",
   "composer.scheduledAtTooSoon": "Choose a time at least one minute from now.",
   "composer.timezone.yours": "Times are in your time zone, {zone}.",
   "composer.timezone.goesOut": "Goes out {date}, your time ({zone}).",
@@ -506,6 +508,10 @@ function render(ui: React.ReactElement) {
 describe("ProjectSocialPosts", () => {
   afterEach(() => {
     vi.useRealTimers();
+    Object.defineProperty(navigator, "onLine", {
+      configurable: true,
+      value: true,
+    });
   });
 
   beforeEach(() => {
@@ -2477,6 +2483,58 @@ describe("ProjectSocialPosts", () => {
       ),
     );
     expect(screen.getByRole("dialog")).toBeVisible();
+  });
+
+  it("toasts an offline message when saving a draft while disconnected", async () => {
+    Object.defineProperty(navigator, "onLine", {
+      configurable: true,
+      value: false,
+    });
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost).mockRejectedValue(
+      new Error("Failed to fetch"),
+    );
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Fresh");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("You're offline. Try again."),
+    );
+  });
+
+  it("toasts a timeout when loading more drafts takes too long", async () => {
+    const user = userEvent.setup();
+    const timeout = new Error("The operation timed out");
+    timeout.name = "TimeoutError";
+    vi.mocked(loadMoreSocialPosts).mockRejectedValue(timeout);
+    render(
+      <ProjectSocialPosts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        nextCursors={{ drafts: "drafts-cursor" }}
+      />,
+    );
+
+    await openTab(user, "Drafts");
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("Timed out. Try again."),
+    );
+    expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
   });
 
   it("shows the fallback error when scheduling rejects", async () => {

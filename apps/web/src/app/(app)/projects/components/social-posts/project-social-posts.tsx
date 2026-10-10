@@ -122,6 +122,21 @@ function isRevisionConflict(error: ActionError): boolean {
   return error.kind === CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT;
 }
 
+function isBrowserOffline(): boolean {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+function isTimeoutRejection(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const name = "name" in error ? error.name : undefined;
+  if (name === "AbortError" || name === "TimeoutError") return true;
+  const message =
+    "message" in error && typeof error.message === "string"
+      ? error.message.toLowerCase()
+      : "";
+  return message.includes("timed out") || message.includes("timeout");
+}
+
 function upsertPost(posts: SocialPost[], next: SocialPost): SocialPost[] {
   const index = posts.findIndex((post) => post.id === next.id);
   if (index === -1) return [next, ...posts];
@@ -248,7 +263,7 @@ export function ProjectSocialPosts({
     void setTabParam(next);
   }
 
-  function handleActionError(error: ActionError): void {
+  function handleActionError(error: ActionError, cause?: unknown): void {
     if (error.code === CommonErrorCode.UNAUTHENTICATED) {
       toast.error(t("toasts.unauthenticated"), {
         action: {
@@ -267,6 +282,14 @@ export function ProjectSocialPosts({
       router.refresh();
       return;
     }
+    if (isBrowserOffline()) {
+      toast.error(t("toasts.offline"));
+      return;
+    }
+    if (isTimeoutRejection(cause)) {
+      toast.error(t("toasts.timeout"));
+      return;
+    }
     toast.error(error.message || t("toasts.failed"));
   }
 
@@ -280,8 +303,14 @@ export function ProjectSocialPosts({
       if (sourceRef.current !== source) return;
       setPosts((current) => page.posts.reduce(upsertPost, current));
       setCursors((current) => ({ ...current, [section]: page.nextCursor }));
-    } catch {
-      toast.error(t("toasts.failed"));
+    } catch (error) {
+      toast.error(
+        isBrowserOffline()
+          ? t("toasts.offline")
+          : isTimeoutRejection(error)
+            ? t("toasts.timeout")
+            : t("toasts.failed"),
+      );
     } finally {
       setLoadingSection(null);
     }
@@ -313,7 +342,7 @@ export function ProjectSocialPosts({
       toast.success(t("toasts.canceled"));
       handleSaved(result.value);
     } catch (error) {
-      handleActionError(toActionRejectionError(error));
+      handleActionError(toActionRejectionError(error), error);
     } finally {
       setCancelPending(false);
       setCancelTarget(null);
@@ -347,6 +376,8 @@ export function ProjectSocialPosts({
       } else {
         toast.error(t("toasts.failed"));
       }
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
     } finally {
       setPublishPending(false);
       setPublishTarget(null);
