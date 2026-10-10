@@ -2,9 +2,8 @@ import CoreAPI
 import SokosumiChat
 import SwiftUI
 
-/// Web's `max-w-xl`: a card stops growing at 576 pt.
 let resultCardMaxWidth: CGFloat = 576
-/// Web's `max-w-sm` for a result drawn as a Task card (row 38f).
+/// For a result drawn as a Task card (row 38f).
 private let taskResultCardMaxWidth: CGFloat = 384
 
 /// Web `ResultPreviewCard`: the project picker, the decision card, the social post preview, the generic card, or the
@@ -112,7 +111,7 @@ private struct GenericResultCard: View {
       }
       .font(.caption)
     }
-    // Around a Task card web drops the result's own border and padding and narrows it to `max-w-sm`.
+    // Around a Task card web drops the result's own border and padding and narrows it.
     .padding(card.task == nil ? 16 : 0)
     .frame(maxWidth: card.task == nil ? resultCardMaxWidth : taskResultCardMaxWidth, alignment: .leading)
     .background {
@@ -141,13 +140,13 @@ private struct GenericResultCard: View {
     HStack(alignment: .top, spacing: 12) {
       HStack(spacing: 8) {
         if let actor = card.actor {
-          // Web `AssigneeAvatar` at size lg; its image is named like web's `alt`. A Soko Bot without an image gets
+          // Web `AssigneeAvatar`; its image is named like web's `alt`. A Soko Bot without an image gets
           // initials, not web's orb (excluded since row 38).
           ParticipantAvatar(imageURL: actor.imageURL, name: actor.name, size: 32)
             .accessibilityElement()
             .accessibilityLabel(actor.name)
         } else if let agent = card.agentName {
-          // Web `AgentIcon` at size-8; an icon this view cannot draw falls back to the agent's initials.
+          // Web `AgentIcon`; an icon this view cannot draw falls back to the agent's initials.
           ParticipantAvatar(imageURL: card.agentIconURL, name: agent, size: 32)
             .accessibilityHidden(true)
         } else {
@@ -201,7 +200,7 @@ private struct GenericResultCard: View {
   }
 }
 
-/// Web `ProjectAvatar` at `size-5 rounded-sm` beside the project row: the logo, loaded like a participant's
+/// Web `ProjectAvatar` beside the project row: the logo, loaded like a participant's
 /// photo (a public URL), else the name's initial on a muted square. Decorative, like web's empty `alt`.
 struct ProjectMarkView: View {
   let mark: ResultPreviewCard.ProjectMark

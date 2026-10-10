@@ -18,7 +18,6 @@ struct ResultSocialPostView: View {
       // The pictures' frames follow the width, never the height on offer.
       .fixedSize(horizontal: false, vertical: true)
       .frame(maxWidth: .infinity, alignment: .leading)
-      // Web `bg-background rounded-xl border overflow-hidden`, at the result card's `max-w-xl`.
       .background(.background)
       .clipShape(.rect(cornerRadius: 12))
       .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.primary.opacity(0.12)))
@@ -378,7 +377,7 @@ private struct SocialPostMediaGrid: View {
 /// watches it. Web draws both and opens neither.
 private struct SocialPostMediaCell: View {
   let media: ResultSocialPost.Media
-  /// A lone picture: its own proportions, at most 512 pt high (web `max-h-[32rem]` over the card's 576 pt).
+  /// A lone picture: its own proportions, at most 512 pt high over the card's 576 pt.
   var keepsProportions = false
   @Environment(\.resultOutputLoader) private var loader
   @Environment(\.resultOutputPresenter) private var presenter
