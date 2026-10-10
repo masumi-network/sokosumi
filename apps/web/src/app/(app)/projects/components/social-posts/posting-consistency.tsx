@@ -27,7 +27,15 @@ const LEVEL_CLASS = [
 
 const WEEKDAY_ROWS = [1, 3, 5] as const;
 
-export function PostingConsistency({ days }: { days: ActivityDay[] }) {
+export function PostingConsistency({
+  days,
+  selectedFrom,
+  selectedUntil,
+}: {
+  days: ActivityDay[];
+  selectedFrom: string | null;
+  selectedUntil: string | null;
+}) {
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const format = useFormatter();
   const [mode, setMode] = useState<ActivityMode>("posts");
@@ -109,6 +117,8 @@ export function PostingConsistency({ days }: { days: ActivityDay[] }) {
             : t("performance.consistencySummary", {
                 posts: totals.posts,
                 active: totals.active,
+                from: formatDay(filled[0]?.date ?? ""),
+                until: formatDay(filled.at(-1)?.date ?? ""),
               })}
         </p>
         {filled.length > 0 ? (
@@ -135,10 +145,9 @@ export function PostingConsistency({ days }: { days: ActivityDay[] }) {
       {weeks.length > 0 ? (
         <div className="overflow-x-auto" ref={scroller}>
           <div
-            className="grid gap-1"
+            className="grid w-max gap-1"
             style={{
-              gridTemplateColumns: `2rem repeat(${weeks.length}, minmax(0, 1fr))`,
-              minWidth: `${32 + weeks.length * 15}px`,
+              gridTemplateColumns: `2rem repeat(${weeks.length}, 1rem)`,
             }}
             aria-hidden="true"
           >
@@ -174,9 +183,15 @@ export function PostingConsistency({ days }: { days: ActivityDay[] }) {
             })}
             {weeks.map((week, column) =>
               week.map((day, row) => {
-                const level = day.inRange
+                const measured = day.inRange
                   ? activityLevel(day, mode, max)
-                  : null;
+                  : 0;
+                const selected =
+                  day.inRange &&
+                  selectedFrom != null &&
+                  selectedUntil != null &&
+                  day.date >= selectedFrom &&
+                  day.date <= selectedUntil;
                 return (
                   <span
                     key={day.date}
@@ -189,11 +204,8 @@ export function PostingConsistency({ days }: { days: ActivityDay[] }) {
                     }
                     className={cn(
                       "aspect-square w-full rounded-xs",
-                      day.inRange
-                        ? level == null
-                          ? "border-border border border-dashed"
-                          : LEVEL_CLASS[level]
-                        : undefined,
+                      LEVEL_CLASS[measured ?? 0],
+                      selected && "ring-ring ring-1 ring-inset",
                     )}
                     style={{ gridColumn: column + 2, gridRow: row + 2 }}
                   />

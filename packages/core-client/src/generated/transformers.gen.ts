@@ -2734,6 +2734,22 @@ export const getProjectsByIdSocialConnectionsStatisticsResponseTransformer = asy
     return data;
 };
 
+const socialPerformanceConsistencySchemaResponseTransformer = (data: any) => {
+    if (data.from) {
+        data.from = new Date(data.from);
+    }
+    if (data.until) {
+        data.until = new Date(data.until);
+    }
+    data.selectedFrom = new Date(data.selectedFrom);
+    data.selectedUntil = new Date(data.selectedUntil);
+    data.daily = data.daily.map((item: any) => {
+        item.date = new Date(item.date);
+        return item;
+    });
+    return data;
+};
+
 const socialPerformancePostSchemaResponseTransformer = (data: any) => {
     data = socialAccountPostSchemaResponseTransformer(data);
     return data;
@@ -2749,6 +2765,7 @@ const socialPerformanceResponseSchemaResponseTransformer = (data: any) => {
         item.date = new Date(item.date);
         return item;
     });
+    data.consistency = socialPerformanceConsistencySchemaResponseTransformer(data.consistency);
     data.followers = data.followers.map((item: any) => {
         item.points = item.points.map((item: any) => {
             item.date = new Date(item.date);
@@ -4195,6 +4212,7 @@ const workspaceSocialPerformanceResponseSchemaResponseTransformer = (data: any) 
         item.date = new Date(item.date);
         return item;
     });
+    data.consistency = socialPerformanceConsistencySchemaResponseTransformer(data.consistency);
     data.followers = data.followers.map((item: any) => {
         item.points = item.points.map((item: any) => {
             item.date = new Date(item.date);

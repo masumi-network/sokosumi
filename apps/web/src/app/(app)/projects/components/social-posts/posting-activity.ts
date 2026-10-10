@@ -10,13 +10,11 @@ export interface CalendarCell {
   date: string;
   posts: number;
   engagement: number | null;
-  /** False outside the daily series. Those cells are blank and uncounted. */
+  /** False for week padding outside the collected series. Drawn empty, uncounted. */
   inRange: boolean;
 }
 
 const LEVELS = 4;
-/** GitHub-style year: 53 Sunday-start weeks ending on the series' last day. */
-export const CONTRIBUTION_WEEKS = 53;
 const SPARKLINE_DAILY_LIMIT = 16;
 const SPARKLINE_BUCKET_DAYS = 7;
 
@@ -72,22 +70,23 @@ export function postingStreaks(days: ActivityDay[]): {
 }
 
 /**
- * Fixed recent window, not the publication span. Days outside the series stay
- * blank so a short range does not invent a year of posts.
+ * Sunday-start weeks covering the series. Weeks before the first day are omitted.
  */
-export function contributionCalendar(
-  days: ActivityDay[],
-  weeks = CONTRIBUTION_WEEKS,
-): CalendarCell[][] {
+export function contributionCalendar(days: ActivityDay[]): CalendarCell[][] {
   const filled = fillActivityRange(days);
   const rangeStart = filled[0]?.date;
   const rangeEnd = filled.at(-1)?.date;
-  if (!rangeStart || !rangeEnd || weeks <= 0) return [];
+  if (!rangeStart || !rangeEnd) return [];
+  const startSunday = addDays(
+    utcDate(rangeStart),
+    -utcDate(rangeStart).getUTCDay(),
+  );
   const endSunday = addDays(utcDate(rangeEnd), -utcDate(rangeEnd).getUTCDay());
-  const startSunday = addDays(endSunday, -(weeks - 1) * 7);
+  const weekCount =
+    Math.round((endSunday.getTime() - startSunday.getTime()) / 604_800_000) + 1;
   const byDate = new Map(filled.map((day) => [day.date, day]));
   const columns: CalendarCell[][] = [];
-  for (let week = 0; week < weeks; week += 1) {
+  for (let week = 0; week < weekCount; week += 1) {
     const column: CalendarCell[] = [];
     for (let row = 0; row < 7; row += 1) {
       const date = addDays(startSunday, week * 7 + row)

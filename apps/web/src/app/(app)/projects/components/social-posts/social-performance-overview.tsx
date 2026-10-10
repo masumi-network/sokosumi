@@ -32,6 +32,11 @@ import { ACCOUNT_METRIC_LABELS } from "./social-post-metrics";
 
 type TrendMetric = "interactions" | "impressions" | "views" | "postCount";
 
+function calendarDay(value: string | Date): string {
+  const day = typeof value === "string" ? value : value.toISOString();
+  return day.slice(0, 10);
+}
+
 interface TrendPoint {
   date: string | Date;
   value: number | null;
@@ -501,14 +506,13 @@ export function SocialPerformanceOverview({
         </details>
       </section>
       <PostingConsistency
-        days={data.daily.map((day) => ({
-          date: (typeof day.date === "string"
-            ? day.date
-            : day.date.toISOString()
-          ).slice(0, 10),
-          posts: day.summary.postCount,
-          engagement: day.summary.interactions.total,
+        days={data.consistency.daily.map((day) => ({
+          date: calendarDay(day.date),
+          posts: day.postCount,
+          engagement: day.interactions,
         }))}
+        selectedFrom={calendarDay(data.consistency.selectedFrom)}
+        selectedUntil={calendarDay(data.consistency.selectedUntil)}
       />
       {/* Trend section - always visible, streamlined */}
       <section

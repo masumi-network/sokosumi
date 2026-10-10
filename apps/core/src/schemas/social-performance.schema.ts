@@ -153,6 +153,21 @@ export const socialPerformanceResponseSchema = z
       }),
     }),
     daily: z.array(z.object({ date, summary: socialPerformanceSummarySchema })),
+    consistency: z
+      .object({
+        from: date.nullable(),
+        until: date.nullable(),
+        selectedFrom: date,
+        selectedUntil: date,
+        daily: z.array(
+          z.object({
+            date,
+            postCount: count,
+            interactions: nullableNumber,
+          }),
+        ),
+      })
+      .openapi("SocialPerformanceConsistency"),
     comparisons: z.object({
       accounts: z.array(
         z.object({

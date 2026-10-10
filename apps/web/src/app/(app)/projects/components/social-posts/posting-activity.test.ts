@@ -51,14 +51,16 @@ describe("posting consistency", () => {
     expect(contributionCalendar([])).toEqual([]);
   });
 
-  it("frames a year of Sundays and counts only the publication range", () => {
+  it("starts at the first collected week and leaves earlier months out", () => {
     const weeks = contributionCalendar(days);
-    expect(weeks).toHaveLength(53);
+    expect(weeks).toHaveLength(2);
+    expect(weeks[0]?.[0]?.date).toBe("2026-09-27");
     for (const week of weeks) {
       expect(week).toHaveLength(7);
       expect(new Date(`${week[0]?.date}T00:00:00Z`).getUTCDay()).toBe(0);
     }
     const cells = weeks.flat();
+    expect(cells.some((cell) => cell.date < "2026-09-27")).toBe(false);
     expect(cells.find((cell) => cell.date === "2026-10-01")).toMatchObject({
       inRange: true,
       posts: 1,
@@ -76,6 +78,36 @@ describe("posting consistency", () => {
       .reduce((sum, cell) => sum + cell.posts, 0);
     expect(counted).toBe(activityTotals(days).posts);
     expect(counted).toBe(4);
+  });
+
+  it("covers a full collected year without a week before the first day", () => {
+    const start = "2025-10-12";
+    const end = "2026-10-10";
+    const series: ActivityDay[] = [];
+    for (
+      let cursor = new Date(`${start}T12:00:00Z`);
+      cursor.toISOString().slice(0, 10) <= end;
+      cursor = new Date(cursor.getTime() + 86_400_000)
+    ) {
+      const date = cursor.toISOString().slice(0, 10);
+      series.push({
+        date,
+        posts: date === start || date === end ? 1 : 0,
+        engagement: 0,
+      });
+    }
+    const weeks = contributionCalendar(series);
+    const cells = weeks.flat();
+    expect(weeks[0]?.[0]?.date).toBe(start);
+    expect(new Date(`${start}T00:00:00Z`).getUTCDay()).toBe(0);
+    expect(cells.some((cell) => cell.date < start)).toBe(false);
+    expect(cells.filter((cell) => cell.inRange)).toHaveLength(series.length);
+    expect(
+      cells
+        .filter((cell) => cell.inRange)
+        .reduce((sum, cell) => sum + cell.posts, 0),
+    ).toBe(2);
+    expect(weeks.length).toBeGreaterThan(50);
     const months = calendarMonthStarts(weeks);
     expect(months.length).toBeGreaterThan(10);
     for (let index = 1; index < months.length; index += 1) {
@@ -83,9 +115,6 @@ describe("posting consistency", () => {
         (months[index] ?? 0) - (months[index - 1] ?? 0),
       ).toBeGreaterThanOrEqual(2);
     }
-    expect(
-      weeks[months.at(-1) ?? 0]?.some((cell) => cell.date === "2026-10-01"),
-    ).toBe(true);
   });
 
   it("keeps unavailable engagement distinct from a measured zero", () => {

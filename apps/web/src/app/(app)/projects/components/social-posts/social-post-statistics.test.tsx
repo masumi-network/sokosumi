@@ -155,6 +155,13 @@ function page(offset: number | null = null) {
       },
     },
     daily: [{ date: "2026-10-01", summary }],
+    consistency: {
+      from: "2026-10-01",
+      until: "2026-10-08",
+      selectedFrom: "2026-09-09",
+      selectedUntil: "2026-10-08",
+      daily: [{ date: "2026-10-01", postCount: 1, interactions: null }],
+    },
     comparisons: { accounts: [], providers: [], formats: [] },
     heatmap: {
       timezone: "UTC",
@@ -377,7 +384,11 @@ describe("SocialPostStatistics account history", () => {
       );
     }
     const overview = screen.getByTestId("social-performance-overview");
-    expect(screen.getByText("1 post across 1 active day.")).toBeVisible();
+    expect(
+      screen.getByText(
+        "1 post across 1 active day from Oct 1, 2026 to Oct 1, 2026.",
+      ),
+    ).toBeVisible();
     expect(
       within(overview).getByRole("figure", { name: "Interactions" }),
     ).toBeVisible();

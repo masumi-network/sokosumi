@@ -90,6 +90,13 @@ const result = workspaceSocialPerformanceResponseSchema.parse({
     },
   },
   daily: [],
+  consistency: {
+    from: null,
+    until: null,
+    selectedFrom: "2026-10-01",
+    selectedUntil: "2026-10-07",
+    daily: [],
+  },
   comparisons: { accounts: [], providers: [], formats: [], projects: [] },
   heatmap: {
     timezone: "UTC",

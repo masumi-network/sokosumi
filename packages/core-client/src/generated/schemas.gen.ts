@@ -20484,6 +20484,9 @@ export const SocialPerformanceResponseSchema = {
                 ]
             }
         },
+        consistency: {
+            $ref: '#/components/schemas/SocialPerformanceConsistency'
+        },
         comparisons: {
             type: 'object',
             properties: {
@@ -20841,6 +20844,7 @@ export const SocialPerformanceResponseSchema = {
         'accounts',
         'summary',
         'daily',
+        'consistency',
         'comparisons',
         'heatmap',
         'followers',
@@ -21044,6 +21048,68 @@ export const SocialPerformanceRateSchema = {
         'mean',
         'median',
         'measuredPostCount'
+    ]
+} as const;
+
+export const SocialPerformanceConsistencySchema = {
+    type: 'object',
+    properties: {
+        from: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date'
+        },
+        until: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date'
+        },
+        selectedFrom: {
+            type: 'string',
+            format: 'date'
+        },
+        selectedUntil: {
+            type: 'string',
+            format: 'date'
+        },
+        daily: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    postCount: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    interactions: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'date',
+                    'postCount',
+                    'interactions'
+                ]
+            }
+        }
+    },
+    required: [
+        'from',
+        'until',
+        'selectedFrom',
+        'selectedUntil',
+        'daily'
     ]
 } as const;
 
@@ -29756,6 +29822,9 @@ export const WorkspaceSocialPerformanceResponseSchema = {
                 ]
             }
         },
+        consistency: {
+            $ref: '#/components/schemas/SocialPerformanceConsistency'
+        },
         comparisons: {
             type: 'object',
             properties: {
@@ -30299,6 +30368,7 @@ export const WorkspaceSocialPerformanceResponseSchema = {
         'accounts',
         'summary',
         'daily',
+        'consistency',
         'comparisons',
         'heatmap',
         'followers',
