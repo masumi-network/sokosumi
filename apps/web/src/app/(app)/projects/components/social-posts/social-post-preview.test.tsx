@@ -97,6 +97,25 @@ describe("SocialPostPreview", () => {
     );
   });
 
+  it("keeps a trailing period out of a mention", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Ping @alice. Next"
+        timestamp={null}
+      />,
+    );
+
+    const mention = screen.getByText("@alice");
+    expect(mention).toHaveClass("text-social-x-link");
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "Ping @alice. Next",
+    );
+    expect(mention).not.toHaveTextContent(".");
+  });
+
   it("keeps the X handle and time when the display name is long", () => {
     render(
       <SocialPostPreview

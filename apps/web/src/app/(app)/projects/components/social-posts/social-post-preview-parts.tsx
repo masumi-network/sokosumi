@@ -81,6 +81,16 @@ export function PreviewRichText({
     if (index % 2 === 0) {
       return <Fragment key={index}>{part}</Fragment>;
     }
+    if (part.startsWith("@")) {
+      const mention = part.replace(URL_TRAILING_PUNCT, "");
+      const trail = part.slice(mention.length);
+      return (
+        <Fragment key={index}>
+          <span className={linkClassName}>{mention}</span>
+          {trail}
+        </Fragment>
+      );
+    }
     if (part.startsWith("www.") || part.startsWith("http")) {
       const url = part.replace(URL_TRAILING_PUNCT, "");
       const trail = part.slice(url.length);
