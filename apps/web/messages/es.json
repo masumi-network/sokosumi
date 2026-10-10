@@ -2537,7 +2537,13 @@
           "connectAccount": "Conectar cuenta",
           "dismiss": "Cancelar",
           "previewEmpty": "Tu publicación aparece aquí mientras escribes.",
-          "pickAccount": "Elige una cuenta en la que publicar."
+          "pickAccount": "Elige una cuenta en la que publicar.",
+          "postNow": "Publicar ahora",
+          "scheduleLater": "Programar más tarde",
+          "scheduleComingSoon": "Programación próximamente",
+          "publishing": "Publicando...",
+          "post": "Publicar",
+          "selectAccount": "Selecciona al menos una cuenta"
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",

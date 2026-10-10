@@ -21,6 +21,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
+import { SimplifiedSocialComposer } from "@/app/projects/components/social-posts/simplified-social-composer";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
@@ -762,29 +763,45 @@ export function ProjectSocialPosts({
       ) : null}
 
       {composerMode ? (
-        <SocialPostComposerDialog
-          connections={connections}
-          mode={composerMode}
-          onConnectAccount={
-            accounts !== undefined
-              ? () => {
-                  setComposer(null);
-                  compose?.setOpen(false);
-                  showTab("accounts");
-                }
-              : undefined
-          }
-          onCloseAutoFocus={handleCloseAutoFocus}
-          onError={handleActionError}
-          onOpenChange={(open) => {
-            if (open) return;
-            setComposer(null);
-            compose?.setOpen(false);
-          }}
-          onSaved={handleSaved}
-          open
-          projectId={projectId}
-        />
+        composerMode.kind === "create" ? (
+          <SimplifiedSocialComposer
+            connections={connections}
+            mode={composerMode}
+            onError={handleActionError}
+            onOpenChange={(open) => {
+              if (open) return;
+              setComposer(null);
+              compose?.setOpen(false);
+            }}
+            onSaved={handleSaved}
+            open
+            projectId={projectId}
+          />
+        ) : (
+          <SocialPostComposerDialog
+            connections={connections}
+            mode={composerMode}
+            onConnectAccount={
+              accounts !== undefined
+                ? () => {
+                    setComposer(null);
+                    compose?.setOpen(false);
+                    showTab("accounts");
+                  }
+                : undefined
+            }
+            onCloseAutoFocus={handleCloseAutoFocus}
+            onError={handleActionError}
+            onOpenChange={(open) => {
+              if (open) return;
+              setComposer(null);
+              compose?.setOpen(false);
+            }}
+            onSaved={handleSaved}
+            open
+            projectId={projectId}
+          />
+        )
       ) : null}
 
       <SocialPostPreviewDialog
