@@ -1951,6 +1951,69 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("stays on Needs attention after a retry when other posts still need it", async () => {
+    const user = userEvent.setup();
+    const secondFailed = {
+      ...FAILED_POST,
+      id: "post-failed-2",
+      text: "Second failure",
+      revision: 3,
+    };
+    vi.mocked(publishProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: {
+        ...FAILED_POST,
+        status: "PUBLISHED",
+        publishedAt: new Date("2026-09-15T12:00:00.000Z"),
+        publishedUrl: "https://x.com/sokosumi/status/42",
+        lastError: null,
+        attemptCount: 4,
+        revision: 6,
+        canSchedule: false,
+        canPublishNow: false,
+      },
+    });
+    renderUi(
+      <TestQueryProvider>
+        <NuqsTestingAdapter searchParams="?tab=attention">
+          <SocialComposeProvider>
+            <ProjectSocialPosts
+              connections={[buildConnection()]}
+              posts={[FAILED_POST, secondFailed]}
+              projectId={PROJECT_ID}
+            />
+          </SocialComposeProvider>
+        </NuqsTestingAdapter>
+      </TestQueryProvider>,
+    );
+
+    expect(getTab("Needs attention")).toHaveAttribute("aria-selected", "true");
+    await user.click(
+      within(screen.getByTestId("social-post-post-failed")).getByRole(
+        "button",
+        { name: "Retry" },
+      ),
+    );
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Publish now",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(publishProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-failed",
+        revision: 5,
+      });
+    });
+    expect(getTab("Needs attention")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("social-post-post-failed-2")).toBeVisible();
+    expect(
+      screen.queryByTestId("social-post-post-failed"),
+    ).not.toBeInTheDocument();
+  });
+
   it("publishes a draft now and toasts the failure reason when Core reports FAILED", async () => {
     const user = userEvent.setup();
     vi.mocked(publishProjectSocialPost).mockResolvedValue({
