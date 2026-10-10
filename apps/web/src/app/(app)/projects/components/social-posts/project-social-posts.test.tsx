@@ -2514,27 +2514,31 @@ describe("ProjectSocialPosts", () => {
     );
   });
 
-  it("toasts a timeout when loading more drafts takes too long", async () => {
+  it("toasts a timeout when canceling takes too long", async () => {
     const user = userEvent.setup();
     const timeout = new Error("The operation timed out");
     timeout.name = "TimeoutError";
-    vi.mocked(loadMoreSocialPosts).mockRejectedValue(timeout);
+    vi.mocked(cancelProjectSocialPost).mockRejectedValue(timeout);
     render(
       <ProjectSocialPosts
-        projectId={PROJECT_ID}
         connections={[buildConnection()]}
-        posts={[buildPost()]}
-        nextCursors={{ drafts: "drafts-cursor" }}
+        posts={[SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
-    await openTab(user, "Drafts");
-    await user.click(screen.getByRole("button", { name: "Load more" }));
+    await openRowMenu(user, "post-scheduled");
+    await user.click(screen.getByRole("menuitem", { name: "Cancel post" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Cancel post",
+      }),
+    );
 
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith("Timed out. Try again."),
     );
-    expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
   });
 
   it("shows the fallback error when scheduling rejects", async () => {

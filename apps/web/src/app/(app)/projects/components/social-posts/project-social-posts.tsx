@@ -303,14 +303,8 @@ export function ProjectSocialPosts({
       if (sourceRef.current !== source) return;
       setPosts((current) => page.posts.reduce(upsertPost, current));
       setCursors((current) => ({ ...current, [section]: page.nextCursor }));
-    } catch (error) {
-      toast.error(
-        isBrowserOffline()
-          ? t("toasts.offline")
-          : isTimeoutRejection(error)
-            ? t("toasts.timeout")
-            : t("toasts.failed"),
-      );
+    } catch {
+      toast.error(t("toasts.failed"));
     } finally {
       setLoadingSection(null);
     }
