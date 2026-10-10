@@ -91,35 +91,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
 ## Endpoint Migration Pattern (`/{id}` to `/me`)
 
-When the authentication context already identifies the caller (for example `authContext.coworkerId`), prefer self-scoped endpoints under `/me`:
+When the authentication context already identifies the caller (for example `authContext.coworkerId`), `/me` (or the target path) is the default:
 
 - `GET /resource/me`
 - `GET /resource/me/...`
 - `POST /resource/me/...`
 
-If older clients still depend on `/{id}`:
-
-- Keep legacy `/{id}` endpoints as temporary fallback routes.
-- Mark fallback operations as deprecated in OpenAPI with `deprecated: true` in `createRoute(...)`.
-- Keep fallback behavior/auth checks consistent with the `/me` implementation.
-
-Route mounting order:
-
-- Mount static `/me` routes before dynamic `/{id}` routes to prevent path conflicts.
+Do not keep two paths. A deprecated `/{id}` fallback stays only when a named installed client still calls it. Then mark that operation `deprecated: true` in `createRoute(...)` with a sunset date, keep its behavior and auth checks consistent with `/me`, and mount static `/me` before dynamic `/{id}`. Otherwise follow [Removing an Operation](#removing-an-operation).
 
 Required tests for migration PRs:
 
-- Add an OpenAPI contract test that asserts:
-  - `/me` endpoints exist.
-  - fallback `/{id}` endpoints exist while compatibility is required.
-  - fallback operations are marked `deprecated: true`.
-- Add/keep auth helper tests for missing self identity (`403`) and valid self identity.
-
-Temporary duplication rule during deprecation:
-
-- Limited duplication between `/me` and deprecated `/{id}` handlers is acceptable during rollout.
-- Duplication must be temporary and tracked with a removal ticket/sunset date.
-- Remove deprecated routes and duplicated logic once clients are migrated, as [Removing an Operation](#removing-an-operation) defines.
+- OpenAPI contract: `/me` (or the target path) exists.
+- Auth helper tests for missing self identity (`403`) and valid self identity.
+- If a named client still needs a fallback: that operation is `deprecated: true` and the sunset is named. Do not assert that fallbacks exist as the default required test.
 
 ## Removing an Operation
 
