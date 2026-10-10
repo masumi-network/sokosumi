@@ -205,6 +205,8 @@ const MESSAGES: Record<string, string> = {
   "toasts.unauthenticated": "Please log in to continue.",
   "toasts.unauthenticatedAction": "Log in",
   "preview.open": "Preview",
+  "preview.accounts": "Preview account",
+  "preview.as": "Preview as {handle}",
   "preview.dialogTitle": "Post preview",
   "outcomes.authorizationRevoked":
     "Coworker scheduling access was revoked. Reschedule this post to publish it.",
@@ -1599,6 +1601,55 @@ describe("ProjectSocialPosts", () => {
         name: "Reschedule post",
       }),
     ).toBeVisible();
+  });
+
+  it("switches the live preview between selected accounts", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+            displayName: "Sokosumi Co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    await user.type(within(dialog).getByLabelText("Text"), "Hello both");
+
+    const preview = within(dialog).getByTestId("social-post-preview");
+    expect(preview).toHaveAttribute("data-provider", "x");
+    expect(
+      within(dialog).getByRole("button", { name: "Preview as @sokosumi" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),
+    );
+    expect(preview).toHaveAttribute("data-provider", "linkedin");
+    expect(within(preview).getByText("Sokosumi Co")).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    expect(
+      within(dialog).queryByTestId("social-post-preview-accounts"),
+    ).not.toBeInTheDocument();
+    expect(preview).toHaveAttribute("data-provider", "x");
   });
 
   it("reschedules a scheduled post from the row menu", async () => {

@@ -2582,6 +2582,8 @@
           "now": "ahora",
           "accountFallback": "Tu cuenta",
           "open": "Vista previa",
+          "accounts": "Cuenta de vista previa",
+          "as": "Vista previa como {handle}",
           "dialogTitle": "Vista previa de la publicación",
           "linkedin": {
             "like": "Recomendar",

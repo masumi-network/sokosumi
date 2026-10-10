@@ -2582,6 +2582,8 @@
           "now": "jetzt",
           "accountFallback": "Dein Konto",
           "open": "Vorschau",
+          "accounts": "Vorschaukonto",
+          "as": "Vorschau als {handle}",
           "dialogTitle": "Beitragsvorschau",
           "linkedin": {
             "like": "Gefällt mir",

@@ -2582,6 +2582,8 @@
           "now": "now",
           "accountFallback": "Your account",
           "open": "Preview",
+          "accounts": "Preview account",
+          "as": "Preview as {handle}",
           "dialogTitle": "Post preview",
           "linkedin": {
             "like": "Like",

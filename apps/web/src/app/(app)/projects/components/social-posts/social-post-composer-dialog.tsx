@@ -171,6 +171,9 @@ export function SocialPostComposerDialog({
   const [pending, setPending] = useState<PendingSubmit>(null);
   const [uploadPending, setUploadPending] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [previewConnectionId, setPreviewConnectionId] = useState<string | null>(
+    null,
+  );
 
   const isScheduleOnly = mode.kind === "schedule";
   const isBusy = pending !== null || uploadPending;
@@ -178,9 +181,12 @@ export function SocialPostComposerDialog({
     connectionIds.includes(connection.id),
   );
   const connectionId = selectedConnections[0]?.id ?? "";
-  // The preview draws one network's feed: the first picked account's, or the
-  // post's own account while none is picked.
+  // One feed at a time: the account the reader picked, else the first still
+  // selected, else the post's own account while none is picked.
   const previewConnection =
+    selectedConnections.find(
+      (connection) => connection.id === previewConnectionId,
+    ) ??
     selectedConnections[0] ??
     (post?.socialConnection && connectionIds.includes(post.socialConnection.id)
       ? post.socialConnection
@@ -196,6 +202,12 @@ export function SocialPostComposerDialog({
     post?.provider,
     selectedConnections.map((connection) => connection.provider),
   );
+  const previewProvider =
+    selectedConnections.find(
+      (connection) => connection.id === previewConnection?.id,
+    )?.provider ??
+    post?.provider ??
+    providers[0];
   // One text goes to every selected account, so the strictest one rules.
   const provider = providers.reduce((strictest, candidate) =>
     SOCIAL_POST_TEXT_LIMITS[candidate] < SOCIAL_POST_TEXT_LIMITS[strictest]
@@ -963,11 +975,50 @@ export function SocialPostComposerDialog({
               <p className="text-muted-foreground text-xs font-medium">
                 {t("preview.open")}
               </p>
+              {selectedConnections.length > 1 ? (
+                <div
+                  aria-label={t("preview.accounts")}
+                  className="flex flex-wrap items-center gap-1"
+                  data-testid="social-post-preview-accounts"
+                  role="group"
+                >
+                  {selectedConnections.map((connection) => {
+                    const handle =
+                      formatHandle(connection.externalHandle) ||
+                      t("composer.unknownHandle");
+                    const active = previewConnection?.id === connection.id;
+                    return (
+                      <button
+                        aria-label={t("preview.as", { handle })}
+                        aria-pressed={active}
+                        className={cn(
+                          "focus-visible:ring-ring inline-flex h-8 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2",
+                          active
+                            ? "border-foreground text-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                        )}
+                        key={connection.id}
+                        onClick={() => setPreviewConnectionId(connection.id)}
+                        type="button"
+                      >
+                        <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
+                          <SocialPostProviderIcon
+                            aria-hidden
+                            className="size-3.5"
+                            provider={connection.provider}
+                          />
+                        </span>
+                        <span className="max-w-32 truncate">{handle}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
               <SocialPostPreview
                 account={previewAccount}
                 className={cn(!hasContent && "opacity-60")}
                 media={media}
-                provider={selectedConnections[0]?.provider ?? providers[0]}
+                provider={previewProvider}
                 text={hasContent ? text : t("composer.previewEmpty")}
                 timestamp={scheduledAtValid ? scheduledDate : null}
               />
