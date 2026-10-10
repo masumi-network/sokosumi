@@ -45,6 +45,19 @@ import SwiftUI
   /// alone, where a changed environment value reached every realized row.
   @MainActor @Observable final class TranscriptScrollActivity {
     var isScrolling = false
+    /// Older-page insertion waits for native idle, including programmatic animations.
+    var isAtRest = true
+
+    func update(for phase: ScrollPhase) {
+      let scrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+      if isScrolling != scrolling {
+        isScrolling = scrolling
+      }
+      let atRest = phase == .idle
+      if isAtRest != atRest {
+        isAtRest = atRest
+      }
+    }
   }
 
   extension EnvironmentValues {

@@ -27,12 +27,13 @@ import SwiftUI
     var body: some View {
       let input = preparationInput
       let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
+      let waiting = waitingTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
       // Keep scroll state below this boundary so scrolling does not rebuild the projection.
       RoomTranscriptContent(roomId: roomId, messages: prepared?.overlaying(input.messages) ?? [],
-                            hasLiveMessages: !input.messages.isEmpty, preparedTranscript: prepared,
+                            hasLiveMessages: !input.messages.isEmpty, preparedTranscript: waiting ?? prepared,
                             scrollActivity: scrollActivity, olderPageWaits: prepared?.lacksRowsAbove(in: input.messages) ?? false,
-                            hasWaitingPage: waitingTranscript != nil) {
-        if let waiting = waitingTranscript, !scrollActivity.isScrolling {
+                            hasWaitingPage: waiting != nil) {
+        if let waiting = waitingTranscript, waiting.input.scope == preparationInput.scope, scrollActivity.isAtRest {
           waitingTranscript = nil
           preparedTranscript = waiting
           return true
@@ -208,9 +209,7 @@ import SwiftUI
         .onDisappear { jumpCompletion?.resume(returning: false)
           jumpCompletion = nil
           // The room view outlives this list (another workspace or room swaps it): no scroll is left driving it.
-          if scrollActivity.isScrolling {
-            scrollActivity.isScrolling = false
-          }
+          scrollActivity.update(for: .idle)
         }
         .onChange(of: roomId) { _, _ in
           jumpMark = nil
@@ -401,7 +400,7 @@ import SwiftUI
         .scrollPosition($scrollPosition)
         .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
         .onChange(of: hasWaitingPage) { _, waits in
-          if waits, !userIsScrolling {
+          if waits, scrollActivity.isAtRest {
             Task { @MainActor in
               landWaitingPageInPlace()
             }
@@ -427,10 +426,7 @@ import SwiftUI
           proxy.scrollTo("timeline-bottom", anchor: .bottom)
         }
         .onScrollPhaseChange { _, phase in
-          let scrolling = phase == .interacting || phase == .decelerating || phase == .tracking
-          if scrollActivity.isScrolling != scrolling {
-            scrollActivity.isScrolling = scrolling
-          }
+          scrollActivity.update(for: phase)
           // Only a list at rest takes the rows: a jump's scroll animation is motion too.
           if phase == .idle, hasWaitingPage {
             Task { @MainActor in
@@ -540,7 +536,7 @@ import SwiftUI
       // runner put the row 66 pt low), move it the rest of the way once it has settled.
       Task { @MainActor in
         defer { firstRows.landingAnchor = nil }
-        guard await (try? Task.sleep(for: .milliseconds(150))) != nil, !userIsScrolling,
+        guard await (try? Task.sleep(for: .milliseconds(150))) != nil, scrollActivity.isAtRest,
               let offset = firstRows.settledOffset(for: placement.id, was: placement.minY) else { return }
         scrollPosition.scrollTo(y: offset)
       }
