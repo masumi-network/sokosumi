@@ -2590,6 +2590,8 @@
           "now": "jetzt",
           "accountFallback": "Dein Konto",
           "open": "Vorschau",
+          "accounts": "Vorschaukonto",
+          "as": "Vorschau als {handle}",
           "dialogTitle": "Beitragsvorschau",
           "offline": "Du bist offline.",
           "timeout": "Zeitüberschreitung.",
