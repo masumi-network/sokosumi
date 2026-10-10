@@ -32,6 +32,7 @@ import { createTestFormatter } from "@/test/intl-formatter";
 import { TestQueryProvider } from "@/test/query-provider";
 
 import { loadMoreSocialPosts } from "./actions";
+import { writeRememberedComposerAccounts } from "./social-post-composer-accounts";
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
@@ -523,6 +524,7 @@ describe("ProjectSocialPosts", () => {
   });
 
   beforeEach(() => {
+    window.localStorage.clear();
     vi.clearAllMocks();
     getSocialConnectionsMock.mockRejectedValue(
       new Error("photo lookup unavailable"),
@@ -858,6 +860,170 @@ describe("ProjectSocialPosts", () => {
       within(accounts).getByRole("button", {
         name: "LinkedIn @sokosumi-co",
       }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("remembers the accounts a New post used last time", async () => {
+    const user = userEvent.setup();
+    const connections = [
+      buildConnection(),
+      buildConnection({
+        id: "connection-2",
+        provider: "linkedin",
+        externalHandle: "sokosumi-co",
+      }),
+    ];
+    const { rerender } = render(
+      <ProjectSocialPosts
+        connections={connections}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const first = screen.getByRole("dialog");
+    await user.click(
+      within(first).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    await user.type(within(first).getByLabelText("Text"), "Hello both");
+    await user.click(within(first).getByRole("button", { name: "Save draft" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    rerender(
+      <ProjectSocialPosts
+        connections={connections}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const again = screen.getByRole("dialog");
+    const accounts = within(again).getByRole("group", { name: "Post to" });
+    expect(
+      within(accounts).getByRole("button", { name: "X @sokosumi" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(accounts).getByRole("button", {
+        name: "LinkedIn @sokosumi-co",
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("drops a remembered account that is no longer connected", async () => {
+    const user = userEvent.setup();
+    writeRememberedComposerAccounts("org_1", PROJECT_ID, [
+      "connection-1",
+      "connection-2",
+    ]);
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+            status: "disconnected",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const accounts = within(screen.getByRole("dialog")).getByRole("group", {
+      name: "Post to",
+    });
+    expect(
+      within(accounts).getByRole("button", { name: "X @sokosumi" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(accounts).getByRole("button", {
+        name: "LinkedIn @sokosumi-co",
+      }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("falls back to the first account when nothing remembered still connects", async () => {
+    const user = userEvent.setup();
+    writeRememberedComposerAccounts("org_1", PROJECT_ID, ["gone"]);
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const accounts = within(screen.getByRole("dialog")).getByRole("group", {
+      name: "Post to",
+    });
+    expect(
+      within(accounts).getByRole("button", { name: "X @sokosumi" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(accounts).getByRole("button", {
+        name: "LinkedIn @sokosumi-co",
+      }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("keeps an edited post on its own account even when another set is remembered", async () => {
+    const user = userEvent.setup();
+    writeRememberedComposerAccounts("org_1", PROJECT_ID, [
+      "connection-1",
+      "connection-2",
+    ]);
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[
+          buildPost({
+            socialConnection: {
+              id: "connection-2",
+              externalHandle: "sokosumi-co",
+              displayName: null,
+              avatarUrl: null,
+              status: "active",
+            },
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Drafts");
+    await openRowMenu(user, "post-draft");
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const accounts = within(screen.getByRole("dialog")).getByRole("group", {
+      name: "Account",
+    });
+    expect(
+      within(accounts).getByRole("button", {
+        name: "LinkedIn @sokosumi-co",
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(accounts).getByRole("button", { name: "X @sokosumi" }),
     ).toHaveAttribute("aria-pressed", "false");
   });
 
