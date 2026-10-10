@@ -2594,6 +2594,13 @@
           "instagram": {
             "more": "mehr",
             "mediaRequired": "Instagram braucht ein Bild oder Video."
+          },
+          "facebook": {
+            "like": "Gefällt mir",
+            "comment": "Kommentieren",
+            "share": "Teilen",
+            "seeMore": "Mehr anzeigen",
+            "public": "Öffentlich"
           }
         },
         "statistics": {
