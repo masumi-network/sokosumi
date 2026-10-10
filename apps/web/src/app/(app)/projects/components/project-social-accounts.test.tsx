@@ -47,6 +47,7 @@ const MESSAGES: Record<string, string> = {
   connectComingSoon: "{provider} (coming soon)",
   actions: "Actions for {account}",
   reconnect: "Reconnect",
+  startOver: "Start over",
   replace: "Replace",
   disconnect: "Disconnect",
   "status.active": "Connected",
@@ -346,6 +347,9 @@ describe("ProjectSocialAccounts", () => {
     expect(
       within(connectedRow).queryByRole("button", { name: "Reconnect" }),
     ).not.toBeInTheDocument();
+    expect(
+      within(connectedRow).queryByRole("button", { name: "Start over" }),
+    ).not.toBeInTheDocument();
     await user.click(
       within(connectedRow).getByRole("button", {
         name: "Actions for @sokosumi",
@@ -366,6 +370,9 @@ describe("ProjectSocialAccounts", () => {
       within(reauthorizationRow).getByRole("button", { name: "Reconnect" }),
     ).toBeVisible();
     expect(
+      within(reauthorizationRow).queryByRole("button", { name: "Start over" }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.getByRole("button", { name: "Connect account" }),
     ).toBeVisible();
 
@@ -376,6 +383,9 @@ describe("ProjectSocialAccounts", () => {
     expect(
       within(pendingRow).queryByRole("button", { name: "Reconnect" }),
     ).not.toBeInTheDocument();
+    expect(
+      within(pendingRow).getByRole("button", { name: "Start over" }),
+    ).toBeVisible();
     await user.click(
       within(pendingRow).getByRole("button", {
         name: "Actions for @pending-auth",
@@ -385,6 +395,89 @@ describe("ProjectSocialAccounts", () => {
       screen.queryByRole("menuitem", { name: "Replace" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Disconnect" })).toBeVisible();
+  });
+
+  it("disconnects a pending account and starts a new connection on Start over", async () => {
+    const user = userEvent.setup();
+    vi.mocked(initiateProjectSocialConnection).mockResolvedValueOnce({
+      ok: false,
+      error: { code: "BAD_INPUT", message: "Unavailable" },
+    });
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            id: "connection-3",
+            externalHandle: "pending-auth",
+            status: "pending",
+          }),
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Start over" }));
+
+    await waitFor(() => {
+      expect(disconnectProjectSocialConnection).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        socialConnectionId: "connection-3",
+      });
+      expect(initiateProjectSocialConnection).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        action: "connect",
+        provider: "x",
+      });
+    });
+    expect(toastSuccessMock).not.toHaveBeenCalledWith("Account disconnected.");
+  });
+
+  it("does not start a new connection when Start over cannot disconnect", async () => {
+    const user = userEvent.setup();
+    vi.mocked(disconnectProjectSocialConnection).mockResolvedValueOnce({
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR", message: "Disconnect failed" },
+    });
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            status: "pending",
+          }),
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Start over" }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "We could not disconnect this account. Try again.",
+      );
+    });
+    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
+  });
+
+  it("disables Start over on a closed project", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialAccounts
+        connectDisabled
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            status: "pending",
+          }),
+        ]}
+      />,
+    );
+
+    const startOver = screen.getByRole("button", { name: "Start over" });
+    expect(startOver).toBeDisabled();
+    await user.click(startOver);
+    expect(disconnectProjectSocialConnection).not.toHaveBeenCalled();
+    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
   });
 
   it.each([null, "ca_known"])(
