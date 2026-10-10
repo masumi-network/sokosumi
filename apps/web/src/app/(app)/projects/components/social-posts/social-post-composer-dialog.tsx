@@ -44,6 +44,11 @@ import {
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
 import {
+  initialCreateConnectionIds,
+  readRememberedComposerAccounts,
+  writeRememberedComposerAccounts,
+} from "./social-post-composer-accounts";
+import {
   socialPostComposerAccept,
   socialPostComposerFormat,
   socialPostComposerIssue,
@@ -150,9 +155,8 @@ export function SocialPostComposerDialog({
       )?.avatarUrl ??
       null,
   }));
-  const driveStore = driveStoreForActiveWorkspace(
-    session?.session.activeOrganizationId ?? null,
-  );
+  const organizationId = session?.session.activeOrganizationId ?? null;
+  const driveStore = driveStoreForActiveWorkspace(organizationId);
 
   const [text, setText] = useState(post?.text ?? "");
   const [media, setMedia] = useState<SocialPostMediaRef[]>(
@@ -162,6 +166,12 @@ export function SocialPostComposerDialog({
   // post belongs to one account.
   const multiAccount = mode.kind === "create";
   const [connectionIds, setConnectionIds] = useState<string[]>(() => {
+    if (mode.kind === "create") {
+      return initialCreateConnectionIds(
+        connections,
+        readRememberedComposerAccounts(organizationId, projectId),
+      );
+    }
     const initial = post?.socialConnection?.id ?? connections[0]?.id;
     return initial ? [initial] : [];
   });
@@ -255,6 +265,13 @@ export function SocialPostComposerDialog({
         ? current.filter((candidate) => candidate !== id)
         : [...current, id];
     });
+  }
+
+  function rememberCreateAccounts(): void {
+    if (mode.kind !== "create") return;
+    const ids = selectedConnections.map((connection) => connection.id);
+    if (ids.length === 0) return;
+    writeRememberedComposerAccounts(organizationId, projectId, ids);
   }
 
   const title =
@@ -457,6 +474,7 @@ export function SocialPostComposerDialog({
       } else {
         toast.success(t("toasts.publishedMany", { count: published }));
       }
+      rememberCreateAccounts();
       onOpenChange(false);
     } catch (error) {
       onError(toActionRejectionError(error));
@@ -550,6 +568,7 @@ export function SocialPostComposerDialog({
         }),
       );
       if (created === 0) return;
+      rememberCreateAccounts();
       toast.success(t("toasts.created", { count: created }));
       onOpenChange(false);
     } catch (error) {
@@ -577,6 +596,7 @@ export function SocialPostComposerDialog({
           }),
         );
         if (created === 0) return;
+        rememberCreateAccounts();
         toast.success(t("toasts.scheduled", { count: created }));
         onOpenChange(false);
         return;
