@@ -3016,10 +3016,10 @@
         "sokoBotHint": "Coméntalo en el chat; Soko Bot la redacta y la programa.",
         "sokoBotSetup": "Configura Soko Bot primero",
         "sokoBotFailed": "No se pudo abrir el chat de Soko Bot. Inténtalo de nuevo.",
-        "sokoBotPrompt": "Ayúdame a crear una publicación social para el proyecto {project}.",
-        "sokoBotPromptAnyProject": "Ayúdame a crear una publicación social.",
+        "sokoBotPrompt": "Ayúdame a crear una publicación para {project}.",
+        "sokoBotPromptAnyProject": "Ayúdame a crear una publicación.",
         "chooseProjectTitle": "Elige un proyecto para esta publicación",
-        "chooseProjectBody": "Una publicación sale desde las cuentas conectadas a un proyecto."
+        "chooseProjectBody": "Sale desde las cuentas de un proyecto."
       },
       "accountsNeedProject": {
         "title": "Conecta tus cuentas de redes sociales",

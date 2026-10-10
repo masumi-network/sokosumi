@@ -3016,10 +3016,10 @@
         "sokoBotHint": "Chat it through, Soko Bot drafts and schedules.",
         "sokoBotSetup": "Set up Soko Bot first",
         "sokoBotFailed": "Could not open the Soko Bot chat. Try again.",
-        "sokoBotPrompt": "Help me create a social post for the {project} project.",
-        "sokoBotPromptAnyProject": "Help me create a social post.",
+        "sokoBotPrompt": "Help me create a post for {project}.",
+        "sokoBotPromptAnyProject": "Help me create a post.",
         "chooseProjectTitle": "Choose a project for this post",
-        "chooseProjectBody": "A post is published from the accounts connected to one project."
+        "chooseProjectBody": "Posts go out from one project's accounts."
       },
       "accountsNeedProject": {
         "title": "Connect your social accounts",
