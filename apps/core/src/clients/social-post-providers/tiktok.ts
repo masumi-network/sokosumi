@@ -65,6 +65,10 @@ export async function publishTikTokVideo(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("tiktok");
+  const video = context.media.find((ref) => ref.kind === "video");
+  if (!video?.fileUrl) {
+    throw new ComposioToolError({ message: "TikTok requires a video" });
+  }
   const sessionId = await createSocialPostToolSession({
     toolkitSlug: "tiktok",
     connectedAccountId: context.connectedAccountId,
@@ -73,7 +77,6 @@ export async function publishTikTokVideo(
     context: "create Project TikTok publish session",
     signal: context.signal,
   });
-  const video = context.media.find((ref) => ref.kind === "video");
   try {
     const creator = await executeSocialPostTool({
       sessionId,
@@ -95,7 +98,7 @@ export async function publishTikTokVideo(
         sessionId,
         toolSlug: TIKTOK_PUBLISH_TOOL_SLUG,
         arguments: {
-          video_url: video?.fileUrl,
+          video_url: video.fileUrl,
           caption: context.text,
           privacy_level: privacyLevel,
         },

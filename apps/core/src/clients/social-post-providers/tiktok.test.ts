@@ -263,6 +263,18 @@ describe("publishTikTokVideo", () => {
     );
   });
 
+  it("refuses before opening a session when there is no video", async () => {
+    const fetchMock = stubSession(() => toolResponse({}));
+
+    await expect(
+      publishTikTokVideo({ ...context, media: [] }),
+    ).rejects.toMatchObject({
+      constructor: ComposioToolError,
+      message: "TikTok requires a video",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("raises a tool error when the publish call is refused", async () => {
     stubSession((call) =>
       call.tool_slug === "TIKTOK_QUERY_CREATOR_INFO"
