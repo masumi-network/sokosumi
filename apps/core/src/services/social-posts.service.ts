@@ -540,6 +540,11 @@ export async function listSocialPosts(
   const upcoming = input.statuses?.every(
     (status) => status === "SCHEDULED" || status === "PUBLISHING",
   );
+  const attention =
+    Boolean(input.statuses?.length) &&
+    input.statuses?.every(
+      (status) => status === "FAILED" || status === "MISSED",
+    );
   const [rows, count] = await Promise.all([
     prisma.socialPost.findMany({
       where,
@@ -548,7 +553,13 @@ export async function listSocialPosts(
         ? [{ scheduledAt: "asc" }, { id: "asc" }]
         : input.statuses?.length === 1 && input.statuses[0] === "PUBLISHED"
           ? [{ publishedAt: "desc" }, { id: "desc" }]
-          : [{ updatedAt: "desc" }, { id: "desc" }],
+          : attention
+            ? [
+                { lastAttemptAt: { sort: "desc", nulls: "last" } },
+                { scheduledAt: { sort: "desc", nulls: "last" } },
+                { id: "desc" },
+              ]
+            : [{ updatedAt: "desc" }, { id: "desc" }],
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip } : {}),
     }),

@@ -211,6 +211,34 @@ describe("social posts service", () => {
     ]);
   });
 
+  it.each([["FAILED"], ["MISSED"], ["FAILED", "MISSED"]] as const)(
+    "orders %s by last attempt, then scheduled time",
+    async (...statuses) => {
+      const { listSocialPosts } = await loadService();
+
+      await listSocialPosts({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        statuses: [...statuses],
+      });
+
+      expect(socialPostFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            projectId: PROJECT_ID,
+            workspaceId: WORKSPACE_ID,
+            status: { in: [...statuses] },
+          },
+          orderBy: [
+            { lastAttemptAt: { sort: "desc", nulls: "last" } },
+            { scheduledAt: { sort: "desc", nulls: "last" } },
+            { id: "desc" },
+          ],
+        }),
+      );
+    },
+  );
+
   it("paginates a filtered section independently of its history", async () => {
     const rows = Array.from({ length: 21 }, (_, index) => ({
       ...draftPost,
