@@ -4,6 +4,7 @@ import {
 } from "@sokosumi/utils";
 
 import { deleteProjectSocialSession, record } from "@/clients/composio.client";
+import { facebookInsightShareCount } from "@/clients/social-post-providers/facebook-shares";
 import {
   ComposioToolError,
   createSocialPostToolSession,
@@ -131,7 +132,11 @@ export async function fetchSocialPostStatistics(
         metrics.impressions = counter(counts?.impression_count);
         metrics.likes = counter(counts?.like_count);
         metrics.comments = counter(counts?.reply_count);
-        metrics.shares = counter(counts?.retweet_count);
+        metrics.shares = counter(
+          counts?.organic_repost_count ??
+            counts?.repost_count ??
+            counts?.retweet_count,
+        );
         metrics.saves = counter(counts?.bookmark_count);
         break;
       }
@@ -165,14 +170,14 @@ export async function fetchSocialPostStatistics(
         // Insights requires read_insights in addition to basic engagement access.
         // Keep available engagement counters if the connection lacks that scope.
         try {
-          metrics.views =
-            insightValues(
-              await read("FACEBOOK_GET_POST_INSIGHTS", {
-                post_id: context.externalId,
-                metrics: "post_media_view",
-                period: "lifetime",
-              }),
-            ).post_media_view ?? null;
+          const insightPayload = await read("FACEBOOK_GET_POST_INSIGHTS", {
+            post_id: context.externalId,
+            metrics: "post_media_view,post_activity_by_action_type",
+            period: "lifetime",
+          });
+          metrics.views = insightValues(insightPayload).post_media_view ?? null;
+          metrics.shares =
+            facebookInsightShareCount(insightPayload) ?? metrics.shares;
         } catch (error) {
           context.signal?.throwIfAborted();
           if (
