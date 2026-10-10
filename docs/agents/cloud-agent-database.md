@@ -40,7 +40,7 @@ avoids a broken pnpm 12 `.tools` placeholder that fails environment builds with
 bash scripts/cloud-agent-db/cloud-install.sh
 ```
 
-That script installs Node 24, runs `ensure-pnpm.sh install`, then `provision.mjs`. Without Neon secrets it falls through to local Postgres (`ensure-local-postgres.sh`). `start` is `cloud-start.sh`, which still wraps `pnpm dev` in `with-db.mjs`.
+That script installs Node 24, runs `ensure-pnpm.sh install`, then `provision.mjs`. The build pod is not an agent run, so that provision call no-ops. `cloud-start.sh` runs `provision.mjs` again on each boot (where `CURSOR_AGENT=1`), then wraps `pnpm dev` in `with-db.mjs`. Without Neon secrets, install falls through to local Postgres (`ensure-local-postgres.sh`) and start brings that cluster up.
 
 When `CURSOR_AGENT=1` and Neon secrets are present, provision:
 

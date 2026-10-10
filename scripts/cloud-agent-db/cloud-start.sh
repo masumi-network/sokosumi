@@ -8,6 +8,10 @@ cd "${ROOT}"
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 export PATH="/usr/local/cargo/bin:${PATH}"
 
+# Install runs on the build pod, where CURSOR_AGENT is unset, so provision
+# there is a no-op. Each agent boot is the run that can fork a Neon branch.
+node scripts/cloud-agent-db/provision.mjs
+
 if [[ ! -f "${ROOT}/.cursor/cloud-agent-db.urls.json" ]]; then
   sudo pg_ctlcluster 16 main start || true
   ready=0
