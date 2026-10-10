@@ -43,6 +43,7 @@ import {
   isDriveFileUploadDuplicate,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
+import { accountChipLabel } from "./social-post-account-chip-label";
 import {
   socialPostComposerAccept,
   socialPostComposerFormat,
@@ -81,11 +82,6 @@ interface SocialPostComposerDialogProps {
 }
 
 type PendingSubmit = "save" | "schedule" | "publish" | null;
-
-function formatHandle(handle: string | null): string {
-  if (!handle) return "";
-  return handle.startsWith("@") ? handle : `@${handle}`;
-}
 
 /** An IANA zone as people read it: `America/New_York` → `America/New York`. */
 function zoneName(timezone: string): string {
@@ -744,16 +740,17 @@ export function SocialPostComposerDialog({
                 >
                   {connections.map((connection) => {
                     const selected = connectionIds.includes(connection.id);
-                    const handle =
-                      formatHandle(connection.externalHandle) ||
-                      t("composer.unknownHandle");
+                    const label = accountChipLabel(
+                      connection,
+                      t("composer.unknownHandle"),
+                    );
                     return (
                       <button
                         aria-label={t("composer.accountOption", {
                           provider: socialPostProviderLabel(
                             connection.provider,
                           ),
-                          handle,
+                          handle: label,
                         })}
                         aria-pressed={selected}
                         className={cn(
@@ -774,7 +771,7 @@ export function SocialPostComposerDialog({
                             provider={connection.provider}
                           />
                         </span>
-                        <span className="max-w-40 truncate">{handle}</span>
+                        <span className="max-w-40 truncate">{label}</span>
                         {selected ? (
                           <Check className="size-3.5" aria-hidden />
                         ) : null}

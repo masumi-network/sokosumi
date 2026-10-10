@@ -822,6 +822,39 @@ describe("ProjectSocialPosts", () => {
     ).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("labels composer chips with the account name when it has one", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection({ displayName: "Sokosumi HQ" }),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+            displayName: null,
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const accounts = within(screen.getByRole("dialog")).getByRole("group", {
+      name: "Post to",
+    });
+    expect(
+      within(accounts).getByRole("button", { name: "X Sokosumi HQ" }),
+    ).toBeVisible();
+    expect(
+      within(accounts).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    ).toBeVisible();
+    expect(
+      within(accounts).queryByRole("button", { name: "X @sokosumi" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("counts the text against each picked platform's own limit", async () => {
     const user = userEvent.setup();
     render(
