@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   ExternalLink,
   Eye,
+  FileText,
   Link2,
   MoreHorizontal,
   RefreshCw,
@@ -26,6 +27,7 @@ import type { SocialPostComposerMode } from "@/app/projects/components/social-po
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
+import { EmptyState } from "@/components/common/empty-state";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import {
   AlertDialog,
@@ -770,14 +772,11 @@ export function ProjectSocialPosts({
                       {sectionPosts.map(renderPost)}
                     </ul>
                   ) : cursor ? null : (
-                    <div className="rounded-lg border border-dashed px-4 py-8 text-center">
-                      <p className="text-sm font-medium">
-                        {t(`empty.${section}`)}
-                      </p>
-                      <p className="text-muted-foreground mt-1 text-sm text-pretty">
-                        {t(`emptyHint.${section}`)}
-                      </p>
-                    </div>
+                    <EmptyState
+                      description={t(`emptyHint.${section}`)}
+                      icon={FileText}
+                      title={t(`empty.${section}`)}
+                    />
                   )}
                   {cursor ? (
                     <Button
