@@ -2535,7 +2535,7 @@
           "dismiss": "Cancelar",
           "previewEmpty": "Tu publicación aparece aquí mientras escribes.",
           "pickAccount": "Elige una cuenta en la que publicar.",
-          "tooLong": "Acorta el texto."
+          "tooLong": "La longitud del texto supera el límite."
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",

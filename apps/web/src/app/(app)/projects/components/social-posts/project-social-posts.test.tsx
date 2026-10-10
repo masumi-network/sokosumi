@@ -153,7 +153,7 @@ const MESSAGES: Record<string, string> = {
   "composer.accounts": "Post to",
   "composer.publishNow": "Post now",
   "composer.pickAccount": "Pick an account to post to.",
-  "composer.tooLong": "Shorten the text.",
+  "composer.tooLong": "Text length is over the limit.",
   "composer.requirements.text_or_media_required": "Add text or media.",
   "composer.requirements.text_required": "{provider} requires text.",
   "composer.requirements.media_required":
@@ -916,7 +916,7 @@ describe("ProjectSocialPosts", () => {
     ).toContain("text-destructive");
     expect(
       within(dialog).getByTestId("social-post-too-long"),
-    ).toHaveTextContent("Shorten the text.");
+    ).toHaveTextContent("Text length is over the limit.");
     expect(saveDraft).toBeDisabled();
     expect(
       within(dialog).getByRole("button", { name: "Post now" }),

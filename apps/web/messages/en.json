@@ -2535,7 +2535,7 @@
           "dismiss": "Cancel",
           "previewEmpty": "Your post shows here as you write.",
           "pickAccount": "Pick an account to post to.",
-          "tooLong": "Shorten the text."
+          "tooLong": "Text length is over the limit."
         },
         "cancelDialog": {
           "title": "Cancel this post?",
