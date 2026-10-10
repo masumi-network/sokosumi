@@ -16,7 +16,7 @@ import {
  * through the exact same machinery (PR1-SPEC §3.5): one debit path, one
  * out-of-credits pause rule.
  */
-export const OUT_OF_CREDITS_PAUSE_STATUSES = new Set<TaskStatus>([
+const OUT_OF_CREDITS_PAUSE_STATUSES = new Set<TaskStatus>([
   TaskStatus.DRAFT,
   TaskStatus.QUEUED,
   TaskStatus.READY,

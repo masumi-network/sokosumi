@@ -29,7 +29,27 @@ So the room keeps the insertion but moves it out of the motion: an older page's 
 | `origin/main` `6d23da936` | 17 of 30 rows | 14 / 14 / 15 of 17 | 35 / 30 / 30 | 1,095 / 1,059 / 946 ms |
 | older pages wait for rest, 100 rows | 5 of 100 rows | 0 / 0 / 0 of 5 | 19 / 20 / 17 | 411 / 427 / 376 ms |
 
-A landing is "while content moves" when any of the five frames either side moved 2 pt or more; after the change every landing sits among frames that moved at most 1 pt (the reader at rest against the top). Both builds load all 600 messages; preparation stays under 20 ms off the main thread. The landing frame itself still costs 44–64 ms. Cutting each row's measure is the open follow-up.
+A landing is "while content moves" when any of the five frames either side moved 2 pt or more; after the change every landing sits among frames that moved at most 1 pt (the reader at rest against the top). Both builds load all 600 messages; preparation stays under 20 ms off the main thread. The landing frame itself still costs 44–64 ms.
+
+**What a landing pays per row (2026-10-09, follow-up).** On the paging path a landing frame costs 49–56 ms with full rows and 17–30 ms with every row's content removed (the copy's `MessageRowView` reduced to its header and a plain `Text`). Time Profiler over the landing frames (`insert_stacks.py … landings`): 45 ms of main thread against 19 ms. The difference is SwiftUI building the rows that a landing realizes around the viewport (`DynamicContainerInfo.makeItem` and the views' `makeView` inside `LazyStack.measureEstimates`), measuring them (TextKit 2 for selectable text, 3.6 ms), then AppKit layout and the Core Animation commit of their layers (24.8 against 16.2 ms). No single part of the row carries it: removing any one of them changed the landing frame by less than the run-to-run noise (±5–10 ms with five pages a run).
+
+The row build test (`HITCH_BENCH`) measures that per row without the scroll timing: 30 fresh fixture rows built, laid out and drawn, 30–40 passes, median, interquartile range within about 10 %. Full rows cost 108–118 ms, rows without content 16 ms. Each part removed alone from the copy (ms saved per 30 rows, three alternating runs):
+
+| Removed | Saves |
+| --- | --- |
+| the Markdown body (a plain `Text` instead) | 61–66 |
+| `ExpandableMessageBody` (the clamp: hidden 16-line text 12, `Text.LayoutKey` reader 7–10, `onGeometryChange` 0–6) | 20–25 |
+| `.textSelection(.enabled)` on the body | 14–17 |
+| quote, Thread bar, reactions (on 1 to 2 of every 9 rows) | 12, 10, 9 |
+| the profile button on avatar and name, the header, the avatar | 11, 10, 9 |
+| the three `.alert`s, hover tracking, the context-menu `NSView`, accessibility actions, `.popover`s, `.help` | 0–4 each |
+| one-paragraph bodies without their nested `VStack`/`ForEach`, the body's `.task`, image gallery, `openURL` | 0–2 each |
+
+By kind (`HITCH_KINDS`, 30 rows of one kind): a plain paragraph 83 ms (39 with a plain `Text` body), a bare link 86, a screenshot 93, reactions 104, a Thread bar 111, a bold paragraph with reactions 121, a code block 134, a quote 137. A code block's horizontal `ScrollView` builds an `NSScrollView` even when the code fits; `ViewThatFits` (the text alone when it fits) saved 14 ms per 30 code rows.
+
+Fixes tried in the copy, against the row build test and then the landings: one 16-line height shared by every body with the same font, lines, type size and scale (−12 ms per 30 rows), the `Text.LayoutKey` reader only on a body that overflows (−10; as a conditional modifier it rebuilds a long body's content the first time it overflows, on every realization), reactions in `WrappingRow` instead of a `LazyVGrid` (−7.5; on `main` since #5924), one `.alert` for the three (−4). Together −15 to −24 ms per 30 rows (15–20 %), but on the paging path, six alternating runs each, the landing frame stayed at 56 against 54 ms (over budget per run 380 against 306 ms), within noise. Not shipped here; the follow-ups are listed in PARITY-LOG's "Slice M6 — row build cost".
+
+`HITCH_PREPEND` misleads on a build with the older-page hold: the inserted rows wait for the scroll to rest and land in bursts, some during momentum, and a reader parked by an AppKit scroll gives `scrollPosition` no row to anchor, so the offset is compensated for a stripped or plain window and not for a full one. Measure landings on the paging path, and per-row cost with `HITCH_BENCH`.
 
 **The title bar.** `TitleApp.swift` is a real SwiftUI `App` like `SokosumiApp`: a `WindowGroup` with the app's `NavigationSplitView` and `RoomNavigationStack` (its `RoomToolsModifier`, header and inspector) on a channel whose screenshots and link previews are near-white pictures. In the key window the automatic and the soft top edge draw nothing, so a picture under the title hides the room's name; an inactive window dims it, which is why an earlier `NSHostingView` capture missed it. A hard top edge keeps the name legible in both; that fix merged as [#5911](https://github.com/masumi-network/sokosumi/pull/5911), and this harness is its cause and check. Captures: [title-bar-over-light-picture.png](images/title-bar-over-light-picture.png), the key window before (top) and with the hard edge (bottom).
 
@@ -64,6 +84,7 @@ ditto "$H/DerivedData/Build/Products/Release/Sokosumi.app" "$H/hover.app"
 - **Counters only** (about 15 s, prints one JSON line: row bodies, hover writes, display-link frame intervals): `"$H/hover.app/Contents/MacOS/Sokosumi"`. `HITCH_HOVER=0` runs without the resting pointer.
 - **Time Profiler**: `SKILL_DIR=apps/apple/.agents/skills/swiftui-expert-skill HITCH_DEVICE=<this Mac> "$H/trace.sh" "$H/hover.app" "$H/hover.trace"`, then `python3 "$H/hover_stacks.py" "$SKILL_DIR" "$H/hover.trace" 3500 17000` for inclusive main-thread weights over the flicks (check the window with a per-half-second sum first; the flicks start about 5.5 s in). Attach mode leaves the SwiftUI and hitch lanes empty: their tables need a launched process, and `xctrace --launch` with the copy's path opened the installed `/Applications/Sokosumi.app` instead, twice.
 - **Older pages**: `python3 "$H/setup.py" "$PWD" "$H/paging" paging`, build it as above (bundle `com.sokosumi.hitchprobe`), then `"$H/paging.app/Contents/MacOS/Sokosumi" > run.json` (about 20 s) and `python3 "$H/paging_table.py" run.json`. For the before build, extract `origin/main`'s `apps/apple` (`git archive origin/main apps/apple | tar -x -C <dir>`) and run `setup.py` on that directory. `HITCH_HEIGHT` (window, 800), `HITCH_PAGE` (serve older pages of this size whatever the app asks for), `HITCH_LATENCY_MS` (150), `HITCH_REST_MS` (finger lift, 300) and `HITCH_FLICKS` (6) vary the run. Controls: `HITCH_COUNT=600 HITCH_INITIAL=600 HITCH_LEAD_PT=40000 HITCH_TOUCH_MS=200` with `HITCH_NOOP=1` (a publish that changes nothing), `HITCH_APPEND=1` / `HITCH_PREPEND=1` (30 rows below / above the reader), and `HITCH_MINIMAL=1` (the same texts in a bare lazy list). With Time Profiler (`trace.sh` as above), `python3 "$H/insert_stacks.py" "$SKILL_DIR" <trace> <trace>.json` sums the main thread over the 120 ms after each insertion.
+- **Row build cost**: on the paging build, `HITCH_BENCH=30 "$H/paging.app/Contents/MacOS/Sokosumi"` (about 6 s) prints the median of 30 passes that each build, lay out and draw `HITCH_BENCH_ROWS` (30) fresh rows. `HITCH_KINDS=0` (or `3,7`, any of the fixture's nine kinds) narrows the fixture for this and every other paging run. Compare variants of the copy back to back, alternating, three runs each.
 - **Title bar**: `"$H/keycap.sh" "$H/title.app" "$H/title.png"`. It takes the focus for about 6 s; repeat when it prints `"active":false`.
 
 ## Sources
@@ -644,12 +665,16 @@ struct MinimalList: View {
   }
 
   /// The hover harness's #Sokosumi-like mix, oldest first. Deterministic: same ids, text and dates every run.
+  /// `HITCH_KINDS` (say `0` or `3,7`) keeps only those of the nine kinds, in turn.
   static func fixture(_ count: Int) -> [Components.Schemas.ChatRoomMessage] {
     let people = [("u1", "Patrick Tobler"), ("u2", "Francis Luz"), ("u3", "Andreas"), ("u4", "Phil")]
     let start = 1_790_000_000.0
+    let named = (ProcessInfo.processInfo.environment["HITCH_KINDS"] ?? "").split(separator: ",")
+      .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }.filter { (0 ..< 9).contains($0) }
+    let kinds = named.isEmpty ? Array(0 ..< 9) : named
     return (0 ..< count).map { index in
       let person = people[(index / 3) % people.count]
-      let kind = index % 9
+      let kind = kinds[index % kinds.count]
       let base = "Message \(index). "
       var content: String
       switch kind {
@@ -716,11 +741,60 @@ struct MinimalList: View {
     }
   }
 
+  /// Builds, lays out and draws `HITCH_BENCH_ROWS` fresh message rows (the fixture's mix, with the actions the room
+  /// passes) in a new hosting view, `HITCH_BENCH` times, and prints the median pass: what building a row costs, the
+  /// work a landing does for every row it realizes, without the scroll timing's noise.
+  func bench(_ env: [String: String]) async {
+    let rows = Int(env["HITCH_BENCH_ROWS"] ?? "30") ?? 30
+    let passes = Int(env["HITCH_BENCH"] ?? "40") ?? 40
+    let messages = Self.fixture(rows)
+    let documents = messages.map { MessageMarkdown($0.content, diagrams: true) }
+    let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
+    let auth = AuthState(store: InMemoryTokenStore())
+    let window = NSWindow(contentRect: NSRect(x: 200, y: 100, width: 1100, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
+    window.level = .floating
+    window.ignoresMouseEvents = true
+    window.orderFront(nil)
+    var times: [Double] = []
+    for pass in 0 ..< passes + 3 {
+      let start = ProcessInfo.processInfo.systemUptime
+      let host = NSHostingView(rootView: VStack(alignment: .leading, spacing: 0) {
+        ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
+          MessageRowView(preparedDocument: documents[index], message: message, isContinuation: index % 3 != 0, outbound: nil,
+                         onRetry: nil, onRemove: nil, onReply: { _ = pass }, onQuote: { _ = pass }, onToggleReaction: { _ in pass > 0 },
+                         onQuoteJump: { _ in _ = pass }, horizontalInset: 12)
+        }
+      }
+      .environmentObject(state).environmentObject(auth))
+      host.frame = NSRect(x: 0, y: 0, width: 1100, height: 900)
+      window.contentView = host
+      host.layoutSubtreeIfNeeded()
+      host.displayIfNeeded()
+      CATransaction.flush()
+      // The first three passes warm caches.
+      if pass >= 3 {
+        times.append((ProcessInfo.processInfo.systemUptime - start) * 1000)
+      }
+      window.contentView = nil
+      try? await Task.sleep(for: .milliseconds(30))
+    }
+    times.sort()
+    let result: [String: Any] = ["rows": rows, "passes": passes, "median_ms": times[times.count / 2], "p25_ms": times[times.count / 4],
+                                 "p75_ms": times[times.count * 3 / 4]]
+    let data = try! JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
+    print(String(decoding: data, as: UTF8.self))
+    fflush(stdout)
+  }
+
   func run() async {
     let env = ProcessInfo.processInfo.environment
     let activity = ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep, reason: "Scroll hitch measurement")
     defer { ProcessInfo.processInfo.endActivity(activity) }
     URLProtocol.registerClass(ScrollMediaProtocol.self)
+    if env["HITCH_BENCH"] != nil {
+      await bench(env)
+      return
+    }
     let count = Int(env["HITCH_COUNT"] ?? "600") ?? 600
     PagedCoreProtocol.serve(Self.fixture(count), pageOverride: Int(env["HITCH_PAGE"] ?? ""),
                             latest: Int(env["HITCH_INITIAL"] ?? "100") ?? 100)
@@ -916,11 +990,12 @@ for path in sys.argv[1:]:
 ```python
 """Main-thread stacks in the frames that follow each older-page insertion.
 
-usage: insert_stacks.py <skill dir> <trace> <probe json> [window ms after insert, default 120] [inserts|begins]
+usage: insert_stacks.py <skill dir> <trace> <probe json> [window ms after insert, default 120] [inserts|begins|landings]
 
 Aligns the probe's insertion times (ms after the first flick) to the trace by sliding them over the main thread's
 10 ms activity bins and taking the offset with the most busy samples inside the windows, then sums inclusive
-weights there.
+weights there. `landings` aligns on, and sums over, the frames in which a page's rows landed instead: with older
+pages held for the scroll to rest, those come well after the insertion.
 """
 import collections
 import json
@@ -948,17 +1023,24 @@ for row in stream:
     if names:
         samples.append((xml_utils.int_text(stream.resolve(time)) / 1e6, xml_utils.int_text(stream.resolve(weight)) or 0, names))
 
+mode = sys.argv[5] if len(sys.argv) > 5 else 'inserts'
 inserts = [i['at_ms'] for i in run['inserts']]
-events = inserts if len(sys.argv) < 6 or sys.argv[5] == 'inserts' else run['begins_at_ms']
+events = run['begins_at_ms'] if mode == 'begins' else inserts
+# A landing frame's work runs in the interval that ends at its display-link timestamp.
+landings = [(l['at_ms'] - l['ms'], l['at_ms']) for l in run['landings']]
 bins = collections.Counter(int(ms // 10) for ms, _, _ in samples)
 
 
 def score(offset):
+    if mode == 'landings':
+        return sum(bins[int((offset + start) // 10) + k] for start, end in landings for k in range(max(1, int((end - start) // 10))))
     return sum(bins[int((offset + at) // 10) + k] for at in inserts for k in range(span // 10))
 
 
-best = max(range(0, int(samples[-1][0]) - int(inserts[-1]), 10), key=score)
-windows = [(best + at, best + at + span) for at in events]
+last = max(end for _, end in landings) if mode == 'landings' else inserts[-1]
+best = max(range(0, int(samples[-1][0]) - int(last), 5), key=score)
+windows = ([(best + start - 5, best + end + 5) for start, end in landings] if mode == 'landings'
+           else [(best + at, best + at + span) for at in events])
 inside = [s for s in samples if any(a <= s[0] < b for a, b in windows)]
 total = sum(w for _, w, _ in inside)
 inclusive = collections.Counter()

@@ -4991,6 +4991,7 @@ From `apps/apple`; logs and result bundles in the session scratchpad:
 Unverified: the signed app against Core (real page latency, a real trackpad and pointer, the user's own `#Sokosumi`); a Thread's older replies still land mid-scroll (`ReplyThreadView`, not changed here).
 
 How to test: in a long room, flick up to the top: "Loading older messages…" shows while the flick runs, and the older messages appear above once it settles, with the messages on screen staying where they are. Flick again to read further back.
+
 ## 24f2 fix — the Unreads row rests muted
 
 Follow-up to the 24f1 fix (#5897), on the user's go (2026-10-09). Branch `claude/apple-unreads-row-rests-muted` on `origin/main` `31e7cdf4a`.
@@ -5018,3 +5019,34 @@ All from `apps/apple` on `31e7cdf4a` plus this change:
 - `mint run swiftformat --lint .` — **0/599 files require formatting**; `mint run swiftlint lint --strict` — **0 violations in 599 files**. No task-owned test host remained running.
 
 Unverified: the row in a running app, including toggling the filter, was not exercised.
+
+## Slice M6 — row build cost
+
+Follow-up to [#5923](https://github.com/masumi-network/sokosumi/pull/5923) (older pages land once the scroll rests), measured on its head `c66626657`. Draft [#5931](https://github.com/masumi-network/sokosumi/pull/5931). Findings only: no app change (user decision, 2026-10-09, asked with the numbers below). Web and Core were read-only. Harness, sources and the full tables: "What a landing pays per row" in [scrolling-hover-harness.md](docs/scrolling-hover-harness.md).
+
+### What a landing pays
+
+On the paging path a landing frame costs 49–56 ms with full rows and 17–30 ms with every row's content removed. Time Profiler over the landing frames: 45 against 19 ms of main thread, the difference being SwiftUI building the rows the landing realizes around the viewport (inside `LazyStack.measureEstimates`), measuring them, and AppKit layout plus the Core Animation commit of their layers. Removing any single part of `MessageRowView` changed the landing by less than the run-to-run noise.
+
+The row build test (`HITCH_BENCH`: 30 fresh fixture rows built, laid out and drawn, median of 30–40 passes) resolves the parts: full rows 108–118 ms, rows without content 16 ms. Largest shares per 30 rows: the Markdown body 61–66 ms, of which `ExpandableMessageBody`'s clamp 20–25 (hidden 16-line text 12, `Text.LayoutKey` reader 7–10) and `.textSelection` 14–17; quote, Thread bar and reactions 9–12 each on the rows that carry them; the profile buttons, header and avatar 9–11 each. Alerts, hover tracking, the context-menu `NSView`, accessibility actions, popovers, tooltips and the body's nested stacks, `.task` and image gallery each 0–4. By kind, a plain paragraph costs 83 ms per 30 rows, a code block 134, a quote 137.
+
+### Tried in the copy, not shipped
+
+A shared 16-line clamp height (−12 ms per 30 rows), the `Text.LayoutKey` reader only on an overflowing body (−10), reactions in `WrappingRow` instead of the `LazyVGrid` (−7.5; on `main` since [#5924](https://github.com/masumi-network/sokosumi/pull/5924), for web's chip spacing) and one `.alert` for three (−4). Together −15 to −24 ms per 30 rows (15–20 %); on the paging path the landing frame stayed at 56 against 54 ms over six alternating runs each (time over budget per run 380 against 306 ms), within noise.
+
+Ruled out on the way, no change in the row build test or the landing: one-paragraph bodies without their nested `VStack`/`ForEach`; `MessageMarkdownView` without its `WorkspaceState`/`AuthState` observation and fresh `OpenURLAction`; a fixed `TimelineView` schedule on the Thread bar; a quote without its jump button; `HStack` reactions in place of the `LazyVGrid` with other kinds present. The `HITCH_PREPEND` control misleads on a build with the hold (rows land in bursts, and a reader parked by an AppKit scroll leaves `scrollPosition` nothing to anchor); its early per-part numbers were discarded.
+
+### Follow-ups
+
+Each needs its own decision; none is scheduled.
+
+- **The safe fixes above**, for ordinary scrolling rather than landings (every row realized while scrolling pays the same build): the shared clamp height and the `Text.LayoutKey` gate with a per-message memo of bodies that overflowed, so a long body is not rebuilt on every realization. Measure with a scroll workload that resolves them; the 600-message flick run had too few long frames.
+- **Selectable text only on the row under the pointer** (−14 to −17 ms per 30 rows). Risk: TextKit 2 and string drawing may break lines differently, so a row could change height on hover; check before anything else.
+- **No clamp machinery for a body that cannot reach 16 lines** (most of the clamp's 20–25 ms). Needs a bound that holds at the narrowest transcript width, or the cut lands mid-line.
+- **One profile button per header** instead of one on the avatar and one on the name (each with its popover and tooltip, 11 ms per 30 rows together).
+- **Code blocks in `ViewThatFits`**: the text alone when it fits, the horizontal `ScrollView` only when it does not (−14 ms per 30 code rows); keep the full-width background and check the scroller with "Show scroll bars: Always".
+- **A Thread's older replies wait for the scroll to rest**, as the room's do since #5923 (`ReplyThreadView`, reusing `PreparedTranscript.prependsRows(to:)` / `lacksRowsAbove(in:)`). Recommended as its own change: it alters behaviour, and the row work above would shorten its landing too.
+
+### Verification
+
+Harness only: the doc's sources extracted into a fresh copy (`setup.py … paging`) build in Release; `HITCH_BENCH`, `HITCH_KINDS` and the paging run complete. `node --test scripts/ci/__tests__/apple-parity.test.mjs` passes. No Swift source in the app or packages changed, so the Xcode suites, SwiftLint and SwiftFormat were not rerun.
