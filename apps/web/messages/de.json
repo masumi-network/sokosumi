@@ -2381,12 +2381,12 @@
           "disconnected": "Getrennt"
         },
         "replaceDialog": {
-          "title": "Dieses Konto ersetzen?",
+          "title": "{account} ersetzen?",
           "description": "Alle Entwürfe und geplanten Beiträge dieses Kontos werden auf das neue Konto übertragen. Wenn du sie hier behalten willst, füge ein neues Konto hinzu, statt zu ersetzen.",
           "confirm": "Konto ersetzen"
         },
         "disconnectDialog": {
-          "title": "Dieses Konto trennen?",
+          "title": "{account} trennen?",
           "description": "Dieses Projekt ist dann nicht mehr berechtigt, dieses Konto zu verwenden.",
           "confirm": "Konto trennen"
         },
