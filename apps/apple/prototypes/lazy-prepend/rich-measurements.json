@@ -1,0 +1,441 @@
+{
+  "environment": {
+    "date": "2026-10-10",
+    "macOS": "27.0.1 (26A434)",
+    "Xcode": "27.0 (27A266a)",
+    "architecture": "arm64",
+    "signing_team": "GVWN7HXYJB",
+    "optimized": true,
+    "viewport_points": [
+      1100,
+      800
+    ],
+    "metric": "actual main-thread display-link callback gap; not presented-frame hitch duration",
+    "callback_budget_ms": 25,
+    "callback_cadence": "Variable; observed windows include approximately 8.3 and 16.7 ms intervals.",
+    "build": "Copied Apple workspace, Release, production MessageRowView; relocated team-signed app bundle.",
+    "comparison": "Same initial rows and incoming pages; viewport at top, prepend visible and append offscreen."
+  },
+  "production_rich": {
+    "summary": {
+      "prepend": {
+        "publications": 15,
+        "median_max_callback_gap_ms": 47.538333281408995,
+        "worst_callback_gap_ms": 71.72587502282113,
+        "publications_over_25_ms": 15,
+        "nonpublication_worst_callback_gap_ms": 21.316625003237277
+      },
+      "append": {
+        "publications": 15,
+        "median_max_callback_gap_ms": 16.533249989151955,
+        "worst_callback_gap_ms": 16.682500019669533,
+        "publications_over_25_ms": 0,
+        "nonpublication_worst_callback_gap_ms": 21.29808336030692
+      }
+    },
+    "runs": [
+      {
+        "pair": 1,
+        "callback_count": 1219,
+        "direction": "prepend",
+        "final_rows": 600,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "max_callback_gap_ms": 33.85450004134327,
+            "over_25_ms": 1,
+            "page": 1,
+            "rows": 200,
+            "uptime": 368047.05643345835
+          },
+          {
+            "max_callback_gap_ms": 33.33804162684828,
+            "over_25_ms": 1,
+            "page": 2,
+            "rows": 300,
+            "uptime": 368049.14755341667
+          },
+          {
+            "max_callback_gap_ms": 51.68550001690164,
+            "over_25_ms": 1,
+            "page": 3,
+            "rows": 400,
+            "uptime": 368051.22542120836
+          },
+          {
+            "max_callback_gap_ms": 33.33383332937956,
+            "over_25_ms": 1,
+            "page": 4,
+            "rows": 500,
+            "uptime": 368053.333067375
+          },
+          {
+            "max_callback_gap_ms": 35.24304163875058,
+            "over_25_ms": 1,
+            "page": 5,
+            "rows": 600,
+            "uptime": 368055.35021737503
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 21.316625003237277,
+        "page_size": 100,
+        "row_kind": "production-rich",
+        "single_line": false
+      },
+      {
+        "pair": 1,
+        "callback_count": 1256,
+        "direction": "append",
+        "final_rows": 600,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "max_callback_gap_ms": 16.676666622515768,
+            "over_25_ms": 0,
+            "page": 1,
+            "rows": 200,
+            "uptime": 368060.76374737505
+          },
+          {
+            "max_callback_gap_ms": 16.670541663188487,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 368062.83903145837
+          },
+          {
+            "max_callback_gap_ms": 8.516750007402152,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 368064.92596983333
+          },
+          {
+            "max_callback_gap_ms": 16.67004165938124,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 368067.0468105417
+          },
+          {
+            "max_callback_gap_ms": 9.166250005364418,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 368069.1688030417
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 21.277041698340327,
+        "page_size": 100,
+        "row_kind": "production-rich",
+        "single_line": false
+      },
+      {
+        "pair": 2,
+        "callback_count": 1241,
+        "direction": "append",
+        "final_rows": 600,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "max_callback_gap_ms": 11.82737504132092,
+            "over_25_ms": 0,
+            "page": 1,
+            "rows": 200,
+            "uptime": 368074.7436335417
+          },
+          {
+            "max_callback_gap_ms": 16.533249989151955,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 368076.8056724167
+          },
+          {
+            "max_callback_gap_ms": 8.843541669193655,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 368078.90666133334
+          },
+          {
+            "max_callback_gap_ms": 9.261125000193715,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 368081.00581575005
+          },
+          {
+            "max_callback_gap_ms": 16.682500019669533,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 368083.066496375
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 21.29808336030692,
+        "page_size": 100,
+        "row_kind": "production-rich",
+        "single_line": false
+      },
+      {
+        "pair": 2,
+        "callback_count": 1208,
+        "direction": "prepend",
+        "final_rows": 600,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "max_callback_gap_ms": 32.92641666484997,
+            "over_25_ms": 1,
+            "page": 1,
+            "rows": 200,
+            "uptime": 368088.40040525
+          },
+          {
+            "max_callback_gap_ms": 38.781583367381245,
+            "over_25_ms": 1,
+            "page": 2,
+            "rows": 300,
+            "uptime": 368090.4717505417
+          },
+          {
+            "max_callback_gap_ms": 54.83120831195265,
+            "over_25_ms": 1,
+            "page": 3,
+            "rows": 400,
+            "uptime": 368092.58452800004
+          },
+          {
+            "max_callback_gap_ms": 53.81479166680947,
+            "over_25_ms": 1,
+            "page": 4,
+            "rows": 500,
+            "uptime": 368094.687246125
+          },
+          {
+            "max_callback_gap_ms": 51.44579167244956,
+            "over_25_ms": 1,
+            "page": 5,
+            "rows": 600,
+            "uptime": 368096.71760437504
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 21.294833335559815,
+        "page_size": 100,
+        "row_kind": "production-rich",
+        "single_line": false
+      },
+      {
+        "pair": 3,
+        "callback_count": 1220,
+        "direction": "prepend",
+        "final_rows": 600,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "max_callback_gap_ms": 37.936458305921406,
+            "over_25_ms": 1,
+            "page": 1,
+            "rows": 200,
+            "uptime": 368102.3172955417
+          },
+          {
+            "max_callback_gap_ms": 47.538333281408995,
+            "over_25_ms": 1,
+            "page": 2,
+            "rows": 300,
+            "uptime": 368104.34119941667
+          },
+          {
+            "max_callback_gap_ms": 71.72587502282113,
+            "over_25_ms": 1,
+            "page": 3,
+            "rows": 400,
+            "uptime": 368106.4638434167
+          },
+          {
+            "max_callback_gap_ms": 71.64491666480899,
+            "over_25_ms": 1,
+            "page": 4,
+            "rows": 500,
+            "uptime": 368108.5745206667
+          },
+          {
+            "max_callback_gap_ms": 59.19245834229514,
+            "over_25_ms": 1,
+            "page": 5,
+            "rows": 600,
+            "uptime": 368110.70124775
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 12.96883332543075,
+        "page_size": 100,
+        "row_kind": "production-rich",
+        "single_line": false
+      },
+      {
+        "pair": 3,
+        "callback_count": 1256,
+        "direction": "append",
+        "final_rows": 600,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "max_callback_gap_ms": 16.67958329198882,
+            "over_25_ms": 0,
+            "page": 1,
+            "rows": 200,
+            "uptime": 368116.17304245837
+          },
+          {
+            "max_callback_gap_ms": 16.66704163653776,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 368118.27965412504
+          },
+          {
+            "max_callback_gap_ms": 16.67412498500198,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 368120.399950625
+          },
+          {
+            "max_callback_gap_ms": 8.348541625309736,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 368122.42278
+          },
+          {
+            "max_callback_gap_ms": 8.370291674509645,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 368124.5385845
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 8.728583343327045,
+        "page_size": 100,
+        "row_kind": "production-rich",
+        "single_line": false
+      }
+    ]
+  },
+  "plain_control": {
+    "summary": {
+      "prepend": {
+        "publications": 5,
+        "median_max_callback_gap_ms": 21.00975002394989,
+        "worst_callback_gap_ms": 24.39600002253428,
+        "publications_over_25_ms": 0,
+        "nonpublication_worst_callback_gap_ms": 21.03483333485201
+      },
+      "append": {
+        "publications": 5,
+        "median_max_callback_gap_ms": 8.531250001396984,
+        "worst_callback_gap_ms": 20.957041706424206,
+        "publications_over_25_ms": 0,
+        "nonpublication_worst_callback_gap_ms": 9.105208329856396
+      }
+    },
+    "runs": [
+      {
+        "pair": 1,
+        "callback_count": 1259,
+        "direction": "prepend",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 21.00975002394989,
+            "over_25_ms": 0,
+            "page": 1,
+            "rows": 200,
+            "uptime": 368152.3024741667
+          },
+          {
+            "max_callback_gap_ms": 21.014291676692665,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 368154.4221007917
+          },
+          {
+            "max_callback_gap_ms": 17.01900002080947,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 368156.54280195833
+          },
+          {
+            "max_callback_gap_ms": 24.39600002253428,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 368158.62450541666
+          },
+          {
+            "max_callback_gap_ms": 9.375624998938292,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 368160.73074945837
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 21.03483333485201,
+        "page_size": 100,
+        "row_kind": "plain",
+        "single_line": false
+      },
+      {
+        "pair": 1,
+        "callback_count": 1268,
+        "direction": "append",
+        "final_rows": 600,
+        "insertions": [
+          {
+            "max_callback_gap_ms": 20.957041706424206,
+            "over_25_ms": 0,
+            "page": 1,
+            "rows": 200,
+            "uptime": 368166.0736496667
+          },
+          {
+            "max_callback_gap_ms": 8.359916682820767,
+            "over_25_ms": 0,
+            "page": 2,
+            "rows": 300,
+            "uptime": 368168.20433383336
+          },
+          {
+            "max_callback_gap_ms": 8.531250001396984,
+            "over_25_ms": 0,
+            "page": 3,
+            "rows": 400,
+            "uptime": 368170.28658429167
+          },
+          {
+            "max_callback_gap_ms": 8.384125016164035,
+            "over_25_ms": 0,
+            "page": 4,
+            "rows": 500,
+            "uptime": 368172.41857129167
+          },
+          {
+            "max_callback_gap_ms": 9.349958330858499,
+            "over_25_ms": 0,
+            "page": 5,
+            "rows": 600,
+            "uptime": 368174.5257156667
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 9.105208329856396,
+        "page_size": 100,
+        "row_kind": "plain",
+        "single_line": false
+      }
+    ]
+  }
+}

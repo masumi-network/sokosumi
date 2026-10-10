@@ -3,9 +3,20 @@ set -euo pipefail
 source_dir="$(cd "$(dirname "$0")" && pwd)"
 output_dir="${1:-/tmp/swiftui-prepend-reproduction}"
 app="$output_dir/ScrollReproduction.app"
-mkdir -p "$app/Contents/MacOS"
-xcrun swiftc -parse-as-library -O -g -swift-version 6 -target arm64-apple-macos26.0 \
-  "$source_dir/ScrollReproduction.swift" -o "$app/Contents/MacOS/ScrollReproduction"
+mkdir -p "$output_dir"
+cat > "$output_dir/Profile.entitlements" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict><key>com.apple.security.get-task-allow</key><true/></dict></plist>
+PLIST
+case "${2:-}" in
+  --rich) python3 "$source_dir/build-rich.py" "$output_dir" ;;
+  "")
+    mkdir -p "$app/Contents/MacOS"
+    xcrun swiftc -parse-as-library -O -g -swift-version 6 -target arm64-apple-macos26.0 \
+      "$source_dir/ScrollReproduction.swift" -o "$app/Contents/MacOS/ScrollReproduction"
+    ;;
+  *) printf '%s\n' 'Usage: build.sh [output-directory] [--rich]' >&2; exit 2 ;;
+esac
 cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -18,10 +29,6 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 </dict></plist>
-PLIST
-cat > "$output_dir/Profile.entitlements" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<plist version="1.0"><dict><key>com.apple.security.get-task-allow</key><true/></dict></plist>
 PLIST
 codesign --force --options runtime --timestamp=none \
   --entitlements "$output_dir/Profile.entitlements" \

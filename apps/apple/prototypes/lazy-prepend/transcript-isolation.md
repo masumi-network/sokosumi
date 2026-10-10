@@ -133,3 +133,13 @@ clearly marked disposable directory
 report and the compact raw measurements preserve the findings; the staged
 workspace is not a new production path or a separately portable reproduction.
 No Apple Feedback report was submitted.
+
+## Portable follow-up
+
+The [portable rich-row fixture](README.md#portable-rich-rows) now preserves the full
+production message rendering in this PR. It builds from a fresh checkout and runs
+without the earlier disposable workspace. Three alternating pairs with identical
+incoming content measured prepend median 47.5 ms / worst 71.7 ms versus append
+median 16.5 ms / worst 16.7 ms. The top viewport makes prepends visible and appends
+offscreen; this includes realization cost. See [raw paired results](rich-measurements.json).
+The historical controls above remain measurements of the earlier staged workspace.

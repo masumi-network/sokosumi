@@ -1,13 +1,94 @@
 # SwiftUI prepend reproduction
 
-Standalone diagnostic app. This is not part of the Sokosumi app or its Xcode workspace.
-It uses one `ScrollView`, one `LazyVStack`, and stable integer row IDs. No network,
-Markdown, media, authentication, position persistence, or custom anchoring.
+Diagnostic app with two builds, sharing one `ScrollView`, one `LazyVStack`, stable
+integer row IDs, and the same measurement loop. The bare build is dependency-free
+text. The rich build reuses production message rendering in a disposable workspace.
+Neither changes the production app or its Xcode project.
 
 The subsequent [production transcript isolation](transcript-isolation.md) adds
 the real components in a disposable Apple workspace. The full message row brings
 back 60+ ms delays. Native ID anchoring failed older-page position retention;
 no production fix is included here.
+
+## Portable rich rows
+
+From any checkout of this PR, using a fresh output directory:
+
+```bash
+bash apps/apple/prototypes/lazy-prepend/build.sh /tmp/swiftui-rich-rows --rich
+python3 apps/apple/prototypes/lazy-prepend/measure.py \
+  /tmp/swiftui-rich-rows/ScrollReproduction.app \
+  /tmp/swiftui-rich-results --rich --pairs 3 --check-budget
+```
+
+The build copies `apps/apple` into the output folder, substitutes the fixture entry
+point, and compiles the actual `MessageRowView` and its children in Release. It
+reuses the checkout's normal Derived Data; `REPRO_DERIVED_DATA` can select an existing
+cache explicitly. The fixture flag is scoped to the copied app target. Production
+sources, generated code, dependencies, and signing settings remain untouched.
+
+Building needs this repository, Xcode 27, Python 3, and the same team certificate
+as the bare build. A fresh cache may need SwiftPM package downloads. After building,
+the app bundle can be copied elsewhere and run without the checkout, live Core/Web
+services, credentials, or the earlier `/tmp` experiment directories. It is a local
+team-signed profiling build, without distribution notarization.
+
+The corpus contains 600 deterministic real message models: paragraphs, links,
+code, images, quote thumbnails, and reactions. Every row uses a full sender header.
+Callback-backed actions are unavailable; built-in participant and copy-link
+interactions remain. Body Markdown is prepared before measurement; quote parsing
+and media realization use the unchanged production components. PNG responses are
+generated locally and intercepted by URLProtocol with
+a fixed 50 ms delay.
+
+Both directions start with the **same rows 0–99**, then insert the **same page
+contents and IDs** (100–199, 200–299, and so on). Only the insertion end differs.
+The runner checks a SHA-256 fingerprint of the complete message corpus across all
+runs. There is no reader, target layout, position binding, or correction.
+
+Both viewports start at the top. Prepended rows become visible; appended rows are
+offscreen. The comparison therefore includes the cost of realizing rich rows;
+it does not isolate an insertion-algorithm defect. This is an at-rest diagnostic,
+not verification of production scrolling, streaming, or position restoration.
+
+Allow about 90 seconds for three sequential pairs after the build. To inspect the
+initial rows without timed insertion or automatic exit:
+
+```bash
+REPRO_INSPECT=1 /tmp/swiftui-rich-rows/ScrollReproduction.app/Contents/MacOS/ScrollReproduction
+```
+
+## Rich-row results
+
+Measured 2026-10-10 on macOS 27.0.1 (26A434), Xcode 27.0 (27A266a), arm64,
+Release, team GVWN7HXYJB. The app was copied to a different directory before running;
+its source workspace was not needed at runtime. Three alternating pairs completed
+30 publications, all with 600 final rows and the same corpus fingerprint.
+Raw results and launch order are in [rich-measurements.json](rich-measurements.json).
+
+| Direction | Median window maximum | Worst callback gap | Windows over 25 ms |
+| --- | ---: | ---: | ---: |
+| Prepend | 47.5 ms | 71.7 ms | 15 / 15 |
+| Append | 16.5 ms | 16.7 ms | 0 / 15 |
+
+Per-run prepend maxima were 51.7, 54.8, and 71.7 ms. Nonpublication maxima were
+21.3 ms for both directions. The rich fixture **reproduces the production stall's
+60–83 ms range**, without production fetching, anchoring, or position correction.
+This narrows the investigation to rich-row realization/layout under a prepend;
+it does not identify one faulty component or prove a SwiftUI defect. Identical
+incoming content does not eliminate the visible-versus-offscreen difference.
+
+A separate fresh plain-row control pair completed ten publications below 25 ms:
+prepend median 21.0 ms / worst 24.4 ms; append median 8.5 ms / worst 21.0 ms.
+This is a control screen, not a repeat of the original three-pair baseline below.
+Callback cadence varied in this session; the fixed 25 ms budget is a diagnostic
+threshold, not a display-independent frame deadline.
+
+Verified the relocated signed app, rendered local image/code/quote/reaction rows,
+six rich runs and two plain control runs, final counts/fingerprints, strict
+SwiftLint, SwiftFormat, Python/shell syntax, and the doc-script-reference test.
+No production behavior changed; streaming and position restoration are outside
+this at-rest reproduction.
 
 ## Run
 
@@ -28,7 +109,7 @@ python3 apps/apple/prototypes/lazy-prepend/measure.py \
 Allow about 90 seconds for three sequential pairs. A visible native window opens
 and closes for every run. Use a fresh output folder. `--check-budget` exits 1 when
 any insertion exceeds a 25 ms main-thread callback gap; that is the expected red
-signal on the measured 60 Hz Mac, not a failed app build.
+signal when a stall reproduces, not a failed app build.
 
 Single-line control:
 
@@ -59,8 +140,8 @@ and avoid interacting with the floating measurement window.
 An `NSView` display link records actual main-thread callback times. Each result
 reports the longest interval overlapping publication through +700 ms. These are
 **callback scheduling gaps, not presented-frame hitch durations or FPS**. The
-25 ms red budget detects a missed approximately 16.7 ms callback on this 60 Hz Mac;
-it is not a universal threshold for other displays. The nonpublication maximum
+25 ms red budget is a fixed diagnostic threshold; callback cadence can vary,
+and it is not a universal threshold for other displays. The nonpublication maximum
 covers the intervals outside publication windows; no gesture benchmark runs here.
 
 ## Results

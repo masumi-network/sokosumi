@@ -12,10 +12,12 @@ parser.add_argument("app", type=Path)
 parser.add_argument("output", type=Path)
 parser.add_argument("--pairs", type=int, default=3)
 parser.add_argument("--single-line", action="store_true")
+parser.add_argument("--rich", action="store_true", help="Require a build made with --rich")
 parser.add_argument("--page-size", type=int, default=100)
-parser.add_argument("--check-budget", action="store_true", help="Exit 1 if a publication exceeds 25 ms (60 Hz host)")
+parser.add_argument("--check-budget", action="store_true", help="Exit 1 if a publication exceeds the fixed 25 ms diagnostic budget")
 args = parser.parse_args()
 assert args.pairs > 0
+assert not (args.rich and args.single_line), "Single-line mode is a bare-text control"
 args.output.mkdir(parents=True, exist_ok=True)
 assert not any(args.output.glob("*-*.json")), "Use a fresh output folder"
 binary = args.app.resolve() / "Contents/MacOS/ScrollReproduction"
@@ -25,12 +27,16 @@ for pair in range(1, args.pairs + 1):
     for direction in (["prepend", "append"] if pair % 2 else ["append", "prepend"]):
         path = args.output.resolve() / f"{direction}-{pair}.json"
         env = dict(os.environ, REPRO_DIRECTION=direction, REPRO_OUTPUT=str(path),
-                   REPRO_SINGLE_LINE=str(int(args.single_line)), REPRO_PAGE_SIZE=str(args.page_size))
+                   REPRO_SINGLE_LINE=str(int(args.single_line)), REPRO_PAGE_SIZE=str(args.page_size), REPRO_INSPECT="0")
         completed = subprocess.run([str(binary)], env=env, capture_output=True, text=True, timeout=40, check=True)
         path.with_suffix(".stderr.log").write_text(completed.stderr)
         result = json.loads(path.read_text())
         assert result["direction"] == direction and result["page_size"] == args.page_size
         assert result["single_line"] == args.single_line
+        assert result.get("row_kind", "plain") == ("production-rich" if args.rich else "plain")
+        if args.rich:
+            assert len(result["input_fingerprint_sha256"]) == 64
+            assert not runs or result["input_fingerprint_sha256"] == runs[0]["input_fingerprint_sha256"], "Fixture content differs between runs"
         assert result["final_rows"] == 100 + 5 * args.page_size
         assert len(result["insertions"]) == 5 and result["callback_count"] > 100
         runs.append(result)

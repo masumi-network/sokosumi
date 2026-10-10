@@ -2,24 +2,57 @@ import AppKit
 import os
 import QuartzCore
 import SwiftUI
+#if RICH_ROWS
+  import SokosumiChat
+#endif
 
-/// Standalone reproduction. No Sokosumi code, networking, Markdown, or persistence.
+/// The same insertion loop serves the bare control and the production-row fixture.
 struct ScrollReproduction: View {
-  @State private var rows = Array(500 ..< 600)
+  @State private var rows: [Int]
   let probe: FrameProbe
+  #if RICH_ROWS
+    @State private var prepared: PreparedTranscript?
+  #endif
+
+  init(probe: FrameProbe) {
+    self.probe = probe
+    _rows = State(initialValue: probe.richRows ? Array(0 ..< 100) : Array(500 ..< 600))
+  }
 
   var body: some View {
     ScrollView {
       LazyVStack(alignment: .leading, spacing: 0) {
         ForEach(rows, id: \.self) { row in
-          Text(text(row))
-            .padding(.horizontal, 60)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
+          #if RICH_ROWS
+            VStack(alignment: .leading, spacing: 0) {
+              if let prepared {
+                let message = RichRowFixture.messages[row]
+                MessageRowView(preparedDocument: prepared.document(for: message), message: message,
+                               isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+                               horizontalInset: 12)
+              }
+            }
+          #else
+            Text(text(row))
+              .padding(.horizontal, 60)
+              .padding(.vertical, 8)
+              .frame(maxWidth: .infinity, alignment: .leading)
+          #endif
         }
       }
     }
     .task {
+      #if RICH_ROWS
+        RichRowFixture.installMedia()
+        probe.inputFingerprint = RichRowFixture.fingerprint
+        do {
+          prepared = try await PreparedTranscript.prepare(
+            .init(scope: ["portable-reproduction"], messages: RichRowFixture.messages,
+                  mentions: nil, channels: [], baseURL: CoreSettings.webBaseURL), reusing: nil
+          )
+        } catch { fatalError("Cannot prepare rich rows: \(error)") }
+      #endif
+      guard ProcessInfo.processInfo.environment["REPRO_INSPECT"] != "1" else { return }
       await measure()
     }
   }
@@ -40,7 +73,8 @@ struct ScrollReproduction: View {
     for page in 1 ... 5 {
       try? await Task.sleep(for: .seconds(1))
       // Generate the page before the measurement boundary.
-      let first = probe.direction == "prepend" ? 500 - page * probe.pageSize : 600 + (page - 1) * probe.pageSize
+      let first = probe.richRows ? 100 + (page - 1) * probe.pageSize
+        : (probe.direction == "prepend" ? 500 - page * probe.pageSize : 600 + (page - 1) * probe.pageSize)
       let incoming = Array(first ..< first + probe.pageSize)
       probe.mark(page: page, rows: rows.count + incoming.count)
       if probe.direction == "prepend" {
@@ -59,6 +93,15 @@ struct ScrollReproduction: View {
   let direction: String
   let singleLine: Bool
   let pageSize: Int
+  var inputFingerprint: String?
+  var richRows: Bool {
+    #if RICH_ROWS
+      true
+    #else
+      false
+    #endif
+  }
+
   private var link: CADisplayLink?
   private var callbacks: [Double] = []
   private struct Publication {
@@ -78,6 +121,7 @@ struct ScrollReproduction: View {
     precondition(["prepend", "append"].contains(direction))
     precondition((1 ... 100).contains(pageSize))
     super.init()
+    precondition(!richRows || !singleLine, "Single-line mode applies only to the bare control")
   }
 
   func start(_ host: NSView) {
@@ -109,10 +153,14 @@ struct ScrollReproduction: View {
     let nonpublication = gaps.filter { gap in
       !marks.contains { gap.end >= $0.time - 0.1 && gap.start <= $0.time + 0.8 }
     }
-    let result: [String: Any] = ["direction": direction, "single_line": singleLine,
+    var result: [String: Any] = ["direction": direction, "single_line": singleLine,
+                                 "row_kind": richRows ? "production-rich" : "plain",
                                  "page_size": pageSize, "final_rows": rows, "callback_count": callbacks.count,
                                  "nonpublication_max_callback_gap_ms": nonpublication.map(\.ms).max() ?? 0,
                                  "insertions": insertions]
+    if let inputFingerprint {
+      result["input_fingerprint_sha256"] = inputFingerprint
+    }
     do {
       let data = try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
       if let output = ProcessInfo.processInfo.environment["REPRO_OUTPUT"] {
@@ -136,12 +184,21 @@ struct ScrollReproduction: View {
 @MainActor final class ReproductionDelegate: NSObject, NSApplicationDelegate {
   private var window: NSWindow?
 
+  func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
+    true
+  }
+
   func applicationDidFinishLaunching(_: Notification) {
     let probe = FrameProbe()
     let window = NSWindow(contentRect: NSRect(x: 200, y: 100, width: 1100, height: 800),
                           styleMask: [.titled, .closable], backing: .buffered, defer: false)
     window.title = "SwiftUI \(probe.direction) reproduction"
-    window.contentView = NSHostingView(rootView: ScrollReproduction(probe: probe))
+    #if RICH_ROWS
+      window.contentView = NSHostingView(rootView: ScrollReproduction(probe: probe)
+        .environmentObject(RichRowFixture.auth).environmentObject(RichRowFixture.workspace))
+    #else
+      window.contentView = NSHostingView(rootView: ScrollReproduction(probe: probe))
+    #endif
     window.level = .floating
     window.makeKeyAndOrderFront(nil)
     NSApplication.shared.activate()
