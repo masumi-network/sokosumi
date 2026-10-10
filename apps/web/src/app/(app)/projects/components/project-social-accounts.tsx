@@ -2,11 +2,18 @@
 
 import type { ProjectSocialConnection } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { MoreHorizontal, Plus, RefreshCw, TriangleAlert } from "lucide-react";
+import {
+  Link2,
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  TriangleAlert,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/common/empty-state";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import {
   AlertDialog,
@@ -526,14 +533,12 @@ export function ProjectSocialAccounts({
           })}
         </ul>
       ) : (
-        <div
-          className="rounded-lg border border-dashed px-4 py-8 text-center"
-          data-testid="project-social-accounts-empty"
-        >
-          <p className="text-sm font-medium">{t("empty")}</p>
-          <p className="text-muted-foreground mt-1 text-sm text-pretty">
-            {t("emptyHint")}
-          </p>
+        <div data-testid="project-social-accounts-empty">
+          <EmptyState
+            description={t("emptyHint")}
+            icon={Link2}
+            title={t("empty")}
+          />
         </div>
       )}
 
