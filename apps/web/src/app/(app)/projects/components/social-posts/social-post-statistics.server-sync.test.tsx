@@ -50,13 +50,17 @@ vi.mock("next-intl", async () => {
   };
 });
 
+function minutesAgo(minutes: number) {
+  return new Date(Date.now() - minutes * 60_000).toISOString();
+}
+
 const snapshot = {
   metrics: [
     { key: "followers", value: 0, period: "lifetime", unit: null },
     { key: "reach", value: null, period: "days_28", unit: null },
   ],
-  fetchedAt: "2026-10-08T08:00:00Z",
-  refreshAttemptedAt: "2026-10-08T08:00:00Z",
+  fetchedAt: minutesAgo(10),
+  refreshAttemptedAt: minutesAgo(10),
   error: null,
   historyNextCursor: null,
   historyComplete: false,
@@ -213,6 +217,21 @@ function renderStatistics(searchParams = "") {
   );
 }
 
+function mockPages(accounts: Array<typeof account>) {
+  mocks.fetch.mockImplementation(async (url: string) => {
+    const params = new URL(url, "https://web.test").searchParams;
+    const selected =
+      accounts.find((row) => row.id === params.get("connectionId")) ??
+      accounts[0] ??
+      account;
+    return {
+      ok: true,
+      json: async () =>
+        params.get("limit") === "1" ? page(accounts) : page([selected]),
+    };
+  });
+}
+
 function accountCombobox() {
   return screen.getByRole("combobox", { name: /connected accounts/i });
 }
@@ -233,18 +252,7 @@ beforeEach(() => {
   mocks.fetch.mockReset();
   mocks.refreshAction.mockReset();
   vi.stubGlobal("fetch", mocks.fetch);
-  mocks.fetch.mockImplementation(async (url: string) => {
-    const params = new URL(url, "https://web.test").searchParams;
-    const selected =
-      params.get("connectionId") === secondAccount.id ? secondAccount : account;
-    return {
-      ok: true,
-      json: async () =>
-        params.get("limit") === "1"
-          ? page([account, secondAccount])
-          : page([selected]),
-    };
-  });
+  mockPages([account, secondAccount]);
   mocks.refreshAction.mockResolvedValue({
     ok: true,
     value: { enqueued: true },
@@ -259,41 +267,25 @@ describe("SocialPostStatistics server-driven sync", () => {
       ...account,
       statistics: {
         ...snapshot,
-        // Data is 25 hours old (stale threshold is 24 hours)
-        fetchedAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+        fetchedAt: minutesAgo(120),
+        refreshAttemptedAt: minutesAgo(120),
       },
     };
-    mocks.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => page([staleAccount]),
-    });
+    mockPages([staleAccount]);
 
     renderStatistics();
 
-    // Should show syncing indicator for stale data
-    expect(await screen.findByText(/syncing/i)).toBeVisible();
-    // Should still display the stale data
+    expect(await screen.findByText("Syncing…")).toBeVisible();
     expect(screen.getByText(post.text)).toBeVisible();
   });
 
   it("does not show syncing indicator when account data is fresh", async () => {
-    const freshAccount = {
-      ...account,
-      statistics: {
-        ...snapshot,
-        // Data is 1 hour old (within 24-hour threshold)
-        fetchedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-      },
-    };
-    mocks.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => page([freshAccount]),
-    });
+    mockPages([account]);
 
     renderStatistics();
 
     await screen.findByText(post.text);
-    expect(screen.queryByText(/syncing/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Syncing…")).not.toBeInTheDocument();
   });
 
   it("triggers background refresh when switching to stale account", async () => {
@@ -302,42 +294,28 @@ describe("SocialPostStatistics server-driven sync", () => {
       ...account,
       statistics: {
         ...snapshot,
-        fetchedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+        fetchedAt: minutesAgo(10),
+        refreshAttemptedAt: minutesAgo(10),
       },
     };
     const staleSecond = {
       ...secondAccount,
       statistics: {
         ...snapshot,
-        fetchedAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+        fetchedAt: minutesAgo(120),
+        refreshAttemptedAt: minutesAgo(120),
       },
     };
-
-    mocks.fetch.mockImplementation(async (url: string) => {
-      const params = new URL(url, "https://web.test").searchParams;
-      return {
-        ok: true,
-        json: async () =>
-          params.get("limit") === "1"
-            ? page([freshFirst, staleSecond])
-            : params.get("connectionId") === staleSecond.id
-              ? page([staleSecond])
-              : page([freshFirst]),
-      };
-    });
+    mockPages([freshFirst, staleSecond]);
 
     renderStatistics();
 
-    // Start on fresh account - no syncing indicator
     await screen.findByText(post.text);
-    expect(screen.queryByText(/syncing/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Syncing…")).not.toBeInTheDocument();
 
-    // Switch to stale account
     await selectAccount(user, "Brand page");
 
-    // Should show syncing indicator
-    expect(await screen.findByText(/syncing/i)).toBeVisible();
-    // Should enqueue background refresh
+    expect(await screen.findByText("Syncing…")).toBeVisible();
     await waitFor(() => {
       expect(mocks.refreshAction).toHaveBeenCalledWith({
         projectId: "project-1",
@@ -355,20 +333,15 @@ describe("SocialPostStatistics server-driven sync", () => {
         error: "Authentication required",
       },
     };
-
-    mocks.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => page([reauthAccount as never]),
-    });
+    mockPages([reauthAccount as never]);
 
     renderStatistics();
 
     await screen.findByText(post.text);
     expect(
-      screen.getByText(/reconnect required|reauthorization required/i),
+      screen.getByText("Reconnect this account before syncing statistics."),
     ).toBeVisible();
-    // Account should still be selectable
-    expect(accountCombobox()).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Manage accounts" })).toBeVisible();
   });
 
   it("does not trigger refresh for reauthorization-required accounts", async () => {
@@ -377,25 +350,20 @@ describe("SocialPostStatistics server-driven sync", () => {
       status: "reauthorization_required" as const,
       statistics: {
         ...snapshot,
-        fetchedAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+        fetchedAt: minutesAgo(120),
+        refreshAttemptedAt: minutesAgo(120),
         error: "Authentication required",
       },
     };
-
-    mocks.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => page([reauthAccount as never]),
-    });
+    mockPages([reauthAccount as never]);
 
     renderStatistics();
 
     await screen.findByText(post.text);
-    // Should show reauth indicator, not syncing
     expect(
-      screen.getByText(/reconnect required|reauthorization required/i),
+      screen.getByText("Reconnect this account before syncing statistics."),
     ).toBeVisible();
-    expect(screen.queryByText(/syncing/i)).not.toBeInTheDocument();
-    // Should not have called refresh action
+    expect(screen.queryByText("Syncing…")).not.toBeInTheDocument();
     expect(mocks.refreshAction).not.toHaveBeenCalled();
   });
 
@@ -408,21 +376,15 @@ describe("SocialPostStatistics server-driven sync", () => {
         historyNextCursor: "page-2-cursor",
       },
     };
-
-    mocks.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => page([incompleteAccount as never]),
-    });
+    mockPages([incompleteAccount as never]);
 
     renderStatistics();
 
     await screen.findByText(post.text);
-    // Should show account metrics
     const overview = screen.getByTestId("social-performance-overview");
     expect(
       within(overview).getByRole("figure", { name: "Interactions" }),
     ).toBeVisible();
-    // May show a subtle incomplete history indicator but doesn't block display
   });
 
   it("displays post history even with account metric errors", async () => {
@@ -434,18 +396,12 @@ describe("SocialPostStatistics server-driven sync", () => {
         historyComplete: true,
       },
     };
-
-    mocks.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => page([errorAccount as never]),
-    });
+    mockPages([errorAccount as never]);
 
     renderStatistics();
 
-    // Should still show posts
     expect(await screen.findByText(post.text)).toBeVisible();
-    // Should show error indicator
-    expect(screen.getByText(/insights unavailable/i)).toBeVisible();
+    expect(screen.getByText("Some account metrics missing")).toBeVisible();
   });
 
   it("handles account switch during background refresh gracefully", async () => {
@@ -454,77 +410,45 @@ describe("SocialPostStatistics server-driven sync", () => {
       ...account,
       statistics: {
         ...snapshot,
-        fetchedAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+        fetchedAt: minutesAgo(120),
+        refreshAttemptedAt: minutesAgo(120),
       },
     };
     const staleSecond = {
       ...secondAccount,
       statistics: {
         ...snapshot,
-        fetchedAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+        fetchedAt: minutesAgo(120),
+        refreshAttemptedAt: minutesAgo(120),
       },
     };
-
-    mocks.fetch.mockImplementation(async (url: string) => {
-      const params = new URL(url, "https://web.test").searchParams;
-      return {
-        ok: true,
-        json: async () =>
-          params.get("limit") === "1"
-            ? page([staleFirst, staleSecond])
-            : params.get("connectionId") === staleSecond.id
-              ? page([staleSecond])
-              : page([staleFirst]),
-      };
-    });
+    mockPages([staleFirst, staleSecond]);
 
     renderStatistics();
 
-    // Mount stale first account
-    await screen.findByText(/syncing/i);
-
-    // Switch to second stale account before first refresh completes
+    await screen.findByText("Syncing…");
     await selectAccount(user, "Brand page");
 
-    // Should show syncing for second account
-    expect(await screen.findByText(/syncing/i)).toBeVisible();
-
-    // Should have enqueued both
+    expect(await screen.findByText("Syncing…")).toBeVisible();
     await waitFor(() => {
       expect(mocks.refreshAction).toHaveBeenCalledTimes(2);
     });
   });
 
-  it("rate-limits repeated refresh attempts for the same account", async () => {
-    const staleAccount = {
+  it("does not enqueue again while a refresh was attempted in the last 5 minutes", async () => {
+    const inFlight = {
       ...account,
       statistics: {
         ...snapshot,
-        fetchedAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+        fetchedAt: minutesAgo(120),
+        refreshAttemptedAt: minutesAgo(1),
       },
     };
-
-    mocks.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => page([staleAccount]),
-    });
+    mockPages([inFlight]);
 
     renderStatistics();
 
-    // First mount triggers refresh
-    await screen.findByText(/syncing/i);
-    await waitFor(() => {
-      expect(mocks.refreshAction).toHaveBeenCalledTimes(1);
-    });
-
-    // Unmount and remount quickly
-    const { unmount } = renderStatistics();
-    unmount();
-    renderStatistics();
-
-    await screen.findByText(post.text);
-
-    // Should not trigger another refresh (rate limited)
-    expect(mocks.refreshAction).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText("Syncing…")).toBeVisible();
+    expect(mocks.refreshAction).not.toHaveBeenCalled();
   });
 });

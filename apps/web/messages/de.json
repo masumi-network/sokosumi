@@ -2376,6 +2376,9 @@
         "connectAccount": "X, YouTube, LinkedIn … verbinden",
         "actions": "Aktionen für {account}",
         "reconnect": "Erneut verbinden",
+        "syncNow": "Jetzt synchronisieren",
+        "syncQueued": "Performance-Synchronisierung im Hintergrund gestartet",
+        "syncFailed": "Synchronisierung konnte nicht gestartet werden. Versuche es später erneut.",
         "replace": "Ersetzen",
         "disconnect": "Trennen",
         "unknownHandle": "Unbekanntes Konto",
@@ -2631,6 +2634,7 @@
           "accountMetricsIncomplete": "Einige Kontokennzahlen fehlen",
           "postMetricsIncomplete": "Einige Beitragskennzahlen fehlen",
           "performance": {
+            "syncing": "Synchronisierung…",
             "lastDays": "Letzte {days} Tage",
             "timezone": "Anzeigezeitzone",
             "exportCsv": "CSV exportieren",

@@ -9,7 +9,7 @@ import { Download, MoreVertical, Search } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import { Button } from "@/components/ui/button";
@@ -100,7 +100,8 @@ export function SocialPostStatistics({
     : `workspace:${workspaceId}`;
   const [filterScope, setFilterScope] = useState(ownerScope);
   const scopeChangePending = filterScope !== ownerScope;
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
+  const queuedRefreshIds = useRef(new Set<string>());
 
   const apiPath = `/api/${projectId ? "projects" : "workspaces"}/${encodeURIComponent(projectId ?? workspaceId)}/social-performance`;
   const catalogue = useQuery({
@@ -169,43 +170,39 @@ export function SocialPostStatistics({
         connectionId,
       });
     },
-    onSuccess: () => {
-      setIsSyncing(true);
-      // Poll for updates by refetching after a short delay
+    onSuccess: (_data, connectionId) => {
+      setSyncingAccountId(connectionId);
       setTimeout(() => {
         void catalogue.refetch();
-        setIsSyncing(false);
+        setSyncingAccountId((current) =>
+          current === connectionId ? null : current,
+        );
       }, 2000);
     },
   });
 
-  // Check if account data is stale and trigger background refresh
   const checkAndRefreshIfStale = useCallback(
     (account: Account) => {
-      if (!selectedProjectId || isSyncing || refreshMutation.isPending) return;
+      if (!selectedProjectId || account.status !== "active") return;
 
-      const threshold = 3_600_000; // 1 hour
+      const threshold = 3_600_000;
       const now = Date.now();
-
       const stats = account.statistics;
-
-      // Never fetched = stale
       const isStale =
         !stats?.fetchedAt ||
         now - new Date(stats.fetchedAt).getTime() > threshold;
-
-      // Recently attempted = syncing now, not stale
-      const isSyncingNow =
+      const isSyncingNow = Boolean(
         stats?.refreshAttemptedAt &&
-        now - new Date(stats.refreshAttemptedAt).getTime() < 300_000; // 5 min
+          now - new Date(stats.refreshAttemptedAt).getTime() < 300_000,
+      );
 
-      if (isStale && !isSyncingNow) {
-        void refreshMutation.mutate(account.id);
-      } else if (isSyncingNow) {
-        setIsSyncing(true);
-      }
+      if (isSyncingNow || !isStale) return;
+      if (queuedRefreshIds.current.has(account.id)) return;
+      queuedRefreshIds.current.add(account.id);
+      setSyncingAccountId(account.id);
+      void refreshMutation.mutate(account.id);
     },
-    [selectedProjectId, isSyncing, refreshMutation],
+    [selectedProjectId, refreshMutation],
   );
 
   const runScopeKey = JSON.stringify([
@@ -365,6 +362,19 @@ export function SocialPostStatistics({
       dateStyle: "medium",
       timeZone: "UTC",
     });
+  }
+  function accountSnapshot(account: Account) {
+    return (
+      firstPage?.accounts.find((row) => row.id === account.id)?.statistics ??
+      account.statistics
+    );
+  }
+  function isAccountSyncing(account: Account) {
+    if (syncingAccountId === account.id) return true;
+    const attemptedAt = accountSnapshot(account)?.refreshAttemptedAt;
+    return Boolean(
+      attemptedAt && Date.now() - new Date(attemptedAt).getTime() < 300_000,
+    );
   }
   function accountName(account: Account) {
     return (
@@ -532,13 +542,10 @@ export function SocialPostStatistics({
 
                   <div className="text-muted-foreground min-w-0 text-sm">
                     {(() => {
-                      if (isSyncing) {
+                      if (isAccountSyncing(selectedAccount)) {
                         return <p>{t("performance.syncing")}</p>;
                       }
-                      const snapshot =
-                        firstPage?.accounts.find(
-                          (account) => account.id === selectedAccount.id,
-                        )?.statistics ?? selectedAccount.statistics;
+                      const snapshot = accountSnapshot(selectedAccount);
                       return snapshot?.fetchedAt ? (
                         <p>
                           {t("updatedAt", {

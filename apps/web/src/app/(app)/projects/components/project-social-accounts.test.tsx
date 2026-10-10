@@ -861,13 +861,16 @@ describe("ProjectSocialAccounts", () => {
       />,
     );
 
+    const row = screen.getByTestId("project-social-connection-connection-1");
+    expect(
+      within(row).getByRole("button", { name: "Reconnect" }),
+    ).toBeVisible();
     await user.click(
-      screen.getByRole("button", { name: "Actions for @sokosumi" }),
+      within(row).getByRole("button", { name: "Actions for @sokosumi" }),
     );
     expect(
       screen.queryByRole("menuitem", { name: "Sync now" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reconnect" })).toBeVisible();
   });
 
   it("reports failed disconnects after deliberate confirmation", async () => {

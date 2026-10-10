@@ -24,6 +24,9 @@ vi.mock("@/lib/auth/auth.client", () => ({
 vi.mock("@/lib/actions/project/action", () => ({
   refreshProjectSocialAccountStatistics: mocks.refresh,
 }));
+vi.mock("@/lib/actions/project/social-performance-refresh.action", () => ({
+  refreshSocialAccountPerformance: vi.fn().mockResolvedValue({ success: true }),
+}));
 vi.mock("next-intl", async () => {
   const { createTestFormatter } = await import("@/test/intl-formatter");
   const { createTranslator } =
@@ -43,13 +46,16 @@ vi.mock("next-intl", async () => {
       }),
   };
 });
+function minutesAgo(minutes: number) {
+  return new Date(Date.now() - minutes * 60_000).toISOString();
+}
 const snapshot = {
   metrics: [
     { key: "followers", value: 0, period: "lifetime", unit: null },
     { key: "reach", value: null, period: "days_28", unit: null },
   ],
-  fetchedAt: "2026-10-08T08:00:00Z",
-  refreshAttemptedAt: "2026-10-08T08:00:00Z",
+  fetchedAt: minutesAgo(10),
+  refreshAttemptedAt: minutesAgo(10),
   error: null,
   historyNextCursor: null,
   historyComplete: false,
