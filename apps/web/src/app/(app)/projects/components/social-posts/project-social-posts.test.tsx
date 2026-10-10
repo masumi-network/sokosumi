@@ -1886,6 +1886,7 @@ describe("ProjectSocialPosts", () => {
       within(row).getByText("Scheduled time passed more than an hour ago"),
     ).toBeVisible();
     expect(within(row).getByText("Missed")).toBeVisible();
+    expect(within(row).getByText("Failed Sep 10, 10:05 AM")).toBeVisible();
   });
 
   it("retries a FAILED post after confirmation and toasts when it is published", async () => {

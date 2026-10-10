@@ -574,10 +574,19 @@ export function ProjectSocialPosts({
               ) : null}
             </div>
           ) : null}
-          {post.status === "FAILED" ? (
+          {(post.status === "FAILED" || post.status === "MISSED") &&
+          (failureReason || failedAt) ? (
             <div className="space-y-0.5 text-xs">
               {failureReason ? (
-                <p className="text-destructive">{failureReason}</p>
+                <p
+                  className={
+                    post.status === "FAILED"
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+                  }
+                >
+                  {failureReason}
+                </p>
               ) : null}
               {failedAt ? (
                 <time
@@ -590,9 +599,6 @@ export function ProjectSocialPosts({
                 </time>
               ) : null}
             </div>
-          ) : null}
-          {post.status === "MISSED" && post.lastError ? (
-            <p className="text-muted-foreground text-xs">{post.lastError}</p>
           ) : null}
         </div>
         {renderPostActions(post)}
