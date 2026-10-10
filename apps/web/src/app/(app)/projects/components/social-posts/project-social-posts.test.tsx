@@ -98,7 +98,7 @@ const MESSAGES: Record<string, string> = {
   "sections.drafts": "Drafts",
   "sections.attention": "Needs attention",
   "sections.accounts": "Accounts",
-  "sections.statistics": "Statistics",
+  "sections.statistics": "Performance",
   "statistics.refresh": "Refresh statistics",
   "statistics.refreshFailed":
     "Failed to refresh statistics. Previous results are retained.",
@@ -560,7 +560,7 @@ describe("ProjectSocialPosts", () => {
 
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Drafts 1",
-      "Statistics ",
+      "Performance ",
     ]);
     expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
 
@@ -599,7 +599,7 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Calendar ",
       "Drafts 1",
-      "Statistics ",
+      "Performance ",
       "Accounts 1",
     ]);
     expect(screen.getByText("Calendar panel")).toBeVisible();

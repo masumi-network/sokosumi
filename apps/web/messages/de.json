@@ -2432,7 +2432,7 @@
           "drafts": "Entwürfe",
           "attention": "Braucht Aufmerksamkeit",
           "accounts": "Konten",
-          "statistics": "Statistiken"
+          "statistics": "Leistung"
         },
         "empty": {
           "drafts": "Noch keine Entwürfe."
@@ -3055,8 +3055,8 @@
         "label": "Social-Media-Plattformen"
       },
       "statisticsNeedProject": {
-        "title": "Wähle ein Projekt, um Statistiken zu sehen",
-        "body": "Kontostatistiken gehören zu einem Projekt. Wähle eines, um seine verbundenen Konten und veröffentlichten Inhalte zu bewerten."
+        "title": "Wähle ein Projekt, um die Leistung zu sehen",
+        "body": "Die Kontoleistung gehört zu einem Projekt. Wähle eines, um seine verbundenen Konten und veröffentlichten Inhalte zu bewerten."
       }
     },
     "Error": {
