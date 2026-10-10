@@ -306,3 +306,72 @@ than racing the asynchronous image request. Results are in
 `lazy-middle-identity.xcresult` (paging/growth) and `lazy-media-wait.xcresult`
 (scrolling/message links). Strict SwiftLint, SwiftFormat, diff whitespace, and
 the documentation script-reference check passed.
+
+## LazyVStack stall follow-up after #5935
+
+Baseline: merged `origin/main` `3de78f062`, with #5935's streaming, scope, idle,
+and reading-position fixes. This follow-up keeps LazyVStack. **No performance
+change is retained:** none of the controls below demonstrated an advantage
+beyond the observed baseline variation. The insertion stall remains unresolved.
+
+All controls ran in disposable copies of the same foreground, team-signed
+Release fixture. The corpus held 600 mixed messages in an 800 pt window: 100
+initial rows, five 100-row Core pages, and 150 ms fixture response latency.
+Native scroller dragging moved to the top; each page was requested explicitly
+once scrolling rested. Every measured run completed six requests, five
+publications, and all 600 rows. No build or second measurement app ran during a
+capture. Auth was in memory; signing used team `GVWN7HXYJB` and the Developer ID
+Application certificate. Normal app logic, Markdown preparation, page size,
+message identity, and the position correction stayed the same unless they were
+the named control.
+
+The original feedback loop reproduced the stall: `baseline-1.log` recorded
+publication-window main-thread callback gaps of **75/81/131/83/43 ms**. It fails
+the retained 33.4 ms scheduling-budget check. Preparation for the third page
+also took 105 ms, so that run alone cannot attribute its 131 ms gap solely to
+layout. Subsequent baseline runs still exceeded the budget, generally reaching
+60–83 ms. These are main-thread scheduling gaps, not FPS or presentation delays.
+No new presentation-hitch or CPU trace is claimed in this follow-up.
+
+For each screening pair, the table shows the median and maximum of its five
+publication-window gaps. The paired baseline ran immediately after the control:
+
+| Control | Control median / max | Baseline median / max | Outcome |
+| --- | --- | --- | --- |
+| Disable animations only during publication and correction | 66 / 67 ms | 71 / 76 ms | Initial difference did not hold in repeats |
+| Identity transition on each unary message row | 67 / 83 ms | 69 / 75 ms | No convincing gain |
+| Geometry group on each unary message row | 64 / 76 ms | 65 / 70 ms | No convincing gain |
+| Row width from the scroll container | 65 / 83 ms | 74 / 83 ms | Same worst gap |
+| Native single-child Layout cache, with default invalidation | 70 / 75 ms | 67 / 83 ms | No convincing gain |
+| Native Section per calendar day inside LazyVStack | 67 / 78 ms | 71 / 73 ms | No convincing gain |
+| Publish directly from the ready-at-idle change callback | 72 / 79 ms | 77 / 83 ms | No convincing gain |
+| Give the rich body layout priority inside the avatar/body HStack | 67 / 76 ms | 65 / 73 ms | No convincing gain |
+
+The animation control had three runs, with worst publication gaps **67/75/83
+ms**; its third run was slower than the neighboring baseline's 72 ms maximum.
+The other controls were single-pair screens, not statistical proof that those
+APIs can never help. Their differences do not justify adopting additional
+layout behavior. Smaller pages, different indices, row equality, binding
+changes, and clamp-measurement removal had already been tested without a
+repeatable insertion improvement, as recorded in `scrolling-hover-harness.md`.
+
+An explicit fixed-height cache based on post-layout geometry was considered
+but not adopted. It can return a stale height when streaming, fonts, images,
+or available width change. Adding that behavior to chase an unproven gain
+would complicate the framework's intrinsic layout and threaten restoration.
+The existing native layout remains the production path; no new timers,
+controllers, height maps, or custom Layout type is included in this follow-up.
+
+After restoring the unchanged production sources, a fresh team-signed native
+run passed **nine test methods / eleven parameter runs**: room/thread history
+scrolling and message-link restoration, both older-page cases with accurate
+OCR, held-page streaming, pinned/tall growth, and growth while reading history
+or actively scrolling. This verifies retained behavior; it does not turn the
+remaining performance-budget failure into a pass.
+
+Raw logs, paired source controls, signed binaries, and the comparison summary
+are in `/tmp/sokosumi-apple-lazy-followup-20261010`. The acceptance result is
+`current-lazy-acceptance.xcresult`; the compact measurement table is
+`comparison-summary.json`. The agent-runnable `measure.py` verifies the page,
+request, and row counts, while the existing `check_stalls.py` rejects a gap
+above 33.4 ms. No task-launched app was left running.
