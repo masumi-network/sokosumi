@@ -210,20 +210,33 @@ export function StudioComposer({
   }
   const { modelIds: selectedModelIds, settings } = target;
 
+  // A reference is an edit request. Only offer models that can consume every
+  // selected image; a generation-only model must never drop the base image.
+  const availableModels = useMemo(
+    () =>
+      catalog.models.filter(
+        (model) =>
+          referenceAssets.length === 0 ||
+          (model.editEndpoint !== null &&
+            model.maxReferences >= referenceAssets.length),
+      ),
+    [catalog.models, referenceAssets.length],
+  );
   const selectedModels = useMemo(
-    () => catalog.models.filter((model) => selectedModelIds.includes(model.id)),
-    [catalog.models, selectedModelIds],
+    () =>
+      availableModels.filter((model) => selectedModelIds.includes(model.id)),
+    [availableModels, selectedModelIds],
   );
 
   const needle = modelQuery.trim().toLowerCase();
   const shownModels = useMemo(
     () =>
       needle === ""
-        ? catalog.models
-        : catalog.models.filter((model) =>
+        ? availableModels
+        : availableModels.filter((model) =>
             `${model.label} ${model.id}`.toLowerCase().includes(needle),
           ),
-    [catalog.models, needle],
+    [availableModels, needle],
   );
 
   /** Select or unselect exactly the models the search is showing. */
@@ -270,11 +283,7 @@ export function StudioComposer({
     };
   }, [selectedModels]);
 
-  /** References cannot exceed what the least capable chosen model accepts. */
-  const referenceLimit = selectedModels.length
-    ? Math.min(...selectedModels.map((model) => model.maxReferences))
-    : 0;
-  const references = referenceAssets.slice(0, referenceLimit);
+  const references = referenceAssets;
 
   /**
    * Exactly what one press of Generate would buy.
