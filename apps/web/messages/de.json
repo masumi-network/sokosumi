@@ -3015,18 +3015,18 @@
       "title": "Social-Planung",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
       "newPost": {
-        "label": "Neuer Post",
-        "options": "Optionen für neuen Post",
+        "label": "Neuer Beitrag",
+        "options": "Optionen für neuen Beitrag",
         "manual": "Manueller Beitrag",
         "manualHint": "Konto, Medien und Zeitpunkt wählen.",
         "sokoBot": "Mit Soko Bot posten",
         "sokoBotHint": "Im Chat besprechen, Soko Bot entwirft und plant.",
         "sokoBotSetup": "Richte zuerst Soko Bot ein",
         "sokoBotFailed": "Der Soko-Bot-Chat konnte nicht geöffnet werden. Versuche es erneut.",
-        "sokoBotPrompt": "Hilf mir, einen Social-Post für das Projekt {project} zu erstellen.",
-        "sokoBotPromptAnyProject": "Hilf mir, einen Social-Post zu erstellen.",
-        "chooseProjectTitle": "Projekt für diesen Post wählen",
-        "chooseProjectBody": "Ein Post wird über die Konten eines Projekts veröffentlicht."
+        "sokoBotPrompt": "Hilf mir, einen Beitrag für {project} zu erstellen.",
+        "sokoBotPromptAnyProject": "Hilf mir, einen Beitrag zu erstellen.",
+        "chooseProjectTitle": "Projekt für diesen Beitrag wählen",
+        "chooseProjectBody": "Beiträge gehen über die Konten eines Projekts raus."
       },
       "accountsNeedProject": {
         "title": "Verbinde deine Social-Media-Konten",
