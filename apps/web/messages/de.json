@@ -2438,6 +2438,9 @@
           "accounts": "Konten",
           "statistics": "Statistiken"
         },
+        "filters": {
+          "platform": "Plattform"
+        },
         "empty": {
           "drafts": "Noch keine Entwürfe."
         },

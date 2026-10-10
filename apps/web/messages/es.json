@@ -2438,6 +2438,9 @@
           "accounts": "Cuentas",
           "statistics": "Estadísticas"
         },
+        "filters": {
+          "platform": "Plataforma"
+        },
         "empty": {
           "drafts": "Aún no hay borradores."
         },
