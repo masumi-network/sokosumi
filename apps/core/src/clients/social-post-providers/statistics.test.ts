@@ -64,6 +64,7 @@ describe("fetchSocialPostStatistics", () => {
             impression_count: 42,
             like_count: 0,
             reply_count: 2,
+            organic_repost_count: 4,
             retweet_count: 3,
           },
         },
@@ -74,7 +75,7 @@ describe("fetchSocialPostStatistics", () => {
       impressions: 42,
       likes: 0,
       comments: 2,
-      shares: 3,
+      shares: 4,
     });
     expect(sessions[0]).toMatchObject({
       user_id: "executor",
@@ -150,10 +151,37 @@ describe("fetchSocialPostStatistics", () => {
       tool_slug: "FACEBOOK_GET_POST_INSIGHTS",
       arguments: {
         post_id: "123",
-        metrics: "post_media_view",
+        metrics: "post_media_view,post_activity_by_action_type",
         period: "lifetime",
       },
     });
+  });
+
+  it("prefers Facebook insight shares over a Graph shares.count of zero", async () => {
+    stubSession((slug) =>
+      toolResult(
+        slug === "FACEBOOK_GET_POST"
+          ? {
+              id: "123",
+              reactions: { summary: { total_count: 2 } },
+              shares: { count: 0 },
+            }
+          : {
+              data: [
+                {
+                  name: "post_activity_by_action_type",
+                  total_value: { value: { share: 6 } },
+                },
+              ],
+            },
+      ),
+    );
+    await expect(
+      fetchSocialPostStatistics({
+        ...input,
+        provider: "facebook",
+      }),
+    ).resolves.toMatchObject({ shares: 6, likes: 2 });
   });
 
   it("keeps available Facebook engagement when insight permission is missing", async () => {
