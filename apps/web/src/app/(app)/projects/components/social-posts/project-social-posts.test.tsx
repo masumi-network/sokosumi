@@ -154,6 +154,7 @@ const MESSAGES: Record<string, string> = {
   "composer.accounts": "Post to",
   "composer.publishNow": "Post now",
   "composer.pickAccount": "Pick an account to post to.",
+  "composer.tooLong": "Shorten the text.",
   "composer.requirements.text_or_media_required": "Add text or media.",
   "composer.requirements.text_required": "{provider} requires text.",
   "composer.requirements.media_required":
@@ -944,6 +945,9 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.getByTestId("social-post-character-count").className,
     ).toContain("text-destructive");
+    expect(
+      within(dialog).getByTestId("social-post-too-long"),
+    ).toHaveTextContent("Shorten the text.");
     expect(saveDraft).toBeDisabled();
     expect(
       within(dialog).getByRole("button", { name: "Post now" }),
@@ -953,6 +957,9 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getByTestId("social-post-character-count")).toHaveTextContent(
       "280 / 280",
     );
+    expect(
+      within(dialog).queryByTestId("social-post-too-long"),
+    ).not.toBeInTheDocument();
     expect(saveDraft).toBeEnabled();
   });
 
