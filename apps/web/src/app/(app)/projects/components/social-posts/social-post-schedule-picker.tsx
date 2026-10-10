@@ -12,7 +12,7 @@ import {
 } from "date-fns";
 import { CalendarIcon, Clock, Zap } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { type KeyboardEvent, useId, useRef, useState } from "react";
 
 import { scheduleChipClass } from "@/app/tasks/components/task-schedule-when";
 import { Calendar } from "@/components/ui/calendar";
@@ -166,6 +166,7 @@ export function SocialPostSchedulePicker({
   }
 
   // The time list is for the chosen day, or the earliest one.
+  const timeOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const slots = scheduleSlotsOf(selected ?? earliest);
   if (
     selected &&
@@ -173,6 +174,54 @@ export function SocialPostSchedulePicker({
   ) {
     slots.push(selected);
     slots.sort((a, b) => a.getTime() - b.getTime());
+  }
+  const enabledSlotIndexes = slots.flatMap((slot, index) =>
+    isBefore(slot, earliest) ? [] : [index],
+  );
+  const selectedIndex = selected
+    ? slots.findIndex((slot) => slot.getTime() === selected.getTime())
+    : -1;
+  const timeTabStop =
+    selectedIndex !== -1 && enabledSlotIndexes.includes(selectedIndex)
+      ? selectedIndex
+      : (enabledSlotIndexes[0] ?? -1);
+
+  function focusTimeOption(index: number): void {
+    timeOptionRefs.current[index]?.focus();
+  }
+
+  function handleTimeListKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    if (enabledSlotIndexes.length === 0) return;
+    const activeIndex = timeOptionRefs.current.findIndex(
+      (node) => node === event.target,
+    );
+    const from = Math.max(0, enabledSlotIndexes.indexOf(activeIndex));
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      focusTimeOption(
+        enabledSlotIndexes[(from + 1) % enabledSlotIndexes.length] ??
+          enabledSlotIndexes[0],
+      );
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      focusTimeOption(
+        enabledSlotIndexes[
+          (from - 1 + enabledSlotIndexes.length) % enabledSlotIndexes.length
+        ] ?? enabledSlotIndexes[0],
+      );
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      focusTimeOption(enabledSlotIndexes[0] ?? 0);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      focusTimeOption(enabledSlotIndexes.at(-1) ?? 0);
+    }
   }
 
   return (
@@ -279,13 +328,21 @@ export function SocialPostSchedulePicker({
             </span>
           </button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-44 p-1">
+        <PopoverContent
+          align="start"
+          className="w-44 p-1"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            if (timeTabStop >= 0) focusTimeOption(timeTabStop);
+          }}
+        >
           <div
             aria-label={t("times")}
             className="app-scrollbar flex max-h-64 flex-col overflow-y-auto"
+            onKeyDown={handleTimeListKeyDown}
             role="listbox"
           >
-            {slots.map((slot) => {
+            {slots.map((slot, index) => {
               const isSelected = selected?.getTime() === slot.getTime();
               const tooSoon = isBefore(slot, earliest);
               return (
@@ -303,6 +360,7 @@ export function SocialPostSchedulePicker({
                   onClick={() => pickTime(slot)}
                   // Open on the chosen time, or the first one still open.
                   ref={(node) => {
+                    timeOptionRefs.current[index] = node;
                     if (
                       node &&
                       (isSelected ||
@@ -313,6 +371,7 @@ export function SocialPostSchedulePicker({
                     }
                   }}
                   role="option"
+                  tabIndex={index === timeTabStop ? 0 : -1}
                   type="button"
                 >
                   {formatter.dateTime(slot, "time")}
