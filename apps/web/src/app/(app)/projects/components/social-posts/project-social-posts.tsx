@@ -1,12 +1,13 @@
 "use client";
 
-import type {
-  ProjectSocialConnection,
-  SocialPost,
-  SocialPostMediaRef,
-  SocialPostStatus,
+import {
+  type ProjectSocialConnection,
+  ProjectSocialProvider,
+  type SocialPost,
+  type SocialPostMediaRef,
+  type SocialPostStatus,
 } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, socialPostProviderLabel } from "@sokosumi/utils";
 import {
   AlertTriangle,
   ExternalLink,
@@ -16,11 +17,12 @@ import {
   MoreHorizontal,
   RefreshCw,
   RotateCcw,
+  Share2,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { parseAsStringEnum, parseAsStringLiteral, useQueryState } from "nuqs";
 import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
@@ -28,6 +30,7 @@ import { SocialPostComposerDialog } from "@/app/projects/components/social-posts
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
 import { EmptyState } from "@/components/common/empty-state";
+import { FilterDropdownMenu } from "@/components/common/filter-dropdown-menu";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import {
   AlertDialog,
@@ -108,6 +111,16 @@ interface ProjectSocialPostsProps {
 
 /** Statuses whose previous attempt already ran, so the publish action reads as a retry. */
 const RETRY_STATUSES: readonly SocialPostStatus[] = ["FAILED", "MISSED"];
+const SOCIAL_POST_PROVIDERS = Object.values(ProjectSocialProvider);
+
+function isSocialPostProvider(
+  value: string | null,
+): value is ProjectSocialProvider {
+  return (
+    value !== null &&
+    SOCIAL_POST_PROVIDERS.some((provider) => provider === value)
+  );
+}
 
 function timeOf(value: Date | null): number {
   return value ? new Date(value).getTime() : 0;
@@ -205,6 +218,7 @@ export function ProjectSocialPosts({
   const router = useRouter();
   const accountsHref = `/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`;
   const t = useTranslations("App.Projects.SocialPosts");
+  const tFilters = useTranslations("App.Tasks.Filters");
   const formatter = useFormatter();
   const [syncedPosts, setSyncedPosts] = useState(initialPosts);
   const [posts, setPosts] = useState(initialPosts);
@@ -213,6 +227,10 @@ export function ProjectSocialPosts({
   const [tabParam, setTabParam] = useQueryState(
     "tab",
     parseAsStringLiteral(SOCIAL_TABS),
+  );
+  const [provider, setProvider] = useQueryState(
+    "provider",
+    parseAsStringEnum<ProjectSocialProvider>(SOCIAL_POST_PROVIDERS),
   );
   const sourceRef = useRef(initialPosts);
   sourceRef.current = initialPosts;
@@ -716,6 +734,33 @@ export function ProjectSocialPosts({
                 );
               })}
             </TabsList>
+            {tab === "drafts" || tab === "attention" ? (
+              <div data-testid="social-posts-platform-filter">
+                <FilterDropdownMenu
+                  buttonLabel={tFilters("title")}
+                  emptyResultsLabel={tFilters("emptyResults")}
+                  searchPlaceholder={tFilters("searchPlaceholder")}
+                  sections={[
+                    {
+                      id: "provider",
+                      label: t("filters.platform"),
+                      icon: Share2,
+                      value: provider,
+                      allLabel: tFilters("all"),
+                      options: SOCIAL_POST_PROVIDERS.map((value) => ({
+                        value,
+                        label: socialPostProviderLabel(value),
+                      })),
+                      onChange: (value) =>
+                        void setProvider(
+                          isSocialPostProvider(value) ? value : null,
+                        ),
+                    },
+                  ]}
+                  showActiveIndicator={provider !== null}
+                />
+              </div>
+            ) : null}
             {actions}
           </div>
 
@@ -769,7 +814,9 @@ export function ProjectSocialPosts({
 
           {SECTION_ORDER.filter((section) => tabs.includes(section)).map(
             (section) => {
-              const sectionPosts = postsIn(section);
+              const sectionPosts = postsIn(section).filter(
+                (post) => provider === null || post.provider === provider,
+              );
               const cursor = cursors[section];
               return (
                 <TabsContent

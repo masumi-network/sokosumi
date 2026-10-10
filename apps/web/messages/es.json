@@ -2447,6 +2447,9 @@
           "accounts": "Cuentas",
           "statistics": "Rendimiento"
         },
+        "filters": {
+          "platform": "Plataforma"
+        },
         "empty": {
           "drafts": "Aún no hay borradores."
         },

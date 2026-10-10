@@ -2447,6 +2447,9 @@
           "accounts": "Accounts",
           "statistics": "Performance"
         },
+        "filters": {
+          "platform": "Platform"
+        },
         "empty": {
           "drafts": "No drafts yet."
         },
