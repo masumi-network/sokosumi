@@ -53,6 +53,9 @@ describe("TaskFormModal", () => {
 
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
     expect(
+      screen.getByRole("dialog", { name: "What should Elena do?" }),
+    ).toBeVisible();
+    expect(
       screen.getByRole("heading", { name: "What should Elena do?" }),
     ).toBeInTheDocument();
   });
