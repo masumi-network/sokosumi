@@ -326,6 +326,15 @@ describe("SocialPage", () => {
     await expect(searchParams).resolves.toMatchObject({ view: undefined });
   });
 
+  it("drops view=agenda on the all-projects calendar too", async () => {
+    await visit({ view: "agenda" });
+
+    expect(screen.getByTestId("social-all-projects-tabs")).toBeInTheDocument();
+    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
+    await expect(searchParams).resolves.toMatchObject({ view: undefined });
+    expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
+  });
+
   it("opens the scoped project's posts, calendar and accounts", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
 
