@@ -7,7 +7,6 @@
  *   runDueSocialAccountSync      — sole writer; cron / waitUntil
  */
 
-import { Prisma } from "@sokosumi/database";
 import { waitUntil } from "@vercel/functions";
 import { err, ok, type Result } from "neverthrow";
 import prisma from "@/lib/db/prisma";
@@ -179,19 +178,7 @@ export async function runDueSocialAccountSync(
               OR: [
                 { performanceHeadFetchedAt: null },
                 { performanceHeadFetchedAt: { lt: day } },
-                {
-                  AND: [
-                    {
-                      statistics: { path: ["historyComplete"], equals: false },
-                    },
-                    {
-                      statistics: {
-                        path: ["historyError"],
-                        equals: Prisma.JsonNull,
-                      },
-                    },
-                  ],
-                },
+                { statistics: { path: ["historyComplete"], equals: false } },
               ],
             },
           ],
@@ -229,7 +216,11 @@ export async function runDueSocialAccountSync(
     const dirty =
       requestedAt !== null &&
       (attemptedAt === null || requestedAt.getTime() > attemptedAt.getTime());
-    if (!dirty && previous?.error && account.performanceRefreshAttemptedAt) {
+    if (
+      !dirty &&
+      (previous?.error || previous?.historyError) &&
+      account.performanceRefreshAttemptedAt
+    ) {
       const level = Math.min(
         BACKOFF_MS.length - 1,
         previous.consecutiveFailures ?? 1,

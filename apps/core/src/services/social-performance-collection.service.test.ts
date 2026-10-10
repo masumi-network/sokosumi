@@ -127,6 +127,39 @@ describe("periodic performance collection", () => {
       mocks.refresh.mock.invocationCallOrder[0],
     );
   });
+  it("retries incomplete history after a transient historyError without waiting for UTC midnight", async () => {
+    const now = new Date("2026-10-08T12:00:00Z");
+    mocks.accounts.mockResolvedValue([
+      {
+        ...account,
+        performanceRefreshAttemptedAt: new Date("2026-10-08T10:00:00Z"),
+        performanceHeadFetchedAt: new Date("2026-10-08T10:00:00Z"),
+        statistics: {
+          metrics: [],
+          fetchedAt: "2026-10-08T10:00:00Z",
+          refreshAttemptedAt: "2026-10-08T10:00:00Z",
+          error: null,
+          historyNextCursor: "page-2",
+          historyComplete: false,
+          historyFetchedAt: "2026-10-08T10:00:00Z",
+          historyError: "429 rate limit",
+        },
+      },
+    ]);
+    await collectSocialPerformance({ shouldContinue: () => true, now });
+    expect(
+      mocks.accounts.mock.calls[0][0].where.OR[3].AND[1].OR,
+    ).toContainEqual({
+      statistics: { path: ["historyComplete"], equals: false },
+    });
+    expect(JSON.stringify(mocks.accounts.mock.calls[0][0].where)).not.toContain(
+      "historyError",
+    );
+    expect(mocks.refresh).toHaveBeenCalledWith(
+      expect.objectContaining({ continueHistory: true, refreshHead: false }),
+    );
+  });
+
   it("retries a cancelled daily head despite today's attempt and retains an errored archive cursor", async () => {
     const now = new Date("2026-10-08T12:00:00Z");
     mocks.accounts.mockResolvedValue([
