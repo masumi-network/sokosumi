@@ -1454,7 +1454,9 @@ export function WorkspaceCalendar({
           onDateClick={handleDateClick}
           runHandlers={runHandlers}
           socialOnly={socialOnly}
-          socialPostVariant={socialPostsOnly ? "preview" : "compact"}
+          socialPostVariant={
+            socialPostsOnly && view !== "week" ? "preview" : "compact"
+          }
           sources={sources}
           timeZone={timeZone}
           view={view}
