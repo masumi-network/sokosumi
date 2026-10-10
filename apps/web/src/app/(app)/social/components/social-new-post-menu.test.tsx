@@ -46,7 +46,8 @@ describe("SocialNewPostMenu", () => {
     setup();
 
     const trigger = screen.getByRole("button", { name: "New post" });
-    expect(trigger).toHaveClass("size-14", "md:h-10");
+    expect(trigger).toHaveClass("h-11", "shrink-0", "md:h-10");
+    expect(trigger).not.toHaveClass("size-14");
 
     await user.click(trigger);
     expect(screen.getByRole("menuitem", { name: /Manual post/ })).toHaveClass(

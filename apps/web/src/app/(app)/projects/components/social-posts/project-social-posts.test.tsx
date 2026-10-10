@@ -618,6 +618,33 @@ describe("ProjectSocialPosts", () => {
     expect(screen.queryByText("Calendar panel")).not.toBeInTheDocument();
   });
 
+  it("gives tabs 44px phone targets and scrolls from the start", () => {
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        actions={<button type="button">Page action</button>}
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[FAILED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const tablist = screen.getByRole("tablist");
+    expect(tablist).toHaveClass(
+      "min-h-11",
+      "flex-1",
+      "min-w-0",
+      "justify-start",
+      "overflow-x-auto",
+    );
+    expect(tablist).not.toHaveClass("md:w-fit");
+    expect(tablist.parentElement).toHaveClass("gap-3");
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab).toHaveClass("min-h-11", "shrink-0");
+    }
+  });
+
   it("opens a linked draft preview without changing the calendar tab", async () => {
     const user = userEvent.setup();
     render(
