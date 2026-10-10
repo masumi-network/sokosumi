@@ -233,6 +233,9 @@ describe("Social account statistics", () => {
         create: expect.objectContaining({
           connectionId,
           text: providerPost.text,
+          contentType: "unknown",
+          postKind: "unknown",
+          media: [],
           metrics,
           additionalMetrics: providerPost.additionalMetrics,
         }),
@@ -385,6 +388,9 @@ describe("Social account statistics", () => {
     expect(create.metrics.impressions).toBeNull();
     expect(update).toEqual({
       text: providerPost.text,
+      contentType: "unknown",
+      postKind: "unknown",
+      media: [],
       publishedAt: new Date(providerPost.publishedAt),
       url: providerPost.url,
     });

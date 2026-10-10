@@ -76,12 +76,15 @@ export function SocialPostPreview({
   );
 }
 
-function usePreviewTime(timestamp: Date | null) {
+function usePreviewTime(timestamp: Date | null, timestampLabel?: string) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const formatter = useFormatter();
-  return timestamp
-    ? formatter.dateTime(timestamp, { month: "short", day: "numeric" })
-    : t("now");
+  return (
+    timestampLabel ??
+    (timestamp
+      ? formatter.dateTime(timestamp, { month: "short", day: "numeric" })
+      : t("now"))
+  );
 }
 
 /**
@@ -119,11 +122,13 @@ function XPreview({
   media,
   text,
   timestamp,
+  timestampLabel,
+  showEngagementActions = true,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
   const handle = accountHandle(account);
-  const time = usePreviewTime(timestamp);
+  const time = usePreviewTime(timestamp, timestampLabel);
   const actions = [
     { Icon: MessageCircle, key: "reply" },
     { Icon: Repeat2, key: "repost" },
@@ -132,37 +137,68 @@ function XPreview({
   ];
 
   return (
-    <div className="flex gap-3 px-4 pt-3 pb-2">
+    <div
+      className={cn(
+        "flex gap-3 px-4 pt-3 pb-2",
+        !showEngagementActions && "py-4",
+      )}
+    >
       <PreviewAvatar account={account} name={name} className="size-10" />
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-1 leading-5">
-          <span className="min-w-0 truncate font-bold">{name}</span>
-          <span className="text-muted-foreground shrink-0">
-            {handle ? `${handle} · ${time}` : time}
-          </span>
-          <MoreHorizontal
-            className="text-muted-foreground ms-auto size-4 shrink-0"
-            aria-hidden
-          />
-        </div>
+        {showEngagementActions ? (
+          <div className="flex min-w-0 items-center gap-1 leading-5">
+            <span className="min-w-0 truncate font-bold">{name}</span>
+            <span className="text-muted-foreground shrink-0">
+              {handle ? `${handle} · ${time}` : time}
+            </span>
+            <MoreHorizontal
+              className="text-muted-foreground ms-auto size-4 shrink-0"
+              aria-hidden
+            />
+          </div>
+        ) : (
+          <div className="space-y-0.5 leading-5">
+            <div className="flex items-start justify-between gap-2">
+              <span className="min-w-0 break-words font-semibold">{name}</span>
+              <SocialPostProviderIcon
+                provider="x"
+                className="size-4 shrink-0"
+                aria-hidden
+              />
+            </div>
+            {handle ? (
+              <p className="text-muted-foreground break-words text-xs">
+                {handle}
+              </p>
+            ) : null}
+            <p className="text-muted-foreground text-xs">{time}</p>
+          </div>
+        )}
         {text ? (
-          <p className="mt-0.5 leading-5 whitespace-pre-wrap break-words">
+          <p
+            className={cn(
+              "leading-5 whitespace-pre-wrap break-words",
+              showEngagementActions ? "mt-0.5" : "mt-3",
+            )}
+          >
             <PreviewRichText text={text} linkClassName="text-social-x-link" />
           </p>
         ) : null}
         <PreviewMediaGrid media={media} className="mt-3 rounded-2xl border" />
-        <div
-          aria-hidden
-          className="text-muted-foreground mt-3 flex items-center justify-between pe-8"
-        >
-          {actions.map(({ Icon, key }) => (
-            <Icon key={key} className="size-4" />
-          ))}
-          <span className="flex gap-3">
-            <Bookmark className="size-4" />
-            <Share className="size-4" />
-          </span>
-        </div>
+        {showEngagementActions ? (
+          <div
+            aria-hidden
+            className="text-muted-foreground mt-3 flex items-center justify-between pe-8"
+          >
+            {actions.map(({ Icon, key }) => (
+              <Icon key={key} className="size-4" />
+            ))}
+            <span className="flex gap-3">
+              <Bookmark className="size-4" />
+              <Share className="size-4" />
+            </span>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -173,10 +209,12 @@ function LinkedInPreview({
   media,
   text,
   timestamp,
+  timestampLabel,
+  showEngagementActions = true,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
-  const time = usePreviewTime(timestamp);
+  const time = usePreviewTime(timestamp, timestampLabel);
   const fold = useFold(text, 210, 3);
   const actions = [
     { Icon: ThumbsUp, label: t("linkedin.like") },
@@ -190,16 +228,32 @@ function LinkedInPreview({
       <div className="flex gap-2 px-4 pt-3">
         <PreviewAvatar account={account} name={name} className="size-12" />
         <div className="min-w-0 flex-1 leading-4">
-          <p className="truncate font-semibold">{name}</p>
+          <p
+            className={
+              showEngagementActions
+                ? "truncate font-semibold"
+                : "break-words font-semibold"
+            }
+          >
+            {name}
+          </p>
           <p className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
             {time} ·
             <Globe className="size-3" aria-label={t("linkedin.public")} />
           </p>
         </div>
-        <MoreHorizontal
-          className="text-muted-foreground size-5 shrink-0"
-          aria-hidden
-        />
+        {showEngagementActions ? (
+          <MoreHorizontal
+            className="text-muted-foreground size-5 shrink-0"
+            aria-hidden
+          />
+        ) : (
+          <SocialPostProviderIcon
+            provider="linkedin"
+            className="size-5 shrink-0"
+            aria-hidden
+          />
+        )}
       </div>
       {text ? (
         <div className="px-4 pt-3 pb-2">
@@ -223,20 +277,22 @@ function LinkedInPreview({
         <div className="h-3" />
       )}
       <PreviewMediaGrid media={media} />
-      <div
-        aria-hidden
-        className="text-muted-foreground mx-4 flex justify-between border-t py-1"
-      >
-        {actions.map(({ Icon, label }) => (
-          <span
-            key={label}
-            className="flex items-center gap-1.5 px-2 py-2 text-sm font-semibold"
-          >
-            <Icon className="size-4" />
-            <span className="hidden sm:inline">{label}</span>
-          </span>
-        ))}
-      </div>
+      {showEngagementActions ? (
+        <div
+          aria-hidden
+          className="text-muted-foreground mx-4 flex justify-between border-t py-1"
+        >
+          {actions.map(({ Icon, label }) => (
+            <span
+              key={label}
+              className="flex items-center gap-1.5 px-2 py-2 text-sm font-semibold"
+            >
+              <Icon className="size-4" />
+              <span className="hidden sm:inline">{label}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -321,6 +377,9 @@ function InstagramPreview({
   media,
   text,
   timestamp,
+  timestampLabel,
+  showMediaPlaceholder = true,
+  showEngagementActions = true,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const formatter = useFormatter();
@@ -334,27 +393,46 @@ function InstagramPreview({
     <div>
       <div className="flex items-center gap-3 px-3 py-2.5">
         <PreviewAvatar account={account} name={name} className="size-8" />
-        <span className="min-w-0 flex-1 truncate font-semibold">{name}</span>
-        <MoreHorizontal className="size-5 shrink-0" aria-hidden />
-      </div>
-      <div
-        className="aspect-[4/5] overflow-hidden bg-media-ground"
-        data-testid="social-post-preview-instagram-frame"
-      >
-        {first ? (
-          <PreviewMediaItem media={first} />
+        <span
+          className={cn(
+            "min-w-0 flex-1 font-semibold",
+            showEngagementActions ? "truncate" : "break-words",
+          )}
+        >
+          {name}
+        </span>
+        {showEngagementActions ? (
+          <MoreHorizontal className="size-5 shrink-0" aria-hidden />
         ) : (
-          <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
-            {t("instagram.mediaRequired")}
-          </div>
+          <SocialPostProviderIcon
+            provider="instagram"
+            className="size-5 shrink-0"
+            aria-hidden
+          />
         )}
       </div>
-      <div aria-hidden className="flex items-center gap-4 px-3 pt-3">
-        <Heart className="size-6" />
-        <MessageCircle className="size-6 -scale-x-100" />
-        <Send className="size-6" />
-        <Bookmark className="ms-auto size-6" />
-      </div>
+      {first || showMediaPlaceholder ? (
+        <div
+          className="aspect-[4/5] overflow-hidden bg-media-ground"
+          data-testid="social-post-preview-instagram-frame"
+        >
+          {first ? (
+            <PreviewMediaItem media={first} />
+          ) : (
+            <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
+              {t("instagram.mediaRequired")}
+            </div>
+          )}
+        </div>
+      ) : null}
+      {showEngagementActions ? (
+        <div aria-hidden className="flex items-center gap-4 px-3 pt-3">
+          <Heart className="size-6" />
+          <MessageCircle className="size-6 -scale-x-100" />
+          <Send className="size-6" />
+          <Bookmark className="ms-auto size-6" />
+        </div>
+      ) : null}
       <div className="space-y-1 px-3 pt-2 pb-3">
         {text ? (
           <p className="leading-5 whitespace-pre-wrap break-words">
@@ -378,9 +456,10 @@ function InstagramPreview({
           </p>
         ) : null}
         <p className="text-muted-foreground text-xs">
-          {timestamp
-            ? formatter.dateTime(timestamp, { month: "long", day: "numeric" })
-            : t("now")}
+          {timestampLabel ??
+            (timestamp
+              ? formatter.dateTime(timestamp, { month: "long", day: "numeric" })
+              : t("now"))}
         </p>
       </div>
     </div>
@@ -550,17 +629,27 @@ function GenericPreview({
   media,
   text,
   timestamp,
+  timestampLabel,
+  showEngagementActions = true,
 }: SocialPostPreviewContentProps & { provider: SocialPost["provider"] }) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
-  const time = usePreviewTime(timestamp);
+  const time = usePreviewTime(timestamp, timestampLabel);
 
   return (
     <div className="space-y-3 p-4">
       <div className="flex items-center gap-2">
         <PreviewAvatar account={account} name={name} className="size-10" />
         <div className="min-w-0 flex-1 leading-5">
-          <p className="truncate font-semibold">{name}</p>
+          <p
+            className={
+              showEngagementActions
+                ? "truncate font-semibold"
+                : "break-words font-semibold"
+            }
+          >
+            {name}
+          </p>
           <p className="text-muted-foreground text-xs">{time}</p>
         </div>
         <SocialPostProviderIcon provider={provider} className="size-5" />

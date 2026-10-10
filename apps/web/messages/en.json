@@ -2641,6 +2641,7 @@
           "empty": "No imported posts match these filters. Sync an account or clear the filters.",
           "refresh": "Refresh statistics",
           "loadMore": "Load more posts",
+          "moreMetrics": "More metrics",
           "unavailable": "Unavailable",
           "notFetched": "Statistics have not been fetched.",
           "updatedAt": "Updated {date}",
@@ -2702,7 +2703,7 @@
           "historyLimited": "History is incomplete or limited by the platform. Check the account permissions and try syncing again.",
           "dateUnavailable": "Publication date unavailable",
           "mediaPost": "Media post",
-          "openPost": "Open post on platform",
+          "openPost": "View post",
           "accountMetrics": {
             "followers": "Followers",
             "following": "Following",
@@ -2745,6 +2746,7 @@
             "linkClicks": "Link clicks",
             "replies": "Replies",
             "reposts": "Reposts",
+            "quotes": "Quotes",
             "dislikes": "Dislikes"
           },
           "periods": {
