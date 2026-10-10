@@ -709,7 +709,9 @@ describe("ProjectSocialPosts", () => {
     );
 
     const drafts = screen.getByTestId("social-posts-section-drafts");
-    expect(within(drafts).getByText("No drafts yet.")).toBeVisible();
+    expect(
+      within(drafts).getByRole("heading", { name: "No drafts yet." }),
+    ).toBeVisible();
     expect(
       within(drafts).getByText("Save a post as a draft to finish it later."),
     ).toBeVisible();
