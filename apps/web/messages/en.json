@@ -7375,6 +7375,7 @@
       },
       "previous": "Previous period",
       "next": "Next period",
+      "today": "Today",
       "view": {
         "month": "Month",
         "week": "Week",
