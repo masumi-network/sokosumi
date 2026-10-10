@@ -1,21 +1,28 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
+
+import { ErrorState } from "@/components/common/error-state";
+import { useErrorCardCopy } from "@/hooks/use-error-card-copy";
 
 export default function CalendarError({
+  error,
   reset,
 }: {
-  error: Error;
+  error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const t = useTranslations("App.Calendar");
+  const t = useTranslations("App.Error");
+  const copy = useErrorCardCopy(error);
 
   return (
-    <div className="flex min-h-80 flex-col items-center justify-center gap-3 px-6 text-center">
-      <h1 className="text-lg font-semibold">{t("error.title")}</h1>
-      <p className="text-muted-foreground text-sm">{t("error.description")}</p>
-      <Button onClick={reset}>{t("error.retry")}</Button>
-    </div>
+    <ErrorState
+      description={copy.description}
+      error={error}
+      onRetry={reset}
+      secondaryHref="/"
+      secondaryLabel={t("goApp")}
+      title={copy.title}
+    />
   );
 }

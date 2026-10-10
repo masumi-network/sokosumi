@@ -1158,10 +1158,6 @@
   },
   "Auth": {
     "Error": {
-      "title": "Something went wrong",
-      "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
-      "errorId": "Error ID: {errorId}",
-      "tryAgain": "Try again",
       "goLogin": "Log in"
     },
     "Footer": {
@@ -3041,10 +3037,10 @@
     },
     "Error": {
       "title": "Something went wrong",
-      "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
+      "description": "Try again in a moment.",
+      "notified": "Our team has been notified.",
       "unavailableTitle": "Temporarily unavailable",
-      "unavailableDescription": "We could not reach the service. This is usually brief, so please try again in a moment.",
-      "errorId": "Error ID: {errorId}",
+      "unavailableDescription": "We could not reach the service. Try again in a moment.",
       "tryAgain": "Try again",
       "goApp": "Go to app"
     },
@@ -3265,11 +3261,6 @@
         "unauthenticatedAction": "Log in",
         "badInput": "Invalid plan selection",
         "general": "Something went wrong. Please try again."
-      },
-      "Error": {
-        "title": "Something went wrong",
-        "message": "We encountered an issue loading subscriptions. Please try again later.",
-        "retryButton": "Try again"
       }
     },
     "Admin": {
@@ -7443,11 +7434,6 @@
       },
       "pagination": {
         "error": "Unable to load more events."
-      },
-      "error": {
-        "title": "Unable to load the calendar",
-        "description": "Please try again in a moment.",
-        "retry": "Try again"
       },
       "agenda": {
         "upcoming": "Coming up next",
