@@ -3022,8 +3022,8 @@
         "chooseProjectBody": "A post is published from the accounts connected to one project."
       },
       "accountsNeedProject": {
-        "title": "Connect your social accounts",
-        "body": "Bring your channels together. Choose a project to connect accounts, then draft, schedule, and publish your posts."
+        "title": "Choose a project",
+        "body": "Then connect accounts."
       },
       "draftsNeedProject": {
         "title": "Drafts",

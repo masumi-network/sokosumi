@@ -3022,8 +3022,8 @@
         "chooseProjectBody": "Una publicación sale desde las cuentas conectadas a un proyecto."
       },
       "accountsNeedProject": {
-        "title": "Conecta tus cuentas de redes sociales",
-        "body": "Reúne tus canales en un solo lugar. Elige un proyecto para conectar cuentas y luego crear, programar y publicar tus publicaciones."
+        "title": "Elige un proyecto",
+        "body": "Luego conecta cuentas."
       },
       "draftsNeedProject": {
         "title": "Borradores",

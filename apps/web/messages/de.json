@@ -3022,8 +3022,8 @@
         "chooseProjectBody": "Ein Post wird über die Konten eines Projekts veröffentlicht."
       },
       "accountsNeedProject": {
-        "title": "Verbinde deine Social-Media-Konten",
-        "body": "Verwalte deine Kanäle an einem Ort. Wähle ein Projekt, um Konten zu verbinden und Beiträge zu entwerfen, zu planen und zu veröffentlichen."
+        "title": "Wähle ein Projekt",
+        "body": "Dann verbinde Konten."
       },
       "draftsNeedProject": {
         "title": "Entwürfe",
