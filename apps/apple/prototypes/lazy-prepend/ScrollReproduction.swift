@@ -6,9 +6,10 @@ import SwiftUI
   import SokosumiChat
 #endif
 
-/// The same insertion loop serves the bare control and the production-row fixture.
+/// The same measurement loop serves insertion and preloaded-row reveal controls.
 struct ScrollReproduction: View {
   @State private var rows: [Int]
+  @State private var revealTarget: Int?
   let probe: FrameProbe
   #if RICH_ROWS
     @State private var prepared: PreparedTranscript?
@@ -16,7 +17,7 @@ struct ScrollReproduction: View {
 
   init(probe: FrameProbe) {
     self.probe = probe
-    _rows = State(initialValue: probe.richRows ? Array(0 ..< 100) : Array(500 ..< 600))
+    _rows = State(initialValue: probe.richRows ? Array(0 ..< (probe.insertsPages ? 100 : 600)) : Array(500 ..< 600))
   }
 
   var body: some View {
@@ -24,8 +25,8 @@ struct ScrollReproduction: View {
       if probe.revealRows {
         ScrollViewReader { proxy in
           transcript(revealing: true)
-            .onChange(of: rows.count) { _, count in
-              let target = probe.direction == "prepend" ? rows[0] : rows[count - probe.pageSize]
+            .onChange(of: revealTarget) { _, target in
+              guard let target else { return }
               probe.reveal(target)
               proxy.scrollTo(target, anchor: .top)
             }
@@ -117,11 +118,16 @@ struct ScrollReproduction: View {
       let first = probe.richRows ? 100 + (page - 1) * probe.pageSize
         : (probe.direction == "prepend" ? 500 - page * probe.pageSize : 600 + (page - 1) * probe.pageSize)
       let incoming = Array(first ..< first + probe.pageSize)
-      probe.mark(page: page, rows: rows.count + incoming.count)
-      if probe.direction == "prepend" {
-        rows.insert(contentsOf: incoming, at: 0)
-      } else {
-        rows.append(contentsOf: incoming)
+      probe.mark(page: page, rows: rows.count + (probe.insertsPages ? incoming.count : 0))
+      if probe.insertsPages {
+        if probe.direction == "prepend" {
+          rows.insert(contentsOf: incoming, at: 0)
+        } else {
+          rows.append(contentsOf: incoming)
+        }
+      }
+      if probe.revealRows {
+        revealTarget = first
       }
       try? await Task.sleep(for: .seconds(1))
       if probe.revealRows {
@@ -140,6 +146,10 @@ struct ScrollReproduction: View {
   let revealRows: Bool
   let fixedRowHeight: Bool
   let omittedComponent: String
+  var insertsPages: Bool {
+    direction != "no-insertion"
+  }
+
   var visibleRows: Set<Int> = []
   var inputFingerprint: String?
   var richRows: Bool {
@@ -171,11 +181,12 @@ struct ScrollReproduction: View {
     fixedRowHeight = env["REPRO_FIXED_ROW_HEIGHT"] == "1"
     omittedComponent = env["REPRO_OMIT"] ?? "none"
     pageSize = Int(env["REPRO_PAGE_SIZE"] ?? "100") ?? 100
-    precondition(["prepend", "append"].contains(direction))
+    precondition(["prepend", "append", "no-insertion"].contains(direction))
     precondition((1 ... 100).contains(pageSize))
     super.init()
     precondition(["none", "body-selection", "clamp", "code-highlighting"].contains(omittedComponent))
     precondition(richRows || omittedComponent == "none")
+    precondition(insertsPages || (richRows && revealRows), "No-insertion control needs visible rich rows")
     precondition(!richRows || !singleLine, "Single-line mode applies only to the bare control")
   }
 
@@ -192,7 +203,11 @@ struct ScrollReproduction: View {
 
   func mark(page: Int, rows: Int) {
     marks.append(Publication(time: ProcessInfo.processInfo.systemUptime, page: page, rows: rows, revealedRow: nil))
-    os_signpost(.event, log: log, name: "Insert page", "page=%d rows=%d", page, rows)
+    if insertsPages {
+      os_signpost(.event, log: log, name: "Insert page", "page=%d rows=%d", page, rows)
+    } else {
+      os_signpost(.event, log: log, name: "Reveal page", "page=%d rows=%d", page, rows)
+    }
   }
 
   func reveal(_ row: Int) {
@@ -209,9 +224,10 @@ struct ScrollReproduction: View {
     link?.invalidate()
     let gaps = zip(callbacks, callbacks.dropFirst()).map { (start: $0.0, end: $0.1, ms: ($0.1 - $0.0) * 1000) }
     let insertions: [[String: Any]] = marks.map { mark in
-      // Include any callback interval overlapping the publication through +700 ms.
+      // Include any callback interval overlapping the operation through +700 ms.
       let near = gaps.filter { $0.end >= mark.time && $0.start <= mark.time + 0.7 }
       var result: [String: Any] = ["page": mark.page, "rows": mark.rows, "uptime": mark.time,
+                                   "inserted_rows": insertsPages ? pageSize : 0,
                                    "max_callback_gap_ms": near.map(\.ms).max() ?? 0,
                                    "over_25_ms": near.filter { $0.ms > 25 }.count]
       if let longest = near.max(by: { $0.ms < $1.ms }) {

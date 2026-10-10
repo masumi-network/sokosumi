@@ -101,7 +101,7 @@ python3 apps/apple/prototypes/lazy-prepend/measure.py \
   /tmp/swiftui-visible-results --rich --reveal-rows --pairs 3 --check-budget
 ```
 
-The final paired viewports show identical rich-row IDs: prepend median 58.4 ms /
+The historical paired viewports show identical rich-row IDs: prepend median 58.4 ms /
 worst 76.4 ms; visible append median 55.5 ms / worst 69.0 ms. All 30 windows exceed
 25 ms. This includes reveal and realization work. Offscreen appends were cheaper
 because they avoided that work.
@@ -113,6 +113,45 @@ reliably removed the stall; an apparent highlighting gain failed interleaving.
 Native profiles localize graph/layout and extra prepend root/scroll sizing, but
 provide no SwiftUI view/cause data. No single faulty child component is established.
 See the linked report for raw data, confounds, and profiling commands.
+
+## No-insertion control
+
+Add `--no-insertion-control` to compare visible prepend, visible append, and
+revealing preloaded rows. The third mode loads all 600 messages before measurement
+and never changes the row array. All three modes reveal targets 100, 200, 300,
+400, and 500 through the same nonanimated `ScrollViewReader.scrollTo` callback.
+The runner rejects different corpus fingerprints or visible row IDs within each
+comparison cycle.
+
+```bash
+python3 apps/apple/prototypes/lazy-prepend/measure.py \
+  /tmp/swiftui-rich-rows/ScrollReproduction.app \
+  /tmp/swiftui-no-insertion-results --rich --reveal-rows \
+  --no-insertion-control --pairs 3 --check-budget
+```
+
+Three cycles rotate the launch order: prepend/append/no-insertion,
+append/no-insertion/prepend, then no-insertion/prepend/append. Allow about 135
+seconds for nine sequential runs. The no-insertion control requires the rich
+build and `--reveal-rows`. Direct launch uses `REPRO_DIRECTION=no-insertion` and
+`REPRO_REVEAL_ROWS=1`.
+
+The legacy raw JSON key `insertions` also holds the no-insertion measurement
+windows. Those records explicitly contain `inserted_rows: 0` and `rows: 600`.
+Summary `measurement_windows` and `windows_over_25_ms` cover all modes;
+`publications` and `publications_over_25_ms` are zero for no-insertion.
+Preloading data does not pre-render every lazy row. This control includes native
+scroll/reveal, realization, layout, and subsequent asynchronous row updates.
+It separates the need for insertion; it cannot isolate rendering from scrolling
+or identify a particular child component by itself.
+
+The [no-insertion follow-up](no-insertion-isolation.md) remeasures all three modes
+with the common reveal callback. Median window maxima are 41.2 ms for prepend,
+45.4 ms for append, and 41.4 ms without insertion. All 45 windows exceed 25 ms,
+with matching visible IDs. Native profiles show comparable total main-thread CPU
+and shared graph/layout work; prepend retains extra root/scroll sizing. See
+[raw timings](no-insertion-measurements.json) and
+[profile evidence](no-insertion-profile-summary.json) for the method and limits.
 
 ## Run
 

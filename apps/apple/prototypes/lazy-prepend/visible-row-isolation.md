@@ -117,3 +117,11 @@ Repeat with append and fresh output paths. Keep captures separate from unprofile
 timings. Original traces remain under `/tmp/swiftui-visible-profile-20261010`.
 This at-rest fixture does not verify production scrolling, streaming, or position
 restoration. The production LazyVStack and its behavior remain unchanged.
+
+## No-insertion follow-up
+
+The [no-insertion control](no-insertion-isolation.md) preloads all 600 messages and
+reveals the same visible row IDs without changing the row array. Fresh three-way
+baselines use a common reveal callback. It reproduces comparable stalls and
+graph/layout CPU without insertion. The measurements above remain historical;
+the follow-up does not establish a production speedup or a single faulty child.

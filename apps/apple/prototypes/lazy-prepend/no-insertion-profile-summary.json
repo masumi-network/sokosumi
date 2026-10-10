@@ -1,0 +1,2879 @@
+{
+  "method": {
+    "local_folder": "/tmp/swiftui-no-insertion-profile-20261010",
+    "app": "/tmp/swiftui-no-insertion-20261010/ScrollReproduction.app",
+    "executable_sha256": "94294c1438db6d2d050b37cc65622d05139e8e1b1e7641eed108f1ce6b809046",
+    "team": "GVWN7HXYJB",
+    "configuration": "Release",
+    "host": "Homer, macOS27.0.1 arm64",
+    "template": "SwiftUI",
+    "extra_instrument": "Points of Interest",
+    "recording_options": {
+      "SwiftUI": {
+        "enableLayoutTracing": true
+      },
+      "Points of Interest": {
+        "excludeOSLogs": false
+      }
+    },
+    "scope": "Five deduplicated exact operation signpost timestamps through +180ms, app-only. Insert page for prepend/append; Reveal page for no-insertion.",
+    "cpu_measure": "Time Profiler actual weight values (100us samples); totals include missing-stack samples, inclusive weights count a unique symbol per sample.",
+    "gap_alignment": "Raw longest callback interval uptime offsets relative to each corresponding exact operation signpost. Small mark-to-signpost call latency remains. Coverage is sampled Running CPU weight divided by callback interval duration.",
+    "capture_order": [
+      "no-insertion",
+      "prepend",
+      "append"
+    ],
+    "limitations": [
+      "Profiles separate from unprofiled timings; substantial profiler overhead is visible.",
+      "All three native captures warn Trace file had no SwiftUI data. No source-view/cause attribution.",
+      "Inclusive symbols and regions overlap and cannot be summed.",
+      "No main-thread decoding samples matched the explicit PNG/ImageIO patterns; this is not proof of absent unsampled work.",
+      "Small body-getter CPU does not bound downstream framework cost.",
+      "Generic layout/graph symbols do not diagnose a faulty child or a framework defect.",
+      "No-insertion establishes insertion is not necessary, not isolated additive insertion cost."
+    ]
+  },
+  "runs": {
+    "prepend": {
+      "trace": "/tmp/swiftui-no-insertion-profile-20261010/prepend.trace",
+      "callback_measurements": {
+        "callback_count": 1198,
+        "direction": "prepend",
+        "final_rows": 600,
+        "fixed_row_height": false,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "gap_end_uptime": 371797.21176145837,
+            "gap_start_uptime": 371797.14018495835,
+            "inserted_rows": 100,
+            "max_callback_gap_ms": 71.57650002045557,
+            "over_25_ms": 1,
+            "page": 1,
+            "revealed_row": 100,
+            "rows": 200,
+            "uptime": 371797.144268625,
+            "visible_row_ids": [
+              100,
+              101,
+              102,
+              103,
+              104
+            ]
+          },
+          {
+            "gap_end_uptime": 371799.3043701667,
+            "gap_start_uptime": 371799.2318375,
+            "inserted_rows": 100,
+            "max_callback_gap_ms": 72.53266667248681,
+            "over_25_ms": 1,
+            "page": 2,
+            "revealed_row": 200,
+            "rows": 300,
+            "uptime": 371799.2343337917,
+            "visible_row_ids": [
+              200,
+              201,
+              202,
+              203,
+              204
+            ]
+          },
+          {
+            "gap_end_uptime": 371801.41068845836,
+            "gap_start_uptime": 371801.3234785417,
+            "inserted_rows": 100,
+            "max_callback_gap_ms": 87.20991667360067,
+            "over_25_ms": 1,
+            "page": 3,
+            "revealed_row": 300,
+            "rows": 400,
+            "uptime": 371801.330737875,
+            "visible_row_ids": [
+              300,
+              301,
+              302,
+              303,
+              304,
+              305,
+              306,
+              307
+            ]
+          },
+          {
+            "gap_end_uptime": 371803.53613950004,
+            "gap_start_uptime": 371803.45677808335,
+            "inserted_rows": 100,
+            "max_callback_gap_ms": 79.36141669051722,
+            "over_25_ms": 1,
+            "page": 4,
+            "revealed_row": 400,
+            "rows": 500,
+            "uptime": 371803.4613821667,
+            "visible_row_ids": [
+              400,
+              401,
+              402,
+              403,
+              404,
+              405,
+              406,
+              407
+            ]
+          },
+          {
+            "gap_end_uptime": 371805.565295625,
+            "gap_start_uptime": 371805.49848529167,
+            "inserted_rows": 100,
+            "max_callback_gap_ms": 66.81033334461972,
+            "over_25_ms": 1,
+            "page": 5,
+            "revealed_row": 500,
+            "rows": 600,
+            "uptime": 371805.49888625,
+            "visible_row_ids": [
+              500,
+              501,
+              502,
+              503,
+              504,
+              505,
+              506
+            ]
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 21.04758331552148,
+        "omitted_component": "none",
+        "page_size": 100,
+        "reveal_rows": true,
+        "row_kind": "production-rich",
+        "single_line": false
+      },
+      "scoped_cpu": {
+        "scope_ms": [
+          [
+            5181.148291,
+            5361.148291
+          ],
+          [
+            7271.159833,
+            7451.159833
+          ],
+          [
+            9367.566583,
+            9547.566583
+          ],
+          [
+            11498.200791,
+            11678.200791
+          ],
+          [
+            13535.703791,
+            13715.703791
+          ]
+        ],
+        "main_cpu_ms": 427.8,
+        "background_cpu_ms": 453.0,
+        "sample_counts": {
+          "background": 4530,
+          "main": 4278
+        },
+        "missing_stack_samples": {
+          "main": 2,
+          "background": 14
+        },
+        "per_window_cpu_ms": [
+          {
+            "background": 96.3,
+            "main": 74.7
+          },
+          {
+            "main": 78.1,
+            "background": 94.9
+          },
+          {
+            "main": 94.6,
+            "background": 92.2
+          },
+          {
+            "main": 101.1,
+            "background": 115.4
+          },
+          {
+            "main": 79.3,
+            "background": 54.2
+          }
+        ],
+        "regions_nonadditive": {
+          "scroll_sizing": {
+            "main": 187.7
+          },
+          "root_geometry": {
+            "main": 177.3
+          },
+          "layout_sizing": {
+            "main": 222.6
+          },
+          "graph_update": {
+            "main": 318.4
+          },
+          "lazy_estimates": {
+            "main": 189.5
+          },
+          "selection_textkit": {
+            "main": 47.5
+          },
+          "syntax_capture": {
+            "background": 253.9
+          },
+          "image_decode": {
+            "background": 164.5
+          }
+        },
+        "region_patterns": {
+          "scroll_sizing": [
+            "ScrollViewUtilities.sizeThatFits"
+          ],
+          "root_geometry": [
+            "RootGeometry.value.getter"
+          ],
+          "layout_sizing": [
+            "TracingLayoutEngineBox.sizeThatFits"
+          ],
+          "graph_update": [
+            "AG::Graph::UpdateStack::update()"
+          ],
+          "lazy_estimates": [
+            "LazyStack<>.measureEstimates"
+          ],
+          "selection_textkit": [
+            "SelectableText",
+            "NSTextLayout",
+            "NSTextContent",
+            "NSTextStorage"
+          ],
+          "syntax_capture": [
+            "NativeSyntaxHighlighter.captures"
+          ],
+          "image_decode": [
+            "CGImageSourceCreateThumbnailAtIndex",
+            "PNGReadPlugin",
+            "png_read",
+            "png_do",
+            "IIOImageDecoder"
+          ]
+        },
+        "longest_callback_gaps": [
+          {
+            "scope_ms": [
+              5177.064624,
+              5248.641124
+            ],
+            "callback_gap_ms": 71.57650002045557,
+            "main_cpu_ms": 67.5,
+            "background_cpu_ms": 14.4,
+            "main_running_coverage_pct": 94.3,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 36.2,
+              "root_geometry": 33.9,
+              "layout_sizing": 41.0,
+              "graph_update": 54.3,
+              "lazy_estimates": 36.7,
+              "selection_textkit": 7.1,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          },
+          {
+            "scope_ms": [
+              7268.663541,
+              7341.196208
+            ],
+            "callback_gap_ms": 72.53266667248681,
+            "main_cpu_ms": 69.5,
+            "background_cpu_ms": 14.2,
+            "main_running_coverage_pct": 95.82,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 33.1,
+              "root_geometry": 31.6,
+              "layout_sizing": 38.4,
+              "graph_update": 51.7,
+              "lazy_estimates": 33.9,
+              "selection_textkit": 6.3,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          },
+          {
+            "scope_ms": [
+              9360.30725,
+              9447.517166
+            ],
+            "callback_gap_ms": 87.20991667360067,
+            "main_cpu_ms": 79.6,
+            "background_cpu_ms": 17.0,
+            "main_running_coverage_pct": 91.27,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 34.6,
+              "root_geometry": 33.2,
+              "layout_sizing": 47.7,
+              "graph_update": 62.2,
+              "lazy_estimates": 35.0,
+              "selection_textkit": 9.2,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          },
+          {
+            "scope_ms": [
+              11493.596708,
+              11572.958124
+            ],
+            "callback_gap_ms": 79.36141669051722,
+            "main_cpu_ms": 73.7,
+            "background_cpu_ms": 4.7,
+            "main_running_coverage_pct": 92.87,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 45.7,
+              "root_geometry": 43.8,
+              "layout_sizing": 52.1,
+              "graph_update": 65.6,
+              "lazy_estimates": 47.1,
+              "selection_textkit": 8.1,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          },
+          {
+            "scope_ms": [
+              13535.302833,
+              13602.113166
+            ],
+            "callback_gap_ms": 66.81033334461972,
+            "main_cpu_ms": 65.9,
+            "background_cpu_ms": 1.7,
+            "main_running_coverage_pct": 98.64,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 30.8,
+              "root_geometry": 28.9,
+              "layout_sizing": 35.6,
+              "graph_update": 51.6,
+              "lazy_estimates": 31.1,
+              "selection_textkit": 7.6,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          }
+        ],
+        "main_inclusive_top_100": [
+          {
+            "symbol": "RunCurrentEventLoopInMode",
+            "cpu_ms": 397.6
+          },
+          {
+            "symbol": "_CFRunLoopRunSpecificWithOptions",
+            "cpu_ms": 397.5
+          },
+          {
+            "symbol": "ReceiveNextEventCommon",
+            "cpu_ms": 397.0
+          },
+          {
+            "symbol": "_BlockUntilNextEventMatchingListInMode",
+            "cpu_ms": 396.1
+          },
+          {
+            "symbol": "_DPSBlockUntilNextEventMatchingListInMode",
+            "cpu_ms": 395.3
+          },
+          {
+            "symbol": "<deduplicated_symbol>",
+            "cpu_ms": 395.0
+          },
+          {
+            "symbol": "_DPSNextEvent",
+            "cpu_ms": 394.5
+          },
+          {
+            "symbol": "-[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]",
+            "cpu_ms": 393.5
+          },
+          {
+            "symbol": "-[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]",
+            "cpu_ms": 392.4
+          },
+          {
+            "symbol": "-[NSApplication run]",
+            "cpu_ms": 391.4
+          },
+          {
+            "symbol": "closure #1 in static ReproductionMain.main()",
+            "cpu_ms": 390.6
+          },
+          {
+            "symbol": "specialized withExtendedLifetime<A, B, C>(_:_:)",
+            "cpu_ms": 390.6
+          },
+          {
+            "symbol": "specialized static ReproductionMain.main()",
+            "cpu_ms": 390.6
+          },
+          {
+            "symbol": "static ReproductionMain.main()",
+            "cpu_ms": 389.4
+          },
+          {
+            "symbol": "static ReproductionMain.$main()",
+            "cpu_ms": 389.4
+          },
+          {
+            "symbol": "main",
+            "cpu_ms": 389.4
+          },
+          {
+            "symbol": "start",
+            "cpu_ms": 388.9
+          },
+          {
+            "symbol": "GraphHost.flushTransactions()",
+            "cpu_ms": 325.1
+          },
+          {
+            "symbol": "@objc closure #1 in static NSRunLoop.addObserver(_:)",
+            "cpu_ms": 325.0
+          },
+          {
+            "symbol": "__CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__",
+            "cpu_ms": 324.3
+          },
+          {
+            "symbol": "__CFRunLoopDoObservers",
+            "cpu_ms": 324.0
+          },
+          {
+            "symbol": "specialized static NSRunLoop.flushObservers()",
+            "cpu_ms": 323.2
+          },
+          {
+            "symbol": "ViewGraphRootValueUpdater._updateViewGraph<A>(body:)",
+            "cpu_ms": 323.1
+          },
+          {
+            "symbol": "closure #1 in closure #1 in closure #1 in NSHostingView.beginTransaction()",
+            "cpu_ms": 319.9
+          },
+          {
+            "symbol": "partial apply for closure #1 in ViewGraphRootValueUpdater.updateGraph<A>(body:)",
+            "cpu_ms": 319.5
+          },
+          {
+            "symbol": "ViewGraphRootValueUpdater.updateGraph<A>(body:)",
+            "cpu_ms": 319.4
+          },
+          {
+            "symbol": "closure #1 in closure #1 in NSHostingView.beginTransaction()",
+            "cpu_ms": 318.6
+          },
+          {
+            "symbol": "AG::Graph::UpdateStack::update()",
+            "cpu_ms": 318.4
+          },
+          {
+            "symbol": "AG::Subgraph::update(unsigned int)",
+            "cpu_ms": 316.7
+          },
+          {
+            "symbol": "specialized implicit closure #1 in closure #1 in closure #1 in Attribute.init<A>(_:)",
+            "cpu_ms": 288.8
+          },
+          {
+            "symbol": "AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int)",
+            "cpu_ms": 233.4
+          },
+          {
+            "symbol": "TracingLayoutEngineBox.sizeThatFits(_:)",
+            "cpu_ms": 222.6
+          },
+          {
+            "symbol": "AG::Graph::input_value_ref_slow(AG::data::ptr<AG::Node>, AG::AttributeID, unsigned int, unsigned int, AGSwiftMetadata const*, unsigned char&, long)",
+            "cpu_ms": 218.4
+          },
+          {
+            "symbol": "LayoutProxy.dimensions(in:)",
+            "cpu_ms": 218.2
+          },
+          {
+            "symbol": "closure #1 in ViewLayoutEngine.sizeThatFits(_:)",
+            "cpu_ms": 215.4
+          },
+          {
+            "symbol": "ViewLayoutEngine.sizeThatFits(_:)",
+            "cpu_ms": 215.2
+          },
+          {
+            "symbol": "AGGraphGetValue",
+            "cpu_ms": 215.0
+          },
+          {
+            "symbol": "StackLayout.UnmanagedImplementation.resize(_:proposal:proxy:)",
+            "cpu_ms": 205.1
+          },
+          {
+            "symbol": "specialized StackLayout.UnmanagedImplementation.placeChildren1(in:minorProposalForChild:)",
+            "cpu_ms": 204.8
+          },
+          {
+            "symbol": "BaseViewList.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 204.8
+          },
+          {
+            "symbol": "DynamicViewList.WrappedList.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 204.8
+          },
+          {
+            "symbol": "StackLayout.UnmanagedImplementation.placeChildren(in:)",
+            "cpu_ms": 204.1
+          },
+          {
+            "symbol": "ForEachState.forEachItem(from:style:do:)",
+            "cpu_ms": 203.7
+          },
+          {
+            "symbol": "specialized ForEachList.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 203.5
+          },
+          {
+            "symbol": "protocol witness for ViewList.applyNodes(from:style:list:transform:to:) in conformance ForEachList<A, B, C>",
+            "cpu_ms": 203.4
+          },
+          {
+            "symbol": "ModifiedViewList.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 203.4
+          },
+          {
+            "symbol": "_ViewList_Node.applyNodes(from:style:transform:to:)",
+            "cpu_ms": 202.9
+          },
+          {
+            "symbol": "_LazyLayout_Subviews.apply(from:style:to:)",
+            "cpu_ms": 202.2
+          },
+          {
+            "symbol": "closure #1 in ForEachState.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 201.3
+          },
+          {
+            "symbol": "closure #1 in closure #1 in _LazyLayout_Subviews.apply(from:style:to:)",
+            "cpu_ms": 198.5
+          },
+          {
+            "symbol": "StackLayout.UnmanagedImplementation.sizeChildrenGenerallyWithConcreteMajorProposal(in:minorProposalForChild:)",
+            "cpu_ms": 198.3
+          },
+          {
+            "symbol": "specialized LazyHVStack<>.lengthAndSpacing(subviews:predecessors:minorGeometry:)",
+            "cpu_ms": 194.7
+          },
+          {
+            "symbol": "specialized LazyStack<>.sizeThatFits(proposedSize:subviews:context:cache:)",
+            "cpu_ms": 190.3
+          },
+          {
+            "symbol": "protocol witness for LazyLayout.sizeThatFits(proposedSize:subviews:context:cache:) in conformance LazyHStackLayout",
+            "cpu_ms": 190.0
+          },
+          {
+            "symbol": "protocol witness for LazyLayout.sizeThatFits(proposedSize:subviews:context:cache:) in conformance LazyVStackLayout",
+            "cpu_ms": 189.8
+          },
+          {
+            "symbol": "closure #1 in closure #1 in LazyLayoutComputer.Engine.sizeThatFits(_:)",
+            "cpu_ms": 189.7
+          },
+          {
+            "symbol": "partial apply for closure #1 in closure #1 in LazyLayoutComputer.Engine.sizeThatFits(_:)",
+            "cpu_ms": 189.3
+          },
+          {
+            "symbol": "specialized closure #1 in SizeAndSpacingContext.update<A>(_:)",
+            "cpu_ms": 189.3
+          },
+          {
+            "symbol": "AG::Graph::with_update(AG::data::ptr<AG::Node>, AG::ClosureFunctionVV<void>)",
+            "cpu_ms": 188.8
+          },
+          {
+            "symbol": "closure #1 in LazyLayoutComputer.Engine.sizeThatFits(_:)",
+            "cpu_ms": 188.4
+          },
+          {
+            "symbol": "LazyLayoutComputer.Engine.sizeThatFits(_:)",
+            "cpu_ms": 188.0
+          },
+          {
+            "symbol": "LayoutComputer.sizeThatFits(_:)",
+            "cpu_ms": 187.7
+          },
+          {
+            "symbol": "specialized static ScrollViewUtilities.sizeThatFits(in:contentComputer:axes:)",
+            "cpu_ms": 187.7
+          },
+          {
+            "symbol": "specialized LazyStack<>.measureEstimates(updatingPosition:index:minor:subviews:cache:)",
+            "cpu_ms": 187.4
+          },
+          {
+            "symbol": "closure #1 in ScrollViewLayoutComputer.Engine.sizeThatFits(_:)",
+            "cpu_ms": 186.8
+          },
+          {
+            "symbol": "ViewSizeCache.get(_:context:makeValue:)",
+            "cpu_ms": 186.6
+          },
+          {
+            "symbol": "protocol witness for LayoutEngine.sizeThatFits(_:) in conformance ScrollViewLayoutComputer.Engine",
+            "cpu_ms": 185.8
+          },
+          {
+            "symbol": "partial apply for specialized closure #1 in LazyStack<>.measureEstimates(updatingPosition:index:minor:subviews:cache:)",
+            "cpu_ms": 184.8
+          },
+          {
+            "symbol": "specialized closure #1 in LazyStack<>.measureEstimates(updatingPosition:index:minor:subviews:cache:)",
+            "cpu_ms": 184.8
+          },
+          {
+            "symbol": "UnaryLayoutEngine.sizeThatFits(_:)",
+            "cpu_ms": 181.2
+          },
+          {
+            "symbol": "0x23fe72288",
+            "cpu_ms": 181.2
+          },
+          {
+            "symbol": "RootGeometry.value.getter",
+            "cpu_ms": 177.3
+          },
+          {
+            "symbol": "AGGraphGetInputValue",
+            "cpu_ms": 173.3
+          },
+          {
+            "symbol": "StackLayout.UnmanagedImplementation.sizeChildrenUsingMajorAxisProposal(_:minorProposalForChild:)",
+            "cpu_ms": 169.3
+          },
+          {
+            "symbol": "protocol witness for UnaryLayout.sizeThatFits(in:context:child:) in conformance _PaddingLayout",
+            "cpu_ms": 168.1
+          },
+          {
+            "symbol": "_PaddingLayout.sizeThatFits(in:context:child:)",
+            "cpu_ms": 168.1
+          },
+          {
+            "symbol": "specialized DynamicLayoutComputer.updateValue()",
+            "cpu_ms": 164.1
+          },
+          {
+            "symbol": "TracingLayoutEngineBox.lengthThatFits(_:in:)",
+            "cpu_ms": 163.2
+          },
+          {
+            "symbol": "LayoutEngine.lengthThatFits(_:in:)",
+            "cpu_ms": 163.1
+          },
+          {
+            "symbol": "specialized DynamicContainerInfo.updateValue()",
+            "cpu_ms": 146.7
+          },
+          {
+            "symbol": "specialized DynamicContainerInfo.updateItems(disableTransitions:dirtyFlags:hasDepth:)",
+            "cpu_ms": 145.5
+          },
+          {
+            "symbol": "_FlexFrameLayout.sizeThatFits(in:context:child:)",
+            "cpu_ms": 133.9
+          },
+          {
+            "symbol": "protocol witness for UnaryLayout.sizeThatFits(in:context:child:) in conformance _FlexFrameLayout",
+            "cpu_ms": 133.7
+          },
+          {
+            "symbol": "partial apply for implicit closure #1 in closure #1 in closure #1 in Attribute.init<A>(_:)",
+            "cpu_ms": 118.7
+          },
+          {
+            "symbol": "specialized StatefulRule<>.updateLayoutComputer<A>(layout:environment:attributes:)",
+            "cpu_ms": 88.3
+          },
+          {
+            "symbol": "specialized ViewLayoutEngine.init(layout:context:children:)",
+            "cpu_ms": 87.2
+          },
+          {
+            "symbol": "StackLayout.makeChildren()",
+            "cpu_ms": 86.3
+          },
+          {
+            "symbol": "ViewList.applySublists(from:list:to:)",
+            "cpu_ms": 82.8
+          },
+          {
+            "symbol": "partial apply for closure #1 in _ViewList_Node.applySublists(from:style:transform:to:)",
+            "cpu_ms": 74.4
+          },
+          {
+            "symbol": "_ViewList_Node.applySublists(from:style:transform:to:)",
+            "cpu_ms": 74.4
+          },
+          {
+            "symbol": "__CFRunLoopRun",
+            "cpu_ms": 74.2
+          },
+          {
+            "symbol": "closure #1 in DynamicLayoutViewAdaptor.foreachItem(items:_:)",
+            "cpu_ms": 73.3
+          },
+          {
+            "symbol": "specialized closure #1 in DynamicContainerInfo.updateItems(disableTransitions:dirtyFlags:hasDepth:)",
+            "cpu_ms": 73.1
+          },
+          {
+            "symbol": "specialized DynamicContainerInfo.makeItem(_:uniqueId:container:disableTransitions:)",
+            "cpu_ms": 72.9
+          },
+          {
+            "symbol": "UC::DriverCore::continueProcessing()",
+            "cpu_ms": 72.1
+          },
+          {
+            "symbol": "UnaryElements.makeElements(from:inputs:body:)",
+            "cpu_ms": 71.7
+          },
+          {
+            "symbol": "DynamicViewList.updateValue()",
+            "cpu_ms": 71.1
+          },
+          {
+            "symbol": "thunk for @callee_guaranteed (@in_guaranteed _ViewInputs, @guaranteed @escaping @callee_guaranteed (@in_guaranteed _ViewInputs) -> (@out _ViewOutputs)) -> (@out _ViewOutputs?)",
+            "cpu_ms": 71.1
+          },
+          {
+            "symbol": "CA::Transaction::flush()",
+            "cpu_ms": 71.0
+          },
+          {
+            "symbol": "CA::Transaction::commit()",
+            "cpu_ms": 71.0
+          }
+        ],
+        "main_leaf_top_30": [
+          {
+            "symbol": "<deduplicated_symbol>",
+            "cpu_ms": 19.2
+          },
+          {
+            "symbol": "AccelerateCrypto_SHA256_compress",
+            "cpu_ms": 12.0
+          },
+          {
+            "symbol": "objc_msgSend",
+            "cpu_ms": 11.7
+          },
+          {
+            "symbol": "mach_absolute_time",
+            "cpu_ms": 9.1
+          },
+          {
+            "symbol": "AG::Graph::propagate_dirty(AG::AttributeID)",
+            "cpu_ms": 8.2
+          },
+          {
+            "symbol": "swift_release",
+            "cpu_ms": 6.8
+          },
+          {
+            "symbol": "swift::MetadataCacheKey::operator==(swift::MetadataCacheKey const&) const",
+            "cpu_ms": 6.2
+          },
+          {
+            "symbol": "_xzm_xzone_malloc_tiny",
+            "cpu_ms": 6.0
+          },
+          {
+            "symbol": "AG::Graph::UpdateStack::update()",
+            "cpu_ms": 5.9
+          },
+          {
+            "symbol": "__thread_stack_pcs",
+            "cpu_ms": 5.7
+          },
+          {
+            "symbol": "_xzm_free_main",
+            "cpu_ms": 5.6
+          },
+          {
+            "symbol": "swift_retain",
+            "cpu_ms": 4.8
+          },
+          {
+            "symbol": "specialized Trace_Handle.write<A>(_:omit:)",
+            "cpu_ms": 4.6
+          },
+          {
+            "symbol": "timingsafe_enable_if_supported",
+            "cpu_ms": 4.3
+          },
+          {
+            "symbol": "_platform_memmove",
+            "cpu_ms": 4.3
+          },
+          {
+            "symbol": "_CFRelease",
+            "cpu_ms": 3.1
+          },
+          {
+            "symbol": "specialized static Hasher._hash(seed:_:)",
+            "cpu_ms": 3.1
+          },
+          {
+            "symbol": "specialized Trace_Handle.write<A>(struct:)",
+            "cpu_ms": 2.9
+          },
+          {
+            "symbol": "objc_release",
+            "cpu_ms": 2.8
+          },
+          {
+            "symbol": "getCache(swift::TargetTypeContextDescriptor<swift::InProcess> const&)",
+            "cpu_ms": 2.7
+          },
+          {
+            "symbol": "pthread_stack_frame_decode_np",
+            "cpu_ms": 2.6
+          },
+          {
+            "symbol": "swift::_getWitnessTable(swift::TargetProtocolConformanceDescriptor<swift::InProcess> const*, swift::TargetMetadata<swift::InProcess> const*, void const* const*)",
+            "cpu_ms": 2.6
+          },
+          {
+            "symbol": "___chkstk_darwin",
+            "cpu_ms": 2.6
+          },
+          {
+            "symbol": "0x1a3b4f96d",
+            "cpu_ms": 2.6
+          },
+          {
+            "symbol": "find(_:key:filter:)",
+            "cpu_ms": 2.4
+          },
+          {
+            "symbol": "AG::Subgraph::update(unsigned int)",
+            "cpu_ms": 2.3
+          },
+          {
+            "symbol": "_StringGuts.validateInclusiveCharacterIndex_5_7(_:)",
+            "cpu_ms": 2.2
+          },
+          {
+            "symbol": "String.distance(from:to:)",
+            "cpu_ms": 2.1
+          },
+          {
+            "symbol": "AG::Graph::resolve_offset(AG::AttributeID, AGSwiftMetadata const*, unsigned int) const",
+            "cpu_ms": 2.1
+          },
+          {
+            "symbol": "_platform_memcmp",
+            "cpu_ms": 2.0
+          }
+        ],
+        "notes": [
+          "Actual sample weights, not 1ms times sample count. Total CPU includes samples with missing backtraces; attribution requires a stack.",
+          "Inclusive unique-symbol-per-sample and region weights overlap; do not sum.",
+          "Exact operation signpost +0..180ms; startup/finish excluded.",
+          "Longest callback gap aligned by each raw uptime offset relative to its operation signpost; mark-to-signpost latency is not removed. Sampling quantization and alignment can give running coverage slightly above100%.",
+          "No child component is attributed from a generic framework symbol."
+        ]
+      }
+    },
+    "append": {
+      "trace": "/tmp/swiftui-no-insertion-profile-20261010/append.trace",
+      "callback_measurements": {
+        "callback_count": 1210,
+        "direction": "append",
+        "final_rows": 600,
+        "fixed_row_height": false,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "gap_end_uptime": 371838.63140508335,
+            "gap_start_uptime": 371838.5773405,
+            "inserted_rows": 100,
+            "max_callback_gap_ms": 54.06458332436159,
+            "over_25_ms": 1,
+            "page": 1,
+            "revealed_row": 100,
+            "rows": 200,
+            "uptime": 371838.5789844167,
+            "visible_row_ids": [
+              100,
+              101,
+              102,
+              103,
+              104
+            ]
+          },
+          {
+            "gap_end_uptime": 371840.75602983334,
+            "gap_start_uptime": 371840.6855848334,
+            "inserted_rows": 100,
+            "max_callback_gap_ms": 70.44499996118248,
+            "over_25_ms": 1,
+            "page": 2,
+            "revealed_row": 200,
+            "rows": 300,
+            "uptime": 371840.67802083335,
+            "visible_row_ids": [
+              200,
+              201,
+              202,
+              203,
+              204
+            ]
+          },
+          {
+            "gap_end_uptime": 371842.85431575,
+            "gap_start_uptime": 371842.7689791667,
+            "inserted_rows": 100,
+            "max_callback_gap_ms": 85.33658331725746,
+            "over_25_ms": 1,
+            "page": 3,
+            "revealed_row": 300,
+            "rows": 400,
+            "uptime": 371842.7741694167,
+            "visible_row_ids": [
+              300,
+              301,
+              302,
+              303,
+              304,
+              305,
+              306,
+              307
+            ]
+          },
+          {
+            "gap_end_uptime": 371844.96164750005,
+            "gap_start_uptime": 371844.87721925,
+            "inserted_rows": 100,
+            "max_callback_gap_ms": 84.42825003294274,
+            "over_25_ms": 1,
+            "page": 4,
+            "revealed_row": 400,
+            "rows": 500,
+            "uptime": 371844.88087704167,
+            "visible_row_ids": [
+              400,
+              401,
+              402,
+              403,
+              404,
+              405,
+              406,
+              407
+            ]
+          },
+          {
+            "gap_end_uptime": 371847.0780730417,
+            "gap_start_uptime": 371846.98560012504,
+            "inserted_rows": 100,
+            "max_callback_gap_ms": 92.47291664360091,
+            "over_25_ms": 1,
+            "page": 5,
+            "revealed_row": 500,
+            "rows": 600,
+            "uptime": 371846.992283,
+            "visible_row_ids": [
+              500,
+              501,
+              502,
+              503,
+              504,
+              505,
+              506
+            ]
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 8.825416676700115,
+        "omitted_component": "none",
+        "page_size": 100,
+        "reveal_rows": true,
+        "row_kind": "production-rich",
+        "single_line": false
+      },
+      "scoped_cpu": {
+        "scope_ms": [
+          [
+            5236.559666,
+            5416.559666
+          ],
+          [
+            7335.52625,
+            7515.52625
+          ],
+          [
+            9431.678083,
+            9611.678083
+          ],
+          [
+            11538.372125,
+            11718.372125
+          ],
+          [
+            13649.785375,
+            13829.785375
+          ]
+        ],
+        "main_cpu_ms": 431.3,
+        "background_cpu_ms": 460.9,
+        "sample_counts": {
+          "main": 4313,
+          "background": 4609
+        },
+        "missing_stack_samples": {
+          "main": 3,
+          "background": 12
+        },
+        "per_window_cpu_ms": [
+          {
+            "main": 59.5,
+            "background": 96.2
+          },
+          {
+            "main": 88.4,
+            "background": 99.2
+          },
+          {
+            "main": 93.4,
+            "background": 90.8
+          },
+          {
+            "main": 95.9,
+            "background": 116.9
+          },
+          {
+            "main": 94.1,
+            "background": 57.8
+          }
+        ],
+        "regions_nonadditive": {
+          "scroll_sizing": {
+            "main": 5.9
+          },
+          "root_geometry": {
+            "main": 2.2
+          },
+          "layout_sizing": {
+            "main": 174.9
+          },
+          "graph_update": {
+            "main": 308.7
+          },
+          "lazy_estimates": {
+            "main": 2.2
+          },
+          "selection_textkit": {
+            "main": 44.5
+          },
+          "syntax_capture": {
+            "background": 252.9
+          },
+          "image_decode": {
+            "background": 173.2
+          }
+        },
+        "region_patterns": {
+          "scroll_sizing": [
+            "ScrollViewUtilities.sizeThatFits"
+          ],
+          "root_geometry": [
+            "RootGeometry.value.getter"
+          ],
+          "layout_sizing": [
+            "TracingLayoutEngineBox.sizeThatFits"
+          ],
+          "graph_update": [
+            "AG::Graph::UpdateStack::update()"
+          ],
+          "lazy_estimates": [
+            "LazyStack<>.measureEstimates"
+          ],
+          "selection_textkit": [
+            "SelectableText",
+            "NSTextLayout",
+            "NSTextContent",
+            "NSTextStorage"
+          ],
+          "syntax_capture": [
+            "NativeSyntaxHighlighter.captures"
+          ],
+          "image_decode": [
+            "CGImageSourceCreateThumbnailAtIndex",
+            "PNGReadPlugin",
+            "png_read",
+            "png_do",
+            "IIOImageDecoder"
+          ]
+        },
+        "longest_callback_gaps": [
+          {
+            "scope_ms": [
+              5234.915749,
+              5288.980333
+            ],
+            "callback_gap_ms": 54.06458332436159,
+            "main_cpu_ms": 52.4,
+            "background_cpu_ms": 12.6,
+            "main_running_coverage_pct": 96.92,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 0.7,
+              "root_geometry": 0.2,
+              "layout_sizing": 20.7,
+              "graph_update": 38.1,
+              "lazy_estimates": 0.2,
+              "selection_textkit": 5.6,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          },
+          {
+            "scope_ms": [
+              7343.09025,
+              7413.53525
+            ],
+            "callback_gap_ms": 70.44499996118248,
+            "main_cpu_ms": 70.3,
+            "background_cpu_ms": 13.8,
+            "main_running_coverage_pct": 99.79,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 0.5,
+              "root_geometry": 0.0,
+              "layout_sizing": 36.4,
+              "graph_update": 56.7,
+              "lazy_estimates": 0.0,
+              "selection_textkit": 7.2,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          },
+          {
+            "scope_ms": [
+              9426.487833,
+              9511.824416
+            ],
+            "callback_gap_ms": 85.33658331725746,
+            "main_cpu_ms": 80.2,
+            "background_cpu_ms": 16.8,
+            "main_running_coverage_pct": 93.98,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 1.0,
+              "root_geometry": 0.4,
+              "layout_sizing": 36.0,
+              "graph_update": 61.1,
+              "lazy_estimates": 0.4,
+              "selection_textkit": 8.6,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          },
+          {
+            "scope_ms": [
+              11534.714333,
+              11619.142583
+            ],
+            "callback_gap_ms": 84.42825003294274,
+            "main_cpu_ms": 80.8,
+            "background_cpu_ms": 16.2,
+            "main_running_coverage_pct": 95.7,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 0.9,
+              "root_geometry": 0.4,
+              "layout_sizing": 38.3,
+              "graph_update": 63.4,
+              "lazy_estimates": 0.4,
+              "selection_textkit": 9.0,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          },
+          {
+            "scope_ms": [
+              13643.1025,
+              13735.575417
+            ],
+            "callback_gap_ms": 92.47291664360091,
+            "main_cpu_ms": 85.8,
+            "background_cpu_ms": 1.8,
+            "main_running_coverage_pct": 92.78,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 1.3,
+              "root_geometry": 0.7,
+              "layout_sizing": 37.0,
+              "graph_update": 63.3,
+              "lazy_estimates": 0.7,
+              "selection_textkit": 8.9,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          }
+        ],
+        "main_inclusive_top_100": [
+          {
+            "symbol": "_CFRunLoopRunSpecificWithOptions",
+            "cpu_ms": 387.5
+          },
+          {
+            "symbol": "RunCurrentEventLoopInMode",
+            "cpu_ms": 387.0
+          },
+          {
+            "symbol": "<deduplicated_symbol>",
+            "cpu_ms": 386.1
+          },
+          {
+            "symbol": "ReceiveNextEventCommon",
+            "cpu_ms": 385.8
+          },
+          {
+            "symbol": "_BlockUntilNextEventMatchingListInMode",
+            "cpu_ms": 385.1
+          },
+          {
+            "symbol": "_DPSBlockUntilNextEventMatchingListInMode",
+            "cpu_ms": 384.1
+          },
+          {
+            "symbol": "_DPSNextEvent",
+            "cpu_ms": 383.3
+          },
+          {
+            "symbol": "-[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]",
+            "cpu_ms": 382.7
+          },
+          {
+            "symbol": "-[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]",
+            "cpu_ms": 381.7
+          },
+          {
+            "symbol": "-[NSApplication run]",
+            "cpu_ms": 380.9
+          },
+          {
+            "symbol": "specialized static ReproductionMain.main()",
+            "cpu_ms": 380.1
+          },
+          {
+            "symbol": "specialized withExtendedLifetime<A, B, C>(_:_:)",
+            "cpu_ms": 380.1
+          },
+          {
+            "symbol": "closure #1 in static ReproductionMain.main()",
+            "cpu_ms": 380.1
+          },
+          {
+            "symbol": "main",
+            "cpu_ms": 379.0
+          },
+          {
+            "symbol": "static ReproductionMain.main()",
+            "cpu_ms": 379.0
+          },
+          {
+            "symbol": "static ReproductionMain.$main()",
+            "cpu_ms": 379.0
+          },
+          {
+            "symbol": "start",
+            "cpu_ms": 378.1
+          },
+          {
+            "symbol": "CA::Transaction::commit()",
+            "cpu_ms": 324.4
+          },
+          {
+            "symbol": "CA::Transaction::flush()",
+            "cpu_ms": 323.4
+          },
+          {
+            "symbol": "UC::DriverCore::continueProcessing()",
+            "cpu_ms": 321.7
+          },
+          {
+            "symbol": "__CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__",
+            "cpu_ms": 321.2
+          },
+          {
+            "symbol": "__CFRunLoopRun",
+            "cpu_ms": 321.1
+          },
+          {
+            "symbol": "__CFRunLoopDoSource0",
+            "cpu_ms": 319.5
+          },
+          {
+            "symbol": "__CFRunLoopDoSources0",
+            "cpu_ms": 318.7
+          },
+          {
+            "symbol": "CA::Transaction::flush_as_runloop_observer(bool)",
+            "cpu_ms": 316.8
+          },
+          {
+            "symbol": "stepTransactionFlush",
+            "cpu_ms": 316.2
+          },
+          {
+            "symbol": "ViewGraphRootValueUpdater.render(interval:updateDisplayList:targetTimestamp:)",
+            "cpu_ms": 312.7
+          },
+          {
+            "symbol": "0x1a198820c",
+            "cpu_ms": 312.6
+          },
+          {
+            "symbol": "closure #1 in NSHostingView.layout()",
+            "cpu_ms": 312.4
+          },
+          {
+            "symbol": "0x1a1988234",
+            "cpu_ms": 312.2
+          },
+          {
+            "symbol": "NSPerformVisuallyAtomicChange",
+            "cpu_ms": 311.7
+          },
+          {
+            "symbol": "0x1a1a38d24",
+            "cpu_ms": 310.3
+          },
+          {
+            "symbol": "+[NSAnimationContext runAnimationGroup:]",
+            "cpu_ms": 309.4
+          },
+          {
+            "symbol": "0x1a1a39890",
+            "cpu_ms": 309.4
+          },
+          {
+            "symbol": "___NSViewLayout_block_invoke",
+            "cpu_ms": 309.2
+          },
+          {
+            "symbol": "NSHostingView.layout()",
+            "cpu_ms": 309.1
+          },
+          {
+            "symbol": "@objc NSHostingView.layout()",
+            "cpu_ms": 308.9
+          },
+          {
+            "symbol": "AG::Graph::UpdateStack::update()",
+            "cpu_ms": 308.7
+          },
+          {
+            "symbol": "_NSViewLayout",
+            "cpu_ms": 308.6
+          },
+          {
+            "symbol": "GraphHost.flushTransactions()",
+            "cpu_ms": 308.3
+          },
+          {
+            "symbol": "NSDisplayCycleObserverInvoke",
+            "cpu_ms": 308.2
+          },
+          {
+            "symbol": "__36-[NSView _layoutSubtreeWithOldSize:]_block_invoke",
+            "cpu_ms": 307.9
+          },
+          {
+            "symbol": "NSDisplayCycleFlush",
+            "cpu_ms": 307.2
+          },
+          {
+            "symbol": "-[NSView _layoutSubtreeWithOldSize:]",
+            "cpu_ms": 307.2
+          },
+          {
+            "symbol": "__56-[NSView _layoutSubtreeIfNeededAndAllowTemporaryEngine:]_block_invoke",
+            "cpu_ms": 307.0
+          },
+          {
+            "symbol": "CA::Transaction::run_commit_handlers(CATransactionPhase)",
+            "cpu_ms": 306.5
+          },
+          {
+            "symbol": "-[NSView _layoutSubtreeIfNeededAndAllowTemporaryEngine:]",
+            "cpu_ms": 306.3
+          },
+          {
+            "symbol": "-[NSView layoutSubtreeIfNeeded]",
+            "cpu_ms": 304.6
+          },
+          {
+            "symbol": "-[NSWindow(NSConstraintBasedLayoutInternal) _layoutViewTree]",
+            "cpu_ms": 304.1
+          },
+          {
+            "symbol": "-[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]",
+            "cpu_ms": 303.4
+          },
+          {
+            "symbol": "closure #1 in ViewGraphRootValueUpdater.render(interval:updateDisplayList:targetTimestamp:)",
+            "cpu_ms": 303.1
+          },
+          {
+            "symbol": "__NSWindowGetDisplayCycleObserverForLayout_block_invoke",
+            "cpu_ms": 302.6
+          },
+          {
+            "symbol": "AG::Subgraph::update(unsigned int)",
+            "cpu_ms": 296.9
+          },
+          {
+            "symbol": "specialized implicit closure #1 in closure #1 in closure #1 in Attribute.init<A>(_:)",
+            "cpu_ms": 273.3
+          },
+          {
+            "symbol": "AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int)",
+            "cpu_ms": 234.3
+          },
+          {
+            "symbol": "AG::Graph::input_value_ref_slow(AG::data::ptr<AG::Node>, AG::AttributeID, unsigned int, unsigned int, AGSwiftMetadata const*, unsigned char&, long)",
+            "cpu_ms": 210.7
+          },
+          {
+            "symbol": "AGGraphGetValue",
+            "cpu_ms": 206.0
+          },
+          {
+            "symbol": "BaseViewList.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 192.8
+          },
+          {
+            "symbol": "DynamicViewList.WrappedList.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 190.8
+          },
+          {
+            "symbol": "ModifiedViewList.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 189.6
+          },
+          {
+            "symbol": "_ViewList_Node.applyNodes(from:style:transform:to:)",
+            "cpu_ms": 187.2
+          },
+          {
+            "symbol": "ForEachState.forEachItem(from:style:do:)",
+            "cpu_ms": 186.3
+          },
+          {
+            "symbol": "specialized ForEachList.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 185.9
+          },
+          {
+            "symbol": "protocol witness for ViewList.applyNodes(from:style:list:transform:to:) in conformance ForEachList<A, B, C>",
+            "cpu_ms": 185.5
+          },
+          {
+            "symbol": "closure #1 in ForEachState.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 185.1
+          },
+          {
+            "symbol": "_LazyLayout_Subviews.apply(from:style:to:)",
+            "cpu_ms": 182.4
+          },
+          {
+            "symbol": "closure #1 in closure #1 in _LazyLayout_Subviews.apply(from:style:to:)",
+            "cpu_ms": 182.1
+          },
+          {
+            "symbol": "specialized LazySubviewPlacements.updateValue()",
+            "cpu_ms": 181.6
+          },
+          {
+            "symbol": "specialized LazyStack<>.place(subviews:context:cache:in:)",
+            "cpu_ms": 181.2
+          },
+          {
+            "symbol": "specialized closure #1 in LazySubviewPlacements.placeSubviews(placementContext:in:nearestVisibleRect:containingVisibleRect:)",
+            "cpu_ms": 181.0
+          },
+          {
+            "symbol": "specialized LazySubviewPlacements.placeSubviews(placementContext:in:nearestVisibleRect:containingVisibleRect:)",
+            "cpu_ms": 180.8
+          },
+          {
+            "symbol": "partial apply for specialized closure #1 in LazySubviewPlacements.placeSubviews(placementContext:in:nearestVisibleRect:containingVisibleRect:)",
+            "cpu_ms": 180.8
+          },
+          {
+            "symbol": "_LazyLayoutViewCache.withMutableCacheState<A, B>(type:_:)",
+            "cpu_ms": 180.7
+          },
+          {
+            "symbol": "specialized LazyHVStack<>.lengthAndSpacing(subviews:predecessors:minorGeometry:)",
+            "cpu_ms": 180.5
+          },
+          {
+            "symbol": "specialized closure #1 in closure #1 in StackPlacement.place(subviews:from:position:stopping:style:)",
+            "cpu_ms": 180.2
+          },
+          {
+            "symbol": "partial apply for specialized closure #2 in StackPlacement.placeSection(_:from:)",
+            "cpu_ms": 180.1
+          },
+          {
+            "symbol": "applyNode #1 (start:style:node:transform:) in _LazyLayout_Subviews.applyNodes(from:style:to:)",
+            "cpu_ms": 179.9
+          },
+          {
+            "symbol": "specialized closure #1 in StackPlacement.place(subviews:from:position:stopping:style:)",
+            "cpu_ms": 179.9
+          },
+          {
+            "symbol": "specialized StackPlacement.flushMinorGroup()",
+            "cpu_ms": 179.9
+          },
+          {
+            "symbol": "partial apply for specialized closure #1 in StackPlacement.place(subviews:from:position:stopping:style:)",
+            "cpu_ms": 179.8
+          },
+          {
+            "symbol": "TracingLayoutEngineBox.sizeThatFits(_:)",
+            "cpu_ms": 174.9
+          },
+          {
+            "symbol": "LayoutProxy.dimensions(in:)",
+            "cpu_ms": 170.8
+          },
+          {
+            "symbol": "ViewLayoutEngine.sizeThatFits(_:)",
+            "cpu_ms": 170.1
+          },
+          {
+            "symbol": "closure #1 in ViewLayoutEngine.sizeThatFits(_:)",
+            "cpu_ms": 169.6
+          },
+          {
+            "symbol": "0x23fe72288",
+            "cpu_ms": 166.6
+          },
+          {
+            "symbol": "UnaryLayoutEngine.sizeThatFits(_:)",
+            "cpu_ms": 166.6
+          },
+          {
+            "symbol": "AGGraphGetInputValue",
+            "cpu_ms": 164.4
+          },
+          {
+            "symbol": "specialized StackLayout.UnmanagedImplementation.placeChildren1(in:minorProposalForChild:)",
+            "cpu_ms": 156.7
+          },
+          {
+            "symbol": "StackLayout.UnmanagedImplementation.placeChildren(in:)",
+            "cpu_ms": 156.6
+          },
+          {
+            "symbol": "StackLayout.UnmanagedImplementation.resize(_:proposal:proxy:)",
+            "cpu_ms": 156.6
+          },
+          {
+            "symbol": "specialized DynamicLayoutComputer.updateValue()",
+            "cpu_ms": 153.9
+          },
+          {
+            "symbol": "_PaddingLayout.sizeThatFits(in:context:child:)",
+            "cpu_ms": 153.9
+          },
+          {
+            "symbol": "protocol witness for UnaryLayout.sizeThatFits(in:context:child:) in conformance _PaddingLayout",
+            "cpu_ms": 153.8
+          },
+          {
+            "symbol": "StackLayout.UnmanagedImplementation.sizeChildrenUsingMajorAxisProposal(_:minorProposalForChild:)",
+            "cpu_ms": 152.9
+          },
+          {
+            "symbol": "LayoutEngine.lengthThatFits(_:in:)",
+            "cpu_ms": 149.3
+          },
+          {
+            "symbol": "TracingLayoutEngineBox.lengthThatFits(_:in:)",
+            "cpu_ms": 149.2
+          },
+          {
+            "symbol": "specialized DynamicContainerInfo.updateValue()",
+            "cpu_ms": 143.0
+          },
+          {
+            "symbol": "specialized DynamicContainerInfo.updateItems(disableTransitions:dirtyFlags:hasDepth:)",
+            "cpu_ms": 141.6
+          },
+          {
+            "symbol": "StackLayout.UnmanagedImplementation.sizeChildrenGenerallyWithConcreteMajorProposal(in:minorProposalForChild:)",
+            "cpu_ms": 126.7
+          },
+          {
+            "symbol": "_FlexFrameLayout.sizeThatFits(in:context:child:)",
+            "cpu_ms": 121.0
+          }
+        ],
+        "main_leaf_top_30": [
+          {
+            "symbol": "<deduplicated_symbol>",
+            "cpu_ms": 17.1
+          },
+          {
+            "symbol": "AccelerateCrypto_SHA256_compress",
+            "cpu_ms": 12.8
+          },
+          {
+            "symbol": "AG::Graph::propagate_dirty(AG::AttributeID)",
+            "cpu_ms": 11.8
+          },
+          {
+            "symbol": "objc_msgSend",
+            "cpu_ms": 11.1
+          },
+          {
+            "symbol": "AG::Graph::UpdateStack::update()",
+            "cpu_ms": 10.8
+          },
+          {
+            "symbol": "_xzm_xzone_malloc_tiny",
+            "cpu_ms": 8.3
+          },
+          {
+            "symbol": "mach_absolute_time",
+            "cpu_ms": 7.2
+          },
+          {
+            "symbol": "__thread_stack_pcs",
+            "cpu_ms": 6.7
+          },
+          {
+            "symbol": "_platform_memmove",
+            "cpu_ms": 5.3
+          },
+          {
+            "symbol": "swift::MetadataCacheKey::operator==(swift::MetadataCacheKey const&) const",
+            "cpu_ms": 5.2
+          },
+          {
+            "symbol": "swift_retain",
+            "cpu_ms": 4.8
+          },
+          {
+            "symbol": "swift_release",
+            "cpu_ms": 4.4
+          },
+          {
+            "symbol": "AG::Subgraph::update(unsigned int)",
+            "cpu_ms": 3.9
+          },
+          {
+            "symbol": "_xzm_free_main",
+            "cpu_ms": 3.7
+          },
+          {
+            "symbol": "timingsafe_enable_if_supported",
+            "cpu_ms": 3.4
+          },
+          {
+            "symbol": "_CFRelease",
+            "cpu_ms": 3.2
+          },
+          {
+            "symbol": "pthread_stack_frame_decode_np",
+            "cpu_ms": 3.2
+          },
+          {
+            "symbol": "specialized Trace_Handle.write<A>(_:omit:)",
+            "cpu_ms": 3.2
+          },
+          {
+            "symbol": "getCache(swift::TargetTypeContextDescriptor<swift::InProcess> const&)",
+            "cpu_ms": 3.1
+          },
+          {
+            "symbol": "find(_:key:filter:)",
+            "cpu_ms": 3.1
+          },
+          {
+            "symbol": "0x1a3b4f96d",
+            "cpu_ms": 2.9
+          },
+          {
+            "symbol": "String.distance(from:to:)",
+            "cpu_ms": 2.5
+          },
+          {
+            "symbol": "swift::_getWitnessTable(swift::TargetProtocolConformanceDescriptor<swift::InProcess> const*, swift::TargetMetadata<swift::InProcess> const*, void const* const*)",
+            "cpu_ms": 2.5
+          },
+          {
+            "symbol": "objc_retain",
+            "cpu_ms": 2.5
+          },
+          {
+            "symbol": "_xzm_xzone_malloc_freelist_outlined",
+            "cpu_ms": 2.4
+          },
+          {
+            "symbol": "objc_release",
+            "cpu_ms": 2.4
+          },
+          {
+            "symbol": "specialized static Hasher._hash(seed:_:)",
+            "cpu_ms": 2.3
+          },
+          {
+            "symbol": "A8_mark_constmask(BltDepth const*, BltOp const*, MODE)",
+            "cpu_ms": 2.3
+          },
+          {
+            "symbol": "___chkstk_darwin",
+            "cpu_ms": 2.3
+          },
+          {
+            "symbol": "specialized Trace_Handle.write<A>(struct:)",
+            "cpu_ms": 2.2
+          }
+        ],
+        "notes": [
+          "Actual sample weights, not 1ms times sample count. Total CPU includes samples with missing backtraces; attribution requires a stack.",
+          "Inclusive unique-symbol-per-sample and region weights overlap; do not sum.",
+          "Exact operation signpost +0..180ms; startup/finish excluded.",
+          "Longest callback gap aligned by each raw uptime offset relative to its operation signpost; mark-to-signpost latency is not removed. Sampling quantization and alignment can give running coverage slightly above100%.",
+          "No child component is attributed from a generic framework symbol."
+        ]
+      }
+    },
+    "no-insertion": {
+      "trace": "/tmp/swiftui-no-insertion-profile-20261010/no-insertion.trace",
+      "callback_measurements": {
+        "callback_count": 1207,
+        "direction": "no-insertion",
+        "final_rows": 600,
+        "fixed_row_height": false,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "gap_end_uptime": 371753.57167033333,
+            "gap_start_uptime": 371753.49063429167,
+            "inserted_rows": 0,
+            "max_callback_gap_ms": 81.0360416653566,
+            "over_25_ms": 1,
+            "page": 1,
+            "revealed_row": 100,
+            "rows": 600,
+            "uptime": 371753.49830000004,
+            "visible_row_ids": [
+              100,
+              101,
+              102,
+              103,
+              104
+            ]
+          },
+          {
+            "gap_end_uptime": 371755.6160518334,
+            "gap_start_uptime": 371755.548926875,
+            "inserted_rows": 0,
+            "max_callback_gap_ms": 67.12495838291943,
+            "over_25_ms": 1,
+            "page": 2,
+            "revealed_row": 200,
+            "rows": 600,
+            "uptime": 371755.5411285417,
+            "visible_row_ids": [
+              200,
+              201,
+              202,
+              203,
+              204
+            ]
+          },
+          {
+            "gap_end_uptime": 371757.741496875,
+            "gap_start_uptime": 371757.657256125,
+            "inserted_rows": 0,
+            "max_callback_gap_ms": 84.2407500022091,
+            "over_25_ms": 1,
+            "page": 3,
+            "revealed_row": 300,
+            "rows": 600,
+            "uptime": 371757.662032625,
+            "visible_row_ids": [
+              300,
+              301,
+              302,
+              303,
+              304,
+              305,
+              306,
+              307
+            ]
+          },
+          {
+            "gap_end_uptime": 371759.8782406667,
+            "gap_start_uptime": 371759.7822166667,
+            "inserted_rows": 0,
+            "max_callback_gap_ms": 96.02400002768263,
+            "over_25_ms": 1,
+            "page": 4,
+            "revealed_row": 400,
+            "rows": 600,
+            "uptime": 371759.787164125,
+            "visible_row_ids": [
+              400,
+              401,
+              402,
+              403,
+              404,
+              405,
+              406,
+              407
+            ]
+          },
+          {
+            "gap_end_uptime": 371761.94935450004,
+            "gap_start_uptime": 371761.88219133334,
+            "inserted_rows": 0,
+            "max_callback_gap_ms": 67.16316670645028,
+            "over_25_ms": 1,
+            "page": 5,
+            "revealed_row": 500,
+            "rows": 600,
+            "uptime": 371761.88269625005,
+            "visible_row_ids": [
+              500,
+              501,
+              502,
+              503,
+              504,
+              505,
+              506
+            ]
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 8.819041715469211,
+        "omitted_component": "none",
+        "page_size": 100,
+        "reveal_rows": true,
+        "row_kind": "production-rich",
+        "single_line": false
+      },
+      "scoped_cpu": {
+        "scope_ms": [
+          [
+            6017.644625,
+            6197.644625
+          ],
+          [
+            8060.376541,
+            8240.376541
+          ],
+          [
+            10181.280833,
+            10361.280833
+          ],
+          [
+            12306.42275,
+            12486.42275
+          ],
+          [
+            14401.9465,
+            14581.9465
+          ]
+        ],
+        "main_cpu_ms": 433.9,
+        "background_cpu_ms": 456.3,
+        "sample_counts": {
+          "main": 4339,
+          "background": 4563
+        },
+        "missing_stack_samples": {
+          "main": 3,
+          "background": 21
+        },
+        "per_window_cpu_ms": [
+          {
+            "main": 80.1,
+            "background": 95.2
+          },
+          {
+            "main": 80.5,
+            "background": 96.7
+          },
+          {
+            "main": 93.1,
+            "background": 91.7
+          },
+          {
+            "main": 106.5,
+            "background": 115.6
+          },
+          {
+            "main": 73.7,
+            "background": 57.1
+          }
+        ],
+        "regions_nonadditive": {
+          "scroll_sizing": {
+            "main": 4.7
+          },
+          "root_geometry": {
+            "main": 1.6
+          },
+          "layout_sizing": {
+            "main": 167.2
+          },
+          "graph_update": {
+            "main": 307.8
+          },
+          "lazy_estimates": {
+            "main": 1.5
+          },
+          "selection_textkit": {
+            "main": 44.3
+          },
+          "syntax_capture": {
+            "background": 251.3
+          },
+          "image_decode": {
+            "background": 169.8
+          }
+        },
+        "region_patterns": {
+          "scroll_sizing": [
+            "ScrollViewUtilities.sizeThatFits"
+          ],
+          "root_geometry": [
+            "RootGeometry.value.getter"
+          ],
+          "layout_sizing": [
+            "TracingLayoutEngineBox.sizeThatFits"
+          ],
+          "graph_update": [
+            "AG::Graph::UpdateStack::update()"
+          ],
+          "lazy_estimates": [
+            "LazyStack<>.measureEstimates"
+          ],
+          "selection_textkit": [
+            "SelectableText",
+            "NSTextLayout",
+            "NSTextContent",
+            "NSTextStorage"
+          ],
+          "syntax_capture": [
+            "NativeSyntaxHighlighter.captures"
+          ],
+          "image_decode": [
+            "CGImageSourceCreateThumbnailAtIndex",
+            "PNGReadPlugin",
+            "png_read",
+            "png_do",
+            "IIOImageDecoder"
+          ]
+        },
+        "longest_callback_gaps": [
+          {
+            "scope_ms": [
+              6009.978917,
+              6091.014958
+            ],
+            "callback_gap_ms": 81.0360416653566,
+            "main_cpu_ms": 73.4,
+            "background_cpu_ms": 16.5,
+            "main_running_coverage_pct": 90.58,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 0.6,
+              "root_geometry": 0.2,
+              "layout_sizing": 29.9,
+              "graph_update": 54.4,
+              "lazy_estimates": 0.1,
+              "selection_textkit": 7.1,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          },
+          {
+            "scope_ms": [
+              8068.174874,
+              8135.299833
+            ],
+            "callback_gap_ms": 67.12495838291943,
+            "main_cpu_ms": 63.1,
+            "background_cpu_ms": 14.4,
+            "main_running_coverage_pct": 94.0,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 0.4,
+              "root_geometry": 0.0,
+              "layout_sizing": 30.1,
+              "graph_update": 49.0,
+              "lazy_estimates": 0.0,
+              "selection_textkit": 6.7,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          },
+          {
+            "scope_ms": [
+              10176.504333,
+              10260.745083
+            ],
+            "callback_gap_ms": 84.2407500022091,
+            "main_cpu_ms": 79.0,
+            "background_cpu_ms": 17.1,
+            "main_running_coverage_pct": 93.78,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 0.9,
+              "root_geometry": 0.4,
+              "layout_sizing": 36.3,
+              "graph_update": 61.1,
+              "lazy_estimates": 0.4,
+              "selection_textkit": 9.1,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          },
+          {
+            "scope_ms": [
+              12301.475292,
+              12397.499292
+            ],
+            "callback_gap_ms": 96.02400002768263,
+            "main_cpu_ms": 90.8,
+            "background_cpu_ms": 18.0,
+            "main_running_coverage_pct": 94.56,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 1.1,
+              "root_geometry": 0.5,
+              "layout_sizing": 39.1,
+              "graph_update": 69.8,
+              "lazy_estimates": 0.5,
+              "selection_textkit": 9.4,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          },
+          {
+            "scope_ms": [
+              14401.441583,
+              14468.60475
+            ],
+            "callback_gap_ms": 67.16316670645028,
+            "main_cpu_ms": 66.6,
+            "background_cpu_ms": 1.7,
+            "main_running_coverage_pct": 99.16,
+            "main_regions_nonadditive_ms": {
+              "scroll_sizing": 0.5,
+              "root_geometry": 0.2,
+              "layout_sizing": 25.9,
+              "graph_update": 46.2,
+              "lazy_estimates": 0.2,
+              "selection_textkit": 6.8,
+              "syntax_capture": 0.0,
+              "image_decode": 0.0
+            }
+          }
+        ],
+        "main_inclusive_top_100": [
+          {
+            "symbol": "_CFRunLoopRunSpecificWithOptions",
+            "cpu_ms": 402.1
+          },
+          {
+            "symbol": "RunCurrentEventLoopInMode",
+            "cpu_ms": 401.4
+          },
+          {
+            "symbol": "ReceiveNextEventCommon",
+            "cpu_ms": 400.7
+          },
+          {
+            "symbol": "_BlockUntilNextEventMatchingListInMode",
+            "cpu_ms": 399.6
+          },
+          {
+            "symbol": "_DPSBlockUntilNextEventMatchingListInMode",
+            "cpu_ms": 398.7
+          },
+          {
+            "symbol": "_DPSNextEvent",
+            "cpu_ms": 398.3
+          },
+          {
+            "symbol": "-[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]",
+            "cpu_ms": 397.6
+          },
+          {
+            "symbol": "-[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]",
+            "cpu_ms": 396.6
+          },
+          {
+            "symbol": "-[NSApplication run]",
+            "cpu_ms": 396.5
+          },
+          {
+            "symbol": "specialized withExtendedLifetime<A, B, C>(_:_:)",
+            "cpu_ms": 395.9
+          },
+          {
+            "symbol": "closure #1 in static ReproductionMain.main()",
+            "cpu_ms": 395.9
+          },
+          {
+            "symbol": "specialized static ReproductionMain.main()",
+            "cpu_ms": 395.9
+          },
+          {
+            "symbol": "main",
+            "cpu_ms": 395.2
+          },
+          {
+            "symbol": "static ReproductionMain.$main()",
+            "cpu_ms": 395.2
+          },
+          {
+            "symbol": "static ReproductionMain.main()",
+            "cpu_ms": 395.2
+          },
+          {
+            "symbol": "start",
+            "cpu_ms": 394.4
+          },
+          {
+            "symbol": "<deduplicated_symbol>",
+            "cpu_ms": 383.0
+          },
+          {
+            "symbol": "GraphHost.flushTransactions()",
+            "cpu_ms": 312.1
+          },
+          {
+            "symbol": "AG::Graph::UpdateStack::update()",
+            "cpu_ms": 307.8
+          },
+          {
+            "symbol": "AG::Subgraph::update(unsigned int)",
+            "cpu_ms": 301.4
+          },
+          {
+            "symbol": "specialized implicit closure #1 in closure #1 in closure #1 in Attribute.init<A>(_:)",
+            "cpu_ms": 267.0
+          },
+          {
+            "symbol": "AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int)",
+            "cpu_ms": 225.1
+          },
+          {
+            "symbol": "CA::Transaction::commit()",
+            "cpu_ms": 219.1
+          },
+          {
+            "symbol": "CA::Transaction::flush()",
+            "cpu_ms": 218.8
+          },
+          {
+            "symbol": "__CFRunLoopRun",
+            "cpu_ms": 218.2
+          },
+          {
+            "symbol": "UC::DriverCore::continueProcessing()",
+            "cpu_ms": 217.7
+          },
+          {
+            "symbol": "AG::Graph::input_value_ref_slow(AG::data::ptr<AG::Node>, AG::AttributeID, unsigned int, unsigned int, AGSwiftMetadata const*, unsigned char&, long)",
+            "cpu_ms": 204.9
+          },
+          {
+            "symbol": "AGGraphGetValue",
+            "cpu_ms": 201.2
+          },
+          {
+            "symbol": "NSDisplayCycleFlush",
+            "cpu_ms": 200.9
+          },
+          {
+            "symbol": "NSDisplayCycleObserverInvoke",
+            "cpu_ms": 200.8
+          },
+          {
+            "symbol": "NSPerformVisuallyAtomicChange",
+            "cpu_ms": 200.7
+          },
+          {
+            "symbol": "CA::Transaction::run_commit_handlers(CATransactionPhase)",
+            "cpu_ms": 200.7
+          },
+          {
+            "symbol": "0x1a198820c",
+            "cpu_ms": 200.2
+          },
+          {
+            "symbol": "0x1a1988234",
+            "cpu_ms": 199.8
+          },
+          {
+            "symbol": "0x1a1a38d24",
+            "cpu_ms": 198.8
+          },
+          {
+            "symbol": "0x1a1a39890",
+            "cpu_ms": 198.5
+          },
+          {
+            "symbol": "___NSViewLayout_block_invoke",
+            "cpu_ms": 198.1
+          },
+          {
+            "symbol": "_NSViewLayout",
+            "cpu_ms": 197.9
+          },
+          {
+            "symbol": "__36-[NSView _layoutSubtreeWithOldSize:]_block_invoke",
+            "cpu_ms": 197.8
+          },
+          {
+            "symbol": "ViewGraphRootValueUpdater.render(interval:updateDisplayList:targetTimestamp:)",
+            "cpu_ms": 197.7
+          },
+          {
+            "symbol": "-[NSView _layoutSubtreeWithOldSize:]",
+            "cpu_ms": 197.7
+          },
+          {
+            "symbol": "__56-[NSView _layoutSubtreeIfNeededAndAllowTemporaryEngine:]_block_invoke",
+            "cpu_ms": 197.6
+          },
+          {
+            "symbol": "closure #1 in NSHostingView.layout()",
+            "cpu_ms": 197.3
+          },
+          {
+            "symbol": "-[NSView _layoutSubtreeIfNeededAndAllowTemporaryEngine:]",
+            "cpu_ms": 196.9
+          },
+          {
+            "symbol": "+[NSAnimationContext runAnimationGroup:]",
+            "cpu_ms": 196.2
+          },
+          {
+            "symbol": "-[NSView layoutSubtreeIfNeeded]",
+            "cpu_ms": 196.1
+          },
+          {
+            "symbol": "NSHostingView.layout()",
+            "cpu_ms": 196.0
+          },
+          {
+            "symbol": "-[NSWindow(NSConstraintBasedLayoutInternal) _layoutViewTree]",
+            "cpu_ms": 195.8
+          },
+          {
+            "symbol": "@objc NSHostingView.layout()",
+            "cpu_ms": 195.7
+          },
+          {
+            "symbol": "-[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded]",
+            "cpu_ms": 195.5
+          },
+          {
+            "symbol": "__NSWindowGetDisplayCycleObserverForLayout_block_invoke",
+            "cpu_ms": 195.3
+          },
+          {
+            "symbol": "closure #1 in ViewGraphRootValueUpdater.render(interval:updateDisplayList:targetTimestamp:)",
+            "cpu_ms": 191.9
+          },
+          {
+            "symbol": "specialized static NSRunLoop.flushObservers()",
+            "cpu_ms": 185.3
+          },
+          {
+            "symbol": "@objc closure #1 in static NSRunLoop.addObserver(_:)",
+            "cpu_ms": 185.2
+          },
+          {
+            "symbol": "__CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__",
+            "cpu_ms": 185.0
+          },
+          {
+            "symbol": "__CFRunLoopDoObservers",
+            "cpu_ms": 184.9
+          },
+          {
+            "symbol": "BaseViewList.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 183.9
+          },
+          {
+            "symbol": "DynamicViewList.WrappedList.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 180.0
+          },
+          {
+            "symbol": "ModifiedViewList.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 178.2
+          },
+          {
+            "symbol": "_ViewList_Node.applyNodes(from:style:transform:to:)",
+            "cpu_ms": 173.3
+          },
+          {
+            "symbol": "ForEachState.forEachItem(from:style:do:)",
+            "cpu_ms": 171.9
+          },
+          {
+            "symbol": "protocol witness for ViewList.applyNodes(from:style:list:transform:to:) in conformance ForEachList<A, B, C>",
+            "cpu_ms": 171.7
+          },
+          {
+            "symbol": "specialized ForEachList.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 171.7
+          },
+          {
+            "symbol": "closure #1 in ForEachState.applyNodes(from:style:list:transform:to:)",
+            "cpu_ms": 170.6
+          },
+          {
+            "symbol": "specialized LazySubviewPlacements.updateValue()",
+            "cpu_ms": 169.4
+          },
+          {
+            "symbol": "_LazyLayout_Subviews.apply(from:style:to:)",
+            "cpu_ms": 169.3
+          },
+          {
+            "symbol": "closure #1 in closure #1 in _LazyLayout_Subviews.apply(from:style:to:)",
+            "cpu_ms": 169.3
+          },
+          {
+            "symbol": "specialized LazyStack<>.place(subviews:context:cache:in:)",
+            "cpu_ms": 169.2
+          },
+          {
+            "symbol": "specialized closure #1 in LazySubviewPlacements.placeSubviews(placementContext:in:nearestVisibleRect:containingVisibleRect:)",
+            "cpu_ms": 169.1
+          },
+          {
+            "symbol": "partial apply for specialized closure #1 in LazySubviewPlacements.placeSubviews(placementContext:in:nearestVisibleRect:containingVisibleRect:)",
+            "cpu_ms": 168.7
+          },
+          {
+            "symbol": "specialized LazySubviewPlacements.placeSubviews(placementContext:in:nearestVisibleRect:containingVisibleRect:)",
+            "cpu_ms": 168.5
+          },
+          {
+            "symbol": "_LazyLayoutViewCache.withMutableCacheState<A, B>(type:_:)",
+            "cpu_ms": 168.5
+          },
+          {
+            "symbol": "specialized LazyHVStack<>.lengthAndSpacing(subviews:predecessors:minorGeometry:)",
+            "cpu_ms": 168.4
+          },
+          {
+            "symbol": "specialized closure #1 in StackPlacement.place(subviews:from:position:stopping:style:)",
+            "cpu_ms": 167.6
+          },
+          {
+            "symbol": "specialized closure #1 in closure #1 in StackPlacement.place(subviews:from:position:stopping:style:)",
+            "cpu_ms": 167.4
+          },
+          {
+            "symbol": "partial apply for specialized closure #1 in StackPlacement.place(subviews:from:position:stopping:style:)",
+            "cpu_ms": 167.4
+          },
+          {
+            "symbol": "specialized StackPlacement.flushMinorGroup()",
+            "cpu_ms": 167.4
+          },
+          {
+            "symbol": "applyNode #1 (start:style:node:transform:) in _LazyLayout_Subviews.applyNodes(from:style:to:)",
+            "cpu_ms": 167.4
+          },
+          {
+            "symbol": "partial apply for specialized closure #2 in StackPlacement.placeSection(_:from:)",
+            "cpu_ms": 167.3
+          },
+          {
+            "symbol": "TracingLayoutEngineBox.sizeThatFits(_:)",
+            "cpu_ms": 167.2
+          },
+          {
+            "symbol": "ViewGraphRootValueUpdater._updateViewGraph<A>(body:)",
+            "cpu_ms": 164.0
+          },
+          {
+            "symbol": "ViewGraphRootValueUpdater.updateGraph<A>(body:)",
+            "cpu_ms": 163.8
+          },
+          {
+            "symbol": "partial apply for closure #1 in ViewGraphRootValueUpdater.updateGraph<A>(body:)",
+            "cpu_ms": 163.3
+          },
+          {
+            "symbol": "closure #1 in closure #1 in closure #1 in NSHostingView.beginTransaction()",
+            "cpu_ms": 163.3
+          },
+          {
+            "symbol": "LayoutProxy.dimensions(in:)",
+            "cpu_ms": 163.2
+          },
+          {
+            "symbol": "closure #1 in closure #1 in NSHostingView.beginTransaction()",
+            "cpu_ms": 163.1
+          },
+          {
+            "symbol": "ViewLayoutEngine.sizeThatFits(_:)",
+            "cpu_ms": 162.6
+          },
+          {
+            "symbol": "closure #1 in ViewLayoutEngine.sizeThatFits(_:)",
+            "cpu_ms": 162.5
+          },
+          {
+            "symbol": "UnaryLayoutEngine.sizeThatFits(_:)",
+            "cpu_ms": 159.8
+          },
+          {
+            "symbol": "0x23fe72288",
+            "cpu_ms": 159.6
+          },
+          {
+            "symbol": "__CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__",
+            "cpu_ms": 154.9
+          },
+          {
+            "symbol": "__CFRunLoopDoSource0",
+            "cpu_ms": 154.8
+          },
+          {
+            "symbol": "__CFRunLoopDoSources0",
+            "cpu_ms": 154.7
+          },
+          {
+            "symbol": "AGGraphGetInputValue",
+            "cpu_ms": 153.0
+          },
+          {
+            "symbol": "CA::Transaction::flush_as_runloop_observer(bool)",
+            "cpu_ms": 152.0
+          },
+          {
+            "symbol": "stepTransactionFlush",
+            "cpu_ms": 151.5
+          },
+          {
+            "symbol": "specialized StackLayout.UnmanagedImplementation.placeChildren1(in:minorProposalForChild:)",
+            "cpu_ms": 147.9
+          },
+          {
+            "symbol": "StackLayout.UnmanagedImplementation.placeChildren(in:)",
+            "cpu_ms": 147.8
+          },
+          {
+            "symbol": "StackLayout.UnmanagedImplementation.resize(_:proposal:proxy:)",
+            "cpu_ms": 147.6
+          },
+          {
+            "symbol": "_PaddingLayout.sizeThatFits(in:context:child:)",
+            "cpu_ms": 146.1
+          }
+        ],
+        "main_leaf_top_30": [
+          {
+            "symbol": "<deduplicated_symbol>",
+            "cpu_ms": 17.9
+          },
+          {
+            "symbol": "objc_msgSend",
+            "cpu_ms": 13.1
+          },
+          {
+            "symbol": "AccelerateCrypto_SHA256_compress",
+            "cpu_ms": 11.7
+          },
+          {
+            "symbol": "AG::Graph::propagate_dirty(AG::AttributeID)",
+            "cpu_ms": 10.0
+          },
+          {
+            "symbol": "AG::Graph::UpdateStack::update()",
+            "cpu_ms": 9.4
+          },
+          {
+            "symbol": "mach_absolute_time",
+            "cpu_ms": 7.3
+          },
+          {
+            "symbol": "_xzm_xzone_malloc_tiny",
+            "cpu_ms": 6.5
+          },
+          {
+            "symbol": "swift::MetadataCacheKey::operator==(swift::MetadataCacheKey const&) const",
+            "cpu_ms": 6.2
+          },
+          {
+            "symbol": "swift_release",
+            "cpu_ms": 6.2
+          },
+          {
+            "symbol": "swift_retain",
+            "cpu_ms": 5.5
+          },
+          {
+            "symbol": "__thread_stack_pcs",
+            "cpu_ms": 5.2
+          },
+          {
+            "symbol": "_platform_memmove",
+            "cpu_ms": 4.0
+          },
+          {
+            "symbol": "_xzm_free_main",
+            "cpu_ms": 3.9
+          },
+          {
+            "symbol": "swift::TargetContextDescriptor<swift::InProcess>::getGenericContext() const",
+            "cpu_ms": 3.8
+          },
+          {
+            "symbol": "timingsafe_enable_if_supported",
+            "cpu_ms": 3.6
+          },
+          {
+            "symbol": "getCache(swift::TargetTypeContextDescriptor<swift::InProcess> const&)",
+            "cpu_ms": 3.5
+          },
+          {
+            "symbol": "specialized Trace_Handle.write<A>(_:omit:)",
+            "cpu_ms": 3.5
+          },
+          {
+            "symbol": "objc_release",
+            "cpu_ms": 2.9
+          },
+          {
+            "symbol": "_CFRelease",
+            "cpu_ms": 2.7
+          },
+          {
+            "symbol": "AG::Subgraph::update(unsigned int)",
+            "cpu_ms": 2.3
+          },
+          {
+            "symbol": "weak_entry_for_referent",
+            "cpu_ms": 2.3
+          },
+          {
+            "symbol": "AG::Graph::resolve_offset(AG::AttributeID, AGSwiftMetadata const*, unsigned int) const",
+            "cpu_ms": 2.3
+          },
+          {
+            "symbol": "0x1a3b4f96d",
+            "cpu_ms": 2.2
+          },
+          {
+            "symbol": "specialized static Hasher._hash(seed:_:)",
+            "cpu_ms": 2.2
+          },
+          {
+            "symbol": "std::__1::pair<swift::HashMapElementWrapper<swift::GenericCacheEntry>*, unsigned int> swift::ConcurrentReadableHashMap<swift::HashMapElementWrapper<swift::GenericCacheEntry>, swift::Mutex>::find<swift::MetadataCacheKey>(swift::MetadataCacheKey const&, swift::ConcurrentReadableHashMap<swift::HashMapElementWrapper<swift::GenericCacheEntry>, swift::Mutex>::IndexStorage, unsigned long, swift::HashMapElementWrapper<swift::GenericCacheEntry>*)",
+            "cpu_ms": 2.1
+          },
+          {
+            "symbol": "_xzm_xzone_malloc_freelist_outlined",
+            "cpu_ms": 2.1
+          },
+          {
+            "symbol": "pthread_stack_frame_decode_np",
+            "cpu_ms": 2.0
+          },
+          {
+            "symbol": "find(_:key:filter:)",
+            "cpu_ms": 2.0
+          },
+          {
+            "symbol": "specialized static Hasher._hash(seed:bytes:count:)",
+            "cpu_ms": 2.0
+          },
+          {
+            "symbol": "__CF_IS_OBJC",
+            "cpu_ms": 1.9
+          }
+        ],
+        "notes": [
+          "Actual sample weights, not 1ms times sample count. Total CPU includes samples with missing backtraces; attribution requires a stack.",
+          "Inclusive unique-symbol-per-sample and region weights overlap; do not sum.",
+          "Exact operation signpost +0..180ms; startup/finish excluded.",
+          "Longest callback gap aligned by each raw uptime offset relative to its operation signpost; mark-to-signpost latency is not removed. Sampling quantization and alignment can give running coverage slightly above100%.",
+          "No child component is attributed from a generic framework symbol."
+        ]
+      }
+    }
+  },
+  "focused_no_insertion_source_and_background": {
+    "source_main": [
+      {
+        "symbol": "MessageRowView.body.getter",
+        "inclusive_ms": 8.0
+      },
+      {
+        "symbol": "MessageMarkdownContent.body.getter",
+        "inclusive_ms": 3.5
+      },
+      {
+        "symbol": "closure #1 in MessageMarkdownContent.body.getter",
+        "inclusive_ms": 3.4
+      },
+      {
+        "symbol": "closure #1 in MessageRowView.body.getter",
+        "inclusive_ms": 3.3
+      },
+      {
+        "symbol": "closure #2 in closure #1 in MessageRowView.body.getter",
+        "inclusive_ms": 2.5
+      },
+      {
+        "symbol": "ExpandableMessageBody.body.getter",
+        "inclusive_ms": 1.2
+      },
+      {
+        "symbol": "ScrollReproduction.renderedRow(_:)",
+        "inclusive_ms": 1.2
+      },
+      {
+        "symbol": "closure #1 in ScrollReproduction.renderedRow(_:)",
+        "inclusive_ms": 1.1
+      },
+      {
+        "symbol": "closure #2 in MessageCodeBlock.body.getter",
+        "inclusive_ms": 1.0
+      },
+      {
+        "symbol": "ExpandableMessageBody.clampedBody.getter",
+        "inclusive_ms": 1.0
+      },
+      {
+        "symbol": "closure #1 in ExpandableMessageBody.clampedBody.getter",
+        "inclusive_ms": 0.8
+      },
+      {
+        "symbol": "MessageCodeBlock.styledCode(_:captures:)",
+        "inclusive_ms": 0.8
+      },
+      {
+        "symbol": "MessageRowView.quoteJump(for:)",
+        "inclusive_ms": 0.7
+      },
+      {
+        "symbol": "destroy for MessageRowView",
+        "inclusive_ms": 0.6
+      },
+      {
+        "symbol": "closure #4 in MessageRowView.body.getter",
+        "inclusive_ms": 0.5
+      },
+      {
+        "symbol": "closure #16 in MessageRowView.body.getter",
+        "inclusive_ms": 0.5
+      },
+      {
+        "symbol": "MessageRowView.menuArea.getter",
+        "inclusive_ms": 0.5
+      },
+      {
+        "symbol": "closure #1 in closure #1 in closure #2 in closure #1 in MessageRowView.body.getter",
+        "inclusive_ms": 0.4
+      },
+      {
+        "symbol": "closure #1 in closure #1 in MessageReactionsView.body.getter",
+        "inclusive_ms": 0.3
+      },
+      {
+        "symbol": "closure #1 in closure #2 in closure #1 in MessageRowView.body.getter",
+        "inclusive_ms": 0.3
+      }
+    ],
+    "background": [
+      {
+        "symbol": "<deduplicated_symbol>",
+        "inclusive_ms": 437.6
+      },
+      {
+        "symbol": "completeTaskWithClosure(swift::AsyncContext*, swift::SwiftError*)",
+        "inclusive_ms": 252.8
+      },
+      {
+        "symbol": "static NativeSyntaxHighlighter.captures(in:language:)",
+        "inclusive_ms": 251.3
+      },
+      {
+        "symbol": "closure #1 in closure #2 in MessageCodeBlock.body.getter",
+        "inclusive_ms": 251.3
+      },
+      {
+        "symbol": "specialized Data.withUnsafeBytes<A, B>(_:)",
+        "inclusive_ms": 250.4
+      },
+      {
+        "symbol": "Query.__allocating_init(language:data:)",
+        "inclusive_ms": 250.0
+      },
+      {
+        "symbol": "Query.init(language:data:)",
+        "inclusive_ms": 250.0
+      },
+      {
+        "symbol": "ts_query_new",
+        "inclusive_ms": 249.7
+      },
+      {
+        "symbol": "ts_query__analyze_patterns",
+        "inclusive_ms": 249.3
+      },
+      {
+        "symbol": "ts_query__perform_analysis",
+        "inclusive_ms": 237.6
+      },
+      {
+        "symbol": "start_wqthread",
+        "inclusive_ms": 201.0
+      },
+      {
+        "symbol": "_pthread_wqthread",
+        "inclusive_ms": 199.6
+      },
+      {
+        "symbol": "_dispatch_client_callout",
+        "inclusive_ms": 199.5
+      },
+      {
+        "symbol": "ripc_DrawImage",
+        "inclusive_ms": 180.2
+      },
+      {
+        "symbol": "CGContextDrawImageWithOptions",
+        "inclusive_ms": 180.2
+      },
+      {
+        "symbol": "CGContextDrawImage",
+        "inclusive_ms": 180.2
+      },
+      {
+        "symbol": "_dispatch_workloop_worker_thread",
+        "inclusive_ms": 178.3
+      },
+      {
+        "symbol": "_dispatch_lane_invoke",
+        "inclusive_ms": 178.2
+      },
+      {
+        "symbol": "_dispatch_root_queue_drain_deferred_wlh",
+        "inclusive_ms": 178.2
+      },
+      {
+        "symbol": "_dispatch_lane_serial_drain",
+        "inclusive_ms": 178.2
+      }
+    ],
+    "sha_callers": [
+      {
+        "symbol": "specialized Trace_Handle.write<A>(_:omit:)",
+        "inclusive_ms": 11.7
+      },
+      {
+        "symbol": "specialized Trace_Handle.writtenBacktrace()",
+        "inclusive_ms": 11.7
+      },
+      {
+        "symbol": "AccelerateCrypto_SHA256_compress",
+        "inclusive_ms": 11.7
+      },
+      {
+        "symbol": "<deduplicated_symbol>",
+        "inclusive_ms": 11.7
+      },
+      {
+        "symbol": "AG::Graph::UpdateStack::update()",
+        "inclusive_ms": 11.4
+      },
+      {
+        "symbol": "BaseViewList.applyNodes(from:style:list:transform:to:)",
+        "inclusive_ms": 11.1
+      },
+      {
+        "symbol": "specialized DynamicContainerInfo.updateValue()",
+        "inclusive_ms": 10.9
+      },
+      {
+        "symbol": "AG::Graph::update_attribute(AG::data::ptr<AG::Node>, unsigned int)",
+        "inclusive_ms": 10.9
+      },
+      {
+        "symbol": "AG::Graph::input_value_ref_slow(AG::data::ptr<AG::Node>, AG::AttributeID, unsigned int, unsigned int, AGSwiftMetadata const*, unsigned char&, long)",
+        "inclusive_ms": 10.9
+      },
+      {
+        "symbol": "specialized DynamicContainerInfo.updateItems(disableTransitions:dirtyFlags:hasDepth:)",
+        "inclusive_ms": 10.9
+      },
+      {
+        "symbol": "AGGraphGetValue",
+        "inclusive_ms": 10.9
+      },
+      {
+        "symbol": "DynamicViewList.WrappedList.applyNodes(from:style:list:transform:to:)",
+        "inclusive_ms": 10.9
+      },
+      {
+        "symbol": "GraphHost.flushTransactions()",
+        "inclusive_ms": 10.7
+      },
+      {
+        "symbol": "ccdigest_update",
+        "inclusive_ms": 10.7
+      },
+      {
+        "symbol": "ModifiedViewList.applyNodes(from:style:list:transform:to:)",
+        "inclusive_ms": 10.6
+      },
+      {
+        "symbol": "AG::Subgraph::update(unsigned int)",
+        "inclusive_ms": 10.6
+      },
+      {
+        "symbol": "specialized DynamicLayoutComputer.updateValue()",
+        "inclusive_ms": 10.6
+      },
+      {
+        "symbol": "AGGraphGetInputValue",
+        "inclusive_ms": 10.6
+      },
+      {
+        "symbol": "protocol witness for ViewList.applyNodes(from:style:list:transform:to:) in conformance ForEachList<A, B, C>",
+        "inclusive_ms": 10.2
+      },
+      {
+        "symbol": "closure #1 in ForEachState.applyNodes(from:style:list:transform:to:)",
+        "inclusive_ms": 10.2
+      }
+    ]
+  }
+}
