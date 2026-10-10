@@ -107,6 +107,7 @@ const MESSAGES: Record<string, string> = {
   "connectPrompt.action": "Connect X, YouTube, LinkedIn…",
   selectedPost: "Selected post",
   "empty.drafts": "No drafts yet.",
+  "empty.more": "More posts are available.",
   "emptyHint.drafts": "Save a post as a draft to finish it later.",
   "status.DRAFT": "Draft",
   "status.SCHEDULED": "Scheduled",
@@ -716,6 +717,45 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.queryByRole("tab", { name: /^Needs attention/ }),
     ).not.toBeInTheDocument();
+  });
+
+  it("tells a paged empty tab that more posts wait", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        nextCursors={{ drafts: "drafts-cursor" }}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const drafts = screen.getByTestId("social-posts-section-drafts");
+    expect(within(drafts).getByText("More posts are available.")).toBeVisible();
+    expect(
+      within(drafts).getByRole("button", { name: "Load more" }),
+    ).toBeVisible();
+    expect(within(drafts).queryByText("No drafts yet.")).not.toBeInTheDocument();
+  });
+
+  it("keeps Needs attention when more pages wait with no rows yet", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        nextCursors={{ attention: "attn-cursor" }}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    const attention = screen.getByTestId("social-posts-section-attention");
+    expect(
+      within(attention).getByText("More posts are available."),
+    ).toBeVisible();
+    expect(
+      within(attention).getByRole("button", { name: "Load more" }),
+    ).toBeVisible();
   });
 
   it("opens the composer when Social links here with ?compose=new", () => {

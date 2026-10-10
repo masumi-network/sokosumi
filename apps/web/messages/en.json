@@ -2439,7 +2439,8 @@
           "statistics": "Statistics"
         },
         "empty": {
-          "drafts": "No drafts yet."
+          "drafts": "No drafts yet.",
+          "more": "More posts are available."
         },
         "emptyHint": {
           "drafts": "Save a post as a draft to finish it later."

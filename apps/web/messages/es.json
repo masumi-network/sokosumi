@@ -2439,7 +2439,8 @@
           "statistics": "Estadísticas"
         },
         "empty": {
-          "drafts": "Aún no hay borradores."
+          "drafts": "Aún no hay borradores.",
+          "more": "Hay más publicaciones."
         },
         "emptyHint": {
           "drafts": "Guarda una publicación como borrador para terminarla más tarde."
