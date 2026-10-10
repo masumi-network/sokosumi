@@ -73,7 +73,7 @@ const TIER_BY_CLASS: Record<
   in_flight: NeedsAttentionTier.inFlight,
 };
 
-export const TASK_ATTENTION_STATUSES = Object.entries(TASK_ATTENTION_CLASS)
+const TASK_ATTENTION_STATUSES = Object.entries(TASK_ATTENTION_CLASS)
   .filter(([, attentionClass]) => attentionClass !== "exclude")
   .map(([status]) => status as TaskStatus);
 

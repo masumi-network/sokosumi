@@ -73,22 +73,17 @@ describe("history.service", () => {
     });
   });
 
-  it("converts ISO string consumedAt values from core into Date objects", async () => {
+  it("returns consumedAt Dates from the core client as-is", async () => {
+    const item = buildHistoryItem();
     coreClientMock.getTransactions.mockResolvedValue({
-      data: [
-        {
-          ...buildHistoryItem(),
-          consumedAt: "2026-02-19T10:00:00.000Z",
-        },
-      ],
+      data: [item],
     });
 
     const { historyService } = await import("./history.service");
     const result = await historyService.listHistory();
 
-    expect(result.history[0]?.consumedAt).toEqual(
-      new Date("2026-02-19T10:00:00.000Z"),
-    );
+    expect(result.history[0]?.consumedAt).toBe(item.consumedAt);
+    expect(result.history[0]?.consumedAt).toBeInstanceOf(Date);
   });
 
   it("omits null cursor and returns null pagination when absent", async () => {
