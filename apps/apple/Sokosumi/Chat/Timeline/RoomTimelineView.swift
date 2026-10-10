@@ -28,10 +28,13 @@ import SwiftUI
       let input = preparationInput
       let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
       let waiting = waitingTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
+      let messages = prepared?.overlaying(input.messages) ?? []
+      // Projection is a live suffix: a shorter nonempty suffix means its older prefix still waits.
+      let olderPageWaits = !messages.isEmpty && messages.count < input.messages.count
       // Keep scroll state below this boundary so scrolling does not rebuild the projection.
-      RoomTranscriptContent(roomId: roomId, messages: prepared?.overlaying(input.messages) ?? [],
+      RoomTranscriptContent(roomId: roomId, messages: messages,
                             hasLiveMessages: !input.messages.isEmpty, preparedTranscript: waiting ?? prepared,
-                            scrollActivity: scrollActivity, olderPageWaits: prepared?.lacksRowsAbove(in: input.messages) ?? false,
+                            scrollActivity: scrollActivity, olderPageWaits: olderPageWaits,
                             hasWaitingPage: waiting != nil) {
         if let waiting = waitingTranscript, waiting.input.scope == preparationInput.scope, scrollActivity.isAtRest {
           waitingTranscript = nil
