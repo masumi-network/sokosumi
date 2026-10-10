@@ -58,6 +58,8 @@ beforeAll(async () => {
             return "\0fixture-presence";
           if (id === "@/app/chat/actions") return "\0fixture-room-action";
           if (id === "@/lib/actions/soko-bot/action") return "\0fixture-action";
+          if (id === "./select-project-action")
+            return "\0fixture-project-action";
         },
         load(id) {
           if (id === "\0fixture-presence") {
@@ -75,7 +77,14 @@ beforeAll(async () => {
               export const useSearchParams = () => new URLSearchParams();`;
           }
           if (id === "\0fixture-action") {
-            return `export const sendSokoBotTurnFeedbackAction = () => {
+            return `const forbidden = () => {
+              throw new Error('Server mutations are forbidden in this fixture');
+            };
+              export const sendSokoBotTurnFeedbackAction = forbidden;
+              export const resolveSokoBotDecisionAction = forbidden;`;
+          }
+          if (id === "\0fixture-project-action") {
+            return `export const selectChatProjectAction = () => {
               throw new Error('Server mutations are forbidden in this fixture');
             };`;
           }
@@ -152,6 +161,12 @@ describe.each([
         await page.evaluate((size) => {
           document.documentElement.style.fontSize = size;
         }, rootFontSize);
+      // This fixture has no virtualizer to place the normal-direction scroller at its live edge.
+      await page.evaluate(() => {
+        const scroller =
+          document.querySelector<HTMLElement>(".overflow-y-auto")!;
+        scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight;
+      });
       const measure = () =>
         page.evaluate(() => {
           const row = document.querySelector('[data-row="newest"]')!;

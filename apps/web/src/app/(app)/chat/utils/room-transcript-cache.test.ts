@@ -50,16 +50,13 @@ function retained() {
     messagesNextCursor: "m1",
   });
   cache.client.setQueryData(cache.key("room"), entry);
-  cache.update("room", entry.lifetime, (value) => ({
-    ...value,
-    position: {
-      anchorId: "m10",
-      anchorCreatedAt: 10000,
-      offset: 0,
-      atLiveEdge: false,
-      visibleMessageIds: ["m10", "m11", "m12"],
-    },
-  }));
+  cache.setPosition("room", entry.lifetime, {
+    anchorId: "m10",
+    anchorCreatedAt: 10000,
+    offset: 0,
+    atLiveEdge: false,
+    visibleMessageIds: ["m10", "m11", "m12"],
+  });
   cache.markDirty("room");
   return { cache, lifetime: entry.lifetime };
 }
@@ -161,12 +158,14 @@ describe("authoritative retained history reconciliation", () => {
   it("replaces transcript identity when reconciliation writes", async () => {
     const { cache, lifetime } = retained();
     const before = cache.get("room")?.transcript;
+    const position = cache.getPosition("room");
     vi.mocked(fetchRoomMessages).mockResolvedValueOnce({
       messages: [message(90)],
       nextCursor: null,
     });
     await cache.refresh("room", lifetime, () => true);
     expect(cache.get("room")?.transcript).not.toBe(before);
+    expect(cache.getPosition("room")).toBe(position);
     cache.clear();
   });
 
@@ -194,6 +193,7 @@ describe("authoritative retained history reconciliation", () => {
 
   it("does not restore cleared-session history from an outstanding request", async () => {
     const { cache, lifetime } = retained();
+    const position = cache.getPosition("room")!;
     let finish!: (page: typeof head) => void;
     vi.mocked(fetchRoomMessages).mockImplementationOnce(
       () =>
@@ -206,6 +206,8 @@ describe("authoritative retained history reconciliation", () => {
     finish(head);
     await refreshing;
     expect(cache.get("room")).toBeUndefined();
+    cache.setPosition("room", lifetime, position);
+    expect(cache.getPosition("room")).toBeUndefined();
   });
   it("starts a separate read after leaving and rejoining during an old request", async () => {
     const { cache, lifetime } = retained();
@@ -222,6 +224,14 @@ describe("authoritative retained history reconciliation", () => {
     cache.joined("room");
     const rejoined = cache.seed(props);
     cache.client.setQueryData(cache.key("room"), rejoined);
+    cache.setPosition("room", lifetime, {
+      anchorId: "m10",
+      anchorCreatedAt: 10000,
+      offset: 42,
+      atLiveEdge: false,
+      visibleMessageIds: ["m10"],
+    });
+    expect(cache.getPosition("room")).toBeUndefined();
     vi.mocked(fetchRoomMessages).mockResolvedValueOnce({
       messages: [{ ...message(90), content: "after rejoin" }],
       nextCursor: null,

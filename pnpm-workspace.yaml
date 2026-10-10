@@ -82,4 +82,7 @@ publicHoistPattern:
 # Re-check when bumping vitest or typescript; drop the patch if tsc is clean without it.
 # Upstream: https://github.com/vitest-dev/vitest/issues/11144 (still open on 5.0.3)
 patchedDependencies:
+  # iOS anchoring must clear touch state on cancellation too. Remove after
+  # an upstream fix; transcript-viewport.webkit.test.ts covers the regression.
+  '@tanstack/virtual-core@3.17.11': patches/@tanstack__virtual-core@3.17.11.patch
   vitest@5.0.3: patches/vitest@5.0.3.patch
