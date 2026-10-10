@@ -113,11 +113,7 @@ export function ResultPreviewCard({
         provider={social.provider}
         account={social.account}
         text={result.summary ?? result.title}
-        timestamp={
-          social.timestamp
-            ? new Date(social.timestamp)
-            : new Date(result.capturedAt)
-        }
+        timestamp={social.timestamp ? new Date(social.timestamp) : null}
         media={(result.outputs ?? [])
           .filter(
             (output) =>
