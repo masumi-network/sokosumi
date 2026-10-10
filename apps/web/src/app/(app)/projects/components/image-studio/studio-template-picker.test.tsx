@@ -145,6 +145,11 @@ describe("the empty studio carousel", () => {
   });
 
   it("keeps the centered preview clear and places neighboring cards behind it", () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
     mount();
     const viewport = mocks.api.rootNode();
     vi.spyOn(viewport, "getBoundingClientRect").mockReturnValue(
@@ -160,6 +165,9 @@ describe("the empty studio carousel", () => {
       ([event]) => event === "scroll",
     )![1];
     act(() => paint());
+    act(() => paint());
+    expect(frames).toHaveLength(1);
+    act(() => frames[0]?.(0));
     const center = screen.getByRole("button", { name: "poster" });
     const outer = screen.getByRole("button", { name: "product-announcement" });
     expect(center.style.transform).toContain("scale(1)");
@@ -169,10 +177,11 @@ describe("the empty studio carousel", () => {
     expect(
       center.querySelector<HTMLElement>("[data-template-preview]")!.style
         .filter,
-    ).toBe("blur(0px)");
+    ).toBe("");
     expect(
       outer.querySelector<HTMLElement>("[data-template-preview]")!.style.filter,
-    ).not.toBe("blur(0px)");
+    ).toBe("");
+    expect(Number(center.style.opacity || 1)).toBeGreaterThan(0);
     expect(center.textContent).toBe("poster");
   });
 
