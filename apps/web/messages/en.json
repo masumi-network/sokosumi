@@ -2517,16 +2517,16 @@
             "now": "Now"
           },
           "timezone": {
-            "yours": "Times are in your time zone, {zone}.",
-            "goesOut": "Goes out {date}, your time ({zone}).",
-            "postZone": "Scheduled as {date} in {zone}."
+            "yours": "Your time zone: {zone}",
+            "goesOut": "Goes out {date} ({zone})",
+            "postZone": "Scheduled as {date} ({zone})"
           },
           "platforms": "Limits per platform",
           "platformLimit": "{provider} {format} · {count} / {limit}",
           "formats": {
             "post": "post",
             "mediaPost": "image or video post",
-            "video": "video (text is the title and description)"
+            "video": "video"
           },
           "publishNow": "Post now",
           "when": "When",
@@ -2551,6 +2551,8 @@
           "canceled": "Post canceled.",
           "conflict": "This post was changed elsewhere. Reloading the latest version.",
           "failed": "Something went wrong. Try again.",
+          "offline": "You're offline. Try again.",
+          "timeout": "Timed out. Try again.",
           "unauthenticated": "Please log in to continue.",
           "unauthenticatedAction": "Log in",
           "published": "Post published.",
@@ -2572,10 +2574,20 @@
           "description": "The post goes out right away instead of waiting for its scheduled time.",
           "confirm": "Publish now"
         },
+        "retryDialog": {
+          "title": "Retry this post?",
+          "description": "The post goes out now.",
+          "confirm": "Retry"
+        },
         "connectPrompt": {
           "title": "Connect an account to start posting",
           "body": "Posts go out from the X, Instagram, LinkedIn, Facebook and YouTube accounts connected to this project.",
           "action": "Connect X, YouTube, LinkedIn…"
+        },
+        "reconnectPrompt": {
+          "title": "Reconnect to post",
+          "body": "Sign in again on a connected account.",
+          "action": "Reconnect"
         },
         "preview": {
           "label": "{provider} preview",
