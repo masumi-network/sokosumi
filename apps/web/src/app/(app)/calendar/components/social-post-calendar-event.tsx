@@ -24,6 +24,11 @@ function socialPostHref(item: SocialPostCalendarItem): string {
   return `/social?${query}#social-post-${encodeURIComponent(item.postId)}`;
 }
 
+function formatHandle(handle: string | null): string | null {
+  if (!handle) return null;
+  return handle.startsWith("@") ? handle : `@${handle}`;
+}
+
 /**
  * A Social post on a calendar.
  *
@@ -107,9 +112,8 @@ function SocialPostPreviewCard({
     name: item.scheduledByName ?? t("unknownScheduler"),
   });
   const providerLabel = socialPostProviderLabel(item.provider);
-  const account = item.externalHandle
-    ? `${providerLabel} · @${item.externalHandle}`
-    : providerLabel;
+  const handle = formatHandle(item.externalHandle);
+  const account = handle ? `${providerLabel} · ${handle}` : providerLabel;
   const className =
     "bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-stretch gap-1 overflow-hidden rounded-md p-1.5 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo";
   const content = (
@@ -127,7 +131,7 @@ function SocialPostPreviewCard({
           />
         </span>
         <span aria-hidden className="min-w-0 flex-1 truncate">
-          {item.externalHandle ? `@${item.externalHandle}` : providerLabel}
+          {handle ?? providerLabel}
         </span>
         <span className="text-muted-foreground shrink-0 tabular-nums">
           {formatter.dateTime(item.scheduledAt, "time", { timeZone })}
