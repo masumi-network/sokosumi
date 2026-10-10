@@ -2671,7 +2671,8 @@
             "dayEngagementUnavailable": "{date}: engagement unavailable",
             "dayOutside": "{date}: outside collected history",
             "legendNone": "None",
-            "legendMore": "More"
+            "legendMore": "More",
+            "legendUnknown": "Unknown"
           },
           "accountsTitle": "Connected accounts",
           "postsTitle": "Published account posts",
