@@ -5863,6 +5863,7 @@ export type SocialAccountStatisticsPage = {
 export type SocialAccountStatisticsAccount = ProjectSocialConnection & {
     statistics?: SocialAccountStatistics;
     postCount: number;
+    sync?: SocialSyncReadModel;
 };
 
 export type SocialAccountStatistics = {
@@ -5875,6 +5876,7 @@ export type SocialAccountStatistics = {
     historyFetchedAt: Date | null;
     historyError: string | null;
     metricWarning?: string | null;
+    consecutiveFailures?: number;
 } | null;
 
 export type SocialAccountMetric = {
@@ -5882,6 +5884,16 @@ export type SocialAccountMetric = {
     value: number | null;
     period: string | null;
     unit: string | null;
+};
+
+export type SocialSyncReadModel = {
+    status: 'fresh' | 'stale' | 'queued' | 'running' | 'reauth_required' | 'partial';
+    dataFetchedAt: Date | null;
+    headFetchedAt: Date | null;
+    dataVersion: string;
+    mayAutoRequest: boolean;
+    lastError: string | null;
+    partialWarnings: Array<string>;
 };
 
 export type SocialAccountPost = {
@@ -43379,7 +43391,7 @@ export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshErro
 
 export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses = {
     /**
-     * Social account statistics refreshed
+     * Social account refresh accepted
      */
     200: {
         data: RefreshSocialAccountStatisticsResponse;
