@@ -2369,6 +2369,7 @@
         "account": "{provider} account",
         "connect": "Connect {provider} account",
         "connectAccount": "Connect account",
+        "projectClosed": "This project is closed.",
         "actions": "Actions for {account}",
         "reconnect": "Reconnect",
         "replace": "Replace",
