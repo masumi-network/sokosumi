@@ -1284,6 +1284,7 @@ export function WorkspaceCalendar({
               className={cn(
                 SEGMENTED_TABS_LIST_CLASS_NAME,
                 "app-scrollbar h-auto max-w-full w-fit flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
+                socialPostsOnly && "min-h-11 md:min-h-8",
               )}
               data-testid="calendar-views"
             >
@@ -1292,6 +1293,7 @@ export function WorkspaceCalendar({
                   className={cn(
                     SEGMENTED_TAB_TRIGGER_CLASS_NAME,
                     "max-sm:px-1.5 max-sm:text-xs",
+                    socialPostsOnly && "min-h-11 shrink-0 md:min-h-8",
                   )}
                   key={calendarView}
                   value={calendarView}
@@ -1342,6 +1344,11 @@ export function WorkspaceCalendar({
               emptyResultsLabel={tFilters("emptyResults")}
               searchPlaceholder={tFilters("searchPlaceholder")}
               sections={filterSections}
+              triggerClassName={
+                socialPostsOnly
+                  ? "min-h-11 min-w-11 sm:min-h-8 sm:min-w-0"
+                  : undefined
+              }
               showActiveIndicator={
                 state.scope === "owned" ||
                 (!socialOnly &&
