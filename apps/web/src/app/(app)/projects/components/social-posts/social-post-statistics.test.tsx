@@ -185,7 +185,7 @@ describe("SocialPostStatistics account history", () => {
     expect(screen.getByTestId("social-performance-overview")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Trends" })).toBeVisible();
     expect(screen.getByText("Posts")).toBeVisible();
-    expect(screen.getByText("Interactions")).toBeVisible();
+    expect(screen.getAllByText("Interactions")[0]).toBeVisible();
     expect(
       screen.getByRole("combobox", { name: "Connected accounts" }),
     ).toBeVisible();
