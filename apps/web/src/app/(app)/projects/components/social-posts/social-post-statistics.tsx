@@ -4,12 +4,12 @@ import type {
   SocialPerformanceResponse,
   WorkspaceSocialPerformanceResponse,
 } from "@sokosumi/core-client";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { Download, MoreVertical, Search } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { refreshSocialAccountPerformance } from "@/lib/actions/project/social-performance-refresh.action";
 import { useSession } from "@/lib/auth/auth.client";
 import { SocialPerformanceOverview } from "./social-performance-overview";
 import { SocialPerformancePosts } from "./social-performance-posts";
@@ -99,6 +100,8 @@ export function SocialPostStatistics({
     : `workspace:${workspaceId}`;
   const [filterScope, setFilterScope] = useState(ownerScope);
   const scopeChangePending = filterScope !== ownerScope;
+  const [isSyncing, setIsSyncing] = useState(false);
+
   const apiPath = `/api/${projectId ? "projects" : "workspaces"}/${encodeURIComponent(projectId ?? workspaceId)}/social-performance`;
   const catalogue = useQuery({
     queryKey: [...queryScope, "catalogue"],
@@ -156,6 +159,55 @@ export function SocialPostStatistics({
   const selectedProjectId = selectedAccount
     ? accountProjectId(selectedAccount.id)
     : undefined;
+
+  // Mutation for triggering background sync
+  const refreshMutation = useMutation({
+    mutationFn: async (connectionId: string) => {
+      if (!selectedProjectId) throw new Error("No project selected");
+      return await refreshSocialAccountPerformance({
+        projectId: selectedProjectId,
+        connectionId,
+      });
+    },
+    onSuccess: () => {
+      setIsSyncing(true);
+      // Poll for updates by refetching after a short delay
+      setTimeout(() => {
+        void catalogue.refetch();
+        setIsSyncing(false);
+      }, 2000);
+    },
+  });
+
+  // Check if account data is stale and trigger background refresh
+  const checkAndRefreshIfStale = useCallback(
+    (account: Account) => {
+      if (!selectedProjectId || isSyncing || refreshMutation.isPending) return;
+
+      const threshold = 3_600_000; // 1 hour
+      const now = Date.now();
+
+      const stats = account.statistics;
+
+      // Never fetched = stale
+      const isStale =
+        !stats?.fetchedAt ||
+        now - new Date(stats.fetchedAt).getTime() > threshold;
+
+      // Recently attempted = syncing now, not stale
+      const isSyncingNow =
+        stats?.refreshAttemptedAt &&
+        now - new Date(stats.refreshAttemptedAt).getTime() < 300_000; // 5 min
+
+      if (isStale && !isSyncingNow) {
+        void refreshMutation.mutate(account.id);
+      } else if (isSyncingNow) {
+        setIsSyncing(true);
+      }
+    },
+    [selectedProjectId, isSyncing, refreshMutation],
+  );
+
   const runScopeKey = JSON.stringify([
     ...queryScope,
     selectedAccount?.id ?? null,
@@ -301,6 +353,12 @@ export function SocialPostStatistics({
     filters.performanceProject,
     setFilters,
   ]);
+
+  // Check for stale data when account changes
+  useEffect(() => {
+    if (!selectedAccount || scopeChangePending) return;
+    checkAndRefreshIfStale(selectedAccount);
+  }, [selectedAccount, scopeChangePending, checkAndRefreshIfStale]);
 
   function formatDate(value: string | Date) {
     return formatter.dateTime(new Date(value), {
@@ -474,6 +532,9 @@ export function SocialPostStatistics({
 
                   <div className="text-muted-foreground min-w-0 text-sm">
                     {(() => {
+                      if (isSyncing) {
+                        return <p>{t("performance.syncing")}</p>;
+                      }
                       const snapshot =
                         firstPage?.accounts.find(
                           (account) => account.id === selectedAccount.id,

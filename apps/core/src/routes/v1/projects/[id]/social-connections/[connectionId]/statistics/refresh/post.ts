@@ -1,72 +1,69 @@
 import { createRoute } from "@hono/zod-openapi";
+import { waitUntil } from "@vercel/functions";
+import { z } from "zod";
+
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
-import { requireSocialPostActor } from "@/helpers/social-post-access";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withCoworkerContextHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
+import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { projectSocialConnectionParamsSchema } from "@/schemas/project-social-connection.schema";
-import {
-  refreshSocialAccountStatisticsRequestSchema,
-  refreshSocialAccountStatisticsResponseSchema,
-} from "@/schemas/social-account-statistics.schema";
-import { refreshSocialAccountStatistics } from "@/services/social-account-statistics.service";
-import { mapProjectSocialConnectionServiceError } from "../../../route-helpers.js";
+import { enqueueSocialAccountSync } from "@/services/social-performance-enqueue.service";
 
-const route = withCoworkerContextHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "post",
     path: "/{id}/social-connections/{connectionId}/statistics/refresh",
-    tags: ["Projects"],
-    description:
-      "Refresh account metrics and one page of provider-authored published posts through the connected account. continueHistory uses only the stored provider cursor; it never publishes or edits posts. Failures preserve prior data and expose history coverage.",
     request: {
       params: projectSocialConnectionParamsSchema,
-      body: {
-        required: true,
-        content: {
-          "application/json": {
-            schema: refreshSocialAccountStatisticsRequestSchema,
-          },
-        },
-      },
     },
     responses: {
       200: jsonSuccessResponse(
-        refreshSocialAccountStatisticsResponseSchema,
-        "Social account statistics refreshed",
+        z.object({ success: z.literal(true) }),
+        "Statistics refresh enqueued",
       ),
-      400: jsonErrorResponse("Bad Request"),
-      401: jsonErrorResponse("Unauthorized"),
-      403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("Not Found"),
-      409: jsonErrorResponse("Conflict"),
-      422: jsonErrorResponse("Unprocessable Entity"),
-      500: jsonErrorResponse("Internal Server Error"),
+      404: jsonErrorResponse("Connection not found"),
     },
   }),
 );
-export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
+
+export default function mountRefreshSocialAccountStatistics(
+  app: OpenAPIHonoWithAuth,
+) {
   app.openapi(route, async (c) => {
-    const actor = await requireSocialPostActor(c.var.authContext);
-    await requireSocialBetaAccess(actor.userId, prisma);
-    const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
+    const _userContext = requireInteractiveUserAuthContext(c.var.authContext);
+    const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, connectionId } = c.req.valid("param");
-    try {
-      const result = await refreshSocialAccountStatistics({
+
+    const connection = await prisma.projectSocialConnection.findFirst({
+      where: {
+        id: connectionId,
         projectId,
-        workspaceId,
-        userId: actor.userId,
-        connectionId,
-        ...c.req.valid("json"),
-      });
-      return ok(c, refreshSocialAccountStatisticsResponseSchema.parse(result));
-    } catch (error) {
-      return mapProjectSocialConnectionServiceError(error);
+        project: { workspaceId: workspaceContext.workspaceId },
+      },
+      select: { id: true, workspaceId: true },
+    });
+
+    if (!connection) {
+      return c.json({ error: "Connection not found" }, 404);
     }
+
+    // Enqueue background sync (non-blocking, deduped by lock service)
+    if (process.env.VERCEL) {
+      waitUntil(
+        enqueueSocialAccountSync({
+          projectId,
+          workspaceId: connection.workspaceId,
+          connectionId,
+          reason: "manual",
+        }),
+      );
+    }
+
+    return ok(c, { success: true as const });
   });
 }

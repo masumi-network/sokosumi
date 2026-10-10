@@ -1,4 +1,3 @@
-import { getEnv } from "@/config/env";
 import { refreshSocialAccountStatistics } from "@/services/social-account-statistics.service";
 
 /**

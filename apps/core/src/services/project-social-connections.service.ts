@@ -1,6 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
 import { waitUntil } from "@vercel/functions";
-import { v7 as uuidv7 } from "uuid";
 
 import {
   ComposioApiError,

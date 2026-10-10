@@ -2631,6 +2631,7 @@
           "accountMetricsIncomplete": "Some account metrics missing",
           "postMetricsIncomplete": "Some post metrics missing",
           "performance": {
+            "syncing": "Syncing…",
             "lastDays": "Last {days} days",
             "timezone": "Display timezone",
             "moreActions": "More actions",
