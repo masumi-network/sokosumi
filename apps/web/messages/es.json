@@ -2424,6 +2424,8 @@
       "SocialPosts": {
         "loadMore": "Cargar más",
         "loadMoreError": "No se pudieron cargar más.",
+        "loadMoreOffline": "Estás sin conexión.",
+        "loadMoreTimeout": "Se agotó el tiempo.",
         "loading": "Cargando…",
         "title": "Publicaciones sociales",
         "newPost": "Nueva publicación",

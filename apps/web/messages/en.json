@@ -2424,6 +2424,8 @@
       "SocialPosts": {
         "loadMore": "Load more",
         "loadMoreError": "Couldn't load more.",
+        "loadMoreOffline": "You're offline.",
+        "loadMoreTimeout": "Timed out.",
         "loading": "Loading…",
         "title": "Social posts",
         "newPost": "New post",

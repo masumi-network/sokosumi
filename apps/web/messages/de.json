@@ -2424,6 +2424,8 @@
       "SocialPosts": {
         "loadMore": "Mehr laden",
         "loadMoreError": "Mehr konnte nicht geladen werden.",
+        "loadMoreOffline": "Du bist offline.",
+        "loadMoreTimeout": "Zeitüberschreitung.",
         "loading": "Wird geladen…",
         "title": "Social-Media-Beiträge",
         "newPost": "Neuer Beitrag",
