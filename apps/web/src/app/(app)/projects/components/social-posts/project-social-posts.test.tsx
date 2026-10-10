@@ -734,7 +734,9 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(drafts).getByRole("button", { name: "Load more" }),
     ).toBeVisible();
-    expect(within(drafts).queryByText("No drafts yet.")).not.toBeInTheDocument();
+    expect(
+      within(drafts).queryByText("No drafts yet."),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps Needs attention when more pages wait with no rows yet", async () => {
