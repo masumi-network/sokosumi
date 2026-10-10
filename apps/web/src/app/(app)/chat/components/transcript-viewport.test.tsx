@@ -23,7 +23,7 @@ import {
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 
 import {
-  rowHoldAfterRowsChange,
+  type TranscriptPosition,
   TranscriptViewport,
   type TranscriptViewportHandle,
 } from "./transcript-viewport";
@@ -55,24 +55,27 @@ class RecordingResizeObserver implements ResizeObserver {
 }
 
 /**
- * The scroller is bottom-anchored: `scrollTop` is 0 at the live edge and
- * negative above it. Tests speak in the reader's terms instead.
+ * The scroller uses normal top offsets; tests express distance from latest
+ * independently of the list's height.
  */
 function distanceFromEnd(scroller: HTMLElement): number {
-  return Math.abs(scroller.scrollTop);
+  return Math.max(
+    scroller.scrollHeight - viewportHeight - scroller.scrollTop,
+    0,
+  );
 }
 
 /** How far the top edge is below the start of the list. */
 function topOffset(scroller: HTMLElement): number {
-  return scroller.scrollHeight - viewportHeight + scroller.scrollTop;
+  return scroller.scrollTop;
 }
 
 function scrollToTopOffset(scroller: HTMLElement, top: number) {
-  scroller.scrollTo({ top: top - (scroller.scrollHeight - viewportHeight) });
+  scroller.scrollTo({ top });
 }
 
 function resizeScroller(scroller: HTMLElement, height: number) {
-  // The browser keeps a bottom-anchored scroller's distance from the end.
+  // TanStack preserves the live-edge distance when the composer resizes.
   viewportHeight = height;
   act(() => {
     for (const { target, callback } of resizeObservations) {
@@ -208,8 +211,11 @@ beforeAll(() => {
   Element.prototype.getBoundingClientRect = function () {
     const rect = originalGetBoundingClientRect.call(this).toJSON();
     const scroller = this.closest<HTMLElement>('[data-testid="scroller"]');
-    if (scroller && scroller !== this) {
-      rect.top = -topOffset(scroller);
+    if (scroller) {
+      const row = this.closest<HTMLElement>("[data-index]");
+      const y = row?.style.transform.match(/,\s*(-?[\d.]+)px/)?.[1];
+      rect.top = scroller === this ? 0 : Number(y ?? 0) - scroller.scrollTop;
+      rect.height = scroller === this ? viewportHeight : row ? ROW_HEIGHT : 0;
       rect.bottom = rect.top + rect.height;
     }
     return rect;
@@ -239,10 +245,14 @@ function Harness({
   rows,
   handle,
   list = CHAT_MESSAGE_LIST_ROOM,
+  initialPosition,
+  onPositionChange,
 }: {
   rows: readonly RoomTranscriptRenderRow[];
   handle: React.Ref<TranscriptViewportHandle>;
   list?: string;
+  initialPosition?: TranscriptPosition;
+  onPositionChange?: (position: TranscriptPosition) => void;
 }) {
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   return (
@@ -254,6 +264,8 @@ function Harness({
           rows={rows}
           renderRow={renderRow}
           list={list}
+          initialPosition={initialPosition}
+          onPositionChange={onPositionChange}
           holdOffBottom={false}
         />
       </div>
@@ -325,6 +337,9 @@ async function settle(container: HTMLElement) {
       scroller?.dispatchEvent(new Event("scrollend"));
     });
   }
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(250);
+  });
 }
 
 beforeEach(() => {
@@ -570,7 +585,7 @@ describe("TranscriptViewport", () => {
     await settle(container);
 
     expect(topOffset(scroller)).toBeGreaterThan(topOffsetBefore);
-    // The scroller was not written to: the browser held the view.
+    // End anchoring compensates the inserted height above the reading row.
     expect(distanceFromEnd(scroller)).toBe(distanceBefore);
     expect(rowTop(first)).toBe(before);
   });
@@ -611,7 +626,7 @@ describe("TranscriptViewport", () => {
     await settle(container);
     const scroller = scrollerOf(container);
     act(() => {
-      scroller.scrollTo({ top: -100 });
+      scrollToTopOffset(scroller, scroller.scrollHeight - viewportHeight - 100);
     });
     await settle(container);
 
@@ -640,7 +655,7 @@ describe("TranscriptViewport", () => {
     await settle(container);
     const scroller = scrollerOf(container);
     act(() => {
-      scroller.scrollTo({ top: -100 });
+      scrollToTopOffset(scroller, scroller.scrollHeight - viewportHeight - 100);
     });
     await settle(container);
 
@@ -658,7 +673,7 @@ describe("TranscriptViewport", () => {
     await settle(container);
     const scroller = scrollerOf(container);
     act(() => {
-      scroller.scrollTo({ top: -100 });
+      scrollToTopOffset(scroller, scroller.scrollHeight - viewportHeight - 100);
     });
     await settle(container);
     expect(distanceFromEnd(scroller)).toBe(100);
@@ -693,7 +708,7 @@ describe("TranscriptViewport", () => {
     await settle(container);
     const scroller = scrollerOf(container);
     act(() => {
-      scroller.scrollTo({ top: -100 });
+      scrollToTopOffset(scroller, scroller.scrollHeight - viewportHeight - 100);
     });
     await settle(container);
 
@@ -704,8 +719,7 @@ describe("TranscriptViewport", () => {
   });
 
   it("keeps the reader's row where it was when a new message arrives far below it", async () => {
-    // A bottom-anchored scroller keeps its distance from the end, so a row
-    // added at the end pushes the rows on screen up unless they are put back.
+    // A normal scroller keeps its top offset when a row arrives below it.
     const handle = createRef<TranscriptViewportHandle>();
     const { container, rerender } = render(
       <Harness rows={rows(100)} handle={handle} />,
@@ -713,7 +727,10 @@ describe("TranscriptViewport", () => {
     await settle(container);
     const scroller = scrollerOf(container);
     act(() => {
-      scroller.scrollTo({ top: -2000 });
+      scrollToTopOffset(
+        scroller,
+        scroller.scrollHeight - viewportHeight - 2000,
+      );
     });
     await settle(container);
     const before = topOffset(scroller);
@@ -726,8 +743,7 @@ describe("TranscriptViewport", () => {
   });
 
   it("does not write to the scroller under a finger, and settles once it lifts", async () => {
-    // A scroll write ends the momentum of a touch scroll on iOS. Until the
-    // scroll is over the list is pulled down by a margin instead.
+    // Appends below history need no scroll write or temporary margins.
     const handle = createRef<TranscriptViewportHandle>();
     const { container, rerender } = render(
       <Harness rows={rows(100)} handle={handle} />,
@@ -735,7 +751,10 @@ describe("TranscriptViewport", () => {
     await settle(container);
     const scroller = scrollerOf(container);
     act(() => {
-      scroller.scrollTo({ top: -2000 });
+      scrollToTopOffset(
+        scroller,
+        scroller.scrollHeight - viewportHeight - 2000,
+      );
     });
     await settle(container);
     const before = topOffset(scroller);
@@ -749,7 +768,7 @@ describe("TranscriptViewport", () => {
     await settle(container);
 
     expect(scroller.scrollTop).toBe(scrollTopBefore);
-    expect(list?.style.marginBottom).toMatch(/^-\d+px$/);
+    expect(list?.style.marginBottom).toBe("");
 
     fireEvent.touchEnd(scroller);
     await act(async () => {
@@ -807,6 +826,88 @@ describe("TranscriptViewport", () => {
     expect(mountedIds(container)).toContain("msg-059");
   });
 
+  it("restores a measured reading position in normal scroll coordinates", async () => {
+    const initialPosition: TranscriptPosition = {
+      anchorId: "msg-050",
+      anchorCreatedAt: message(50).createdAt.getTime(),
+      offset: 17,
+      atLiveEdge: false,
+      visibleMessageIds: ["msg-050"],
+    };
+    const onPositionChange = vi.fn();
+    const { container } = render(
+      <Harness
+        rows={rows(100)}
+        handle={createRef<TranscriptViewportHandle>()}
+        initialPosition={initialPosition}
+        onPositionChange={onPositionChange}
+      />,
+    );
+    await settle(container);
+    const anchor = container.querySelector('[data-message-id="msg-050"]');
+    expect(anchor?.getBoundingClientRect().top).toBe(-17);
+    expect(onPositionChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ anchorId: "msg-050", offset: 17 }),
+    );
+  });
+
+  it("defers an older prefix while keeping visible streaming content live", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const newer = rows(70).slice(40);
+    const { container, rerender } = render(
+      <Harness rows={newer} handle={handle} />,
+    );
+    await settle(container);
+    const scroller = scrollerOf(container);
+    act(() => scrollToTopOffset(scroller, 0));
+    await settle(container);
+    fireEvent.touchStart(scroller);
+    const updated = rows(70)
+      .slice(10)
+      .map((row) =>
+        row.kind === "message" && row.message.id === "msg-040"
+          ? { ...row, message: { ...row.message, content: "Streaming now" } }
+          : row,
+      );
+    rerender(<Harness rows={updated} handle={handle} />);
+    expect(container.textContent).toContain("Streaming now");
+    expect(mountedIds(container)).not.toContain("msg-039");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(mountedIds(container)).not.toContain("msg-039");
+    fireEvent.touchEnd(scroller);
+    await settle(container);
+    expect(mountedIds(container)).toContain("msg-039");
+  });
+
+  it("keeps an older prefix deferred when its oldest displayed message is deleted", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const newer = rows(70).slice(40);
+    const { container, rerender } = render(
+      <Harness rows={newer} handle={handle} />,
+    );
+    await settle(container);
+    const scroller = scrollerOf(container);
+    act(() => scrollToTopOffset(scroller, 0));
+    await settle(container);
+    fireEvent.touchStart(scroller);
+    const loaded = rows(70).slice(10);
+    rerender(<Harness rows={loaded} handle={handle} />);
+    const deleted = loaded.filter(
+      (row) => row.kind !== "message" || row.message.id !== "msg-040",
+    );
+    rerender(<Harness rows={deleted} handle={handle} />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(mountedIds(container)).not.toContain("msg-040");
+    expect(mountedIds(container)).not.toContain("msg-039");
+    fireEvent.touchEnd(scroller);
+    await settle(container);
+    expect(mountedIds(container)).toContain("msg-039");
+  });
+
   it("keeps row identity when an outbound shell is confirmed", async () => {
     // Same client turn, new message id: one row, so the delivery chrome can
     // transition without a remount.
@@ -838,62 +939,5 @@ describe("TranscriptViewport", () => {
 
     expect(after?.getAttribute("data-message-id")).toBe("msg-server");
     expect(after?.parentElement).toBe(before?.parentElement);
-  });
-});
-
-describe("rowHoldAfterRowsChange", () => {
-  const older = rows(60);
-  const newer = rows(100).slice(60);
-  const measurementsFor = (list: readonly RoomTranscriptRenderRow[]) =>
-    list.map((row, index) => ({
-      index,
-      key:
-        row.kind === "boundary"
-          ? `boundary:${row.cursorMessageId}`
-          : row.message.id,
-      start: index * ROW_HEIGHT,
-      size: ROW_HEIGHT,
-      end: (index + 1) * ROW_HEIGHT,
-      lane: 0,
-    }));
-  const source = (
-    list: readonly RoomTranscriptRenderRow[],
-    scrollOffset: number,
-  ) => {
-    const measurementsCache = measurementsFor(list);
-    return {
-      scrollOffset,
-      measurementsCache,
-      getVirtualItemForOffset: (offset: number) =>
-        measurementsCache.find((item) => item.end > offset),
-    };
-  };
-
-  it("holds the message row under the top edge, where the edge cut it", () => {
-    const previous = [boundary("msg-060"), ...newer];
-    expect(
-      rowHoldAfterRowsChange(source(previous, 60), previous, [
-        ...older,
-        ...newer,
-      ]),
-    ).toEqual({ key: "msg-060", offset: 20 });
-  });
-
-  it("holds the first message below a boundary row that the page replaced, where it sat", () => {
-    const previous = [boundary("msg-060"), ...newer];
-    expect(
-      rowHoldAfterRowsChange(source(previous, 10), previous, [
-        boundary("msg-000"),
-        ...older,
-        ...newer,
-      ]),
-    ).toEqual({ key: "msg-060", offset: 10 - ROW_HEIGHT });
-  });
-
-  it("holds nothing when no row below the edge survived", () => {
-    const previous = [boundary("msg-060"), ...newer];
-    expect(
-      rowHoldAfterRowsChange(source(previous, 10), previous, older),
-    ).toBeNull();
   });
 });
