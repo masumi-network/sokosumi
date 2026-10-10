@@ -3079,6 +3079,10 @@
         "title": "Verbinde deine Social-Media-Konten",
         "body": "Verwalte deine Kanäle an einem Ort. Wähle ein Projekt, um Konten zu verbinden und Beiträge zu entwerfen, zu planen und zu veröffentlichen."
       },
+      "attentionNeedProject": {
+        "title": "Braucht Aufmerksamkeit",
+        "body": "Wähle ein Projekt, um fehlgeschlagene oder verpasste Beiträge zu sehen."
+      },
       "draftsNeedProject": {
         "title": "Entwürfe",
         "body": "Wähle ein Projekt, um seine Entwürfe anzusehen und fertigzustellen."
