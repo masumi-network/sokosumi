@@ -13,7 +13,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { NuqsTestingAdapter } from "nuqs/adapters/testing";
+import { NuqsTestingAdapter, type UrlUpdateEvent } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
 import {
@@ -1520,6 +1520,52 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.getByTestId("social-posts-section-drafts"),
     ).not.toHaveTextContent("Scheduled text");
+  });
+
+  it("opens the calendar on the day the post was scheduled", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
+    vi.mocked(createProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: SCHEDULED_POST,
+    });
+    renderUi(
+      <TestQueryProvider>
+        <NuqsTestingAdapter
+          onUrlUpdate={onUrlUpdate}
+          searchParams="?tab=drafts&timezone=UTC"
+        >
+          <SocialComposeProvider>
+            <NewPostButton />
+            <ProjectSocialPosts
+              calendar={<div data-testid="social-calendar" />}
+              connections={[buildConnection()]}
+              posts={[]}
+              projectId={PROJECT_ID}
+            />
+          </SocialComposeProvider>
+        </NuqsTestingAdapter>
+      </TestQueryProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Scheduled text");
+    await pickInAnHour(user, dialog);
+    const schedule = within(dialog).getByRole("button", { name: /^Schedule/ });
+    await waitFor(() => expect(schedule).toBeEnabled());
+    await user.click(schedule);
+
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    expect(
+      onUrlUpdate.mock.calls.some(
+        ([event]) => event.searchParams.get("date") === "2026-10-01",
+      ),
+    ).toBe(true);
+    expect(getTab("Calendar")).toHaveAttribute("aria-selected", "true");
   });
 
   it("prefills the editor and sends the observed revision", async () => {
