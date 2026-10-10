@@ -850,6 +850,7 @@ export function SocialPostComposerDialog({
                     <Button
                       onClick={onConnectAccount}
                       size="sm"
+                      className="h-11 md:h-8"
                       type="button"
                       variant="outline"
                     >
@@ -927,7 +928,7 @@ export function SocialPostComposerDialog({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-muted-foreground"
+                    className="text-muted-foreground h-11 md:h-8"
                     disabled={isBusy}
                     onClick={() => setPickerOpen(true)}
                   >
@@ -938,7 +939,7 @@ export function SocialPostComposerDialog({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-muted-foreground"
+                    className="text-muted-foreground h-11 md:h-8"
                     disabled={isBusy}
                     loading={uploadPending}
                     onClick={() => fileInputRef.current?.click()}
