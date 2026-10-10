@@ -3150,7 +3150,7 @@ export const getProjectsByIdSocialConnectionsStatistics = <ThrowOnError extends 
 });
 
 /**
- * Refresh account metrics and one page of provider-authored published posts through the connected account. continueHistory uses only the stored provider cursor; it never publishes or edits posts. Failures preserve prior data and expose history coverage.
+ * Queue a background refresh of cached account statistics. The response is stored data plus sync state and never waits on providers. Cron continues history.
  */
 export const postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData, ThrowOnError>): RequestResult<PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses, PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses, PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponseTransformer,
