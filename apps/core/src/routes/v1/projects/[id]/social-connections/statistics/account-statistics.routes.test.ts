@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { forbidden } from "@/helpers/error";
+import { emptySocialPerformanceHeadline } from "@/helpers/social-performance-headline";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -87,6 +88,7 @@ beforeEach(() => {
     accounts: [account],
     posts: [],
     nextCursor: null,
+    headline: emptySocialPerformanceHeadline,
   });
   mocks.schedule.mockResolvedValue({
     isErr: () => false,

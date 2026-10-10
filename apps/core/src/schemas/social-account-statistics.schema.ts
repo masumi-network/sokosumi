@@ -91,11 +91,40 @@ export const socialAccountStatisticsQuerySchema =
     connectionId: z.uuid().optional(),
     cursor: z.uuid().optional(),
   });
+
+const headlineNumber = z.number().finite().nullable();
+export const socialPerformanceHeadlineTotalsSchema = z.object({
+  postCount: z.number().int().min(0),
+  views: headlineNumber,
+  impressions: headlineNumber,
+  interactions: headlineNumber,
+});
+export const socialPerformanceHeadlineSchema = z
+  .object({
+    current: socialPerformanceHeadlineTotalsSchema,
+    previous: socialPerformanceHeadlineTotalsSchema,
+    deltas: z.object({
+      postCount: headlineNumber,
+      views: headlineNumber,
+      impressions: headlineNumber,
+      interactions: headlineNumber,
+    }),
+    daily: z
+      .array(
+        socialPerformanceHeadlineTotalsSchema.extend({
+          date: z.iso.date(),
+        }),
+      )
+      .max(366),
+  })
+  .openapi("SocialPerformanceHeadline");
+
 export const socialAccountStatisticsPageSchema = z
   .object({
     accounts: z.array(socialAccountStatisticsAccountSchema),
     posts: z.array(socialAccountPostSchema),
     nextCursor: z.string().nullable(),
+    headline: socialPerformanceHeadlineSchema,
   })
   .openapi("SocialAccountStatisticsPage");
 export const refreshSocialAccountStatisticsRequestSchema = z

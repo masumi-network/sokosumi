@@ -2715,9 +2715,18 @@ const socialAccountPostSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const socialPerformanceHeadlineSchemaResponseTransformer = (data: any) => {
+    data.daily = data.daily.map((item: any) => {
+        item.date = new Date(item.date);
+        return item;
+    });
+    return data;
+};
+
 const socialAccountStatisticsPageSchemaResponseTransformer = (data: any) => {
     data.accounts = data.accounts.map((item: any) => socialAccountStatisticsAccountSchemaResponseTransformer(item));
     data.posts = data.posts.map((item: any) => socialAccountPostSchemaResponseTransformer(item));
+    data.headline = socialPerformanceHeadlineSchemaResponseTransformer(data.headline);
     return data;
 };
 

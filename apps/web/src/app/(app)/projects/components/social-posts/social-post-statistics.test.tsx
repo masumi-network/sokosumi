@@ -4,7 +4,6 @@ import {
   render,
   screen,
   waitFor,
-  within,
 } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -89,11 +88,41 @@ const post = {
   ],
   fetchedAt: "2026-10-08T08:00:00Z",
 };
+const headline = {
+  current: {
+    postCount: 1,
+    views: 0,
+    impressions: null,
+    interactions: 6,
+  },
+  previous: {
+    postCount: 0,
+    views: null,
+    impressions: null,
+    interactions: null,
+  },
+  deltas: {
+    postCount: 1,
+    views: null,
+    impressions: null,
+    interactions: null,
+  },
+  daily: [
+    {
+      date: "2026-10-01",
+      postCount: 1,
+      views: 0,
+      impressions: null,
+      interactions: 6,
+    },
+  ],
+};
 function page(cursor: string | null = null) {
   return {
     accounts: [account, secondAccount],
     posts: [post],
     nextCursor: cursor,
+    headline,
   };
 }
 function response(accountValue = account, nextCursor: string | null = null) {
@@ -120,11 +149,6 @@ function renderStatistics(searchParams = "") {
       </NuqsTestingAdapter>
     </TestQueryProvider>,
   );
-}
-function accountCard(name: string) {
-  const element = screen.getByRole("heading", { name }).closest("article");
-  if (!element) throw new Error("Missing account card");
-  return within(element);
 }
 beforeEach(() => {
   vi.clearAllMocks();
@@ -155,17 +179,18 @@ describe("SocialPostStatistics account history", () => {
     expect(await screen.findByText(post.text)).toBeVisible();
   });
 
-  it("shows every connected account, zero, unavailable, metric periods and external read-only posts", async () => {
+  it("shows headline metrics and imported posts without the old account-card grid", async () => {
     renderStatistics();
     expect(await screen.findByText(post.text)).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Brand page" })).toBeVisible();
-    expect(accountCard("Launch account").getByText("0")).toBeVisible();
     expect(
-      accountCard("Launch account").getByText("Unavailable"),
+      screen.getByRole("heading", { name: "Account performance" }),
     ).toBeVisible();
-    expect(accountCard("Launch account").getByText("Lifetime")).toBeVisible();
+    expect(screen.getByText("More filters")).toBeVisible();
+    expect(screen.getByTestId("social-performance-overview")).toBeVisible();
+    expect(screen.getByText("Posts")).toBeVisible();
+    expect(screen.getByText("Interactions")).toBeVisible();
     expect(
-      accountCard("Launch account").getByText("Last 28 days"),
+      screen.getByRole("combobox", { name: "Connected accounts" }),
     ).toBeVisible();
     expect(screen.getByText("Link clicks")).toBeVisible();
     expect(
@@ -199,12 +224,14 @@ describe("SocialPostStatistics account history", () => {
         }),
       ),
     ).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Brand page" })).toBeVisible();
+    expect(
+      screen.getByRole("combobox", { name: "Connected accounts" }),
+    ).toBeVisible();
   });
-  it("keeps account metrics visible while publication date filters are invalid", async () => {
+  it("keeps the header visible while publication date filters are invalid", async () => {
     renderStatistics("?publishedFrom=2026-10-08&publishedUntil=2026-10-01");
     expect(
-      await screen.findByRole("heading", { name: "Brand page" }),
+      await screen.findByRole("combobox", { name: "Connected accounts" }),
     ).toBeVisible();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "End date must be on or after",
@@ -236,10 +263,10 @@ describe("SocialPostStatistics account history", () => {
     await screen.findByText(post.text);
     expect(screen.getByText(/Some post metrics are unavailable/)).toBeVisible();
     expect(
-      screen.getByText(
+      screen.queryByText(
         "All history currently available from the platform has been imported.",
       ),
-    ).toBeVisible();
+    ).not.toBeInTheDocument();
   });
 
   it("loads every cached post page", async () => {
@@ -322,11 +349,7 @@ describe("SocialPostStatistics account history", () => {
     );
     const rendered = renderStatistics();
     await screen.findByText(post.text);
-    fireEvent.click(
-      accountCard("Launch account").getByRole("button", {
-        name: "Sync account",
-      }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Sync all accounts" }));
     rendered.unmount();
     await act(async () => resolvePage(response(account, "next-page")));
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
@@ -339,9 +362,7 @@ describe("SocialPostStatistics account history", () => {
     await screen.findByText(post.text);
     fireEvent.click(screen.getByRole("button", { name: "Sync all accounts" }));
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(2));
-    expect(
-      accountCard("Launch account").getByText(/Cached results are retained/),
-    ).toBeVisible();
+    expect(screen.getByText(/Cached results are retained/)).toBeVisible();
     expect(screen.getByText(post.text)).toBeVisible();
   });
   it("shows provider history limitations without claiming completion and disables reauthorization-required sync", async () => {
@@ -364,7 +385,9 @@ describe("SocialPostStatistics account history", () => {
     renderStatistics();
     await screen.findByText(post.text);
     expect(
-      screen.getByText("Platform exposes only the most recent posts"),
+      screen.getByText(
+        "History is incomplete or limited by the platform. Check the account permissions and try syncing again.",
+      ),
     ).toBeVisible();
     expect(
       screen.queryByText(
