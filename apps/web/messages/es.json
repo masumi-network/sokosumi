@@ -2423,6 +2423,7 @@
       },
       "SocialPosts": {
         "loadMore": "Cargar más",
+        "loadMoreError": "No se pudieron cargar más.",
         "loading": "Cargando…",
         "title": "Publicaciones sociales",
         "newPost": "Nueva publicación",
