@@ -2555,6 +2555,7 @@
           "unauthenticatedAction": "Anmelden",
           "published": "Beitrag veröffentlicht.",
           "publishFailed": "Veröffentlichung fehlgeschlagen: {error}",
+          "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}"
         },
         "needsReconnect": "Konto muss neu verbunden werden",

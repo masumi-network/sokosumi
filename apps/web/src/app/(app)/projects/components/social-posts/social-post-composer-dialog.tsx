@@ -87,6 +87,14 @@ function formatHandle(handle: string | null): string {
   return handle.startsWith("@") ? handle : `@${handle}`;
 }
 
+function accountLabel(connection: ProjectSocialConnection): string {
+  return (
+    formatHandle(connection.externalHandle) ||
+    connection.displayName ||
+    socialPostProviderLabel(connection.provider)
+  );
+}
+
 /** An IANA zone as people read it: `America/New_York` → `America/New York`. */
 function zoneName(timezone: string): string {
   return timezone.replaceAll("_", " ");
@@ -405,16 +413,27 @@ export function SocialPostComposerDialog({
     }
   }
 
+  function nameIfMany(
+    connection: ProjectSocialConnection,
+    error: string,
+  ): string {
+    if (selectedConnections.length <= 1) return error;
+    return t("toasts.publishFailedItem", {
+      account: accountLabel(connection),
+      error,
+    });
+  }
+
   /**
    * Creates the post for each picked account and publishes it at once. A
    * post that fails to publish stays in Needs attention to retry, so the
-   * reader loses nothing; the toast names the first failure.
+   * reader loses nothing. The toast names every failed account.
    */
   async function handlePublishNow(): Promise<void> {
     if (!canPublishNow) return;
     setPending("publish");
     let published = 0;
-    let failure: string | null = null;
+    const failures: string[] = [];
     // Accounts whose post now exists, live or in Needs attention. If the run
     // stops early they leave the selection, so Post now again never posts a
     // second copy to them.
@@ -428,7 +447,13 @@ export function SocialPostComposerDialog({
           socialConnectionId: connection.id,
         });
         if (!created.ok) {
-          onError(created.error);
+          onError({
+            ...created.error,
+            message: nameIfMany(
+              connection,
+              created.error.message ?? t("toasts.failed"),
+            ),
+          });
           return;
         }
         const result = await publishProjectSocialPost({
@@ -439,21 +464,28 @@ export function SocialPostComposerDialog({
         done.push(connection.id);
         if (!result.ok) {
           onSaved(created.value);
-          onError(result.error);
+          onError({
+            ...result.error,
+            message: nameIfMany(
+              connection,
+              result.error.message ?? t("toasts.failed"),
+            ),
+          });
           return;
         }
         onSaved(result.value);
         if (result.value.status === "PUBLISHED") {
           published += 1;
         } else {
-          failure ??=
+          const reason =
             result.value.lastAttempt?.outcome === "authorization_revoked"
               ? t("outcomes.authorizationRevoked")
               : (result.value.lastError ?? t("toasts.failed"));
+          failures.push(nameIfMany(connection, reason));
         }
       }
-      if (failure) {
-        toast.error(t("toasts.publishFailed", { error: failure }));
+      if (failures.length > 0) {
+        toast.error(t("toasts.publishFailed", { error: failures.join("; ") }));
       } else {
         toast.success(t("toasts.publishedMany", { count: published }));
       }

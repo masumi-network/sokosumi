@@ -182,6 +182,7 @@ const MESSAGES: Record<string, string> = {
   "publishDialog.confirm": "Publish now",
   "toasts.published": "Post published.",
   "toasts.publishFailed": "Publishing failed: {error}",
+  "toasts.publishFailedItem": "{account} — {error}",
   "toasts.created": "Draft saved.",
   "toasts.scheduled": "Post scheduled.",
   "toasts.updated": "Post updated.",
@@ -1004,7 +1005,9 @@ describe("ProjectSocialPosts", () => {
     await user.click(within(dialog).getByRole("button", { name: "Post now" }));
 
     await waitFor(() => {
-      expect(toastErrorMock).toHaveBeenCalledWith("LinkedIn refused it");
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "@sokosumi-co — LinkedIn refused it",
+      );
     });
     // X is live already, so it leaves the selection.
     expect(
@@ -1013,6 +1016,70 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
     ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("names every account when Post now fails for more than one", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({ id: "post-x", text: "Hi", revision: 0 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({
+          id: "post-li",
+          provider: "linkedin",
+          text: "Hi",
+          revision: 0,
+        }),
+      });
+    vi.mocked(publishProjectSocialPost)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          ...FAILED_POST,
+          id: "post-x",
+          lastError: "X rejected the post",
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          ...FAILED_POST,
+          id: "post-li",
+          provider: "linkedin",
+          lastError: "LinkedIn rate limited",
+        },
+      });
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    await user.type(within(dialog).getByLabelText("Text"), "Hi");
+    await user.click(within(dialog).getByRole("button", { name: "Post now" }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Publishing failed: @sokosumi — X rejected the post; @sokosumi-co — LinkedIn rate limited",
+      );
+    });
   });
 
   it("posts now with ⌘Enter, and schedules with it once a time is picked", async () => {

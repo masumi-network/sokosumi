@@ -2555,6 +2555,7 @@
           "unauthenticatedAction": "Iniciar sesión",
           "published": "Publicación publicada.",
           "publishFailed": "Error al publicar: {error}",
+          "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}"
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
