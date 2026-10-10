@@ -2533,7 +2533,7 @@
           "noAccountsTitle": "Noch kein Konto verbunden",
           "connectAccount": "Konto verbinden",
           "dismiss": "Abbrechen",
-          "previewEmpty": "Hier erscheint dein Post, während du schreibst.",
+          "previewEmpty": "Hier erscheint dein Beitrag, während du schreibst.",
           "pickAccount": "Wähle ein Konto, auf dem gepostet wird."
         },
         "cancelDialog": {
