@@ -289,11 +289,32 @@ export function ProjectSocialPosts({
 
   function handleSaved(post: SocialPost): void {
     setPosts((current) => upsertPost(current, post));
-    // Follow the post to the tab that shows it now, so a new draft, a
-    // scheduled draft or a failed publish stays in view.
-    if (previewOnly) router.refresh();
-    else
-      showTab(sectionOf(post) ?? (calendar !== undefined ? "calendar" : null));
+    // Follow the post to the list that still shows it. A failed or missed
+    // post that just left that list should not yank the page to the calendar
+    // while other posts still need attention.
+    if (previewOnly) {
+      router.refresh();
+      return;
+    }
+    const nextSection = sectionOf(post);
+    if (nextSection) {
+      showTab(nextSection);
+      return;
+    }
+    const previous = posts.find((candidate) => candidate.id === post.id);
+    const attentionRemains = posts.some(
+      (candidate) =>
+        candidate.id !== post.id &&
+        SECTION_STATUSES.attention.includes(candidate.status),
+    );
+    if (
+      previous &&
+      RETRY_STATUSES.includes(previous.status) &&
+      attentionRemains
+    ) {
+      return;
+    }
+    showTab(calendar !== undefined ? "calendar" : null);
   }
 
   async function handleConfirmCancel(): Promise<void> {
