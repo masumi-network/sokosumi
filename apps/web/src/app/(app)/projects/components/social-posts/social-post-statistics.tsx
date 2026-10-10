@@ -10,7 +10,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Download, MoreVertical } from "lucide-react";
+import { Download, MoreVertical, Search } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
@@ -554,11 +554,14 @@ export function SocialPostStatistics({
                         });
                       }}
                     >
-                      <SelectTrigger className="w-full sm:w-auto sm:min-w-[200px]">
+                      <SelectTrigger
+                        aria-label={t("performance.accountTabs")}
+                        className="text-foreground w-full sm:w-auto sm:min-w-[200px]"
+                      >
                         <div className="flex items-center gap-2">
                           <SocialPostProviderIcon
                             provider={selectedAccount.provider}
-                            className="size-4 shrink-0"
+                            className="text-foreground size-4 shrink-0"
                             aria-hidden
                           />
                           <SelectValue>
@@ -795,29 +798,30 @@ export function SocialPostStatistics({
 
           {/* Date range controls (simple, no border) */}
           <div className="flex flex-wrap gap-2">
-            {(["7", "30", "90"] as const).map((days) => (
-              <Button
-                key={days}
-                size="sm"
-                variant={
-                  (filters.performanceRange ??
-                    (!filters.publishedFrom && !filters.publishedUntil
-                      ? "30"
-                      : null)) === days
-                    ? "default"
-                    : "outline"
-                }
-                aria-pressed={
-                  filters.performanceRange === days ||
-                  (days === "30" &&
-                    !filters.publishedFrom &&
-                    !filters.publishedUntil)
-                }
-                onClick={() => handlePreset(days)}
-              >
-                {t("performance.lastDays", { days })}
-              </Button>
-            ))}
+            {(["7", "30", "90"] as const).map((days) => {
+              const active =
+                (filters.performanceRange ??
+                  (!filters.publishedFrom && !filters.publishedUntil
+                    ? "30"
+                    : null)) === days;
+              return (
+                <Button
+                  key={days}
+                  size="sm"
+                  className={active ? undefined : "text-foreground"}
+                  variant={active ? "default" : "outline"}
+                  aria-pressed={
+                    filters.performanceRange === days ||
+                    (days === "30" &&
+                      !filters.publishedFrom &&
+                      !filters.publishedUntil)
+                  }
+                  onClick={() => handlePreset(days)}
+                >
+                  {t("performance.lastDays", { days })}
+                </Button>
+              );
+            })}
           </div>
 
           {/* Advanced filters disclosure */}
@@ -909,8 +913,135 @@ export function SocialPostStatistics({
                   })
                 }
               >
-                {t("clearAll")}
+                {t("clearFilters")}
               </Button>
+            </div>
+            <div className="mt-4 grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="space-y-2">
+                <Label htmlFor="performance-search">
+                  {t("performance.searchPosts")}
+                </Label>
+                <div className="relative">
+                  <Search
+                    className="text-muted-foreground pointer-events-none absolute start-3 top-3 size-4"
+                    aria-hidden
+                  />
+                  <Input
+                    id="performance-search"
+                    className="ps-9"
+                    value={filters.performanceSearch ?? ""}
+                    maxLength={200}
+                    onChange={(event) =>
+                      void setFilters({
+                        performanceSearch: event.target.value || null,
+                      })
+                    }
+                    placeholder={t("performance.searchPlaceholder")}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="performance-format">
+                  {t("performance.contentType")}
+                </Label>
+                <Select
+                  value={filters.performanceFormat ?? "all"}
+                  onValueChange={(value) =>
+                    void setFilters({
+                      performanceFormat:
+                        value === "all"
+                          ? null
+                          : (value as NonNullable<
+                              typeof filters.performanceFormat
+                            >),
+                    })
+                  }
+                >
+                  <SelectTrigger id="performance-format" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      {t("performance.allFormats")}
+                    </SelectItem>
+                    {(
+                      [
+                        "text",
+                        "image",
+                        "video",
+                        "carousel",
+                        "link",
+                        "unknown",
+                      ] as const
+                    ).map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {t(`performance.formats.${value}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="performance-kind">
+                  {t("performance.postKind")}
+                </Label>
+                <Select
+                  value={filters.performancePostKind}
+                  onValueChange={(value) =>
+                    void setFilters({
+                      performancePostKind:
+                        value as typeof filters.performancePostKind,
+                    })
+                  }
+                >
+                  <SelectTrigger id="performance-kind" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(
+                      ["posts", "replies", "quotes", "reposts", "all"] as const
+                    ).map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {t(`performance.kinds.${value}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="performance-sort">
+                  {t("performance.sort")}
+                </Label>
+                <Select
+                  value={filters.performanceSort}
+                  onValueChange={(value) =>
+                    void setFilters({
+                      performanceSort: value as typeof filters.performanceSort,
+                    })
+                  }
+                >
+                  <SelectTrigger id="performance-sort" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(
+                      [
+                        "interactions",
+                        "publishedAt",
+                        "views",
+                        "impressions",
+                        "likes",
+                        "engagementRate",
+                        "baselineMultiplier",
+                      ] as const
+                    ).map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {t(`performance.sorts.${value}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </details>
 

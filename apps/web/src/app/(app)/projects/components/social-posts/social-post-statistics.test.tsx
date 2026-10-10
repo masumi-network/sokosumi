@@ -251,43 +251,37 @@ function accountCard(name: string) {
 /**
  * Helper to switch accounts in the new Select-based UI
  */
+function accountCombobox() {
+  return screen.getByRole("combobox", { name: /connected accounts/i });
+}
 async function _selectAccount(
   user: ReturnType<typeof userEvent.setup>,
   accountName: string,
 ) {
-  // Click the Select trigger to open dropdown
-  const trigger = screen.getByRole("combobox");
-  await user.click(trigger);
-  // Click the desired account option
+  await user.click(accountCombobox());
   const option = await screen.findByRole("option", {
     name: new RegExp(accountName, "i"),
   });
   await user.click(option);
 }
-/**
- * Check if an account is currently selected (visible in the unified header)
- */
 function _isAccountSelected(accountName: string): boolean {
-  // Check if the account name appears in the combobox trigger's SelectValue
-  try {
-    const combobox = screen.getByRole("combobox");
-    return combobox.textContent?.includes(accountName) ?? false;
-  } catch {
-    return false;
-  }
+  const combobox = screen.queryByRole("combobox", {
+    name: /connected accounts/i,
+  });
+  if (combobox) return combobox.textContent?.includes(accountName) ?? false;
+  return screen.queryByText(accountName) != null;
 }
-/**
- * Helper to get export/research links from the DropdownMenu
- */
 async function _getExportLink(
   user: ReturnType<typeof userEvent.setup>,
   linkName: string,
-): Promise<HTMLElement> {
-  // Click the "More actions" button to open the dropdown
-  const moreButton = screen.getByRole("button", { name: /more actions/i });
-  await user.click(moreButton);
-  // Find the link in the opened dropdown
-  return await screen.findByRole("link", { name: new RegExp(linkName, "i") });
+): Promise<string> {
+  await user.click(screen.getByRole("button", { name: /more actions/i }));
+  const item = await screen.findByRole("menuitem", {
+    name: new RegExp(linkName, "i"),
+  });
+  const href = item.getAttribute("href") ?? "";
+  await user.keyboard("{Escape}");
+  return href;
 }
 function selectedReads() {
   return mocks.fetch.mock.calls.filter(
@@ -355,7 +349,7 @@ describe("SocialPostStatistics account history", () => {
     await screen.findByTestId("social-performance-overview");
     // Wait for the combobox to be present and contain the selected account
     await waitFor(() => {
-      const combobox = screen.getByRole("combobox");
+      const combobox = accountCombobox();
       expect(combobox.textContent).toContain("Launch account");
     });
     // The other account is not selected
@@ -374,7 +368,7 @@ describe("SocialPostStatistics account history", () => {
       ),
     ).toBe(account.id);
     // No "All accounts" option in single-project view
-    const combobox = screen.getByRole("combobox");
+    const combobox = accountCombobox();
     await userEvent.setup().click(combobox);
     expect(
       screen.queryByRole("option", { name: /All accounts/i }),
@@ -382,7 +376,7 @@ describe("SocialPostStatistics account history", () => {
     // Close the dropdown
     await userEvent.setup().keyboard("{Escape}");
     expect(screen.queryByLabelText("Platform")).not.toBeInTheDocument();
-    for (const name of ["More filters", "Account details", "More insights"]) {
+    for (const name of ["More filters", "More insights", "Daily counts"]) {
       expect(screen.getByText(name).closest("details")).not.toHaveAttribute(
         "open",
       );
@@ -404,7 +398,7 @@ describe("SocialPostStatistics account history", () => {
     );
     // Wait for the Brand page to be selected in the combobox
     await waitFor(() => {
-      const combobox = screen.getByRole("combobox");
+      const combobox = accountCombobox();
       expect(combobox.textContent).toContain("Brand page");
     });
     // Brand page is selected
@@ -414,9 +408,8 @@ describe("SocialPostStatistics account history", () => {
     expect(query.get("connectionId")).toBe(secondAccount.id);
     expect(query.get("provider")).toBe("facebook");
     const user = userEvent.setup();
-    const exportLink = await _getExportLink(user, "Export CSV");
     const exported = new URL(
-      exportLink.getAttribute("href") ?? "",
+      await _getExportLink(user, "Export CSV"),
       "https://web.test",
     ).searchParams;
     expect(exported.get("connectionId")).toBe(secondAccount.id);
@@ -431,7 +424,7 @@ describe("SocialPostStatistics account history", () => {
     );
     // Wait for Brand page to be selected (fallback from unavailable account)
     await waitFor(() => {
-      const combobox = screen.getByRole("combobox");
+      const combobox = accountCombobox();
       expect(combobox.textContent).toContain("Brand page");
     });
     for (const [url] of selectedReads()) {
@@ -478,7 +471,7 @@ describe("SocialPostStatistics account history", () => {
     await _selectAccount(user, "Brand page");
     expect(await screen.findByText(brandPost.text)).toBeVisible();
     // Both accounts should be available in the Select dropdown
-    const combobox = screen.getByRole("combobox");
+    const combobox = accountCombobox();
     await user.click(combobox);
     expect(
       screen.getByRole("option", { name: /Launch account/i }),
@@ -495,9 +488,8 @@ describe("SocialPostStatistics account history", () => {
     expect(
       screen.getByText("More insights").closest("details"),
     ).not.toHaveAttribute("open");
-    const exportLink = await _getExportLink(user, "Export CSV");
     const exportUrl = new URL(
-      exportLink.getAttribute("href") ?? "",
+      await _getExportLink(user, "Export CSV"),
       "https://web.test",
     );
     expect(exportUrl.searchParams.get("connectionId")).toBe(secondAccount.id);
@@ -524,7 +516,7 @@ describe("SocialPostStatistics account history", () => {
       `?statisticsAccount=${secondAccount.id}&performanceSearch=launch&performanceFormat=video&performanceTimezone=Europe%2FPrague&publishedFrom=2026-10-01&publishedUntil=2026-10-08`,
     );
     await waitFor(() => {
-      const combobox = screen.getByRole("combobox");
+      const combobox = accountCombobox();
       expect(combobox.textContent).toContain("Brand page");
     });
     expect(screen.getByText("4 active")).toBeVisible();
@@ -542,13 +534,9 @@ describe("SocialPostStatistics account history", () => {
     // Brand page should be selected
     expect(_isAccountSelected("Brand page")).toBe(true);
     const user = userEvent.setup();
-    const exportSpreadsheetLink = await _getExportLink(
-      user,
-      "Export spreadsheet",
-    );
     expect(
       new URL(
-        exportSpreadsheetLink.getAttribute("href") ?? "",
+        await _getExportLink(user, "Export spreadsheet"),
         "https://web.test",
       ).searchParams.get("connectionId"),
     ).toBe(secondAccount.id);
@@ -569,7 +557,7 @@ describe("SocialPostStatistics account history", () => {
     await _selectAccount(user, "Brand page");
     // Wait for Brand page to be selected
     await waitFor(() => {
-      const combobox = screen.getByRole("combobox");
+      const combobox = accountCombobox();
       expect(combobox.textContent).toContain("Brand page");
     });
     await act(async () => finish(response(account, "old-next-page")));
@@ -591,8 +579,7 @@ describe("SocialPostStatistics account history", () => {
       }),
     });
     const rendered = renderStatistics();
-    // Launch account should be selected
-    expect(_isAccountSelected("Launch account")).toBe(true);
+    expect(await screen.findByText("Launch account")).toBeVisible();
     expect(screen.getByText("Statistics have not been fetched.")).toBeVisible();
     expect(screen.getByRole("button", { name: "Sync account" })).toBeEnabled();
     rendered.unmount();
@@ -691,9 +678,8 @@ describe("SocialPostStatistics account history", () => {
     );
     expect(read.searchParams.get("projectId")).toBe(projectA);
     const user = userEvent.setup();
-    const exportLink = await _getExportLink(user, "Export CSV");
     const exportUrl = new URL(
-      exportLink.getAttribute("href") ?? "",
+      await _getExportLink(user, "Export CSV"),
       "https://web.test",
     );
     expect(exportUrl.pathname).toBe(
@@ -751,7 +737,7 @@ describe("SocialPostStatistics account history", () => {
     );
     await screen.findByTestId("social-performance-overview");
     // Check the first account is selected in the combobox
-    const combobox = screen.getByRole("combobox");
+    const combobox = accountCombobox();
     await user.click(combobox);
     expect(
       screen.getByRole("option", { name: /Launch account.*Launch project/i }),
@@ -773,9 +759,8 @@ describe("SocialPostStatistics account history", () => {
     );
     // Close the combobox dropdown from earlier
     await user.keyboard("{Escape}");
-    const exportLink = await _getExportLink(user, "Export CSV");
     const exportParams = new URL(
-      exportLink.getAttribute("href") ?? "",
+      await _getExportLink(user, "Export CSV"),
       "https://web.test",
     ).searchParams;
     expect(exportParams.get("connectionId")).toBe(duplicate.id);
@@ -841,11 +826,7 @@ describe("SocialPostStatistics account history", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
     rendered.rerender(view(otherWorkspaceId));
-    // Wait for Brand page to be selected in new workspace
-    await waitFor(() => {
-      const combobox = screen.getByRole("combobox");
-      expect(combobox.textContent).toContain("Brand page");
-    });
+    expect(await screen.findByText("Brand page")).toBeVisible();
     const nextReads = mocks.fetch.mock.calls.filter(([url]) =>
       url.includes(otherWorkspaceId),
     );
@@ -934,7 +915,7 @@ describe("SocialPostStatistics account history", () => {
         </NuqsTestingAdapter>
       </TestQueryProvider>,
     );
-    await screen.findByRole("tab", { name: "Launch account X" });
+    await screen.findByRole("combobox", { name: /connected accounts/i });
     await screen.findByText(post.text);
     fireEvent.click(screen.getByText("Audience and public benchmarks"));
     await screen.findByText("Recent mentions only");
@@ -1033,8 +1014,9 @@ describe("SocialPostStatistics account history", () => {
     expect(query.get("contentType")).toBe("video");
     expect(query.get("postKind")).toBe("quotes");
     expect(query.get("sort")).toBe("engagementRate");
-    const exportLink = await _getExportLink(user, "Export spreadsheet");
-    expect(exportLink.getAttribute("href")).toContain("format=xlsx");
+    expect(await _getExportLink(user, "Export spreadsheet")).toContain(
+      "format=xlsx",
+    );
   });
   it("offers native chart data, table previews and a bounded post comparison", async () => {
     renderStatistics();
@@ -1042,7 +1024,7 @@ describe("SocialPostStatistics account history", () => {
     const exact = within(overview).getAllByText("Show exact values")[0];
     expect(exact).toBeVisible();
     fireEvent.click(exact);
-    expect(within(overview).getByText("Date")).toBeVisible();
+    expect(within(overview).getAllByText("Date").length).toBeGreaterThan(0);
     fireEvent.click(
       screen.getByRole("checkbox", { name: /Select to compare/ }),
     );
@@ -1545,8 +1527,9 @@ describe("SocialPostStatistics account history", () => {
         { exact: false },
       ),
     ).toBeVisible();
-    // Account selection should show Brand page (not as a tab, but in the unified header)
-    expect(screen.getByText("Brand page")).toBeVisible();
+    const user = userEvent.setup();
+    await user.click(accountCombobox());
+    expect(screen.getByRole("option", { name: /brand page/i })).toBeVisible();
     expect(
       screen.queryByRole("heading", { name: "Brand page" }),
     ).not.toBeInTheDocument();

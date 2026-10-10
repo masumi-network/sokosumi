@@ -27,6 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { MetricSparkline, PostingConsistency } from "./posting-consistency";
 import { ACCOUNT_METRIC_LABELS } from "./social-post-metrics";
 
 type TrendMetric = "interactions" | "impressions" | "views" | "postCount";
@@ -413,6 +414,18 @@ export function SocialPerformanceOverview({
                     </span>
                   ) : null}
                 </div>
+                <MetricSparkline
+                  label={t("performance.sparkline", { metric: card.label })}
+                  values={data.daily.map((day) =>
+                    card.key === "postCount"
+                      ? day.summary.postCount
+                      : card.key === "views"
+                        ? day.summary.metrics.views.total
+                        : card.key === "impressions"
+                          ? day.summary.metrics.impressions.total
+                          : day.summary.interactions.total,
+                  )}
+                />
                 {hasCoverage ? (
                   <details className="group mt-2">
                     <summary className="text-muted-foreground hover:text-foreground flex w-fit cursor-pointer list-none items-center gap-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
@@ -450,6 +463,16 @@ export function SocialPerformanceOverview({
             );
           })}
         </div>
+        <PostingConsistency
+          days={data.daily.map((day) => ({
+            date: (typeof day.date === "string"
+              ? day.date
+              : day.date.toISOString()
+            ).slice(0, 10),
+            posts: day.summary.postCount,
+            engagement: day.summary.interactions.total,
+          }))}
+        />
         {/* Data quality note - contextual, not prominent */}
         <details className="group mt-4">
           <summary className="text-muted-foreground hover:text-foreground flex w-fit cursor-pointer list-none items-center gap-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
