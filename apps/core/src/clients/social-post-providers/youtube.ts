@@ -30,15 +30,25 @@ export function deriveYouTubeTitle(text: string): string {
   return (line ?? "Untitled").slice(0, YOUTUBE_TITLE_LIMIT);
 }
 
-/** Everything after the title line. Empty when the post is only a title. */
+/**
+ * Everything the title cannot keep: leftover of a long first line, then the
+ * lines after it. Empty when the post is only a title of 100 characters or
+ * fewer. The title itself is never repeated.
+ */
 export function deriveYouTubeDescription(text: string): string {
   const lines = text.split(/\r?\n/);
   const titleIndex = lines.findIndex((part) => part.trim().length > 0);
   if (titleIndex === -1) return "";
-  return lines
+  const titleLine = lines[titleIndex].trim();
+  const overflow =
+    titleLine.length > YOUTUBE_TITLE_LIMIT
+      ? titleLine.slice(YOUTUBE_TITLE_LIMIT).trim()
+      : "";
+  const rest = lines
     .slice(titleIndex + 1)
     .join("\n")
     .trim();
+  return [overflow, rest].filter((part) => part.length > 0).join("\n");
 }
 
 function videoIdOf(data: Record<string, unknown> | null): string | null {
