@@ -28,7 +28,7 @@ const metrics = {
 };
 
 describe("SocialPostMetrics", () => {
-  it("keeps a measured zero distinct from an unavailable count", () => {
+  it("keeps a measured zero and hides empty counts on Performance cards", () => {
     render(
       <SocialPostMetrics
         statistics={{
@@ -40,6 +40,23 @@ describe("SocialPostMetrics", () => {
       />,
     );
     expect(screen.getByText("Views").closest("div")).toHaveTextContent("0");
+    expect(screen.getByText("Impressions")).toBeVisible();
+    expect(screen.queryByText("Likes / reactions")).not.toBeInTheDocument();
+    expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
+  });
+
+  it("still names empty counts on compact list rows", () => {
+    render(
+      <SocialPostMetrics
+        compact
+        statistics={{
+          metrics,
+          fetchedAt: new Date("2026-10-08T12:00:00.000Z"),
+          refreshAttemptedAt: null,
+          error: null,
+        }}
+      />,
+    );
     expect(
       screen.getByText("Likes / reactions").closest("div"),
     ).toHaveTextContent("Unavailable");
