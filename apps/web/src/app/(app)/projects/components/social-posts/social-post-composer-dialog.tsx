@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import {
@@ -891,13 +892,19 @@ export function SocialPostComposerDialog({
                         onClick={() => toggleConnection(connection.id)}
                         type="button"
                       >
-                        <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
-                          <SocialPostProviderIcon
-                            aria-hidden
-                            className="size-3.5"
-                            provider={connection.provider}
+                        <Avatar className="bg-muted size-6">
+                          <AvatarImage
+                            alt=""
+                            src={connection.avatarUrl ?? undefined}
                           />
-                        </span>
+                          <AvatarFallback className="bg-transparent">
+                            <SocialPostProviderIcon
+                              aria-hidden
+                              className="size-3.5"
+                              provider={connection.provider}
+                            />
+                          </AvatarFallback>
+                        </Avatar>
                         <span className="max-w-40 truncate">{handle}</span>
                         {selected ? (
                           <Check className="size-3.5" aria-hidden />

@@ -1708,6 +1708,26 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
+  it("shows the account photo on the composer chip", async () => {
+    const photo =
+      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect width='8' height='8' fill='%23111'/></svg>";
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection({ avatarUrl: photo })]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const chip = within(screen.getByRole("dialog")).getByRole("button", {
+      name: "X @sokosumi",
+    });
+    expect(chip.querySelector("[data-slot=avatar]")).not.toBeNull();
+    expect(chip.querySelector("[data-slot=avatar-fallback]")).not.toBeNull();
+  });
+
   it("renders media thumbnails in a linked post preview", () => {
     render(
       <ProjectSocialPosts
