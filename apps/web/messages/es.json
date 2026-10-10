@@ -2551,6 +2551,8 @@
           "canceled": "Publicación cancelada.",
           "conflict": "Esta publicación se modificó en otro lugar. Cargando la versión más reciente.",
           "failed": "Algo salió mal. Inténtalo de nuevo.",
+          "offline": "Estás sin conexión. Inténtalo de nuevo.",
+          "timeout": "Se agotó el tiempo. Inténtalo de nuevo.",
           "unauthenticated": "Inicia sesión para continuar.",
           "unauthenticatedAction": "Iniciar sesión",
           "published": "Publicación publicada.",
