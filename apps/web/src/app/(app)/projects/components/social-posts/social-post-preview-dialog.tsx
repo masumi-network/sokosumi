@@ -62,7 +62,7 @@ export function SocialPostPreviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-md"
+        className="max-h-[min(40rem,calc(100dvh-2rem))] overflow-y-auto overscroll-contain sm:max-w-md"
         onCloseAutoFocus={onCloseAutoFocus}
       >
         <DialogHeader>
@@ -108,6 +108,7 @@ export function SocialPostPreviewDialog({
               type="button"
               size="sm"
               variant="outline"
+              className="min-h-11 md:min-h-8"
               loading={refreshingPostId === post.id}
               disabled={Boolean(refreshingPostId)}
               onClick={() => void handleRefreshStatistics(post)}
@@ -129,6 +130,7 @@ export function SocialPostPreviewDialog({
                 <Button
                   type="button"
                   variant="outline"
+                  className="min-h-11 md:min-h-10"
                   onClick={() => {
                     onCompose({ kind: "edit", post });
                     onOpenChange(false);
@@ -138,7 +140,12 @@ export function SocialPostPreviewDialog({
                 </Button>
               ) : null}
               {post.status === "PUBLISHED" && post.publishedUrl ? (
-                <Button type="button" variant="outline" asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 md:min-h-10"
+                  asChild
+                >
                   <a href={post.publishedUrl} rel="noreferrer" target="_blank">
                     {t("viewPost")}
                     <ExternalLink className="size-4" aria-hidden />
@@ -148,6 +155,7 @@ export function SocialPostPreviewDialog({
               {post.canSchedule ? (
                 <Button
                   type="button"
+                  className="min-h-11 md:min-h-10"
                   onClick={() => {
                     onCompose({ kind: "schedule", post });
                     onOpenChange(false);
