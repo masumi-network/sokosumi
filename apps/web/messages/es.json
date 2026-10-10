@@ -2366,7 +2366,6 @@
       },
       "ProjectSocialAccounts": {
         "title": "Cuentas sociales",
-        "description": "Para redactar, programar y publicar.",
         "account": "Cuenta de {provider}",
         "connect": "Conectar cuenta de {provider}",
         "connectAccount": "Conectar cuenta",

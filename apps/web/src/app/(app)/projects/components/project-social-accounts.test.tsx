@@ -38,7 +38,6 @@ const { refreshMock, toastErrorMock, toastSuccessMock, toastWarningMock } =
 
 const MESSAGES: Record<string, string> = {
   title: "Social accounts",
-  description: "Used to draft, schedule, and publish.",
   account: "{provider} account",
   connect: "Connect {provider} account",
   connectAccount: "Connect account",
@@ -190,7 +189,7 @@ describe("ProjectSocialAccounts", () => {
   it("only uses message keys the catalog defines", () => {
     const catalog = messages.App.Projects.ProjectSocialAccounts;
     expect(catalog.connectAccount).toBe("Connect account");
-    expect(catalog.description).toBe("Used to draft, schedule, and publish.");
+    expect(catalog).not.toHaveProperty("description");
     for (const key of Object.keys(MESSAGES)) {
       const value = key
         .split(".")
@@ -240,6 +239,20 @@ describe("ProjectSocialAccounts", () => {
         disconnectedAt: new Date("2026-09-03T10:05:00.000Z"),
       }),
     });
+  });
+
+  it("keeps Connect account without a visible section heading", () => {
+    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+
+    expect(
+      screen.getByRole("button", { name: "Connect account" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "Social accounts" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Social accounts" }),
+    ).not.toBeInTheDocument();
   });
 
   it("explains missing provider configuration instead of reporting an expired request", async () => {
@@ -976,7 +989,7 @@ describe("ProjectSocialAccounts", () => {
     expect(disconnectProjectSocialConnection).not.toHaveBeenCalled();
   });
 
-  it("returns focus to the section heading when a confirmed action leaves the menu disabled", async () => {
+  it("returns focus to the section when a confirmed action leaves the menu disabled", async () => {
     const user = userEvent.setup();
     const pendingDisconnect =
       Promise.withResolvers<
@@ -1001,7 +1014,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("heading", { name: "Social accounts" }),
+        screen.getByRole("region", { name: "Social accounts" }),
       ).toHaveFocus();
     });
 

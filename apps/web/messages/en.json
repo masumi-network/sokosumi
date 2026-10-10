@@ -2366,7 +2366,6 @@
       },
       "ProjectSocialAccounts": {
         "title": "Social accounts",
-        "description": "Used to draft, schedule, and publish.",
         "account": "{provider} account",
         "connect": "Connect {provider} account",
         "connectAccount": "Connect account",

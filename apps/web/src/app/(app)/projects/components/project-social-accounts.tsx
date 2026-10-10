@@ -92,7 +92,7 @@ export function ProjectSocialAccounts({
   // dialog closes, so focus goes back to that row's menu trigger by hand.
   const actionTriggersRef = useRef(new Map<string, HTMLButtonElement>());
   const confirmationTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const headingRef = useRef<HTMLElement | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   // The provider being connected, or the connection being changed.
   const [pendingTarget, setPendingTarget] = useState<string | null>(null);
@@ -319,23 +319,14 @@ export function ProjectSocialAccounts({
 
   return (
     <section
-      aria-labelledby="social-accounts-heading"
+      ref={headingRef}
+      tabIndex={-1}
+      aria-label={t("title")}
       className="space-y-4"
       data-testid="project-social-accounts"
       id="social-accounts"
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h2
-            id="social-accounts-heading"
-            ref={headingRef}
-            tabIndex={-1}
-            className="text-base font-semibold"
-          >
-            {t("title")}
-          </h2>
-          <p className="text-muted-foreground text-sm">{t("description")}</p>
-        </div>
+      <div className="flex items-center justify-end">
         <DropdownMenu>
           {/* Disabled on the trigger, not the button: a loading button drops
               native `disabled`, and only the trigger's own flag stops Radix
