@@ -14,7 +14,7 @@ import { internalServerError, unprocessableEntity } from "./error";
  * Widest asset scale this module will price — an ERC-20 `decimals` is a
  * `uint8`, so 255 is the type's own ceiling.
  */
-export const X402_MAX_ASSET_DECIMALS = 255;
+const X402_MAX_ASSET_DECIMALS = 255;
 
 /**
  * Whether a value is a usable ERC-20 `decimals`: an integer in `0..255`.
