@@ -399,4 +399,71 @@ describe("SocialPostStatistics account history", () => {
       screen.getByRole("link", { name: "Manage accounts" }),
     ).toHaveAttribute("href", "/social?projectId=project-1&tab=accounts");
   });
+
+  it("shows no provider icon in the trigger for All accounts", async () => {
+    renderStatistics();
+    const trigger = await screen.findByRole("combobox", {
+      name: "Connected accounts",
+    });
+    expect(trigger).toHaveTextContent("All accounts");
+    expect(
+      trigger.querySelectorAll("[data-testid='social-post-provider-icon']"),
+    ).toHaveLength(0);
+  });
+
+  it.each([
+    "x",
+    "linkedin",
+    "facebook",
+    "instagram",
+    "tiktok",
+    "youtube",
+  ] as const)(
+    "shows exactly one %s icon in the trigger when that account is selected",
+    async (provider) => {
+      mocks.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...page(),
+          accounts: [
+            {
+              ...account,
+              provider,
+              displayName: `${provider} account`,
+            },
+          ],
+        }),
+      });
+      renderStatistics(`?statisticsAccount=${account.id}`);
+      const trigger = await screen.findByRole("combobox", {
+        name: "Connected accounts",
+      });
+      expect(trigger).toHaveTextContent(`${provider} account`);
+      expect(
+        trigger.querySelectorAll("[data-testid='social-post-provider-icon']"),
+      ).toHaveLength(1);
+    },
+  );
+
+  it("keeps provider icons on account options and none on All accounts", async () => {
+    renderStatistics();
+    fireEvent.click(
+      await screen.findByRole("combobox", { name: "Connected accounts" }),
+    );
+    expect(
+      (
+        await screen.findByRole("option", { name: "All accounts" })
+      ).querySelectorAll("[data-testid='social-post-provider-icon']"),
+    ).toHaveLength(0);
+    expect(
+      screen
+        .getByRole("option", { name: "Launch account" })
+        .querySelectorAll("[data-testid='social-post-provider-icon']"),
+    ).toHaveLength(1);
+    expect(
+      screen
+        .getByRole("option", { name: "Brand page" })
+        .querySelectorAll("[data-testid='social-post-provider-icon']"),
+    ).toHaveLength(1);
+  });
 });
