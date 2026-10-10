@@ -334,16 +334,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
                   aria-label={t("performance.accountTabs")}
                   className="text-foreground w-full sm:w-auto sm:min-w-[200px]"
                 >
-                  <div className="flex items-center gap-2">
-                    {selectedAccount ? (
-                      <SocialPostProviderIcon
-                        provider={selectedAccount.provider}
-                        className="text-foreground size-4 shrink-0"
-                        aria-hidden
-                      />
-                    ) : null}
-                    <SelectValue />
-                  </div>
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("allAccounts")}</SelectItem>
