@@ -25,13 +25,11 @@ export function SelectInput<T>({
   onSelect,
   initialIndex = 0,
   listen = true,
-  direction = "vertical",
 }: {
   items: readonly SelectItem<T>[];
   onSelect: (value: T) => void;
   initialIndex?: number;
   listen?: boolean;
-  direction?: "vertical" | "horizontal";
 }): React.ReactElement {
   const [index, setIndex] = useState(() =>
     Math.max(0, Math.min(initialIndex, Math.max(items.length - 1, 0))),
@@ -45,11 +43,11 @@ export function SelectInput<T>({
 
   useInput((_input, key) => {
     if (!listen || items.length === 0) return;
-    if (key.upArrow || (direction === "horizontal" && key.leftArrow)) {
+    if (key.upArrow) {
       setIndex((current) => moveSelectionIndex(current, -1, items.length));
       return;
     }
-    if (key.downArrow || (direction === "horizontal" && key.rightArrow)) {
+    if (key.downArrow) {
       setIndex((current) => moveSelectionIndex(current, 1, items.length));
       return;
     }
@@ -62,8 +60,7 @@ export function SelectInput<T>({
   return React.createElement(
     Box,
     {
-      flexDirection: direction === "horizontal" ? "row" : "column",
-      flexWrap: direction === "horizontal" ? "wrap" : undefined,
+      flexDirection: "column",
       borderStyle: "single",
       borderColor: TUI_THEME.border,
       paddingX: 1,
@@ -78,23 +75,10 @@ export function SelectInput<T>({
           color: selected ? TUI_THEME.accent : undefined,
           bold: selected,
         },
-        direction === "horizontal"
-          ? React.createElement(
-              React.Fragment,
-              null,
-              `${selected ? "▸" : " "} ${item.label}`,
-              item.hint
-                ? React.createElement(Text, { dimColor: true }, ` ${item.hint}`)
-                : null,
-            )
-          : React.createElement(
-              React.Fragment,
-              null,
-              `${selected ? "›" : " "} ${item.label}`,
-              item.hint
-                ? React.createElement(Text, { dimColor: true }, ` ${item.hint}`)
-                : null,
-            ),
+        `${selected ? "›" : " "} ${item.label}`,
+        item.hint
+          ? React.createElement(Text, { dimColor: true }, ` ${item.hint}`)
+          : null,
       );
     }),
   );
