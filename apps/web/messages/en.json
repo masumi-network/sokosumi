@@ -2577,6 +2577,11 @@
           "body": "Posts go out from the X, Instagram, LinkedIn, Facebook and YouTube accounts connected to this project.",
           "action": "Connect X, YouTube, LinkedIn…"
         },
+        "reconnectPrompt": {
+          "title": "Reconnect to post",
+          "body": "Sign in again on a connected account.",
+          "action": "Reconnect"
+        },
         "preview": {
           "label": "{provider} preview",
           "now": "now",
