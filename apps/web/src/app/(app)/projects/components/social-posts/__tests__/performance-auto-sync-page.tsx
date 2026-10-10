@@ -235,7 +235,7 @@ function connection(): ProjectSocialConnection {
 
 function App({ shot }: { shot: Shot }) {
   return (
-    <div className="bg-background text-foreground min-h-screen p-8">
+    <div className="bg-background text-foreground min-h-dvh p-8">
       <div className="mx-auto max-w-5xl">
         {shot === "settings" ? (
           <ProjectSocialAccounts
