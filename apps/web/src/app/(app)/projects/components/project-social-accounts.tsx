@@ -18,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -421,16 +422,24 @@ export function ProjectSocialAccounts({
                 className="flex flex-wrap items-center gap-3 p-3"
                 data-testid={`project-social-connection-${connection.id}`}
               >
-                <span
+                <Avatar
                   aria-hidden
-                  className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border text-sm font-semibold"
+                  className="bg-background size-9 rounded-md border"
+                  data-testid={
+                    connection.avatarUrl
+                      ? `project-social-account-avatar-${connection.id}`
+                      : undefined
+                  }
                 >
-                  {provider ? (
-                    <provider.Icon className="size-5" />
-                  ) : (
-                    providerName.slice(0, 1)
-                  )}
-                </span>
+                  <AvatarImage src={connection.avatarUrl ?? undefined} alt="" />
+                  <AvatarFallback className="rounded-md text-sm font-semibold">
+                    {provider ? (
+                      <provider.Icon className="size-5" />
+                    ) : (
+                      providerName.slice(0, 1)
+                    )}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="min-w-40 flex-1">
                   <p className="truncate text-sm font-medium">{handle}</p>
                   <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
