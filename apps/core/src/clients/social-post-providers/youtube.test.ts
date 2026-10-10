@@ -113,6 +113,19 @@ describe("deriveYouTubeDescription", () => {
 
   it("is empty when the post is only a title", () => {
     expect(deriveYouTubeDescription("Launching today")).toBe("");
+    expect(deriveYouTubeDescription("T".repeat(100))).toBe("");
+  });
+
+  it("puts leftover of a long first line in the description", () => {
+    const firstLine = `${"T".repeat(100)} leftover caption`;
+    expect(deriveYouTubeDescription(firstLine)).toBe("leftover caption");
+  });
+
+  it("keeps first-line leftover ahead of later lines", () => {
+    const firstLine = `${"T".repeat(100)} leftover`;
+    expect(deriveYouTubeDescription(`${firstLine}\nSecond line`)).toBe(
+      "leftover\nSecond line",
+    );
   });
 
   it("skips leading blank lines the same way the title does", () => {
