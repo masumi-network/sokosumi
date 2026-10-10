@@ -22,7 +22,10 @@ import {
   creditsForImage,
   priceUnitLabelKey,
 } from "./catalog";
-import { STUDIO_PILL_CLASS } from "./studio-classes";
+import {
+  STUDIO_COMPOSER_GUTTER_CLASS,
+  STUDIO_PILL_CLASS,
+} from "./studio-classes";
 import { StudioTemplateStrip } from "./studio-template-picker";
 import type { StudioTemplate } from "./studio-templates";
 import {
@@ -815,6 +818,7 @@ export function StudioComposer({
             ) : null}
           </>
         }
+        className={STUDIO_COMPOSER_GUTTER_CLASS}
         withOuterPadding={false}
         withSafeAreaPadding
       >

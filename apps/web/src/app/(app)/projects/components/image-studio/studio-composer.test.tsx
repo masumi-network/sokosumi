@@ -222,6 +222,15 @@ describe("choosing between 152 models", () => {
 });
 
 describe("what the composer says without being opened", () => {
+  it("uses the same side gutter as the chat composer", () => {
+    render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
+    expect(
+      screen
+        .getByRole("textbox", { name: "promptPlaceholder" })
+        .closest("form"),
+    ).toHaveClass("px-3", "md:px-5");
+  });
+
   it("names the single chosen model", () => {
     render(
       <Harness
