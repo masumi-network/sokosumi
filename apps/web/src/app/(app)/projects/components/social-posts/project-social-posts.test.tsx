@@ -2214,6 +2214,46 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps Load more labeled and shows row skeletons while the next page loads", async () => {
+    const user = userEvent.setup();
+    let finish!: (value: {
+      posts: SocialPost[];
+      nextCursor: string | null;
+    }) => void;
+    vi.mocked(loadMoreSocialPosts).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    render(
+      <ProjectSocialPosts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        nextCursors={{ drafts: "drafts-cursor" }}
+      />,
+    );
+
+    await openTab(user, "Drafts");
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+
+    expect(screen.getByRole("button", { name: "Load more" })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("social-post-row-skeleton")).toHaveLength(2);
+
+    finish({
+      posts: [buildPost({ id: "older", text: "Older draft" })],
+      nextCursor: null,
+    });
+    await waitFor(() => expect(screen.getByText("Older draft")).toBeVisible());
+    expect(
+      screen.queryByTestId("social-post-row-skeleton"),
+    ).not.toBeInTheDocument();
+  });
+
   it("closes a conflicted editor and uses the refreshed revision when reopened", async () => {
     const user = userEvent.setup();
     const original = buildPost({ revision: 4 });

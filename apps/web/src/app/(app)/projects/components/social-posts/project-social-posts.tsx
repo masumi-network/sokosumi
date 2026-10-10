@@ -37,7 +37,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +44,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
   SEGMENTED_TABS_LIST_CLASS_NAME,
@@ -161,6 +161,24 @@ function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
         src={media.fileUrl}
       />
     </a>
+  );
+}
+
+/** Same boxes as a list row so Load more does not jump the page. */
+function SocialPostRowSkeleton() {
+  return (
+    <li
+      aria-hidden
+      className="bg-background border-border flex items-start gap-3 rounded-lg border p-3"
+      data-testid="social-post-row-skeleton"
+    >
+      <Skeleton className="size-9 shrink-0 rounded-md" />
+      <div className="min-w-48 flex-1 space-y-1.5">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-3 w-24" />
+      </div>
+    </li>
   );
 }
 
@@ -707,9 +725,15 @@ export function ProjectSocialPosts({
                   data-testid={`social-posts-section-${section}`}
                   value={section}
                 >
-                  {sectionPosts.length > 0 ? (
+                  {sectionPosts.length > 0 || loadingSection === section ? (
                     <ul className="grid gap-2">
                       {sectionPosts.map(renderPost)}
+                      {loadingSection === section ? (
+                        <>
+                          <SocialPostRowSkeleton />
+                          <SocialPostRowSkeleton />
+                        </>
+                      ) : null}
                     </ul>
                   ) : cursor ? null : (
                     <div className="rounded-lg border border-dashed px-4 py-8 text-center">
@@ -726,14 +750,15 @@ export function ProjectSocialPosts({
                       type="button"
                       variant="outline"
                       size="sm"
-                      disabled={loadingSection !== null}
+                      disabled={
+                        loadingSection !== null && loadingSection !== section
+                      }
+                      loading={loadingSection === section}
                       onClick={() => {
                         void handleLoadMore(section);
                       }}
                     >
-                      {loadingSection === section
-                        ? t("loading")
-                        : t("loadMore")}
+                      {t("loadMore")}
                     </Button>
                   ) : null}
                 </TabsContent>
