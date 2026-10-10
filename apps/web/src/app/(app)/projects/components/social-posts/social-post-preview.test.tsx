@@ -85,6 +85,25 @@ describe("SocialPostPreview", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("folds LinkedIn text on a word and shows an ellipsis", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="linkedin"
+        text={`${"hello ".repeat(34)}UNIQWORD and more text after the fold`}
+        timestamp={null}
+      />,
+    );
+
+    const preview = screen.getByTestId("social-post-preview");
+    expect(preview).toHaveTextContent("…");
+    expect(preview).not.toHaveTextContent("UNIQWORD");
+    expect(
+      screen.getByRole("button", { name: "linkedin.seeMore" }),
+    ).toBeVisible();
+  });
+
   it("shows Instagram's square media frame and asks for media when missing", () => {
     const { rerender } = render(
       <SocialPostPreview

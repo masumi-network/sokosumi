@@ -80,17 +80,28 @@ function usePreviewTime(timestamp: Date | null) {
  * Long text folds behind the network's own inline "more" link: the first
  * lines, cut at a character budget, the way LinkedIn and Instagram show it.
  */
-function useFold(text: string, maxChars: number, maxLines: number) {
-  const [expanded, setExpanded] = useState(false);
+function foldHead(text: string, maxChars: number, maxLines: number): string {
   const head = text
     .split("\n")
     .slice(0, maxLines)
     .join("\n")
     .slice(0, maxChars);
+  if (head.length >= text.length) return head;
+  const next = text[head.length];
+  if (next === undefined || /\s/.test(next) || /\s/.test(head.at(-1) ?? "")) {
+    return head.trimEnd();
+  }
+  const cut = head.search(/\s\S*$/);
+  return (cut > 0 ? head.slice(0, cut) : head).trimEnd();
+}
+
+function useFold(text: string, maxChars: number, maxLines: number) {
+  const [expanded, setExpanded] = useState(false);
+  const head = foldHead(text, maxChars, maxLines);
   const folded = !expanded && head.length < text.length;
   return {
     folded,
-    visibleText: folded ? head.trimEnd() : text,
+    visibleText: folded ? head : text,
     expand: () => setExpanded(true),
   };
 }
@@ -190,13 +201,16 @@ function LinkedInPreview({
               linkClassName="text-social-linkedin-link font-semibold"
             />
             {fold.folded ? (
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-social-linkedin-link ms-1 hover:underline"
-                onClick={fold.expand}
-              >
-                {t("linkedin.seeMore")}
-              </button>
+              <>
+                …{" "}
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-social-linkedin-link hover:underline"
+                  onClick={fold.expand}
+                >
+                  {t("linkedin.seeMore")}
+                </button>
+              </>
             ) : null}
           </p>
         </div>
