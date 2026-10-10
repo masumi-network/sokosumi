@@ -15,6 +15,11 @@ import {
 } from "@/components/ui/popover";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 
+/** Canceled posts need the word, not only a coloured mark. */
+function needsStatusLabel(status: SocialPostCalendarItem["status"]) {
+  return status === "CANCELED";
+}
+
 /** The post on Social, scoped to its project and opened in its list. */
 function socialPostHref(item: SocialPostCalendarItem): string {
   const query = new URLSearchParams({
@@ -81,7 +86,7 @@ function CompactSocialPostCalendarEvent({
           <SocialPostStatusBadge
             status={item.status}
             label={statuses(item.status)}
-            showLabel={false}
+            showLabel={needsStatusLabel(item.status)}
           />
         </button>
       </PopoverTrigger>
@@ -150,7 +155,7 @@ function SocialPostPreviewCard({
         <SocialPostStatusBadge
           status={item.status}
           label={statuses(item.status)}
-          showLabel={false}
+          showLabel={needsStatusLabel(item.status)}
         />
         <span aria-hidden className="flex shrink-0" title={scheduler}>
           <UserProfileAvatar
