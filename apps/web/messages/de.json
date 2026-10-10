@@ -2594,6 +2594,10 @@
           "instagram": {
             "more": "mehr",
             "mediaRequired": "Instagram braucht ein Bild oder Video."
+          },
+          "youtube": {
+            "seeMore": "Mehr anzeigen",
+            "videoRequired": "YouTube braucht ein Video."
           }
         },
         "statistics": {
