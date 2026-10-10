@@ -19937,6 +19937,9 @@ export const SocialAccountStatisticsAccountSchema = {
                 postCount: {
                     type: 'integer',
                     minimum: 0
+                },
+                sync: {
+                    $ref: '#/components/schemas/SocialSyncReadModel'
                 }
             },
             required: [
@@ -20011,6 +20014,11 @@ export const SocialAccountStatisticsSchema = {
                 'null'
             ],
             default: null
+        },
+        consecutiveFailures: {
+            type: 'integer',
+            minimum: 0,
+            default: 0
         }
     },
     required: [
@@ -20061,6 +20069,66 @@ export const SocialAccountMetricSchema = {
         'value',
         'period',
         'unit'
+    ]
+} as const;
+
+export const SocialSyncReadModelSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'fresh',
+                'stale',
+                'queued',
+                'running',
+                'reauth_required',
+                'partial'
+            ]
+        },
+        dataFetchedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        headFetchedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        dataVersion: {
+            type: 'string'
+        },
+        mayAutoRequest: {
+            type: 'boolean'
+        },
+        lastError: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        partialWarnings: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        }
+    },
+    required: [
+        'status',
+        'dataFetchedAt',
+        'headFetchedAt',
+        'dataVersion',
+        'mayAutoRequest',
+        'lastError',
+        'partialWarnings'
     ]
 } as const;
 
