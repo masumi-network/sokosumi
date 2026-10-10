@@ -2584,6 +2584,11 @@
           "body": "Beiträge werden über die X-, Instagram-, LinkedIn-, Facebook- und YouTube-Konten dieses Projekts veröffentlicht.",
           "action": "X, YouTube, LinkedIn … verbinden"
         },
+        "reconnectPrompt": {
+          "title": "Erneut verbinden, um zu posten",
+          "body": "Melde dich erneut bei einem verbundenen Konto an.",
+          "action": "Erneut verbinden"
+        },
         "preview": {
           "label": "{provider}-Vorschau",
           "now": "jetzt",

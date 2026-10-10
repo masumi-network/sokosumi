@@ -105,6 +105,9 @@ const MESSAGES: Record<string, string> = {
   "connectPrompt.title": "Connect an account to start posting",
   "connectPrompt.body": "Posts go out from this project's accounts.",
   "connectPrompt.action": "Connect X, YouTube, LinkedIn…",
+  "reconnectPrompt.title": "Reconnect to post",
+  "reconnectPrompt.body": "Sign in again on a connected account.",
+  "reconnectPrompt.action": "Reconnect",
   selectedPost: "Selected post",
   "empty.drafts": "No drafts yet.",
   "emptyHint.drafts": "Save a post as a draft to finish it later.",
@@ -665,6 +668,35 @@ describe("ProjectSocialPosts", () => {
     expect(getTab("Accounts")).toHaveTextContent("Accounts 1");
     expect(
       screen.queryByTestId("social-connect-prompt"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("counts expired accounts and asks to reconnect instead of connect", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accountCount={2}
+        accounts={<p>Accounts panel</p>}
+        calendar={<p>Calendar panel</p>}
+        connections={[]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(getTab("Accounts")).toHaveTextContent("Accounts 2");
+    expect(
+      screen.queryByTestId("social-connect-prompt"),
+    ).not.toBeInTheDocument();
+
+    const prompt = screen.getByTestId("social-reconnect-prompt");
+    expect(within(prompt).getByText("Reconnect to post")).toBeVisible();
+    await user.click(within(prompt).getByRole("button", { name: "Reconnect" }));
+
+    expect(getTab("Accounts")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Accounts panel")).toBeVisible();
+    expect(
+      screen.queryByTestId("social-reconnect-prompt"),
     ).not.toBeInTheDocument();
   });
 

@@ -2584,6 +2584,11 @@
           "body": "Las publicaciones salen de las cuentas de X, Instagram, LinkedIn, Facebook y YouTube conectadas a este proyecto.",
           "action": "Conectar X, YouTube, LinkedIn…"
         },
+        "reconnectPrompt": {
+          "title": "Vuelve a conectar para publicar",
+          "body": "Inicia sesión de nuevo en una cuenta conectada.",
+          "action": "Reconectar"
+        },
         "preview": {
           "label": "Vista previa de {provider}",
           "now": "ahora",

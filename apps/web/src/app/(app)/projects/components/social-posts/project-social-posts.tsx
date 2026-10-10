@@ -13,6 +13,7 @@ import {
   Eye,
   Link2,
   MoreHorizontal,
+  RefreshCw,
   RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
@@ -84,6 +85,11 @@ interface ProjectSocialPostsProps {
   actions?: ReactNode;
   /** Active connections only; drives the account picker. */
   connections: ProjectSocialConnection[];
+  /**
+   * Managed accounts on the Accounts tab (active, pending, reconnect).
+   * Defaults to `connections.length` when the page only loaded actives.
+   */
+  accountCount?: number;
   posts: SocialPost[];
   nextCursors?: Partial<Record<SectionKey, string | null>>;
   projectId: string;
@@ -181,6 +187,7 @@ function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
 
 export function ProjectSocialPosts({
   accounts,
+  accountCount,
   actions,
   calendar,
   connections,
@@ -258,6 +265,15 @@ export function ProjectSocialPosts({
   });
   const tab: SocialTab =
     tabParam && tabs.includes(tabParam) ? tabParam : tabs[0];
+  const listedAccountCount = accountCount ?? connections.length;
+  const accountPrompt =
+    accounts === undefined || tab === "accounts"
+      ? null
+      : listedAccountCount === 0
+        ? "connect"
+        : connections.length === 0
+          ? "reconnect"
+          : null;
 
   function showTab(next: SocialTab | null): void {
     void setTabParam(next);
@@ -657,7 +673,7 @@ export function ProjectSocialPosts({
                   candidate === "drafts" || candidate === "attention"
                     ? postsIn(candidate).length
                     : candidate === "accounts"
-                      ? connections.length
+                      ? listedAccountCount
                       : 0;
                 return (
                   <TabsTrigger
@@ -690,19 +706,25 @@ export function ProjectSocialPosts({
             {actions}
           </div>
 
-          {accounts !== undefined &&
-          connections.length === 0 &&
-          tab !== "accounts" ? (
+          {accountPrompt ? (
             <div
               className="bg-card-background flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
-              data-testid="social-connect-prompt"
+              data-testid={
+                accountPrompt === "reconnect"
+                  ? "social-reconnect-prompt"
+                  : "social-connect-prompt"
+              }
             >
               <div className="space-y-1">
                 <p className="text-sm font-medium">
-                  {t("connectPrompt.title")}
+                  {accountPrompt === "reconnect"
+                    ? t("reconnectPrompt.title")
+                    : t("connectPrompt.title")}
                 </p>
                 <p className="text-muted-foreground text-sm text-pretty">
-                  {t("connectPrompt.body")}
+                  {accountPrompt === "reconnect"
+                    ? t("reconnectPrompt.body")
+                    : t("connectPrompt.body")}
                 </p>
               </div>
               <Button
@@ -711,8 +733,14 @@ export function ProjectSocialPosts({
                 size="sm"
                 type="button"
               >
-                <Link2 className="size-4" aria-hidden />
-                {t("connectPrompt.action")}
+                {accountPrompt === "reconnect" ? (
+                  <RefreshCw className="size-4" aria-hidden />
+                ) : (
+                  <Link2 className="size-4" aria-hidden />
+                )}
+                {accountPrompt === "reconnect"
+                  ? t("reconnectPrompt.action")
+                  : t("connectPrompt.action")}
               </Button>
             </div>
           ) : null}
