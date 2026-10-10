@@ -944,7 +944,12 @@ describe("SocialPostStatistics account history", () => {
     );
     const overview = await screen.findByTestId("social-performance-overview");
     expect(within(overview).getByTitle("120,000")).toHaveTextContent("120K");
-    expect(within(overview).getByText("Mean 240 · median 15")).toBeVisible();
+    // In the redesigned UI, mean/median/coverage details are in the title attribute
+    // and in a collapsible Details section. Check that the details are available.
+    const impressionsCard = within(overview).getByTitle(
+      /Mean 240.*median 15.*measured on 500/,
+    );
+    expect(impressionsCard).toBeInTheDocument();
     expect(screen.getByText("Showing 1 of 500 matching posts")).toBeVisible();
     const query = new URL(selectedReads()[0][0], "https://web.test")
       .searchParams;

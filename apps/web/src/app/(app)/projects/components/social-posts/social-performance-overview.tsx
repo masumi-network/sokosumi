@@ -451,10 +451,7 @@ export function SocialPerformanceOverview({
         {/* Data quality note - contextual, not prominent */}
         <details className="group mt-4">
           <summary className="text-muted-foreground hover:text-foreground flex w-fit cursor-pointer list-none items-center gap-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
-            <ChevronDown
-              className="size-3 group-open:rotate-180"
-              aria-hidden
-            />
+            <ChevronDown className="size-3 group-open:rotate-180" aria-hidden />
             {t("performance.aboutThisData")}
           </summary>
           <div className="text-muted-foreground mt-2 space-y-1 text-xs">
