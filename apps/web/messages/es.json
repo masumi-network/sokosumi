@@ -2671,7 +2671,8 @@
             "dayEngagementUnavailable": "{date}: interacciones no disponibles",
             "dayOutside": "{date}: fuera del historial recopilado",
             "legendNone": "Ninguna",
-            "legendMore": "Más"
+            "legendMore": "Más",
+            "legendUnknown": "Desconocido"
           },
           "accountsTitle": "Cuentas conectadas",
           "postsTitle": "Publicaciones de las cuentas",
