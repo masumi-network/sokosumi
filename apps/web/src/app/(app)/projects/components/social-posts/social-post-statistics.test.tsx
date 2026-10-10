@@ -182,6 +182,10 @@ describe("SocialPostStatistics account history", () => {
   it("shows headline metrics and imported posts without the old account-card grid", async () => {
     renderStatistics();
     expect(await screen.findByText(post.text)).toBeVisible();
+    expect(screen.getByRole("button", { name: /Sync/ })).toHaveClass(
+      "h-11",
+      "md:h-8",
+    );
     expect(
       screen.getByRole("heading", { name: "Account performance" }),
     ).toBeVisible();

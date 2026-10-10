@@ -367,6 +367,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
             <Button
               type="button"
               size="sm"
+              className="h-11 md:h-8"
               variant="outline"
               loading={Boolean(enqueueingId)}
               disabled={
