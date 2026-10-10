@@ -2536,6 +2536,10 @@
           "noAccountsTitle": "Aún no hay ninguna cuenta conectada",
           "connectAccount": "Conectar cuenta",
           "dismiss": "Cancelar",
+          "discardTitle": "¿Descartar cambios?",
+          "discardDescription": "Se perderán tus cambios.",
+          "discard": "Descartar",
+          "keepEditing": "Seguir editando",
           "previewEmpty": "Tu publicación aparece aquí mientras escribes.",
           "pickAccount": "Elige una cuenta en la que publicar."
         },
