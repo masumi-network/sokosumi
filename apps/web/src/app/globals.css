@@ -153,6 +153,7 @@
   --color-social-linkedin-link: var(--social-linkedin-link);
   --color-social-instagram-link: var(--social-instagram-link);
   --color-social-facebook-link: var(--social-facebook-link);
+  --color-social-youtube-link: var(--social-youtube-link);
 
   --animate-reasoning-text-shine: reasoning-text-shine 2.5s ease-in-out infinite;
   /* Beautiful UI shimmer — register like reasoning-text-shine so Tailwind emits it. */
@@ -481,6 +482,7 @@
   --social-linkedin-link: #0a66c2;
   --social-instagram-link: #00376b;
   --social-facebook-link: #0866ff;
+  --social-youtube-link: #065fd4;
   --semantic-success-tertiary: hsla(142, 26.6%, 79.6%, 1);
   --semantic-success-quaternary: hsla(142, 100.0%, 90.0%, 1);
   --semantic-success-quinary: hsla(142, 26.6%, 93.4%, 1);
@@ -708,6 +710,7 @@
   --social-linkedin-link: #71b7fb;
   --social-instagram-link: #e0f1ff;
   --social-facebook-link: #6ba4ff;
+  --social-youtube-link: #3ea6ff;
   --semantic-success-tertiary: hsla(142, 62.6%, 20.4%, 1);
   --semantic-success-quaternary: hsla(142, 56.7%, 14.7%, 1);
   --semantic-success-quinary: hsla(142, 45.9%, 9.7%, 1);

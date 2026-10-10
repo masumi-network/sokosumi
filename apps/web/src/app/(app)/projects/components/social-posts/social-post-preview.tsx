@@ -10,6 +10,7 @@ import {
   MessageCircle,
   MessageSquare,
   MoreHorizontal,
+  Play,
   Repeat2,
   Send,
   Share,
@@ -35,9 +36,10 @@ interface SocialPostPreviewProps extends SocialPostPreviewContentProps {
 }
 
 /**
- * How a post will look in the network's own feed. X, LinkedIn, Instagram and
- * Facebook render their native layout; the other networks share a neutral
- * card. Engagement rows are decorative: nothing here reads live feed data.
+ * How a post will look in the network's own feed. X, LinkedIn, Instagram,
+ * Facebook and YouTube render their native layout; the other networks share
+ * a neutral card. Engagement rows are decorative: nothing here reads live
+ * feed data.
  */
 export function SocialPostPreview({
   provider,
@@ -63,6 +65,8 @@ export function SocialPostPreview({
         <InstagramPreview {...content} />
       ) : provider === "facebook" ? (
         <FacebookPreview {...content} />
+      ) : provider === "youtube" ? (
+        <YouTubePreview {...content} />
       ) : (
         <GenericPreview provider={provider} {...content} />
       )}
@@ -362,6 +366,90 @@ function InstagramPreview({
             ? formatter.dateTime(timestamp, { month: "long", day: "numeric" })
             : t("now")}
         </p>
+      </div>
+    </div>
+  );
+}
+
+/** YouTube's title is the first line, capped at the upload title limit. */
+function youtubeTitleAndBody(text: string): { title: string; body: string } {
+  const breakAt = text.indexOf("\n");
+  const title = (breakAt === -1 ? text : text.slice(0, breakAt))
+    .trim()
+    .slice(0, 100);
+  const body = breakAt === -1 ? "" : text.slice(breakAt + 1).trim();
+  return { title, body };
+}
+
+function YouTubePreview({
+  account,
+  media,
+  text,
+  timestamp,
+}: SocialPostPreviewContentProps) {
+  const t = useTranslations("App.Projects.SocialPosts.preview");
+  const name = accountName(account, t("accountFallback"));
+  const time = usePreviewTime(timestamp);
+  const { title, body } = youtubeTitleAndBody(text);
+  const fold = useFold(body, 180, 3);
+  const clip = media[0];
+
+  return (
+    <div>
+      <div className="bg-muted relative aspect-video overflow-hidden">
+        {clip ? (
+          <>
+            <PreviewMediaItem media={clip} />
+            <div
+              aria-hidden
+              className="absolute inset-0 flex items-center justify-center"
+            >
+              <span className="bg-scrim-strong text-on-media flex size-12 items-center justify-center rounded-full">
+                <Play className="size-5 fill-current" />
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="text-muted-foreground flex size-full items-center justify-center px-6 text-center text-xs text-balance">
+            {t("youtube.videoRequired")}
+          </div>
+        )}
+      </div>
+      <div className="space-y-2 px-3 py-3">
+        {title ? (
+          <p className="line-clamp-2 text-base leading-5 font-semibold">
+            {title}
+          </p>
+        ) : null}
+        <div className="flex items-center gap-3">
+          <PreviewAvatar account={account} name={name} className="size-9" />
+          <div className="min-w-0 flex-1 leading-4">
+            <p className="truncate text-sm font-semibold">{name}</p>
+            <p className="text-muted-foreground text-xs">{time}</p>
+          </div>
+        </div>
+        {body ? (
+          <div className="bg-muted rounded-lg px-3 py-2">
+            <p className="leading-5 whitespace-pre-wrap break-words">
+              <PreviewRichText
+                text={fold.visibleText}
+                linkClassName="text-social-youtube-link"
+              />
+              {fold.folded ? (
+                <>
+                  {" "}
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-social-youtube-link hover:underline"
+                    onClick={fold.expand}
+                  >
+                    {t("youtube.seeMore")}
+                  </button>
+                </>
+              ) : null}
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

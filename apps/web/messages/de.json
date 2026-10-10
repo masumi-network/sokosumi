@@ -2614,6 +2614,10 @@
             "share": "Teilen",
             "seeMore": "Mehr anzeigen",
             "public": "Öffentlich"
+          },
+          "youtube": {
+            "seeMore": "Mehr anzeigen",
+            "videoRequired": "YouTube braucht ein Video."
           }
         },
         "statistics": {
