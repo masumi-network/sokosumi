@@ -94,8 +94,8 @@ export function PreviewMediaItem({
   className?: string;
 }) {
   const mediaClassName = cn("size-full object-cover", className);
-  if (media.kind === "video") {
-    return (
+  const visual =
+    media.kind === "video" ? (
       <video
         aria-label={media.name}
         className={mediaClassName}
@@ -104,16 +104,27 @@ export function PreviewMediaItem({
         preload="metadata"
         src={media.fileUrl}
       />
+    ) : (
+      <img
+        alt={media.name}
+        className={mediaClassName}
+        decoding="async"
+        loading="lazy"
+        src={media.fileUrl}
+      />
     );
-  }
+  if (media.kind !== "gif") return visual;
   return (
-    <img
-      alt={media.name}
-      className={mediaClassName}
-      decoding="async"
-      loading="lazy"
-      src={media.fileUrl}
-    />
+    <div className="relative size-full min-h-0">
+      {visual}
+      <span
+        aria-hidden
+        className="bg-scrim-strong text-on-media absolute bottom-2 start-2 rounded px-1.5 py-0.5 text-2xs font-semibold"
+        data-testid="social-post-preview-gif"
+      >
+        GIF
+      </span>
+    </div>
   );
 }
 

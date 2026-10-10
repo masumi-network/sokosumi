@@ -109,6 +109,30 @@ describe("SocialPostPreview", () => {
     expect(screen.getByRole("img", { name: "a.png" })).toBeVisible();
   });
 
+  it("marks a GIF with a GIF badge", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[
+          {
+            ...IMAGE,
+            pathname: "drive/a.gif",
+            name: "a.gif",
+            mimeType: "image/gif",
+            kind: "gif",
+          },
+        ]}
+        provider="x"
+        text=""
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByTestId("social-post-preview-gif")).toHaveTextContent(
+      "GIF",
+    );
+  });
+
   it("lays out several images in a grid", () => {
     render(
       <SocialPostPreview
