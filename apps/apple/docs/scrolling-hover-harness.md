@@ -669,7 +669,9 @@ struct MinimalList: View {
   static func fixture(_ count: Int) -> [Components.Schemas.ChatRoomMessage] {
     let people = [("u1", "Patrick Tobler"), ("u2", "Francis Luz"), ("u3", "Andreas"), ("u4", "Phil")]
     let start = 1_790_000_000.0
-    let kinds = (ProcessInfo.processInfo.environment["HITCH_KINDS"] ?? "0,1,2,3,4,5,6,7,8").split(separator: ",").compactMap { Int($0) }
+    let named = (ProcessInfo.processInfo.environment["HITCH_KINDS"] ?? "").split(separator: ",")
+      .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }.filter { (0 ..< 9).contains($0) }
+    let kinds = named.isEmpty ? Array(0 ..< 9) : named
     return (0 ..< count).map { index in
       let person = people[(index / 3) % people.count]
       let kind = kinds[index % kinds.count]
@@ -1035,7 +1037,7 @@ def score(offset):
     return sum(bins[int((offset + at) // 10) + k] for at in inserts for k in range(span // 10))
 
 
-last = max([inserts[-1]] + [end for _, end in landings])
+last = max(end for _, end in landings) if mode == 'landings' else inserts[-1]
 best = max(range(0, int(samples[-1][0]) - int(last), 5), key=score)
 windows = ([(best + start - 5, best + end + 5) for start, end in landings] if mode == 'landings'
            else [(best + at, best + at + span) for at in events])
