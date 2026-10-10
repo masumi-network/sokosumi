@@ -105,6 +105,9 @@ const MESSAGES: Record<string, string> = {
   "connectPrompt.title": "Connect an account to start posting",
   "connectPrompt.body": "Posts go out from this project's accounts.",
   "connectPrompt.action": "Connect X, YouTube, LinkedIn…",
+  "reconnectPrompt.title": "Reconnect to post",
+  "reconnectPrompt.body": "Sign in again on a connected account.",
+  "reconnectPrompt.action": "Reconnect",
   selectedPost: "Selected post",
   "empty.drafts": "No drafts yet.",
   "emptyHint.drafts": "Save a post as a draft to finish it later.",
@@ -180,6 +183,9 @@ const MESSAGES: Record<string, string> = {
   "publishDialog.description":
     "The post goes out to X right away instead of waiting for its scheduled time.",
   "publishDialog.confirm": "Publish now",
+  "retryDialog.title": "Retry this post?",
+  "retryDialog.description": "The post goes out now.",
+  "retryDialog.confirm": "Retry",
   "toasts.published": "Post published.",
   "toasts.publishFailed": "Publishing failed: {error}",
   "toasts.created": "Draft saved.",
@@ -189,6 +195,8 @@ const MESSAGES: Record<string, string> = {
   "toasts.conflict":
     "This post was changed elsewhere. Reloading the latest version.",
   "toasts.failed": "Something went wrong. Try again.",
+  "toasts.offline": "You're offline. Try again.",
+  "toasts.timeout": "Timed out. Try again.",
   "composer.scheduledAtTooSoon": "Choose a time at least one minute from now.",
   "composer.timezone.yours": "Times are in your time zone, {zone}.",
   "composer.timezone.goesOut": "Goes out {date}, your time ({zone}).",
@@ -506,6 +514,10 @@ function render(ui: React.ReactElement) {
 describe("ProjectSocialPosts", () => {
   afterEach(() => {
     vi.useRealTimers();
+    Object.defineProperty(navigator, "onLine", {
+      configurable: true,
+      value: true,
+    });
   });
 
   beforeEach(() => {
@@ -656,6 +668,35 @@ describe("ProjectSocialPosts", () => {
     expect(getTab("Accounts")).toHaveTextContent("Accounts 1");
     expect(
       screen.queryByTestId("social-connect-prompt"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("counts expired accounts and asks to reconnect instead of connect", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accountCount={2}
+        accounts={<p>Accounts panel</p>}
+        calendar={<p>Calendar panel</p>}
+        connections={[]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(getTab("Accounts")).toHaveTextContent("Accounts 2");
+    expect(
+      screen.queryByTestId("social-connect-prompt"),
+    ).not.toBeInTheDocument();
+
+    const prompt = screen.getByTestId("social-reconnect-prompt");
+    expect(within(prompt).getByText("Reconnect to post")).toBeVisible();
+    await user.click(within(prompt).getByRole("button", { name: "Reconnect" }));
+
+    expect(getTab("Accounts")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Accounts panel")).toBeVisible();
+    expect(
+      screen.queryByTestId("social-reconnect-prompt"),
     ).not.toBeInTheDocument();
   });
 
@@ -1923,11 +1964,15 @@ describe("ProjectSocialPosts", () => {
 
     const alert = screen.getByRole("alertdialog");
     expect(
-      within(alert).getByRole("heading", { name: "Publish this post now?" }),
+      within(alert).getByRole("heading", { name: "Retry this post?" }),
     ).toBeVisible();
-    await user.click(
-      within(alert).getByRole("button", { name: "Publish now" }),
-    );
+    expect(within(alert).getByText("The post goes out now.")).toBeVisible();
+    expect(
+      within(alert).queryByRole("heading", {
+        name: "Publish this post now?",
+      }),
+    ).not.toBeInTheDocument();
+    await user.click(within(alert).getByRole("button", { name: "Retry" }));
 
     await waitFor(() => {
       expect(publishProjectSocialPost).toHaveBeenCalledWith({
@@ -2477,6 +2522,62 @@ describe("ProjectSocialPosts", () => {
       ),
     );
     expect(screen.getByRole("dialog")).toBeVisible();
+  });
+
+  it("toasts an offline message when saving a draft while disconnected", async () => {
+    Object.defineProperty(navigator, "onLine", {
+      configurable: true,
+      value: false,
+    });
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost).mockRejectedValue(
+      new Error("Failed to fetch"),
+    );
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Fresh");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("You're offline. Try again."),
+    );
+  });
+
+  it("toasts a timeout when canceling takes too long", async () => {
+    const user = userEvent.setup();
+    const timeout = new Error("The operation timed out");
+    timeout.name = "TimeoutError";
+    vi.mocked(cancelProjectSocialPost).mockRejectedValue(timeout);
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
+      />,
+    );
+
+    await openRowMenu(user, "post-scheduled");
+    await user.click(screen.getByRole("menuitem", { name: "Cancel post" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Cancel post",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("Timed out. Try again."),
+    );
   });
 
   it("shows the fallback error when scheduling rejects", async () => {
