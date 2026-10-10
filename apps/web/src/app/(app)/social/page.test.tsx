@@ -69,6 +69,7 @@ vi.mock("@/app/calendar/components/workspace-calendar", () => ({
 vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
   ProjectSocialPosts: (props: {
     accounts?: React.ReactNode;
+    accountCount?: number;
     actions?: React.ReactNode;
     calendar?: React.ReactNode;
     posts: { id: string }[];
@@ -78,6 +79,7 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
   }) => (
     <div
       data-testid="social-posts"
+      data-account-count={String(props.accountCount ?? "")}
       data-connections={props.connections.map((c) => c.id).join(",")}
       data-order={props.posts.map((post) => post.id).join(",")}
       data-project={props.projectId}
@@ -213,6 +215,29 @@ describe("SocialPage", () => {
     expect(screen.getByTestId("social-posts")).toHaveAttribute(
       "data-connections",
       "conn-x,conn-ig",
+    );
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-account-count",
+      "2",
+    );
+  });
+
+  it("counts expired accounts for the Accounts tab even with no actives", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialConnections.mockResolvedValue([
+      { id: "conn-x", status: "reauthorization_required", provider: "x" },
+      { id: "conn-pending", status: "pending", provider: "youtube" },
+    ]);
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-connections",
+      "",
+    );
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-account-count",
+      "2",
     );
   });
 

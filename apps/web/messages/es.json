@@ -2517,16 +2517,16 @@
             "now": "Ahora"
           },
           "timezone": {
-            "yours": "Las horas están en tu zona horaria, {zone}.",
-            "goesOut": "Sale el {date}, tu hora ({zone}).",
-            "postZone": "Programada para {date} en {zone}."
+            "yours": "Tu zona horaria: {zone}",
+            "goesOut": "Sale el {date} ({zone})",
+            "postZone": "Programada como {date} ({zone})"
           },
           "platforms": "Límites por plataforma",
           "platformLimit": "{provider}: {format} · {count} / {limit}",
           "formats": {
             "post": "publicación",
             "mediaPost": "publicación con imagen o video",
-            "video": "video (el texto es el título y la descripción)"
+            "video": "vídeo"
           },
           "publishNow": "Publicar ahora",
           "when": "Cuándo",
@@ -2551,6 +2551,8 @@
           "canceled": "Publicación cancelada.",
           "conflict": "Esta publicación se modificó en otro lugar. Cargando la versión más reciente.",
           "failed": "Algo salió mal. Inténtalo de nuevo.",
+          "offline": "Estás sin conexión. Inténtalo de nuevo.",
+          "timeout": "Se agotó el tiempo. Inténtalo de nuevo.",
           "unauthenticated": "Inicia sesión para continuar.",
           "unauthenticatedAction": "Iniciar sesión",
           "published": "Publicación publicada.",
@@ -2572,10 +2574,20 @@
           "description": "La publicación saldrá de inmediato en lugar de esperar a la hora programada.",
           "confirm": "Publicar ahora"
         },
+        "retryDialog": {
+          "title": "¿Reintentar esta publicación?",
+          "description": "La publicación saldrá ahora.",
+          "confirm": "Reintentar"
+        },
         "connectPrompt": {
           "title": "Conecta una cuenta para empezar a publicar",
           "body": "Las publicaciones salen de las cuentas de X, Instagram, LinkedIn, Facebook y YouTube conectadas a este proyecto.",
           "action": "Conectar X, YouTube, LinkedIn…"
+        },
+        "reconnectPrompt": {
+          "title": "Vuelve a conectar para publicar",
+          "body": "Inicia sesión de nuevo en una cuenta conectada.",
+          "action": "Reconectar"
         },
         "preview": {
           "label": "Vista previa de {provider}",
