@@ -9,8 +9,7 @@ const requireFromWeb = createRequire(join(webRoot, "package.json"));
 const { chromium } = requireFromWeb("playwright");
 const { createServer } = requireFromWeb("vite");
 
-const PAGE_MODULE =
-  "/src/app/(app)/projects/components/social-posts/social-post-row-display-name-page.tsx";
+const PAGE_MODULE = "/scripts/social-post-row-display-name-page.tsx";
 
 const docsDir = join(webRoot, "docs/images/social-post-row-display-name");
 const artifactsDir = "/opt/cursor/artifacts/social-post-row-display-name";

@@ -1,12 +1,12 @@
 /** Playwright capture page for Social draft-row account labels. */
 import { NextIntlClientProvider } from "next-intl";
 import { createRoot } from "react-dom/client";
+import { socialPostAccountLabel } from "@/app/projects/components/social-posts/social-post-account-label";
+import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { createFormats } from "@/i18n/time-format";
 import messages from "@/messages/en.json";
-import { socialPostAccountLabel } from "./social-post-account-label";
-import { SocialPostStatusBadge } from "./social-post-status-badge";
 
 const CONNECTION = {
   displayName: "Sokosumi HQ",
@@ -27,10 +27,7 @@ export function RowDisplayNamePage() {
       messages={messages}
       timeZone="UTC"
     >
-      <div
-        className="bg-muted min-h-screen p-6"
-        style={{ minHeight: "100vh", padding: 24 }}
-      >
+      <div className="bg-muted p-6" style={{ padding: 24 }}>
         <ul
           style={{
             margin: "0 auto",
