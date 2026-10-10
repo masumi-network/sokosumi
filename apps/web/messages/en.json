@@ -2583,6 +2583,9 @@
           "accountFallback": "Your account",
           "open": "Preview",
           "dialogTitle": "Post preview",
+          "offline": "You're offline.",
+          "timeout": "Timed out.",
+          "missing": "Couldn't open this post.",
           "linkedin": {
             "like": "Like",
             "comment": "Comment",
