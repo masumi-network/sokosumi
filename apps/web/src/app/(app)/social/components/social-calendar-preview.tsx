@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { loadSocialCalendarPreview } from "./social-calendar-preview-actions";
 
 const SocialCalendarPreviewContext = createContext<
@@ -82,8 +83,19 @@ export function SocialCalendarPreviewProvider({
         >
           <DialogHeader>
             <DialogTitle>{t("preview.dialogTitle")}</DialogTitle>
-            <DialogDescription>{t("loading")}</DialogDescription>
+            <DialogDescription className="sr-only">
+              {t("loading")}
+            </DialogDescription>
           </DialogHeader>
+          <div
+            aria-hidden
+            className="space-y-2"
+            data-testid="social-calendar-preview-skeleton"
+          >
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
         </DialogContent>
       </Dialog>
       {target ? (
