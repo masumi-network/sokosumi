@@ -13,6 +13,7 @@ import {
   Eye,
   Link2,
   MoreHorizontal,
+  RefreshCw,
   RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
@@ -84,6 +85,11 @@ interface ProjectSocialPostsProps {
   actions?: ReactNode;
   /** Active connections only; drives the account picker. */
   connections: ProjectSocialConnection[];
+  /**
+   * Managed accounts on the Accounts tab (active, pending, reconnect).
+   * Defaults to `connections.length` when the page only loaded actives.
+   */
+  accountCount?: number;
   posts: SocialPost[];
   nextCursors?: Partial<Record<SectionKey, string | null>>;
   projectId: string;
@@ -120,6 +126,21 @@ function formatHandle(handle: string | null): string | null {
 
 function isRevisionConflict(error: ActionError): boolean {
   return error.kind === CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT;
+}
+
+function isBrowserOffline(): boolean {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+function isTimeoutRejection(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const name = "name" in error ? error.name : undefined;
+  if (name === "AbortError" || name === "TimeoutError") return true;
+  const message =
+    "message" in error && typeof error.message === "string"
+      ? error.message.toLowerCase()
+      : "";
+  return message.includes("timed out") || message.includes("timeout");
 }
 
 function upsertPost(posts: SocialPost[], next: SocialPost): SocialPost[] {
@@ -166,6 +187,7 @@ function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
 
 export function ProjectSocialPosts({
   accounts,
+  accountCount,
   actions,
   calendar,
   connections,
@@ -243,12 +265,21 @@ export function ProjectSocialPosts({
   });
   const tab: SocialTab =
     tabParam && tabs.includes(tabParam) ? tabParam : tabs[0];
+  const listedAccountCount = accountCount ?? connections.length;
+  const accountPrompt =
+    accounts === undefined || tab === "accounts"
+      ? null
+      : listedAccountCount === 0
+        ? "connect"
+        : connections.length === 0
+          ? "reconnect"
+          : null;
 
   function showTab(next: SocialTab | null): void {
     void setTabParam(next);
   }
 
-  function handleActionError(error: ActionError): void {
+  function handleActionError(error: ActionError, cause?: unknown): void {
     if (error.code === CommonErrorCode.UNAUTHENTICATED) {
       toast.error(t("toasts.unauthenticated"), {
         action: {
@@ -265,6 +296,14 @@ export function ProjectSocialPosts({
       compose?.setOpen(false);
       setCancelTarget(null);
       router.refresh();
+      return;
+    }
+    if (isBrowserOffline()) {
+      toast.error(t("toasts.offline"));
+      return;
+    }
+    if (isTimeoutRejection(cause)) {
+      toast.error(t("toasts.timeout"));
       return;
     }
     toast.error(error.message || t("toasts.failed"));
@@ -313,7 +352,7 @@ export function ProjectSocialPosts({
       toast.success(t("toasts.canceled"));
       handleSaved(result.value);
     } catch (error) {
-      handleActionError(toActionRejectionError(error));
+      handleActionError(toActionRejectionError(error), error);
     } finally {
       setCancelPending(false);
       setCancelTarget(null);
@@ -347,6 +386,8 @@ export function ProjectSocialPosts({
       } else {
         toast.error(t("toasts.failed"));
       }
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
     } finally {
       setPublishPending(false);
       setPublishTarget(null);
@@ -457,6 +498,11 @@ export function ProjectSocialPosts({
       </div>
     );
   }
+
+  const publishCopy =
+    publishTarget && RETRY_STATUSES.includes(publishTarget.status)
+      ? "retryDialog"
+      : "publishDialog";
 
   function renderPost(post: SocialPost) {
     const handle = formatHandle(post.socialConnection?.externalHandle ?? null);
@@ -627,7 +673,7 @@ export function ProjectSocialPosts({
                   candidate === "drafts" || candidate === "attention"
                     ? postsIn(candidate).length
                     : candidate === "accounts"
-                      ? connections.length
+                      ? listedAccountCount
                       : 0;
                 return (
                   <TabsTrigger
@@ -660,19 +706,25 @@ export function ProjectSocialPosts({
             {actions}
           </div>
 
-          {accounts !== undefined &&
-          connections.length === 0 &&
-          tab !== "accounts" ? (
+          {accountPrompt ? (
             <div
               className="bg-card-background flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
-              data-testid="social-connect-prompt"
+              data-testid={
+                accountPrompt === "reconnect"
+                  ? "social-reconnect-prompt"
+                  : "social-connect-prompt"
+              }
             >
               <div className="space-y-1">
                 <p className="text-sm font-medium">
-                  {t("connectPrompt.title")}
+                  {accountPrompt === "reconnect"
+                    ? t("reconnectPrompt.title")
+                    : t("connectPrompt.title")}
                 </p>
                 <p className="text-muted-foreground text-sm text-pretty">
-                  {t("connectPrompt.body")}
+                  {accountPrompt === "reconnect"
+                    ? t("reconnectPrompt.body")
+                    : t("connectPrompt.body")}
                 </p>
               </div>
               <Button
@@ -681,8 +733,14 @@ export function ProjectSocialPosts({
                 size="sm"
                 type="button"
               >
-                <Link2 className="size-4" aria-hidden />
-                {t("connectPrompt.action")}
+                {accountPrompt === "reconnect" ? (
+                  <RefreshCw className="size-4" aria-hidden />
+                ) : (
+                  <Link2 className="size-4" aria-hidden />
+                )}
+                {accountPrompt === "reconnect"
+                  ? t("reconnectPrompt.action")
+                  : t("connectPrompt.action")}
               </Button>
             </div>
           ) : null}
@@ -856,9 +914,9 @@ export function ProjectSocialPosts({
       >
         <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("publishDialog.title")}</AlertDialogTitle>
+            <AlertDialogTitle>{t(`${publishCopy}.title`)}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("publishDialog.description")}
+              {t(`${publishCopy}.description`)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -872,7 +930,7 @@ export function ProjectSocialPosts({
                 void handleConfirmPublish();
               }}
             >
-              {t("publishDialog.confirm")}
+              {t(`${publishCopy}.confirm`)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

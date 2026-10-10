@@ -2686,10 +2686,23 @@ const socialAccountStatisticsSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const socialSyncReadModelSchemaResponseTransformer = (data: any) => {
+    if (data.dataFetchedAt) {
+        data.dataFetchedAt = new Date(data.dataFetchedAt);
+    }
+    if (data.headFetchedAt) {
+        data.headFetchedAt = new Date(data.headFetchedAt);
+    }
+    return data;
+};
+
 const socialAccountStatisticsAccountSchemaResponseTransformer = (data: any) => {
     data = projectSocialConnectionSchemaResponseTransformer(data);
     if (data.statistics) {
         data.statistics = socialAccountStatisticsSchemaResponseTransformer(data.statistics);
+    }
+    if (data.sync) {
+        data.sync = socialSyncReadModelSchemaResponseTransformer(data.sync);
     }
     return data;
 };
