@@ -501,7 +501,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
           {t("invalidRange")}
         </p>
       ) : null}
-      {headline ? (
+      {validRange && headline ? (
         <SocialPerformanceOverview
           headline={headline}
           impressionBased={
@@ -510,7 +510,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
           }
         />
       ) : null}
-      {consistency ? (
+      {validRange && consistency ? (
         <PostingConsistency
           days={consistency.daily.map((day) => ({
             date:
