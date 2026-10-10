@@ -73,8 +73,7 @@ const MESSAGES: Record<string, string> = {
   "errors.popupBlocked":
     "Your browser blocked the authorization window. Allow popups and try again.",
   "errors.timeout": "Authorization took too long. Try again.",
-  "errors.providerCallback":
-    "Authorization did not complete. Return to the Project’s Social page and try again.",
+  "errors.providerCallback": "Authorization did not complete. Try again.",
   "errors.legacyCallback":
     "This callback cannot verify your account. Contact support and try again.",
   "errors.verifier":
@@ -661,7 +660,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "Authorization did not complete. Return to the Project’s Social page and try again.",
+        "Authorization did not complete. Try again.",
       );
     });
     expect(toastErrorMock).not.toHaveBeenCalledWith("provider-secret-detail");

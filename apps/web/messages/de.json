@@ -2408,7 +2408,7 @@
           "inFlight": "Eine andere Kontoaktion läuft bereits.",
           "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
           "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
-          "providerCallback": "Die Autorisierung wurde nicht abgeschlossen. Kehre zur Social-Seite des Projekts zurück und versuche es erneut.",
+          "providerCallback": "Die Autorisierung wurde nicht abgeschlossen. Versuche es erneut.",
           "legacyCallback": "Mit dieser Rückmeldung kann dein Konto nicht verifiziert werden. Wende dich an den Support und versuche es erneut.",
           "verifier": "Dein Konto konnte nicht verifiziert werden. Starte die Verbindung erneut.",
           "intent": "Diese Verbindungsanfrage ist abgelaufen oder nicht mehr gültig. Starte erneut.",
