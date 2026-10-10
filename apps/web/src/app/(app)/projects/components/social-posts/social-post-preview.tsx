@@ -377,7 +377,7 @@ function InstagramPreview({
             ) : null}
           </p>
         ) : null}
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-2xs uppercase">
           {timestamp
             ? formatter.dateTime(timestamp, { month: "long", day: "numeric" })
             : t("now")}

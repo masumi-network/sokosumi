@@ -192,6 +192,30 @@ describe("SocialPostPreview", () => {
     );
   });
 
+  it("shows Instagram's date in uppercase dense type", () => {
+    const { rerender } = render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="instagram"
+        text="Caption"
+        timestamp={new Date("2026-10-10T12:00:00.000Z")}
+      />,
+    );
+    expect(screen.getByText("October 10")).toHaveClass("text-2xs", "uppercase");
+
+    rerender(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="instagram"
+        text="Caption"
+        timestamp={null}
+      />,
+    );
+    expect(screen.getByText("now")).toHaveClass("text-2xs", "uppercase");
+  });
+
   it("shows Instagram's 4:5 media frame and asks for media when missing", () => {
     const { rerender } = render(
       <SocialPostPreview
