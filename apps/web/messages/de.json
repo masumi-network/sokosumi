@@ -3016,10 +3016,10 @@
         "sokoBotHint": "Im Chat besprechen, Soko Bot entwirft und plant.",
         "sokoBotSetup": "Richte zuerst Soko Bot ein",
         "sokoBotFailed": "Der Soko-Bot-Chat konnte nicht geöffnet werden. Versuche es erneut.",
-        "sokoBotPrompt": "Hilf mir, einen Beitrag für das Projekt {project} zu erstellen.",
+        "sokoBotPrompt": "Hilf mir, einen Beitrag für {project} zu erstellen.",
         "sokoBotPromptAnyProject": "Hilf mir, einen Beitrag zu erstellen.",
         "chooseProjectTitle": "Projekt für diesen Beitrag wählen",
-        "chooseProjectBody": "Ein Beitrag wird über die Konten eines Projekts veröffentlicht."
+        "chooseProjectBody": "Beiträge gehen über die Konten eines Projekts raus."
       },
       "accountsNeedProject": {
         "title": "Verbinde deine Social-Media-Konten",
