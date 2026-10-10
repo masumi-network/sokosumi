@@ -2419,7 +2419,9 @@
           "notConfigured": "This integration is not configured yet. Contact support to enable it."
         },
         "comingSoon": "Coming soon",
-        "connectComingSoon": "{provider} (coming soon)"
+        "connectComingSoon": "{provider} (coming soon)",
+        "empty": "No accounts yet.",
+        "emptyHint": "Connect one to post."
       },
       "SocialPosts": {
         "loadMore": "Load more",

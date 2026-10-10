@@ -525,7 +525,17 @@ export function ProjectSocialAccounts({
             );
           })}
         </ul>
-      ) : null}
+      ) : (
+        <div
+          className="rounded-lg border border-dashed px-4 py-8 text-center"
+          data-testid="project-social-accounts-empty"
+        >
+          <p className="text-sm font-medium">{t("empty")}</p>
+          <p className="text-muted-foreground mt-1 text-sm text-pretty">
+            {t("emptyHint")}
+          </p>
+        </div>
+      )}
 
       <AlertDialog
         open={pendingConfirmation !== null}
