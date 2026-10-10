@@ -721,6 +721,11 @@ export function ProjectSocialPosts({
                       </p>
                     </div>
                   )}
+                  {sectionPosts.length === 0 && cursor ? (
+                    <p className="text-muted-foreground text-sm">
+                      {t("empty.more")}
+                    </p>
+                  ) : null}
                   {cursor ? (
                     <Button
                       type="button"

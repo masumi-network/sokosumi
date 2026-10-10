@@ -2439,7 +2439,8 @@
           "statistics": "Statistiken"
         },
         "empty": {
-          "drafts": "Noch keine Entwürfe."
+          "drafts": "Noch keine Entwürfe.",
+          "more": "Weitere Beiträge sind verfügbar."
         },
         "emptyHint": {
           "drafts": "Speichere einen Beitrag als Entwurf, um ihn später fertigzustellen."
