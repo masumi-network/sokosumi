@@ -12,11 +12,15 @@ parser.add_argument("app", type=Path)
 parser.add_argument("output", type=Path)
 parser.add_argument("--pairs", type=int, default=3)
 parser.add_argument("--single-line", action="store_true")
+parser.add_argument("--fixed-row-height", action="store_true", help="Clip rich content to diagnostic 160-point row bounds")
+parser.add_argument("--reveal-rows", action="store_true", help="Reveal the first inserted row in both directions")
+parser.add_argument("--omit", choices=["none", "body-selection", "clamp", "code-highlighting"], default="none", help="Omit one component in the copied rich build")
 parser.add_argument("--rich", action="store_true", help="Require a build made with --rich")
 parser.add_argument("--page-size", type=int, default=100)
 parser.add_argument("--check-budget", action="store_true", help="Exit 1 if a publication exceeds the fixed 25 ms diagnostic budget")
 args = parser.parse_args()
 assert args.pairs > 0
+assert args.rich or args.omit == "none", "Component controls need the rich build"
 assert not (args.rich and args.single_line), "Single-line mode is a bare-text control"
 args.output.mkdir(parents=True, exist_ok=True)
 assert not any(args.output.glob("*-*.json")), "Use a fresh output folder"
@@ -27,12 +31,23 @@ for pair in range(1, args.pairs + 1):
     for direction in (["prepend", "append"] if pair % 2 else ["append", "prepend"]):
         path = args.output.resolve() / f"{direction}-{pair}.json"
         env = dict(os.environ, REPRO_DIRECTION=direction, REPRO_OUTPUT=str(path),
-                   REPRO_SINGLE_LINE=str(int(args.single_line)), REPRO_PAGE_SIZE=str(args.page_size), REPRO_INSPECT="0")
+                   REPRO_SINGLE_LINE=str(int(args.single_line)), REPRO_PAGE_SIZE=str(args.page_size), REPRO_INSPECT="0", REPRO_REVEAL_ROWS=str(int(args.reveal_rows)), REPRO_OMIT=args.omit, REPRO_FIXED_ROW_HEIGHT=str(int(args.fixed_row_height)))
         completed = subprocess.run([str(binary)], env=env, capture_output=True, text=True, timeout=40, check=True)
         path.with_suffix(".stderr.log").write_text(completed.stderr)
         result = json.loads(path.read_text())
         assert result["direction"] == direction and result["page_size"] == args.page_size
         assert result["single_line"] == args.single_line
+        assert result.get("fixed_row_height", False) == args.fixed_row_height
+        assert result.get("omitted_component", "none") == args.omit
+        assert result.get("reveal_rows", False) == args.reveal_rows
+        if args.reveal_rows:
+            if args.rich:
+                assert [row["revealed_row"] for row in result["insertions"]] == [100 + page * args.page_size for page in range(5)]
+                assert all(row["revealed_row"] in row["visible_row_ids"] for row in result["insertions"])
+                if len(runs) % 2:
+                    assert [row["visible_row_ids"] for row in result["insertions"]] == [row["visible_row_ids"] for row in runs[-1]["insertions"]], "Paired viewports show different rows"
+            else:
+                assert all("revealed_row" in row for row in result["insertions"])
         assert result.get("row_kind", "plain") == ("production-rich" if args.rich else "plain")
         if args.rich:
             assert len(result["input_fingerprint_sha256"]) == 64

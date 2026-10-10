@@ -5,10 +5,12 @@ import ImageIO
 import SokosumiAuth
 import SokosumiChat
 import SokosumiWorkspace
+import SwiftUI
 import Synchronization
 
 /// Fixture data only. Rendering uses the production MessageRowView and its children unchanged.
 @MainActor enum RichRowFixture {
+  static let omittedComponent = ProcessInfo.processInfo.environment["REPRO_OMIT"] ?? "none"
   static let auth = AuthState(store: InMemoryTokenStore())
   static let workspace = WorkspaceState()
   static let messages: [Components.Schemas.ChatRoomMessage] = (0 ..< 600).map { index in
@@ -110,4 +112,15 @@ private final nonisolated class FixtureMedia: URLProtocol, @unchecked Sendable {
     guard CGImageDestinationFinalize(destination) else { fatalError("Cannot finish fixture image") }
     return data as Data
   }()
+}
+
+/// Used only by the copied Markdown view; the enabled branch keeps production selection.
+extension View {
+  @ViewBuilder func reproductionBodySelection() -> some View {
+    if RichRowFixture.omittedComponent == "body-selection" {
+      textSelection(.disabled)
+    } else {
+      textSelection(.enabled)
+    }
+  }
 }

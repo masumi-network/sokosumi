@@ -35,6 +35,27 @@ shutil.copytree(apple, source, ignore=shutil.ignore_patterns(".build", "prototyp
 entry = source / "Sokosumi/App/SokosumiApp.swift"
 shutil.copyfile(fixture / "ScrollReproduction.swift", entry)
 shutil.copyfile(fixture / "RichRowFixture.swift", entry.with_name("RichRowFixture.swift"))
+# One-component controls affect only these copied files. The corpus and row IDs stay identical.
+def replace_once(path, before, after):
+    text = path.read_text()
+    assert text.count(before) == 1, "Production seam changed: " + str(path)
+    path.write_text(text.replace(before, after))
+
+rendering = source / "Sokosumi/Chat/Rendering"
+replace_once(rendering / "MessageMarkdownView.swift", ".textSelection(.enabled)", ".reproductionBodySelection()")
+replace_once(rendering / "MessageCodeBlock.swift", ".task(id: input) {", '.task(id: input) {\n      guard RichRowFixture.omittedComponent != "code-highlighting" else { return }')
+replace_once(rendering / "ExpandableMessageBody.swift", "  var body: some View {", '''  var body: some View {
+    if RichRowFixture.omittedComponent == "clamp" {
+      VStack(alignment: .leading, spacing: 4) {
+        content.fixedSize(horizontal: false, vertical: true)
+      }
+    } else {
+      clampedBody
+    }
+  }
+
+  private var clampedBody: some View {''')
+
 # Scope the fixture flag to the copied app. A global override erases SwiftPM's SWIFT_PACKAGE flag.
 project = source / "Sokosumi.xcodeproj/project.pbxproj"
 text = project.read_text()

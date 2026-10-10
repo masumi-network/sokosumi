@@ -90,6 +90,30 @@ SwiftLint, SwiftFormat, Python/shell syntax, and the doc-script-reference test.
 No production behavior changed; streaming and position restoration are outside
 this at-rest reproduction.
 
+## Visible-row append control
+
+The follow-up [visible-row isolation](visible-row-isolation.md) reveals the first
+inserted row in both directions using the same nonanimated native scroll command:
+
+```bash
+python3 apps/apple/prototypes/lazy-prepend/measure.py \
+  /tmp/swiftui-rich-rows/ScrollReproduction.app \
+  /tmp/swiftui-visible-results --rich --reveal-rows --pairs 3 --check-budget
+```
+
+The final paired viewports show identical rich-row IDs: prepend median 58.4 ms /
+worst 76.4 ms; visible append median 55.5 ms / worst 69.0 ms. All 30 windows exceed
+25 ms. This includes reveal and realization work. Offscreen appends were cheaper
+because they avoided that work.
+
+The copied sources include optional `--omit body-selection`, `--omit clamp`, and
+`--omit code-highlighting` controls. `--fixed-row-height` clips rows to diagnostic
+160-point bounds. The default retains production behavior. None of these controls
+reliably removed the stall; an apparent highlighting gain failed interleaving.
+Native profiles localize graph/layout and extra prepend root/scroll sizing, but
+provide no SwiftUI view/cause data. No single faulty child component is established.
+See the linked report for raw data, confounds, and profiling commands.
+
 ## Run
 
 Requires an Apple Silicon Mac on macOS 26+ and Xcode 27. The build script uses the
@@ -125,7 +149,8 @@ short text; `REPRO_PAGE_SIZE=30` reduces each page from 100 to 30 rows.
 
 ## Method
 
-Each fresh process starts with 100 rows, waits three seconds, then publishes five
+In the default offscreen comparison, each fresh process starts with 100 rows,
+waits three seconds, then publishes five
 100-row pages, ending at 600 rows. The same text generator and layout serve both
 directions. Both directions start with the viewport at the top. Each page waits one second,
 inserts, then waits one second. SwiftUI handles the resulting layout without a
