@@ -592,6 +592,35 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getAllByRole("list")).toHaveLength(1);
   });
 
+  it("keeps a publishing post on Drafts until it finishes", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[buildPost(), PUBLISHING_POST, SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Drafts 2",
+      "Performance ",
+    ]);
+    const drafts = screen.getByTestId("social-posts-section-drafts");
+    const publishing = within(drafts).getByTestId(
+      "social-post-post-publishing",
+    );
+    expect(within(publishing).getByText("Publishing text")).toBeVisible();
+    expect(
+      within(publishing).getByTestId("social-post-status-PUBLISHING"),
+    ).toHaveTextContent("Publishing…");
+    expect(
+      within(publishing).queryByRole("button", { name: "Post actions" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("social-post-post-scheduled"),
+    ).not.toBeInTheDocument();
+  });
+
   it("opens Social on its calendar, with Accounts as the last tab", async () => {
     const user = userEvent.setup();
     render(
