@@ -2436,7 +2436,7 @@
           "drafts": "Borradores",
           "attention": "Requiere atención",
           "accounts": "Cuentas",
-          "statistics": "Estadísticas"
+          "statistics": "Rendimiento"
         },
         "empty": {
           "drafts": "Aún no hay borradores."
@@ -3035,8 +3035,8 @@
         "label": "Plataformas de redes sociales"
       },
       "statisticsNeedProject": {
-        "title": "Elige un proyecto para ver estadísticas",
-        "body": "Las estadísticas pertenecen a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
+        "title": "Elige un proyecto para ver el rendimiento",
+        "body": "El rendimiento de las cuentas pertenece a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
       }
     },
     "Error": {

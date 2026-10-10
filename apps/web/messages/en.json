@@ -2436,7 +2436,7 @@
           "drafts": "Drafts",
           "attention": "Needs attention",
           "accounts": "Accounts",
-          "statistics": "Statistics"
+          "statistics": "Performance"
         },
         "empty": {
           "drafts": "No drafts yet."
@@ -3035,8 +3035,8 @@
         "label": "Social platforms"
       },
       "statisticsNeedProject": {
-        "title": "Choose a project to see statistics",
-        "body": "Account statistics belong to a project. Choose one to evaluate its connected accounts and published content."
+        "title": "Choose a project to see performance",
+        "body": "Account performance belongs to a project. Choose one to evaluate its connected accounts and published content."
       }
     },
     "Error": {
