@@ -3,7 +3,11 @@
 import { useTranslations } from "next-intl";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 
-import { SOCIAL_TABS } from "@/app/projects/components/social-posts/constants";
+import {
+  SOCIAL_TAB_TRIGGER_CLASS_NAME,
+  SOCIAL_TABS,
+  SOCIAL_TABS_LIST_CLASS_NAME,
+} from "@/app/projects/components/social-posts/constants";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
   SEGMENTED_TABS_LIST_CLASS_NAME,
@@ -65,18 +69,21 @@ export function SocialAllProjectsTabs({
         void setTabParam(value === "calendar" ? null : value);
       }}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center justify-between gap-2">
         <TabsList
           aria-label={t("title")}
           className={cn(
             SEGMENTED_TABS_LIST_CLASS_NAME,
-            "app-scrollbar w-full min-w-0 max-w-full overflow-x-auto md:w-fit",
+            SOCIAL_TABS_LIST_CLASS_NAME,
           )}
         >
           {ALL_PROJECTS_TABS.map((candidate) => (
             <TabsTrigger
               key={candidate}
-              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+              className={cn(
+                SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+                SOCIAL_TAB_TRIGGER_CLASS_NAME,
+              )}
               data-testid={`social-posts-tab-${candidate}`}
               value={candidate}
             >

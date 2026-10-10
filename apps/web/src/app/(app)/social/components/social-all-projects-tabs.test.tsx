@@ -80,6 +80,23 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.queryByText(/choose a project/)).not.toBeInTheDocument();
   });
 
+  it("gives tabs 44px phone targets and scrolls from the start", () => {
+    renderTabs();
+
+    const tablist = screen.getByRole("tablist");
+    expect(tablist).toHaveClass(
+      "min-h-11",
+      "flex-1",
+      "min-w-0",
+      "justify-start",
+      "overflow-x-auto",
+    );
+    expect(tablist).not.toHaveClass("md:w-fit");
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab).toHaveClass("min-h-11", "shrink-0");
+    }
+  });
+
   it("says a lost project is gone above the calendar", () => {
     renderTabs("", "That project is gone");
 
