@@ -40,4 +40,24 @@ describe("SeatManagementContextProvider", () => {
     expect(result.current.isMemberSeatAssigned("member-a", false)).toBe(true);
     expect(result.current.isMemberSeatAssigned("member-b", false)).toBe(false);
   });
+
+  it("accepts a second assign in a later click while seats remain", () => {
+    const { result } = renderHook(() => useSeatManagementContext(), {
+      wrapper: createWrapper(4),
+    });
+
+    let firstAccepted = false;
+    let secondAccepted = false;
+
+    act(() => {
+      firstAccepted = result.current.tryBeginSeatAssign("member-a");
+    });
+    act(() => {
+      secondAccepted = result.current.tryBeginSeatAssign("member-b");
+    });
+
+    expect(firstAccepted).toBe(true);
+    expect(secondAccepted).toBe(true);
+    expect(result.current.unusedSeats).toBe(2);
+  });
 });
