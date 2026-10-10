@@ -6,10 +6,12 @@ import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import mountRefresh from "../[connectionId]/statistics/refresh/post";
+import mountExport from "./export/get";
 import mountList from "./get";
 
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
+  export: vi.fn(),
   schedule: vi.fn(),
   beta: vi.fn(),
   delegation: vi.fn(),
@@ -18,6 +20,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 vi.mock("@/services/social-account-statistics.service", () => ({
   listSocialAccountStatistics: mocks.list,
+  exportSocialAccountStatistics: mocks.export,
 }));
 vi.mock("@/services/social-account-sync", () => ({
   scheduleSocialAccountRefresh: mocks.schedule,
@@ -69,6 +72,7 @@ function createApp(actor = auth) {
     await next();
   });
   mountList(app);
+  mountExport(app);
   mountRefresh(app);
   return app;
 }
@@ -89,6 +93,12 @@ beforeEach(() => {
     posts: [],
     nextCursor: null,
     headline: emptySocialPerformanceHeadline,
+  });
+  mocks.export.mockResolvedValue({
+    posts: [],
+    accountName: () => "Launch",
+    publishedFrom: undefined,
+    publishedUntil: undefined,
   });
   mocks.schedule.mockResolvedValue({
     isErr: () => false,
@@ -113,6 +123,25 @@ describe("social account statistics routes", () => {
         provider: "x",
         publishedFrom: new Date("2026-10-01T00:00:00Z"),
         limit: 5,
+      }),
+    );
+  });
+  it("downloads the filtered post table as CSV", async () => {
+    const response = await createApp().request(
+      `http://localhost/${projectId}/social-connections/statistics/export?connectionId=${connectionId}&format=csv&publishedFrom=2026-10-01T00:00:00Z`,
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/csv");
+    expect(response.headers.get("content-disposition")).toContain(
+      "performance-2026-10-01_latest.csv",
+    );
+    expect(await response.text()).toContain("platform,account,published_at");
+    expect(mocks.export).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId,
+        workspaceId,
+        connectionId,
+        publishedFrom: new Date("2026-10-01T00:00:00Z"),
       }),
     );
   });

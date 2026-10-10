@@ -131,22 +131,30 @@ async function scopedConnections(input: AccountStatisticsScope) {
   });
 }
 
-/** Cached provider history only. Account totals are independent of the post page/date range. */
-export async function listSocialAccountStatistics(
-  input: ListSocialAccountStatisticsInput,
+function selectedConnections(
+  allAccounts: Awaited<ReturnType<typeof scopedConnections>>,
+  input: Pick<ListSocialAccountStatisticsInput, "provider" | "connectionId">,
 ) {
-  const allAccounts = await scopedConnections(input);
   if (
     input.connectionId &&
     !allAccounts.some(({ account }) => account.id === input.connectionId)
   )
     throw notFound("Project social connection not found");
-  const selected = allAccounts.filter(
+  return allAccounts.filter(
     ({ account }) =>
       (!input.provider || account.provider === input.provider) &&
       (!input.connectionId || account.id === input.connectionId),
   );
-  const where: Prisma.SocialAccountPostWhereInput = {
+}
+
+function statisticsPostWhere(
+  selected: Awaited<ReturnType<typeof selectedConnections>>,
+  input: Pick<
+    ListSocialAccountStatisticsInput,
+    "publishedFrom" | "publishedUntil"
+  >,
+): Prisma.SocialAccountPostWhereInput {
+  return {
     connectionId: { in: selected.map(({ account }) => account.id) },
     ...(input.publishedFrom || input.publishedUntil
       ? {
@@ -157,6 +165,24 @@ export async function listSocialAccountStatistics(
         }
       : {}),
   };
+}
+
+function accountLabel(account: {
+  displayName: string | null;
+  externalHandle: string | null;
+  provider: string;
+  id: string;
+}) {
+  return account.displayName ?? account.externalHandle ?? account.provider;
+}
+
+/** Cached provider history only. Account totals are independent of the post page/date range. */
+export async function listSocialAccountStatistics(
+  input: ListSocialAccountStatisticsInput,
+) {
+  const allAccounts = await scopedConnections(input);
+  const selected = selectedConnections(allAccounts, input);
+  const where = statisticsPostWhere(selected, input);
   const { cursor, take, skip } = parseCursorPagination(input);
   if (
     cursor &&
@@ -204,6 +230,40 @@ export async function listSocialAccountStatistics(
         })
       : emptySocialPerformanceHeadline,
   });
+}
+
+/** Every matching cached post, unpaged, for a download. Does not refresh providers. */
+export async function exportSocialAccountStatistics(
+  input: Omit<ListSocialAccountStatisticsInput, "cursor" | "limit">,
+) {
+  const allAccounts = await scopedConnections(input);
+  const selected = selectedConnections(allAccounts, input);
+  const where = statisticsPostWhere(selected, input);
+  const rows = selected.length
+    ? await prisma.socialAccountPost.findMany({
+        where,
+        include: { connection: { select: { provider: true } } },
+        orderBy: [
+          { publishedAt: { sort: "desc", nulls: "last" } },
+          { id: "desc" },
+        ],
+      })
+    : [];
+  const names = new Map(
+    selected.map(({ account }) => [account.id, accountLabel(account)]),
+  );
+  return {
+    posts: rows.map((row) =>
+      socialAccountPostSchema.parse({
+        ...row,
+        provider: row.connection.provider,
+      }),
+    ),
+    accountName: (connectionId: string) =>
+      names.get(connectionId) ?? connectionId,
+    publishedFrom: input.publishedFrom,
+    publishedUntil: input.publishedUntil,
+  };
 }
 
 /** One provider page per request; continuations use only the server's cached cursor. */

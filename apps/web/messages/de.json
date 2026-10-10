@@ -2632,7 +2632,10 @@
             "sparkline": "{metric} an den ausgewählten Tagen",
             "accountTabs": "Verbundene Konten",
             "trends": "Trends",
-            "trendMetric": "Kennzahl"
+            "trendMetric": "Kennzahl",
+            "moreActions": "Weitere Aktionen",
+            "exportCsv": "CSV exportieren",
+            "exportXlsx": "Tabelle exportieren"
           },
           "accountsTitle": "Verbundene Konten",
           "postsTitle": "Veröffentlichte Kontobeiträge",
