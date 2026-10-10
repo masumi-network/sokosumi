@@ -187,7 +187,9 @@ describe("SocialPostStatistics account history", () => {
     ).toBeVisible();
     expect(screen.getByText("More filters")).toBeVisible();
     expect(screen.getByTestId("social-performance-overview")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Trends" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Performance over time" }),
+    ).toBeVisible();
     expect(screen.getByText("Posts")).toBeVisible();
     expect(screen.getAllByText("Interactions")[0]).toBeVisible();
     expect(
@@ -213,7 +215,7 @@ describe("SocialPostStatistics account history", () => {
     expect(await screen.findByText(post.text)).toBeVisible();
     expect(screen.getByTestId("social-performance-overview")).toBeVisible();
     expect(
-      screen.queryByRole("heading", { name: "Trends" }),
+      screen.queryByRole("heading", { name: "Performance over time" }),
     ).not.toBeInTheDocument();
   });
   it("filters cached posts by account, platform and UTC dates while retaining the account overview", async () => {

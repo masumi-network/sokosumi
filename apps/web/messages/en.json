@@ -2633,8 +2633,8 @@
             "keyMetrics": "Key metrics",
             "sparkline": "{metric} over the selected days",
             "accountTabs": "Connected accounts",
-            "trends": "Trends",
-            "trendMetric": "Metric"
+            "trends": "Performance over time",
+            "trendMetric": "Chart metric"
           },
           "accountsTitle": "Connected accounts",
           "postsTitle": "Published account posts",

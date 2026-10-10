@@ -68,8 +68,12 @@ describe("visibleTrendMetrics", () => {
 describe("PerformanceTrendChart", () => {
   it("renders the selected-period bars and metric picker", () => {
     render(<PerformanceTrendChart days={days} impressionBased />);
-    expect(screen.getByRole("heading", { name: "Trends" })).toBeVisible();
-    expect(screen.getByRole("combobox", { name: "Metric" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Performance over time" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("combobox", { name: "Chart metric" }),
+    ).toBeVisible();
     expect(screen.getByRole("figure", { name: "Interactions" })).toBeVisible();
   });
 });
