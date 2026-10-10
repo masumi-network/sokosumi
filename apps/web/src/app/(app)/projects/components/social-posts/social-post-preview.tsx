@@ -387,14 +387,26 @@ function InstagramPreview({
   );
 }
 
-/** YouTube's title is the first line, capped at the upload title limit. */
+const YOUTUBE_TITLE_LIMIT = 100;
+
+/** First non-empty line is the title. Leftover past 100 chars stays in the body. */
 function youtubeTitleAndBody(text: string): { title: string; body: string } {
-  const breakAt = text.indexOf("\n");
-  const title = (breakAt === -1 ? text : text.slice(0, breakAt))
-    .trim()
-    .slice(0, 100);
-  const body = breakAt === -1 ? "" : text.slice(breakAt + 1).trim();
-  return { title, body };
+  const lines = text.split(/\r?\n/);
+  const titleIndex = lines.findIndex((part) => part.trim().length > 0);
+  if (titleIndex === -1) return { title: "", body: "" };
+  const titleLine = lines[titleIndex].trim();
+  const overflow =
+    titleLine.length > YOUTUBE_TITLE_LIMIT
+      ? titleLine.slice(YOUTUBE_TITLE_LIMIT).trim()
+      : "";
+  const rest = lines
+    .slice(titleIndex + 1)
+    .join("\n")
+    .trim();
+  return {
+    title: titleLine.slice(0, YOUTUBE_TITLE_LIMIT),
+    body: [overflow, rest].filter((part) => part.length > 0).join("\n"),
+  };
 }
 
 function YouTubePreview({
