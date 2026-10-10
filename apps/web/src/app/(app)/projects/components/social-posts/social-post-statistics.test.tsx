@@ -248,6 +248,35 @@ function accountCard(name: string) {
   if (!element) throw new Error("Missing account card");
   return within(element);
 }
+/**
+ * Helper to switch accounts in the new Select-based UI
+ */
+async function _selectAccount(
+  user: ReturnType<typeof userEvent.setup>,
+  accountName: string,
+) {
+  // Click the Select trigger to open dropdown
+  const trigger = screen.getByRole("combobox");
+  await user.click(trigger);
+  // Click the desired account option
+  const option = await screen.findByRole("option", {
+    name: new RegExp(accountName, "i"),
+  });
+  await user.click(option);
+}
+/**
+ * Check if an account is currently selected (visible in the unified header)
+ */
+function _isAccountSelected(accountName: string): boolean {
+  // Check if the account name appears in the visible header area
+  // In single-account mode, it's just text. In multi-account mode, it's the Select value.
+  try {
+    const header = screen.getByText(accountName);
+    return header !== null;
+  } catch {
+    return false;
+  }
+}
 function selectedReads() {
   return mocks.fetch.mock.calls.filter(
     ([url]) =>
