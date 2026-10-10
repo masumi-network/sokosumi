@@ -318,7 +318,10 @@ function YouTubePreview({
 
   return (
     <div>
-      <div className="bg-muted relative aspect-video overflow-hidden">
+      <div
+        className="relative aspect-video overflow-hidden bg-media-ground"
+        data-testid="social-post-preview-youtube-player"
+      >
         {clip ? (
           <>
             <PreviewMediaItem media={clip} />
@@ -326,13 +329,13 @@ function YouTubePreview({
               aria-hidden
               className="absolute inset-0 flex items-center justify-center"
             >
-              <span className="bg-scrim-strong text-on-media flex size-12 items-center justify-center rounded-full">
+              <span className="flex size-12 items-center justify-center rounded-full bg-scrim-strong text-on-media">
                 <Play className="size-5 fill-current" />
               </span>
             </div>
           </>
         ) : (
-          <div className="text-muted-foreground flex size-full items-center justify-center px-6 text-center text-xs text-balance">
+          <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
             {t("youtube.videoRequired")}
           </div>
         )}
