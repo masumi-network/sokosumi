@@ -2572,6 +2572,17 @@
           "description": "Der Beitrag wird sofort veröffentlicht, statt auf den geplanten Zeitpunkt zu warten.",
           "confirm": "Jetzt veröffentlichen"
         },
+        "bulkRetry": {
+          "selectPost": "Diesen Beitrag auswählen",
+          "selectAll": "Alle erneut versuchbaren Beiträge auswählen",
+          "selected": "{count} ausgewählt",
+          "retrySelected": "Auswahl erneut versuchen",
+          "title": "Diese Beiträge jetzt erneut versuchen?",
+          "description": "Jeder ausgewählte Beitrag wird sofort veröffentlicht. Du siehst danach, welche veröffentlicht wurden und welche noch Aufmerksamkeit brauchen.",
+          "confirm": "Auswahl erneut versuchen",
+          "resultsTitle": "Ergebnis",
+          "published": "Veröffentlicht"
+        },
         "connectPrompt": {
           "title": "Verbinde ein Konto, um zu posten",
           "body": "Beiträge werden über die X-, Instagram-, LinkedIn-, Facebook- und YouTube-Konten dieses Projekts veröffentlicht.",
