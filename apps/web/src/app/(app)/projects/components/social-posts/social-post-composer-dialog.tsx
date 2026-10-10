@@ -658,8 +658,6 @@ export function SocialPostComposerDialog({
         provider: socialPostProviderLabel(issueProvider),
       })}
     </p>
-  ) : needsAccount ? (
-    <p>{t("composer.pickAccount")}</p>
   ) : null;
 
   return (
@@ -737,6 +735,7 @@ export function SocialPostComposerDialog({
                 </div>
               ) : (
                 <div
+                  aria-invalid={needsAccount || undefined}
                   aria-labelledby={accountsLabelId}
                   className="flex flex-wrap items-center gap-2"
                   data-testid="social-post-accounts"
@@ -781,6 +780,14 @@ export function SocialPostComposerDialog({
                       </button>
                     );
                   })}
+                  {needsAccount ? (
+                    <p
+                      className="text-destructive basis-full text-sm"
+                      data-testid="social-post-pick-account"
+                    >
+                      {t("composer.pickAccount")}
+                    </p>
+                  ) : null}
                 </div>
               )}
             </div>
