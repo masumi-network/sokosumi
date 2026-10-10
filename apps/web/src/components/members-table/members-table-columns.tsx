@@ -97,9 +97,7 @@ function getMembersTableColumns(
       cell: ({ row }) => {
         const { member, invitation } = row.original;
         if (member) {
-          return member.id === me.id ? null : (
-            <MemberActionsDropdown me={me} member={member} />
-          );
+          return <MemberActionsDropdown me={me} member={member} />;
         }
         if (invitation) {
           return <InvitationActionsDropdown me={me} invitation={invitation} />;
