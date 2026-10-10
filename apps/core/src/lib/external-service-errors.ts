@@ -37,7 +37,7 @@ function getErrorStatusCode(error: unknown): number | null | undefined {
   return undefined;
 }
 
-export function getPrismaErrorCode(error: unknown): string | null {
+function getPrismaErrorCode(error: unknown): string | null {
   if (error === null || typeof error !== "object" || !("code" in error)) {
     return null;
   }
@@ -146,7 +146,7 @@ export function shouldSuppressSentryForExternalError(error: unknown): boolean {
   );
 }
 
-export function logSuppressedExternalError(
+function logSuppressedExternalError(
   label: string,
   error: unknown,
   extra?: Record<string, unknown>,

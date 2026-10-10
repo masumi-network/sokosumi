@@ -5,7 +5,7 @@ import { getTranslations } from "next-intl/server";
 
 import { UserSignUpSection } from "@/components/admin/users/user-sign-up-section";
 import { Button } from "@/components/ui/button";
-import { adminUserService } from "@/lib/services/admin-user.service";
+import { coreClient } from "@/lib/clients/core.client";
 
 export const instant = false;
 
@@ -25,8 +25,8 @@ export default async function AdminUserDetailPage({
   const userId = decodeURIComponent(id);
   const [t, user, signUp] = await Promise.all([
     getTranslations("App.Admin.Users.UserDetail"),
-    adminUserService.getUser(userId),
-    adminUserService.getUserSignUp(userId),
+    coreClient.getUserById(userId),
+    coreClient.getUserSignUp(userId),
   ]);
 
   if (!user) {
