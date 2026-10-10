@@ -2381,12 +2381,12 @@
           "disconnected": "Disconnected"
         },
         "replaceDialog": {
-          "title": "Replace this account?",
+          "title": "Replace {account}?",
           "description": "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
           "confirm": "Replace account"
         },
         "disconnectDialog": {
-          "title": "Disconnect this account?",
+          "title": "Disconnect {account}?",
           "description": "This project will no longer be authorized to use this account.",
           "confirm": "Disconnect account"
         },
