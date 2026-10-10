@@ -658,7 +658,7 @@ export async function finalizeProjectSocialConnection(
     ({ scheduleSocialAccountRefresh }) =>
       scheduleSocialAccountRefresh({
         projectId: input.projectId,
-        workspaceId: intent.project.workspaceId,
+        workspaceId: input.workspaceId,
         connectionId: summary.id,
         trigger: intentAction === "reconnect" ? "reauth_resume" : "connect",
       }),

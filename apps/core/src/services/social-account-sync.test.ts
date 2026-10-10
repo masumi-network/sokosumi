@@ -144,6 +144,20 @@ describe("socialSyncReadModel", () => {
     expect(sync.mayAutoRequest).toBe(false);
   });
 
+  it("treats missing dates as null instead of throwing", () => {
+    const sync = socialSyncReadModel(
+      {
+        status: "active",
+        statistics: null,
+      },
+      now,
+    );
+    expect(sync.status).toBe("stale");
+    expect(sync.mayAutoRequest).toBe(true);
+    expect(sync.headFetchedAt).toBeNull();
+    expect(sync.dataFetchedAt).toBeNull();
+  });
+
   it("is partial when stored warnings exist beside usable data", () => {
     const sync = socialSyncReadModel(
       {

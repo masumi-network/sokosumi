@@ -21,9 +21,9 @@ export interface SocialSyncReadModel {
 
 export interface SocialSyncStoredRow {
   status: string;
-  performanceHeadFetchedAt: Date | null;
-  performanceRefreshAttemptedAt: Date | null;
-  performanceRefreshRequestedAt: Date | null;
+  performanceHeadFetchedAt?: Date | null;
+  performanceRefreshAttemptedAt?: Date | null;
+  performanceRefreshRequestedAt?: Date | null;
   statistics: {
     fetchedAt: string | null;
     historyFetchedAt: string | null;
@@ -67,6 +67,7 @@ export function socialSyncReadModel(
   }
   const requestedAt = row.performanceRefreshRequestedAt ?? null;
   const attemptedAt = row.performanceRefreshAttemptedAt ?? null;
+  const headAt = row.performanceHeadFetchedAt ?? null;
   const dirty =
     requestedAt !== null &&
     (attemptedAt === null || requestedAt.getTime() > attemptedAt.getTime());
@@ -74,9 +75,7 @@ export function socialSyncReadModel(
     attemptedAt !== null &&
     now.getTime() - attemptedAt.getTime() < SOCIAL_SYNC_LEASE_MS;
   const fresh =
-    row.performanceHeadFetchedAt !== null &&
-    now.getTime() - row.performanceHeadFetchedAt.getTime() <
-      SOCIAL_SYNC_FRESH_MS;
+    headAt !== null && now.getTime() - headAt.getTime() < SOCIAL_SYNC_FRESH_MS;
   if (leaseOpen && (dirty || !fresh)) {
     return { ...base, status: "running", mayAutoRequest: false };
   }

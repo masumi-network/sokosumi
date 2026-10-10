@@ -72,6 +72,9 @@ const connection = {
   composioConnectedAccountId: "ca-one",
   connectorUserId: "connector",
   statistics: previous,
+  performanceHeadFetchedAt: new Date("2026-10-01T12:00:00Z"),
+  performanceRefreshAttemptedAt: new Date("2026-10-01T12:00:00Z"),
+  performanceRefreshRequestedAt: null,
   _count: { accountPosts: 40 },
 };
 const metrics = {

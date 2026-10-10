@@ -797,15 +797,10 @@ describe("connected account statistics", () => {
     ).rejects.toThrow("Unsupported");
     expect(fetchMock).not.toHaveBeenCalled();
   });
-  it("rejects malformed or oversized published lists as errors", async () => {
+  it("rejects a published list that is not an array", async () => {
     stub(() => ({
       status: 200,
-      data: {
-        data: Array.from({ length: 101 }, () => ({
-          id: "x",
-          author_id: "123",
-        })),
-      },
+      data: { data: { id: "x" } },
     }));
     expect(
       (
@@ -815,6 +810,24 @@ describe("connected account statistics", () => {
         })
       ).historyError,
     ).toContain("unavailable");
+  });
+  it("imports an oversized published list up to the page cap", async () => {
+    stub(() => ({
+      status: 200,
+      data: {
+        data: Array.from({ length: 101 }, (_, index) => ({
+          id: String(index + 1),
+          author_id: "123",
+          text: "Post",
+        })),
+      },
+    }));
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      includeProfile: false,
+    });
+    expect(result.posts).toHaveLength(100);
+    expect(result.historyError).toBeNull();
   });
   it("folds Facebook daily analytics into labeled window totals without overflowing or inventing zero", async () => {
     stub((request) =>
