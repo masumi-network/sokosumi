@@ -338,11 +338,27 @@ function InstagramPreview({
         <MoreHorizontal className="size-5 shrink-0" aria-hidden />
       </div>
       <div
-        className="aspect-[4/5] overflow-hidden bg-media-ground"
+        className="relative aspect-[4/5] overflow-hidden bg-media-ground"
         data-testid="social-post-preview-instagram-frame"
       >
         {first ? (
-          <PreviewMediaItem media={first} />
+          <>
+            <PreviewMediaItem media={first} />
+            {media.length > 1 ? (
+              <span
+                className="bg-scrim-strong text-on-media absolute top-3 right-3 rounded-full px-2 py-1 text-2xs font-medium tabular-nums"
+                aria-label={t("instagram.slide", {
+                  current: 1,
+                  total: media.length,
+                })}
+              >
+                {t("instagram.slideIndex", {
+                  current: 1,
+                  total: media.length,
+                })}
+              </span>
+            ) : null}
+          </>
         ) : (
           <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
             {t("instagram.mediaRequired")}

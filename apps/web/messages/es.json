@@ -2607,7 +2607,9 @@
           },
           "instagram": {
             "more": "más",
-            "mediaRequired": "Instagram necesita una imagen o un video."
+            "mediaRequired": "Instagram necesita una imagen o un video.",
+            "slide": "{current} de {total}",
+            "slideIndex": "{current}/{total}"
           },
           "facebook": {
             "like": "Me gusta",

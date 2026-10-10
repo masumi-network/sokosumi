@@ -221,6 +221,30 @@ describe("SocialPostPreview", () => {
     expect(
       screen.getByTestId("social-post-preview-instagram-frame"),
     ).toHaveClass("aspect-[4/5]", "bg-media-ground");
+    expect(screen.queryByLabelText("instagram.slide")).not.toBeInTheDocument();
+  });
+
+  it("marks extra Instagram slides on the first frame", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[
+          IMAGE,
+          { ...IMAGE, pathname: "drive/b.png", name: "b.png" },
+          { ...IMAGE, pathname: "drive/c.png", name: "c.png" },
+        ]}
+        provider="instagram"
+        text="Caption"
+        timestamp={null}
+      />,
+    );
+    expect(screen.getByLabelText("instagram.slide")).toHaveTextContent(
+      "instagram.slideIndex",
+    );
+    expect(screen.getByRole("img", { name: "a.png" })).toBeVisible();
+    expect(
+      screen.queryByRole("img", { name: "b.png" }),
+    ).not.toBeInTheDocument();
   });
 
   it("marks a GIF with a GIF badge", () => {
