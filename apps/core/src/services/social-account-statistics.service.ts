@@ -18,6 +18,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
+  type SocialAccountPostMedia,
   type SocialAccountStatistics,
   socialAccountPostSchema,
   socialAccountStatisticsAccountSchema,
@@ -80,6 +81,24 @@ function mapAccountPosts(
       },
     ];
   });
+}
+
+type PersistedSocialAccountPostMedia = {
+  kind: SocialAccountPostMedia["kind"];
+  url: string;
+  thumbnailUrl: string | null;
+};
+
+function persistPostMedia(
+  media: SocialAccountPostMedia[],
+): Prisma.InputJsonValue {
+  return media.map(
+    (item): PersistedSocialAccountPostMedia => ({
+      kind: item.kind,
+      url: item.url,
+      thumbnailUrl: item.thumbnailUrl,
+    }),
+  );
 }
 
 const EMPTY_STATISTICS: SocialAccountStatistics = {
@@ -394,6 +413,9 @@ export async function refreshSocialAccountStatistics(
     for (const post of posts) {
       const data = {
         text: post.text,
+        contentType: post.contentType,
+        postKind: post.postKind,
+        media: persistPostMedia(post.media),
         publishedAt: post.publishedAt ? new Date(post.publishedAt) : null,
         url: post.url,
         metrics: { ...post.metrics },
@@ -416,7 +438,14 @@ export async function refreshSocialAccountStatistics(
         },
         // Partial insights must not erase measured counters or their original age.
         update: preservePostMetrics.has(post.externalId)
-          ? { text: data.text, publishedAt: data.publishedAt, url: data.url }
+          ? {
+              text: data.text,
+              contentType: data.contentType,
+              postKind: data.postKind,
+              media: data.media,
+              publishedAt: data.publishedAt,
+              url: data.url,
+            }
           : data,
       });
     }

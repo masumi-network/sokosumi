@@ -71,6 +71,27 @@ export const socialAccountStatisticsAccountSchema =
     })
     .openapi("SocialAccountStatisticsAccount");
 
+export const socialAccountPostContentTypeSchema = z
+  .enum(["text", "image", "video", "carousel", "link", "unknown"])
+  .openapi("SocialAccountPostContentType");
+export const socialAccountPostKindSchema = z
+  .enum(["post", "reply", "quote", "repost", "unknown"])
+  .openapi("SocialAccountPostKind");
+
+/** Provider-hosted media is a read-only preview, not an owned Drive attachment. */
+export type SocialAccountPostMedia = {
+  kind: "image" | "gif" | "video";
+  url: string;
+  thumbnailUrl: string | null;
+};
+export const socialAccountPostMediaSchema = z
+  .object({
+    kind: z.enum(["image", "gif", "video"]),
+    url: z.url({ protocol: /^https?$/ }),
+    thumbnailUrl: z.url({ protocol: /^https?$/ }).nullable(),
+  })
+  .openapi("SocialAccountPostMedia");
+
 export const socialAccountPostSchema = z
   .object({
     id: z.uuid(),
@@ -78,6 +99,9 @@ export const socialAccountPostSchema = z
     provider: projectSocialProviderSchema,
     externalId: z.string().min(1).max(500),
     text: z.string(),
+    contentType: socialAccountPostContentTypeSchema.default("unknown"),
+    postKind: socialAccountPostKindSchema.default("unknown"),
+    media: z.array(socialAccountPostMediaSchema).max(20).default([]),
     publishedAt: dateTimeSchema.nullable(),
     url: z.url({ protocol: /^https?$/ }).nullable(),
     metrics: socialPostMetricsSchema,

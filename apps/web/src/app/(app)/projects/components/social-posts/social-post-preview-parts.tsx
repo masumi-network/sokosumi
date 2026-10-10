@@ -4,6 +4,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 
+/** Provider-hosted preview media from imported account history. */
+export type ImportedPostMedia = {
+  kind: "image" | "gif" | "video";
+  url: string;
+  thumbnailUrl?: string | null;
+};
+
+export type PreviewMedia = SocialPostMediaRef | ImportedPostMedia;
+
 /** The connected account a preview renders as its author. */
 export interface SocialPostPreviewAccount {
   handle: string | null;
@@ -13,10 +22,16 @@ export interface SocialPostPreviewAccount {
 
 export interface SocialPostPreviewContentProps {
   account: SocialPostPreviewAccount | null;
-  media: SocialPostMediaRef[];
+  media: PreviewMedia[];
   text: string;
   /** Publish time; null reads as "now" (a draft or a post going out now). */
   timestamp: Date | null;
+  /** Preformatted publication time, including unavailable dates and time zones. */
+  timestampLabel?: string;
+  /** Imported history may not include media even when the published post has it. */
+  showMediaPlaceholder?: boolean;
+  /** Hide decorative feed controls when a preview is paired with real metrics. */
+  showEngagementActions?: boolean;
 }
 
 export function accountName(
@@ -99,33 +114,56 @@ export function PreviewRichText({
   });
 }
 
+function isDraftMedia(media: PreviewMedia): media is SocialPostMediaRef {
+  return "fileUrl" in media;
+}
+
+function previewMediaSrc(media: PreviewMedia): string {
+  if (isDraftMedia(media)) return media.fileUrl;
+  return media.kind === "video" && media.thumbnailUrl
+    ? media.thumbnailUrl
+    : media.url;
+}
+
+function previewMediaLabel(media: PreviewMedia): string {
+  return isDraftMedia(media) ? media.name : media.kind;
+}
+
+function previewMediaKey(media: PreviewMedia): string {
+  return isDraftMedia(media) ? media.pathname : media.url;
+}
+
 export function PreviewMediaItem({
   media,
   className,
 }: {
-  media: SocialPostMediaRef;
+  media: PreviewMedia;
   className?: string;
 }) {
   const mediaClassName = cn("size-full object-cover", className);
-  const visual =
-    media.kind === "video" ? (
+  const src = previewMediaSrc(media);
+  const label = previewMediaLabel(media);
+  if (media.kind === "video" && (isDraftMedia(media) || !media.thumbnailUrl)) {
+    return (
       <video
-        aria-label={media.name}
+        aria-label={label}
         className={mediaClassName}
         muted
         playsInline
         preload="metadata"
-        src={media.fileUrl}
-      />
-    ) : (
-      <img
-        alt={media.name}
-        className={mediaClassName}
-        decoding="async"
-        loading="lazy"
-        src={media.fileUrl}
+        src={src}
       />
     );
+  }
+  const visual = (
+    <img
+      alt={label}
+      className={mediaClassName}
+      decoding="async"
+      loading="lazy"
+      src={src}
+    />
+  );
   if (media.kind !== "gif") return visual;
   return (
     <div className="relative size-full min-h-0">
@@ -149,7 +187,7 @@ export function PreviewMediaGrid({
   media,
   className,
 }: {
-  media: SocialPostMediaRef[];
+  media: PreviewMedia[];
   className?: string;
 }) {
   if (media.length === 0) return null;
@@ -176,7 +214,7 @@ export function PreviewMediaGrid({
         </div>
       ) : null}
       {rest.slice(0, 3).map((item) => (
-        <div key={item.pathname} className="min-h-0">
+        <div key={previewMediaKey(item)} className="min-h-0">
           <PreviewMediaItem media={item} />
         </div>
       ))}
