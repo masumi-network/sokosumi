@@ -138,6 +138,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
               <ProjectSocialAccounts
                 projectId={project.id}
                 connections={connections}
+                connectDisabled={Boolean(project.closingAt || project.closedAt)}
               />
             }
             actions={
