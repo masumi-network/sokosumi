@@ -315,6 +315,43 @@ describe("ProjectSocialAccounts", () => {
     expect(screen.getByText("Facebook account")).toBeVisible();
     expect(screen.getByText("Our channel")).toBeVisible();
     expect(screen.getByText("YouTube account")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Actions for Unknown account" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("leads with displayName when it differs from the handle", () => {
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            displayName: "Sokosumi HQ",
+          }),
+          buildConnection({
+            id: "connection-same",
+            externalHandle: "brand",
+            displayName: "@Brand",
+          }),
+        ]}
+      />,
+    );
+
+    const named = screen.getByTestId("project-social-connection-connection-1");
+    expect(within(named).getByText("Sokosumi HQ")).toBeVisible();
+    expect(within(named).getByText("@sokosumi")).toBeVisible();
+    expect(
+      within(named).getByRole("button", { name: "Actions for Sokosumi HQ" }),
+    ).toBeVisible();
+
+    const matching = screen.getByTestId(
+      "project-social-connection-connection-same",
+    );
+    expect(within(matching).getByText("@brand")).toBeVisible();
+    expect(within(matching).queryByText("@Brand")).not.toBeInTheDocument();
+    expect(
+      within(matching).getByRole("button", { name: "Actions for @brand" }),
+    ).toBeVisible();
   });
 
   it("shows connected and reauthorization-required X account lifecycle controls", async () => {

@@ -75,6 +75,34 @@ function formatHandle(
   return handle.startsWith("@") ? handle : `@${handle}`;
 }
 
+function normalizeAccountLabel(value: string): string {
+  return value.trim().replace(/^@+/, "").toLowerCase();
+}
+
+function accountLabels(
+  connection: ProjectSocialConnection,
+  formattedHandle: string,
+): { primary: string; secondaryHandle: string | null } {
+  const displayName = connection.displayName?.trim() ?? "";
+  if (!displayName) {
+    return { primary: formattedHandle, secondaryHandle: null };
+  }
+
+  const rawHandle = connection.externalHandle?.trim() ?? "";
+  if (
+    normalizeAccountLabel(displayName) === normalizeAccountLabel(rawHandle) ||
+    normalizeAccountLabel(displayName) ===
+      normalizeAccountLabel(formattedHandle)
+  ) {
+    return { primary: formattedHandle, secondaryHandle: null };
+  }
+
+  return {
+    primary: displayName,
+    secondaryHandle: rawHandle ? formattedHandle : null,
+  };
+}
+
 function isExpiredIntentError(error: ActionError): boolean {
   return error.message?.toLowerCase().includes("unknown or expired") ?? false;
 }
@@ -405,9 +433,14 @@ export function ProjectSocialAccounts({
               ({ id }) => id === connection.provider,
             );
             const providerName = provider?.name ?? connection.provider;
-            const handle =
-              formatHandle(connection.externalHandle, connection.provider) ??
-              t("unknownHandle");
+            const formattedHandle = formatHandle(
+              connection.externalHandle,
+              connection.provider,
+            );
+            const { primary, secondaryHandle } = accountLabels(
+              connection,
+              formattedHandle ?? t("unknownHandle"),
+            );
             const canReconnect =
               connection.status === "reauthorization_required";
             const canReplace = connection.status === "active" || canReconnect;
@@ -432,8 +465,9 @@ export function ProjectSocialAccounts({
                   )}
                 </span>
                 <div className="min-w-40 flex-1">
-                  <p className="truncate text-sm font-medium">{handle}</p>
+                  <p className="truncate text-sm font-medium">{primary}</p>
                   <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
+                    {secondaryHandle ? <span>{secondaryHandle}</span> : null}
                     <span>{t("account", { provider: providerName })}</span>
                     <span
                       className={cn(
@@ -494,7 +528,7 @@ export function ProjectSocialAccounts({
                           loading={
                             isRowPending && pendingAction !== "reconnect"
                           }
-                          aria-label={t("actions", { account: handle })}
+                          aria-label={t("actions", { account: primary })}
                         >
                           <MoreHorizontal className="size-4" aria-hidden />
                         </Button>
