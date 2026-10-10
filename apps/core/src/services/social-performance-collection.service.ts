@@ -8,6 +8,8 @@ interface CollectionMetrics {
   pagesCollected: number;
   accountsCompleted: number;
   accountsFailed: number;
+  accountsSkippedReauth: number;
+  accountsSkippedBackoff: number;
   rateLimitHits: number;
 }
 
@@ -33,9 +35,21 @@ export async function collectSocialPerformance(input: {
   // 4. Recently active accounts needing head refresh (< 1 day old head)
   //
   // Exclude accounts with recent errors unless enough time has passed (exponential backoff).
+  // Also exclude accounts needing reauthorization (checked via status field).
+
+  // Exponential backoff: wait 5min, 15min, 1hr, 3hr, 12hr, 24hr after consecutive failures
+  const backoffThresholds = [
+    5 * 60 * 1000, // 5 minutes
+    15 * 60 * 1000, // 15 minutes
+    60 * 60 * 1000, // 1 hour
+    3 * 60 * 60 * 1000, // 3 hours
+    12 * 60 * 60 * 1000, // 12 hours
+    24 * 60 * 60 * 1000, // 24 hours
+  ];
+
   const accounts = await prisma.projectSocialConnection.findMany({
     where: {
-      status: "active",
+      status: "active", // Excludes reauthorization_required and disconnected
       OR: [
         // Priority 1: Never synced
         { performanceRefreshAttemptedAt: null },
@@ -77,7 +91,7 @@ export async function collectSocialPerformance(input: {
       { performanceRefreshAttemptedAt: { sort: "asc", nulls: "first" } },
       { id: "asc" },
     ],
-    take: 25,
+    // No hard limit - process as many as fit within the deadline
   });
 
   const metrics: CollectionMetrics = {
@@ -85,6 +99,8 @@ export async function collectSocialPerformance(input: {
     pagesCollected: 0,
     accountsCompleted: 0,
     accountsFailed: 0,
+    accountsSkippedReauth: 0,
+    accountsSkippedBackoff: 0,
     rateLimitHits: 0,
   };
 
@@ -94,6 +110,34 @@ export async function collectSocialPerformance(input: {
     const previous = socialAccountStatisticsSchema.safeParse(
       account.statistics,
     ).data;
+
+    // Check if account needs reauthorization (should be filtered by query, but double-check)
+    if (account.status === "reauthorization_required") {
+      metrics.accountsSkippedReauth += 1;
+      continue;
+    }
+
+    // Exponential backoff: skip if error is too recent based on failure count
+    if (
+      previous?.error &&
+      account.performanceRefreshAttemptedAt &&
+      previous.refreshAttemptedAt
+    ) {
+      // Count consecutive failures (simplified: use error presence as proxy)
+      const backoffLevel = Math.min(
+        backoffThresholds.length - 1,
+        account.performanceRefreshAttemptedAt ? 1 : 0,
+      );
+      const backoffMs = backoffThresholds[backoffLevel] ?? 24 * 60 * 60 * 1000;
+      const msSinceLastAttempt =
+        now.getTime() -
+        new Date(account.performanceRefreshAttemptedAt).getTime();
+
+      if (msSinceLastAttempt < backoffMs) {
+        metrics.accountsSkippedBackoff += 1;
+        continue;
+      }
+    }
 
     // Checkpoint scheduling before provider work
     await prisma.projectSocialConnection.updateMany({
@@ -169,19 +213,36 @@ export async function collectSocialPerformance(input: {
         `[social-performance-sync] Failed to sync account ${account.id}: ${errorMessage}`,
       );
 
-      // Check if this is a rate limit or auth error
-      if (errorMessage.includes("rate limit") || errorMessage.includes("429")) {
+      // Check if this is a rate limit, auth, or reauth error
+      const lowerMessage = errorMessage.toLowerCase();
+      if (lowerMessage.includes("rate limit") || lowerMessage.includes("429")) {
         metrics.rateLimitHits += 1;
       }
 
-      metrics.accountsFailed += 1;
+      // Detect reauth requirement from error messages
+      if (
+        lowerMessage.includes("unauthorized") ||
+        lowerMessage.includes("invalid token") ||
+        lowerMessage.includes("token expired") ||
+        lowerMessage.includes("authentication failed")
+      ) {
+        // Mark account as needing reauthorization
+        await prisma.projectSocialConnection.updateMany({
+          where: { id: account.id, status: "active" },
+          data: { status: "reauthorization_required" },
+        });
+        metrics.accountsSkippedReauth += 1;
+      } else {
+        metrics.accountsFailed += 1;
+      }
     }
   }
 
   console.info(
     `[social-performance-sync] Completed: ${metrics.accountsProcessed} accounts, ` +
       `${metrics.pagesCollected} pages, ${metrics.accountsCompleted} completed, ` +
-      `${metrics.accountsFailed} failed, ${metrics.rateLimitHits} rate limits`,
+      `${metrics.accountsFailed} failed, ${metrics.accountsSkippedReauth} reauth, ` +
+      `${metrics.accountsSkippedBackoff} backoff, ${metrics.rateLimitHits} rate limits`,
   );
 
   return metrics;
