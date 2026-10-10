@@ -37,9 +37,9 @@ interface SocialPostPreviewProps extends SocialPostPreviewContentProps {
 
 /**
  * How a post will look in the network's own feed. X, LinkedIn, Instagram,
- * Facebook and YouTube render their native layout; the other networks share
- * a neutral card. Engagement rows are decorative: nothing here reads live
- * feed data.
+ * Facebook, YouTube and TikTok render their native layout; the other networks
+ * share a neutral card. Engagement rows are decorative: nothing here reads
+ * live feed data.
  */
 export function SocialPostPreview({
   provider,
@@ -67,6 +67,8 @@ export function SocialPostPreview({
         <FacebookPreview {...content} />
       ) : provider === "youtube" ? (
         <YouTubePreview {...content} />
+      ) : provider === "tiktok" ? (
+        <TikTokPreview {...content} />
       ) : (
         <GenericPreview provider={provider} {...content} />
       )}
@@ -464,6 +466,73 @@ function YouTubePreview({
             </p>
           </div>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+function TikTokPreview({
+  account,
+  media,
+  text,
+}: SocialPostPreviewContentProps) {
+  const t = useTranslations("App.Projects.SocialPosts.preview");
+  const name = accountName(account, t("accountFallback"));
+  const handle = accountHandle(account) ?? `@${name}`;
+  const fold = useFold(text, 80, 2);
+  const clip = media[0];
+
+  return (
+    <div className="py-3">
+      <div className="bg-muted relative mx-auto aspect-[9/16] w-full max-w-64 overflow-hidden">
+        {clip ? (
+          <>
+            <PreviewMediaItem media={clip} />
+            <div
+              aria-hidden
+              className="text-on-media absolute end-2 bottom-28 flex flex-col items-center gap-4"
+            >
+              <PreviewAvatar
+                account={account}
+                name={name}
+                className="size-10"
+              />
+              <Heart className="size-7" />
+              <MessageCircle className="size-7" />
+              <Bookmark className="size-7" />
+              <Share className="size-7" />
+            </div>
+            <div className="bg-scrim absolute inset-x-0 bottom-0 px-3 py-3 pe-14">
+              <p className="text-on-media truncate text-sm font-semibold">
+                {handle}
+              </p>
+              {text ? (
+                <p className="text-on-media mt-1 leading-5 whitespace-pre-wrap break-words">
+                  <PreviewRichText
+                    text={fold.visibleText}
+                    linkClassName="font-semibold"
+                  />
+                  {fold.folded ? (
+                    <>
+                      {" "}
+                      <button
+                        type="button"
+                        className="text-on-media-muted"
+                        onClick={fold.expand}
+                      >
+                        {t("tiktok.more")}
+                      </button>
+                    </>
+                  ) : null}
+                </p>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <div className="text-muted-foreground flex size-full items-center justify-center px-6 text-center text-xs text-balance">
+            {t("tiktok.videoRequired")}
+          </div>
+        )}
       </div>
     </div>
   );
