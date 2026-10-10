@@ -5,6 +5,7 @@ import {
   socialPostComposerFormat,
   socialPostComposerIssue,
   socialPostComposerProviders,
+  socialPostComposerRequirements,
 } from "./social-post-composer-rules";
 
 function ref(kind: "image" | "video", mimeType: string): SocialPostMediaRef {
@@ -50,6 +51,30 @@ describe("socialPostComposerIssue", () => {
       );
     },
   );
+});
+
+describe("socialPostComposerRequirements", () => {
+  it("names every selected provider that still needs text or media", () => {
+    expect(socialPostComposerRequirements(["x"], "", [])).toEqual([
+      { provider: "x", issue: "text_or_media_required" },
+    ]);
+    expect(
+      socialPostComposerRequirements(["x", "instagram"], "Hello", []),
+    ).toEqual([{ provider: "instagram", issue: "media_required" }]);
+    expect(
+      socialPostComposerRequirements(["x", "instagram", "youtube"], "", []),
+    ).toEqual([
+      { provider: "x", issue: "text_or_media_required" },
+      { provider: "instagram", issue: "media_required" },
+      { provider: "youtube", issue: "text_required" },
+    ]);
+  });
+
+  it("says add text or media once when several networks share that rule", () => {
+    expect(socialPostComposerRequirements(["x", "facebook"], "", [])).toEqual([
+      { provider: "x", issue: "text_or_media_required" },
+    ]);
+  });
 });
 
 describe("socialPostComposerProviders", () => {

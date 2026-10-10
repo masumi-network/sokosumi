@@ -16,6 +16,26 @@ export type SocialPostComposerIssue =
   | "video_required"
   | SocialPostMediaValidationReason;
 
+/** Missing content the Post now tooltip can name; media-type failures toast instead. */
+export type SocialPostComposerRequirementIssue = Extract<
+  SocialPostComposerIssue,
+  | "text_required"
+  | "text_or_media_required"
+  | "media_required"
+  | "video_required"
+>;
+
+function isRequirementIssue(
+  issue: SocialPostComposerIssue | null,
+): issue is SocialPostComposerRequirementIssue {
+  return (
+    issue === "text_required" ||
+    issue === "text_or_media_required" ||
+    issue === "media_required" ||
+    issue === "video_required"
+  );
+}
+
 /**
  * Composer-side view of the provider's rules; the server enforces the same
  * rules authoritatively on create, update, and schedule.
@@ -42,6 +62,35 @@ export function socialPostComposerIssue(
   }
   const validation = validateSocialPostMedia(provider, media);
   return validation.ok ? null : validation.reason;
+}
+
+/**
+ * One row per selected provider that still needs text or media. The same
+ * "add text or media" line is not repeated when several networks share it.
+ */
+export function socialPostComposerRequirements(
+  providers: readonly SocialPostProvider[],
+  text: string,
+  media: readonly SocialPostMediaRef[],
+): {
+  provider: SocialPostProvider;
+  issue: SocialPostComposerRequirementIssue;
+}[] {
+  const seen = new Set<string>();
+  const hints: {
+    provider: SocialPostProvider;
+    issue: SocialPostComposerRequirementIssue;
+  }[] = [];
+  for (const provider of providers) {
+    const issue = socialPostComposerIssue(provider, text, media);
+    if (!isRequirementIssue(issue)) continue;
+    const key =
+      issue === "text_or_media_required" ? issue : `${issue}:${provider}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    hints.push({ provider, issue });
+  }
+  return hints;
 }
 
 /**
