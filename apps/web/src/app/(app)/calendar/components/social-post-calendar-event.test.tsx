@@ -132,6 +132,15 @@ describe("Social post calendar event", () => {
       expect(screen.queryByText(label)).not.toBeInTheDocument();
     },
   );
+  it("keeps a single @ on a YouTube handle that already has one", () => {
+    renderCard({ provider: "youtube", externalHandle: "@alice" });
+    expect(
+      screen.getByRole("img", { name: "YouTube · @alice" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("@alice")).toBeVisible();
+    expect(screen.queryByText("@@alice")).not.toBeInTheDocument();
+  });
+
   it("opens the exact post and shows the X brand, project, scheduler, and attachments", () => {
     renderCard();
     expect(screen.getByRole("link")).toHaveAttribute(
