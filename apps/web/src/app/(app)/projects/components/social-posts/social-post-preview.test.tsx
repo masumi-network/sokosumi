@@ -233,7 +233,12 @@ describe("SocialPostPreview", () => {
       />,
     );
 
-    expect(screen.getByText("youtube.videoRequired")).toBeVisible();
+    expect(
+      screen.getByTestId("social-post-preview-youtube-player"),
+    ).toHaveClass("aspect-video", "bg-media-ground");
+    expect(screen.getByText("youtube.videoRequired")).toHaveClass(
+      "text-on-media-muted",
+    );
   });
 
   it("folds long YouTube description behind show more", async () => {
