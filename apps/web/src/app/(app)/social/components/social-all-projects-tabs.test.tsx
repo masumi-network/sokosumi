@@ -18,6 +18,15 @@ vi.mock("./social-accounts-project-prompt", () => ({
   }) => <p>{notice ?? `choose a project for ${kind}`}</p>,
 }));
 
+vi.mock(
+  "@/app/projects/components/social-posts/social-post-statistics",
+  () => ({
+    SocialPostStatistics: ({ workspaceId }: { workspaceId: string }) => (
+      <p>{`workspace performance ${workspaceId}`}</p>
+    ),
+  }),
+);
+
 import { SocialAllProjectsTabs } from "./social-all-projects-tabs";
 
 function renderTabs(searchParams = "", notice?: string) {
@@ -27,6 +36,7 @@ function renderTabs(searchParams = "", notice?: string) {
         actions={<button type="button">New post</button>}
         calendar={<p>Calendar panel</p>}
         notice={notice}
+        workspaceId="workspace-1"
       />
     </NuqsTestingAdapter>,
   );
@@ -46,7 +56,7 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getByRole("button", { name: "New post" })).toBeVisible();
   });
 
-  it("asks for a project on Drafts and Accounts", async () => {
+  it("asks for a project on Drafts and Accounts, and shows workspace Performance", async () => {
     const user = userEvent.setup();
     renderTabs();
 
@@ -54,7 +64,10 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getByText("choose a project for drafts")).toBeVisible();
 
     await user.click(screen.getByRole("tab", { name: "sections.statistics" }));
-    expect(screen.getByText("choose a project for statistics")).toBeVisible();
+    expect(screen.getByText("workspace performance workspace-1")).toBeVisible();
+    expect(
+      screen.queryByText("choose a project for statistics"),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "sections.accounts" }));
     expect(screen.getByText("choose a project for accounts")).toBeVisible();

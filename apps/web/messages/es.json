@@ -3047,10 +3047,6 @@
       "pickProject": "Elegir un proyecto",
       "platforms": {
         "label": "Plataformas de redes sociales"
-      },
-      "statisticsNeedProject": {
-        "title": "Elige un proyecto para ver estadísticas",
-        "body": "Las estadísticas pertenecen a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
       }
     },
     "Error": {

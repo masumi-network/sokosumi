@@ -194,6 +194,22 @@ describe("Social account statistics", () => {
     expect(result.nextCursor).toBe(postId);
     expect(result.accounts[0].postCount).toBe(40);
   });
+  it("lists every connected account in the workspace when no project is selected", async () => {
+    const result = await listSocialAccountStatistics({ workspaceId });
+    expect(mocks.listAccounts).not.toHaveBeenCalled();
+    expect(mocks.connections).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          project: { workspaceId },
+          status: { not: "disconnected" },
+        },
+      }),
+    );
+    expect(result.accounts[0]).toMatchObject({
+      id: connectionId,
+      postCount: 40,
+    });
+  });
   it("blocks cross-workspace reads before fetching raw cached records", async () => {
     mocks.listAccounts.mockRejectedValue(new Error("Project not found"));
     await expect(listSocialAccountStatistics(scope)).rejects.toThrow(

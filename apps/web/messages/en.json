@@ -3047,10 +3047,6 @@
       "pickProject": "Choose a project",
       "platforms": {
         "label": "Social platforms"
-      },
-      "statisticsNeedProject": {
-        "title": "Choose a project to see statistics",
-        "body": "Account statistics belong to a project. Choose one to evaluate its connected accounts and published content."
       }
     },
     "Error": {

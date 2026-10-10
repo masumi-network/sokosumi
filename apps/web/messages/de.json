@@ -3047,10 +3047,6 @@
       "pickProject": "Projekt auswählen",
       "platforms": {
         "label": "Social-Media-Plattformen"
-      },
-      "statisticsNeedProject": {
-        "title": "Wähle ein Projekt, um Statistiken zu sehen",
-        "body": "Kontostatistiken gehören zu einem Projekt. Wähle eines, um seine verbundenen Konten und veröffentlichten Inhalte zu bewerten."
       }
     },
     "Error": {
