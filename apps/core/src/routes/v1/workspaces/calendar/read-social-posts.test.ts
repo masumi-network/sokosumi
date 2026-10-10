@@ -40,6 +40,7 @@ const post = {
   socialConnection: { externalHandle: "team" },
   project: { name: "Launch project" },
   scheduledByUser: { name: "Albina", image: "https://example.com/albina.png" },
+  attempts: [],
   media: [
     {
       pathname: "drive/launch.png",
@@ -102,6 +103,7 @@ describe("Social posts in the calendar", () => {
       postId,
       provider: "x",
       status: "SCHEDULED",
+      lastAttempt: null,
       externalHandle: "team",
       projectName: "Launch project",
       scheduledByName: "Albina",
@@ -126,6 +128,31 @@ describe("Social posts in the calendar", () => {
     expect(mocks.tasks.mock.lastCall?.[0].where.AND.at(-1)).toEqual({
       OR: [{ effectiveScheduledAt: { gt: new Date(at) } }],
     });
+  });
+  it("includes the latest attempt outcome and error kind, never the provider error", async () => {
+    mocks.posts.mockResolvedValue([
+      {
+        ...post,
+        status: "FAILED",
+        lastError: "X rejected the post (403): Duplicate content",
+        attempts: [
+          {
+            outcome: "failed_permanent",
+            errorKind: "rejected",
+          },
+        ],
+      },
+    ]);
+    const result = await readWorkspaceCalendar(workspaceId, "user", query);
+    expect(result.items[0]).toMatchObject({
+      status: "FAILED",
+      lastAttempt: {
+        outcome: "failed_permanent",
+        errorKind: "rejected",
+      },
+    });
+    expect(JSON.stringify(result.items[0])).not.toContain("403");
+    expect(JSON.stringify(result.items[0])).not.toContain("Duplicate");
   });
   it("keeps posts visible when the scheduler is deleted and there are no attachments", async () => {
     mocks.posts.mockResolvedValue([
