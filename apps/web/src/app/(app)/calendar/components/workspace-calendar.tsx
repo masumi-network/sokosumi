@@ -103,6 +103,11 @@ import {
 } from "./run-change";
 import { RunMoveDialog } from "./run-move-dialog";
 import { SocialPostCalendarEvent } from "./social-post-calendar-event";
+import {
+  isChangeableSocialPost,
+  rescheduleSocialPost,
+  useReportSocialRescheduleFailure,
+} from "./social-post-change";
 import { SourceMarker } from "./source-marker";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
@@ -245,6 +250,10 @@ function getRangeLabel(
   }
 
   return formatDate(date, { month: "long", year: "numeric" });
+}
+
+function isDraggableCalendarEntry(item: WorkspaceCalendarEntry) {
+  return isChangeableRun(item) || isChangeableSocialPost(item);
 }
 
 /** A moved Run is planned at a time other than the rule's. */
@@ -526,6 +535,7 @@ function CalendarView({
   const formatDate = useFormatter().dateTime;
   const t = useTranslations("App.Calendar");
   const reportRunChangeFailure = useReportRunChangeFailure();
+  const reportSocialRescheduleFailure = useReportSocialRescheduleFailure();
   // Optimistic overlay for an in-flight drop: the event renders at the time it
   // was dropped at until Core confirms it or the rollback removes it.
   const [pendingMoves, setPendingMoves] = useState<Record<string, Date>>({});
@@ -544,29 +554,50 @@ function CalendarView({
   async function handleEventDrop(info: EventDropInfo) {
     const item = items.find(({ id }) => id === info.event.id);
     const scheduledAt = info.event.start;
-    if (!item || !scheduledAt || !isChangeableRun(item)) {
+    if (!item || !scheduledAt) {
       info.revert();
       return;
     }
 
-    setPendingMoves((moves) => ({ ...moves, [item.id]: scheduledAt }));
-
-    try {
-      const result = await changeRun(item, { action: "move", scheduledAt });
-
-      if (!result.ok) {
+    if (isChangeableRun(item)) {
+      setPendingMoves((moves) => ({ ...moves, [item.id]: scheduledAt }));
+      try {
+        const result = await changeRun(item, { action: "move", scheduledAt });
+        if (!result.ok) {
+          clearPendingMove(item.id);
+          info.revert();
+          reportRunChangeFailure(result.error.kind);
+          return;
+        }
+        router.refresh();
+      } catch {
         clearPendingMove(item.id);
         info.revert();
-        reportRunChangeFailure(result.error.kind);
-        return;
+        reportRunChangeFailure("failed");
       }
-
-      router.refresh();
-    } catch {
-      clearPendingMove(item.id);
-      info.revert();
-      reportRunChangeFailure("failed");
+      return;
     }
+
+    if (isChangeableSocialPost(item)) {
+      setPendingMoves((moves) => ({ ...moves, [item.id]: scheduledAt }));
+      try {
+        const result = await rescheduleSocialPost(item, scheduledAt);
+        if (!result.ok) {
+          clearPendingMove(item.id);
+          info.revert();
+          reportSocialRescheduleFailure(result.error);
+          return;
+        }
+        router.refresh();
+      } catch {
+        clearPendingMove(item.id);
+        info.revert();
+        reportSocialRescheduleFailure();
+      }
+      return;
+    }
+
+    info.revert();
   }
 
   const dateKey = getCalendarDayKey(date);
@@ -663,7 +694,7 @@ function CalendarView({
             title: item.kind === "socialPost" ? item.text : item.taskName,
             start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
             // Per-event: a released or unowned Run is visible but not draggable.
-            startEditable: isChangeableRun(item),
+            startEditable: isDraggableCalendarEntry(item),
             durationEditable: false,
           }))}
           timeZone={timeZone}
@@ -681,7 +712,7 @@ function CalendarView({
             const item = movingEvent
               ? items.find(({ id }) => id === movingEvent.id)
               : undefined;
-            return Boolean(item && isChangeableRun(item));
+            return Boolean(item && isDraggableCalendarEntry(item));
           }}
           eventDrop={(info) => void handleEventDrop(info)}
           eventContent={(eventInfo) => {
@@ -690,14 +721,18 @@ function CalendarView({
               return eventInfo.event.title;
             }
             const start = eventInfo.event.start;
-            if (item.kind === "socialPost")
+            if (item.kind === "socialPost") {
+              const pendingStart = pendingMoves[item.id];
               return (
                 <SocialPostCalendarEvent
-                  item={item}
+                  item={
+                    pendingStart ? { ...item, scheduledAt: pendingStart } : item
+                  }
                   timeZone={timeZone}
                   variant={socialPostVariant}
                 />
               );
+            }
             return (
               <CalendarEvent
                 item={item}

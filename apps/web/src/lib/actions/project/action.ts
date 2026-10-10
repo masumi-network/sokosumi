@@ -128,6 +128,13 @@ interface ScheduleProjectSocialPostParameters extends AuthenticatedRequest {
   revision: number;
 }
 
+interface RescheduleProjectSocialPostParameters extends AuthenticatedRequest {
+  projectId: string;
+  postId: string;
+  /** ISO timestamp; Flight-safe stand-in for the Core `Date` field. */
+  scheduledAt: string;
+}
+
 interface CancelProjectSocialPostParameters extends AuthenticatedRequest {
   projectId: string;
   postId: string;
@@ -640,6 +647,12 @@ const scheduleProjectSocialPostSchema = z.object({
   revision: revisionSchema,
 });
 
+const rescheduleProjectSocialPostSchema = z.object({
+  projectId: trimmedId,
+  postId: trimmedId,
+  scheduledAt: isoTimestamp,
+});
+
 const cancelProjectSocialPostSchema = z.object({
   projectId: trimmedId,
   postId: trimmedId,
@@ -792,6 +805,57 @@ export const scheduleProjectSocialPost = withSession<
     }
   },
 );
+
+/** Calendar drop: read the current revision, then schedule that instant. */
+export const rescheduleProjectSocialPost = withSession<
+  RescheduleProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId, scheduledAt }) => {
+  const parsed = rescheduleProjectSocialPostSchema.safeParse({
+    projectId,
+    postId,
+    scheduledAt,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.getSocialPost(
+      parsed.data.projectId,
+      parsed.data.postId,
+    );
+    if (!post) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.NOT_FOUND,
+          message: "Social post not found",
+        }),
+      );
+    }
+    if (!post.canSchedule) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Social post cannot be scheduled",
+        }),
+      );
+    }
+
+    const next = await projectService.scheduleSocialPost(
+      parsed.data.projectId,
+      parsed.data.postId,
+      {
+        scheduledAt: new Date(parsed.data.scheduledAt),
+        revision: post.revision,
+      },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(next));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
 
 export const cancelProjectSocialPost = withSession<
   CancelProjectSocialPostParameters,
