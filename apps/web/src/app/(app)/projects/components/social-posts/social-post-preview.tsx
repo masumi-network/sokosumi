@@ -35,9 +35,9 @@ interface SocialPostPreviewProps extends SocialPostPreviewContentProps {
 }
 
 /**
- * How a post will look in the network's own feed. X, LinkedIn and Instagram
- * render their native layout; the other networks share a neutral card.
- * Engagement rows are decorative: nothing here reads live feed data.
+ * How a post will look in the network's own feed. X, LinkedIn, Instagram and
+ * Facebook render their native layout; the other networks share a neutral
+ * card. Engagement rows are decorative: nothing here reads live feed data.
  */
 export function SocialPostPreview({
   provider,
@@ -61,6 +61,8 @@ export function SocialPostPreview({
         <LinkedInPreview {...content} />
       ) : provider === "instagram" ? (
         <InstagramPreview {...content} />
+      ) : provider === "facebook" ? (
+        <FacebookPreview {...content} />
       ) : (
         <GenericPreview provider={provider} {...content} />
       )}
@@ -215,6 +217,81 @@ function LinkedInPreview({
           >
             <Icon className="size-4" />
             <span className="hidden sm:inline">{label}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FacebookPreview({
+  account,
+  media,
+  text,
+  timestamp,
+}: SocialPostPreviewContentProps) {
+  const t = useTranslations("App.Projects.SocialPosts.preview");
+  const name = accountName(account, t("accountFallback"));
+  const time = usePreviewTime(timestamp);
+  const fold = useFold(text, 400, 4);
+  const actions = [
+    { Icon: ThumbsUp, label: t("facebook.like") },
+    { Icon: MessageSquare, label: t("facebook.comment") },
+    { Icon: Share, label: t("facebook.share") },
+  ];
+
+  return (
+    <div>
+      <div className="flex gap-2 px-4 pt-3">
+        <PreviewAvatar account={account} name={name} className="size-10" />
+        <div className="min-w-0 flex-1 leading-4">
+          <p className="truncate font-semibold">{name}</p>
+          <p className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
+            {time} ·
+            <Globe className="size-3" aria-label={t("facebook.public")} />
+          </p>
+        </div>
+        <MoreHorizontal
+          className="text-muted-foreground size-5 shrink-0"
+          aria-hidden
+        />
+      </div>
+      {text ? (
+        <div className="px-4 py-2">
+          <p className="leading-5 whitespace-pre-wrap break-words">
+            <PreviewRichText
+              text={fold.visibleText}
+              linkClassName="text-social-facebook-link"
+            />
+            {fold.folded ? (
+              <>
+                …{" "}
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-social-facebook-link hover:underline"
+                  onClick={fold.expand}
+                >
+                  {t("facebook.seeMore")}
+                </button>
+              </>
+            ) : null}
+          </p>
+        </div>
+      ) : (
+        <div className="h-3" />
+      )}
+      <PreviewMediaGrid media={media} />
+      <div
+        aria-hidden
+        className="text-muted-foreground mx-4 flex justify-around border-t py-1"
+      >
+        {actions.map(({ Icon, label }) => (
+          <span
+            key={label}
+            className="flex items-center gap-1.5 px-2 py-2 text-sm font-semibold"
+          >
+            <Icon className="size-4" />
+            {label}
           </span>
         ))}
       </div>

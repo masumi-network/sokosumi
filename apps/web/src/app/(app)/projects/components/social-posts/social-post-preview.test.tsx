@@ -127,6 +127,49 @@ describe("SocialPostPreview", () => {
     ).toHaveLength(2);
   });
 
+  it("renders a Facebook feed card with public reach, tags, and actions", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="facebook"
+        text="Launch day #sokosumi https://www.example.com/launch"
+        timestamp={null}
+      />,
+    );
+
+    const preview = screen.getByTestId("social-post-preview");
+    expect(preview).toHaveAttribute("data-provider", "facebook");
+    expect(within(preview).getByText("Sokosumi HQ")).toBeVisible();
+    expect(within(preview).getByLabelText("facebook.public")).toBeVisible();
+    expect(within(preview).getByText("#sokosumi")).toHaveClass(
+      "text-social-facebook-link",
+    );
+    expect(within(preview).getByText("example.com/launch")).toBeVisible();
+    expect(preview).toHaveTextContent("facebook.like");
+    expect(preview).toHaveTextContent("facebook.comment");
+    expect(preview).toHaveTextContent("facebook.share");
+  });
+
+  it("folds long Facebook text behind see more", async () => {
+    const user = userEvent.setup();
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="facebook"
+        text={"word ".repeat(120)}
+        timestamp={null}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "facebook.seeMore" }));
+
+    expect(
+      screen.queryByRole("button", { name: "facebook.seeMore" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("uses the generic card for networks without a native layout", () => {
     render(
       <SocialPostPreview
