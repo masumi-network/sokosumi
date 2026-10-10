@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  type InfiniteData,
-  useInfiniteQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, useQueryStates } from "nuqs";
@@ -130,107 +126,50 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
   const posts = validRange
     ? (query.data?.pages.flatMap((page) => page.posts) ?? [])
     : [];
-  const runRef = useRef<AbortController | null>(null);
+  const enqueueingRef = useRef(false);
   const mountedRef = useRef(false);
-  const [sync, setSync] = useState<{
-    accountId: string;
-    completed: number;
-    total: number;
-    pages: number;
-    stopping: boolean;
-  } | null>(null);
+  const [enqueueingId, setEnqueueingId] = useState<string | null>(null);
   const [syncErrors, setSyncErrors] = useState<Record<string, string>>({});
   useMountEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      runRef.current?.abort();
     };
   });
 
   async function handleSync(targets: Account[]) {
-    if (runRef.current || targets.length === 0) return;
-    const run = new AbortController();
-    runRef.current = run;
+    if (enqueueingRef.current || targets.length === 0) return;
+    enqueueingRef.current = true;
     setSyncErrors({});
-    let pages = 0;
     try {
-      for (const [index, account] of targets.entries()) {
-        if (run.signal.aborted) break;
-        setSync({
-          accountId: account.id,
-          completed: index,
-          total: targets.length,
-          pages,
-          stopping: false,
-        });
-        let continueHistory =
-          Boolean(account.statistics?.historyNextCursor) &&
-          !account.statistics?.historyComplete;
-        while (!run.signal.aborted) {
-          try {
-            const result = await refreshProjectSocialAccountStatistics({
-              projectId,
-              connectionId: account.id,
-              continueHistory,
-            });
-            // A request already sent finishes on Core; cancellation prevents the next page.
-            if (!mountedRef.current) return;
-            if (!result.ok) {
-              setSyncErrors((errors) => ({
-                ...errors,
-                [account.id]: t("accountSyncFailed"),
-              }));
-              break;
-            }
-            pages++;
-            setSync((current) => (current ? { ...current, pages } : null));
-            // Keep the returned cursor even if the follow-up history read fails.
-            queryClient.setQueriesData<InfiniteData<StatisticsPage>>(
-              { queryKey: queryScope },
-              (current) =>
-                current
-                  ? {
-                      ...current,
-                      pages: current.pages.map((page) => ({
-                        ...page,
-                        accounts: page.accounts.map((cached) =>
-                          cached.id === result.value.account.id
-                            ? result.value.account
-                            : cached,
-                        ),
-                      })),
-                    }
-                  : current,
-            );
-            await queryClient.invalidateQueries({ queryKey: queryScope });
-            const snapshot = result.value.account.statistics;
-            if (
-              snapshot?.historyError ||
-              snapshot?.historyComplete ||
-              !snapshot?.historyNextCursor
-            )
-              break;
-            continueHistory = true;
-          } catch {
-            if (mountedRef.current)
-              setSyncErrors((errors) => ({
-                ...errors,
-                [account.id]: t("accountSyncFailed"),
-              }));
-            break;
+      for (const account of targets) {
+        setEnqueueingId(account.id);
+        try {
+          const result = await refreshProjectSocialAccountStatistics({
+            projectId,
+            connectionId: account.id,
+          });
+          if (!mountedRef.current) return;
+          if (!result.ok) {
+            setSyncErrors((errors) => ({
+              ...errors,
+              [account.id]: t("accountSyncFailed"),
+            }));
           }
+        } catch {
+          if (mountedRef.current)
+            setSyncErrors((errors) => ({
+              ...errors,
+              [account.id]: t("accountSyncFailed"),
+            }));
         }
       }
+      if (mountedRef.current)
+        await queryClient.invalidateQueries({ queryKey: queryScope });
     } finally {
-      runRef.current = null;
-      if (mountedRef.current) setSync(null);
+      enqueueingRef.current = false;
+      if (mountedRef.current) setEnqueueingId(null);
     }
-  }
-
-  function handleCancel() {
-    runRef.current?.abort();
-    setSync((current) => (current ? { ...current, stopping: true } : null));
   }
 
   function metricLabel(metric: Metric) {
@@ -313,7 +252,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
             type="button"
             variant="outline"
             disabled={
-              Boolean(sync) ||
+              Boolean(enqueueingId) ||
               !accounts.some((account) => account.status === "active")
             }
             onClick={() =>
@@ -326,25 +265,6 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
           </Button>
         </div>
         <p className="text-muted-foreground text-sm">{t("syncHint")}</p>
-        <div role="status" className="text-muted-foreground text-sm">
-          {sync
-            ? t(sync.stopping ? "stoppingSync" : "syncProgress", {
-                completed: sync.completed,
-                total: sync.total,
-                pages: sync.pages,
-              })
-            : ""}
-        </div>
-        {sync ? (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={sync.stopping}
-            onClick={handleCancel}
-          >
-            {t("stopSync")}
-          </Button>
-        ) : null}
         {!query.isPending && !query.isError && accounts.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             {t("noAccounts")}{" "}
@@ -387,8 +307,10 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
                     type="button"
                     size="sm"
                     variant="outline"
-                    loading={sync?.accountId === account.id && !sync.stopping}
-                    disabled={Boolean(sync) || account.status !== "active"}
+                    loading={enqueueingId === account.id}
+                    disabled={
+                      Boolean(enqueueingId) || account.status !== "active"
+                    }
                     onClick={() => void handleSync([account])}
                   >
                     {snapshot?.historyNextCursor && !snapshot.historyComplete

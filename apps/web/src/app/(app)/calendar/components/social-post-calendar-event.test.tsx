@@ -118,8 +118,6 @@ describe("Social post calendar event", () => {
     ["SCHEDULED", "Scheduled"],
     ["PUBLISHING", "Publishing"],
     ["PUBLISHED", "Published"],
-    ["FAILED", "Failed"],
-    ["MISSED", "Missed"],
     ["CANCELED", "Canceled"],
   ] as const)(
     "uses an accessible icon instead of text for %s",
@@ -132,6 +130,18 @@ describe("Social post calendar event", () => {
       expect(screen.queryByText(label)).not.toBeInTheDocument();
     },
   );
+  it.each([
+    ["FAILED", "Failed"],
+    ["MISSED", "Missed"],
+  ] as const)("names %s on the card so a retry is obvious", (status, label) => {
+    renderCard({ status });
+    expect(screen.getByText(label)).toBeVisible();
+    expect(screen.queryByRole("img", { name: label })).not.toBeInTheDocument();
+  });
+  it("names a failed post on the compact workspace chip too", () => {
+    renderCard({ status: "FAILED" }, "compact");
+    expect(screen.getByText("Failed")).toBeVisible();
+  });
   it("opens the exact post and shows the X brand, project, scheduler, and attachments", () => {
     renderCard();
     expect(screen.getByRole("link")).toHaveAttribute(

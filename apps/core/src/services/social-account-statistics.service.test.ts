@@ -564,4 +564,42 @@ describe("Social account statistics", () => {
       ),
     ).toBe(true);
   });
+  it("refreshes the latest page without restarting a stored archive cursor", async () => {
+    mocks.provider.mockResolvedValue({
+      ...page,
+      nextCursor: "latest-next",
+    });
+    const result = await refreshSocialAccountStatistics({
+      ...scope,
+      connectionId,
+      userId: "reader",
+      refreshHead: true,
+    });
+    expect(mocks.provider).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cursor: null,
+        includeProfile: true,
+      }),
+    );
+    expect(result.account.statistics).toMatchObject({
+      historyNextCursor: previous.historyNextCursor,
+      historyComplete: false,
+      consecutiveFailures: 0,
+    });
+    expect(mocks.update.mock.calls[0][0].data).toMatchObject({
+      performanceHeadFetchedAt: expect.any(Date),
+    });
+  });
+  it("attaches a cache-only sync model on reads", async () => {
+    const result = await listSocialAccountStatistics({
+      ...scope,
+      connectionId,
+    });
+    expect(result.accounts[0]?.sync).toMatchObject({
+      status: expect.stringMatching(
+        /fresh|stale|queued|running|reauth_required|partial/,
+      ),
+    });
+    expect(mocks.provider).not.toHaveBeenCalled();
+  });
 });

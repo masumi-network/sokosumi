@@ -2517,16 +2517,16 @@
             "now": "Jetzt"
           },
           "timezone": {
-            "yours": "Zeiten in deiner Zeitzone, {zone}.",
-            "goesOut": "Erscheint am {date}, deine Zeit ({zone}).",
-            "postZone": "Geplant für {date} in {zone}."
+            "yours": "Deine Zeitzone: {zone}",
+            "goesOut": "Erscheint {date} ({zone})",
+            "postZone": "Geplant als {date} ({zone})"
           },
           "platforms": "Limits pro Plattform",
           "platformLimit": "{provider}-{format} · {count} / {limit}",
           "formats": {
             "post": "Beitrag",
             "mediaPost": "Bild- oder Videobeitrag",
-            "video": "Video (Text wird Titel und Beschreibung)"
+            "video": "Video"
           },
           "publishNow": "Jetzt posten",
           "when": "Wann",
@@ -2551,6 +2551,8 @@
           "canceled": "Beitrag abgebrochen.",
           "conflict": "Dieser Beitrag wurde an anderer Stelle geändert. Die neueste Version wird geladen.",
           "failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
+          "offline": "Du bist offline. Versuche es erneut.",
+          "timeout": "Zeitüberschreitung. Versuche es erneut.",
           "unauthenticated": "Melde dich an, um fortzufahren.",
           "unauthenticatedAction": "Anmelden",
           "published": "Beitrag veröffentlicht.",
@@ -2572,10 +2574,20 @@
           "description": "Der Beitrag wird sofort veröffentlicht, statt auf den geplanten Zeitpunkt zu warten.",
           "confirm": "Jetzt veröffentlichen"
         },
+        "retryDialog": {
+          "title": "Diesen Beitrag erneut versuchen?",
+          "description": "Der Beitrag wird jetzt veröffentlicht.",
+          "confirm": "Erneut versuchen"
+        },
         "connectPrompt": {
           "title": "Verbinde ein Konto, um zu posten",
           "body": "Beiträge werden über die X-, Instagram-, LinkedIn-, Facebook- und YouTube-Konten dieses Projekts veröffentlicht.",
           "action": "X, YouTube, LinkedIn … verbinden"
+        },
+        "reconnectPrompt": {
+          "title": "Erneut verbinden, um zu posten",
+          "body": "Melde dich erneut bei einem verbundenen Konto an.",
+          "action": "Erneut verbinden"
         },
         "preview": {
           "label": "{provider}-Vorschau",
@@ -3008,18 +3020,18 @@
       "title": "Social-Planung",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
       "newPost": {
-        "label": "Neuer Post",
-        "options": "Optionen für neuen Post",
+        "label": "Neuer Beitrag",
+        "options": "Optionen für neuen Beitrag",
         "manual": "Manueller Beitrag",
         "manualHint": "Konto, Medien und Zeitpunkt wählen.",
         "sokoBot": "Mit Soko Bot posten",
         "sokoBotHint": "Im Chat besprechen, Soko Bot entwirft und plant.",
         "sokoBotSetup": "Richte zuerst Soko Bot ein",
         "sokoBotFailed": "Der Soko-Bot-Chat konnte nicht geöffnet werden. Versuche es erneut.",
-        "sokoBotPrompt": "Hilf mir, einen Social-Post für das Projekt {project} zu erstellen.",
-        "sokoBotPromptAnyProject": "Hilf mir, einen Social-Post zu erstellen.",
-        "chooseProjectTitle": "Projekt für diesen Post wählen",
-        "chooseProjectBody": "Ein Post wird über die Konten eines Projekts veröffentlicht."
+        "sokoBotPrompt": "Hilf mir, einen Beitrag für {project} zu erstellen.",
+        "sokoBotPromptAnyProject": "Hilf mir, einen Beitrag zu erstellen.",
+        "chooseProjectTitle": "Projekt für diesen Beitrag wählen",
+        "chooseProjectBody": "Beiträge gehen über die Konten eines Projekts raus."
       },
       "accountsNeedProject": {
         "title": "Verbinde deine Social-Media-Konten",
