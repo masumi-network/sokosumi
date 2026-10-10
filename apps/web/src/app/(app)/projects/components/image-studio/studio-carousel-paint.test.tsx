@@ -3,6 +3,7 @@ import {
   collectStudioCarouselSlides,
   paintStudioCarouselDepth,
   STUDIO_DRAGGING_ATTR,
+  STUDIO_SELECT_NONE_CLASS,
   STUDIO_SNAP_TARGET_ATTR,
   setStudioCarouselDragging,
   studioCarouselRoot,
@@ -24,6 +25,7 @@ function slideAt(left: number, width = 200) {
 }
 
 afterEach(() => {
+  document.body.classList.remove(STUDIO_SELECT_NONE_CLASS);
   vi.restoreAllMocks();
 });
 
@@ -78,12 +80,19 @@ describe("empty-studio carousel paint", () => {
     const center = slideAt(350);
     const root = document.createElement("div");
     const slides = collectStudioCarouselSlides([center.slide]);
+    const selection = window.getSelection();
+    const removeAllRanges = selection
+      ? vi.spyOn(selection, "removeAllRanges")
+      : vi.fn();
     setStudioCarouselDragging(root, slides, true);
     expect(root.hasAttribute(STUDIO_DRAGGING_ATTR)).toBe(true);
     expect(center.card.style.willChange).toBe("transform");
+    expect(document.body).toHaveClass(STUDIO_SELECT_NONE_CLASS);
+    expect(removeAllRanges).toHaveBeenCalled();
     setStudioCarouselDragging(root, slides, false);
     expect(root.hasAttribute(STUDIO_DRAGGING_ATTR)).toBe(false);
     expect(center.card.style.willChange).toBe("");
+    expect(document.body).not.toHaveClass(STUDIO_SELECT_NONE_CLASS);
   });
 
   it("uses the carousel region when present and the viewport otherwise", () => {

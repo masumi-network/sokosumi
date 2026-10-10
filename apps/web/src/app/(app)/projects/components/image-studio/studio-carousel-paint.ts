@@ -1,5 +1,7 @@
 export const STUDIO_SNAP_TARGET_ATTR = "data-studio-snap-target";
 export const STUDIO_DRAGGING_ATTR = "data-studio-dragging";
+export const STUDIO_SELECT_NONE_CLASS = "select-none";
+export const STUDIO_TOUCH_CALLOUT_NONE_CLASS = "[-webkit-touch-callout:none]";
 
 export interface StudioCarouselSlide {
   slide: HTMLElement;
@@ -12,19 +14,22 @@ export function studioCarouselRoot(rootNode: HTMLElement): HTMLElement {
   return rootNode.closest("[data-slot=carousel]") ?? rootNode;
 }
 
-/** Drag flag plus compositor hint. Cleared on pointer up so layers do not stick. */
+/** Drag flag, compositor hint, and a document selection lock. Cleared on up or cancel. */
 export function setStudioCarouselDragging(
   root: HTMLElement,
   slides: readonly StudioCarouselSlide[],
   dragging: boolean,
 ): void {
   if (dragging) {
+    window.getSelection()?.removeAllRanges();
+    document.body.classList.add(STUDIO_SELECT_NONE_CLASS);
     root.setAttribute(STUDIO_DRAGGING_ATTR, "");
     for (const { card } of slides) {
       if (card) card.style.willChange = "transform";
     }
     return;
   }
+  document.body.classList.remove(STUDIO_SELECT_NONE_CLASS);
   root.removeAttribute(STUDIO_DRAGGING_ATTR);
   for (const { card } of slides) {
     if (card) card.style.willChange = "";

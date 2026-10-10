@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils";
 import {
   collectStudioCarouselSlides,
   paintStudioCarouselDepth,
+  STUDIO_SELECT_NONE_CLASS,
+  STUDIO_TOUCH_CALLOUT_NONE_CLASS,
   type StudioCarouselSlide,
   setStudioCarouselDragging,
   studioCarouselRoot,
@@ -43,6 +45,8 @@ function TemplateButton({
     <button
       className={cn(
         "bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo flex cursor-pointer gap-2 rounded-xl text-left outline-none focus-visible:ring-[3px]",
+        STUDIO_SELECT_NONE_CLASS,
+        STUDIO_TOUCH_CALLOUT_NONE_CLASS,
         large
           ? "border-border data-[studio-snap-target]:border-primary flex-col overflow-hidden border p-2 shadow-lg"
           : "min-h-11 shrink-0 items-center p-1 pr-3",
@@ -211,11 +215,24 @@ export function StudioTemplateCarousel({
       setStudioCarouselDragging(root, slidesRef.current, false);
       syncHoverScroll();
     };
+    const suppressNativeSelection = (event: Event) => {
+      event.preventDefault();
+    };
     api.on("pointerDown", startDrag);
     api.on("pointerUp", endDrag);
+    root.addEventListener("pointerdown", suppressNativeSelection, {
+      passive: false,
+    });
+    root.addEventListener("mousedown", suppressNativeSelection, {
+      passive: false,
+    });
+    root.addEventListener("pointercancel", endDrag);
     return () => {
       api.off("pointerDown", startDrag);
       api.off("pointerUp", endDrag);
+      root.removeEventListener("pointerdown", suppressNativeSelection);
+      root.removeEventListener("mousedown", suppressNativeSelection);
+      root.removeEventListener("pointercancel", endDrag);
       setStudioCarouselDragging(root, slidesRef.current, false);
     };
   }, [api]);
@@ -233,7 +250,11 @@ export function StudioTemplateCarousel({
       </div>
       <Carousel
         aria-label={labels.templates}
-        className="group relative flex min-w-0 flex-col"
+        className={cn(
+          "group relative flex min-w-0 flex-col",
+          STUDIO_SELECT_NONE_CLASS,
+          STUDIO_TOUCH_CALLOUT_NONE_CLASS,
+        )}
         onFocusCapture={() => {
           focusedRef.current = true;
           stopHoverScroll();
@@ -281,6 +302,8 @@ export function StudioTemplateCarousel({
             <CarouselItem
               className={cn(
                 "relative",
+                STUDIO_SELECT_NONE_CLASS,
+                STUDIO_TOUCH_CALLOUT_NONE_CLASS,
                 reduceMotion
                   ? "basis-3/4 sm:basis-1/2 lg:basis-1/3"
                   : "basis-1/3 pl-0! sm:basis-1/5",
