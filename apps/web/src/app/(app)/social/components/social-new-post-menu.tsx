@@ -12,7 +12,6 @@ import {
   getComposeDraft,
   setComposeDraft,
 } from "@/app/chat/utils/compose-draft-storage";
-import { mobileCreateFabBottom } from "@/app/components/mobile-create-fab-geometry";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { openScopeCreate } from "@/app/components/project-scope/sidebar-project-scope-state";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
@@ -30,9 +29,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
-import { cn } from "@/lib/utils";
 
 interface SocialNewPostMenuProps {
   /** The scoped project, or null on the all-projects view. */
@@ -58,7 +55,6 @@ export function SocialNewPostMenu({
   const t = useTranslations("App.Social.newPost");
   const router = useRouter();
   const compose = useSocialCompose();
-  const isApple = useIsApplePlatform();
   const [choosingProject, setChoosingProject] = useState(false);
   const [isOpeningChat, startOpeningChat] = useTransition();
 
@@ -106,13 +102,10 @@ export function SocialNewPostMenu({
           <Button
             type="button"
             size="sm"
-            className={cn(
-              "fixed end-4 z-50 size-14 rounded-full shadow-lg md:static md:z-auto md:h-10 md:w-auto md:rounded-md md:shadow-none",
-              mobileCreateFabBottom(isApple),
-            )}
+            className="h-11 shrink-0 md:h-10"
             loading={isOpeningChat}
           >
-            <Plus className="size-6 md:size-4" aria-hidden />
+            <Plus className="size-4" aria-hidden />
             <span className="sr-only md:not-sr-only">{t("label")}</span>
             <ChevronDown className="hidden size-4 md:block" aria-hidden />
           </Button>

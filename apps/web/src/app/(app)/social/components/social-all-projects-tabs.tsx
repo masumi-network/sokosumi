@@ -69,7 +69,7 @@ export function SocialAllProjectsTabs({
         void setTabParam(value === "calendar" ? null : value);
       }}
     >
-      <div className="flex min-w-0 items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-3">
         <TabsList
           aria-label={t("title")}
           className={cn(

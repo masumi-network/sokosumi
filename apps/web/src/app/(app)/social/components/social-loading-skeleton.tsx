@@ -60,9 +60,9 @@ function SocialLoadingChrome({
       <section aria-hidden className="space-y-2">
         {/* The tab row and New post share one row, as on the page; on a
             phone New post is only its icon. */}
-        <div className="flex items-center justify-between gap-2">
-          <Skeleton className="h-9 w-64 min-w-0 sm:w-72" />
-          <Skeleton className="h-9 w-14 shrink-0 sm:w-32" />
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-11 w-64 min-w-0 sm:w-72" />
+          <Skeleton className="h-11 w-14 shrink-0 sm:h-10 sm:w-32" />
         </div>
         {children}
       </section>

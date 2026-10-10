@@ -92,6 +92,7 @@ describe("SocialAllProjectsTabs", () => {
       "overflow-x-auto",
     );
     expect(tablist).not.toHaveClass("md:w-fit");
+    expect(tablist.parentElement).toHaveClass("gap-3");
     for (const tab of screen.getAllByRole("tab")) {
       expect(tab).toHaveClass("min-h-11", "shrink-0");
     }
