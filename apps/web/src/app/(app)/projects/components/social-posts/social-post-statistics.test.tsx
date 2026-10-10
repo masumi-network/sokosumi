@@ -182,6 +182,10 @@ describe("SocialPostStatistics account history", () => {
   it("shows headline metrics and imported posts without the old account-card grid", async () => {
     renderStatistics();
     expect(await screen.findByText(post.text)).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Account performance" }),
+    ).toBeVisible();
+    expect(screen.getByText("More filters")).toBeVisible();
     expect(screen.getByTestId("social-performance-overview")).toBeVisible();
     expect(screen.getByText("Posts")).toBeVisible();
     expect(screen.getByText("Interactions")).toBeVisible();
@@ -259,10 +263,10 @@ describe("SocialPostStatistics account history", () => {
     await screen.findByText(post.text);
     expect(screen.getByText(/Some post metrics are unavailable/)).toBeVisible();
     expect(
-      screen.getByText(
+      screen.queryByText(
         "All history currently available from the platform has been imported.",
       ),
-    ).toBeVisible();
+    ).not.toBeInTheDocument();
   });
 
   it("loads every cached post page", async () => {
@@ -381,7 +385,9 @@ describe("SocialPostStatistics account history", () => {
     renderStatistics();
     await screen.findByText(post.text);
     expect(
-      screen.getByText("Platform exposes only the most recent posts"),
+      screen.getByText(
+        "History is incomplete or limited by the platform. Check the account permissions and try syncing again.",
+      ),
     ).toBeVisible();
     expect(
       screen.queryByText(

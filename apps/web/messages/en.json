@@ -2625,6 +2625,8 @@
           },
           "performance": {
             "lastDays": "Last {days} days",
+            "moreFilters": "More filters",
+            "activeFilters": "{count} active",
             "posts": "Posts",
             "interactions": "Interactions",
             "previousPeriod": "Change from the previous publication period",
