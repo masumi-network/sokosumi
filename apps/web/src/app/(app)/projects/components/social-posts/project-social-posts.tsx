@@ -3,7 +3,6 @@
 import type {
   ProjectSocialConnection,
   SocialPost,
-  SocialPostMediaRef,
   SocialPostStatus,
 } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
@@ -47,7 +46,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
   SEGMENTED_TABS_LIST_CLASS_NAME,
@@ -74,6 +72,7 @@ import {
   SOCIAL_TABS,
   type SocialTab,
 } from "./constants";
+import { SocialPostMediaThumb } from "./social-post-media-thumb";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
 import { SocialPostStatistics } from "./social-post-statistics";
@@ -149,42 +148,6 @@ function upsertPost(posts: SocialPost[], next: SocialPost): SocialPost[] {
   const index = posts.findIndex((post) => post.id === next.id);
   if (index === -1) return [next, ...posts];
   return posts.map((post) => (post.id === next.id ? next : post));
-}
-
-/**
- * Compact row thumbnail. Images and GIFs reuse the shared mini preview;
- * video shows its first frame in the same 48px frame.
- */
-function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
-  if (media.kind !== "video") {
-    return (
-      <FileChipMiniPreview
-        fileName={media.name}
-        mediaType={media.mimeType}
-        size={media.size}
-        sizeClass="size-12"
-        url={media.fileUrl}
-      />
-    );
-  }
-
-  return (
-    <a
-      aria-label={media.name}
-      className="bg-card-background press hover:bg-card-background-hover focus-visible:ring-ring focus-visible:ring-2 relative block size-12 shrink-0 overflow-hidden rounded-xl border outline-none transition-[color,background-color,border-color,transform]"
-      href={media.fileUrl}
-      rel="noreferrer noopener"
-      target="_blank"
-    >
-      <video
-        className="size-full object-cover"
-        muted
-        playsInline
-        preload="metadata"
-        src={media.fileUrl}
-      />
-    </a>
-  );
 }
 
 export function ProjectSocialPosts({
