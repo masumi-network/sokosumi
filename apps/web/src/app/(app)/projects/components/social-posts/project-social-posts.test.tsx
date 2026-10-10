@@ -2221,6 +2221,55 @@ describe("ProjectSocialPosts", () => {
     expect(preview).toHaveAttribute("data-provider", "x");
   });
 
+  it("badges the network logo on preview account chips with photos", async () => {
+    const restore = stubLoadedImage();
+    const photo =
+      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect width='8' height='8' fill='%23111'/></svg>";
+    try {
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[
+            buildConnection({ avatarUrl: photo }),
+            buildConnection({
+              id: "connection-2",
+              provider: "linkedin",
+              externalHandle: "sokosumi-co",
+              displayName: "Sokosumi Co",
+              avatarUrl: photo,
+            }),
+          ]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      await user.click(
+        within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+      );
+      await user.type(within(dialog).getByLabelText("Text"), "Hello both");
+
+      const chip = within(dialog).getByRole("button", {
+        name: "Preview as @sokosumi",
+      });
+      await waitFor(() => {
+        expect(
+          within(chip).getByTestId("social-post-account-photo"),
+        ).toHaveAttribute("src", photo);
+      });
+      expect(
+        within(chip).getByTestId("social-post-account-logo"),
+      ).toBeVisible();
+      expect(
+        within(chip).getByTestId("social-post-account-logo-badge"),
+      ).toBeVisible();
+    } finally {
+      restore();
+    }
+  });
+
   it("reschedules a scheduled post from the row menu", async () => {
     freezeClock();
     const user = userEvent.setup();

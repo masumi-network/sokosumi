@@ -1174,13 +1174,10 @@ export function SocialPostComposerDialog({
                         onClick={() => setPreviewConnectionId(connection.id)}
                         type="button"
                       >
-                        <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
-                          <SocialPostProviderIcon
-                            aria-hidden
-                            className="size-3.5"
-                            provider={connection.provider}
-                          />
-                        </span>
+                        <AccountChipMark
+                          avatarUrl={connection.avatarUrl}
+                          provider={connection.provider}
+                        />
                         <span className="max-w-32 truncate">{handle}</span>
                       </button>
                     );
