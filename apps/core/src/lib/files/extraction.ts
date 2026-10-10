@@ -142,7 +142,7 @@ export function classifyExtraction(input: {
 }
 
 /** A short, honest reason shown next to a "Filename only" state. */
-export function extractionReasonForTreatment(
+function extractionReasonForTreatment(
   treatment: ExtractionTreatment,
 ): string | null {
   switch (treatment) {

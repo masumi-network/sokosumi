@@ -37,6 +37,20 @@ public struct PreparedTranscript: Sendable {
     }
   }
 
+  /// Whether this snapshot adds rows above `current`'s first row in the same transcript: an older page. Inserting rows
+  /// above the realized ones makes the lazy list measure every realized row again (M6), so the room holds such a
+  /// snapshot until the reader's scroll rests.
+  public func prependsRows(to current: Self?) -> Bool {
+    guard let current, current.input.scope == input.scope else { return false }
+    return current.lacksRowsAbove(in: input.messages)
+  }
+
+  /// Whether `live` holds rows above this snapshot's first row: an older page still preparing or waiting to land.
+  public func lacksRowsAbove(in live: [Components.Schemas.ChatRoomMessage]) -> Bool {
+    guard let first = input.messages.first?.id else { return false }
+    return live.firstIndex { $0.id == first }.map { $0 > 0 } ?? false
+  }
+
   /// The prepared document for a row, including a confirmed send still keyed by its pending shell.
   public func document(for message: Components.Schemas.ChatRoomMessage) -> MessageMarkdown? {
     if let document = documents[message.id] {
