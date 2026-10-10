@@ -2551,6 +2551,7 @@
           "canceled": "Publicación cancelada.",
           "conflict": "Esta publicación se modificó en otro lugar. Cargando la versión más reciente.",
           "failed": "Algo salió mal. Inténtalo de nuevo.",
+          "missingPost": "No se pudo abrir esta publicación.",
           "unauthenticated": "Inicia sesión para continuar.",
           "unauthenticatedAction": "Iniciar sesión",
           "published": "Publicación publicada.",
