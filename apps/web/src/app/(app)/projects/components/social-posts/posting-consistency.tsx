@@ -104,36 +104,38 @@ export function PostingConsistency({
           </Button>
         </div>
       </div>
-      <p className="text-sm">
-        {filled.length === 0
-          ? t("performance.consistencyEmpty")
-          : t("performance.consistencySummary", {
-              posts: totals.posts,
-              active: totals.active,
-              from: formatDay(filled[0]?.date ?? ""),
-              until: formatDay(filled.at(-1)?.date ?? ""),
-            })}
-      </p>
-      {filled.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="bg-muted rounded-full px-3 py-1 text-xs">
-            <span className="text-muted-foreground">
-              {t("performance.currentStreak")}
-            </span>{" "}
-            <span className="font-medium tabular-nums">
-              {t("performance.streakDays", { count: streaks.current })}
-            </span>
-          </p>
-          <p className="bg-muted rounded-full px-3 py-1 text-xs">
-            <span className="text-muted-foreground">
-              {t("performance.longestStreak")}
-            </span>{" "}
-            <span className="font-medium tabular-nums">
-              {t("performance.streakDays", { count: streaks.longest })}
-            </span>
-          </p>
-        </div>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-sm">
+          {filled.length === 0
+            ? t("performance.consistencyEmpty")
+            : t("performance.consistencySummary", {
+                posts: totals.posts,
+                active: totals.active,
+                from: formatDay(filled[0]?.date ?? ""),
+                until: formatDay(filled.at(-1)?.date ?? ""),
+              })}
+        </p>
+        {filled.length > 0 ? (
+          <>
+            <p className="bg-muted rounded-full px-3 py-1 text-xs">
+              <span className="text-muted-foreground">
+                {t("performance.currentStreak")}
+              </span>{" "}
+              <span className="font-medium tabular-nums">
+                {t("performance.streakDays", { count: streaks.current })}
+              </span>
+            </p>
+            <p className="bg-muted rounded-full px-3 py-1 text-xs">
+              <span className="text-muted-foreground">
+                {t("performance.longestStreak")}
+              </span>{" "}
+              <span className="font-medium tabular-nums">
+                {t("performance.streakDays", { count: streaks.longest })}
+              </span>
+            </p>
+          </>
+        ) : null}
+      </div>
       {weeks.length > 0 ? (
         <div className="overflow-x-auto" ref={scroller}>
           <div
