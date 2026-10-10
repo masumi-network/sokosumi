@@ -781,7 +781,7 @@ describe("ProjectSocialPosts", () => {
     expect(saveDraft).toBeEnabled();
   });
 
-  it("shows where the post goes at the top of the composer", async () => {
+  it("starts a new post selected on every connected account", async () => {
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts
@@ -813,6 +813,16 @@ describe("ProjectSocialPosts", () => {
       within(accounts).getByRole("button", {
         name: "LinkedIn @sokosumi-co",
       }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await user.click(
+      within(accounts).getByRole("button", {
+        name: "LinkedIn @sokosumi-co",
+      }),
+    );
+    expect(
+      within(accounts).getByRole("button", {
+        name: "LinkedIn @sokosumi-co",
+      }),
     ).toHaveAttribute("aria-pressed", "false");
   });
 
@@ -835,9 +845,6 @@ describe("ProjectSocialPosts", () => {
 
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
-    await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
-    );
     fireEvent.change(within(dialog).getByLabelText("Text"), {
       target: { value: "a".repeat(300) },
     });
@@ -997,9 +1004,6 @@ describe("ProjectSocialPosts", () => {
 
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
-    await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
-    );
     await user.type(within(dialog).getByLabelText("Text"), "Hi");
     await user.click(within(dialog).getByRole("button", { name: "Post now" }));
 
@@ -1083,9 +1087,6 @@ describe("ProjectSocialPosts", () => {
 
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
-    await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
-    );
     await user.type(within(dialog).getByLabelText("Text"), "Hello");
     await user.click(
       within(dialog).getByRole("button", { name: "Save draft" }),
@@ -1145,9 +1146,6 @@ describe("ProjectSocialPosts", () => {
 
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
-    await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
-    );
     await user.type(within(dialog).getByLabelText("Text"), "Hello");
     await user.click(
       within(dialog).getByRole("button", { name: "Save draft" }),

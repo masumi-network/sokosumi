@@ -162,8 +162,12 @@ export function SocialPostComposerDialog({
   // post belongs to one account.
   const multiAccount = mode.kind === "create";
   const [connectionIds, setConnectionIds] = useState<string[]>(() => {
-    const initial = post?.socialConnection?.id ?? connections[0]?.id;
-    return initial ? [initial] : [];
+    if (mode.kind !== "create") {
+      const id = post?.socialConnection?.id ?? connections[0]?.id;
+      return id ? [id] : [];
+    }
+    // Post to every connected account unless the reader turns one off.
+    return connections.map((connection) => connection.id);
   });
   const [scheduledAt, setScheduledAt] = useState(
     post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
