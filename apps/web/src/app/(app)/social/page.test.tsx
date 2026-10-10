@@ -400,4 +400,26 @@ describe("SocialPage", () => {
       title: "App.Social.title",
     });
   });
+
+  it("ignores a linked post this project no longer has", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialPosts.mockResolvedValue({
+      posts: [{ id: "post-a" }],
+      nextCursor: null,
+    });
+    projectServiceMock.getSocialPost.mockResolvedValue(null);
+
+    await visit({ projectId: "project-1", postId: "post-gone" });
+
+    expect(projectServiceMock.getSocialPost).toHaveBeenCalledWith(
+      "project-1",
+      "post-gone",
+    );
+    expect(
+      screen.getByTestId("social-posts").getAttribute("data-order"),
+    ).not.toContain("post-gone");
+    expect(screen.getByTestId("social-posts")).not.toHaveAttribute(
+      "data-selected",
+    );
+  });
 });
