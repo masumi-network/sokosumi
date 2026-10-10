@@ -268,6 +268,22 @@ describe("WorkspaceCalendar Social-only view", () => {
     expect(search?.get("assigneeId")).toBeNull();
   });
 
+  it("clears the post status when Social-only is turned off", async () => {
+    const onUrlUpdate = vi.fn();
+    const user = userEvent.setup();
+    renderCalendar(
+      { includeSocialPosts: true },
+      "?timezone=UTC&view=week&socialOnly=true&postStatus=FAILED",
+      onUrlUpdate,
+    );
+
+    await user.click(screen.getByTestId("calendar-social-only"));
+
+    const search = onUrlUpdate.mock.lastCall?.[0].searchParams;
+    expect(search?.get("socialOnly")).toBeNull();
+    expect(search?.get("postStatus")).toBeNull();
+  });
+
   it("hides the filters that cannot apply to a post", () => {
     renderCalendar(
       { includeSocialPosts: true, activeOrganizationId: "org-1" },
@@ -275,12 +291,36 @@ describe("WorkspaceCalendar Social-only view", () => {
     );
 
     const ids = filterSectionIds();
-    // Scope and source still narrow posts; coworker, human and status do not.
+    // Scope and source still narrow posts; coworker, human and task status
+    // do not. Posts have their own status filter.
     expect(ids).toContain("source");
     expect(ids).toContain("timezone");
+    expect(ids).toContain("postStatus");
     expect(ids).not.toContain("status");
     expect(ids).not.toContain("coworker");
     expect(ids).not.toContain("human");
+  });
+
+  it("narrows posts by post status, not a task status", () => {
+    renderCalendar(
+      {
+        includeSocialPosts: true,
+        socialPostsOnly: true,
+        items: [
+          POST,
+          {
+            ...POST,
+            id: "social:failed",
+            postId: "failed",
+            text: "Failed news",
+            status: "FAILED",
+          },
+        ],
+      },
+      "?timezone=UTC&view=week&postStatus=FAILED",
+    );
+
+    expect(renderedEventTitles()).toEqual(["Failed news"]);
   });
 
   it("says the period holds no posts rather than no releases", () => {

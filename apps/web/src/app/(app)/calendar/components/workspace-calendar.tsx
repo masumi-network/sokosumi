@@ -8,6 +8,8 @@ import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
 import {
+  SocialPostStatus,
+  type SocialPostStatus as SocialPostStatusValue,
   TaskStatus,
   type TaskStatus as TaskStatusValue,
   type WorkspaceCalendarEntry,
@@ -111,9 +113,20 @@ type CalendarView = (typeof CALENDAR_VIEWS)[number];
 // already shows what is coming up, so its calendar has no agenda list.
 const SOCIAL_CALENDAR_VIEWS = ["month", "week"] as const;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
+const SOCIAL_POST_STATUSES = Object.values(SocialPostStatus).filter(
+  (status) => status !== SocialPostStatus.DRAFT,
+);
 
 function isCalendarStatus(value: string | null): value is TaskStatusValue {
   return value !== null && CALENDAR_STATUSES.some((status) => status === value);
+}
+
+function isSocialPostStatus(
+  value: string | null,
+): value is Exclude<SocialPostStatusValue, "DRAFT"> {
+  return (
+    value !== null && SOCIAL_POST_STATUSES.some((status) => status === value)
+  );
 }
 
 export interface CalendarCoworker {
@@ -191,6 +204,10 @@ const calendarParsers = {
   scope: parseAsStringLiteral(["owned", "workspace"]).withDefault("workspace"),
   socialOnly: parseAsBoolean.withDefault(false),
   status: parseAsStringEnum<TaskStatusValue>(CALENDAR_STATUSES),
+  postStatus:
+    parseAsStringEnum<Exclude<SocialPostStatusValue, "DRAFT">>(
+      SOCIAL_POST_STATUSES,
+    ),
   timezone: parseAsString,
   view: parseAsStringLiteral(CALENDAR_VIEWS),
 };
@@ -738,6 +755,7 @@ export function WorkspaceCalendar({
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
+  const tPostStatus = useTranslations("App.Projects.SocialPosts.status");
   const formatDate = useFormatter().dateTime;
   const router = useRouter();
   const { handleOpenWithDefaults } = useCreateTaskModal();
@@ -886,6 +904,7 @@ export function WorkspaceCalendar({
           state.assigneeId === null &&
           state.assigneeUserId === null &&
           state.status === null &&
+          (state.postStatus === null || item.status === state.postStatus) &&
           (selectedSourceId === null || item.sourceId === selectedSourceId)
         );
       return (
@@ -1182,8 +1201,33 @@ export function WorkspaceCalendar({
         ]
       : []),
     // A coworker, human or task status chosen while Social-only is on would
-    // empty the calendar: a Social post has none of the three.
+    // empty the calendar: a Social post has none of the three. Posts have
+    // their own status filter instead.
     ...(socialOnly ? [] : runFilterSections()),
+    ...(socialOnly
+      ? [
+          {
+            id: "postStatus",
+            label: tFilters("statusLabel"),
+            icon: CircleDashed,
+            value: state.postStatus,
+            allLabel: tFilters("all"),
+            options: SOCIAL_POST_STATUSES.map((status) => ({
+              value: status,
+              label: tPostStatus(status),
+            })),
+            onChange: (postStatus: string | null) =>
+              void setState(
+                {
+                  postStatus: isSocialPostStatus(postStatus)
+                    ? postStatus
+                    : null,
+                },
+                { shallow: false },
+              ),
+          },
+        ]
+      : []),
     {
       id: "timezone",
       label: t("timezone.label"),
@@ -1314,6 +1358,7 @@ export function WorkspaceCalendar({
                     assigneeId: null,
                     assigneeUserId: null,
                     status: null,
+                    postStatus: state.socialOnly ? null : state.postStatus,
                   },
                   { shallow: false },
                 )
@@ -1348,6 +1393,7 @@ export function WorkspaceCalendar({
                   (state.assigneeId !== null ||
                     state.assigneeUserId !== null ||
                     state.status !== null)) ||
+                (socialOnly && state.postStatus !== null) ||
                 selectedSourceId !== null
               }
             />
