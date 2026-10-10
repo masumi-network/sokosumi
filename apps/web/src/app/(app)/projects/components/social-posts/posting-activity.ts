@@ -138,6 +138,18 @@ export function activityMax(days: ActivityDay[], mode: ActivityMode): number {
   return max;
 }
 
+/**
+ * Drop leading and trailing gaps so a partial series fills the sparkline.
+ * Gaps in the middle stay, so a missing week still reads as a break.
+ */
+export function sparklineSpan(values: (number | null)[]): (number | null)[] {
+  let start = 0;
+  let end = values.length;
+  while (start < end && values[start] == null) start += 1;
+  while (end > start && values[end - 1] == null) end -= 1;
+  return values.slice(start, end);
+}
+
 /** Daily points when the range is short; weekly sums when it is long. */
 export function sparklineSeries(values: (number | null)[]): (number | null)[] {
   if (values.length <= SPARKLINE_DAILY_LIMIT) return values;

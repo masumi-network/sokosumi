@@ -8,6 +8,7 @@ import {
   fillActivityRange,
   postingStreaks,
   sparklineSeries,
+  sparklineSpan,
 } from "./posting-activity";
 
 const days: ActivityDay[] = [
@@ -148,5 +149,12 @@ describe("posting consistency", () => {
       5,
     ];
     expect(sparklineSeries(long)).toEqual([3, null, 9]);
+  });
+
+  it("spans a partial sparkline across the measured stretch", () => {
+    expect(sparklineSpan([null, null, 1, 2, null])).toEqual([1, 2]);
+    expect(sparklineSpan([null, 1, null, 4, null])).toEqual([1, null, 4]);
+    expect(sparklineSpan([1, 2, 3])).toEqual([1, 2, 3]);
+    expect(sparklineSpan([null, null])).toEqual([]);
   });
 });

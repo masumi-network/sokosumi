@@ -15,6 +15,7 @@ import {
   fillActivityRange,
   postingStreaks,
   sparklineSeries,
+  sparklineSpan,
 } from "./posting-activity";
 
 const LEVEL_CLASS = [
@@ -270,11 +271,10 @@ export function MetricSparkline({
   values: (number | null)[];
   label: string;
 }) {
-  const series = sparklineSeries(values);
+  const series = sparklineSpan(sparklineSeries(values));
   const measured = series.flatMap((value) => (value == null ? [] : [value]));
-  if (measured.length === 0) return null;
-  const min = Math.min(...measured);
-  const max = Math.max(...measured);
+  const min = measured.length === 0 ? 0 : Math.min(...measured);
+  const max = measured.length === 0 ? 0 : Math.max(...measured);
   const span = max - min || 1;
   const step = series.length > 1 ? SPARKLINE_WIDTH / (series.length - 1) : 0;
   const points = series.map((value, index) => {
@@ -289,10 +289,19 @@ export function MetricSparkline({
     <svg
       viewBox={`0 0 ${SPARKLINE_WIDTH} ${SPARKLINE_HEIGHT}`}
       preserveAspectRatio="none"
-      className="mt-2 h-6 w-full"
+      className="mt-1 h-4 w-full sm:h-6"
       role="img"
       aria-label={label}
     >
+      <line
+        x1="0"
+        x2={SPARKLINE_WIDTH}
+        y1={SPARKLINE_HEIGHT - 1}
+        y2={SPARKLINE_HEIGHT - 1}
+        className="stroke-border"
+        strokeWidth="1"
+        vectorEffect="non-scaling-stroke"
+      />
       {runs.map((run) => (
         <path
           key={`area-${run[0]?.x}`}

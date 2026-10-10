@@ -362,7 +362,7 @@ export function SocialPerformanceOverview({
         </h2>
         <div
           className={cn(
-            "grid gap-6 sm:grid-cols-2",
+            "grid grid-cols-2 gap-x-3 gap-y-4 xl:gap-6",
             visibleCards.length === 3 ? "xl:grid-cols-3" : "xl:grid-cols-4",
           )}
         >
@@ -380,15 +380,15 @@ export function SocialPerformanceOverview({
             return (
               <article
                 key={card.key}
-                className="min-w-0"
+                className="flex min-w-0 flex-col"
                 title={coverageDetails ?? undefined}
               >
-                <p className="text-muted-foreground mb-2 text-sm">
+                <p className="text-muted-foreground mb-1 text-sm">
                   {card.label}
                 </p>
-                <div className="flex items-baseline gap-3">
+                <div className="flex flex-col items-start gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
                   <p
-                    className="text-4xl font-semibold tracking-tight tabular-nums"
+                    className="text-2xl font-semibold tracking-tight whitespace-nowrap tabular-nums sm:text-4xl"
                     title={
                       card.value == null
                         ? t("unavailable")
@@ -400,7 +400,7 @@ export function SocialPerformanceOverview({
                   {delta != null ? (
                     <span
                       className={cn(
-                        "flex items-center gap-1 text-base font-medium tabular-nums",
+                        "flex items-center gap-0.5 text-xs font-medium whitespace-nowrap tabular-nums sm:gap-1 sm:text-base",
                         delta >= 0
                           ? "text-semantic-success"
                           : "text-semantic-destructive",
@@ -408,9 +408,15 @@ export function SocialPerformanceOverview({
                       title={t("performance.previousPeriod")}
                     >
                       {delta >= 0 ? (
-                        <ArrowUpRight className="size-4" aria-hidden />
+                        <ArrowUpRight
+                          className="size-3 sm:size-4"
+                          aria-hidden
+                        />
                       ) : (
-                        <ArrowDownRight className="size-4" aria-hidden />
+                        <ArrowDownRight
+                          className="size-3 sm:size-4"
+                          aria-hidden
+                        />
                       )}
                       {format.number(delta, {
                         signDisplay: "always",
@@ -419,51 +425,55 @@ export function SocialPerformanceOverview({
                     </span>
                   ) : null}
                 </div>
-                <MetricSparkline
-                  label={t("performance.sparkline", { metric: card.label })}
-                  values={data.daily.map((day) =>
-                    card.key === "postCount"
-                      ? day.summary.postCount
-                      : card.key === "views"
-                        ? day.summary.metrics.views.total
-                        : card.key === "impressions"
-                          ? day.summary.metrics.impressions.total
-                          : day.summary.interactions.total,
-                  )}
-                />
-                {hasCoverage ? (
-                  <details className="group mt-2">
-                    <summary className="text-muted-foreground hover:text-foreground flex w-fit cursor-pointer list-none items-center gap-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
-                      <ChevronDown
-                        className="size-3 group-open:rotate-180"
-                        aria-hidden
-                      />
-                      {t("performance.details")}
-                    </summary>
-                    <dl className="text-muted-foreground mt-2 space-y-0.5 text-xs">
-                      <div className="flex justify-between gap-3">
-                        <dt>{t("performance.mean")}:</dt>
-                        <dd className="tabular-nums">{number(card.mean)}</dd>
-                      </div>
-                      <div className="flex justify-between gap-3">
-                        <dt>{t("performance.median")}:</dt>
-                        <dd className="tabular-nums">{number(card.median)}</dd>
-                      </div>
-                      <div className="flex justify-between gap-3">
-                        <dt>
-                          {t("performance.metricCoverage", {
-                            measured: card.measured,
-                            total: current.postCount,
-                          })}
-                        </dt>
-                      </div>
-                    </dl>
-                  </details>
-                ) : (
-                  <p className="text-muted-foreground mt-2 text-xs">
-                    {t("performance.previousPeriod")}
-                  </p>
-                )}
+                <div className="mt-auto">
+                  <MetricSparkline
+                    label={t("performance.sparkline", { metric: card.label })}
+                    values={data.daily.map((day) =>
+                      card.key === "postCount"
+                        ? day.summary.postCount
+                        : card.key === "views"
+                          ? day.summary.metrics.views.total
+                          : card.key === "impressions"
+                            ? day.summary.metrics.impressions.total
+                            : day.summary.interactions.total,
+                    )}
+                  />
+                  <div className="mt-1 min-h-5">
+                    {hasCoverage ? (
+                      <details className="group">
+                        <summary className="text-muted-foreground hover:text-foreground flex w-fit cursor-pointer list-none items-center gap-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+                          <ChevronDown
+                            className="size-3 group-open:rotate-180"
+                            aria-hidden
+                          />
+                          {t("performance.details")}
+                        </summary>
+                        <dl className="text-muted-foreground mt-2 space-y-0.5 text-xs">
+                          <div className="flex justify-between gap-3">
+                            <dt>{t("performance.mean")}:</dt>
+                            <dd className="tabular-nums">
+                              {number(card.mean)}
+                            </dd>
+                          </div>
+                          <div className="flex justify-between gap-3">
+                            <dt>{t("performance.median")}:</dt>
+                            <dd className="tabular-nums">
+                              {number(card.median)}
+                            </dd>
+                          </div>
+                          <div className="flex justify-between gap-3">
+                            <dt>
+                              {t("performance.metricCoverage", {
+                                measured: card.measured,
+                                total: current.postCount,
+                              })}
+                            </dt>
+                          </div>
+                        </dl>
+                      </details>
+                    ) : null}
+                  </div>
+                </div>
               </article>
             );
           })}
