@@ -162,7 +162,10 @@ beforeEach(() => {
   vi.stubGlobal("fetch", mocks.fetch);
   mocks.fetch.mockResolvedValue({ ok: true, json: async () => page() });
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe("SocialPostStatistics account history", () => {
   it("shows a retryable error for a successful HTTP response containing an error body", async () => {
@@ -476,5 +479,63 @@ describe("SocialPostStatistics account history", () => {
         .getByRole("option", { name: "Brand page" })
         .querySelectorAll("[data-testid='social-post-provider-icon']"),
     ).toHaveLength(1);
+  });
+
+  it("keeps the single Updated line and Sync control", async () => {
+    renderStatistics();
+    await screen.findByText(post.text);
+    expect(screen.getByText("Updated Oct 8, 2026")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Sync all accounts" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Sync now" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("polls while a sync is queued and stops when it is fresh", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mocks.fetch.mockImplementation(async () => ({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [{ ...account, sync: { status: "queued" } }],
+      }),
+    }));
+    renderStatistics();
+    await screen.findByText(post.text);
+    const afterFirst = mocks.fetch.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(mocks.fetch.mock.calls.length).toBeGreaterThan(afterFirst);
+    mocks.fetch.mockImplementation(async () => ({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [{ ...account, sync: { status: "fresh" } }],
+      }),
+    }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    const afterFresh = mocks.fetch.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(mocks.fetch.mock.calls.length).toBe(afterFresh);
+  });
+
+  it("refetches when the tab is focused", async () => {
+    renderStatistics();
+    await screen.findByText(post.text);
+    const afterLoad = mocks.fetch.mock.calls.length;
+    await act(async () => {
+      window.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(new Event("focus"));
+    });
+    await waitFor(() =>
+      expect(mocks.fetch.mock.calls.length).toBeGreaterThan(afterLoad),
+    );
   });
 });
