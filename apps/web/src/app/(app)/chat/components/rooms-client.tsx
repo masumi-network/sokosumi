@@ -398,6 +398,7 @@ function visibleRoomLocation(
 
 interface RetainedTranscriptBinding {
   entry: RoomTranscriptEntry;
+  position?: TranscriptPosition;
   setTranscript: (update: SetStateAction<RoomTranscript>) => void;
   resolve: (page: RoomMessagePage) => void;
   refresh: (isCurrent: () => boolean) => Promise<void>;
@@ -460,6 +461,7 @@ function RetainedRoomsClient({
   );
   const binding: RetainedTranscriptBinding = {
     entry: { ...entry, transcript },
+    position: cache.getPosition(roomId),
     setTranscript: (update) => {
       if (!cache.current(roomId, lifetime)) return;
       cache.setTranscript(roomId, lifetime, (confirmed) => {
@@ -495,8 +497,8 @@ function RetainedRoomsClient({
     },
     positionChanged: (position) => {
       if (!activeRef.current) return;
-      const previous = cache.get(roomId)?.position;
-      cache.update(roomId, lifetime, (value) => ({ ...value, position }));
+      const previous = cache.getPosition(roomId);
+      cache.setPosition(roomId, lifetime, position);
       if (
         position.visibleMessageIds.some(
           (id) =>
@@ -3248,7 +3250,7 @@ function RoomView({
             initialPosition={
               pendingMessageJump || searchParams.has(CHAT_MESSAGE_PARAM)
                 ? undefined
-                : retained?.entry.position
+                : retained?.position
             }
             onPositionChange={retained?.positionChanged}
           />

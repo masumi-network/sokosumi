@@ -167,6 +167,7 @@ overrides:
   esbuild@<0.28.2: 0.28.2
 
 patchedDependencies:
+  '@tanstack/virtual-core@3.17.11': 8f80c39e1d00faeb9f4954186c4a6f862603214483ed9db9861823c85913ace8
   vitest@5.0.3: 44a492272cbc9f451c6825ad7b8ef773bfdfdcd89a9db524294bf4c17f2a7361
 
 importers:
@@ -13880,7 +13881,7 @@ snapshots:
 
   '@tanstack/react-virtual@3.14.13(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@tanstack/virtual-core': 3.17.11
+      '@tanstack/virtual-core': 3.17.11(patch_hash=8f80c39e1d00faeb9f4954186c4a6f862603214483ed9db9861823c85913ace8)
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
 
@@ -13890,7 +13891,7 @@ snapshots:
     dependencies:
       '@tanstack/store': 0.11.2
 
-  '@tanstack/virtual-core@3.17.11': {}
+  '@tanstack/virtual-core@3.17.11(patch_hash=8f80c39e1d00faeb9f4954186c4a6f862603214483ed9db9861823c85913ace8)': {}
 
   '@testing-library/dom@10.4.2':
     dependencies:

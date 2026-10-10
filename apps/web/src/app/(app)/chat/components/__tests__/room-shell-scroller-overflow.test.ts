@@ -17,11 +17,10 @@ import { ROOM_SHELL_SCROLLER_CLASSNAME } from "../room-shell-layout";
  * scrollHeight to clientHeight — tall rooms cannot scroll up to older
  * messages.
  *
- * The scroller is a reversed flex column on purpose (bottom-anchored, see
- * `chat-message-list-scroller.ts`), so the content must refuse to shrink.
+ * A normal flex column must not shrink the transcript to the viewport.
  */
 describe("room shell scroller overflow contract", () => {
-  it("anchors the scroller to the bottom", () => {
+  it("uses normal-direction scrolling", () => {
     expect(ROOM_SHELL_SCROLLER_CLASSNAME).toBe(
       CHAT_MESSAGE_LIST_SCROLLER_CLASS,
     );
@@ -30,7 +29,9 @@ describe("room shell scroller overflow contract", () => {
     expect(classes).toContain("min-h-0");
     expect(classes).toContain("flex-1");
     expect(classes).toContain("flex");
-    expect(classes).toContain("flex-col-reverse");
+    expect(classes).toContain("flex-col");
+    expect(classes).not.toContain("flex-col-reverse");
+    expect(classes).toContain("[overflow-anchor:none]");
   });
 
   it("content refuses to shrink to the scroller's height, in the room and the thread", () => {

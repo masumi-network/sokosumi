@@ -1249,8 +1249,8 @@ describe("channel cache access and navigation", () => {
   });
 
   it.each(["channel", "direct"] as const)(
-    "restores each %s room's reading position on return",
-    (kind) => {
+    "saves each %s room's reading position without rerendering and restores it on return",
+    async (kind) => {
       const propsA = {
         ...baseProps,
         rooms: baseProps.rooms.map((room) => ({ ...room, kind })),
@@ -1272,7 +1272,15 @@ describe("channel cache access and navigation", () => {
       };
       const bindingA = transcriptViewportSpies.position.mock.calls.at(-1)![0];
       expect(bindingA.onPositionChange).toBeTypeOf("function");
-      act(() => bindingA.onPositionChange?.(position));
+      await act(async () => {});
+      const renders = transcriptViewportSpies.position.mock.calls.length;
+      await act(async () => {
+        for (const offset of [-44, -43, -42]) {
+          bindingA.onPositionChange?.({ ...position, offset });
+        }
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(transcriptViewportSpies.position).toHaveBeenCalledTimes(renders);
       view.rerender(
         <RoomsClient
           {...propsB}
@@ -1442,10 +1450,25 @@ describe("channel cache access and navigation", () => {
     );
     fireEvent.click(screen.getByText("loadOlder"));
     expect(await screen.findByText("older retained")).toBeTruthy();
+    const position = {
+      anchorId: "older",
+      anchorCreatedAt: new Date("2026-06-01").getTime(),
+      offset: 18,
+      atLiveEdge: false,
+      visibleMessageIds: ["older", "msg-real"],
+    };
+    act(() =>
+      transcriptViewportSpies.position.mock.calls
+        .at(-1)![0]
+        .onPositionChange?.(position),
+    );
     view.rerender(<RoomsClient {...roomBProps} />);
     view.rerender(<RoomsClient {...baseProps} loadHistoryOnClient />);
     expect(screen.getByText("older retained")).toBeTruthy();
     expect(screen.getByText("newest")).toBeTruthy();
+    expect(
+      transcriptViewportSpies.position.mock.calls.at(-1)![0].initialPosition,
+    ).toEqual(position);
   });
 
   it("rejects an older page captured before a realtime edit", async () => {
