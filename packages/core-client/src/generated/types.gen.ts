@@ -5720,6 +5720,13 @@ export type SocialPostCalendarItem = {
         kind: 'image' | 'gif' | 'video';
     } | null;
     scheduledAt: Date;
+    /**
+     * Latest publish attempt outcome and error kind for Failed and Missed chips. Never the raw provider error.
+     */
+    lastAttempt: {
+        outcome: string | null;
+        errorKind: string | null;
+    } | null;
     sourceId: string;
     sourceProjectId: string;
     sourceWorkspaceId: string;

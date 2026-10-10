@@ -2429,7 +2429,19 @@
         "moreActions": "Acciones de la publicación",
         "noAccount": "Sin cuenta",
         "outcomes": {
-          "authorizationRevoked": "Se revocó el acceso de programación del Coworker. Reprograma esta publicación para publicarla."
+          "authorizationRevoked": "Se revocó el acceso de programación del Coworker. Reprograma esta publicación para publicarla.",
+          "connectionInactive": "Cuenta desconectada. Vuelve a conectarla para reintentar.",
+          "missed": "Se pasó la hora programada."
+        },
+        "failures": {
+          "rateLimited": "Límite de peticiones. Inténtalo más tarde.",
+          "timeout": "Se agotó el tiempo. Inténtalo de nuevo.",
+          "unauthorized": "Vuelve a conectar la cuenta.",
+          "unavailable": "La plataforma no responde. Inténtalo más tarde.",
+          "rejected": "La plataforma rechazó esta publicación.",
+          "mediaMissing": "Falta un archivo.",
+          "mediaType": "Ese tipo de archivo no está permitido.",
+          "generic": "No se pudo publicar. Abre la publicación para ver los detalles."
         },
         "sections": {
           "calendar": "Calendario",

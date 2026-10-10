@@ -2429,7 +2429,19 @@
         "moreActions": "Beitragsaktionen",
         "noAccount": "Kein Konto",
         "outcomes": {
-          "authorizationRevoked": "Der Planungszugriff des Coworkers wurde widerrufen. Plane diesen Beitrag neu, um ihn zu veröffentlichen."
+          "authorizationRevoked": "Der Planungszugriff des Coworkers wurde widerrufen. Plane diesen Beitrag neu, um ihn zu veröffentlichen.",
+          "connectionInactive": "Konto getrennt. Verbinde es erneut.",
+          "missed": "Der geplante Zeitpunkt wurde verpasst."
+        },
+        "failures": {
+          "rateLimited": "Zu viele Anfragen. Versuche es später erneut.",
+          "timeout": "Zeitüberschreitung. Versuche es erneut.",
+          "unauthorized": "Verbinde das Konto erneut.",
+          "unavailable": "Die Plattform ist nicht erreichbar. Versuche es später erneut.",
+          "rejected": "Die Plattform hat diesen Beitrag abgelehnt.",
+          "mediaMissing": "Eine Datei fehlt.",
+          "mediaType": "Dieser Dateityp ist nicht erlaubt.",
+          "generic": "Veröffentlichung fehlgeschlagen. Öffne den Beitrag für Details."
         },
         "sections": {
           "calendar": "Kalender",
