@@ -2526,7 +2526,7 @@
           "formats": {
             "post": "Beitrag",
             "mediaPost": "Bild- oder Videobeitrag",
-            "video": "Video (Text wird Titel und Beschreibung)"
+            "video": "Video"
           },
           "publishNow": "Jetzt posten",
           "when": "Wann",

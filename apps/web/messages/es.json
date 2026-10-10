@@ -2526,7 +2526,7 @@
           "formats": {
             "post": "publicación",
             "mediaPost": "publicación con imagen o video",
-            "video": "video (el texto es el título y la descripción)"
+            "video": "vídeo"
           },
           "publishNow": "Publicar ahora",
           "when": "Cuándo",
