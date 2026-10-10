@@ -74,6 +74,7 @@ import {
   SOCIAL_TABS,
   type SocialTab,
 } from "./constants";
+import { socialPostCreatorLabel } from "./social-post-creator-label";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
 import { SocialPostStatistics } from "./social-post-statistics";
@@ -508,9 +509,10 @@ export function ProjectSocialPosts({
 
   function renderPost(post: SocialPost) {
     const handle = formatHandle(post.socialConnection?.externalHandle ?? null);
-    const creatorLabel = post.creator.name
-      ? `${t(`creator.${post.creator.kind}`)} · ${post.creator.name}`
-      : t(`creator.${post.creator.kind}`);
+    const creatorLabel = socialPostCreatorLabel(
+      post.creator,
+      t(`creator.${post.creator.kind}`),
+    );
     const failedAt = post.lastAttempt?.finishedAt ?? null;
     const failureReason =
       post.lastAttempt?.outcome === "authorization_revoked"
