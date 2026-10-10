@@ -279,6 +279,29 @@ describe("SocialPostStatistics server-driven sync", () => {
     expect(screen.getByText(post.text)).toBeVisible();
   });
 
+  it("renders stored posts while a refresh is queued and does not stack another request", async () => {
+    const queuedAccount = {
+      ...account,
+      statistics: {
+        ...snapshot,
+        fetchedAt: minutesAgo(120),
+        refreshAttemptedAt: minutesAgo(120),
+      },
+      sync: {
+        status: "queued",
+        mayAutoRequest: false,
+        dataVersion: "queued-1",
+      },
+    };
+    mockPages([queuedAccount as never]);
+
+    renderStatistics();
+
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(await screen.findByText("Syncing…")).toBeVisible();
+    expect(mocks.refreshAction).not.toHaveBeenCalled();
+  });
+
   it("does not show syncing indicator when account data is fresh", async () => {
     mockPages([account]);
 

@@ -1,29 +1,45 @@
 /**
- * Social account sync — synthesized contract (snapshot-as-cache).
+ * Social account sync — snapshot-as-cache.
  *
  * Public surface (3 operations):
  *   socialSyncReadModel          — derive UI freshness from stored columns
  *   requestSocialAccountRefresh  — mark dirty; never talks to providers
  *   runDueSocialAccountSync      — sole writer; cron / waitUntil
- *
- * Reads are Prisma. Composio lives only inside the writer
- * (`refreshSocialAccountStatistics` + connection probe).
- *
- * Module map:
- *   social-account-sync.ts                 — this file (owner)
- *   social-account-statistics.service.ts   — provider page writer (internal)
- *   social-performance.service.ts          — cache aggregation
- *   project-social-connections.service.ts  — Prisma list (no Composio)
- *   account-statistics.ts                  — provider adapter
- *
- * Schema: ProjectSocialConnection.performanceRefreshRequestedAt (dirty flag).
- * Lease: compare-and-set on performanceRefreshAttemptedAt.
  */
 
-import type { Result } from "neverthrow";
+import { Prisma } from "@sokosumi/database";
+import { waitUntil } from "@vercel/functions";
+import { err, ok, type Result } from "neverthrow";
+import prisma from "@/lib/db/prisma";
+import { socialAccountStatisticsSchema } from "@/schemas/social-account-statistics.schema";
+import { listProjectSocialConnections } from "@/services/project-social-connections.service";
+import { refreshSocialAccountStatistics } from "@/services/social-account-statistics.service";
+import {
+  SOCIAL_SYNC_FRESH_MS,
+  type SocialSyncReadModel,
+  type SocialSyncStoredRow,
+  socialSyncReadModel,
+} from "@/services/social-sync-read";
 
-export const SOCIAL_SYNC_FRESH_MS = 3_600_000;
-export const SOCIAL_SYNC_LEASE_MS = 300_000;
+export type {
+  SocialSyncReadModel,
+  SocialSyncStatus,
+  SocialSyncStoredRow,
+} from "@/services/social-sync-read";
+export {
+  SOCIAL_SYNC_FRESH_MS,
+  SOCIAL_SYNC_LEASE_MS,
+  socialSyncReadModel,
+} from "@/services/social-sync-read";
+
+const BACKOFF_MS = [
+  5 * 60 * 1000,
+  15 * 60 * 1000,
+  60 * 60 * 1000,
+  3 * 60 * 60 * 1000,
+  12 * 60 * 60 * 1000,
+  24 * 60 * 60 * 1000,
+] as const;
 
 export type SocialSyncTrigger =
   | "cron"
@@ -31,38 +47,6 @@ export type SocialSyncTrigger =
   | "connect"
   | "stale_auto"
   | "reauth_resume";
-
-export type SocialSyncStatus =
-  | "fresh"
-  | "stale"
-  | "queued"
-  | "running"
-  | "reauth_required"
-  | "partial";
-
-export interface SocialSyncReadModel {
-  status: SocialSyncStatus;
-  dataFetchedAt: string | null;
-  headFetchedAt: string | null;
-  dataVersion: string;
-  mayAutoRequest: boolean;
-  lastError: string | null;
-  partialWarnings: string[];
-}
-
-export interface SocialSyncStoredRow {
-  status: string;
-  performanceHeadFetchedAt: Date | null;
-  performanceRefreshAttemptedAt: Date | null;
-  performanceRefreshRequestedAt: Date | null;
-  statistics: {
-    fetchedAt: string | null;
-    historyFetchedAt: string | null;
-    historyError: string | null;
-    metricWarning: string | null;
-    error: string | null;
-  } | null;
-}
 
 export type SocialSyncServiceError =
   | { code: "not_found"; connectionId: string }
@@ -86,7 +70,6 @@ export interface RunDueSocialAccountSyncInput {
   shouldContinue: () => boolean;
   abortSignal?: AbortSignal;
   now?: Date;
-  /** When set, only this connection is eligible (connect / waitUntil). */
   connectionId?: string;
 }
 
@@ -100,63 +83,272 @@ export interface RunDueSocialAccountSyncResult {
   rateLimitHits: number;
 }
 
-/**
- * Pure. One owner of freshness: stored columns + statistics errors.
- * Web must not re-derive 1h/5m thresholds.
- */
-export function socialSyncReadModel(
-  _row: SocialSyncStoredRow,
-  _now?: Date,
-): SocialSyncReadModel {
-  throw new Error("not implemented");
-  // TODO: reauth_required if row.status !== active
-  // TODO: running if attemptedAt within LEASE and (requestedAt >= attemptedAt or head stale)
-  // TODO: queued if requestedAt > attemptedAt (or attemptedAt null)
-  // TODO: partial if historyError/metricWarning and we still have a head
-  // TODO: fresh if headFetchedAt within FRESH_MS
-  // TODO: else stale; mayAutoRequest = active && !running && !queued
+function parseStoredStatistics(
+  value: unknown,
+): SocialSyncStoredRow["statistics"] {
+  const parsed = socialAccountStatisticsSchema.safeParse(value).data;
+  return parsed
+    ? {
+        fetchedAt: parsed.fetchedAt,
+        historyFetchedAt: parsed.historyFetchedAt,
+        historyError: parsed.historyError,
+        metricWarning: parsed.metricWarning,
+        error: parsed.error,
+      }
+    : null;
 }
 
-/**
- * Mark the connection dirty. Never calls Composio or the statistics writer.
- * Idempotent: a second request while already dirty/running just returns the
- * current read model.
- */
 export async function requestSocialAccountRefresh(
-  _input: RequestSocialAccountRefreshInput,
+  input: RequestSocialAccountRefreshInput,
 ): Promise<Result<RequestSocialAccountRefreshResult, SocialSyncServiceError>> {
-  throw new Error("not implemented");
-  // TODO: load connection in project/workspace; 404 / reauth
-  // TODO: updateMany set performanceRefreshRequestedAt = now where id + active
-  // TODO: return stored account + socialSyncReadModel (queued)
+  const summaries = await listProjectSocialConnections({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+  });
+  const summary = summaries.find(
+    (account) => account.id === input.connectionId,
+  );
+  if (!summary) {
+    return err({ code: "not_found", connectionId: input.connectionId });
+  }
+  if (summary.status !== "active") {
+    return err({ code: "reauth_required", connectionId: input.connectionId });
+  }
+  const now = new Date();
+  await prisma.projectSocialConnection.updateMany({
+    where: {
+      id: input.connectionId,
+      projectId: input.projectId,
+      project: { workspaceId: input.workspaceId },
+      status: "active",
+    },
+    data: { performanceRefreshRequestedAt: now },
+  });
+  const row = await prisma.projectSocialConnection.findFirst({
+    where: {
+      id: input.connectionId,
+      projectId: input.projectId,
+      project: { workspaceId: input.workspaceId },
+    },
+    select: {
+      status: true,
+      performanceHeadFetchedAt: true,
+      performanceRefreshAttemptedAt: true,
+      performanceRefreshRequestedAt: true,
+      statistics: true,
+    },
+  });
+  if (!row) {
+    return err({ code: "not_found", connectionId: input.connectionId });
+  }
+  return ok({
+    connectionId: input.connectionId,
+    accepted: true,
+    sync: socialSyncReadModel(
+      {
+        status: row.status,
+        performanceHeadFetchedAt: row.performanceHeadFetchedAt,
+        performanceRefreshAttemptedAt: row.performanceRefreshAttemptedAt,
+        performanceRefreshRequestedAt: row.performanceRefreshRequestedAt,
+        statistics: parseStoredStatistics(row.statistics),
+      },
+      now,
+    ),
+  });
 }
 
-/**
- * Sole provider writer. Claims dirty/stale/incomplete active rows with
- * compare-and-set on attemptedAt, then delegates one-or-more pages to
- * refreshSocialAccountStatistics. Crash mid-slice: lease expires, next
- * cron reclaims. Duplicate cron: updateMany count 0, skip.
- */
 export async function runDueSocialAccountSync(
-  _input: RunDueSocialAccountSyncInput,
+  input: RunDueSocialAccountSyncInput,
 ): Promise<RunDueSocialAccountSyncResult> {
-  throw new Error("not implemented");
-  // TODO: select active rows: requestedAt dirty OR head stale OR history incomplete OR never attempted
-  // TODO: skip backoff from consecutiveFailures in statistics JSON (writer-owned)
-  // TODO: claim: updateMany attemptedAt=now where id and (attemptedAt null or older than lease or requestedAt > attemptedAt)
-  // TODO: probe connection health once (Composio); 401 → reauthorization_required
-  // TODO: refreshSocialAccountStatistics (head then history pages under deadline)
-  // TODO: clear requestedAt when requestedAt <= attemptedAt after a successful head
-  // TODO: never wipe SocialAccountPost on partial provider failure
+  const now = input.now ?? new Date();
+  const day = new Date(now);
+  day.setUTCHours(0, 0, 0, 0);
+  const hourAgo = new Date(now.getTime() - SOCIAL_SYNC_FRESH_MS);
+  const accounts = await prisma.projectSocialConnection.findMany({
+    where: {
+      status: "active",
+      ...(input.connectionId ? { id: input.connectionId } : {}),
+      OR: [
+        { performanceRefreshRequestedAt: { not: null } },
+        { performanceRefreshAttemptedAt: null },
+        { performanceRefreshAttemptedAt: { lt: day } },
+        {
+          AND: [
+            { performanceRefreshAttemptedAt: { lte: hourAgo } },
+            {
+              OR: [
+                { performanceHeadFetchedAt: null },
+                { performanceHeadFetchedAt: { lt: day } },
+                {
+                  AND: [
+                    {
+                      statistics: { path: ["historyComplete"], equals: false },
+                    },
+                    {
+                      statistics: {
+                        path: ["historyError"],
+                        equals: Prisma.JsonNull,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    include: { project: { select: { workspaceId: true } } },
+    orderBy: [
+      { performanceRefreshAttemptedAt: { sort: "asc", nulls: "first" } },
+      { id: "asc" },
+    ],
+  });
+
+  const metrics: RunDueSocialAccountSyncResult = {
+    accountsProcessed: 0,
+    pagesCollected: 0,
+    accountsCompleted: 0,
+    accountsFailed: 0,
+    accountsSkippedReauth: 0,
+    accountsSkippedBackoff: 0,
+    rateLimitHits: 0,
+  };
+
+  for (const account of accounts) {
+    if (input.abortSignal?.aborted || !input.shouldContinue()) break;
+    if (account.status === "reauthorization_required") {
+      metrics.accountsSkippedReauth += 1;
+      continue;
+    }
+    const previous = socialAccountStatisticsSchema.safeParse(
+      account.statistics,
+    ).data;
+    const requestedAt = account.performanceRefreshRequestedAt ?? null;
+    const attemptedAt = account.performanceRefreshAttemptedAt ?? null;
+    const dirty =
+      requestedAt !== null &&
+      (attemptedAt === null || requestedAt.getTime() > attemptedAt.getTime());
+    if (!dirty && previous?.error && account.performanceRefreshAttemptedAt) {
+      const level = Math.min(
+        BACKOFF_MS.length - 1,
+        previous.consecutiveFailures ?? 1,
+      );
+      const backoffMs = BACKOFF_MS[level] ?? BACKOFF_MS[BACKOFF_MS.length - 1];
+      if (
+        now.getTime() - account.performanceRefreshAttemptedAt.getTime() <
+        backoffMs
+      ) {
+        metrics.accountsSkippedBackoff += 1;
+        continue;
+      }
+    }
+
+    const claimed = await prisma.projectSocialConnection.updateMany({
+      where: {
+        id: account.id,
+        status: "active",
+        performanceRefreshAttemptedAt:
+          account.performanceRefreshAttemptedAt ?? null,
+      },
+      data: { performanceRefreshAttemptedAt: now },
+    });
+    if (claimed.count === 0) continue;
+
+    try {
+      let continueHistory = Boolean(
+        previous?.historyNextCursor && !previous.historyComplete,
+      );
+      let pagesThisAccount = 0;
+      while (
+        !input.abortSignal?.aborted &&
+        input.shouldContinue() &&
+        pagesThisAccount < 10
+      ) {
+        const result = await refreshSocialAccountStatistics({
+          projectId: account.projectId,
+          workspaceId: account.project.workspaceId,
+          connectionId: account.id,
+          userId: "social-performance-sync",
+          signal: input.abortSignal,
+          refreshHead:
+            pagesThisAccount === 0 &&
+            (dirty ||
+              !account.performanceHeadFetchedAt ||
+              account.performanceHeadFetchedAt < day),
+          continueHistory,
+        });
+        pagesThisAccount += 1;
+        metrics.pagesCollected += 1;
+        const snapshot = result.account.statistics;
+        if (
+          !snapshot ||
+          snapshot.historyComplete ||
+          snapshot.historyError ||
+          !snapshot.historyNextCursor
+        ) {
+          if (snapshot?.historyComplete) metrics.accountsCompleted += 1;
+          break;
+        }
+        continueHistory = true;
+      }
+      if (
+        requestedAt &&
+        (!account.performanceRefreshAttemptedAt ||
+          requestedAt.getTime() <= now.getTime())
+      ) {
+        await prisma.projectSocialConnection.updateMany({
+          where: {
+            id: account.id,
+            performanceRefreshRequestedAt: requestedAt,
+          },
+          data: { performanceRefreshRequestedAt: null },
+        });
+      }
+      metrics.accountsProcessed += 1;
+    } catch (error) {
+      if (input.abortSignal?.aborted) break;
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      const lowerMessage = errorMessage.toLowerCase();
+      if (lowerMessage.includes("rate limit") || lowerMessage.includes("429")) {
+        metrics.rateLimitHits += 1;
+      }
+      if (
+        lowerMessage.includes("unauthorized") ||
+        lowerMessage.includes("invalid token") ||
+        lowerMessage.includes("token expired") ||
+        lowerMessage.includes("authentication failed")
+      ) {
+        await prisma.projectSocialConnection.updateMany({
+          where: { id: account.id, status: "active" },
+          data: { status: "reauthorization_required" },
+        });
+        metrics.accountsSkippedReauth += 1;
+      } else {
+        metrics.accountsFailed += 1;
+      }
+    }
+  }
+  return metrics;
 }
 
-/**
- * Connect / Vercel after-response: mark dirty, then run the same writer.
- * requestRefresh itself still does not await providers.
- */
 export async function scheduleSocialAccountRefresh(
-  _input: RequestSocialAccountRefreshInput,
+  input: RequestSocialAccountRefreshInput,
 ): Promise<void> {
-  throw new Error("not implemented");
-  // TODO: requestSocialAccountRefresh then waitUntil(runDue({ connectionId }))
+  const requested = await requestSocialAccountRefresh(input);
+  if (requested.isErr()) return;
+  const work = runDueSocialAccountSync({
+    connectionId: input.connectionId,
+    shouldContinue: () => true,
+  }).then(() => undefined);
+  if (process.env.VERCEL) waitUntil(work);
+  else void work;
+}
+
+/** Cron alias — same writer, same metrics. */
+export async function collectSocialPerformance(
+  input: RunDueSocialAccountSyncInput,
+): Promise<RunDueSocialAccountSyncResult> {
+  return runDueSocialAccountSync(input);
 }

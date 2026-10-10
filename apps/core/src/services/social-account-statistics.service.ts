@@ -16,6 +16,7 @@ import {
 } from "@/schemas/social-account-statistics.schema";
 import { listProjectSocialConnections } from "@/services/project-social-connections.service";
 import { recordSocialPerformanceSnapshot } from "@/services/social-performance-snapshots.service";
+import { socialSyncReadModel } from "@/services/social-sync-read";
 
 interface AccountStatisticsScope {
   projectId: string;
@@ -40,6 +41,7 @@ const EMPTY_STATISTICS: SocialAccountStatistics = {
   historyFetchedAt: null,
   historyError: null,
   metricWarning: null,
+  consecutiveFailures: 0,
 };
 const X_PRIVATE_METRIC_KEYS = new Set([
   "url_link_clicks",
@@ -75,6 +77,17 @@ async function scopedConnections(input: AccountStatisticsScope) {
                 socialAccountStatisticsSchema.safeParse(record.statistics)
                   .data ?? null,
               postCount: record._count.accountPosts,
+              sync: socialSyncReadModel({
+                status: record.status,
+                performanceHeadFetchedAt: record.performanceHeadFetchedAt,
+                performanceRefreshAttemptedAt:
+                  record.performanceRefreshAttemptedAt,
+                performanceRefreshRequestedAt:
+                  record.performanceRefreshRequestedAt,
+                statistics:
+                  socialAccountStatisticsSchema.safeParse(record.statistics)
+                    .data ?? null,
+              }),
             }),
           },
         ]
@@ -279,6 +292,7 @@ export async function refreshSocialAccountStatistics(
         (input.continueHistory
           ? (page.metricWarning ?? previous.metricWarning)
           : page.metricWarning),
+      consecutiveFailures: 0,
     };
   } catch {
     input.signal?.throwIfAborted();
@@ -291,6 +305,7 @@ export async function refreshSocialAccountStatistics(
       historyError:
         "Unable to load account post history. Previous cached posts are retained.",
       historyComplete: false,
+      consecutiveFailures: (previous.consecutiveFailures ?? 0) + 1,
     };
   }
   input.signal?.throwIfAborted();
@@ -352,6 +367,7 @@ export async function refreshSocialAccountStatistics(
         statistics,
         performanceRefreshAttemptedAt: new Date(attemptedAt),
         ...(headFetchedAt ? { performanceHeadFetchedAt: headFetchedAt } : {}),
+        performanceRefreshRequestedAt: null,
       },
     });
     if (updated.count === 0)

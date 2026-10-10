@@ -338,18 +338,29 @@ function post(
       }
     : null;
 }
+function facebookInsightShares(
+  data: Record<string, unknown> | null,
+): number | null {
+  for (const item of objects(data?.data)) {
+    if (item.name !== "post_activity_by_action_type") continue;
+    const total = record(item.total_value)?.value;
+    const first = objects(item.values)[0]?.value;
+    const raw = record(total) ?? record(first);
+    const shares = counter(raw?.share ?? raw?.shares);
+    if (shares !== null) return shares;
+  }
+  return null;
+}
+
 function requiredList(
   data: Record<string, unknown> | null,
   key: string,
   max = 100,
 ): Record<string, unknown>[] {
-  if (
-    !Array.isArray(data?.[key]) ||
-    data[key].length > max ||
-    data[key].some((item: unknown) => record(item) === null)
-  )
+  if (!Array.isArray(data?.[key])) {
     throw new TypeError("Invalid statistics response");
-  return objects(data[key]);
+  }
+  return objects(data[key]).slice(0, max);
 }
 function insights(data: Record<string, unknown> | null): SocialAccountMetric[] {
   const result: SocialAccountMetric[] = [];
@@ -1228,6 +1239,18 @@ async function history(
         data.data = [];
       result.posts = parseXAccountPosts(data, context.externalAccountId);
       await enrichXPrivateMetrics(context, result.posts);
+      for (const entry of result.posts) {
+        const organic = entry.additionalMetrics.find(
+          (metric) => metric.key === "organic_repost_count",
+        )?.value;
+        if (
+          organic !== null &&
+          organic !== undefined &&
+          (entry.metrics.shares === null || entry.metrics.shares < organic)
+        ) {
+          entry.metrics.shares = organic;
+        }
+      }
       result.nextCursor = cursor(record(data.meta)?.next_token);
       if (record(data.meta)?.next_token && !result.nextCursor)
         throw new TypeError("Invalid history pagination");
@@ -1393,6 +1416,7 @@ async function history(
             entry.metrics.views = counter(count?.viewCount);
             entry.metrics.likes = counter(count?.likeCount);
             entry.metrics.comments = counter(count?.commentCount);
+            entry.metrics.shares = 0;
             entry.additionalMetrics = counts(count, ["dislikeCount"]);
           }
         } catch {
@@ -1494,39 +1518,46 @@ async function enrichMetaHistory(
     await Promise.all(
       result.posts.slice(start, start + 3).map(async (entry) => {
         try {
-          const values = insights(
-            await read(
-              context.provider === "instagram"
-                ? "INSTAGRAM_GET_IG_MEDIA_INSIGHTS"
-                : "FACEBOOK_GET_POST_INSIGHTS",
-              context.provider === "instagram"
-                ? {
-                    ig_media_id: entry.externalId,
-                    metric: [
-                      "views",
-                      "reach",
-                      "saved",
-                      "likes",
-                      "comments",
-                      "shares",
-                      "total_interactions",
-                      "reposts",
-                    ],
-                    period: "lifetime",
-                  }
-                : {
-                    post_id: entry.externalId,
-                    metrics: "post_media_view,post_total_media_view_unique",
-                    period: "lifetime",
-                  },
-            ),
+          const payload = await read(
+            context.provider === "instagram"
+              ? "INSTAGRAM_GET_IG_MEDIA_INSIGHTS"
+              : "FACEBOOK_GET_POST_INSIGHTS",
+            context.provider === "instagram"
+              ? {
+                  ig_media_id: entry.externalId,
+                  metric: [
+                    "views",
+                    "reach",
+                    "saved",
+                    "likes",
+                    "comments",
+                    "shares",
+                    "total_interactions",
+                    "reposts",
+                  ],
+                  period: "lifetime",
+                }
+              : {
+                  post_id: entry.externalId,
+                  metrics:
+                    "post_media_view,post_total_media_view_unique,post_impressions,post_activity_by_action_type",
+                  period: "lifetime",
+                },
           );
+          const values = insights(payload);
           const lookup = new Map(values.map((item) => [item.key, item.value]));
           entry.metrics.views = counter(
             lookup.get(
               context.provider === "instagram" ? "views" : "post_media_view",
             ),
           );
+          if (context.provider === "facebook") {
+            entry.metrics.impressions =
+              counter(lookup.get("post_impressions")) ??
+              entry.metrics.impressions;
+            const shares = facebookInsightShares(payload);
+            if (shares !== null) entry.metrics.shares = shares;
+          }
           if (context.provider === "instagram") {
             entry.metrics.likes =
               counter(lookup.get("likes")) ?? entry.metrics.likes;
@@ -1645,15 +1676,18 @@ export async function fetchSocialAccountStatisticsPage(
       await enrichMetaHistory(context, read, result, mediaTypes);
     } catch (error) {
       context.signal?.throwIfAborted();
-      result.posts = [];
-      result.nextCursor = null;
-      result.historyError =
-        context.provider === "youtube" && isYouTubeQuotaError(error)
-          ? YOUTUBE_QUOTA_ERROR
-          : statisticsFailureMessage(
-              error,
-              `${label} published history is unavailable. Check the connection permissions or try again later.`,
-            );
+      if (result.posts.length === 0) {
+        result.nextCursor = null;
+        result.historyError =
+          context.provider === "youtube" && isYouTubeQuotaError(error)
+            ? YOUTUBE_QUOTA_ERROR
+            : statisticsFailureMessage(
+                error,
+                `${label} published history is unavailable. Check the connection permissions or try again later.`,
+              );
+      } else {
+        result.metricWarning = `${label} published posts were imported, but some post insights are unavailable.`;
+      }
     }
   } catch (error) {
     context.signal?.throwIfAborted();

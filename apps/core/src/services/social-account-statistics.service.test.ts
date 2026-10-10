@@ -356,6 +356,30 @@ describe("Social account statistics", () => {
     );
     expect(mocks.provider).not.toHaveBeenCalled();
   });
+  it("serves stored posts while a refresh is queued and never calls providers", async () => {
+    const requestedAt = new Date("2026-10-08T11:50:00Z");
+    const fetchedAt = new Date("2026-10-08T08:00:00Z");
+    mocks.connections.mockResolvedValue([
+      {
+        ...connection,
+        performanceHeadFetchedAt: fetchedAt,
+        performanceRefreshAttemptedAt: fetchedAt,
+        performanceRefreshRequestedAt: requestedAt,
+      },
+    ]);
+    const result = await listSocialAccountStatistics({
+      ...scope,
+      connectionId,
+    });
+    expect(result.accounts[0]?.sync).toMatchObject({
+      status: "queued",
+      mayAutoRequest: false,
+      dataFetchedAt: previous.fetchedAt,
+    });
+    expect(result.posts[0]?.externalId).toBe("provider-authored");
+    expect(mocks.provider).not.toHaveBeenCalled();
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
   it("pages cached history and keeps the account totals on every page", async () => {
     const second = {
       ...cachedPost,

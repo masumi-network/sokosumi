@@ -23,6 +23,10 @@ const account = {
   id: "connection",
   projectId: "project",
   project: { workspaceId: "workspace" },
+  status: "active",
+  performanceRefreshRequestedAt: null,
+  performanceRefreshAttemptedAt: null,
+  performanceHeadFetchedAt: null,
   statistics: null,
 };
 beforeEach(() => {
@@ -58,7 +62,11 @@ describe("periodic performance collection", () => {
     );
     expect(mocks.attempt).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "connection", status: "active" },
+        where: {
+          id: "connection",
+          status: "active",
+          performanceRefreshAttemptedAt: null,
+        },
       }),
     );
     mocks.refresh.mockClear();
@@ -142,11 +150,14 @@ describe("periodic performance collection", () => {
     expect(mocks.refresh).toHaveBeenCalledWith(
       expect.objectContaining({ refreshHead: true, continueHistory: true }),
     );
-    expect(mocks.accounts.mock.calls[0][0].where.OR[2].AND).toContainEqual({
+    expect(mocks.accounts.mock.calls[0][0].where.OR[0]).toEqual({
+      performanceRefreshRequestedAt: { not: null },
+    });
+    expect(mocks.accounts.mock.calls[0][0].where.OR[3].AND).toContainEqual({
       performanceRefreshAttemptedAt: { lte: new Date("2026-10-08T11:00:00Z") },
     });
     expect(
-      mocks.accounts.mock.calls[0][0].where.OR[2].AND[1].OR,
+      mocks.accounts.mock.calls[0][0].where.OR[3].AND[1].OR,
     ).toContainEqual({
       performanceHeadFetchedAt: { lt: new Date("2026-10-08T00:00:00Z") },
     });
@@ -207,6 +218,29 @@ describe("periodic performance collection", () => {
     expect(result.accountsSkippedBackoff).toBe(1);
     expect(mocks.refresh).not.toHaveBeenCalled();
     expect(mocks.attempt).not.toHaveBeenCalled();
+  });
+
+  it("does not apply backoff when the account is dirty", async () => {
+    const now = new Date("2026-10-08T12:00:00Z");
+    mocks.accounts.mockResolvedValue([
+      {
+        ...account,
+        performanceRefreshRequestedAt: new Date("2026-10-08T11:55:00Z"),
+        performanceRefreshAttemptedAt: new Date("2026-10-08T11:50:00Z"),
+        statistics: {
+          metrics: [],
+          fetchedAt: "2026-10-08T10:00:00Z",
+          refreshAttemptedAt: "2026-10-08T11:50:00Z",
+          error: "provider timeout",
+          historyNextCursor: null,
+          historyComplete: true,
+          historyFetchedAt: null,
+          historyError: null,
+        },
+      },
+    ]);
+    await collectSocialPerformance({ shouldContinue: () => true, now });
+    expect(mocks.refresh).toHaveBeenCalled();
   });
 
   it("retries after the backoff window and marks unauthorized accounts for reauth", async () => {

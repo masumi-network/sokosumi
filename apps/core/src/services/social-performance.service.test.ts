@@ -246,6 +246,32 @@ describe("social performance aggregation", () => {
       result.heatmap.cells.find((cell) => cell.postCount > 0),
     ).toMatchObject({ meanInteractions: null, meanEngagementRate: null });
   });
+  it("treats YouTube missing shares as zero so engagement still computes", () => {
+    const youtube = {
+      ...account,
+      id: secondConnectionId,
+      provider: "youtube" as const,
+    };
+    const result = build(
+      [
+        post(2, {
+          connectionId: secondConnectionId,
+          provider: "youtube",
+          metrics: {
+            views: 100,
+            impressions: null,
+            likes: 10,
+            comments: 2,
+            shares: null,
+            saves: null,
+          },
+        }),
+      ],
+      { accounts: [youtube] },
+    );
+    expect(result.posts[0]).toMatchObject({ interactions: 12 });
+    expect(result.summary.current.interactions.total).toBe(12);
+  });
   it("compares adjacent equal-duration publication cohorts and suppresses deltas when metric coverage differs", () => {
     const past = post(2, {
       publishedAt: "2026-09-30T23:59:59.999Z",

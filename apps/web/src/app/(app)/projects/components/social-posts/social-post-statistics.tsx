@@ -38,6 +38,16 @@ type StatisticsPage =
   | SocialPerformanceResponse
   | WorkspaceSocialPerformanceResponse;
 type Account = StatisticsPage["accounts"][number];
+type AccountSync = {
+  status?: string;
+  mayAutoRequest?: boolean;
+  dataVersion?: string;
+};
+
+function accountSync(account: Account): AccountSync | undefined {
+  if (!("sync" in account) || account.sync == null) return undefined;
+  return account.sync as AccountSync;
+}
 
 export function SocialPostStatistics({
   projectId,
@@ -184,19 +194,22 @@ export function SocialPostStatistics({
   const checkAndRefreshIfStale = useCallback(
     (account: Account) => {
       if (!selectedProjectId || account.status !== "active") return;
-
-      const threshold = 3_600_000;
-      const now = Date.now();
-      const stats = account.statistics;
-      const isStale =
-        !stats?.fetchedAt ||
-        now - new Date(stats.fetchedAt).getTime() > threshold;
-      const isSyncingNow = Boolean(
-        stats?.refreshAttemptedAt &&
-          now - new Date(stats.refreshAttemptedAt).getTime() < 300_000,
-      );
-
-      if (isSyncingNow || !isStale) return;
+      const sync = accountSync(account);
+      if (sync) {
+        if (!sync.mayAutoRequest) return;
+      } else {
+        const threshold = 3_600_000;
+        const now = Date.now();
+        const stats = account.statistics;
+        const isStale =
+          !stats?.fetchedAt ||
+          now - new Date(stats.fetchedAt).getTime() > threshold;
+        const isSyncingNow = Boolean(
+          stats?.refreshAttemptedAt &&
+            now - new Date(stats.refreshAttemptedAt).getTime() < 300_000,
+        );
+        if (isSyncingNow || !isStale) return;
+      }
       if (queuedRefreshIds.current.has(account.id)) return;
       queuedRefreshIds.current.add(account.id);
       setSyncingAccountId(account.id);
@@ -351,11 +364,30 @@ export function SocialPostStatistics({
     setFilters,
   ]);
 
-  // Check for stale data when account changes
   useEffect(() => {
     if (!selectedAccount || scopeChangePending) return;
     checkAndRefreshIfStale(selectedAccount);
   }, [selectedAccount, scopeChangePending, checkAndRefreshIfStale]);
+  const selectedSync = selectedAccount
+    ? accountSync(selectedAccount)
+    : undefined;
+  useEffect(() => {
+    if (!selectedAccount || scopeChangePending) return;
+    if (selectedSync?.status !== "queued" && selectedSync?.status !== "running")
+      return;
+    const id = window.setInterval(() => {
+      void catalogue.refetch();
+      void query.refetch();
+    }, 5_000);
+    return () => window.clearInterval(id);
+  }, [
+    selectedAccount,
+    selectedSync?.status,
+    selectedSync?.dataVersion,
+    scopeChangePending,
+    catalogue.refetch,
+    query.refetch,
+  ]);
 
   function formatDate(value: string | Date) {
     return formatter.dateTime(new Date(value), {
@@ -371,6 +403,8 @@ export function SocialPostStatistics({
   }
   function isAccountSyncing(account: Account) {
     if (syncingAccountId === account.id) return true;
+    const status = accountSync(account)?.status;
+    if (status === "queued" || status === "running") return true;
     const attemptedAt = accountSnapshot(account)?.refreshAttemptedAt;
     return Boolean(
       attemptedAt && Date.now() - new Date(attemptedAt).getTime() < 300_000,
@@ -403,7 +437,8 @@ export function SocialPostStatistics({
           ? t("loading")
           : ""}
       </div>
-      {catalogue.isError || query.isError ? (
+      {(catalogue.isError && !eligibleAccounts.length) ||
+      (query.isError && !performance) ? (
         <div role="alert" className="flex flex-wrap items-center gap-3">
           <p className="text-sm">{t("loadFailed")}</p>
           <Button
@@ -418,8 +453,8 @@ export function SocialPostStatistics({
         </div>
       ) : null}
       {!catalogue.isPending &&
-      !catalogue.isError &&
-      !eligibleAccounts.length ? (
+      !eligibleAccounts.length &&
+      !catalogue.isError ? (
         <p className="text-muted-foreground rounded-xl border border-dashed p-4 text-sm">
           {t("noAccounts")}{" "}
           <Link

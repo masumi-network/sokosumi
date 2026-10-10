@@ -1,5 +1,4 @@
 import type { Prisma } from "@sokosumi/database";
-import { waitUntil } from "@vercel/functions";
 
 import {
   ComposioApiError,
@@ -25,7 +24,6 @@ import {
   deleteSocialAccountAvatarIfOwned,
   snapshotSocialAccountAvatar,
 } from "@/lib/social-account-avatar";
-import { enqueueSocialAccountSync } from "@/services/social-performance-enqueue.service";
 
 const INTENT_TTL_MS = 15 * 60 * 1000;
 
@@ -313,7 +311,7 @@ async function fillMissingAvatar(
   }
 }
 
-async function refreshActiveConnectionStatus(
+export async function refreshActiveConnectionStatus(
   connection: ProjectSocialConnectionRecord,
 ): Promise<ProjectSocialConnectionRecord | null> {
   if (connection.status !== "active") {
@@ -656,17 +654,15 @@ export async function finalizeProjectSocialConnection(
   }
   await deleteSocialAccountAvatarIfOwned(replacedAvatarUrl, input.projectId);
 
-  // Enqueue initial performance sync in background (non-blocking)
-  if (process.env.VERCEL) {
-    waitUntil(
-      enqueueSocialAccountSync({
+  void import("@/services/social-account-sync").then(
+    ({ scheduleSocialAccountRefresh }) =>
+      scheduleSocialAccountRefresh({
         projectId: input.projectId,
         workspaceId: intent.project.workspaceId,
         connectionId: summary.id,
-        reason: intentAction === "reconnect" ? "reauth" : "connect",
+        trigger: intentAction === "reconnect" ? "reauth_resume" : "connect",
       }),
-    );
-  }
+  );
 
   return summary;
 }
@@ -721,14 +717,8 @@ export async function listProjectSocialConnections(
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
-  const refreshedConnections = await Promise.all(
-    connections.map(refreshActiveConnectionStatus),
-  );
-  return refreshedConnections
-    .filter(
-      (connection): connection is ProjectSocialConnectionRecord =>
-        connection !== null && connection.status !== "disconnected",
-    )
+  return connections
+    .filter((connection) => connection.status !== "disconnected")
     .map(mapProjectSocialConnection);
 }
 
