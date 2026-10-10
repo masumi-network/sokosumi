@@ -411,6 +411,24 @@ describe("SocialPostPreview", () => {
     expect(screen.getByText("tiktok.videoRequired")).toHaveClass(
       "text-on-media-muted",
     );
+    expect(screen.getByText("@sokosumi")).toBeVisible();
+    expect(screen.getByText("Clip")).toBeVisible();
+  });
+
+  it("uses the display name when TikTok has no handle", () => {
+    render(
+      <SocialPostPreview
+        account={{ handle: null, displayName: "Sokosumi HQ", avatarUrl: null }}
+        media={[]}
+        provider="tiktok"
+        text="Launch day"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByText("Sokosumi HQ")).toBeVisible();
+    expect(screen.queryByText("@Sokosumi HQ")).not.toBeInTheDocument();
+    expect(screen.getByText("Launch day")).toBeVisible();
   });
 
   it("folds long TikTok caption behind more", async () => {
