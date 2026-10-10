@@ -52,6 +52,25 @@ struct PreparedTranscriptTests {
     #expect(try String(#require(prepared.document(for: confirmed)?.blocks.first).text.characters) == "Sent")
   }
 
+  /// M6: an older page lands above the first row the room shows; a live row, an edit or a deletion does not.
+  @Test func onlyRowsAboveTheFirstRowArePrepended() throws {
+    func snapshot(_ ids: [String], scope: [String] = ["room"]) throws -> PreparedTranscript {
+      try PreparedTranscript(input: .init(scope: scope, messages: ids.map { message($0, $0) }, mentions: nil, channels: [],
+                                          baseURL: #require(URL(string: "https://example.com"))), documents: [:])
+    }
+    let current = try snapshot(["b", "c"])
+    #expect(try snapshot(["a", "b", "c"]).prependsRows(to: current))
+    #expect(try snapshot(["a", "b", "c", "d"]).prependsRows(to: current))
+    #expect(try !snapshot(["b", "c", "d"]).prependsRows(to: current))
+    #expect(try !snapshot(["b", "c"]).prependsRows(to: current))
+    #expect(try !snapshot(["c"]).prependsRows(to: current))
+    #expect(try !snapshot(["a", "b", "c"]).prependsRows(to: nil))
+    #expect(try !snapshot(["a", "b", "c"], scope: ["other room"]).prependsRows(to: current))
+    // The live rows before a snapshot is prepared from them: an older page in flight.
+    #expect(current.lacksRowsAbove(in: ["a", "b", "c"].map { message($0, $0) }))
+    #expect(!current.lacksRowsAbove(in: ["b", "c", "d"].map { message($0, $0) }))
+  }
+
   @Test func cancelledPreparationCannotPublish() async {
     let task = Task {
       withUnsafeCurrentTask { $0?.cancel() }
