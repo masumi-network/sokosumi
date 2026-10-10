@@ -1,4 +1,5 @@
 import type { SocialPostMediaRef } from "@sokosumi/core-client";
+import { Play } from "lucide-react";
 import { Fragment } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -102,9 +103,12 @@ export function PreviewRichText({
 export function PreviewMediaItem({
   media,
   className,
+  showPlay = false,
 }: {
   media: SocialPostMediaRef;
   className?: string;
+  /** Feed cards mark a video with a play badge; TikTok/YouTube draw their own. */
+  showPlay?: boolean;
 }) {
   const mediaClassName = cn("size-full object-cover", className);
   const visual =
@@ -126,6 +130,22 @@ export function PreviewMediaItem({
         src={media.fileUrl}
       />
     );
+  if (media.kind === "video" && showPlay) {
+    return (
+      <div className="relative size-full min-h-0">
+        {visual}
+        <div
+          aria-hidden
+          className="absolute inset-0 flex items-center justify-center"
+          data-testid="social-post-preview-play"
+        >
+          <span className="bg-scrim-strong text-on-media flex size-10 items-center justify-center rounded-full">
+            <Play className="size-4 fill-current" />
+          </span>
+        </div>
+      </div>
+    );
+  }
   if (media.kind !== "gif") return visual;
   return (
     <div className="relative size-full min-h-0">
@@ -157,7 +177,7 @@ export function PreviewMediaGrid({
   if (media.length === 1 && first) {
     return (
       <div className={cn("overflow-hidden", className)}>
-        <PreviewMediaItem media={first} className="max-h-[32rem]" />
+        <PreviewMediaItem media={first} showPlay className="max-h-[32rem]" />
       </div>
     );
   }
@@ -172,12 +192,12 @@ export function PreviewMediaGrid({
     >
       {first ? (
         <div className={cn("min-h-0", media.length === 3 && "row-span-2")}>
-          <PreviewMediaItem media={first} />
+          <PreviewMediaItem media={first} showPlay />
         </div>
       ) : null}
       {rest.slice(0, 3).map((item) => (
         <div key={item.pathname} className="min-h-0">
-          <PreviewMediaItem media={item} />
+          <PreviewMediaItem media={item} showPlay />
         </div>
       ))}
     </div>
