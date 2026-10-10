@@ -481,7 +481,7 @@ function TikTokPreview({
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
-  const handle = accountHandle(account) ?? `@${name}`;
+  const handle = accountHandle(account) ?? name;
   const fold = useFold(text, 80, 2);
   const clip = media[0];
 
@@ -492,53 +492,47 @@ function TikTokPreview({
         data-testid="social-post-preview-tiktok-frame"
       >
         {clip ? (
-          <>
-            <PreviewMediaItem media={clip} />
-            <div
-              aria-hidden
-              className="text-on-media absolute end-2 bottom-28 flex flex-col items-center gap-4"
-            >
-              <PreviewAvatar
-                account={account}
-                name={name}
-                className="size-10"
-              />
-              <Heart className="size-7" />
-              <MessageCircle className="size-7" />
-              <Bookmark className="size-7" />
-              <Share className="size-7" />
-            </div>
-            <div className="bg-scrim absolute inset-x-0 bottom-0 px-3 py-3 pe-14">
-              <p className="text-on-media truncate text-sm font-semibold">
-                {handle}
-              </p>
-              {text ? (
-                <p className="text-on-media mt-1 leading-5 whitespace-pre-wrap break-words">
-                  <PreviewRichText
-                    text={fold.visibleText}
-                    linkClassName="font-semibold"
-                  />
-                  {fold.folded ? (
-                    <>
-                      {" "}
-                      <button
-                        type="button"
-                        className="text-on-media-muted"
-                        onClick={fold.expand}
-                      >
-                        {t("tiktok.more")}
-                      </button>
-                    </>
-                  ) : null}
-                </p>
-              ) : null}
-            </div>
-          </>
+          <PreviewMediaItem media={clip} />
         ) : (
-          <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
+          <div className="flex size-full items-center justify-center px-6 pb-28 pe-12 text-center text-xs text-balance text-on-media-muted">
             {t("tiktok.videoRequired")}
           </div>
         )}
+        <div
+          aria-hidden
+          className="text-on-media absolute end-2 bottom-28 flex flex-col items-center gap-4"
+        >
+          <PreviewAvatar account={account} name={name} className="size-10" />
+          <Heart className="size-7" />
+          <MessageCircle className="size-7" />
+          <Bookmark className="size-7" />
+          <Share className="size-7" />
+        </div>
+        <div className="bg-scrim absolute inset-x-0 bottom-0 px-3 py-3 pe-14">
+          <p className="text-on-media truncate text-sm font-semibold">
+            {handle}
+          </p>
+          {text ? (
+            <p className="text-on-media mt-1 leading-5 whitespace-pre-wrap break-words">
+              <PreviewRichText
+                text={fold.visibleText}
+                linkClassName="font-semibold"
+              />
+              {fold.folded ? (
+                <>
+                  {" "}
+                  <button
+                    type="button"
+                    className="text-on-media-muted"
+                    onClick={fold.expand}
+                  >
+                    {t("tiktok.more")}
+                  </button>
+                </>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   );
