@@ -1,7 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 
 import {
-  ComposioApiError,
   ComposioConfigError,
   deleteProjectSocialConnectionIntent,
   getConnectedSocialIdentity,
@@ -252,121 +251,6 @@ async function requireTargetConnection(input: {
     throw notFound("Project social connection not found");
   }
   return connection;
-}
-
-/** Backfill legacy connections without asking the user to reconnect. */
-async function fillMissingAvatar(
-  connection: ProjectSocialConnectionRecord,
-): Promise<ProjectSocialConnectionRecord | null> {
-  if (
-    connection.avatarUrl ||
-    connection.status !== "active" ||
-    !isProjectSocialProvider(connection.provider)
-  )
-    return connection;
-  let avatarUrl: string | null = null;
-  try {
-    const identity = await getConnectedSocialIdentity({
-      provider: connection.provider,
-      connectedAccountId: connection.composioConnectedAccountId,
-      executorUserId: projectExecutorUserId(connection.projectId),
-    });
-    if (identity.id !== connection.externalAccountId || !identity.avatarUrl)
-      return connection;
-    avatarUrl = await snapshotSocialAccountAvatar({
-      projectId: connection.projectId,
-      provider: connection.provider,
-      externalAccountId: connection.externalAccountId,
-      avatarUrl: identity.avatarUrl,
-    });
-    if (!avatarUrl) return connection;
-    const storedAvatar = avatarUrl;
-    const updated = await serializableTransaction(async (tx) => {
-      const current = await tx.projectSocialConnection.findUnique({
-        where: { id: connection.id },
-      });
-      // A reconnect, replacement or disconnect may have happened while fetching.
-      if (
-        !current ||
-        current.avatarUrl ||
-        current.status !== "active" ||
-        current.composioConnectedAccountId !==
-          connection.composioConnectedAccountId ||
-        current.externalAccountId !== connection.externalAccountId
-      )
-        return current;
-      return tx.projectSocialConnection.update({
-        where: { id: current.id },
-        data: { avatarUrl: storedAvatar },
-      });
-    }, "Project social connection changed. Please retry.");
-    if (updated?.avatarUrl !== avatarUrl)
-      await deleteSocialAccountAvatarIfOwned(avatarUrl, connection.projectId);
-    return updated;
-  } catch {
-    if (avatarUrl)
-      await deleteSocialAccountAvatarIfOwned(avatarUrl, connection.projectId);
-    // A missing photo must never prevent composing or previewing a post.
-    return connection;
-  }
-}
-
-async function refreshActiveConnectionStatus(
-  connection: ProjectSocialConnectionRecord,
-): Promise<ProjectSocialConnectionRecord | null> {
-  if (connection.status !== "active") {
-    return connection;
-  }
-
-  let account;
-  try {
-    account = await getProjectSocialConnectedAccount(
-      connection.composioConnectedAccountId,
-    );
-  } catch (error) {
-    if (error instanceof ComposioApiError && error.httpStatus !== 404) {
-      return connection;
-    }
-    if (!(error instanceof ComposioApiError)) {
-      throw error;
-    }
-    account = null;
-  }
-
-  if (
-    account?.id === connection.composioConnectedAccountId &&
-    account.status === "ACTIVE" &&
-    isProjectSocialProvider(connection.provider) &&
-    account.toolkitSlug ===
-      PROJECT_SOCIAL_PROVIDERS[connection.provider].toolkitSlug
-  ) {
-    return fillMissingAvatar(connection);
-  }
-
-  return serializableTransaction(async (tx) => {
-    const current = await tx.projectSocialConnection.findUnique({
-      where: { id: connection.id },
-    });
-    if (!current || current.status !== "active") {
-      return current;
-    }
-
-    const updated = await tx.projectSocialConnection.update({
-      where: { id: current.id },
-      data: { status: "reauthorization_required" },
-    });
-    await tx.projectSocialConnectionAudit.create({
-      data: {
-        projectSocialConnectionId: updated.id,
-        action: "reauthorization_required",
-        actorId: "system",
-        externalAccountId: updated.externalAccountId,
-        externalHandle: updated.externalHandle,
-        providerOutcome: account?.status.toLowerCase() ?? "not_found",
-      },
-    });
-    return updated;
-  }, "Project social connection changed. Please retry.");
 }
 
 export async function initiateProjectSocialConnection(
@@ -705,14 +589,8 @@ export async function listProjectSocialConnections(
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
-  const refreshedConnections = await Promise.all(
-    connections.map(refreshActiveConnectionStatus),
-  );
-  return refreshedConnections
-    .filter(
-      (connection): connection is ProjectSocialConnectionRecord =>
-        connection !== null && connection.status !== "disconnected",
-    )
+  return connections
+    .filter((connection) => connection.status !== "disconnected")
     .map(mapProjectSocialConnection);
 }
 
