@@ -757,7 +757,7 @@ export function SocialPostComposerDialog({
                         })}
                         aria-pressed={selected}
                         className={cn(
-                          "focus-visible:ring-ring inline-flex h-8 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50",
+                          "focus-visible:ring-ring inline-flex h-11 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 md:h-8",
                           selected
                             ? "border-foreground text-foreground"
                             : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
