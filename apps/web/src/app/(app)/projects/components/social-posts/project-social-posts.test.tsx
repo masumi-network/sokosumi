@@ -984,6 +984,9 @@ describe("ProjectSocialPosts", () => {
       within(accounts).getByRole("button", { name: "X @sokosumi" }),
     ).toHaveAttribute("aria-pressed", "true");
     expect(
+      within(accounts).getByRole("button", { name: "X @sokosumi" }),
+    ).toHaveClass("h-11", "md:h-8");
+    expect(
       within(accounts).getByRole("button", {
         name: "LinkedIn @sokosumi-co",
       }),
