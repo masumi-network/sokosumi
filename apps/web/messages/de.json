@@ -2537,7 +2537,13 @@
           "connectAccount": "Konto verbinden",
           "dismiss": "Abbrechen",
           "previewEmpty": "Hier erscheint dein Post, während du schreibst.",
-          "pickAccount": "Wähle ein Konto, auf dem gepostet wird."
+          "pickAccount": "Wähle ein Konto, auf dem gepostet wird.",
+          "postNow": "Jetzt posten",
+          "scheduleLater": "Später planen",
+          "scheduleComingSoon": "Planung demnächst verfügbar",
+          "publishing": "Wird veröffentlicht...",
+          "post": "Posten",
+          "selectAccount": "Mindestens ein Konto auswählen"
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",

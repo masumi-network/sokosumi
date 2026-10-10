@@ -2537,7 +2537,13 @@
           "connectAccount": "Connect account",
           "dismiss": "Cancel",
           "previewEmpty": "Your post shows here as you write.",
-          "pickAccount": "Pick an account to post to."
+          "pickAccount": "Pick an account to post to.",
+          "postNow": "Post now",
+          "scheduleLater": "Schedule later",
+          "scheduleComingSoon": "Scheduling coming soon",
+          "publishing": "Publishing...",
+          "post": "Post",
+          "selectAccount": "Select at least one account"
         },
         "cancelDialog": {
           "title": "Cancel this post?",

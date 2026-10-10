@@ -159,10 +159,12 @@ export function SimplifiedSocialComposer({
         <DialogHeader>
           <DialogTitle>
             {mode.kind === "create"
-              ? t("composer.title")
+              ? t("composer.newTitle")
               : t("composer.editTitle")}
           </DialogTitle>
-          <DialogDescription>{t("composer.smartDefaults")}</DialogDescription>
+          <DialogDescription>
+            All active accounts selected. Type and post.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -171,7 +173,7 @@ export function SimplifiedSocialComposer({
             <Textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={t("composer.placeholder")}
+              placeholder={t("composer.textPlaceholder")}
               className="min-h-[120px] resize-none"
               autoFocus
             />
@@ -196,7 +198,7 @@ export function SimplifiedSocialComposer({
 
           {/* Account selection */}
           <div>
-            <p className="text-sm font-medium mb-2">{t("composer.postTo")}</p>
+            <p className="text-sm font-medium mb-2">{t("composer.accounts")}</p>
             <div className="flex flex-wrap gap-2">
               {activeConnections.map((conn) => {
                 const selected = selectedConnectionIds.has(conn.id);
