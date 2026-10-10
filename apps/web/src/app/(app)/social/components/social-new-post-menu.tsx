@@ -107,7 +107,7 @@ export function SocialNewPostMenu({
             type="button"
             size="sm"
             className={cn(
-              "fixed end-4 z-50 size-14 rounded-full shadow-lg md:static md:z-auto md:h-8 md:w-auto md:rounded-md md:shadow-none",
+              "fixed end-4 z-50 size-14 rounded-full shadow-lg md:static md:z-auto md:h-10 md:w-auto md:rounded-md md:shadow-none",
               mobileCreateFabBottom(isApple),
             )}
             loading={isOpeningChat}
@@ -118,7 +118,10 @@ export function SocialNewPostMenu({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-72">
-          <DropdownMenuItem className="items-start" onSelect={writeManually}>
+          <DropdownMenuItem
+            className="min-h-11 items-start"
+            onSelect={writeManually}
+          >
             <PenLine className="mt-0.5 size-4" aria-hidden />
             <span className="flex flex-col gap-0.5">
               <span>{t("manual")}</span>
@@ -127,7 +130,10 @@ export function SocialNewPostMenu({
               </span>
             </span>
           </DropdownMenuItem>
-          <DropdownMenuItem className="items-start" onSelect={postWithSokoBot}>
+          <DropdownMenuItem
+            className="min-h-11 items-start"
+            onSelect={postWithSokoBot}
+          >
             <Bot className="mt-0.5 size-4" aria-hidden />
             <span className="flex flex-col gap-0.5">
               <span>{t("sokoBot")}</span>
