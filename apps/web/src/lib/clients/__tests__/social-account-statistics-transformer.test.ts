@@ -5,6 +5,27 @@ import {
 import { describe, expect, it } from "vitest";
 
 const timestamp = "2026-10-08T10:00:00.000Z";
+const headline = {
+  current: {
+    postCount: 0,
+    views: null,
+    impressions: null,
+    interactions: null,
+  },
+  previous: {
+    postCount: 0,
+    views: null,
+    impressions: null,
+    interactions: null,
+  },
+  deltas: {
+    postCount: null,
+    views: null,
+    impressions: null,
+    interactions: null,
+  },
+  daily: [],
+};
 
 function buildAccount(statistics: unknown) {
   return {
@@ -25,7 +46,12 @@ describe("social account statistics response transformers", () => {
       const account = buildAccount(statistics);
       const result =
         await getProjectsByIdSocialConnectionsStatisticsResponseTransformer({
-          data: { accounts: [account], posts: [], nextCursor: null },
+          data: {
+            accounts: [account],
+            posts: [],
+            nextCursor: null,
+            headline,
+          },
           meta: { timestamp, requestId: "request-1" },
         });
 
@@ -52,6 +78,7 @@ describe("social account statistics response transformers", () => {
           accounts: [buildAccount({ ...statistics })],
           posts: [],
           nextCursor: null,
+          headline,
         },
         meta: { timestamp, requestId: "request-1" },
       });

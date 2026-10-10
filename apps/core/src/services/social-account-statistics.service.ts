@@ -1,8 +1,16 @@
 import { Prisma } from "@sokosumi/database";
 import { fetchSocialAccountStatisticsPage } from "@/clients/social-post-providers/account-statistics";
-import { isProjectSocialProvider } from "@/config/social-providers";
+import {
+  isProjectSocialProvider,
+  type ProjectSocialProvider,
+} from "@/config/social-providers";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { parseCursorPagination } from "@/helpers/pagination";
+import {
+  buildSocialPerformanceHeadline,
+  emptySocialPerformanceHeadline,
+  type HeadlinePost,
+} from "@/helpers/social-performance-headline";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -13,6 +21,7 @@ import {
   socialAccountStatisticsProviderPageSchema,
   socialAccountStatisticsSchema,
 } from "@/schemas/social-account-statistics.schema";
+import { socialPostMetricsSchema } from "@/schemas/social-post-statistics.schema";
 import { listProjectSocialConnections } from "@/services/project-social-connections.service";
 import { recordSocialPerformanceSnapshot } from "@/services/social-performance-snapshots.service";
 import { socialSyncReadModel } from "@/services/social-sync-read";
@@ -28,6 +37,45 @@ interface ListSocialAccountStatisticsInput extends AccountStatisticsScope {
   publishedUntil?: Date;
   cursor?: string;
   limit?: number;
+}
+
+function headlinePosts(
+  rows: Array<{
+    publishedAt: Date | null;
+    metrics: Prisma.JsonValue;
+    additionalMetrics: Prisma.JsonValue;
+    connection: { provider: string };
+  }>,
+): HeadlinePost[] {
+  return rows.flatMap((row) => {
+    if (!isProjectSocialProvider(row.connection.provider)) return [];
+    const metrics = socialPostMetricsSchema.safeParse(row.metrics).data;
+    if (!metrics) return [];
+    const additionalMetrics = Array.isArray(row.additionalMetrics)
+      ? row.additionalMetrics.flatMap((metric) => {
+          if (
+            !metric ||
+            typeof metric !== "object" ||
+            !("key" in metric) ||
+            typeof metric.key !== "string"
+          )
+            return [];
+          const value =
+            "value" in metric && typeof metric.value === "number"
+              ? metric.value
+              : null;
+          return [{ key: metric.key, value }];
+        })
+      : [];
+    return [
+      {
+        provider: row.connection.provider as ProjectSocialProvider,
+        publishedAt: row.publishedAt,
+        metrics,
+        additionalMetrics,
+      },
+    ];
+  });
 }
 
 const EMPTY_STATISTICS: SocialAccountStatistics = {
@@ -127,6 +175,17 @@ export async function listSocialAccountStatistics(
     take: take + 1,
     ...(cursor ? { cursor: { id: cursor }, skip } : {}),
   });
+  const cohort = selected.length
+    ? await prisma.socialAccountPost.findMany({
+        where,
+        select: {
+          publishedAt: true,
+          metrics: true,
+          additionalMetrics: true,
+          connection: { select: { provider: true } },
+        },
+      })
+    : [];
   const posts = rows.slice(0, take).map((row) =>
     socialAccountPostSchema.parse({
       ...row,
@@ -137,6 +196,13 @@ export async function listSocialAccountStatistics(
     accounts: allAccounts.map(({ account }) => account),
     posts,
     nextCursor: rows.length > take ? (posts.at(-1)?.id ?? null) : null,
+    headline: selected.length
+      ? buildSocialPerformanceHeadline({
+          posts: headlinePosts(cohort),
+          publishedFrom: input.publishedFrom,
+          publishedUntil: input.publishedUntil,
+        })
+      : emptySocialPerformanceHeadline,
   });
 }
 

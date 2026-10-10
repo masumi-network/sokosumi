@@ -146,6 +146,12 @@ describe("Social account statistics", () => {
       text: "Written outside Sokosumi",
       metrics,
     });
+    expect(result.headline.current).toEqual({
+      postCount: 1,
+      views: null,
+      impressions: 100,
+      interactions: null,
+    });
     expect(mocks.posts).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {

@@ -5814,6 +5814,7 @@ export type SocialAccountStatisticsPage = {
     accounts: Array<SocialAccountStatisticsAccount>;
     posts: Array<SocialAccountPost>;
     nextCursor: string | null;
+    headline: SocialPerformanceHeadline;
 };
 
 export type SocialAccountStatisticsAccount = ProjectSocialConnection & {
@@ -5872,6 +5873,34 @@ export type SocialPostMetrics = {
     comments: number | null;
     shares: number | null;
     saves: number | null;
+};
+
+export type SocialPerformanceHeadline = {
+    current: {
+        postCount: number;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+    };
+    previous: {
+        postCount: number;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+    };
+    deltas: {
+        postCount: number | null;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+    };
+    daily: Array<{
+        postCount: number;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+        date: Date;
+    }>;
 };
 
 export type RefreshSocialAccountStatisticsResponse = {

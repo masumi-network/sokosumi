@@ -2623,6 +2623,15 @@
             "shares": "Geteilte Beiträge",
             "saves": "Gespeicherte Beiträge"
           },
+          "performance": {
+            "lastDays": "Letzte {days} Tage",
+            "posts": "Beiträge",
+            "interactions": "Interaktionen",
+            "previousPeriod": "Veränderung gegenüber dem vorherigen Zeitraum",
+            "keyMetrics": "Kennzahlen",
+            "sparkline": "{metric} an den ausgewählten Tagen",
+            "accountTabs": "Verbundene Konten"
+          },
           "accountsTitle": "Verbundene Konten",
           "postsTitle": "Veröffentlichte Kontobeiträge",
           "postsHint": "Schreibgeschützter Verlauf aus verbundenen Plattformen. Beitragsfilter ändern die Kontoübersicht nicht.",

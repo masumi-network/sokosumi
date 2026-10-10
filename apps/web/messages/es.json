@@ -2623,6 +2623,15 @@
             "shares": "Compartidos",
             "saves": "Guardados"
           },
+          "performance": {
+            "lastDays": "Últimos {days} días",
+            "posts": "Publicaciones",
+            "interactions": "Interacciones",
+            "previousPeriod": "Cambio respecto al período anterior",
+            "keyMetrics": "Métricas clave",
+            "sparkline": "{metric} en los días seleccionados",
+            "accountTabs": "Cuentas conectadas"
+          },
           "accountsTitle": "Cuentas conectadas",
           "postsTitle": "Publicaciones de las cuentas",
           "postsHint": "Historial de solo lectura importado de las plataformas conectadas. Los filtros de publicaciones no cambian el resumen de cuentas.",
