@@ -4948,8 +4948,8 @@
         }
       },
       "SocialAccounts": {
-        "connected": "is connected",
-        "notConnected": "is not connected",
+        "connected": "{provider} is connected",
+        "notConnected": "{provider} is not connected",
         "success": "Account connected successfully",
         "error": "Failed to connect {provider}",
         "loadErrorTitle": "Could not load connected accounts",

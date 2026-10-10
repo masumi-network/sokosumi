@@ -4912,8 +4912,8 @@
         }
       },
       "SocialAccounts": {
-        "connected": "ist verbunden",
-        "notConnected": "ist nicht verbunden",
+        "connected": "{provider} ist verbunden",
+        "notConnected": "{provider} ist nicht verbunden",
         "success": "Account erfolgreich verbunden",
         "error": "{provider} konnte nicht verbunden werden",
         "loadErrorTitle": "Verbundene Konten konnten nicht geladen werden",
