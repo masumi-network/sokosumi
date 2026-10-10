@@ -492,6 +492,16 @@ export async function finalizeProjectSocialConnection(
             connectedAt: now,
           },
         });
+        if (currentIntent.action === "replace" && target) {
+          await tx.socialPost.updateMany({
+            where: {
+              projectId: input.projectId,
+              socialConnectionId: target.id,
+              status: { in: ["DRAFT", "SCHEDULED"] },
+            },
+            data: { socialConnectionId: connection.id },
+          });
+        }
       }
 
       await tx.projectSocialConnectionAudit.create({

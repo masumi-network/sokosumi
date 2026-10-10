@@ -29,6 +29,7 @@ const {
   socialConnectionIntentFindUniqueMock,
   socialConnectionIntentFindUniqueInTransactionMock,
   socialConnectionUpdateMock,
+  socialPostUpdateManyMock,
   transactionMock,
 } = vi.hoisted(() => ({
   deleteSocialAccountAvatarIfOwnedMock: vi.fn(),
@@ -54,6 +55,7 @@ const {
   socialConnectionIntentFindUniqueMock: vi.fn(),
   socialConnectionIntentFindUniqueInTransactionMock: vi.fn(),
   socialConnectionUpdateMock: vi.fn(),
+  socialPostUpdateManyMock: vi.fn(),
   transactionMock: vi.fn(),
 }));
 
@@ -88,6 +90,9 @@ const transactionClient = {
     findUnique: socialConnectionFindUniqueMock,
     findMany: socialConnectionFindManyMock,
     update: socialConnectionUpdateMock,
+  },
+  socialPost: {
+    updateMany: socialPostUpdateManyMock,
   },
   projectSocialConnectionAudit: {
     create: socialConnectionAuditCreateMock,
@@ -201,6 +206,7 @@ describe("project social connections service", () => {
       createIntent("connect"),
     );
     socialConnectionAuditUpdateMock.mockResolvedValue({});
+    socialPostUpdateManyMock.mockResolvedValue({ count: 0 });
     transactionMock.mockImplementation(
       async (callback: (tx: typeof transactionClient) => Promise<unknown>) =>
         callback(transactionClient),
@@ -1463,6 +1469,74 @@ describe("project social connections service", () => {
         status: "active",
         activeExternalAccountKey: "x:123",
       }),
+    });
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        projectId: PROJECT_ID,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        status: { in: ["DRAFT", "SCHEDULED"] },
+      },
+      data: { socialConnectionId: SOCIAL_CONNECTION_ID },
+    });
+  });
+
+  it("reassigns draft and scheduled posts onto the replacement connection", async () => {
+    const replacementId = "66666666-6666-4666-8666-666666666666";
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(
+      createIntent("replace"),
+    );
+    socialConnectionFindFirstMock.mockImplementation(
+      (args: { where?: { NOT?: { id: string } } }) =>
+        args.where?.NOT
+          ? null
+          : { ...socialConnection, status: "disconnected" },
+    );
+    socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
+      createIntent("replace"),
+    );
+    socialConnectionCreateMock.mockResolvedValue({
+      ...socialConnection,
+      id: replacementId,
+      composioConnectedAccountId: CONNECTION_ID,
+      status: "active",
+    });
+    socialPostUpdateManyMock.mockResolvedValue({ count: 2 });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    await finalizeProjectSocialConnection({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      connectionId: CONNECTION_ID,
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledTimes(1);
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        projectId: PROJECT_ID,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        status: { in: ["DRAFT", "SCHEDULED"] },
+      },
+      data: { socialConnectionId: replacementId },
+    });
+
+    socialPostUpdateManyMock.mockClear();
+    socialPostUpdateManyMock.mockResolvedValue({ count: 0 });
+    await finalizeProjectSocialConnection({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      connectionId: CONNECTION_ID,
+    });
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        projectId: PROJECT_ID,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        status: { in: ["DRAFT", "SCHEDULED"] },
+      },
+      data: { socialConnectionId: replacementId },
     });
   });
 
