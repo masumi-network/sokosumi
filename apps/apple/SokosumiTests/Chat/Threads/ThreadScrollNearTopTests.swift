@@ -1,7 +1,9 @@
 #if os(macOS)
   import AppKit
+  import CoreAPI
   @testable import Sokosumi
   import SokosumiAuth
+  import SokosumiChat
   import SokosumiWorkspace
   import SwiftUI
   import Testing
@@ -13,6 +15,57 @@
     /// replaced by its measured height, and SwiftUI moves the offset by the difference so the visible rows stay put.
     /// CI run 37106441624 read that offset as a 269 pt jump; the captures show a 40 pt move.
     @MainActor struct ThreadScrollNearTopTests {
+      /// An outgoing child's immutable projection can outlive the parent view's scope update. Hold that actual
+      /// content view in a window while the shared session changes, so the guard is exercised without a teardown race.
+      @Test(arguments: [false, true])
+      func anOutgoingProjectionStopsRenderingAfterItsScopeChanges(sameParent: Bool) async throws {
+        let state = try TranscriptScrollingTests.fixtureState(thread: true, media: false)
+        var parent = try #require(state.thread.parent)
+        parent.content = "Previous thread projection marker"
+        state.thread.open(parent)
+        let scope = [state.currentUserId, state.selectionId ?? "", state.transcriptRoomId ?? "", parent.id, String(state.thread.timeline.generation)]
+        let prepared = try await PreparedTranscript.prepare(.init(scope: scope, messages: [parent], mentions: nil, channels: [],
+                                                                  baseURL: #require(URL(string: "https://example.com"))), reusing: nil)
+        let host = NSHostingView(rootView: ReplyThreadContent(messages: [parent], preparedTranscript: prepared,
+                                                              preparationScope: scope, preparedHasMore: false)
+            .modifier(ComposerAttachmentPane(userId: state.currentUserId, organizationId: state.selection?.workspace.organizationId,
+                                             roomId: parent.roomId, parentMessageId: parent.id))
+            .environmentObject(state).environmentObject(AuthState()))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
+        window.ignoresMouseEvents = true
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        var texts: [String] = []
+        for _ in 0 ..< 100 {
+          host.layoutSubtreeIfNeeded()
+          texts = await hostedTexts(in: host)
+          if texts.contains(where: { $0.contains(parent.content) }) {
+            break
+          }
+          try await Task.sleep(for: .milliseconds(20))
+        }
+        try #require(texts.contains(where: { $0.contains(parent.content) }), "The original projection must render before its scope changes: \(texts)")
+        if sameParent {
+          state.thread.timeline.reset(roomId: parent.roomId, parentMessageId: parent.id)
+        } else {
+          var replacement = parent
+          replacement.id = "replacement-thread"
+          replacement.content = "Replacement thread projection marker"
+          state.thread.open(replacement)
+        }
+        for _ in 0 ..< 100 {
+          host.layoutSubtreeIfNeeded()
+          texts = await hostedTexts(in: host)
+          if texts.contains("Loading replies…"), !texts.contains(where: { $0.contains(parent.content) }) {
+            break
+          }
+          try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(texts.contains("Loading replies…"), "An outgoing projection waits when its parent or generation changes: \(texts)")
+        #expect(!texts.contains(where: { $0.contains(parent.content) }), "Previous-thread content cannot render against the new scope: \(texts)")
+      }
+
       @Test func aReaderScrollMovesTheContentByTheScrollWhileTheRowsAboveAreMeasured() async throws {
         let state = try TranscriptScrollingTests.fixtureState(thread: true, media: false)
         let auth = AuthState()

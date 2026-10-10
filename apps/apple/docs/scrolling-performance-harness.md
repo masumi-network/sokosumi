@@ -222,14 +222,15 @@ if '    private var preparedMessages:' in (out/'Sokosumi/Chat/Threads/ReplyThrea
 print(out)
 
 patch('Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift', 'public enum M6Preparation {', 'public enum M6Preparation {\n  private static let overlayBuilds = Mutex(0)\n  public static func takeOverlayBuilds() -> Int { overlayBuilds.withLock { let value = $0; $0 = 0; return value } }\n  static func overlayBuilt() { overlayBuilds.withLock { $0 += 1 } }')
-patch('Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift', '    let byId = Dictionary(live.map', '    M6Preparation.overlayBuilt()\n    let byId = Dictionary(live.map')
+patch('Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift', '  public func overlaying(_ live: [Components.Schemas.ChatRoomMessage]) -> [Components.Schemas.ChatRoomMessage] {', '  public func overlaying(_ live: [Components.Schemas.ChatRoomMessage]) -> [Components.Schemas.ChatRoomMessage] {\n    M6Preparation.overlayBuilt()')
 
 patch('Sokosumi/Chat/Timeline/MessageRowView.swift', '      let _ = M6Probe.body(message.id)', '      let _ = M6Probe.body(message.id)\n      let _ = M6Probe.observe(message, document: preparedDocument)')
 if 'let messages = preparedMessages' in (out/'Sokosumi/Chat/Timeline/RoomTimelineView.swift').read_text():
  patch('Sokosumi/Chat/Timeline/RoomTimelineView.swift', 'let messages = preparedMessages', 'let messages = preparedMessages\n      let _ = M6Probe.projected(messages)')
 else:
- patch('Sokosumi/Chat/Timeline/RoomTimelineView.swift', '      if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {', '      let _ = M6Probe.projected(messages)\n      if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {')
-patch('Sokosumi/Chat/Threads/ReplyThreadView.swift', '      if let parent = messages.first {', '      let _ = M6Probe.projected(messages)\n      if let parent = messages.first {')
+ patch('Sokosumi/Chat/Timeline/RoomTimelineView.swift', '    private var transcriptBody: some View {', '    private var transcriptBody: some View {\n      let _ = M6Probe.projected(messages)')
+# Count only rows that enter the current-scope render branch, not an outgoing child's teardown body.
+patch('Sokosumi/Chat/Threads/ReplyThreadView.swift', '        let jumpTarget = readyJump(in: messages)', '        let jumpTarget = readyJump(in: messages)\n        let _ = M6Probe.projected(messages)')
 ```
 
 ### Probe.swift
@@ -315,6 +316,7 @@ import Synchronization
       if kind == "code" { content = base + "\n\n```swift\n" + String(repeating: "let result = values.map { $0 * 2 }\n", count: 8) + "```" }
       if kind == "images" { content = base + "\n\n![Fixture](https://scroll-fixture.invalid/\(mix)-\(count)-\(index).png)" }
       var value = chatRoomMessage(from: .init(clientTurnId: "fixture-\(index)", roomId: "fixture", content: content,
+        createdAt: Date(timeIntervalSince1970: 1_700_000_000 + Double(index)*60),
         sender: .init(id: "author-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))
       value.id = "fixture-\(index)"
       value.createdAt = Date(timeIntervalSince1970: 1_700_000_000 + Double(index)*60)
@@ -372,7 +374,7 @@ import Synchronization
         }
         continue
       }
-      let auth = AuthState()
+      let auth = AuthState(store: InMemoryTokenStore())
       let host = NSHostingView(rootView: Group {
         if thread { ReplyThreadView() } else { RoomTimelineView(roomId: "fixture") }
       }.environmentObject(state).environmentObject(auth))
@@ -486,6 +488,7 @@ import Synchronization
     let outbox = thread ? state.thread.outbox : state.outbox
     let shell = OutboundShell(clientTurnId: "projection-outbox", roomId: "fixture",
       parentMessageId: thread ? fixture.first!.id : nil, content: "Pending projection marker",
+      createdAt: Date(timeIntervalSince1970: 1_700_000_000),
       sender: .init(id: "me", name: "Me", email: "me@example.com", presence: .online))
     var releaseSend: CheckedContinuation<Components.Schemas.ChatRoomMessage, Error>?
     outbox.enqueue(shell, send: {

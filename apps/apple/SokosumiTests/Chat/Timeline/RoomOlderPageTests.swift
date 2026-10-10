@@ -29,6 +29,8 @@
         // Settle elastic scrolling before measuring the pending page insertion.
         try await Task.sleep(for: .milliseconds(300))
         host.layoutSubtreeIfNeeded()
+        let beforeMessages = try visibleMessageIDs(in: host)
+        let beforeMessage = beforeMessages.map { $0[$0.count / 2] }
         let before = try TranscriptReadingPosition.snapshot(host)
         let height = documentHeight(scroll)
         let beforeOffset = scroll.contentView.bounds.minY
@@ -40,6 +42,9 @@
         host.layoutSubtreeIfNeeded()
         Attachment.record("before: offset \(beforeOffset) pt of \(height) pt; after: offset \(scroll.contentView.bounds.minY) pt of \(documentHeight(scroll)) pt",
                           named: "landed-page-offsets.txt")
+        if let beforeMessage {
+          #expect(try visibleMessageIDs(in: host)?.contains(beforeMessage) == true, "The message in the middle of the viewport stays visible after the older page lands.")
+        }
         try await TranscriptReadingPosition.expectStable(host, before: before)
       }
 
@@ -67,6 +72,23 @@
         #expect(abs(documentHeight(scroll) - height) < 100,
                 "The page's rows wait while the reader scrolls: document \(documentHeight(scroll)) pt, was \(height) pt.")
         #expect(TranscriptPageProtocol.requests.withLock { $0 } == 2, "No further page is asked for while one waits.")
+        // A visible message keeps receiving chunks even though the older prefix waits.
+        let streamingIndex = try #require(state.timeline.messages.firstIndex { $0.id == "message-40" })
+        state.timeline.messages[streamingIndex].content = "**Streaming while paging**"
+        var streamed = false
+        for index in 0 ..< 30 {
+          try sendTranscriptScroll(scroll, delta: index.isMultiple(of: 2) ? 3 : -3, phase: 2)
+          host.layoutSubtreeIfNeeded()
+          try await Task.sleep(for: .milliseconds(20))
+          if await hostedTexts(in: host).contains(where: { $0.contains("Streaming while paging") }) {
+            streamed = true
+            break
+          }
+        }
+        #expect(streamed, "Visible Markdown updates while the older page stays deferred.")
+        #expect(abs(documentHeight(scroll) - height) < 100, "Streaming must not release the older prefix.")
+        let beforeMessages = try visibleMessageIDs(in: host)
+        let beforeMessage = beforeMessages.map { $0[$0.count / 2] }
         let before = try TranscriptReadingPosition.snapshot(host)
         let beforeOffset = scroll.contentView.bounds.minY
         try sendTranscriptScroll(scroll, delta: 0, phase: 4)
@@ -77,7 +99,26 @@
         host.layoutSubtreeIfNeeded()
         Attachment.record("before: offset \(beforeOffset) pt of \(height) pt; after: offset \(scroll.contentView.bounds.minY) pt of \(documentHeight(scroll)) pt",
                           named: "held-page-offsets.txt")
+        if let beforeMessage {
+          #expect(try visibleMessageIDs(in: host)?.contains(beforeMessage) == true, "The message in the middle of the viewport stays visible after the older page lands.")
+        }
         try await TranscriptReadingPosition.expectStable(host, before: before)
+      }
+
+      /// Pixel similarity alone can miss a jump between rows with repeated fixture text. Keep a middle row
+      /// visible; the boundary row can change when its day pill disappears after insertion.
+      private func visibleMessageIDs(in host: NSView) throws -> [String]? {
+        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+        guard let lines = try TranscriptScrollingTests.recognizedLines(in: bitmap) else { return nil }
+        let messages = lines.compactMap { line -> String? in
+          guard let header = line.range(of: #"^Message\s*\d+"#, options: .regularExpression),
+                let digits = line[header].range(of: #"\d+"#, options: .regularExpression) else { return nil }
+          return String(line[digits])
+        }
+        try #require(!messages.isEmpty, "Expected visible message headers; OCR read: \(lines)")
+        Attachment.record("visible: \(messages)", named: "older-page-message-identity.txt")
+        return messages
       }
 
       private func makeWindow(_ state: WorkspaceState) -> (NSWindow, NSView) {

@@ -44,7 +44,9 @@
         #expect(initialOffset > 600)
         try await scrollAwayFromBottom(scroll, host: host)
         if media {
-          #expect(ScrollMediaProtocol.completedRequests > completed)
+          _ = try await waitForView(in: host, timeoutMessage: "The thread's fixture media did not finish loading.") {
+            ScrollMediaProtocol.completedRequests > completed ? scroll : nil
+          }
         }
         // Lazy row estimates rewrite document height, so absolute minY can
         // grow while the reader moves up (CI: 18186 vs initial-400 of 7957).
@@ -92,7 +94,7 @@
         host.cacheDisplay(in: host.bounds, to: bitmap)
         // Vision text recognition throws on the virtualized CI runner, so there the row-visibility
         // check falls back to the scroll-offset assertion above; locally the OCR check runs.
-        if let visibleText = try recognizedLines(in: bitmap) {
+        if let visibleText = try Self.recognizedLines(in: bitmap) {
           #expect(visibleText.contains { $0.hasPrefix("Message 2:") }, "OCR read: \(visibleText)")
           #expect(!visibleText.contains { $0.hasPrefix("Message 98:") }, "OCR read: \(visibleText)")
         }
@@ -100,7 +102,7 @@
 
       /// The text Vision reads in the render, or nil where Vision cannot run at all. A missing image is a
       /// failure, not nil. Only the accurate recognizer: it is the one the assertions were written against.
-      private func recognizedLines(in bitmap: NSBitmapImageRep) throws -> [String]? {
+      static func recognizedLines(in bitmap: NSBitmapImageRep) throws -> [String]? {
         let image = try #require(bitmap.cgImage)
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
@@ -117,7 +119,7 @@
       }
 
       /// Says which OCR path ran: on stdout, and as an attachment in the result bundle.
-      private func note(_ line: String) {
+      private static func note(_ line: String) {
         print(line)
         Attachment.record(line, named: "message-link-ocr-path.txt")
       }
