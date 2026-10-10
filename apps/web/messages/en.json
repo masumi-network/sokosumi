@@ -2572,6 +2572,11 @@
           "description": "The post goes out right away instead of waiting for its scheduled time.",
           "confirm": "Publish now"
         },
+        "retryDialog": {
+          "title": "Retry this post?",
+          "description": "The post goes out now.",
+          "confirm": "Retry"
+        },
         "connectPrompt": {
           "title": "Connect an account to start posting",
           "body": "Posts go out from the X, Instagram, LinkedIn, Facebook and YouTube accounts connected to this project.",
