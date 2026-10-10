@@ -1812,6 +1812,66 @@ describe("ProjectSocialPosts", () => {
     expect(warning).toHaveTextContent("Account needs reconnecting");
   });
 
+  it("links reconnect from a list row to the project's Accounts tab", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          {
+            ...FAILED_POST,
+            socialConnection: {
+              id: "connection-1",
+              externalHandle: "sokosumi",
+              displayName: null,
+              avatarUrl: null,
+              status: "reauthorization_required",
+            },
+            connectionNeedsReconnect: true,
+          },
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+
+    const warning = screen.getByTestId("social-post-needs-reconnect");
+    expect(warning).toHaveTextContent("Account needs reconnecting");
+    expect(
+      within(warning).getByRole("link", { name: "Reconnect the account" }),
+    ).toHaveAttribute("href", "/social?projectId=project-1&tab=accounts");
+  });
+
+  it("sends preview-only connect to the project's Accounts tab", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[]}
+        posts={[SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
+        previewOnly
+      />,
+    );
+
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /^Reschedule/,
+      }),
+    );
+
+    await user.click(
+      within(screen.getByTestId("social-post-composer")).getByRole("button", {
+        name: "Connect account",
+      }),
+    );
+
+    expect(pushMock).toHaveBeenCalledWith(
+      "/social?projectId=project-1&tab=accounts",
+    );
+  });
+
   it("does not warn about reconnecting when the connection is active", () => {
     render(
       <ProjectSocialPosts

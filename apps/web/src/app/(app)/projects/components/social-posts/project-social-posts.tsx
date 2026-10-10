@@ -177,6 +177,7 @@ export function ProjectSocialPosts({
   returnFocus,
 }: ProjectSocialPostsProps) {
   const router = useRouter();
+  const accountsHref = `/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`;
   const t = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
   const [syncedPosts, setSyncedPosts] = useState(initialPosts);
@@ -542,7 +543,7 @@ export function ProjectSocialPosts({
               ) : (
                 <Link
                   className="font-medium underline-offset-4 hover:underline"
-                  href="#social-accounts"
+                  href={accountsHref}
                 >
                   {t("needsReconnectLink")}
                 </Link>
@@ -765,15 +766,15 @@ export function ProjectSocialPosts({
         <SocialPostComposerDialog
           connections={connections}
           mode={composerMode}
-          onConnectAccount={
-            accounts !== undefined
-              ? () => {
-                  setComposer(null);
-                  compose?.setOpen(false);
-                  showTab("accounts");
-                }
-              : undefined
-          }
+          onConnectAccount={() => {
+            setComposer(null);
+            compose?.setOpen(false);
+            if (accounts !== undefined) {
+              showTab("accounts");
+              return;
+            }
+            router.push(accountsHref);
+          }}
           onCloseAutoFocus={handleCloseAutoFocus}
           onError={handleActionError}
           onOpenChange={(open) => {
