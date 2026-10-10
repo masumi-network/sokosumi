@@ -1,3 +1,4 @@
+import { SOCIAL_POST_MIN_SCHEDULE_LEAD_MS } from "@sokosumi/utils";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import prisma from "@/lib/db/prisma";
@@ -623,6 +624,56 @@ describe("social posts service", () => {
       message: "Scheduled time must be in the future",
     });
     expect(socialPostCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a scheduled time exactly one minute out", async () => {
+    const { createSocialPost } = await loadService();
+
+    await expect(
+      createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        text: "Hello world",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        scheduledAt: new Date(NOW.getTime() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS),
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Scheduled time must be in the future",
+    });
+    expect(socialPostCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts the first instant after the one-minute lead", async () => {
+    const scheduledAt = new Date(
+      NOW.getTime() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS + 1,
+    );
+    socialPostCreateMock.mockResolvedValue({
+      ...scheduledPost,
+      scheduledAt,
+    });
+    const { createSocialPost } = await loadService();
+
+    await createSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      text: "Hello world",
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      scheduledAt,
+    });
+
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "SCHEDULED",
+          scheduledAt,
+        }),
+      }),
+    );
   });
 
   it("requires an active connection to create a scheduled post", async () => {
