@@ -175,3 +175,59 @@ A trace output path must be new. Saved profiling binaries are developer fixtures
 not distribution builds. Their complete source copy is
 `/private/tmp/sokosumi-scroll-audit-final-v4-20261010/apple`; discarded controls
 are identified by `HITCH_SKIP_SCROLL_BAR` and `HITCH_FIXED_ROWS` in that copy.
+
+## Native SwiftUI List experiment
+
+A disposable room-only prototype replaced `ScrollView` / `LazyVStack` with a
+plain `List`, keeping the unary message rows, message IDs, coordinator, prepared
+Markdown, and existing scrolling logic. Zero row insets and hidden separators
+kept the message presentation close to the existing view. No List implementation
+is included in this PR. Builds and test hosts used team `GVWN7HXYJB`, signed with
+`Developer ID Application: utxo AG (GVWN7HXYJB)`, and in-memory auth.
+
+The unchanged room checks distinguish the swap from the LazyVStack control:
+
+| Check | List prototype | LazyVStack control |
+| --- | --- | --- |
+| Initial bottom placement and scrolling up through rich room history | Only 80 pt away from bottom after the gesture; fails the 400 pt minimum | Pass |
+| Automatic older-page loading and visible position retention | No older request; cannot reach insertion/pixel-retention assertions | Pass |
+| Streamed content while an older page waits | Blocked by the missing older request | Pass |
+| Newest message grows while pinned, including tall growth | Pass | Pass |
+| Message growth while reading history or actively scrolling | Reading offset jumps 220 pt | Pass |
+| Prepared message-link landing in the room | Target not visible in OCR check | Pass |
+
+One unchanged thread/media assertion failed in both runs because no media request
+had completed by the assertion. The focused LazyVStack scrolling/jump retry passed
+all four parameter cases. That shared failure is not attributed to List.
+
+Automatic List paging did not work in this fixture, so its normal-scroll callback
+timings are not accepted as a performance win. A separate insertion control used
+100 loaded rich messages and injected 30 older rows after one native flick had
+ended. This tests prepend cost independently of automatic loading. Three
+alternating pairs measured first-arrival display-callback gaps of **38/42/43 ms
+for List**, versus **67/59/51 ms for LazyVStack**. These are callback gaps, not
+presentation delays or FPS. They are not comparable to the earlier 100-row Core
+page measurements.
+
+One foreground Instruments capture per variant recorded two controlled prefixes.
+Within the first publication window (50 ms before through 700 ms after), List
+recorded **no presentation hitch**, while LazyVStack recorded **50 ms** of
+presentation delay. The second windows recorded none and 16.67 ms respectively.
+Startup and teardown are excluded; measurement windows come from console log
+timestamps relative to the trace start date. Both traces lack SwiftUI view/cause
+data, so they provide presentation evidence without SwiftUI attribution.
+
+**Decision: do not adopt the minimal swap.** List shows promising prepend cost,
+but paging, history growth, and target restoration have not passed. This does not
+establish that List lacks geometry or phase support: Apple documents
+[List geometry callbacks](https://developer.apple.com/documentation/macos-release-notes/macos-15_2-release-notes)
+and [List scroll phases](https://developer.apple.com/documentation/swiftui/scrollphase/animating).
+The existing ScrollView position/coordinate logic needs a verified native
+List integration before the timing advantage can justify a replacement.
+
+Raw paired JSON, prototype source, team-signed binaries, native `.xcresult`
+bundles, scoped hitch reports, and both traces are saved in
+`/tmp/sokosumi-apple-list-perf-20261010`. The prototype is
+`RoomTimelineView.list.swift`; native comparisons are `list-native-tests.xcresult`
+and `lazy-native-control.xcresult`, with the focused retry in
+`lazy-scrolling-retry.xcresult`.
