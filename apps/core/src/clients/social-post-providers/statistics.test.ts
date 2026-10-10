@@ -350,11 +350,65 @@ describe("fetchSocialPostStatistics", () => {
     expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
   });
 
-  it("rejects unsupported personal LinkedIn and unresolved TikTok publish IDs without a session", async () => {
+  it("rejects unsupported personal LinkedIn without a session", async () => {
     const { fetchMock } = stubSession(() => null);
     await expect(
       fetchSocialPostStatistics({ ...input, provider: "linkedin" }),
     ).rejects.toThrow("LinkedIn personal post statistics");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("resolves a TikTok publish id to the numeric video before querying", async () => {
+    const { executeCalls } = stubSession((slug) =>
+      slug === "TIKTOK_FETCH_PUBLISH_STATUS"
+        ? toolResult({
+            status: "PUBLISH_COMPLETE",
+            publicaly_available_post_id: ["video_9", "751234567890"],
+          })
+        : toolResult({
+            videos: [
+              {
+                id: "751234567890",
+                view_count: 9,
+                like_count: 1,
+                comment_count: 0,
+                share_count: 2,
+              },
+            ],
+          }),
+    );
+    await expect(
+      fetchSocialPostStatistics({
+        ...input,
+        provider: "tiktok",
+        externalId: "v_pub_123",
+      }),
+    ).resolves.toEqual({
+      ...unavailable,
+      views: 9,
+      likes: 1,
+      comments: 0,
+      shares: 2,
+    });
+    expect(executeCalls).toEqual([
+      {
+        tool_slug: "TIKTOK_FETCH_PUBLISH_STATUS",
+        arguments: { publish_id: "v_pub_123" },
+      },
+      {
+        tool_slug: "TIKTOK_QUERY_VIDEOS",
+        arguments: { video_ids: ["751234567890"] },
+      },
+    ]);
+  });
+
+  it("leaves TikTok statistics unavailable when the publish id never yields a video", async () => {
+    const { executeCalls } = stubSession(() =>
+      toolResult({
+        status: "PUBLISH_COMPLETE",
+        publicaly_available_post_id: ["video_9"],
+      }),
+    );
     await expect(
       fetchSocialPostStatistics({
         ...input,
@@ -362,6 +416,11 @@ describe("fetchSocialPostStatistics", () => {
         externalId: "v_pub_123",
       }),
     ).rejects.toThrow("published video ID");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(executeCalls).toEqual([
+      {
+        tool_slug: "TIKTOK_FETCH_PUBLISH_STATUS",
+        arguments: { publish_id: "v_pub_123" },
+      },
+    ]);
   });
 });

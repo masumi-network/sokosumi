@@ -113,14 +113,14 @@ describe("publishTikTokVideo", () => {
       if (call.arguments.publish_id === "pub_1") {
         return toolResponse({
           status: "PUBLISH_COMPLETE",
-          publicaly_available_post_id: ["video_9"],
+          publicaly_available_post_id: ["751234567890"],
         });
       }
       return toolResponse({ status: "PROCESSING_UPLOAD" });
     });
 
     await expect(publishTikTokVideo(context)).resolves.toEqual({
-      externalId: "video_9",
+      externalId: "751234567890",
       publishedUrl: null,
       providerOutcome: "published (FOLLOWER_OF_CREATOR)",
       toolSlug: "TIKTOK_PUBLISH_VIDEO",
@@ -138,6 +138,25 @@ describe("publishTikTokVideo", () => {
         .filter((call) => call.tool_slug === "TIKTOK_FETCH_PUBLISH_STATUS")
         .map((call) => call.arguments),
     ).toEqual([{ publish_id: "pub_1" }]);
+  });
+
+  it("stores the publish id when completion has no queryable video id", async () => {
+    stubSession((call) => {
+      if (call.tool_slug === "TIKTOK_QUERY_CREATOR_INFO") {
+        return toolResponse({ privacy_level_options: ["SELF_ONLY"] });
+      }
+      if (call.tool_slug === "TIKTOK_PUBLISH_VIDEO") {
+        return toolResponse({ publish_id: "v_pub_9" });
+      }
+      return toolResponse({
+        status: "PUBLISH_COMPLETE",
+        publicaly_available_post_id: ["video_9"],
+      });
+    });
+
+    await expect(publishTikTokVideo(context)).resolves.toMatchObject({
+      externalId: "v_pub_9",
+    });
   });
 
   it("keeps polling through non-terminal statuses", async () => {
