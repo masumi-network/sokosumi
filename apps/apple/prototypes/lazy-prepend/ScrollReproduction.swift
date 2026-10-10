@@ -71,6 +71,9 @@ struct ScrollReproduction: View {
         }
       }
     }
+    #if RICH_ROWS
+    .modifier(ReproductionActionMetricsScope())
+    #endif
   }
 
   @ViewBuilder private func measuredRow(_ row: Int) -> some View {
@@ -99,6 +102,18 @@ struct ScrollReproduction: View {
           let message = RichRowFixture.message(at: row)
           if probe.omittedComponent == "content-only" {
             FixtureContentRow(message: message, document: prepared.document(for: message))
+          } else if probe.omittedComponent == "row-state" {
+            GroupedMessageRowView(preparedDocument: prepared.document(for: message), message: message,
+                                  isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+                                  horizontalInset: 12)
+          } else if probe.omittedComponent == "row-metrics" {
+            SharedMetricsMessageRowView(preparedDocument: prepared.document(for: message), message: message,
+                                        isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+                                        horizontalInset: 12)
+          } else if probe.omittedComponent == "original-row" {
+            OriginalMessageRowView(preparedDocument: prepared.document(for: message), message: message,
+                                   isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+                                   horizontalInset: 12)
           } else {
             MessageRowView(preparedDocument: prepared.document(for: message), message: message,
                            isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
@@ -205,7 +220,7 @@ struct ScrollReproduction: View {
     precondition(["prepend", "append", "no-insertion"].contains(direction))
     precondition((1 ... 100).contains(pageSize))
     super.init()
-    precondition(["none", "body-selection", "clamp", "code-highlighting", "all-selection", "row-interactions", "row-alerts", "flat-text", "flat-markdown", "content-only"].contains(omittedComponent))
+    precondition(["none", "body-selection", "clamp", "code-highlighting", "all-selection", "row-interactions", "row-alerts", "flat-text", "flat-markdown", "content-only", "row-content", "hover-events", "hover-writes", "row-state", "row-metrics", "row-accessibility", "menu-sizing", "alert-host", "original-row", "row-overlays"].contains(omittedComponent))
     precondition(richRows || omittedComponent == "none")
     precondition(insertsPages || (richRows && revealRows), "No-insertion control needs visible rich rows")
     precondition(!richRows || !singleLine, "Single-line mode applies only to the bare control")

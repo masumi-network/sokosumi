@@ -168,6 +168,19 @@ Use `--direction no-insertion --pairs 1` for one fresh component screen and
 default. Repeat and interleave against a fresh same-build `--omit none` baseline.
 See the report for the 27-run three-way comparison, CPU profiles, and limits.
 
+## Row-shell component controls
+
+The [row-shell follow-up](row-shell-isolation.md) tests state, font metrics, hover,
+accessibility, menu sizing, alerts, content branches, and decorative overlays.
+An original row-shell control checks diagnostic scaffolding. The final 36-run
+comparison reproduces stalls with the original shell; combining the overlays
+preserves native actions but worsens repeated gaps. Eight CPU captures locate
+shared graph/layout work without a reliable single-component attribution.
+
+All controls use identical rich rows. Separate checks verify matching heights;
+86 existing native action tests pass. These are diagnostic variants, not a
+production change. Raw timings and CPU evidence are linked in the report.
+
 ## Run
 
 Requires an Apple Silicon Mac on macOS 26+ and Xcode 27. The build script uses the

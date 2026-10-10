@@ -8,6 +8,12 @@ import SokosumiWorkspace
 import SwiftUI
 import Synchronization
 
+extension View {
+  func transformReproductionDecorations<Content: View>(@ViewBuilder _ transform: (Self) -> Content) -> Content {
+    transform(self)
+  }
+}
+
 /// Fixture data and diagnostics; rendering reuses production components in the copied workspace.
 @MainActor enum RichRowFixture {
   static let omittedComponent = ProcessInfo.processInfo.environment["REPRO_OMIT"] ?? "none"
@@ -85,6 +91,11 @@ import Synchronization
 struct FixtureContentRow: View {
   let message: Components.Schemas.ChatRoomMessage
   let document: MessageMarkdown?
+  var topInset: CGFloat = 8
+  var channels: [ComposerChannel] = []
+  var room: Components.Schemas.ChatRoom?
+  var quoteJump: ((String) -> Void)?
+  var toggleReaction: ((String) -> Void)?
 
   var body: some View {
     HStack(alignment: .top, spacing: 14) {
@@ -99,18 +110,18 @@ struct FixtureContentRow: View {
           DeliveryFeedback(pendingSince: nil, sentAt: nil, timestamp: message.createdAt)
         }
         if let quote = message.quote {
-          MessageQuoteView(quote: quote).id(quote.messageId + quote.snippet)
+          MessageQuoteView(quote: quote, room: room, channels: channels, jump: quoteJump).id(quote.messageId + quote.snippet)
         }
-        MessageMarkdownView(source: message.content, preparedDocument: document)
+        MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: document)
         if !message.reactions.isEmpty {
-          MessageReactionsView(reactions: message.reactions)
+          MessageReactionsView(reactions: message.reactions, toggle: toggleReaction)
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .padding(.vertical, 4)
     .padding(.horizontal, 12)
-    .padding(.top, 8)
+    .padding(.top, topInset)
   }
 }
 
@@ -171,6 +182,70 @@ extension View {
       textSelection(.disabled)
     } else {
       textSelection(.enabled)
+    }
+  }
+}
+
+/// Both paths keep enter/exit behavior; only the native tracking API differs.
+extension View {
+  @ViewBuilder func reproductionRowHover(_ action: @escaping (Bool) -> Void) -> some View {
+    if RichRowFixture.omittedComponent == "hover-events" {
+      onHover(perform: action)
+    } else {
+      onContinuousHover { phase in
+        let hovering = switch phase {
+        case .active: true
+        case .ended: false
+        }
+        action(hovering)
+      }
+    }
+  }
+}
+
+/// Same native font scaling, resolved once at the transcript's common environment.
+struct ReproductionRowActionMetrics: Equatable {
+  var replyHeight: CGFloat = 28
+  var iconSize: CGFloat = 16
+}
+
+extension EnvironmentValues {
+  @Entry var reproductionRowActionMetrics = ReproductionRowActionMetrics()
+}
+
+struct ReproductionActionMetricsScope: ViewModifier {
+  @ScaledMetric(relativeTo: .body) private var replyHeight: CGFloat = 28
+  @ScaledMetric(relativeTo: .callout) private var iconSize: CGFloat = 16
+
+  func body(content: Content) -> some View {
+    content.environment(\.reproductionRowActionMetrics,
+                        ReproductionRowActionMetrics(replyHeight: replyHeight, iconSize: iconSize))
+  }
+}
+
+/// Same accessibility buttons and ordering, behind a small native view boundary.
+struct ReproductionRowAccessibilityActions: View {
+  let availability: MessageMenuAvailability
+  let busy: Set<MessageMenuAction>
+  let perform: (MessageMenuAction) -> Void
+
+  var body: some View {
+    ForEach(availability.sections(hasSelection: false).joined().filter { !busy.contains($0) }, id: \.self) { action in
+      Button(action.title, role: action == .delete ? .destructive : nil) { perform(action) }
+    }
+  }
+}
+
+extension View {
+  @ViewBuilder func reproductionRowAccessibility(availability: MessageMenuAvailability, busy: Set<MessageMenuAction>, perform: @escaping (MessageMenuAction) -> Void) -> some View {
+    if RichRowFixture.omittedComponent == "row-accessibility" {
+      accessibilityActions { ReproductionRowAccessibilityActions(availability: availability, busy: busy, perform: perform) }
+    } else {
+      accessibilityActions {
+        ForEach(availability.sections(hasSelection: false).joined().filter { !busy.contains($0) }, id: \.self) { action in
+          Button(action.title, role: action == .delete ? .destructive : nil) { perform(action) }
+        }
+      }
     }
   }
 }

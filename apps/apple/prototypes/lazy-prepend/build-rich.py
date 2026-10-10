@@ -2,10 +2,12 @@
 """Build real message rows in a disposable workspace; never edit production sources."""
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 
 fixture = Path(__file__).resolve().parent
 apple = fixture.parents[1]
@@ -59,6 +61,7 @@ replace_once(rendering / "ExpandableMessageBody.swift", "  var body: some View {
   private var clampedBody: some View {''')
 
 row = source / "Sokosumi/Chat/Timeline/MessageRowView.swift"
+original_row = row.read_text()
 replace_once(row, "  private struct DeliveryFeedback: View {", "  struct DeliveryFeedback: View {")
 replace_once(row, "    var body: some View {\n      HStack(alignment: .top, spacing: 14) {", '''    var body: some View {
       let _ = RichRowFixture.recordBody(message.id)
@@ -165,6 +168,118 @@ replace_once(rendering / "MessageMarkdownView.swift", "  var body: some View {\n
     VStack(alignment: .leading, spacing: 8) {
       ForEach(blocks) { block in''')
 
+# Shell controls affect copied sources only. row-content covers ordinary fixture messages;
+# the other controls retain every production content branch and action.
+text = row.read_text()
+begin = text.index("      .overlay(alignment: .bottomTrailing) {")
+finish = text.index("      .onChange(of: showsActions)", begin)
+overlays = text[begin:finish]
+separator = "      .overlay(alignment: .topTrailing) {\n"
+assert overlays.count(separator) == 1, "Production decoration overlays changed"
+seen, actions = overlays.split(separator)
+seen = seen.removeprefix("      .overlay(alignment: .bottomTrailing) {\n").removesuffix("      }\n")
+actions = actions.removesuffix("      }\n")
+seen = seen.replace("            .padding(.bottom, 4)", "            .padding(.bottom, 4)\n            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)")
+helpers = '''    @ViewBuilder private func decorationOverlays<Content: View>(_ content: Content) -> some View {
+      if RichRowFixture.omittedComponent == "row-overlays" {
+        content.overlay(alignment: .topTrailing) {
+          ZStack(alignment: .topTrailing) {
+''' + seen + actions + '''          }
+        }
+      } else {
+        content
+''' + overlays + '''      }
+    }
+
+'''
+text = text[:begin] + "      .transformReproductionDecorations { decorationOverlays($0) }\n" + text[finish:]
+row.write_text(text.replace("    private var hoverBody: some View {", helpers + "    private var hoverBody: some View {", 1))
+replace_once(row, "    private var rowContent: some View {", '''    @ViewBuilder private var rowContent: some View {
+      if RichRowFixture.omittedComponent == "row-content" {
+        FixtureContentRow(message: message, document: preparedDocument, topInset: 0,
+                          channels: channels, room: room, quoteJump: message.quote.flatMap { quoteJump(for: $0) }, toggleReaction: reactionAction)
+      } else {
+        fullRowContent
+      }
+    }
+
+    private var fullRowContent: some View {''')
+replace_once(row, '''      .onContinuousHover { phase in
+        let hovering = switch phase {
+        case .active: true
+        case .ended: false
+        }
+''', '''      .reproductionRowHover { hovering in
+''')
+replace_once(row, '''      .task(id: (isHovered || isReplyHovered) && !transcriptIsScrolling) {
+        hoverRested = false''', '''      .task(id: (isHovered || isReplyHovered) && !transcriptIsScrolling) {
+        if RichRowFixture.omittedComponent != "hover-writes" || hoverRested {
+          hoverRested = false
+        }''')
+
+replace_once(row, '''      .accessibilityActions {
+        ForEach(menuAvailability.sections(hasSelection: false).joined().filter { !menuBusy.contains($0) }, id: \.self) { action in
+          Button(action.title, role: action == .delete ? .destructive : nil) { performMenuAction(action) }
+        }
+      }''', '''      .reproductionRowAccessibility(availability: menuAvailability, busy: menuBusy, perform: performMenuAction)''')
+replace_once(source / "Sokosumi/Chat/Timeline/MessageContextMenu.swift", "    func makeNSView(context _: Context) -> MessageContextMenuView {", '''    func sizeThatFits(_ proposal: ProposedViewSize, nsView _: MessageContextMenuView, context _: Context) -> CGSize? {
+      guard RichRowFixture.omittedComponent == "menu-sizing",
+            let width = proposal.width, let height = proposal.height,
+            width.isFinite, height.isFinite else { return nil }
+      return CGSize(width: width, height: height)
+    }
+
+    func makeNSView(context _: Context) -> MessageContextMenuView {''')
+
+# Keep the same alerts/bindings/actions, attached to an invisible background leaf.
+text = row.read_text()
+alert_start = text.index("    private var alertedBody: some View {\n      hoverBody")
+alert_end = text.index("\n    private var interactiveBody:", alert_start)
+alerts = text[alert_start:alert_end]
+leaf = alerts.replace("private var alertedBody", "private var alertLeaf").replace("      hoverBody\n", "      Color.clear\n", 1)
+wrapped = '''    @ViewBuilder private var alertedBody: some View {
+      if RichRowFixture.omittedComponent == "alert-host" {
+        hoverBody.background { alertLeaf }
+      } else {
+        inlineAlertedBody
+      }
+    }
+
+''' + alerts.replace("private var alertedBody", "private var inlineAlertedBody") + leaf
+row.write_text(text[:alert_start] + wrapped + text[alert_end:])
+
+# A separate copied row tests state-box setup while retaining every production branch/action.
+# Generate it from the same source so the experiment cannot drift into a second renderer.
+text = row.read_text()
+start = text.index("  struct MessageRowView: View {")
+end = text.index("\n  #if DEBUG", start)
+grouped = text[start:end].replace("MessageRowView", "GroupedMessageRowView")
+fields = re.findall(r"    @State private var (\w+)([^\n]*)", grouped)
+assert len(fields) == 12, "Production row state changed"
+state = "    private struct InteractionState {\n"
+aliases = "    @State private var interaction = InteractionState()\n"
+for name, declaration in fields:
+    state += "      var " + name + declaration + "\n"
+    annotation = declaration.split("=", 1)[0].strip()
+    kind = annotation[1:].strip() if annotation.startswith(":") else ("[ReactionEmoji]" if name == "quickReactions" else "Bool")
+    aliases += "    private var " + name + ": " + kind + " {\n      get { interaction." + name + " }\n      nonmutating set { interaction." + name + " = newValue }\n    }\n"
+    grouped = grouped.replace("    @State private var " + name + declaration + "\n", "", 1)
+    grouped = re.sub(r"\$" + name + r"\b", "$interaction." + name, grouped)
+state += "    }\n"
+grouped = grouped.replace("    @Environment(\\.accessibilityReduceMotion)", state + aliases + "    @Environment(\\.accessibilityReduceMotion)", 1)
+metrics = text[start:end].replace("MessageRowView", "SharedMetricsMessageRowView")
+replace_metrics = {
+    '    @ScaledMetric(relativeTo: .body) private var replyActionHeight: CGFloat = 28': '    @Environment(\\.reproductionRowActionMetrics) private var actionMetrics\n    private var replyActionHeight: CGFloat { actionMetrics.replyHeight }',
+    '    @ScaledMetric(relativeTo: .callout) private var actionIconSize: CGFloat = 16': '    private var actionIconSize: CGFloat { actionMetrics.iconSize }',
+}
+for before, after in replace_metrics.items():
+    assert metrics.count(before) == 1, "Production row metrics changed"
+    metrics = metrics.replace(before, after)
+original_start = original_row.index("  struct MessageRowView: View {")
+original_end = original_row.index("\n  #if DEBUG", original_start)
+original = original_row[original_start:original_end].replace("MessageRowView", "OriginalMessageRowView")
+row.write_text(text[:end] + "\n" + grouped + "\n" + metrics + "\n" + original + text[end:])
+
 # Scope the fixture flag to the copied app. A global override erases SwiftPM's SWIFT_PACKAGE flag.
 project = source / "Sokosumi.xcodeproj/project.pbxproj"
 text = project.read_text()
@@ -174,6 +289,15 @@ assert len(app_signing) == 2, "Expected the app's Debug and Release signing sett
 for line in set(app_signing):
     text = text.replace(line, line + '\t\t\t\tSWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) RICH_ROWS";\n')
 project.write_text(text)
+# Native action tests host this fixture app; keep its timed loop idle during tests.
+scheme = source / "Sokosumi.xcodeproj/xcshareddata/xcschemes/Sokosumi.xcscheme"
+tree = ET.parse(scheme)
+test_action = tree.getroot().find("TestAction")
+assert test_action is not None, "Production test action changed"
+test_action.set("shouldUseLaunchSchemeArgsEnv", "NO")
+variables = ET.SubElement(test_action, "EnvironmentVariables")
+ET.SubElement(variables, "EnvironmentVariable", key="REPRO_INSPECT", value="1", isEnabled="YES")
+tree.write(scheme, encoding="UTF-8", xml_declaration=True)
 base[base.index(str(workspace))] = str(source / "Sokosumi.xcworkspace")
 command = base + [
     "-derivedDataPath", str(derived), "DEVELOPMENT_TEAM=GVWN7HXYJB", "CODE_SIGN_STYLE=Manual",

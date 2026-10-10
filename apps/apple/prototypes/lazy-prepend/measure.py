@@ -17,7 +17,7 @@ parser.add_argument("--reveal-rows", action="store_true", help="Reveal the same 
 parser.add_argument("--no-insertion-control", action="store_true", help="Also reveal the same rows in a preloaded 600-message transcript")
 parser.add_argument("--direction", choices=["prepend", "append", "no-insertion"], help="Run only this mode for component screening")
 parser.add_argument("--diagnostics", action="store_true", help="Record visible heights and one-second row evaluation counts (separate from release timings)")
-parser.add_argument("--omit", choices=["none", "body-selection", "clamp", "code-highlighting", "all-selection", "row-interactions", "row-alerts", "flat-text", "flat-markdown", "content-only"], default="none", help="Omit one component in the copied rich build")
+parser.add_argument("--omit", choices=["none", "body-selection", "clamp", "code-highlighting", "all-selection", "row-interactions", "row-alerts", "flat-text", "flat-markdown", "content-only", "row-content", "hover-events", "hover-writes", "row-state", "row-metrics", "row-accessibility", "menu-sizing", "alert-host", "original-row", "row-overlays"], default="none", help="Omit one component in the copied rich build")
 parser.add_argument("--rich", action="store_true", help="Require a build made with --rich")
 parser.add_argument("--page-size", type=int, default=100)
 parser.add_argument("--check-budget", action="store_true", help="Exit 1 if a measurement window exceeds the fixed 25 ms diagnostic budget")
