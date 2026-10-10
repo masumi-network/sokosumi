@@ -39,3 +39,35 @@ export function stubPendingImageLoad() {
     }
   });
 }
+
+/** happy-dom 20.10+ reports remote images as complete with naturalWidth 0. */
+export function stubLoadedImage(natural = 64) {
+  const complete = Object.getOwnPropertyDescriptor(
+    HTMLImageElement.prototype,
+    "complete",
+  );
+  const naturalWidth = Object.getOwnPropertyDescriptor(
+    HTMLImageElement.prototype,
+    "naturalWidth",
+  );
+  Object.defineProperty(HTMLImageElement.prototype, "complete", {
+    configurable: true,
+    get: () => true,
+  });
+  Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", {
+    configurable: true,
+    get: () => natural,
+  });
+  return () => {
+    if (complete) {
+      Object.defineProperty(HTMLImageElement.prototype, "complete", complete);
+    }
+    if (naturalWidth) {
+      Object.defineProperty(
+        HTMLImageElement.prototype,
+        "naturalWidth",
+        naturalWidth,
+      );
+    }
+  };
+}

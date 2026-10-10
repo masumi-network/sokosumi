@@ -28,7 +28,7 @@ import { toast } from "sonner";
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import {
@@ -112,6 +112,70 @@ function zoneName(timezone: string): string {
 
 function resolveTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+function AccountChipLogo({
+  className,
+  provider,
+}: {
+  className: string;
+  provider: ProjectSocialConnection["provider"];
+}) {
+  return (
+    <SocialPostProviderIcon
+      aria-hidden
+      className={className}
+      data-testid="social-post-account-logo"
+      provider={provider}
+    />
+  );
+}
+
+/** Photo with a corner network badge, or the same logo circle main uses. */
+function AccountChipMark({
+  avatarUrl,
+  provider,
+}: {
+  avatarUrl: string | null;
+  provider: ProjectSocialConnection["provider"];
+}) {
+  const [photoReady, setPhotoReady] = useState(false);
+  const showPhoto = Boolean(avatarUrl) && photoReady;
+
+  if (!avatarUrl) {
+    return (
+      <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
+        <AccountChipLogo className="size-3.5" provider={provider} />
+      </span>
+    );
+  }
+
+  return (
+    <span className="relative size-6 shrink-0">
+      <Avatar className={cn("size-6", !showPhoto && "invisible")}>
+        <AvatarImage
+          alt=""
+          data-testid="social-post-account-photo"
+          onLoadingStatusChange={(status) => {
+            setPhotoReady(status === "loaded");
+          }}
+          src={avatarUrl}
+        />
+      </Avatar>
+      {showPhoto ? (
+        <span
+          className="bg-background ring-background absolute end-0 bottom-0 flex size-3 items-center justify-center rounded-full ring-1"
+          data-testid="social-post-account-logo-badge"
+        >
+          <AccountChipLogo className="size-2" provider={provider} />
+        </span>
+      ) : (
+        <span className="bg-muted absolute inset-0 flex items-center justify-center rounded-full">
+          <AccountChipLogo className="size-3.5" provider={provider} />
+        </span>
+      )}
+    </span>
+  );
 }
 
 export function SocialPostComposerDialog({
@@ -892,19 +956,10 @@ export function SocialPostComposerDialog({
                         onClick={() => toggleConnection(connection.id)}
                         type="button"
                       >
-                        <Avatar className="bg-muted size-6">
-                          <AvatarImage
-                            alt=""
-                            src={connection.avatarUrl ?? undefined}
-                          />
-                          <AvatarFallback className="bg-transparent">
-                            <SocialPostProviderIcon
-                              aria-hidden
-                              className="size-3.5"
-                              provider={connection.provider}
-                            />
-                          </AvatarFallback>
-                        </Avatar>
+                        <AccountChipMark
+                          avatarUrl={connection.avatarUrl}
+                          provider={connection.provider}
+                        />
                         <span className="max-w-40 truncate">{handle}</span>
                         {selected ? (
                           <Check className="size-3.5" aria-hidden />
