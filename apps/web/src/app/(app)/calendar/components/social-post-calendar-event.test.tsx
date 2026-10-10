@@ -86,6 +86,14 @@ describe("Social post calendar event", () => {
       "Instagram post with 3 images",
     ],
     [{ provider: "x", previewMedia: null, attachmentCount: 0 }, "X post"],
+    [
+      {
+        provider: "x",
+        previewMedia: { fileUrl: "loop.gif", kind: "gif" },
+        attachmentCount: 1,
+      },
+      "X post with GIF",
+    ],
   ] as const)(
     "sums a post up in one line on the workspace calendar",
     (overrides, label) => {
@@ -113,6 +121,21 @@ describe("Social post calendar event", () => {
       "src",
       "https://example.com/a.mp4",
     );
+  });
+  it("marks a GIF so it does not read as a still photo", () => {
+    renderCard({
+      previewMedia: { fileUrl: "https://example.com/loop.gif", kind: "gif" },
+    });
+    expect(screen.getByTestId("calendar-social-post-gif")).toHaveTextContent(
+      "GIF",
+    );
+    expect(screen.queryByTestId("calendar-social-post-gif")).toBeVisible();
+  });
+  it("leaves photos unmarked", () => {
+    renderCard({
+      previewMedia: { fileUrl: "https://example.com/a.png", kind: "image" },
+    });
+    expect(screen.queryByTestId("calendar-social-post-gif")).toBeNull();
   });
   it.each([
     ["SCHEDULED", "Scheduled"],
