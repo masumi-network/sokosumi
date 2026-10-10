@@ -566,7 +566,10 @@ describe("ProjectSocialPosts", () => {
     const draftRow = within(drafts).getByTestId("social-post-post-draft");
     expect(within(draftRow).getByText("Draft text")).toBeVisible();
     expect(within(draftRow).getByText("No account")).toBeVisible();
-    expect(within(draftRow).getByText("User · Alice")).toBeVisible();
+    expect(within(draftRow).getByText("Alice")).toBeVisible();
+    expect(
+      within(draftRow).queryByText("User · Alice"),
+    ).not.toBeInTheDocument();
     // Every card leads with its status, the way a task card does.
     expect(
       within(draftRow).getByTestId("social-post-status-DRAFT"),
@@ -579,6 +582,23 @@ describe("ProjectSocialPosts", () => {
       screen.queryByTestId("social-post-post-published"),
     ).not.toBeInTheDocument();
     expect(screen.getAllByRole("list")).toHaveLength(1);
+  });
+
+  it("keeps the kind prefix on coworker authors", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({
+            creator: { kind: "coworker", id: "coworker-1", name: "Scout" },
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const draftRow = screen.getByTestId("social-post-post-draft");
+    expect(within(draftRow).getByText("Coworker · Scout")).toBeVisible();
   });
 
   it("opens Social on its calendar, with Accounts as the last tab", async () => {
@@ -1923,6 +1943,7 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
     expect(within(row).getByText("Failed Sep 10, 10:05 AM")).toBeVisible();
     expect(within(row).getByText("3 attempts")).toBeVisible();
+    expect(within(row).getByText("Alice")).toBeVisible();
     expect(within(row).getByText("Failed")).toBeVisible();
     // Retry is the one thing left to do, so it sits on the row.
     expect(within(row).getByRole("button", { name: "Retry" })).toBeVisible();
