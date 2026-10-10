@@ -1,4 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
+import { waitUntil } from "@vercel/functions";
+import { v7 as uuidv7 } from "uuid";
 
 import {
   ComposioApiError,
@@ -24,6 +26,7 @@ import {
   deleteSocialAccountAvatarIfOwned,
   snapshotSocialAccountAvatar,
 } from "@/lib/social-account-avatar";
+import { enqueueSocialAccountSync } from "@/services/social-performance-enqueue.service";
 
 const INTENT_TTL_MS = 15 * 60 * 1000;
 
@@ -456,6 +459,7 @@ export async function finalizeProjectSocialConnection(
   await requireScopedProject(input, prisma, true);
   const intent = await prisma.projectSocialConnectionIntent.findUnique({
     where: { connectionId: input.connectionId },
+    include: { project: { select: { workspaceId: true } } },
   });
   if (!isLiveIntent(intent, input)) {
     throw notFound("Unknown or expired connection");
@@ -490,7 +494,7 @@ export async function finalizeProjectSocialConnection(
         avatarUrl: identity.avatarUrl,
       })
     : null;
-  const { summary, retiredConnection, replacedAvatarUrl } =
+  const { summary, retiredConnection, replacedAvatarUrl, intentAction } =
     await serializableTransaction(async (tx) => {
       await requireLockedOpenProject(tx, input);
       const now = new Date();
@@ -626,6 +630,7 @@ export async function finalizeProjectSocialConnection(
       return {
         summary: mapProjectSocialConnection(connection),
         retiredConnection,
+        intentAction: currentIntent.action,
         // Only a reconnect overwrites the row's avatar. A replaced account's
         // row stays, and its old posts still show that avatar.
         replacedAvatarUrl:
@@ -651,6 +656,18 @@ export async function finalizeProjectSocialConnection(
     await revokeRetiredProjectSocialConnection(retiredConnection);
   }
   await deleteSocialAccountAvatarIfOwned(replacedAvatarUrl, input.projectId);
+
+  // Enqueue initial performance sync in background (non-blocking)
+  if (process.env.VERCEL) {
+    waitUntil(
+      enqueueSocialAccountSync({
+        projectId: input.projectId,
+        workspaceId: intent.project.workspaceId,
+        connectionId: summary.id,
+        reason: intentAction === "reconnect" ? "reauth" : "connect",
+      }),
+    );
+  }
 
   return summary;
 }
