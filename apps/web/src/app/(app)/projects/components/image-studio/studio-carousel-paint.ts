@@ -1,7 +1,34 @@
+export const STUDIO_SNAP_TARGET_ATTR = "data-studio-snap-target";
+export const STUDIO_DRAGGING_ATTR = "data-studio-dragging";
+
 export interface StudioCarouselSlide {
   slide: HTMLElement;
   card: HTMLElement | null;
   preview: HTMLElement | null;
+}
+
+/** The carousel region, so drag state can sit on the same node CSS reads. */
+export function studioCarouselRoot(rootNode: HTMLElement): HTMLElement {
+  return rootNode.closest("[data-slot=carousel]") ?? rootNode;
+}
+
+/** Drag flag plus compositor hint. Cleared on pointer up so layers do not stick. */
+export function setStudioCarouselDragging(
+  root: HTMLElement,
+  slides: readonly StudioCarouselSlide[],
+  dragging: boolean,
+): void {
+  if (dragging) {
+    root.setAttribute(STUDIO_DRAGGING_ATTR, "");
+    for (const { card } of slides) {
+      if (card) card.style.willChange = "transform";
+    }
+    return;
+  }
+  root.removeAttribute(STUDIO_DRAGGING_ATTR);
+  for (const { card } of slides) {
+    if (card) card.style.willChange = "";
+  }
 }
 
 /** Cache the card and preview nodes so a scroll frame does not query the DOM. */
@@ -38,6 +65,7 @@ export function paintStudioCarouselDepth({
       preview.style.filter = "";
       preview.style.opacity = "";
       slide.style.zIndex = "";
+      card.removeAttribute(STUDIO_SNAP_TARGET_ATTR);
     }
     return;
   }
@@ -65,10 +93,18 @@ export function paintStudioCarouselDepth({
     });
   }
 
-  for (const { slide, card, preview, offset, distance } of writes) {
+  let nearest: (typeof writes)[number] | undefined;
+  for (const write of writes) {
+    if (!nearest || write.distance < nearest.distance) nearest = write;
+  }
+
+  for (const write of writes) {
+    const { slide, card, preview, offset, distance } = write;
     card.style.transform = `translateX(-50%) perspective(1000px) translateZ(${80 - distance * 40}px) rotateY(${-offset * 8}deg) rotateZ(${offset * 3}deg) scale(${1 - distance * 0.1})`;
     preview.style.filter = "";
     preview.style.opacity = String(1 - distance * 0.15);
     slide.style.zIndex = String(20 - Math.round(distance * 5));
+    if (write === nearest) card.setAttribute(STUDIO_SNAP_TARGET_ATTR, "");
+    else card.removeAttribute(STUDIO_SNAP_TARGET_ATTR);
   }
 }

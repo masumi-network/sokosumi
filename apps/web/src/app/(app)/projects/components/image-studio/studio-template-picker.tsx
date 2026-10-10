@@ -3,7 +3,7 @@
 import { MousePointer2 } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Carousel,
   type CarouselApi,
@@ -14,6 +14,9 @@ import { cn } from "@/lib/utils";
 import {
   collectStudioCarouselSlides,
   paintStudioCarouselDepth,
+  type StudioCarouselSlide,
+  setStudioCarouselDragging,
+  studioCarouselRoot,
 } from "./studio-carousel-paint";
 import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
 import type { StudioLabels } from "./types";
@@ -41,7 +44,7 @@ function TemplateButton({
       className={cn(
         "bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo flex cursor-pointer gap-2 rounded-xl text-left outline-none focus-visible:ring-[3px]",
         large
-          ? "border-border flex-col overflow-hidden border p-2 shadow-lg"
+          ? "border-border data-[studio-snap-target]:border-primary flex-col overflow-hidden border p-2 shadow-lg"
           : "min-h-11 shrink-0 items-center p-1 pr-3",
         large && (dimensional ? "relative left-1/2 w-48 sm:w-56" : "w-full"),
       )}
@@ -116,17 +119,63 @@ export function StudioTemplateCarousel({
   onApplyTemplate,
 }: TemplatePickerProps) {
   const [api, setApi] = useState<CarouselApi>();
-  const [dragging, setDragging] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const [hoverDirection, setHoverDirection] = useState<
-    "previous" | "next" | null
-  >(null);
   const reduceMotion = useReducedMotion();
-  const scrollingStopped = dragging || focused || !!reduceMotion;
+  const apiRef = useRef(api);
+  apiRef.current = api;
+  const reduceMotionRef = useRef(!!reduceMotion);
+  reduceMotionRef.current = !!reduceMotion;
+  const slidesRef = useRef<StudioCarouselSlide[]>([]);
+  const draggingRef = useRef(false);
+  const focusedRef = useRef(false);
+  const hoverDirectionRef = useRef<"previous" | "next" | null>(null);
+  const hoverTimerRef = useRef(0);
+
+  function stopHoverScroll() {
+    if (hoverTimerRef.current) {
+      window.clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = 0;
+    }
+  }
+
+  function syncHoverScroll() {
+    stopHoverScroll();
+    const embla = apiRef.current;
+    const direction = hoverDirectionRef.current;
+    if (
+      !embla ||
+      draggingRef.current ||
+      focusedRef.current ||
+      reduceMotionRef.current ||
+      !direction
+    ) {
+      return;
+    }
+    const tick = () => {
+      if (
+        document.hidden ||
+        draggingRef.current ||
+        focusedRef.current ||
+        !hoverDirectionRef.current
+      ) {
+        return;
+      }
+      if (hoverDirectionRef.current === "previous") embla.scrollPrev();
+      else embla.scrollNext();
+      hoverTimerRef.current = window.setTimeout(tick, 1000);
+    };
+    hoverTimerRef.current = window.setTimeout(tick, 300);
+  }
+
+  function setHoverDirection(direction: "previous" | "next" | null) {
+    if (hoverDirectionRef.current === direction) return;
+    hoverDirectionRef.current = direction;
+    syncHoverScroll();
+  }
 
   useEffect(() => {
     if (!api) return;
     const slides = collectStudioCarouselSlides(api.slideNodes());
+    slidesRef.current = slides;
     let frame = 0;
     const paintDepth = () => {
       if (frame) return;
@@ -151,30 +200,27 @@ export function StudioTemplateCarousel({
 
   useEffect(() => {
     if (!api) return;
-    const startDrag = () => setDragging(true);
-    const endDrag = () => setDragging(false);
+    const root = studioCarouselRoot(api.rootNode());
+    const startDrag = () => {
+      draggingRef.current = true;
+      stopHoverScroll();
+      setStudioCarouselDragging(root, slidesRef.current, true);
+    };
+    const endDrag = () => {
+      draggingRef.current = false;
+      setStudioCarouselDragging(root, slidesRef.current, false);
+      syncHoverScroll();
+    };
     api.on("pointerDown", startDrag);
     api.on("pointerUp", endDrag);
     return () => {
       api.off("pointerDown", startDrag);
       api.off("pointerUp", endDrag);
+      setStudioCarouselDragging(root, slidesRef.current, false);
     };
   }, [api]);
 
-  useEffect(() => {
-    if (!api || scrollingStopped || !hoverDirection) return;
-    // Give a passing pointer time to select a card before starting navigation.
-    let timer: number;
-    const scroll = () => {
-      if (!document.hidden) {
-        if (hoverDirection === "previous") api.scrollPrev();
-        else api.scrollNext();
-      }
-      timer = window.setTimeout(scroll, 1000);
-    };
-    timer = window.setTimeout(scroll, 300);
-    return () => window.clearTimeout(timer);
-  }, [api, scrollingStopped, hoverDirection]);
+  useEffect(() => () => stopHoverScroll(), []);
 
   return (
     <div className="w-full space-y-5 py-4">
@@ -187,16 +233,25 @@ export function StudioTemplateCarousel({
       </div>
       <Carousel
         aria-label={labels.templates}
-        className="flex min-w-0 flex-col"
-        onFocusCapture={() => setFocused(true)}
+        className="group relative flex min-w-0 flex-col"
+        onFocusCapture={() => {
+          focusedRef.current = true;
+          stopHoverScroll();
+        }}
         onBlurCapture={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget))
-            setFocused(false);
+          if (!event.currentTarget.contains(event.relatedTarget)) {
+            focusedRef.current = false;
+            syncHoverScroll();
+          }
         }}
         onMouseLeave={() => setHoverDirection(null)}
         opts={{ loop: true, align: "center", duration: reduceMotion ? 0 : 25 }}
         setApi={setApi}
       >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-20 hidden bg-overlay-primary group-data-[studio-dragging]:block"
+        />
         <CarouselContent
           className={reduceMotion ? "py-1" : "items-center py-10"}
           onMouseLeave={() => setHoverDirection(null)}

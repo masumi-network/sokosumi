@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   collectStudioCarouselSlides,
   paintStudioCarouselDepth,
+  STUDIO_DRAGGING_ATTR,
+  STUDIO_SNAP_TARGET_ATTR,
+  setStudioCarouselDragging,
+  studioCarouselRoot,
 } from "./studio-carousel-paint";
 
 function slideAt(left: number, width = 200) {
@@ -55,5 +59,40 @@ describe("empty-studio carousel paint", () => {
     expect(Number(center.slide.style.zIndex)).toBeGreaterThan(
       Number(outer.slide.style.zIndex),
     );
+    expect(center.card.hasAttribute(STUDIO_SNAP_TARGET_ATTR)).toBe(true);
+    expect(outer.card.hasAttribute(STUDIO_SNAP_TARGET_ATTR)).toBe(false);
+  });
+
+  it("clears snap targets when motion is reduced", () => {
+    const center = slideAt(350);
+    center.card.setAttribute(STUDIO_SNAP_TARGET_ATTR, "");
+    paintStudioCarouselDepth({
+      viewport: new DOMRect(0, 0, 900, 400),
+      slides: [center],
+      reduceMotion: true,
+    });
+    expect(center.card.hasAttribute(STUDIO_SNAP_TARGET_ATTR)).toBe(false);
+  });
+
+  it("sets a drag flag and will-change, then clears both", () => {
+    const center = slideAt(350);
+    const root = document.createElement("div");
+    const slides = collectStudioCarouselSlides([center.slide]);
+    setStudioCarouselDragging(root, slides, true);
+    expect(root.hasAttribute(STUDIO_DRAGGING_ATTR)).toBe(true);
+    expect(center.card.style.willChange).toBe("transform");
+    setStudioCarouselDragging(root, slides, false);
+    expect(root.hasAttribute(STUDIO_DRAGGING_ATTR)).toBe(false);
+    expect(center.card.style.willChange).toBe("");
+  });
+
+  it("uses the carousel region when present and the viewport otherwise", () => {
+    const region = document.createElement("div");
+    region.setAttribute("data-slot", "carousel");
+    const viewport = document.createElement("div");
+    region.append(viewport);
+    expect(studioCarouselRoot(viewport)).toBe(region);
+    const orphan = document.createElement("div");
+    expect(studioCarouselRoot(orphan)).toBe(orphan);
   });
 });

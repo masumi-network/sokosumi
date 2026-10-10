@@ -183,6 +183,20 @@ describe("the empty studio carousel", () => {
     ).toBe("");
     expect(Number(center.style.opacity || 1)).toBeGreaterThan(0);
     expect(center.textContent).toBe("poster");
+    expect(center).toHaveAttribute("data-studio-snap-target");
+    const region = screen.getByRole("region", { name: "templates" });
+    const startDrag = mocks.api.on.mock.calls.find(
+      ([event]) => event === "pointerDown",
+    )![1];
+    const endDrag = mocks.api.on.mock.calls.find(
+      ([event]) => event === "pointerUp",
+    )![1];
+    act(() => startDrag());
+    expect(region).toHaveAttribute("data-studio-dragging");
+    expect(center.style.willChange).toBe("transform");
+    act(() => endDrag());
+    expect(region).not.toHaveAttribute("data-studio-dragging");
+    expect(center.style.willChange).toBe("");
   });
 
   it("does not hover-scroll with reduced motion and still allows keyboard navigation", () => {
