@@ -42,9 +42,9 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     name: "Daily stand-up",
     cronExpression: "0 8 * * 1-5",
     description:
-      "Weekday mornings: today's meetings, mail that needs you, and what is stuck on the board.",
+      "Weekday mornings: today's meetings, a summary of yesterday's mail, and what is stuck on the board.",
     prompt:
-      'Daily stand-up. Using the packet below, give the owner one short brief (under 12 lines): 1) today\'s calendar with times and who with, 2) mail that needs them, 3) items under "Needs attention" and what you did about each in this turn (nudge the Coworker with reply_to_task in one concrete sentence, ask the owner one question, or reschedule), 4) follow-ups due from memory, 5) anything under "Due within 48h", once. If a mail is an explicit request to the owner with a deliverable and a date (an invoice due, a signature, a deadline someone set), create the DRAFT Task for it in this turn and name it in the brief. End with one short line on what the team has been working on, from "Team activity", as a side note: who and what, no detail. Team Tasks are context only — never nudge or comment on those. Skip empty sections; when every section is empty, answer exactly: Nothing to add.',
+      'Daily stand-up. Using the packet below, give the owner one short brief (under 12 lines): 1) today\'s calendar with times and who with, 2) a summary of the last 24 hours of mail: what needs them first, then the rest grouped in one line (for example 4 newsletters, 2 receipts), 3) items under "Needs attention" and what you did about each in this turn (nudge the Coworker with reply_to_task in one concrete sentence, ask the owner one question, or reschedule), 4) follow-ups due from memory, 5) anything under "Due within 48h", once. If a mail is an explicit request to the owner with a deliverable and a date (an invoice due, a signature, a deadline someone set), create the DRAFT Task for it in this turn and name it in the brief. End with one short line on what the team has been working on, from "Team activity", as a side note: who and what, no detail. Team Tasks are context only — never nudge or comment on those. Skip empty sections; when every section is empty, answer exactly: Nothing to add.',
   },
   {
     key: "weekly-wrap",
@@ -141,7 +141,7 @@ export const SOKO_BOT_PROACTIVE_RULES: readonly SokoBotProactiveRule[] = [
     id: "inbox",
     title: "Reads mail and calendar",
     description:
-      "Connected mailboxes are checked hourly; a clear request with a deadline becomes a draft Task you can promote. Meetings within a day with an agenda you own get a prep draft.",
+      "Connected mailboxes are checked hourly, but you are only interrupted for mail that needs you soon; the rest is summarised in the morning. A clear request with a deadline becomes a draft Task you can promote. Meetings within a day with an agenda you own get a prep draft.",
   },
   {
     id: "memory",

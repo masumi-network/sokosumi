@@ -497,14 +497,13 @@ export async function buildSystemBeatMessage(input: {
       mail.push(
         ...(await fetchInboxMessages(integration, {
           since: new Date(now.getTime() - 24 * HOUR_MS),
-          unreadOnly: true,
-          limit: 15,
+          limit: 40,
         }).catch(() => [])),
       );
     }
     if (mail.length > 0) {
-      lines.push("## Unread mail (last 24h)");
-      for (const message of mail.slice(0, 15)) {
+      lines.push("## Mail (last 24h)");
+      for (const message of mail.slice(0, 40)) {
         lines.push(
           `- from ${message.from} · **${message.subject || "(no subject)"}** — ${message.snippet.replace(/\s+/g, " ").slice(0, 140)} [${message.provider}:${message.id}]`,
         );

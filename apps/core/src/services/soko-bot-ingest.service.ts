@@ -4,6 +4,7 @@ import type {
 } from "@sokosumi/soko-bot";
 
 import prisma from "@/lib/db/prisma";
+import { checkMailImportance } from "@/lib/soko-bot/mail-importance";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotBusyError,
@@ -19,10 +20,11 @@ import { proactiveGate } from "@/services/soko-bot-proactive.service";
 const HOUR_MS = 60 * 60 * 1_000;
 /** New mail is checked at most this often per bot. */
 const DELTA_INTERVAL_MS = HOUR_MS;
-/** First ingest of a fresh connection looks this far back. */
-const INITIAL_LOOKBACK_MS = 24 * HOUR_MS;
+/** The briefing summarises this much mail; a fresh connection starts here. */
+const LOOKBACK_MS = 24 * HOUR_MS;
 const BRIEFING_HOUR = 7;
 const MAX_MAIL_PER_PACKET = 20;
+const MAX_MAIL_PER_BRIEFING = 40;
 const MAX_EVENTS_PER_PACKET = 15;
 
 export interface SokoBotIngestSyncInput {
@@ -93,11 +95,11 @@ export function buildIngestMessage(input: {
   const lines: string[] = [];
   if (input.kind === "briefing") {
     lines.push(
-      "Morning briefing time. Below is today's calendar and the mail that arrived since yesterday. Give the owner a short briefing as described in your inbox skill, update memory follow-ups, and propose (do not start) any delegable work.",
+      "Morning briefing time. Below is today's calendar and the mail of the last 24 hours. Give the owner a short briefing as described in your inbox skill: today's events, then a summary of the mail, what needs them first and the rest grouped in a line or two. Update memory follow-ups, and propose (do not start) any delegable work.",
     );
   } else {
     lines.push(
-      "New mail arrived since your last look. Flag only what matters as described in your inbox skill; if nothing does, reply exactly `Nothing new worth flagging.`",
+      "New mail arrived that looks important enough to interrupt the owner. Tell them briefly what each one needs and by when, as described in your inbox skill. Leave out any that, on reading, can wait for tomorrow's briefing; if none is left, reply exactly `Nothing new worth flagging.`",
     );
   }
   lines.push("");
@@ -118,7 +120,7 @@ export function buildIngestMessage(input: {
   }
   if (input.mail.length > 0) {
     lines.push(
-      `## Mail (${input.mail.length}${input.mail.length >= MAX_MAIL_PER_PACKET ? "+" : ""})`,
+      `## Mail (${input.mail.length}${input.mail.length >= (input.kind === "briefing" ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_PACKET) ? "+" : ""})`,
     );
     for (const message of input.mail) {
       lines.push(
@@ -156,10 +158,16 @@ export async function buildIngestDeltaMessageForBot(
     );
   }
   mail.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
+  const check = await checkMailImportance({
+    sokoBotId,
+    mail: mail.slice(0, MAX_MAIL_PER_PACKET),
+    source: "lab",
+  });
+  check.log.emit();
   return buildIngestMessage({
     kind: "delta",
     timeZone: bot.ingestTimezone,
-    mail: mail.slice(0, MAX_MAIL_PER_PACKET),
+    mail: check.important ?? [],
     events: [],
   });
 }
@@ -239,16 +247,18 @@ export class SokoBotIngestSyncService {
     if (!briefing && dueMail.length === 0) return "skipped";
 
     const mail: SokoBotInboxMessage[] = [];
-    const cursors = new Map<string, { since: string; newest: string }>();
+    const cursors = new Map<string, { previous: string; newest: string }>();
+    const dayAgo = new Date(now.getTime() - LOOKBACK_MS);
     for (const integration of dueMail) {
-      const since =
-        cursorDate(integration.cursor, "newestSeenAt") ??
-        new Date(now.getTime() - INITIAL_LOOKBACK_MS);
+      const previous = cursorDate(integration.cursor, "newestSeenAt");
+      // The briefing summarises the whole last day, mail the hourly checks
+      // already looked at included; a check reads only what is new.
+      const since = briefing ? dayAgo : (previous ?? dayAgo);
       let messages: SokoBotInboxMessage[];
       try {
         messages = await fetchInboxMessages(integration, {
           since,
-          limit: MAX_MAIL_PER_PACKET,
+          limit: briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_PACKET,
         });
       } catch (error) {
         // Surfaced on the console tile by the integrations service; the
@@ -265,15 +275,12 @@ export class SokoBotIngestSyncService {
           !message.receivedAt || new Date(message.receivedAt) > since,
       );
       mail.push(...fresh);
-      const newest = fresh
-        .map((message) => message.receivedAt)
-        .filter(Boolean)
-        .sort()
-        .at(-1);
-      cursors.set(integration.id, {
-        since: since.toISOString(),
-        newest: newest ?? since.toISOString(),
-      });
+      const floor = (previous ?? since).toISOString();
+      const newest =
+        [...fresh.map((message) => message.receivedAt).filter(Boolean), floor]
+          .sort()
+          .at(-1) ?? floor;
+      cursors.set(integration.id, { previous: floor, newest });
     }
     mail.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
 
@@ -305,7 +312,7 @@ export class SokoBotIngestSyncService {
           data: {
             lastIngestAt: now,
             cursor: {
-              newestSeenAt: consumed ? cursor.newest : cursor.since,
+              newestSeenAt: consumed ? cursor.newest : cursor.previous,
               lastIngestAt: now.toISOString(),
             },
           },
@@ -339,19 +346,50 @@ export class SokoBotIngestSyncService {
       await stamp(false);
       return "skipped";
     }
-    const started = await sokoBotControlPlane.startTurn({
-      userId: bot.userId,
-      workspaceId: bot.workspaceId,
-      clientTurnId: `ingest:${kind}:${bot.id}:${now.toISOString().slice(0, 13)}`,
-      message: buildIngestMessage({
-        kind,
-        timeZone: bot.ingestTimezone,
-        mail: mail.slice(0, MAX_MAIL_PER_PACKET),
-        events,
-      }),
-      source: "INGEST",
-      presetRoute: SYSTEM_TURN_ROUTES[`ingest:${kind}`],
-    });
+    // Between briefings only mail worth interrupting for wakes the bot; the
+    // rest, and everything when Jev is down, waits for the next briefing.
+    const check = briefing
+      ? null
+      : await checkMailImportance({
+          sokoBotId: bot.id,
+          mail: mail.slice(0, MAX_MAIL_PER_PACKET),
+          source: "ingest",
+        });
+    const packetMail = check
+      ? check.important
+      : mail.slice(0, MAX_MAIL_PER_BRIEFING);
+    if (!packetMail || (check && packetMail.length === 0)) {
+      check?.log.set({ outcome: "quiet" });
+      check?.log.emit();
+      await stamp();
+      return "skipped";
+    }
+    let started: Awaited<ReturnType<typeof sokoBotControlPlane.startTurn>>;
+    try {
+      started = await sokoBotControlPlane.startTurn({
+        userId: bot.userId,
+        workspaceId: bot.workspaceId,
+        clientTurnId: `ingest:${kind}:${bot.id}:${now.toISOString().slice(0, 13)}`,
+        message: buildIngestMessage({
+          kind,
+          timeZone: bot.ingestTimezone,
+          mail: packetMail,
+          events,
+        }),
+        source: "INGEST",
+        presetRoute: SYSTEM_TURN_ROUTES[`ingest:${kind}`],
+      });
+      // The turn's answer shows whether the bot agreed: "Nothing new worth
+      // flagging." after a wake means Jev let through mail that could wait.
+      check?.log.set({ outcome: "woke", turn: { id: started.turnId } });
+    } catch (error) {
+      check?.log.set({
+        outcome: error instanceof SokoBotBusyError ? "deferred" : "failed",
+      });
+      throw error;
+    } finally {
+      check?.log.emit();
+    }
     await stamp();
     if (
       started.reconciliationLeaseToken &&
