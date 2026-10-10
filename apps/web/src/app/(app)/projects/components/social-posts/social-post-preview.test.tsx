@@ -333,6 +333,38 @@ describe("SocialPostPreview", () => {
     );
   });
 
+  it("keeps leftover title text in the YouTube description", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="youtube"
+        text={"T".repeat(120)}
+        timestamp={null}
+      />,
+    );
+
+    const preview = screen.getByTestId("social-post-preview");
+    expect(within(preview).getByText("T".repeat(100))).toBeVisible();
+    expect(within(preview).getByText("T".repeat(20))).toBeVisible();
+  });
+
+  it("uses the first non-empty line as the YouTube title", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="youtube"
+        text={"\n  Launch today  \nmore text"}
+        timestamp={null}
+      />,
+    );
+
+    const preview = screen.getByTestId("social-post-preview");
+    expect(within(preview).getByText("Launch today")).toBeVisible();
+    expect(within(preview).getByText("more text")).toBeVisible();
+  });
+
   it("asks for a video when YouTube has no media", () => {
     render(
       <SocialPostPreview
