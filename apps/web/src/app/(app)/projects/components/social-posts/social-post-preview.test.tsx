@@ -131,6 +131,28 @@ describe("SocialPostPreview", () => {
     ).toBeVisible();
   });
 
+  it("highlights Instagram tags and links in the Instagram link color", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="instagram"
+        text="Launch #sokosumi @alice https://example.com/a"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByText("#sokosumi")).toHaveClass(
+      "text-social-instagram-link",
+    );
+    expect(screen.getByText("@alice")).toHaveClass(
+      "text-social-instagram-link",
+    );
+    expect(screen.getByText("example.com/a")).toHaveClass(
+      "text-social-instagram-link",
+    );
+  });
+
   it("shows Instagram's square media frame and asks for media when missing", () => {
     const { rerender } = render(
       <SocialPostPreview
