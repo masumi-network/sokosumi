@@ -232,13 +232,23 @@ function SocialPostCalendarPreview({
           </span>
         </>
       ) : (
-        <img
-          alt=""
-          className="size-full object-cover"
-          decoding="async"
-          loading="lazy"
-          src={media.fileUrl}
-        />
+        <>
+          <img
+            alt=""
+            className="size-full object-cover"
+            decoding="async"
+            loading="lazy"
+            src={media.fileUrl}
+          />
+          {media.kind === "gif" ? (
+            <span
+              className="bg-scrim-strong text-on-media absolute bottom-1 start-1 rounded px-1.5 py-0.5 text-2xs font-semibold"
+              data-testid="calendar-social-post-gif"
+            >
+              GIF
+            </span>
+          ) : null}
+        </>
       )}
     </span>
   );
