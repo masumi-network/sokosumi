@@ -43,6 +43,8 @@ const MESSAGES: Record<string, string> = {
   connectAccount: "Connect account",
   comingSoon: "Coming soon",
   connectComingSoon: "{provider} (coming soon)",
+  empty: "No accounts yet.",
+  emptyHint: "Connect one to post.",
   actions: "Actions for {account}",
   reconnect: "Reconnect",
   replace: "Replace",
@@ -269,6 +271,29 @@ describe("ProjectSocialAccounts", () => {
       "This integration is not configured yet",
     );
     expect(screen.queryByText(/COMPOSIO_INSTAGRAM/)).not.toBeInTheDocument();
+  });
+
+  it("shows an empty state when no accounts are connected", () => {
+    const { rerender } = render(
+      <ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />,
+    );
+
+    const empty = screen.getByTestId("project-social-accounts-empty");
+    expect(empty).toBeVisible();
+    expect(empty).toHaveTextContent("No accounts yet.");
+    expect(empty).toHaveTextContent("Connect one to post.");
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+
+    rerender(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+      />,
+    );
+    expect(
+      screen.queryByTestId("project-social-accounts-empty"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("list")).toBeVisible();
   });
 
   it("shows TikTok as coming soon and does not start a connection", async () => {

@@ -2,11 +2,18 @@
 
 import type { ProjectSocialConnection } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { MoreHorizontal, Plus, RefreshCw, TriangleAlert } from "lucide-react";
+import {
+  Link2,
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  TriangleAlert,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/common/empty-state";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import {
   AlertDialog,
@@ -519,7 +526,15 @@ export function ProjectSocialAccounts({
             );
           })}
         </ul>
-      ) : null}
+      ) : (
+        <div data-testid="project-social-accounts-empty">
+          <EmptyState
+            description={t("emptyHint")}
+            icon={Link2}
+            title={t("empty")}
+          />
+        </div>
+      )}
 
       <AlertDialog
         open={pendingConfirmation !== null}

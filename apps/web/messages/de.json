@@ -2414,7 +2414,9 @@
           "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren."
         },
         "comingSoon": "Bald verfügbar",
-        "connectComingSoon": "{provider} (bald verfügbar)"
+        "connectComingSoon": "{provider} (bald verfügbar)",
+        "empty": "Noch keine Konten.",
+        "emptyHint": "Verbinde eines, um zu posten."
       },
       "SocialPosts": {
         "loadMore": "Mehr laden",
