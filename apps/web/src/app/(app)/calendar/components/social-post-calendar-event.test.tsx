@@ -177,6 +177,17 @@ describe("Social post calendar event", () => {
       "/social?projectId=a%26b&postId=c+d#social-post-c%20d",
     );
   });
+
+  it.each(["FAILED", "MISSED"] as const)(
+    "opens a %s post on Needs attention",
+    (status) => {
+      renderCard({ status });
+      expect(screen.getByRole("link")).toHaveAttribute(
+        "href",
+        "/social?projectId=project&postId=post&tab=attention#social-post-post",
+      );
+    },
+  );
   it("lets the thumbnail stand for a single attachment", () => {
     renderCard({
       attachmentCount: 1,
