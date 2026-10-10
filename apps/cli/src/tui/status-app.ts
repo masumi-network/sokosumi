@@ -808,7 +808,7 @@ function StatusApp({
           setMessage("");
           return;
         }
-        if (screen === "success" || screen === "error") {
+        if (screen === "error") {
           setPendingApiKey(null);
           setPhase("idle");
           setScreen("auth-method");
@@ -829,13 +829,6 @@ function StatusApp({
         exit();
         return;
       }
-    }
-
-    if (busy) return;
-
-    if (route === "auth") {
-      if (screen === "success" || screen === "error") return;
-      return;
     }
   });
 
@@ -981,23 +974,6 @@ function StatusApp({
         ),
         React.createElement(Text, { dimColor: true }, message),
         React.createElement(Text, { dimColor: true }, "Esc cancels · q quits"),
-      );
-    } else if (screen === "success") {
-      content = centeredScreen(
-        React.createElement(
-          Text,
-          { color: TUI_THEME.success, bold: true },
-          "✓ Sign-in successful",
-        ),
-        React.createElement(Text, { dimColor: true }, message),
-        React.createElement(SelectInput, {
-          items: [{ value: "continue", label: "Continue" }],
-          onSelect: () => {
-            if (successTimer.current) clearTimeout(successTimer.current);
-            setPhase("idle");
-            setScreen("home");
-          },
-        }),
       );
     } else if (screen === "error") {
       content = centeredScreen(
