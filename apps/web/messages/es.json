@@ -2592,7 +2592,7 @@
         "connectPrompt": {
           "title": "Conecta una cuenta para empezar a publicar",
           "body": "Las publicaciones salen de las cuentas de este proyecto.",
-          "action": "Conectar X, YouTube, LinkedIn…"
+          "action": "Conectar cuenta"
         },
         "reconnectPrompt": {
           "title": "Vuelve a conectar para publicar",
