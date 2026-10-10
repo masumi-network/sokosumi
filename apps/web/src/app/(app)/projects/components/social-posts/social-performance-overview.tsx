@@ -348,103 +348,157 @@ export function SocialPerformanceOverview({
     },
   ];
   return (
-    <div className="space-y-6" data-testid="social-performance-overview">
-      <div
-        className={cn(
-          "grid gap-3 sm:grid-cols-2",
-          visibleCards.length === 3 ? "xl:grid-cols-3" : "xl:grid-cols-4",
-        )}
-      >
-        {visibleCards.map((card) => {
-          const delta = data.summary.deltas[card.key];
-          return (
-            <article
-              key={card.key}
-              className="bg-card min-w-0 rounded-xl border p-4"
-            >
-              <p className="text-muted-foreground text-sm">{card.label}</p>
-              <div className="mt-2 flex flex-wrap items-end justify-between gap-2">
-                <p
-                  className="text-3xl font-semibold tracking-tight tabular-nums"
-                  title={
-                    card.value == null
-                      ? t("unavailable")
-                      : format.number(card.value)
-                  }
-                >
-                  {number(card.value, true)}
+    <div className="space-y-8" data-testid="social-performance-overview">
+      {/* Hero metrics - no borders, prominent deltas */}
+      <section aria-labelledby="key-metrics-heading">
+        <h2 id="key-metrics-heading" className="sr-only">
+          {t("performance.keyMetrics")}
+        </h2>
+        <div
+          className={cn(
+            "grid gap-6 sm:grid-cols-2",
+            visibleCards.length === 3 ? "xl:grid-cols-3" : "xl:grid-cols-4",
+          )}
+        >
+          {visibleCards.map((card) => {
+            const delta = data.summary.deltas[card.key];
+            const hasCoverage = card.key !== "postCount" && card.measured > 0;
+            const coverageDetails = hasCoverage
+              ? t("performance.detailsAvailable", {
+                  mean: number(card.mean),
+                  median: number(card.median),
+                  measured: card.measured,
+                  total: current.postCount,
+                })
+              : null;
+            return (
+              <article
+                key={card.key}
+                className="min-w-0"
+                title={coverageDetails ?? undefined}
+              >
+                <p className="text-muted-foreground mb-2 text-sm">
+                  {card.label}
                 </p>
-                {delta != null ? (
-                  <span
-                    className="text-muted-foreground flex items-center gap-1 text-xs tabular-nums"
-                    title={t("performance.previousPeriod")}
+                <div className="flex items-baseline gap-3">
+                  <p
+                    className="text-4xl font-semibold tracking-tight tabular-nums"
+                    title={
+                      card.value == null
+                        ? t("unavailable")
+                        : format.number(card.value)
+                    }
                   >
-                    {delta >= 0 ? (
-                      <ArrowUpRight className="size-3.5" aria-hidden />
-                    ) : (
-                      <ArrowDownRight className="size-3.5" aria-hidden />
-                    )}
-                    {format.number(delta, {
-                      signDisplay: "always",
-                      maximumFractionDigits: 2,
-                    })}
-                  </span>
-                ) : null}
-              </div>
-              <p className="text-muted-foreground mt-3 text-xs">
-                {card.key === "postCount"
-                  ? t("performance.previousPeriod")
-                  : t("performance.meanMedian", {
-                      mean: number(card.mean),
-                      median: number(card.median),
-                    })}
-              </p>
-              {card.key !== "postCount" ? (
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {t("performance.metricCoverage", {
-                    measured: card.measured,
-                    total: current.postCount,
-                  })}
-                </p>
-              ) : null}
-            </article>
-          );
-        })}
-      </div>
-      <div className="text-muted-foreground space-y-1 text-xs">
-        <p>{t("performance.cohortHint")}</p>
-        <p>
-          {t("performance.coverage", {
-            count: current.measuredPostCount,
-            total: current.postCount,
+                    {number(card.value, true)}
+                  </p>
+                  {delta != null ? (
+                    <span
+                      className={cn(
+                        "flex items-center gap-1 text-base font-medium tabular-nums",
+                        delta >= 0
+                          ? "text-semantic-success"
+                          : "text-semantic-destructive",
+                      )}
+                      title={t("performance.previousPeriod")}
+                    >
+                      {delta >= 0 ? (
+                        <ArrowUpRight className="size-4" aria-hidden />
+                      ) : (
+                        <ArrowDownRight className="size-4" aria-hidden />
+                      )}
+                      {format.number(delta, {
+                        signDisplay: "always",
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
+                  ) : null}
+                </div>
+                {hasCoverage ? (
+                  <details className="group mt-2">
+                    <summary className="text-muted-foreground hover:text-foreground flex w-fit cursor-pointer list-none items-center gap-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+                      <ChevronDown
+                        className="size-3 group-open:rotate-180"
+                        aria-hidden
+                      />
+                      {t("performance.details")}
+                    </summary>
+                    <dl className="text-muted-foreground mt-2 space-y-0.5 text-xs">
+                      <div className="flex justify-between gap-3">
+                        <dt>{t("performance.mean")}:</dt>
+                        <dd className="tabular-nums">{number(card.mean)}</dd>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <dt>{t("performance.median")}:</dt>
+                        <dd className="tabular-nums">{number(card.median)}</dd>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <dt>{t("performance.coverage")}:</dt>
+                        <dd className="tabular-nums">
+                          {card.measured}/{current.postCount}
+                        </dd>
+                      </div>
+                    </dl>
+                  </details>
+                ) : (
+                  <p className="text-muted-foreground mt-2 text-xs">
+                    {t("performance.previousPeriod")}
+                  </p>
+                )}
+              </article>
+            );
           })}
-          {data.coverage.lastFetchedAt
-            ? ` · ${t("updatedAt", { date: format.dateTime(new Date(data.coverage.lastFetchedAt), "dateTime", { timeZone: data.range.timezone, timeZoneName: "short" }) })}`
-            : ""}
-        </p>
-        {!data.coverage.historyComplete ? (
-          <p>{t("performance.partialHistory")}</p>
-        ) : null}
-        {current.postCount < data.heatmap.minimumSampleSize ? (
-          <p>
-            {t("performance.thinData", {
-              count: data.heatmap.minimumSampleSize,
-            })}
-          </p>
-        ) : null}
-        {data.coverage.missingPublicationDateCount ? (
-          <p>
-            {t("performance.missingDates", {
-              count: data.coverage.missingPublicationDateCount,
-            })}
-          </p>
-        ) : null}
-      </div>
-      <section className="bg-card min-w-0 space-y-4 rounded-xl border p-4">
+        </div>
+        {/* Data quality note - contextual, not prominent */}
+        <details className="group mt-4">
+          <summary className="text-muted-foreground hover:text-foreground flex w-fit cursor-pointer list-none items-center gap-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+            <ChevronDown
+              className="size-3 group-open:rotate-180"
+              aria-hidden
+            />
+            {t("performance.aboutThisData")}
+          </summary>
+          <div className="text-muted-foreground mt-2 space-y-1 text-xs">
+            <p>{t("performance.cohortHint")}</p>
+            <p>
+              {t("performance.coverage", {
+                count: current.measuredPostCount,
+                total: current.postCount,
+              })}
+              {data.coverage.lastFetchedAt
+                ? ` · ${t("updatedAt", { date: format.dateTime(new Date(data.coverage.lastFetchedAt), "dateTime", { timeZone: data.range.timezone, timeZoneName: "short" }) })}`
+                : ""}
+            </p>
+            {!data.coverage.historyComplete ? (
+              <p>{t("performance.partialHistory")}</p>
+            ) : null}
+            {current.postCount < data.heatmap.minimumSampleSize ? (
+              <p>
+                {t("performance.thinData", {
+                  count: data.heatmap.minimumSampleSize,
+                })}
+              </p>
+            ) : null}
+            {data.coverage.missingPublicationDateCount ? (
+              <p>
+                {t("performance.missingDates", {
+                  count: data.coverage.missingPublicationDateCount,
+                })}
+              </p>
+            ) : null}
+          </div>
+        </details>
+      </section>
+      {/* Trend section - always visible, streamlined */}
+      <section
+        className="bg-card min-w-0 space-y-4 rounded-xl border p-6"
+        aria-labelledby="trends-heading"
+      >
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <h3 className="text-sm font-semibold">{t("performance.trends")}</h3>
-            <p className="text-muted-foreground text-xs">
+          <div>
+            <h2 id="trends-heading" className="text-base font-semibold">
+              {t("performance.trends")}
+            </h2>
+            <p className="text-muted-foreground mt-1 text-xs">
               {t("performance.trendsHint", { timezone: data.range.timezone })}
             </p>
           </div>
@@ -507,15 +561,16 @@ export function SocialPerformanceOverview({
           }))}
         />
       </section>
-      <details className="group/insights min-w-0 rounded-xl border p-4">
-        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+      {/* Advanced insights - progressive disclosure */}
+      <details className="group/insights min-w-0">
+        <summary className="bg-card hover:bg-card-background-hover flex cursor-pointer list-none items-center gap-2 rounded-xl border p-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
           <ChevronDown
             className="size-4 group-open/insights:rotate-180"
             aria-hidden
           />
           {t("performance.moreInsights")}
         </summary>
-        <div className="mt-4 min-w-0 space-y-6">
+        <div className="mt-6 min-w-0 space-y-6">
           <section className="bg-card min-w-0 space-y-4 rounded-xl border p-4">
             <div className="space-y-1">
               <h3 className="text-sm font-semibold">
