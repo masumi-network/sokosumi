@@ -79,7 +79,7 @@ describe("measured performance snapshots", () => {
     expect(call.create.profileFetchedAt).toBeNull();
   });
 
-  it("reads that day's post observations from SocialAccountPost, not a snapshot blob", async () => {
+  it("reads every cached post for the connection, not only that UTC day", async () => {
     mocks.posts.mockResolvedValue([postRow]);
     const posts = await listSocialPerformancePostObservations(prisma, {
       connectionId,
@@ -89,18 +89,33 @@ describe("measured performance snapshots", () => {
       expect.objectContaining({
         where: {
           connectionId,
-          fetchedAt: {
-            gte: new Date("2026-10-08T00:00:00Z"),
-            lt: new Date("2026-10-09T00:00:00Z"),
-          },
         },
       }),
     );
+    expect(mocks.posts.mock.calls[0][0].where).not.toHaveProperty("fetchedAt");
     expect(posts[0]).toMatchObject({
       externalId: "post-1",
       provider: "youtube",
       metrics: { views: 20, likes: 2, shares: null },
     });
+  });
+
+  it("includes cached posts whose first fetch was on an earlier UTC day", async () => {
+    const earlier = {
+      ...postRow,
+      id: "55555555-5555-4555-8555-555555555555",
+      externalId: "post-older",
+      fetchedAt: new Date("2026-10-01T12:00:00Z"),
+    };
+    mocks.posts.mockResolvedValue([earlier, postRow]);
+    const posts = await listSocialPerformancePostObservations(prisma, {
+      connectionId,
+      fetchedAt,
+    });
+    expect(posts.map((post) => post.externalId)).toEqual([
+      "post-older",
+      "post-1",
+    ]);
   });
 
   it("computes YouTube engagement from posts without inventing shares", async () => {
