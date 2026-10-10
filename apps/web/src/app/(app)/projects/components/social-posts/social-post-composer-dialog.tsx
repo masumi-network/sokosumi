@@ -56,6 +56,7 @@ import {
   socialPostMediaRefFromDriveFile,
 } from "./social-post-media";
 import { SocialPostPreview } from "./social-post-preview";
+import { publishFailureCopy } from "./social-post-publish-failure";
 import {
   SocialPostSchedulePicker,
   toScheduleValue,
@@ -446,10 +447,7 @@ export function SocialPostComposerDialog({
         if (result.value.status === "PUBLISHED") {
           published += 1;
         } else {
-          failure ??=
-            result.value.lastAttempt?.outcome === "authorization_revoked"
-              ? t("outcomes.authorizationRevoked")
-              : (result.value.lastError ?? t("toasts.failed"));
+          failure ??= publishFailureCopy(result.value, t) ?? t("toasts.failed");
         }
       }
       if (failure) {
