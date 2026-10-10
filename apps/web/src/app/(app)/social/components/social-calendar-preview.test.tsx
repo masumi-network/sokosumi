@@ -101,6 +101,9 @@ describe("Social calendar previews", () => {
     const trigger = screen.getByRole("button", { name: "Open post" });
     await user.click(trigger);
     expect(screen.getByRole("dialog")).toHaveAttribute("aria-busy", "true");
+    expect(
+      screen.getByTestId("social-calendar-preview-skeleton"),
+    ).toBeInTheDocument();
     await user.keyboard("{Escape}");
     await waitFor(() => expect(trigger).toHaveFocus());
     expect(onUrlUpdate).not.toHaveBeenCalled();
