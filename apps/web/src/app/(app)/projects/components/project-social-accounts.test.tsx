@@ -190,6 +190,7 @@ describe("ProjectSocialAccounts", () => {
   // here would render as its raw path in the app while every test stays green.
   it("only uses message keys the catalog defines", () => {
     const catalog = messages.App.Projects.ProjectSocialAccounts;
+    expect(catalog.connectAccount).toBe("Connect account");
     for (const key of Object.keys(MESSAGES)) {
       const value = key
         .split(".")
