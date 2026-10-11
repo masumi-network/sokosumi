@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { isValidTimezone } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import {
   projectSocialConnectionSchema,
@@ -155,6 +156,25 @@ export const refreshSocialAccountStatisticsResponseSchema = z
     importedPostCount: z.number().int().min(0),
   })
   .openapi("RefreshSocialAccountStatisticsResponse");
+
+export const socialConnectionSuggestedTimesQuerySchema = z.object({
+  timezone: z
+    .string()
+    .min(1)
+    .refine((value) => isValidTimezone(value), {
+      message: "timezone must be a valid IANA time zone",
+    })
+    .openapi({
+      param: { name: "timezone", in: "query" },
+      example: "Europe/Zurich",
+    }),
+});
+
+export const socialConnectionSuggestedTimesSchema = z
+  .object({
+    hours: z.array(z.number().int().min(0).max(23)).max(3),
+  })
+  .openapi("SocialConnectionSuggestedTimes");
 
 /** Provider results are validated before any cache write. */
 export const socialAccountStatisticsProviderPageSchema = z.object({

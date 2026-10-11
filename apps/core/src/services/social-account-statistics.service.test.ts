@@ -34,6 +34,7 @@ vi.mock("@/services/social-performance-snapshots.service", () => ({
 
 import {
   listSocialAccountStatistics,
+  listSuggestedPostingTimes,
   refreshSocialAccountStatistics,
 } from "./social-account-statistics.service";
 
@@ -609,6 +610,73 @@ describe("Social account statistics", () => {
       status: expect.stringMatching(
         /fresh|stale|queued|running|reauth_required|partial/,
       ),
+    });
+    expect(mocks.provider).not.toHaveBeenCalled();
+  });
+});
+
+describe("listSuggestedPostingTimes", () => {
+  const scoredMetrics = {
+    views: null,
+    impressions: 100,
+    likes: 10,
+    comments: 0,
+    shares: 0,
+    saves: null,
+  };
+
+  function scoredPost(publishedAt: string, likes: number) {
+    return {
+      publishedAt: new Date(publishedAt),
+      metrics: { ...scoredMetrics, likes },
+      additionalMetrics: [
+        { key: "quote_count", value: 0, period: "lifetime", unit: "count" },
+      ],
+      connection: { provider: "x" },
+    };
+  }
+
+  it("rejects an account outside the authorized Project", async () => {
+    await expect(
+      listSuggestedPostingTimes({
+        ...scope,
+        connectionId: postId,
+        timezone: "UTC",
+      }),
+    ).rejects.toThrow("connection not found");
+    expect(mocks.posts).not.toHaveBeenCalled();
+  });
+
+  it("returns ranked hours from cached Performance posts", async () => {
+    mocks.posts.mockResolvedValue([
+      scoredPost("2026-09-01T13:00:00Z", 10),
+      scoredPost("2026-09-02T13:00:00Z", 10),
+      scoredPost("2026-09-03T13:00:00Z", 10),
+      scoredPost("2026-09-04T13:00:00Z", 10),
+      scoredPost("2026-09-01T18:00:00Z", 4),
+      scoredPost("2026-09-02T18:00:00Z", 4),
+      scoredPost("2026-09-03T18:00:00Z", 4),
+      scoredPost("2026-09-04T18:00:00Z", 4),
+    ]);
+    await expect(
+      listSuggestedPostingTimes({
+        ...scope,
+        connectionId,
+        timezone: "UTC",
+        now: new Date("2026-10-01T12:00:00Z"),
+      }),
+    ).resolves.toEqual({ hours: [13, 18] });
+    expect(mocks.posts).toHaveBeenCalledWith({
+      where: {
+        connectionId,
+        publishedAt: { gte: new Date("2026-07-03T12:00:00.000Z") },
+      },
+      select: {
+        publishedAt: true,
+        metrics: true,
+        additionalMetrics: true,
+        connection: { select: { provider: true } },
+      },
     });
     expect(mocks.provider).not.toHaveBeenCalled();
   });

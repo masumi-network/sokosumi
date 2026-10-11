@@ -65,6 +65,21 @@ export function scheduleQuickPicks(now: Date): Record<ScheduleQuickPick, Date> {
 }
 
 /**
+ * The next local HH:00 for each suggested hour. Today's slot if it is still
+ * open; otherwise tomorrow.
+ */
+export function scheduleSuggestedSlots(
+  hours: number[],
+  earliest: Date,
+): Date[] {
+  return hours.map((hour) => {
+    const today = atWallClock(earliest, hour, 0);
+    if (!isBefore(today, earliest) && today.getHours() === hour) return today;
+    return atWallClock(addDays(startOfDay(earliest), 1), hour, 0);
+  });
+}
+
+/**
  * The day's 15-minute slots by wall clock, not by elapsed minutes, so a
  * daylight-saving day still runs 00:00 to 23:45: the hour that never
  * happens is skipped and the repeated one is listed once.
@@ -121,6 +136,8 @@ interface SocialPostSchedulePickerProps {
   /** The visible label's id; the picker is one group under it. */
   labelledBy: string;
   onChange: (value: string) => void;
+  /** Hours 0–23 from this account's Performance history. Hidden when empty. */
+  suggestedHours?: number[];
   value: string;
 }
 
@@ -137,15 +154,20 @@ export function SocialPostSchedulePicker({
   invalid,
   labelledBy,
   onChange,
+  suggestedHours,
   value,
 }: SocialPostSchedulePickerProps) {
   const t = useTranslations("App.Projects.SocialPosts.composer.schedulePicker");
   const formatter = useFormatter();
   const quickPicksLabelId = useId();
+  const suggestedTimesLabelId = useId();
   const [dateOpen, setDateOpen] = useState(false);
   const [timeOpen, setTimeOpen] = useState(false);
   const selected = parseScheduleValue(value);
   const quickPicks = scheduleQuickPicks(new Date());
+  const suggestedSlots = suggestedHours?.length
+    ? scheduleSuggestedSlots(suggestedHours, earliest)
+    : [];
   const earliestDay = startOfDay(earliest);
 
   function pickDate(day: Date | undefined): void {
@@ -216,6 +238,31 @@ export function SocialPostSchedulePicker({
           </button>
         );
       })}
+      {suggestedSlots.length > 0 ? (
+        <>
+          <span className="sr-only" id={suggestedTimesLabelId}>
+            {t("suggestedTimes")}
+          </span>
+          {suggestedSlots.map((date) => {
+            const active = selected?.getTime() === date.getTime();
+            return (
+              <button
+                aria-describedby={suggestedTimesLabelId}
+                aria-pressed={active}
+                className={chipClass(active)}
+                disabled={disabled || isBefore(date, earliest)}
+                key={date.getTime()}
+                onClick={() => onChange(toScheduleValue(date))}
+                type="button"
+              >
+                {t("suggested", {
+                  time: formatter.dateTime(date, "time"),
+                })}
+              </button>
+            );
+          })}
+        </>
+      ) : null}
 
       <span aria-hidden className="bg-border mx-1 h-4 w-px" />
 
