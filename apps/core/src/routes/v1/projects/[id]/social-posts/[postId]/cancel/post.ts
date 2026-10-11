@@ -16,14 +16,17 @@ import {
 } from "@/schemas/social-post.schema";
 import { cancelSocialPost } from "@/services/social-posts.service";
 
-import { mapSocialPostServiceError } from "../../route-helpers.js";
+import {
+  mapSocialPostServiceError,
+  presentSocialPost,
+} from "../../route-helpers.js";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/social-posts/{postId}/cancel",
     description:
-      "Cancel a draft or scheduled Social post. Canceling an already canceled post is a no-op. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.",
+      "Cancel a draft, scheduled, or needs-approval Social post. Canceling an already canceled post is a no-op. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.",
     tags: ["Projects"],
     request: {
       params: socialPostParamsSchema,
@@ -64,10 +67,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       });
       return ok(
         c,
-        socialPostSchema.parse({
-          ...post,
-          canPublishNow: post.canPublishNow && !userContext.coworkerId,
-        }),
+        socialPostSchema.parse(presentSocialPost(post, userContext.coworkerId)),
       );
     } catch (error) {
       return mapSocialPostServiceError(error);

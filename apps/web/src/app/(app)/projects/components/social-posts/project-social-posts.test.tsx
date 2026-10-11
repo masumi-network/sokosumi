@@ -114,6 +114,7 @@ const MESSAGES: Record<string, string> = {
   "empty.drafts": "No drafts yet.",
   "emptyHint.drafts": "Save a post as a draft to finish it later.",
   "status.DRAFT": "Draft",
+  "status.NEEDS_APPROVAL": "Needs approval",
   "status.SCHEDULED": "Scheduled",
   "status.PUBLISHING": "Publishing…",
   "status.PUBLISHED": "Published",
@@ -347,6 +348,8 @@ function buildPost(overrides: Partial<SocialPost> = {}): SocialPost {
     canSchedule: true,
     canCancel: false,
     canPublishNow: true,
+    canApprove: false,
+    canReject: false,
     connectionNeedsReconnect: false,
     ...overrides,
   };
