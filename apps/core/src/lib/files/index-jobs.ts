@@ -19,7 +19,7 @@ import prisma from "@/lib/db/prisma";
  */
 
 export const FILE_INDEX_JOB_MAX_ATTEMPTS = 5;
-export const FILE_INDEX_JOB_LEASE_MS = 60_000;
+const FILE_INDEX_JOB_LEASE_MS = 60_000;
 const RETRY_BACKOFF_MS = [60_000, 300_000, 1_800_000];
 
 /**

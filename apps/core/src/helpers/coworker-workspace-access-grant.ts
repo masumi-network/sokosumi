@@ -17,7 +17,7 @@ import {
 } from "./coworker-workspace-access";
 
 /** Personal owners and organization owners/admins can enable their own Vendor's Coworker. */
-export async function userCanGrantCoworkerWorkspaceAccess(
+async function userCanGrantCoworkerWorkspaceAccess(
   userId: string,
   workspaceId: string,
   tx: Prisma.TransactionClient = prisma,

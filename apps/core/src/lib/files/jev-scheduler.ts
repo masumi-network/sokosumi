@@ -51,12 +51,12 @@
  */
 
 export const GLOBAL_REQUESTS_PER_MINUTE = 3_600;
-export const GLOBAL_REQUESTS_PER_SECOND = 60;
+const GLOBAL_REQUESTS_PER_SECOND = 60;
 export const GLOBAL_BURST_CAPACITY = 12;
 export const GLOBAL_MAX_CONCURRENT = 24;
 export const PER_QUERY_MAX_CONCURRENT = 6;
-export const PER_WORKSPACE_REQUESTS_PER_SECOND = 30;
-export const PER_WORKSPACE_BURST = 6;
+const PER_WORKSPACE_REQUESTS_PER_SECOND = 30;
+const PER_WORKSPACE_BURST = 6;
 /** Interactive search and related keep 80 % of the per-second budget. */
 export const INTERACTIVE_RESERVED_FRACTION = 0.8;
 export const GLOBAL_INPUT_TOKENS_PER_MINUTE = 6_000_000;
@@ -178,10 +178,10 @@ export const PER_WORKSPACE_USD_PER_DAY = 2;
  */
 export const RANK_DEADLINE_MS = 600;
 
-export const BREAKER_WINDOW_MS = 60_000;
+const BREAKER_WINDOW_MS = 60_000;
 export const BREAKER_SAMPLE_SIZE = 20;
-export const BREAKER_FAILURE_RATIO = 0.5;
-export const BREAKER_PROBE_AFTER_MS = 60_000;
+const BREAKER_FAILURE_RATIO = 0.5;
+const BREAKER_PROBE_AFTER_MS = 60_000;
 
 export type JevWorkClass = "interactive" | "background";
 
