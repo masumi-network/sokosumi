@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { parseContentDispositionFilename } from "@/lib/utils/content-disposition";
 
 type Kind = "followers" | "mentions" | "likers" | "reposters";
 type CachedPost = { id: string; text: string | null };
@@ -92,6 +93,8 @@ export function SocialStatisticsResearch({
   const [audienceEnabled, setAudienceEnabled] = useState(false);
   const [benchmarkHandle, setBenchmarkHandle] = useState("");
   const [discoveryTopic, setDiscoveryTopic] = useState("");
+  const [exporting, setExporting] = useState<"csv" | "xlsx" | null>(null);
+  const [exportError, setExportError] = useState(false);
   const needsPost = kind === "likers" || kind === "reposters";
   const audience = useInfiniteQuery({
     queryKey: [
@@ -165,6 +168,37 @@ export function SocialStatisticsResearch({
   const mentionPosts = audiencePages.flatMap((page) => page.posts);
   const discoveryPosts =
     discovery.data?.pages.flatMap((page) => page.posts) ?? [];
+
+  async function handleExport(format: "csv" | "xlsx") {
+    if (!audiencePages.length || exporting) return;
+    setExportError(false);
+    setExporting(format);
+    try {
+      const response = await fetch(
+        `/api/projects/${encodeURIComponent(projectId)}/social-statistics/${encodeURIComponent(accountId)}/audience/export`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ format, pages: audiencePages }),
+        },
+      );
+      if (!response.ok) throw new Error(t("research.exportFailed"));
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download =
+        parseContentDispositionFilename(
+          response.headers.get("content-disposition"),
+        ) ?? `audience.${format}`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setExportError(true);
+    } finally {
+      setExporting(null);
+    }
+  }
 
   return (
     <section
@@ -292,15 +326,46 @@ export function SocialStatisticsResearch({
               ))}
             </ul>
           ) : null}
-          {audience.hasNextPage ? (
-            <Button
-              type="button"
-              variant="outline"
-              loading={audience.isFetchingNextPage}
-              onClick={() => void audience.fetchNextPage()}
-            >
-              {t("research.loadMore")}
-            </Button>
+          {exportError ? (
+            <p role="alert" className="text-sm">
+              {t("research.exportFailed")}
+            </p>
+          ) : null}
+          {audiencePages.length || audience.hasNextPage ? (
+            <div className="flex flex-wrap gap-2">
+              {audience.hasNextPage ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  loading={audience.isFetchingNextPage}
+                  onClick={() => void audience.fetchNextPage()}
+                >
+                  {t("research.loadMore")}
+                </Button>
+              ) : null}
+              {audiencePages.length ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={Boolean(exporting)}
+                    loading={exporting === "csv"}
+                    onClick={() => void handleExport("csv")}
+                  >
+                    {t("research.exportCsv")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={Boolean(exporting)}
+                    loading={exporting === "xlsx"}
+                    onClick={() => void handleExport("xlsx")}
+                  >
+                    {t("research.exportXlsx")}
+                  </Button>
+                </>
+              ) : null}
+            </div>
           ) : null}
         </TabsContent>
         <TabsContent value="benchmark" className="space-y-3">

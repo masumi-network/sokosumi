@@ -47,6 +47,8 @@ describe("SocialStatisticsResearch", () => {
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => ({
+        kind: "mentions",
+        postId: null,
         contacts: [
           {
             id: "u-1",
@@ -67,6 +69,9 @@ describe("SocialStatisticsResearch", () => {
     });
     renderResearch();
     expect(screen.getByRole("heading", { name: copy.title })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: copy.exportCsv }),
+    ).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: copy.load }));
     expect(await screen.findByText("Ada")).toBeVisible();
@@ -78,10 +83,39 @@ describe("SocialStatisticsResearch", () => {
       "/api/projects/project-1/social-statistics/account-1/audience",
     );
     expect(url.searchParams.get("kind")).toBe("mentions");
+    const createObjectURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:audience");
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      blob: async () => new Blob(["name,username"]),
+      headers: {
+        get: (name: string) =>
+          name === "content-disposition"
+            ? 'attachment; filename="audience-mentions.csv"'
+            : null,
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: copy.exportCsv }));
+    await waitFor(() => expect(click).toHaveBeenCalled());
+    const exportCall = fetchMock.mock.calls[1];
+    expect(exportCall[0]).toBe(
+      "/api/projects/project-1/social-statistics/account-1/audience/export",
+    );
+    expect(exportCall[1]).toMatchObject({ method: "POST" });
+    expect(JSON.parse(exportCall[1].body)).toMatchObject({
+      format: "csv",
+      pages: [{ kind: "mentions", coverage: "Latest 20 mentions" }],
+    });
+    createObjectURL.mockRestore();
+    click.mockRestore();
     fireEvent.click(screen.getByRole("button", { name: copy.loadMore }));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     expect(
-      new URL(fetchMock.mock.calls[1][0], "https://web.test").searchParams.get(
+      new URL(fetchMock.mock.calls[2][0], "https://web.test").searchParams.get(
         "cursor",
       ),
     ).toBe("next-page");
