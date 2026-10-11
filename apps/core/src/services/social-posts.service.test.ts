@@ -208,6 +208,7 @@ describe("social posts service", () => {
         canEdit: true,
         canSchedule: true,
         canCancel: true,
+        canDuplicate: false,
       }),
     ]);
   });
@@ -323,6 +324,7 @@ describe("social posts service", () => {
       lastAttemptAt: NOW,
       lastAttempt,
       canPublishNow: true,
+      canDuplicate: false,
       connectionNeedsReconnect: true,
     });
     expect(posts[1]).toMatchObject({
@@ -331,14 +333,17 @@ describe("social posts service", () => {
       canCancel: false,
       canSchedule: false,
       canPublishNow: false,
+      canDuplicate: false,
       connectionNeedsReconnect: false,
     });
     expect(posts[2]).toMatchObject({
       canPublishNow: true,
+      canDuplicate: true,
       connectionNeedsReconnect: false,
     });
     expect(posts[3]).toMatchObject({
       canPublishNow: false,
+      canDuplicate: true,
       connectionNeedsReconnect: false,
     });
   });
@@ -1489,5 +1494,184 @@ describe("social posts service", () => {
         }),
       }),
     );
+  });
+
+  it("copies a published post into a new draft without the provider id", async () => {
+    const published = {
+      ...scheduledPost,
+      status: "PUBLISHED",
+      text: "Winner",
+      media: [IMAGE_REF],
+      publishedAt: NOW,
+      publishedExternalId: "1907",
+      publishedUrl: "https://x.com/sokosumi/status/1907",
+    };
+    socialPostFindFirstMock.mockResolvedValue(published);
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      id: "55555555-5555-4555-8555-555555555555",
+      text: "Winner",
+      media: [IMAGE_REF],
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      socialConnection: scheduledPost.socialConnection,
+    });
+    const { duplicateSocialPost } = await loadService();
+
+    const post = await duplicateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      postId: POST_ID,
+    });
+
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          provider: "x",
+          text: "Winner",
+          media: [IMAGE_REF],
+          status: "DRAFT",
+          creatorUserId: USER_ID,
+          creatorCoworkerId: null,
+        },
+      }),
+    );
+    expect(post).toMatchObject({
+      id: "55555555-5555-4555-8555-555555555555",
+      status: "DRAFT",
+      text: "Winner",
+      canDuplicate: false,
+      publishedExternalId: null,
+      scheduledAt: null,
+    });
+  });
+
+  it.each(["FAILED", "MISSED"] as const)(
+    "duplicates a %s post",
+    async (status) => {
+      socialPostFindFirstMock.mockResolvedValue({
+        ...scheduledPost,
+        status,
+        lastError: "gone",
+      });
+      socialPostCreateMock.mockResolvedValue(draftPost);
+      const { duplicateSocialPost } = await loadService();
+
+      await duplicateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        postId: POST_ID,
+      });
+
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "DRAFT",
+            text: scheduledPost.text,
+            socialConnectionId: SOCIAL_CONNECTION_ID,
+          }),
+        }),
+      );
+    },
+  );
+
+  it.each(["DRAFT", "SCHEDULED", "PUBLISHING", "CANCELED"] as const)(
+    "rejects duplicating a %s post",
+    async (status) => {
+      socialPostFindFirstMock.mockResolvedValue({ ...draftPost, status });
+      const { duplicateSocialPost } = await loadService();
+
+      await expect(
+        duplicateSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          postId: POST_ID,
+        }),
+      ).rejects.toMatchObject({
+        status: 409,
+        message: "Only a published, failed, or missed post can be duplicated",
+      });
+      expect(socialPostCreateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps the provider when the account is gone or disconnected", async () => {
+    socialPostFindFirstMock.mockResolvedValue({
+      ...scheduledPost,
+      status: "PUBLISHED",
+      provider: "linkedin",
+      socialConnection: {
+        ...scheduledPost.socialConnection,
+        status: "disconnected",
+      },
+    });
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      provider: "linkedin",
+    });
+    const { duplicateSocialPost } = await loadService();
+
+    await duplicateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      postId: POST_ID,
+    });
+
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          provider: "linkedin",
+          socialConnectionId: null,
+        }),
+      }),
+    );
+  });
+
+  it("records a coworker as the draft creator", async () => {
+    socialPostFindFirstMock.mockResolvedValue({
+      ...scheduledPost,
+      status: "PUBLISHED",
+    });
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      creatorUserId: null,
+      creatorCoworkerId: "cow_123",
+      creatorUser: null,
+      creatorCoworker: { id: "cow_123", name: "Scout" },
+    });
+    const { duplicateSocialPost } = await loadService();
+
+    const post = await duplicateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      coworkerId: "cow_123",
+      postId: POST_ID,
+    });
+
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          creatorUserId: null,
+          creatorCoworkerId: "cow_123",
+        }),
+      }),
+    );
+    expect(post.creator).toEqual({
+      kind: "coworker",
+      id: "cow_123",
+      name: "Scout",
+    });
   });
 });

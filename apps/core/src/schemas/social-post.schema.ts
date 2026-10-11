@@ -172,6 +172,10 @@ export const socialPostSchema = z
     canSchedule: z.boolean(),
     canCancel: z.boolean(),
     canPublishNow: z.boolean(),
+    canDuplicate: z.boolean().openapi({
+      description:
+        "True when the post can be copied into a new draft (published, failed, or missed)",
+    }),
     connectionNeedsReconnect: z.boolean().openapi({
       description:
         "The linked connection exists but is not active, so the post cannot go out until someone reconnects",

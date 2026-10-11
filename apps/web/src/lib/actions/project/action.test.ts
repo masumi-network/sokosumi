@@ -20,6 +20,7 @@ const projectServiceMock = {
   cancelSocialPost: vi.fn(),
   createProject: vi.fn(),
   createSocialPost: vi.fn(),
+  duplicateSocialPost: vi.fn(),
   disconnectSocialConnection: vi.fn(),
   finalizeSocialConnection: vi.fn(),
   getProjectContextMd: vi.fn(),
@@ -869,6 +870,40 @@ describe("project actions", () => {
       );
       expect(canceled).toMatchObject({ ok: true, value: { revision: 2 } });
       expect(revalidatePath).toHaveBeenCalledWith("/social");
+    });
+
+    it("duplicates a post into a draft and revalidates", async () => {
+      projectServiceMock.duplicateSocialPost.mockResolvedValue({
+        ...post,
+        id: "post-copy",
+        status: "DRAFT",
+      });
+
+      const { duplicateProjectSocialPost } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await duplicateProjectSocialPost({
+        projectId: " project-1 ",
+        postId: " post-1 ",
+      });
+
+      expect(projectServiceMock.duplicateSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+      );
+      expect(result).toEqual({
+        ok: true,
+        value: { ...post, id: "post-copy", status: "DRAFT" },
+      });
+      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
+      expect(revalidatePath).toHaveBeenCalledWith("/social");
+    });
+
+    it("rejects empty ids before duplicating", async () => {
+      const { duplicateProjectSocialPost } = await import("./action");
+      expect(
+        await duplicateProjectSocialPost({ projectId: "", postId: "post-1" }),
+      ).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+      expect(projectServiceMock.duplicateSocialPost).not.toHaveBeenCalled();
     });
 
     it("publishes a post now through the service and revalidates", async () => {

@@ -23,6 +23,7 @@ import {
 import {
   cancelProjectSocialPost,
   createProjectSocialPost,
+  duplicateProjectSocialPost,
   publishProjectSocialPost,
   refreshProjectSocialPostStatistics,
   scheduleProjectSocialPost,
@@ -96,6 +97,7 @@ const MESSAGES: Record<string, string> = {
   attempts: "{count} attempts",
   "actions.publishNow": "Publish now",
   "actions.retry": "Retry",
+  "actions.duplicate": "Duplicate as draft",
   "sections.calendar": "Calendar",
   "sections.drafts": "Drafts",
   "sections.attention": "Needs attention",
@@ -201,6 +203,7 @@ const MESSAGES: Record<string, string> = {
   "toasts.scheduled": "Post scheduled.",
   "toasts.updated": "Post updated.",
   "toasts.canceled": "Post canceled.",
+  "toasts.duplicated": "Draft created.",
   "toasts.conflict":
     "This post was changed elsewhere. Reloading the latest version.",
   "toasts.failed": "Something went wrong. Try again.",
@@ -259,6 +262,7 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/actions/project/action", () => ({
   cancelProjectSocialPost: vi.fn(),
   createProjectSocialPost: vi.fn(),
+  duplicateProjectSocialPost: vi.fn(),
   publishProjectSocialPost: vi.fn(),
   refreshProjectSocialPostStatistics: vi.fn(),
   scheduleProjectSocialPost: vi.fn(),
@@ -347,6 +351,7 @@ function buildPost(overrides: Partial<SocialPost> = {}): SocialPost {
     canSchedule: true,
     canCancel: false,
     canPublishNow: true,
+    canDuplicate: false,
     connectionNeedsReconnect: false,
     ...overrides,
   };
@@ -394,6 +399,7 @@ const PUBLISHED_POST = buildPost({
   canSchedule: false,
   canCancel: false,
   canPublishNow: false,
+  canDuplicate: true,
 });
 
 const FAILED_POST = buildPost({
@@ -425,6 +431,7 @@ const FAILED_POST = buildPost({
   canSchedule: true,
   canCancel: false,
   canPublishNow: true,
+  canDuplicate: true,
 });
 
 const PUBLISHING_POST = buildPost({
@@ -2561,6 +2568,9 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.queryByRole("menuitem", { name: "Edit" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Duplicate as draft" }),
+    ).toBeVisible();
   });
 
   it("shows the missed reason on a MISSED row", async () => {
@@ -2807,8 +2817,91 @@ describe("ProjectSocialPosts", () => {
       within(dialog).getByRole("link", { name: "View post" }),
     ).toHaveAttribute("href", "https://x.com/sokosumi/status/1234567890");
     expect(
-      within(dialog).queryByRole("button", { name: "Post actions" }),
-    ).not.toBeInTheDocument();
+      within(dialog).getByRole("button", { name: "Post actions" }),
+    ).toBeVisible();
+  });
+
+  it("duplicates a published post into a draft and switches to Drafts", async () => {
+    const user = userEvent.setup();
+    const draft = buildPost({
+      id: "post-copy",
+      text: PUBLISHED_POST.text,
+      canEdit: true,
+      canSchedule: true,
+      canCancel: true,
+      canPublishNow: true,
+      canDuplicate: false,
+    });
+    vi.mocked(duplicateProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: draft,
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[PUBLISHED_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-published"
+      />,
+    );
+
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Post actions",
+      }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: "Duplicate as draft" }),
+    );
+
+    await waitFor(() => {
+      expect(duplicateProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-published",
+      });
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Draft created.");
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("social-post-post-copy")).toBeVisible();
+    expect(
+      within(screen.getByTestId("social-post-post-copy")).getByText(
+        "Published text",
+      ),
+    ).toBeVisible();
+  });
+
+  it("duplicates a failed post from Needs attention", async () => {
+    const user = userEvent.setup();
+    vi.mocked(duplicateProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: buildPost({
+        id: "post-failed-copy",
+        text: FAILED_POST.text,
+      }),
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[FAILED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    await openRowMenu(user, "post-failed");
+    await user.click(
+      screen.getByRole("menuitem", { name: "Duplicate as draft" }),
+    );
+
+    await waitFor(() => {
+      expect(duplicateProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-failed",
+      });
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Draft created.");
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("social-post-post-failed-copy")).toBeVisible();
   });
 
   it("shows a PUBLISHING post a link names without actions", () => {
