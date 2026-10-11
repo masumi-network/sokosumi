@@ -50,11 +50,12 @@ vi.mock("./use-studio-state", () => ({
     initialState: { assets: StudioAsset[] };
     initialSelectedAssetId: string | null;
   }) => {
-    const selectedId = initialSelectedAssetId ?? initialState.assets[0]?.id;
+    const assets =
+      initialState.assets.length > 0 ? initialState.assets : [ASSET];
+    const selectedId = initialSelectedAssetId ?? assets[0]?.id;
     return {
-      state: { ...initialState, jobs: [] },
-      selectedAsset:
-        initialState.assets.find((asset) => asset.id === selectedId) ?? null,
+      state: { assets, jobs: [] },
+      selectedAsset: assets.find((asset) => asset.id === selectedId) ?? null,
       selectAsset: vi.fn(),
       activeJobs: [],
       refresh: vi.fn().mockResolvedValue(undefined),

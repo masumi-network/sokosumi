@@ -850,7 +850,10 @@ describe("ProjectSocialPosts", () => {
     );
 
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByAltText("launch.png")).toBeInTheDocument();
+    expect(within(dialog).getByTestId("social-post-media")).toBeVisible();
+    expect(
+      within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
+    ).toHaveLength(1);
   });
 
   it("forgets the studio prefill when the composer closes", async () => {
