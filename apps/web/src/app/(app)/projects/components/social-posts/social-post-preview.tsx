@@ -342,7 +342,7 @@ function InstagramPreview({
         data-testid="social-post-preview-instagram-frame"
       >
         {first ? (
-          <PreviewMediaItem media={first} />
+          <PreviewMediaItem media={first} showPlay />
         ) : (
           <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
             {t("instagram.mediaRequired")}
