@@ -12,7 +12,6 @@ struct ThreadReplyBarButton: View {
   @State private var isHovered = false
   @Environment(\.locale) private var locale
 
-  /// Web's `size-4` faces overlapping by `-space-x-1`.
   static let faceDiameter: CGFloat = 16
 
   var body: some View {
