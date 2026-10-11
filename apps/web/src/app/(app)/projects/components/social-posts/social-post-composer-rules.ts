@@ -69,8 +69,7 @@ export function socialPostComposerIssue(
  * "add text or media" line is not repeated when several networks share it.
  */
 export function socialPostComposerRequirements(
-  providers: readonly SocialPostProvider[],
-  text: string,
+  accounts: readonly { provider: SocialPostProvider; text: string }[],
   media: readonly SocialPostMediaRef[],
 ): {
   provider: SocialPostProvider;
@@ -81,14 +80,20 @@ export function socialPostComposerRequirements(
     provider: SocialPostProvider;
     issue: SocialPostComposerRequirementIssue;
   }[] = [];
-  for (const provider of providers) {
-    const issue = socialPostComposerIssue(provider, text, media);
+  for (const account of accounts) {
+    const issue = socialPostComposerIssue(
+      account.provider,
+      account.text,
+      media,
+    );
     if (!isRequirementIssue(issue)) continue;
     const key =
-      issue === "text_or_media_required" ? issue : `${issue}:${provider}`;
+      issue === "text_or_media_required"
+        ? issue
+        : `${issue}:${account.provider}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    hints.push({ provider, issue });
+    hints.push({ provider: account.provider, issue });
   }
   return hints;
 }
