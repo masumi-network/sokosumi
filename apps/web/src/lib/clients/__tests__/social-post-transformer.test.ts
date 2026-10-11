@@ -4,6 +4,7 @@ import {
   patchProjectsByIdSocialPostsByPostIdResponseTransformer,
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdQueueResponseTransformer,
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
   postProjectsByIdSocialPostsResponseTransformer,
 } from "@sokosumi/core-client/transformers";
@@ -50,6 +51,7 @@ const transformers = [
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdQueueResponseTransformer,
 ];
 
 describe("social post response transformers", () => {

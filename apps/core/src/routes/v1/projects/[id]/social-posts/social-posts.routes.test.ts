@@ -28,6 +28,7 @@ const {
   listSocialPostsMock,
   publishSocialPostNowMock,
   requireSocialBetaAccessMock,
+  resolveNextSocialQueueSlotMock,
   scheduleSocialPostMock,
   updateSocialPostMock,
 } = vi.hoisted(() => ({
@@ -41,6 +42,7 @@ const {
   listSocialPostsMock: vi.fn(),
   publishSocialPostNowMock: vi.fn(),
   requireSocialBetaAccessMock: vi.fn(),
+  resolveNextSocialQueueSlotMock: vi.fn(),
   scheduleSocialPostMock: vi.fn(),
   updateSocialPostMock: vi.fn(),
 }));
@@ -56,6 +58,10 @@ vi.mock("@/services/social-posts.service", () => ({
   listSocialPosts: listSocialPostsMock,
   scheduleSocialPost: scheduleSocialPostMock,
   updateSocialPost: updateSocialPostMock,
+}));
+
+vi.mock("@/services/social-queue.service", () => ({
+  resolveNextSocialQueueSlot: resolveNextSocialQueueSlotMock,
 }));
 
 vi.mock("@/services/social-post-statistics.service", () => ({
@@ -247,6 +253,10 @@ describe("Project social post routes", () => {
       pagination: { cursor: null, nextCursor: null, limit: 20, total: 1 },
     });
     createSocialPostMock.mockResolvedValue(draftPost);
+    resolveNextSocialQueueSlotMock.mockResolvedValue({
+      scheduledAt: new Date(SCHEDULED_AT),
+      timezone: "UTC",
+    });
     getSocialPostMock.mockResolvedValue(draftPost);
     updateSocialPostMock.mockResolvedValue({ ...draftPost, revision: 1 });
     scheduleSocialPostMock.mockResolvedValue(scheduledPost);
@@ -530,6 +540,46 @@ describe("Project social post routes", () => {
       scheduledAt: new Date(SCHEDULED_AT),
       timezone: "Europe/Zurich",
     });
+    expect(resolveNextSocialQueueSlotMock).not.toHaveBeenCalled();
+  });
+
+  it("creates a queued post from the next free slot", async () => {
+    createSocialPostMock.mockResolvedValue(scheduledPost);
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts`,
+      json("POST", {
+        text: "Hello world",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        queue: true,
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(resolveNextSocialQueueSlotMock).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+    });
+    expect(createSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scheduledAt: new Date(SCHEDULED_AT),
+        timezone: "UTC",
+      }),
+    );
+  });
+
+  it("rejects queue and a time together", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts`,
+      json("POST", {
+        text: "Hello world",
+        queue: true,
+        scheduledAt: SCHEDULED_AT,
+      }),
+    );
+
+    expect(response.status).toBe(422);
+    expect(resolveNextSocialQueueSlotMock).not.toHaveBeenCalled();
+    expect(createSocialPostMock).not.toHaveBeenCalled();
   });
 
   it("validates the create body", async () => {

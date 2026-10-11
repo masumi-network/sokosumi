@@ -5,6 +5,7 @@ import type {
   ProjectSocialConnection,
   SocialPost,
   SocialPostMediaRef,
+  SocialQueueSlot,
 } from "@sokosumi/core-client";
 import {
   SOCIAL_POST_MEDIA_RULES,
@@ -44,6 +45,7 @@ import {
 import {
   createProjectSocialPost,
   publishProjectSocialPost,
+  queueProjectSocialPost,
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
@@ -88,6 +90,7 @@ export type SocialPostComposerMode =
 interface SocialPostComposerDialogProps {
   connections: ProjectSocialConnection[];
   mode: SocialPostComposerMode;
+  queueSlots?: SocialQueueSlot[];
   /** Takes the reader to where accounts are connected; absent, none is offered. */
   onConnectAccount?: () => void;
   onError: (error: ActionError) => void;
@@ -98,7 +101,7 @@ interface SocialPostComposerDialogProps {
   projectId: string;
 }
 
-type PendingSubmit = "save" | "schedule" | "publish" | null;
+type PendingSubmit = "save" | "schedule" | "publish" | "queue" | null;
 
 function formatHandle(handle: string | null): string {
   if (!handle) return "";
@@ -188,6 +191,7 @@ export function SocialPostComposerDialog({
   onSaved,
   open,
   projectId,
+  queueSlots = [],
 }: SocialPostComposerDialogProps) {
   const t = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
@@ -344,6 +348,15 @@ export function SocialPostComposerDialog({
     textValid &&
     mediaValid &&
     selectedConnections.length > 0 &&
+    !isBusy;
+  const hasQueueSlots = queueSlots.length > 0;
+  const canQueue =
+    textValid &&
+    mediaValid &&
+    (mode.kind === "create"
+      ? selectedConnections.length > 0
+      : connectionId !== "") &&
+    hasQueueSlots &&
     !isBusy;
   const isReschedule = post?.status === "SCHEDULED";
 
@@ -771,6 +784,66 @@ export function SocialPostComposerDialog({
         return;
       }
       toast.success(t("toasts.scheduled", { count: 1 }));
+      onSaved(result.value);
+      onOpenChange(false);
+    } catch (error) {
+      onError(toActionRejectionError(error));
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function handleQueue(): Promise<void> {
+    if (!canQueue) return;
+    setPending("queue");
+    try {
+      if (mode.kind === "create") {
+        const created = await createForEachAccount((socialConnectionId) =>
+          createProjectSocialPost({
+            projectId,
+            text: trimmedText,
+            media,
+            socialConnectionId,
+            queue: true,
+          }),
+        );
+        if (created === 0) return;
+        rememberCreateAccounts();
+        toast.success(t("toasts.queued", { count: created }));
+        onOpenChange(false);
+        return;
+      }
+
+      let revision = mode.post.revision;
+      const contentChanged =
+        trimmedText !== mode.post.text ||
+        !sameSocialPostMedia(media, mode.post.media);
+      if (mode.kind === "edit" && contentChanged) {
+        const updated = await updateProjectSocialPost({
+          projectId,
+          postId: mode.post.id,
+          text: trimmedText,
+          media,
+          revision,
+        });
+        if (!updated.ok) {
+          onError(updated.error);
+          return;
+        }
+        revision = updated.value.revision;
+      }
+
+      const result = await queueProjectSocialPost({
+        projectId,
+        postId: mode.post.id,
+        socialConnectionId: connectionId,
+        revision,
+      });
+      if (!result.ok) {
+        onError(result.error);
+        return;
+      }
+      toast.success(t("toasts.queued", { count: 1 }));
       onSaved(result.value);
       onOpenChange(false);
     } catch (error) {
@@ -1211,6 +1284,32 @@ export function SocialPostComposerDialog({
             {footerMessage}
           </div>
           <div className="flex items-center justify-end gap-2">
+            {hasQueueSlots ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!canQueue}
+                loading={pending === "queue"}
+                onClick={() => {
+                  void handleQueue();
+                }}
+              >
+                {t("composer.addToQueue")}
+              </Button>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button type="button" variant="outline" disabled>
+                      {t("composer.addToQueue")}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t("composer.addToQueueNeedSlots")}
+                </TooltipContent>
+              </Tooltip>
+            )}
             {!isScheduleOnly && primaryAction !== "save" ? (
               <Button
                 type="button"

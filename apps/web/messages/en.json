@@ -2547,7 +2547,9 @@
           "dismiss": "Cancel",
           "previewEmpty": "Your post shows here as you write.",
           "pickAccount": "Pick an account to post to.",
-          "tooLong": "Text length is over the limit."
+          "tooLong": "Text length is over the limit.",
+          "addToQueue": "Add to queue",
+          "addToQueueNeedSlots": "Add a queue time on Accounts first."
         },
         "cancelDialog": {
           "title": "Cancel this post?",
@@ -2567,7 +2569,34 @@
           "unauthenticatedAction": "Log in",
           "published": "Post published.",
           "publishFailed": "Publishing failed: {error}",
-          "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}"
+          "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}",
+          "queued": "{count, plural, one {Added to the queue.} other {# posts added to the queue.}}"
+        },
+        "queue": {
+          "title": "Posting queue",
+          "hint": "Named weekly times. Add to queue uses the next free one.",
+          "empty": "No queue times yet.",
+          "emptyHint": "Add a weekly time, then use Add to queue on a post.",
+          "add": "Add time",
+          "save": "Save queue",
+          "name": "Name",
+          "weekday": "Day",
+          "time": "Time",
+          "timezone": "Time zone",
+          "remove": "Remove {name}",
+          "toasts": {
+            "saved": "Queue saved.",
+            "empty": "Queue cleared."
+          },
+          "weekdays": {
+            "0": "Sunday",
+            "1": "Monday",
+            "2": "Tuesday",
+            "3": "Wednesday",
+            "4": "Thursday",
+            "5": "Friday",
+            "6": "Saturday"
+          }
         },
         "needsReconnect": "Account needs reconnecting",
         "needsReconnectLink": "Reconnect the account",

@@ -155,6 +155,9 @@ const MESSAGES: Record<string, string> = {
   "composer.publishNow": "Post now",
   "composer.pickAccount": "Pick an account to post to.",
   "composer.tooLong": "Text length is over the limit.",
+  "composer.addToQueue": "Add to queue",
+  "composer.addToQueueNeedSlots": "Add a queue time on Accounts first.",
+  "toasts.queued": "Added to the queue.",
   "composer.requirements.text_or_media_required": "Add text or media.",
   "composer.requirements.text_required": "{provider} requires text.",
   "composer.requirements.media_required":
@@ -260,6 +263,7 @@ vi.mock("@/lib/actions/project/action", () => ({
   cancelProjectSocialPost: vi.fn(),
   createProjectSocialPost: vi.fn(),
   publishProjectSocialPost: vi.fn(),
+  queueProjectSocialPost: vi.fn(),
   refreshProjectSocialPostStatistics: vi.fn(),
   scheduleProjectSocialPost: vi.fn(),
   updateProjectSocialPost: vi.fn(),
@@ -1673,6 +1677,53 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(screen.getByTestId("social-post-post-new")).getByText("Fresh"),
     ).toBeVisible();
+  });
+
+  it("adds a new post to the next queue slot", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: buildPost({
+        id: "post-queued",
+        text: "Queued",
+        status: "SCHEDULED",
+        revision: 1,
+      }),
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+        queueSlots={[
+          {
+            id: "slot-1",
+            name: "Tuesday morning",
+            weekday: 2,
+            minutesFromMidnight: 660,
+            timezone: "UTC",
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Queued");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add to queue" }),
+    );
+
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        text: "Queued",
+        media: [],
+        socialConnectionId: "connection-1",
+        queue: true,
+      });
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Added to the queue.");
   });
 
   it("returns focus to the calendar trigger after closing a preview", async () => {
