@@ -910,7 +910,7 @@ private struct RoomLeadingIcon: View {
 }
 
 struct DirectRoomAvatarStack: View {
-  /// Web `DirectRoomAvatarStack`: `size-5` faces, `-ml-1.5` overlap, `size-2` marks.
+  /// Web `DirectRoomAvatarStack`.
   static let faceSize: CGFloat = 20
   private static let overlap: CGFloat = 6
   private static let markSize: CGFloat = 8

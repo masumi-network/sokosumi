@@ -27,7 +27,7 @@ struct CrossRoomThreadsView: View {
   var body: some View {
     let roomsById = Dictionary(rooms.map { ($0.id, $0) }) { first, _ in first }
     ScrollView {
-      // A reading column, as web's `max-w-3xl`: a thread's name and its time on one line the eye can cross.
+      // A reading column: a thread's name and its time on one line the eye can cross.
       LazyVStack(alignment: .leading, spacing: 4) {
         Section {
           unreadGroup(roomsById)
