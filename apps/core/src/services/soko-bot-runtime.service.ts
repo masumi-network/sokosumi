@@ -3,7 +3,6 @@ import {
   AgentJobStatus,
   Channel,
   FileSourceKind,
-  FileSourceScope,
   type Prisma,
   TaskStatus,
 } from "@sokosumi/database";
@@ -186,8 +185,8 @@ import {
   loadLiveResources,
   searchFiles,
 } from "@/services/file-search.service";
-import { getJob, readAssetBytes } from "@/services/image-studio-assets.service";
-import { imageFileName } from "@/services/image-studio-files.service";
+import { getJob } from "@/services/image-studio-assets.service";
+import { ensureStudioAssetDriveFile } from "@/services/image-studio-drive.service";
 import {
   createImageJob,
   DEFAULT_SETTINGS,
@@ -271,8 +270,6 @@ const CORE_TOOL_CALLS = {
 const MAX_DIRECTS_OPENED_PER_TURN = 5;
 /** Enough for a few variations; each one spends the owner's credits. */
 const MAX_IMAGES_PER_TURN = 4;
-/** Where the owner finds studio images the bot copied into Files. */
-const STUDIO_FILES_FOLDER = "Content Studio";
 
 type SocialMediaInput = NonNullable<
   z.infer<(typeof SOKO_BOT_TOOL_INPUT_SCHEMAS)["create_social_post"]>["media"]
@@ -1836,55 +1833,18 @@ export class SokoBotRuntimeService {
     },
   ): Promise<{ id: string; name: string; link: string } | null> {
     const drive = await this.ownerDrive(authorized);
-    const asset = await prisma.projectImageAsset.findFirst({
-      where: { id: image.assetId, projectId: image.projectId },
-      select: { blobPathname: true, contentType: true },
+    const file = await ensureStudioAssetDriveFile({
+      projectId: image.projectId,
+      assetId: image.assetId,
+      workspaceId: drive.key.workspaceId,
+      organizationId:
+        drive.key.scope === "organization" ? drive.key.ownerId : null,
+      userId: authorized.turn.userId,
+      prompt: image.prompt,
+      jobId: image.jobId,
     });
-    if (!asset) return null;
-    const name = imageFileName(image.prompt, image.jobId, asset.contentType);
-    const pathname = drive.pathnameIn(STUDIO_FILES_FOLDER, name);
-    const key = { ...drive.key, pathname };
-    const live = await prisma.fileResource.findUnique({
-      where: {
-        workspaceId_sourceKind_sourceScope_sourceId: {
-          workspaceId: key.workspaceId,
-          sourceKind: FileSourceKind.DRIVE_UPLOAD,
-          sourceScope:
-            key.scope === "organization"
-              ? FileSourceScope.ORGANIZATION
-              : FileSourceScope.USER,
-          sourceId: pathname,
-        },
-      },
-      select: { id: true, lifecycle: true, tombstonedAt: true },
-    });
-    if (live?.lifecycle === "ACTIVE" && !live.tombstonedAt)
-      return { id: live.id, name, link: `/drive/files/${live.id}` };
-    const bytes = await readAssetBytes(asset.blobPathname);
-    await reserveDriveUploadResource({
-      key,
-      displayName: name,
-      mimeType: asset.contentType,
-      sizeBytes: bytes.byteLength,
-    });
-    await put(pathname, Buffer.from(bytes), {
-      access: "public",
-      contentType: asset.contentType,
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    });
-    const activated = await activateDriveUploadResource({
-      key,
-      sizeBytes: bytes.byteLength,
-      mimeType: asset.contentType,
-    });
-    if (!activated) return null;
-    nudgeFileIndexing();
-    return {
-      id: activated.resourceId,
-      name,
-      link: `/drive/files/${activated.resourceId}`,
-    };
+    if (!file) return null;
+    return { id: file.id, name: file.name, link: `/drive/files/${file.id}` };
   }
 
   /**

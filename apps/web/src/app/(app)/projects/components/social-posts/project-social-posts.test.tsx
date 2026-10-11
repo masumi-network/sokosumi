@@ -28,6 +28,7 @@ import {
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
+import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { createTestFormatter } from "@/test/intl-formatter";
 import { TestQueryProvider } from "@/test/query-provider";
 import { stubLoadedImage } from "@/test/stub-pending-image-load";
@@ -525,6 +526,7 @@ function render(ui: React.ReactElement) {
 describe("ProjectSocialPosts", () => {
   afterEach(() => {
     vi.useRealTimers();
+    sessionStorage.clear();
     Object.defineProperty(navigator, "onLine", {
       configurable: true,
       value: true,
@@ -828,6 +830,55 @@ describe("ProjectSocialPosts", () => {
         name: "New post",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("opens the composer with a studio image already attached", () => {
+    writeSocialComposePrefill(PROJECT_ID, { media: [IMAGE_REF] });
+
+    renderUi(
+      <TestQueryProvider>
+        <NuqsTestingAdapter searchParams="?compose=new">
+          <SocialComposeProvider>
+            <ProjectSocialPosts
+              connections={[buildConnection()]}
+              posts={[]}
+              projectId={PROJECT_ID}
+            />
+          </SocialComposeProvider>
+        </NuqsTestingAdapter>
+      </TestQueryProvider>,
+    );
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByTestId("social-post-media")).toBeVisible();
+    expect(
+      within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
+    ).toHaveLength(1);
+  });
+
+  it("forgets the studio prefill when the composer closes", async () => {
+    const user = userEvent.setup();
+    writeSocialComposePrefill(PROJECT_ID, { media: [IMAGE_REF] });
+
+    renderUi(
+      <TestQueryProvider>
+        <NuqsTestingAdapter searchParams="?compose=new">
+          <SocialComposeProvider>
+            <ProjectSocialPosts
+              connections={[buildConnection()]}
+              posts={[]}
+              projectId={PROJECT_ID}
+            />
+          </SocialComposeProvider>
+        </NuqsTestingAdapter>
+      </TestQueryProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(
+      sessionStorage.getItem(`sokosumi.social-compose.${PROJECT_ID}`),
+    ).toBe(null);
   });
 
   it("says why Post now is off when the draft is empty", async () => {

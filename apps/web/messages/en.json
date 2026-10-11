@@ -2947,6 +2947,8 @@
       "generate": "Generate",
       "refine": "Refine",
       "regenerate": "New variation",
+      "schedule": "Schedule this image",
+      "scheduleFailed": "Could not attach this image",
       "reroll": "Re-roll",
       "reusePrompt": "Reuse prompt",
       "download": "Download",
