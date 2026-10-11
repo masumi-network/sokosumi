@@ -165,6 +165,16 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("SocialPostStatistics account history", () => {
+  it("shows placeholder cards while statistics load", () => {
+    mocks.fetch.mockImplementation(() => new Promise(() => {}));
+    renderStatistics();
+    const loading = screen.getByTestId("social-statistics-loading");
+    expect(loading).toBeVisible();
+    expect(loading).toHaveTextContent(
+      en.App.Projects.SocialPosts.statistics.loading,
+    );
+    expect(screen.queryByText(post.text)).not.toBeInTheDocument();
+  });
   it("shows a retryable error for a successful HTTP response containing an error body", async () => {
     mocks.fetch.mockResolvedValueOnce({
       ok: true,
