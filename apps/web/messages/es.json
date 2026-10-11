@@ -2381,12 +2381,12 @@
           "disconnected": "Desconectada"
         },
         "replaceDialog": {
-          "title": "¿Reemplazar esta cuenta?",
+          "title": "¿Reemplazar {account}?",
           "description": "Todos los borradores y las publicaciones programadas de esta cuenta pasarán a la nueva. Si quieres conservarlas aquí, añade otra cuenta en lugar de reemplazarla.",
           "confirm": "Reemplazar cuenta"
         },
         "disconnectDialog": {
-          "title": "¿Desconectar esta cuenta?",
+          "title": "¿Desconectar {account}?",
           "description": "Este proyecto dejará de estar autorizado para usar esta cuenta.",
           "confirm": "Desconectar cuenta"
         },

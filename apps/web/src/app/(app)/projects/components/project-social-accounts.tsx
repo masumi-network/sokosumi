@@ -351,6 +351,15 @@ export function ProjectSocialAccounts({
   const listedConnections = connections.filter(
     (connection) => connection.status !== "disconnected",
   );
+  const confirmationAccount = pendingConfirmation
+    ? accountLabels(
+        pendingConfirmation.connection,
+        formatHandle(
+          pendingConfirmation.connection.externalHandle,
+          pendingConfirmation.connection.provider,
+        ) ?? t("unknownHandle"),
+      ).primary
+    : "";
 
   return (
     <section
@@ -596,8 +605,8 @@ export function ProjectSocialAccounts({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {confirmationIsDisconnect
-                ? t("disconnectDialog.title")
-                : t("replaceDialog.title")}
+                ? t("disconnectDialog.title", { account: confirmationAccount })
+                : t("replaceDialog.title", { account: confirmationAccount })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmationIsDisconnect
