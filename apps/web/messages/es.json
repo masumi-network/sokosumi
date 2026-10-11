@@ -3101,7 +3101,8 @@
       "loading": "Cargando Social…",
       "pickProject": "Elegir un proyecto",
       "platforms": {
-        "label": "Plataformas de redes sociales"
+        "label": "Plataformas de redes sociales",
+        "pause": "Pausar plataformas"
       },
       "statisticsNeedProject": {
         "title": "Elige un proyecto para ver el rendimiento",
