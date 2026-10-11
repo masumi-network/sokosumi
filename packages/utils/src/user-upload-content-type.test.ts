@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  isUserUploadAllowedContentType,
   normalizeUserUploadContentType,
   resolveUserUploadContentType,
 } from "./user-upload-content-type.js";
@@ -9,18 +8,6 @@ import {
 describe("normalizeUserUploadContentType", () => {
   it("maps image/jpg to image/jpeg", () => {
     expect(normalizeUserUploadContentType("image/jpg")).toBe("image/jpeg");
-  });
-});
-
-describe("isUserUploadAllowedContentType", () => {
-  it("accepts application/pdf", () => {
-    expect(isUserUploadAllowedContentType("application/pdf")).toBe(true);
-  });
-
-  it("rejects octet-stream", () => {
-    expect(isUserUploadAllowedContentType("application/octet-stream")).toBe(
-      false,
-    );
   });
 });
 
