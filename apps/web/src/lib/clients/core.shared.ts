@@ -51,6 +51,8 @@ import type {
   GetNotificationsData,
   GetProjectsByIdCalendarData,
   GetProjectsByIdImageStudioData,
+  GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceData,
+  GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryData,
   GetProjectsByIdSocialConnectionsStatisticsData,
   GetProjectsByIdSocialPostsData,
   GetProjectsByIdSocialPostsStatisticsData,
@@ -279,6 +281,9 @@ import {
   getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
+  getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience as coreGetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience,
+  getProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark as coreGetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark,
+  getProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery as coreGetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery,
   getProjectsByIdSocialConnectionsStatistics as coreGetProjectsByIdSocialConnectionsStatistics,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
   getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
@@ -3363,6 +3368,62 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience(
+    id: string,
+    connectionId: string,
+    query?: GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience({
+          client,
+          path: { id, connectionId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Social audience",
+    );
+  }
+
+  async function getProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark(
+    id: string,
+    connectionId: string,
+    username: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark({
+          client,
+          path: { id, connectionId },
+          query: { username },
+          cache: "no-store",
+        }),
+      "Failed to fetch Social benchmark",
+    );
+  }
+
+  async function getProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery(
+    id: string,
+    connectionId: string,
+    query: NonNullable<
+      GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryData["query"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery({
+          client,
+          path: { id, connectionId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch public Social posts",
+    );
+  }
+
   async function postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh(
     id: string,
     connectionId: string,
@@ -6222,6 +6283,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsStatistics,
     getProjectsByIdSocialConnectionsStatistics,
+    getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience,
+    getProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark,
+    getProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery,
     postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
     postProjectsByIdSocialPostsByPostIdStatisticsRefresh,
     getProjectsByIdSocialPostsByPostId,
