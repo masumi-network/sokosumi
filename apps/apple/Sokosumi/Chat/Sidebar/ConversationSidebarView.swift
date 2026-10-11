@@ -910,7 +910,6 @@ private struct RoomLeadingIcon: View {
 }
 
 struct DirectRoomAvatarStack: View {
-  /// Web `DirectRoomAvatarStack`: `size-5` faces, `-ml-1.5` overlap, `size-2` marks.
   static let faceSize: CGFloat = 20
   private static let overlap: CGFloat = 6
   private static let markSize: CGFloat = 8
@@ -918,7 +917,7 @@ struct DirectRoomAvatarStack: View {
   let participants: [DirectRoomAvatarParticipant]
   /// Self Directs and Read-only Directs show no mark.
   var showsPresence = true
-  /// A Read-only Direct's Former members: web's `opacity-50 grayscale`.
+  /// A Read-only Direct's Former members.
   var isDimmed = false
   /// Live org map (userId → online/afk); humans fall back to their snapshot.
   var livePresence: [String: Components.Schemas.ChatRoomPresence] = [:]

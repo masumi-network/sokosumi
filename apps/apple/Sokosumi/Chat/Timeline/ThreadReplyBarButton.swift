@@ -12,7 +12,6 @@ struct ThreadReplyBarButton: View {
   @State private var isHovered = false
   @Environment(\.locale) private var locale
 
-  /// Web's `size-4` faces overlapping by `-space-x-1`.
   static let faceDiameter: CGFloat = 16
 
   var body: some View {
@@ -51,7 +50,7 @@ struct ThreadReplyBarButton: View {
     }
     .font(.caption)
     .lineLimit(1)
-    // Web's `text-xs` line is as tall as a face, so a bar with faces is no taller than one without.
+    // The line is as tall as a face, so a bar with faces is no taller than one without.
     .frame(minHeight: Self.faceDiameter)
     .padding(.horizontal, bar.isUnread ? 10 : 0)
     .padding(.vertical, bar.isUnread ? 4 : 0)

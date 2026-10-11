@@ -35,7 +35,6 @@ struct ReadOnlyDirectNoticeView: View {
   @Environment(\.locale) private var locale
 
   var body: some View {
-    // Web `text-muted-foreground py-3 text-sm`: the message text size, muted, where the composer was.
     Text(notice.text(locale: locale))
       .foregroundStyle(.secondary)
       .frame(maxWidth: .infinity, alignment: .leading)
