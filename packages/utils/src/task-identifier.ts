@@ -24,7 +24,7 @@ const TASK_REF_IDENTIFIER_PATTERN = new RegExp(
   `^([A-Za-z][A-Za-z0-9]{1,${PROJECT_IDENTIFIER_MAX_LENGTH - 1}})-(\\d{1,9})(?:-.*)?$`,
 );
 
-export type TaskRef =
+type TaskRef =
   | { kind: "id"; id: string }
   | { kind: "identifier"; prefix: string; number: number };
 
