@@ -1,6 +1,8 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { forbidden } from "@/helpers/error";
+import { emptySocialPerformanceConsistency } from "@/helpers/social-performance-consistency";
+import { emptySocialPerformanceHeadline } from "@/helpers/social-performance-headline";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -9,7 +11,7 @@ import mountList from "./get";
 
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
-  refresh: vi.fn(),
+  schedule: vi.fn(),
   beta: vi.fn(),
   delegation: vi.fn(),
   capability: vi.fn(),
@@ -17,7 +19,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 vi.mock("@/services/social-account-statistics.service", () => ({
   listSocialAccountStatistics: mocks.list,
-  refreshSocialAccountStatistics: mocks.refresh,
+}));
+vi.mock("@/services/social-account-sync", () => ({
+  scheduleSocialAccountRefresh: mocks.schedule,
 }));
 vi.mock("@/helpers/social-beta-access", () => ({
   requireSocialBetaAccess: mocks.beta,
@@ -85,8 +89,14 @@ beforeEach(() => {
     accounts: [account],
     posts: [],
     nextCursor: null,
+    headline: emptySocialPerformanceHeadline,
+    consistency: emptySocialPerformanceConsistency,
   });
-  mocks.refresh.mockResolvedValue({ account, importedPostCount: 0 });
+  mocks.schedule.mockResolvedValue({
+    isErr: () => false,
+    isOk: () => true,
+    value: { connectionId, accepted: true, sync: { status: "queued" } },
+  });
 });
 describe("social account statistics routes", () => {
   it("returns cached account data and scopes publication/account filters", async () => {
@@ -108,21 +118,20 @@ describe("social account statistics routes", () => {
       }),
     );
   });
-  it("accepts a continuation flag but rejects caller-supplied provider cursors", async () => {
+  it("queues a refresh without waiting on providers and rejects caller-supplied cursors", async () => {
     const app = createApp();
     const url = `http://localhost/${projectId}/social-connections/${connectionId}/statistics/refresh`;
     expect(
       (await app.request(url, refreshRequest({ continueHistory: true })))
         .status,
     ).toBe(200);
-    expect(mocks.refresh).toHaveBeenCalledWith({
+    expect(mocks.schedule).toHaveBeenCalledWith({
       projectId,
       workspaceId,
       connectionId,
-      userId: "owner",
-      continueHistory: true,
+      trigger: "manual",
     });
-    mocks.refresh.mockClear();
+    mocks.schedule.mockClear();
     expect(
       (
         await app.request(
@@ -134,7 +143,7 @@ describe("social account statistics routes", () => {
         )
       ).status,
     ).toBe(422);
-    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.schedule).not.toHaveBeenCalled();
   });
   it("rejects beta revocation before account reads or refreshes", async () => {
     mocks.beta.mockRejectedValue(forbidden("Social unavailable"));
@@ -155,7 +164,7 @@ describe("social account statistics routes", () => {
       ).status,
     ).toBe(403);
     expect(mocks.list).not.toHaveBeenCalled();
-    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.schedule).not.toHaveBeenCalled();
   });
   it("allows a delegated Coworker and rejects a bare Coworker", async () => {
     const actor: AuthenticationContext = {

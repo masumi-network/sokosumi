@@ -1158,10 +1158,6 @@
   },
   "Auth": {
     "Error": {
-      "title": "Something went wrong",
-      "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
-      "errorId": "Error ID: {errorId}",
-      "tryAgain": "Try again",
       "goLogin": "Log in"
     },
     "Footer": {
@@ -2370,10 +2366,9 @@
       },
       "ProjectSocialAccounts": {
         "title": "Social accounts",
-        "description": "Connect social accounts to this project. Draft, schedule, and publish posts on any connected platform.",
         "account": "{provider} account",
         "connect": "Connect {provider} account",
-        "connectAccount": "Connect X, YouTube, LinkedIn…",
+        "connectAccount": "Connect account",
         "actions": "Actions for {account}",
         "reconnect": "Reconnect",
         "replace": "Replace",
@@ -2387,7 +2382,7 @@
         },
         "replaceDialog": {
           "title": "Replace this account?",
-          "description": "The current account will be disconnected before you connect a replacement.",
+          "description": "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
           "confirm": "Replace account"
         },
         "disconnectDialog": {
@@ -2419,7 +2414,9 @@
           "notConfigured": "This integration is not configured yet. Contact support to enable it."
         },
         "comingSoon": "Coming soon",
-        "connectComingSoon": "{provider} (coming soon)"
+        "connectComingSoon": "{provider} (coming soon)",
+        "empty": "No accounts yet.",
+        "emptyHint": "Connect one to post."
       },
       "SocialPosts": {
         "loadMore": "Load more",
@@ -2448,7 +2445,7 @@
           "drafts": "Drafts",
           "attention": "Needs attention",
           "accounts": "Accounts",
-          "statistics": "Statistics"
+          "statistics": "Performance"
         },
         "empty": {
           "drafts": "No drafts yet."
@@ -2529,16 +2526,16 @@
             "now": "Now"
           },
           "timezone": {
-            "yours": "Times are in your time zone, {zone}.",
-            "goesOut": "Goes out {date}, your time ({zone}).",
-            "postZone": "Scheduled as {date} in {zone}."
+            "yours": "Your time zone: {zone}",
+            "goesOut": "Goes out {date} ({zone})",
+            "postZone": "Scheduled as {date} ({zone})"
           },
           "platforms": "Limits per platform",
           "platformLimit": "{provider} {format} · {count} / {limit}",
           "formats": {
             "post": "post",
             "mediaPost": "image or video post",
-            "video": "video (text is the title and description)"
+            "video": "video"
           },
           "publishNow": "Post now",
           "when": "When",
@@ -2563,6 +2560,8 @@
           "canceled": "Post canceled.",
           "conflict": "This post was changed elsewhere. Reloading the latest version.",
           "failed": "Something went wrong. Try again.",
+          "offline": "You're offline. Try again.",
+          "timeout": "Timed out. Try again.",
           "unauthenticated": "Please log in to continue.",
           "unauthenticatedAction": "Log in",
           "published": "Post published.",
@@ -2584,17 +2583,32 @@
           "description": "The post goes out right away instead of waiting for its scheduled time.",
           "confirm": "Publish now"
         },
+        "retryDialog": {
+          "title": "Retry this post?",
+          "description": "The post goes out now.",
+          "confirm": "Retry"
+        },
         "connectPrompt": {
           "title": "Connect an account to start posting",
-          "body": "Posts go out from the X, Instagram, LinkedIn, Facebook and YouTube accounts connected to this project.",
+          "body": "Posts go out from this project's accounts.",
           "action": "Connect X, YouTube, LinkedIn…"
+        },
+        "reconnectPrompt": {
+          "title": "Reconnect to post",
+          "body": "Sign in again on a connected account.",
+          "action": "Reconnect"
         },
         "preview": {
           "label": "{provider} preview",
           "now": "now",
           "accountFallback": "Your account",
           "open": "Preview",
+          "accounts": "Preview account",
+          "as": "Preview as {handle}",
           "dialogTitle": "Post preview",
+          "offline": "You're offline.",
+          "timeout": "Timed out.",
+          "missing": "Couldn't open this post.",
           "linkedin": {
             "like": "Like",
             "comment": "Comment",
@@ -2606,6 +2620,21 @@
           "instagram": {
             "more": "more",
             "mediaRequired": "Instagram needs an image or video."
+          },
+          "facebook": {
+            "like": "Like",
+            "comment": "Comment",
+            "share": "Share",
+            "seeMore": "See more",
+            "public": "Public"
+          },
+          "youtube": {
+            "seeMore": "Show more",
+            "videoRequired": "YouTube needs a video."
+          },
+          "tiktok": {
+            "more": "more",
+            "videoRequired": "TikTok needs a video."
           }
         },
         "statistics": {
@@ -2634,6 +2663,31 @@
             "comments": "Comments",
             "shares": "Shares",
             "saves": "Saves"
+          },
+          "performance": {
+            "lastDays": "Last {days} days",
+            "moreFilters": "More filters",
+            "activeFilters": "{count} active",
+            "posts": "Posts",
+            "interactions": "Interactions",
+            "previousPeriod": "Change from the previous publication period",
+            "keyMetrics": "Key metrics",
+            "sparkline": "{metric} over the selected days",
+            "accountTabs": "Connected accounts",
+            "consistency": "Posting consistency",
+            "consistencyEmpty": "No published posts in the collected history yet.",
+            "consistencySummary": "{posts, plural, one {# post} other {# posts}} across {active, plural, one {# active day} other {# active days}} from {from} to {until}.",
+            "currentStreak": "Current streak",
+            "longestStreak": "Longest streak",
+            "streakDays": "{count, plural, one {# day} other {# days}}",
+            "showPosts": "Posts per day",
+            "showEngagement": "Engagement per day",
+            "dayPosts": "{date}: {count} posts",
+            "dayEngagement": "{date}: {count} interactions",
+            "dayEngagementUnavailable": "{date}: engagement unavailable",
+            "dayOutside": "{date}: outside collected history",
+            "legendNone": "None",
+            "legendMore": "More"
           },
           "accountsTitle": "Connected accounts",
           "postsTitle": "Published account posts",
@@ -3028,10 +3082,10 @@
         "sokoBotHint": "Chat it through, Soko Bot drafts and schedules.",
         "sokoBotSetup": "Set up Soko Bot first",
         "sokoBotFailed": "Could not open the Soko Bot chat. Try again.",
-        "sokoBotPrompt": "Help me create a social post for the {project} project.",
-        "sokoBotPromptAnyProject": "Help me create a social post.",
+        "sokoBotPrompt": "Help me create a post for {project}.",
+        "sokoBotPromptAnyProject": "Help me create a post.",
         "chooseProjectTitle": "Choose a project for this post",
-        "chooseProjectBody": "A post is published from the accounts connected to one project."
+        "chooseProjectBody": "Posts go out from one project's accounts."
       },
       "accountsNeedProject": {
         "title": "Connect your social accounts",
@@ -3047,15 +3101,16 @@
         "label": "Social platforms"
       },
       "statisticsNeedProject": {
-        "title": "Choose a project to see statistics",
-        "body": "Account statistics belong to a project. Choose one to evaluate its connected accounts and published content."
+        "title": "Choose a project to see performance",
+        "body": "Account performance belongs to a project. Choose one to evaluate its connected accounts and published content."
       }
     },
     "Error": {
       "title": "Something went wrong",
-      "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
+      "description": "Try again in a moment.",
+      "notified": "Our team has been notified.",
       "unavailableTitle": "Temporarily unavailable",
-      "unavailableDescription": "We could not reach the service. This is usually brief, so please try again in a moment.",
+      "unavailableDescription": "We could not reach the service. Try again in a moment.",
       "errorId": "Error ID: {errorId}",
       "tryAgain": "Try again",
       "goApp": "Go to app"
@@ -3277,11 +3332,6 @@
         "unauthenticatedAction": "Log in",
         "badInput": "Invalid plan selection",
         "general": "Something went wrong. Please try again."
-      },
-      "Error": {
-        "title": "Something went wrong",
-        "message": "We encountered an issue loading subscriptions. Please try again later.",
-        "retryButton": "Try again"
       }
     },
     "Admin": {
@@ -7387,6 +7437,7 @@
       },
       "previous": "Previous period",
       "next": "Next period",
+      "today": "Today",
       "view": {
         "month": "Month",
         "week": "Week",
@@ -7455,11 +7506,6 @@
       },
       "pagination": {
         "error": "Unable to load more events."
-      },
-      "error": {
-        "title": "Unable to load the calendar",
-        "description": "Please try again in a moment.",
-        "retry": "Try again"
       },
       "agenda": {
         "upcoming": "Coming up next",

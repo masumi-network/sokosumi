@@ -5821,11 +5821,14 @@ export type SocialAccountStatisticsPage = {
     accounts: Array<SocialAccountStatisticsAccount>;
     posts: Array<SocialAccountPost>;
     nextCursor: string | null;
+    headline: SocialPerformanceHeadline;
+    consistency: SocialPerformanceConsistency;
 };
 
 export type SocialAccountStatisticsAccount = ProjectSocialConnection & {
     statistics?: SocialAccountStatistics;
     postCount: number;
+    sync?: SocialSyncReadModel;
 };
 
 export type SocialAccountStatistics = {
@@ -5838,6 +5841,7 @@ export type SocialAccountStatistics = {
     historyFetchedAt: Date | null;
     historyError: string | null;
     metricWarning?: string | null;
+    consecutiveFailures?: number;
 } | null;
 
 export type SocialAccountMetric = {
@@ -5845,6 +5849,16 @@ export type SocialAccountMetric = {
     value: number | null;
     period: string | null;
     unit: string | null;
+};
+
+export type SocialSyncReadModel = {
+    status: 'fresh' | 'stale' | 'queued' | 'running' | 'reauth_required' | 'partial';
+    dataFetchedAt: Date | null;
+    headFetchedAt: Date | null;
+    dataVersion: string;
+    mayAutoRequest: boolean;
+    lastError: string | null;
+    partialWarnings: Array<string>;
 };
 
 export type SocialAccountPost = {
@@ -5867,6 +5881,44 @@ export type SocialPostMetrics = {
     comments: number | null;
     shares: number | null;
     saves: number | null;
+};
+
+export type SocialPerformanceHeadline = {
+    current: {
+        postCount: number;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+    };
+    previous: {
+        postCount: number;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+    };
+    deltas: {
+        postCount: number | null;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+    };
+    daily: Array<{
+        postCount: number;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+        date: Date;
+    }>;
+};
+
+export type SocialPerformanceConsistency = {
+    from: Date | null;
+    until: Date | null;
+    daily: Array<{
+        date: Date;
+        postCount: number;
+        interactions: number | null;
+    }>;
 };
 
 export type RefreshSocialAccountStatisticsResponse = {
@@ -41725,7 +41777,7 @@ export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshErro
 
 export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses = {
     /**
-     * Social account statistics refreshed
+     * Social account refresh accepted
      */
     200: {
         data: RefreshSocialAccountStatisticsResponse;

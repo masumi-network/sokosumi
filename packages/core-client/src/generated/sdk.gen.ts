@@ -3141,7 +3141,7 @@ export const getProjectsByIdSocialConnections = <ThrowOnError extends boolean = 
 });
 
 /**
- * Read cached account metrics and provider-authored published posts, including posts published outside Sokosumi. Account totals are independent of publication-date filters and post pagination. History completeness and failures are explicit; GET does not fetch provider history.
+ * Read cached account metrics and provider-authored published posts, including posts published outside Sokosumi. Account totals and the posting-consistency calendar are independent of publication-date filters and post pagination. Headline totals cover the filtered cohort, not only the current page. History completeness and failures are explicit; GET does not fetch provider history.
  */
 export const getProjectsByIdSocialConnectionsStatistics = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdSocialConnectionsStatisticsData, ThrowOnError>): RequestResult<GetProjectsByIdSocialConnectionsStatisticsResponses, GetProjectsByIdSocialConnectionsStatisticsErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdSocialConnectionsStatisticsResponses, GetProjectsByIdSocialConnectionsStatisticsErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdSocialConnectionsStatisticsResponseTransformer,
@@ -3150,7 +3150,7 @@ export const getProjectsByIdSocialConnectionsStatistics = <ThrowOnError extends 
 });
 
 /**
- * Refresh account metrics and one page of provider-authored published posts through the connected account. continueHistory uses only the stored provider cursor; it never publishes or edits posts. Failures preserve prior data and expose history coverage.
+ * Queue a background refresh of cached account statistics. The response is stored data plus sync state and never waits on providers. Cron continues history.
  */
 export const postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData, ThrowOnError>): RequestResult<PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses, PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses, PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponseTransformer,

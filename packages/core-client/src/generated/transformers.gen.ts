@@ -2686,10 +2686,23 @@ const socialAccountStatisticsSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const socialSyncReadModelSchemaResponseTransformer = (data: any) => {
+    if (data.dataFetchedAt) {
+        data.dataFetchedAt = new Date(data.dataFetchedAt);
+    }
+    if (data.headFetchedAt) {
+        data.headFetchedAt = new Date(data.headFetchedAt);
+    }
+    return data;
+};
+
 const socialAccountStatisticsAccountSchemaResponseTransformer = (data: any) => {
     data = projectSocialConnectionSchemaResponseTransformer(data);
     if (data.statistics) {
         data.statistics = socialAccountStatisticsSchemaResponseTransformer(data.statistics);
+    }
+    if (data.sync) {
+        data.sync = socialSyncReadModelSchemaResponseTransformer(data.sync);
     }
     return data;
 };
@@ -2702,9 +2715,33 @@ const socialAccountPostSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const socialPerformanceHeadlineSchemaResponseTransformer = (data: any) => {
+    data.daily = data.daily.map((item: any) => {
+        item.date = new Date(item.date);
+        return item;
+    });
+    return data;
+};
+
+const socialPerformanceConsistencySchemaResponseTransformer = (data: any) => {
+    if (data.from) {
+        data.from = new Date(data.from);
+    }
+    if (data.until) {
+        data.until = new Date(data.until);
+    }
+    data.daily = data.daily.map((item: any) => {
+        item.date = new Date(item.date);
+        return item;
+    });
+    return data;
+};
+
 const socialAccountStatisticsPageSchemaResponseTransformer = (data: any) => {
     data.accounts = data.accounts.map((item: any) => socialAccountStatisticsAccountSchemaResponseTransformer(item));
     data.posts = data.posts.map((item: any) => socialAccountPostSchemaResponseTransformer(item));
+    data.headline = socialPerformanceHeadlineSchemaResponseTransformer(data.headline);
+    data.consistency = socialPerformanceConsistencySchemaResponseTransformer(data.consistency);
     return data;
 };
 

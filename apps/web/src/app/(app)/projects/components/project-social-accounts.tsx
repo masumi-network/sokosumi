@@ -2,11 +2,18 @@
 
 import type { ProjectSocialConnection } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { MoreHorizontal, Plus, RefreshCw, TriangleAlert } from "lucide-react";
+import {
+  Link2,
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  TriangleAlert,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/common/empty-state";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import {
   AlertDialog,
@@ -75,6 +82,34 @@ function formatHandle(
   return handle.startsWith("@") ? handle : `@${handle}`;
 }
 
+function normalizeAccountLabel(value: string): string {
+  return value.trim().replace(/^@+/, "").toLowerCase();
+}
+
+function accountLabels(
+  connection: ProjectSocialConnection,
+  formattedHandle: string,
+): { primary: string; secondaryHandle: string | null } {
+  const displayName = connection.displayName?.trim() ?? "";
+  if (!displayName) {
+    return { primary: formattedHandle, secondaryHandle: null };
+  }
+
+  const rawHandle = connection.externalHandle?.trim() ?? "";
+  if (
+    normalizeAccountLabel(displayName) === normalizeAccountLabel(rawHandle) ||
+    normalizeAccountLabel(displayName) ===
+      normalizeAccountLabel(formattedHandle)
+  ) {
+    return { primary: formattedHandle, secondaryHandle: null };
+  }
+
+  return {
+    primary: displayName,
+    secondaryHandle: rawHandle ? formattedHandle : null,
+  };
+}
+
 function isExpiredIntentError(error: ActionError): boolean {
   return error.message?.toLowerCase().includes("unknown or expired") ?? false;
 }
@@ -92,7 +127,7 @@ export function ProjectSocialAccounts({
   // dialog closes, so focus goes back to that row's menu trigger by hand.
   const actionTriggersRef = useRef(new Map<string, HTMLButtonElement>());
   const confirmationTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const headingRef = useRef<HTMLElement | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   // The provider being connected, or the connection being changed.
   const [pendingTarget, setPendingTarget] = useState<string | null>(null);
@@ -313,26 +348,20 @@ export function ProjectSocialAccounts({
   }
 
   const confirmationIsDisconnect = pendingConfirmation?.action === "disconnect";
+  const listedConnections = connections.filter(
+    (connection) => connection.status !== "disconnected",
+  );
 
   return (
     <section
-      aria-labelledby="social-accounts-heading"
+      ref={headingRef}
+      tabIndex={-1}
+      aria-label={t("title")}
       className="space-y-4"
       data-testid="project-social-accounts"
       id="social-accounts"
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h2
-            id="social-accounts-heading"
-            ref={headingRef}
-            tabIndex={-1}
-            className="text-base font-semibold"
-          >
-            {t("title")}
-          </h2>
-          <p className="text-muted-foreground text-sm">{t("description")}</p>
-        </div>
+      <div className="flex items-center justify-end">
         <DropdownMenu>
           {/* Disabled on the trigger, not the button: a loading button drops
               native `disabled`, and only the trigger's own flag stops Radix
@@ -342,7 +371,7 @@ export function ProjectSocialAccounts({
               type="button"
               variant="outline"
               size="sm"
-              className="shrink-0"
+              className="h-11 shrink-0 md:h-8"
               loading={pendingAction === "connect"}
             >
               <Plus className="size-4" aria-hidden />
@@ -356,6 +385,7 @@ export function ProjectSocialAccounts({
               return (
                 <DropdownMenuItem
                   key={id}
+                  className="min-h-11"
                   aria-label={
                     comingSoon
                       ? t("connectComingSoon", { provider: name })
@@ -398,16 +428,21 @@ export function ProjectSocialAccounts({
         </p>
       ) : null}
 
-      {connections.length > 0 ? (
+      {listedConnections.length > 0 ? (
         <ul className="divide-y rounded-lg border">
-          {connections.map((connection) => {
+          {listedConnections.map((connection) => {
             const provider = SOCIAL_PROVIDERS.find(
               ({ id }) => id === connection.provider,
             );
             const providerName = provider?.name ?? connection.provider;
-            const handle =
-              formatHandle(connection.externalHandle, connection.provider) ??
-              t("unknownHandle");
+            const formattedHandle = formatHandle(
+              connection.externalHandle,
+              connection.provider,
+            );
+            const { primary, secondaryHandle } = accountLabels(
+              connection,
+              formattedHandle ?? t("unknownHandle"),
+            );
             const canReconnect =
               connection.status === "reauthorization_required";
             const canReplace = connection.status === "active" || canReconnect;
@@ -432,8 +467,9 @@ export function ProjectSocialAccounts({
                   )}
                 </span>
                 <div className="min-w-40 flex-1">
-                  <p className="truncate text-sm font-medium">{handle}</p>
+                  <p className="truncate text-sm font-medium">{primary}</p>
                   <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
+                    {secondaryHandle ? <span>{secondaryHandle}</span> : null}
                     <span>{t("account", { provider: providerName })}</span>
                     <span
                       className={cn(
@@ -464,6 +500,7 @@ export function ProjectSocialAccounts({
                       type="button"
                       variant="outline"
                       size="sm"
+                      className="h-11 md:h-8"
                       disabled={isBusy}
                       loading={isRowPending && pendingAction === "reconnect"}
                       onClick={() => {
@@ -494,7 +531,7 @@ export function ProjectSocialAccounts({
                           loading={
                             isRowPending && pendingAction !== "reconnect"
                           }
-                          aria-label={t("actions", { account: handle })}
+                          aria-label={t("actions", { account: primary })}
                         >
                           <MoreHorizontal className="size-4" aria-hidden />
                         </Button>
@@ -502,6 +539,7 @@ export function ProjectSocialAccounts({
                       <DropdownMenuContent align="end">
                         {canReplace ? (
                           <DropdownMenuItem
+                            className="min-h-11"
                             onSelect={() => {
                               requestConfirmation("replace", connection);
                             }}
@@ -510,6 +548,7 @@ export function ProjectSocialAccounts({
                           </DropdownMenuItem>
                         ) : null}
                         <DropdownMenuItem
+                          className="min-h-11"
                           variant="destructive"
                           onSelect={() => {
                             requestConfirmation("disconnect", connection);
@@ -525,7 +564,15 @@ export function ProjectSocialAccounts({
             );
           })}
         </ul>
-      ) : null}
+      ) : (
+        <div data-testid="project-social-accounts-empty">
+          <EmptyState
+            description={t("emptyHint")}
+            icon={Link2}
+            title={t("empty")}
+          />
+        </div>
+      )}
 
       <AlertDialog
         open={pendingConfirmation !== null}

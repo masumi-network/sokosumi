@@ -19940,12 +19940,20 @@ export const SocialAccountStatisticsPageSchema = {
                 'string',
                 'null'
             ]
+        },
+        headline: {
+            $ref: '#/components/schemas/SocialPerformanceHeadline'
+        },
+        consistency: {
+            $ref: '#/components/schemas/SocialPerformanceConsistency'
         }
     },
     required: [
         'accounts',
         'posts',
-        'nextCursor'
+        'nextCursor',
+        'headline',
+        'consistency'
     ]
 } as const;
 
@@ -19963,6 +19971,9 @@ export const SocialAccountStatisticsAccountSchema = {
                 postCount: {
                     type: 'integer',
                     minimum: 0
+                },
+                sync: {
+                    $ref: '#/components/schemas/SocialSyncReadModel'
                 }
             },
             required: [
@@ -20037,6 +20048,11 @@ export const SocialAccountStatisticsSchema = {
                 'null'
             ],
             default: null
+        },
+        consecutiveFailures: {
+            type: 'integer',
+            minimum: 0,
+            default: 0
         }
     },
     required: [
@@ -20087,6 +20103,66 @@ export const SocialAccountMetricSchema = {
         'value',
         'period',
         'unit'
+    ]
+} as const;
+
+export const SocialSyncReadModelSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'fresh',
+                'stale',
+                'queued',
+                'running',
+                'reauth_required',
+                'partial'
+            ]
+        },
+        dataFetchedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        headFetchedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        dataVersion: {
+            type: 'string'
+        },
+        mayAutoRequest: {
+            type: 'boolean'
+        },
+        lastError: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        partialWarnings: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        }
+    },
+    required: [
+        'status',
+        'dataFetchedAt',
+        'headFetchedAt',
+        'dataVersion',
+        'mayAutoRequest',
+        'lastError',
+        'partialWarnings'
     ]
 } as const;
 
@@ -20216,6 +20292,214 @@ export const SocialPostMetricsSchema = {
         'comments',
         'shares',
         'saves'
+    ]
+} as const;
+
+export const SocialPerformanceHeadlineSchema = {
+    type: 'object',
+    properties: {
+        current: {
+            type: 'object',
+            properties: {
+                postCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                views: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                impressions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                interactions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'postCount',
+                'views',
+                'impressions',
+                'interactions'
+            ]
+        },
+        previous: {
+            type: 'object',
+            properties: {
+                postCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                views: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                impressions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                interactions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'postCount',
+                'views',
+                'impressions',
+                'interactions'
+            ]
+        },
+        deltas: {
+            type: 'object',
+            properties: {
+                postCount: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                views: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                impressions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                interactions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'postCount',
+                'views',
+                'impressions',
+                'interactions'
+            ]
+        },
+        daily: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    postCount: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    views: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    impressions: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    interactions: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    date: {
+                        type: 'string',
+                        format: 'date'
+                    }
+                },
+                required: [
+                    'postCount',
+                    'views',
+                    'impressions',
+                    'interactions',
+                    'date'
+                ]
+            },
+            maxItems: 366
+        }
+    },
+    required: [
+        'current',
+        'previous',
+        'deltas',
+        'daily'
+    ]
+} as const;
+
+export const SocialPerformanceConsistencySchema = {
+    type: 'object',
+    properties: {
+        from: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date'
+        },
+        until: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date'
+        },
+        daily: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    postCount: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    interactions: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'date',
+                    'postCount',
+                    'interactions'
+                ]
+            },
+            maxItems: 368
+        }
+    },
+    required: [
+        'from',
+        'until',
+        'daily'
     ]
 } as const;
 

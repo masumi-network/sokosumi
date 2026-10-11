@@ -38,13 +38,13 @@ const { refreshMock, toastErrorMock, toastSuccessMock, toastWarningMock } =
 
 const MESSAGES: Record<string, string> = {
   title: "Social accounts",
-  description:
-    "Connect social accounts to this project. Draft, schedule, and publish posts on any connected platform.",
   account: "{provider} account",
   connect: "Connect {provider} account",
   connectAccount: "Connect account",
   comingSoon: "Coming soon",
   connectComingSoon: "{provider} (coming soon)",
+  empty: "No accounts yet.",
+  emptyHint: "Connect one to post.",
   actions: "Actions for {account}",
   reconnect: "Reconnect",
   replace: "Replace",
@@ -56,7 +56,7 @@ const MESSAGES: Record<string, string> = {
   unknownHandle: "Unknown account",
   "replaceDialog.title": "Replace this account?",
   "replaceDialog.description":
-    "The current account will be disconnected before you connect a replacement.",
+    "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
   "replaceDialog.confirm": "Replace account",
   "disconnectDialog.title": "Disconnect this account?",
   "disconnectDialog.description":
@@ -190,6 +190,8 @@ describe("ProjectSocialAccounts", () => {
   // here would render as its raw path in the app while every test stays green.
   it("only uses message keys the catalog defines", () => {
     const catalog = messages.App.Projects.ProjectSocialAccounts;
+    expect(catalog.connectAccount).toBe("Connect account");
+    expect(catalog).not.toHaveProperty("description");
     for (const key of Object.keys(MESSAGES)) {
       const value = key
         .split(".")
@@ -241,6 +243,20 @@ describe("ProjectSocialAccounts", () => {
     });
   });
 
+  it("keeps Connect account without a visible section heading", () => {
+    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+
+    expect(
+      screen.getByRole("button", { name: "Connect account" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "Social accounts" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Social accounts" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("explains missing provider configuration instead of reporting an expired request", async () => {
     vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
       ok: false,
@@ -255,6 +271,29 @@ describe("ProjectSocialAccounts", () => {
       "This integration is not configured yet",
     );
     expect(screen.queryByText(/COMPOSIO_INSTAGRAM/)).not.toBeInTheDocument();
+  });
+
+  it("shows an empty state when no accounts are connected", () => {
+    const { rerender } = render(
+      <ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />,
+    );
+
+    const empty = screen.getByTestId("project-social-accounts-empty");
+    expect(empty).toBeVisible();
+    expect(empty).toHaveTextContent("No accounts yet.");
+    expect(empty).toHaveTextContent("Connect one to post.");
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+
+    rerender(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+      />,
+    );
+    expect(
+      screen.queryByTestId("project-social-accounts-empty"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("list")).toBeVisible();
   });
 
   it("shows TikTok as coming soon and does not start a connection", async () => {
@@ -315,6 +354,79 @@ describe("ProjectSocialAccounts", () => {
     expect(screen.getByText("Facebook account")).toBeVisible();
     expect(screen.getByText("Our channel")).toBeVisible();
     expect(screen.getByText("YouTube account")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Actions for Unknown account" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("leads with displayName when it differs from the handle", () => {
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            displayName: "Sokosumi HQ",
+          }),
+          buildConnection({
+            id: "connection-same",
+            externalHandle: "brand",
+            displayName: "@Brand",
+          }),
+        ]}
+      />,
+    );
+
+    const named = screen.getByTestId("project-social-connection-connection-1");
+    expect(within(named).getByText("Sokosumi HQ")).toBeVisible();
+    expect(within(named).getByText("@sokosumi")).toBeVisible();
+    expect(
+      within(named).getByRole("button", { name: "Actions for Sokosumi HQ" }),
+    ).toBeVisible();
+
+    const matching = screen.getByTestId(
+      "project-social-connection-connection-same",
+    );
+    expect(within(matching).getByText("@brand")).toBeVisible();
+    expect(within(matching).queryByText("@Brand")).not.toBeInTheDocument();
+    expect(
+      within(matching).getByRole("button", { name: "Actions for @brand" }),
+    ).toBeVisible();
+  });
+
+  it("gives Connect, Reconnect, and menu rows 44px phone targets", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            id: "connection-2",
+            externalHandle: "needs-auth",
+            status: "reauthorization_required",
+          }),
+        ]}
+      />,
+    );
+
+    const connect = screen.getByRole("button", { name: "Connect account" });
+    expect(connect).toHaveClass("h-11", "md:h-8");
+    expect(screen.getByRole("button", { name: "Reconnect" })).toHaveClass(
+      "h-11",
+      "md:h-8",
+    );
+
+    await user.click(connect);
+    expect(
+      screen.getByRole("menuitem", { name: "Connect Instagram account" }),
+    ).toHaveClass("min-h-11");
+    await user.keyboard("{Escape}");
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for @needs-auth" }),
+    );
+    expect(screen.getByRole("menuitem", { name: "Replace" })).toHaveClass(
+      "min-h-11",
+    );
   });
 
   it("shows connected and reauthorization-required X account lifecycle controls", async () => {
@@ -385,6 +497,31 @@ describe("ProjectSocialAccounts", () => {
       screen.queryByRole("menuitem", { name: "Replace" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Disconnect" })).toBeVisible();
+  });
+
+  it("hides disconnected accounts that have no actions", () => {
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-gone",
+            externalHandle: "old-account",
+            status: "disconnected",
+          }),
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("project-social-connection-connection-1"),
+    ).toBeVisible();
+    expect(
+      screen.queryByTestId("project-social-connection-connection-gone"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("@old-account")).not.toBeInTheDocument();
+    expect(screen.queryByText("Disconnected")).not.toBeInTheDocument();
   });
 
   it.each([null, "ca_known"])(
@@ -897,6 +1034,9 @@ describe("ProjectSocialAccounts", () => {
 
     await chooseAccountAction(user, "Replace");
     const replaceDialog = screen.getByRole("alertdialog");
+    expect(replaceDialog).toHaveTextContent(
+      "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
+    );
     expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
     await user.click(
       within(replaceDialog).getByRole("button", { name: "Replace account" }),
@@ -950,7 +1090,7 @@ describe("ProjectSocialAccounts", () => {
     expect(disconnectProjectSocialConnection).not.toHaveBeenCalled();
   });
 
-  it("returns focus to the section heading when a confirmed action leaves the menu disabled", async () => {
+  it("returns focus to the section when a confirmed action leaves the menu disabled", async () => {
     const user = userEvent.setup();
     const pendingDisconnect =
       Promise.withResolvers<
@@ -975,7 +1115,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("heading", { name: "Social accounts" }),
+        screen.getByRole("region", { name: "Social accounts" }),
       ).toHaveFocus();
     });
 

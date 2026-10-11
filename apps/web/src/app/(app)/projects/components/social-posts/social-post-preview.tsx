@@ -10,6 +10,7 @@ import {
   MessageCircle,
   MessageSquare,
   MoreHorizontal,
+  Play,
   Repeat2,
   Send,
   Share,
@@ -35,9 +36,10 @@ interface SocialPostPreviewProps extends SocialPostPreviewContentProps {
 }
 
 /**
- * How a post will look in the network's own feed. X, LinkedIn and Instagram
- * render their native layout; the other networks share a neutral card.
- * Engagement rows are decorative: nothing here reads live feed data.
+ * How a post will look in the network's own feed. X, LinkedIn, Instagram,
+ * Facebook, YouTube and TikTok render their native layout; the other networks
+ * share a neutral card. Engagement rows are decorative: nothing here reads
+ * live feed data.
  */
 export function SocialPostPreview({
   provider,
@@ -61,6 +63,12 @@ export function SocialPostPreview({
         <LinkedInPreview {...content} />
       ) : provider === "instagram" ? (
         <InstagramPreview {...content} />
+      ) : provider === "facebook" ? (
+        <FacebookPreview {...content} />
+      ) : provider === "youtube" ? (
+        <YouTubePreview {...content} />
+      ) : provider === "tiktok" ? (
+        <TikTokPreview {...content} />
       ) : (
         <GenericPreview provider={provider} {...content} />
       )}
@@ -80,17 +88,28 @@ function usePreviewTime(timestamp: Date | null) {
  * Long text folds behind the network's own inline "more" link: the first
  * lines, cut at a character budget, the way LinkedIn and Instagram show it.
  */
-function useFold(text: string, maxChars: number, maxLines: number) {
-  const [expanded, setExpanded] = useState(false);
+function foldHead(text: string, maxChars: number, maxLines: number): string {
   const head = text
     .split("\n")
     .slice(0, maxLines)
     .join("\n")
     .slice(0, maxChars);
+  if (head.length >= text.length) return head;
+  const next = text[head.length];
+  if (next === undefined || /\s/.test(next) || /\s/.test(head.at(-1) ?? "")) {
+    return head.trimEnd();
+  }
+  const cut = head.search(/\s\S*$/);
+  return (cut > 0 ? head.slice(0, cut) : head).trimEnd();
+}
+
+function useFold(text: string, maxChars: number, maxLines: number) {
+  const [expanded, setExpanded] = useState(false);
+  const head = foldHead(text, maxChars, maxLines);
   const folded = !expanded && head.length < text.length;
   return {
     folded,
-    visibleText: folded ? head.trimEnd() : text,
+    visibleText: folded ? head : text,
     expand: () => setExpanded(true),
   };
 }
@@ -116,9 +135,9 @@ function XPreview({
     <div className="flex gap-3 px-4 pt-3 pb-2">
       <PreviewAvatar account={account} name={name} className="size-10" />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1 leading-5">
-          <span className="truncate font-bold">{name}</span>
-          <span className="text-muted-foreground truncate">
+        <div className="flex min-w-0 items-center gap-1 leading-5">
+          <span className="min-w-0 truncate font-bold">{name}</span>
+          <span className="text-muted-foreground shrink-0">
             {handle ? `${handle} · ${time}` : time}
           </span>
           <MoreHorizontal
@@ -222,6 +241,81 @@ function LinkedInPreview({
   );
 }
 
+function FacebookPreview({
+  account,
+  media,
+  text,
+  timestamp,
+}: SocialPostPreviewContentProps) {
+  const t = useTranslations("App.Projects.SocialPosts.preview");
+  const name = accountName(account, t("accountFallback"));
+  const time = usePreviewTime(timestamp);
+  const fold = useFold(text, 400, 4);
+  const actions = [
+    { Icon: ThumbsUp, label: t("facebook.like") },
+    { Icon: MessageSquare, label: t("facebook.comment") },
+    { Icon: Share, label: t("facebook.share") },
+  ];
+
+  return (
+    <div>
+      <div className="flex gap-2 px-4 pt-3">
+        <PreviewAvatar account={account} name={name} className="size-10" />
+        <div className="min-w-0 flex-1 leading-4">
+          <p className="truncate font-semibold">{name}</p>
+          <p className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
+            {time} ·
+            <Globe className="size-3" aria-label={t("facebook.public")} />
+          </p>
+        </div>
+        <MoreHorizontal
+          className="text-muted-foreground size-5 shrink-0"
+          aria-hidden
+        />
+      </div>
+      {text ? (
+        <div className="px-4 py-2">
+          <p className="leading-5 whitespace-pre-wrap break-words">
+            <PreviewRichText
+              text={fold.visibleText}
+              linkClassName="text-social-facebook-link"
+            />
+            {fold.folded ? (
+              <>
+                …{" "}
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-social-facebook-link hover:underline"
+                  onClick={fold.expand}
+                >
+                  {t("facebook.seeMore")}
+                </button>
+              </>
+            ) : null}
+          </p>
+        </div>
+      ) : (
+        <div className="h-3" />
+      )}
+      <PreviewMediaGrid media={media} />
+      <div
+        aria-hidden
+        className="text-muted-foreground mx-4 flex justify-around border-t py-1"
+      >
+        {actions.map(({ Icon, label }) => (
+          <span
+            key={label}
+            className="flex items-center gap-1.5 px-2 py-2 text-sm font-semibold"
+          >
+            <Icon className="size-4" />
+            {label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function InstagramPreview({
   account,
   media,
@@ -243,11 +337,14 @@ function InstagramPreview({
         <span className="min-w-0 flex-1 truncate font-semibold">{name}</span>
         <MoreHorizontal className="size-5 shrink-0" aria-hidden />
       </div>
-      <div className="bg-muted aspect-square overflow-hidden">
+      <div
+        className="aspect-[4/5] overflow-hidden bg-media-ground"
+        data-testid="social-post-preview-instagram-frame"
+      >
         {first ? (
           <PreviewMediaItem media={first} />
         ) : (
-          <div className="text-muted-foreground flex size-full items-center justify-center px-6 text-center text-xs text-balance">
+          <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
             {t("instagram.mediaRequired")}
           </div>
         )}
@@ -285,6 +382,163 @@ function InstagramPreview({
             ? formatter.dateTime(timestamp, { month: "long", day: "numeric" })
             : t("now")}
         </p>
+      </div>
+    </div>
+  );
+}
+
+/** YouTube's title is the first line, capped at the upload title limit. */
+function youtubeTitleAndBody(text: string): { title: string; body: string } {
+  const breakAt = text.indexOf("\n");
+  const title = (breakAt === -1 ? text : text.slice(0, breakAt))
+    .trim()
+    .slice(0, 100);
+  const body = breakAt === -1 ? "" : text.slice(breakAt + 1).trim();
+  return { title, body };
+}
+
+function YouTubePreview({
+  account,
+  media,
+  text,
+  timestamp,
+}: SocialPostPreviewContentProps) {
+  const t = useTranslations("App.Projects.SocialPosts.preview");
+  const name = accountName(account, t("accountFallback"));
+  const time = usePreviewTime(timestamp);
+  const { title, body } = youtubeTitleAndBody(text);
+  const fold = useFold(body, 180, 3);
+  const clip = media[0];
+
+  return (
+    <div>
+      <div
+        className="relative aspect-video overflow-hidden bg-media-ground"
+        data-testid="social-post-preview-youtube-player"
+      >
+        {clip ? (
+          <>
+            <PreviewMediaItem media={clip} />
+            <div
+              aria-hidden
+              className="absolute inset-0 flex items-center justify-center"
+            >
+              <span className="flex size-12 items-center justify-center rounded-full bg-scrim-strong text-on-media">
+                <Play className="size-5 fill-current" />
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
+            {t("youtube.videoRequired")}
+          </div>
+        )}
+      </div>
+      <div className="space-y-2 px-3 py-3">
+        {title ? (
+          <p className="line-clamp-2 text-base leading-5 font-semibold">
+            {title}
+          </p>
+        ) : null}
+        <div className="flex items-center gap-3">
+          <PreviewAvatar account={account} name={name} className="size-9" />
+          <div className="min-w-0 flex-1 leading-4">
+            <p className="truncate text-sm font-semibold">{name}</p>
+            <p className="text-muted-foreground text-xs">{time}</p>
+          </div>
+        </div>
+        {body ? (
+          <div className="bg-muted rounded-lg px-3 py-2">
+            <p className="leading-5 whitespace-pre-wrap break-words">
+              <PreviewRichText
+                text={fold.visibleText}
+                linkClassName="text-social-youtube-link"
+              />
+              {fold.folded ? (
+                <>
+                  {" "}
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-social-youtube-link hover:underline"
+                    onClick={fold.expand}
+                  >
+                    {t("youtube.seeMore")}
+                  </button>
+                </>
+              ) : null}
+            </p>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function TikTokPreview({
+  account,
+  media,
+  text,
+}: SocialPostPreviewContentProps) {
+  const t = useTranslations("App.Projects.SocialPosts.preview");
+  const name = accountName(account, t("accountFallback"));
+  const handle = accountHandle(account) ?? `@${name}`;
+  const fold = useFold(text, 80, 2);
+  const clip = media[0];
+
+  return (
+    <div className="py-3">
+      <div
+        className="relative mx-auto aspect-[9/16] w-full max-w-64 overflow-hidden bg-media-ground"
+        data-testid="social-post-preview-tiktok-frame"
+      >
+        {clip ? (
+          <>
+            <PreviewMediaItem media={clip} />
+            <div
+              aria-hidden
+              className="text-on-media absolute end-2 bottom-28 flex flex-col items-center gap-4"
+            >
+              <PreviewAvatar
+                account={account}
+                name={name}
+                className="size-10"
+              />
+              <Heart className="size-7" />
+              <MessageCircle className="size-7" />
+              <Bookmark className="size-7" />
+              <Share className="size-7" />
+            </div>
+            <div className="bg-scrim absolute inset-x-0 bottom-0 px-3 py-3 pe-14">
+              <p className="text-on-media truncate text-sm font-semibold">
+                {handle}
+              </p>
+              {text ? (
+                <p className="text-on-media mt-1 leading-5 whitespace-pre-wrap break-words">
+                  <PreviewRichText
+                    text={fold.visibleText}
+                    linkClassName="font-semibold"
+                  />
+                  {fold.folded ? (
+                    <>
+                      {" "}
+                      <button
+                        type="button"
+                        className="text-on-media-muted"
+                        onClick={fold.expand}
+                      >
+                        {t("tiktok.more")}
+                      </button>
+                    </>
+                  ) : null}
+                </p>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
+            {t("tiktok.videoRequired")}
+          </div>
+        )}
       </div>
     </div>
   );

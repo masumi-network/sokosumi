@@ -146,6 +146,12 @@ describe("Social account statistics", () => {
       text: "Written outside Sokosumi",
       metrics,
     });
+    expect(result.headline.current).toEqual({
+      postCount: 1,
+      views: null,
+      impressions: 100,
+      interactions: null,
+    });
     expect(mocks.posts).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
@@ -156,6 +162,10 @@ describe("Social account statistics", () => {
       }),
     );
     expect(mocks.provider).not.toHaveBeenCalled();
+    expect(result.consistency.daily[0]).toMatchObject({
+      date: "2026-10-01",
+      postCount: 1,
+    });
   });
   it("pages cached history and keeps the account totals on every page", async () => {
     const second = {
@@ -563,5 +573,43 @@ describe("Social account statistics", () => {
           providerPost.externalId,
       ),
     ).toBe(true);
+  });
+  it("refreshes the latest page without restarting a stored archive cursor", async () => {
+    mocks.provider.mockResolvedValue({
+      ...page,
+      nextCursor: "latest-next",
+    });
+    const result = await refreshSocialAccountStatistics({
+      ...scope,
+      connectionId,
+      userId: "reader",
+      refreshHead: true,
+    });
+    expect(mocks.provider).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cursor: null,
+        includeProfile: true,
+      }),
+    );
+    expect(result.account.statistics).toMatchObject({
+      historyNextCursor: previous.historyNextCursor,
+      historyComplete: false,
+      consecutiveFailures: 0,
+    });
+    expect(mocks.update.mock.calls[0][0].data).toMatchObject({
+      performanceHeadFetchedAt: expect.any(Date),
+    });
+  });
+  it("attaches a cache-only sync model on reads", async () => {
+    const result = await listSocialAccountStatistics({
+      ...scope,
+      connectionId,
+    });
+    expect(result.accounts[0]?.sync).toMatchObject({
+      status: expect.stringMatching(
+        /fresh|stale|queued|running|reauth_required|partial/,
+      ),
+    });
+    expect(mocks.provider).not.toHaveBeenCalled();
   });
 });

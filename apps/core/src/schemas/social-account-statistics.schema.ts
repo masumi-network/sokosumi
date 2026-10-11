@@ -35,11 +35,31 @@ export const socialAccountStatisticsSchema = z
     historyFetchedAt: dateTimeSchema.nullable(),
     historyError: z.string().nullable(),
     metricWarning: z.string().nullable().default(null),
+    consecutiveFailures: z.number().int().min(0).optional().default(0),
   })
   .openapi("SocialAccountStatistics");
 export type SocialAccountStatistics = z.infer<
   typeof socialAccountStatisticsSchema
 >;
+
+export const socialSyncReadModelSchema = z
+  .object({
+    status: z.enum([
+      "fresh",
+      "stale",
+      "queued",
+      "running",
+      "reauth_required",
+      "partial",
+    ]),
+    dataFetchedAt: dateTimeSchema.nullable(),
+    headFetchedAt: dateTimeSchema.nullable(),
+    dataVersion: z.string(),
+    mayAutoRequest: z.boolean(),
+    lastError: z.string().nullable(),
+    partialWarnings: z.array(z.string()),
+  })
+  .openapi("SocialSyncReadModel");
 
 export const socialAccountStatisticsAccountSchema =
   projectSocialConnectionSchema
@@ -47,6 +67,7 @@ export const socialAccountStatisticsAccountSchema =
       // Optional nullable references let the generated date transformer skip empty snapshots.
       statistics: socialAccountStatisticsSchema.nullable().optional(),
       postCount: z.number().int().min(0),
+      sync: socialSyncReadModelSchema.optional(),
     })
     .openapi("SocialAccountStatisticsAccount");
 
@@ -70,11 +91,56 @@ export const socialAccountStatisticsQuerySchema =
     connectionId: z.uuid().optional(),
     cursor: z.uuid().optional(),
   });
+
+const headlineNumber = z.number().finite().nullable();
+export const socialPerformanceHeadlineTotalsSchema = z.object({
+  postCount: z.number().int().min(0),
+  views: headlineNumber,
+  impressions: headlineNumber,
+  interactions: headlineNumber,
+});
+export const socialPerformanceHeadlineSchema = z
+  .object({
+    current: socialPerformanceHeadlineTotalsSchema,
+    previous: socialPerformanceHeadlineTotalsSchema,
+    deltas: z.object({
+      postCount: headlineNumber,
+      views: headlineNumber,
+      impressions: headlineNumber,
+      interactions: headlineNumber,
+    }),
+    daily: z
+      .array(
+        socialPerformanceHeadlineTotalsSchema.extend({
+          date: z.iso.date(),
+        }),
+      )
+      .max(366),
+  })
+  .openapi("SocialPerformanceHeadline");
+export const socialPerformanceConsistencySchema = z
+  .object({
+    from: z.iso.date().nullable(),
+    until: z.iso.date().nullable(),
+    daily: z
+      .array(
+        z.object({
+          date: z.iso.date(),
+          postCount: z.number().int().min(0),
+          interactions: z.number().finite().nullable(),
+        }),
+      )
+      .max(368),
+  })
+  .openapi("SocialPerformanceConsistency");
+
 export const socialAccountStatisticsPageSchema = z
   .object({
     accounts: z.array(socialAccountStatisticsAccountSchema),
     posts: z.array(socialAccountPostSchema),
     nextCursor: z.string().nullable(),
+    headline: socialPerformanceHeadlineSchema,
+    consistency: socialPerformanceConsistencySchema,
   })
   .openapi("SocialAccountStatisticsPage");
 export const refreshSocialAccountStatisticsRequestSchema = z

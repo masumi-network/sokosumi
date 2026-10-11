@@ -1158,10 +1158,6 @@
   },
   "Auth": {
     "Error": {
-      "title": "Algo salió mal",
-      "description": "Ocurrió un error inesperado. Nuestro equipo ha sido notificado y estamos trabajando en solucionarlo.",
-      "errorId": "ID de error: {errorId}",
-      "tryAgain": "Intentar de nuevo",
       "goLogin": "Ir a inicio de sesión"
     },
     "Footer": {
@@ -2370,10 +2366,9 @@
       },
       "ProjectSocialAccounts": {
         "title": "Cuentas sociales",
-        "description": "Conecta cuentas de redes sociales a este proyecto. Redacta, programa y publica en cualquier plataforma conectada.",
         "account": "Cuenta de {provider}",
         "connect": "Conectar cuenta de {provider}",
-        "connectAccount": "Conectar X, YouTube, LinkedIn…",
+        "connectAccount": "Conectar cuenta",
         "actions": "Acciones de {account}",
         "reconnect": "Volver a conectar",
         "replace": "Reemplazar",
@@ -2387,7 +2382,7 @@
         },
         "replaceDialog": {
           "title": "¿Reemplazar esta cuenta?",
-          "description": "La cuenta actual se desconectará antes de conectar un reemplazo.",
+          "description": "Todos los borradores y las publicaciones programadas de esta cuenta pasarán a la nueva. Si quieres conservarlas aquí, añade otra cuenta en lugar de reemplazarla.",
           "confirm": "Reemplazar cuenta"
         },
         "disconnectDialog": {
@@ -2419,7 +2414,9 @@
           "notConfigured": "Esta integración aún no está configurada. Contacta con soporte para activarla."
         },
         "comingSoon": "Próximamente",
-        "connectComingSoon": "{provider} (próximamente)"
+        "connectComingSoon": "{provider} (próximamente)",
+        "empty": "Aún no hay cuentas.",
+        "emptyHint": "Conecta una para publicar."
       },
       "SocialPosts": {
         "loadMore": "Cargar más",
@@ -2448,7 +2445,7 @@
           "drafts": "Borradores",
           "attention": "Requiere atención",
           "accounts": "Cuentas",
-          "statistics": "Estadísticas"
+          "statistics": "Rendimiento"
         },
         "empty": {
           "drafts": "Aún no hay borradores."
@@ -2529,16 +2526,16 @@
             "now": "Ahora"
           },
           "timezone": {
-            "yours": "Las horas están en tu zona horaria, {zone}.",
-            "goesOut": "Sale el {date}, tu hora ({zone}).",
-            "postZone": "Programada para {date} en {zone}."
+            "yours": "Tu zona horaria: {zone}",
+            "goesOut": "Sale el {date} ({zone})",
+            "postZone": "Programada como {date} ({zone})"
           },
           "platforms": "Límites por plataforma",
           "platformLimit": "{provider}: {format} · {count} / {limit}",
           "formats": {
             "post": "publicación",
-            "mediaPost": "publicación con imagen o video",
-            "video": "video (el texto es el título y la descripción)"
+            "mediaPost": "publicación con imagen o vídeo",
+            "video": "vídeo"
           },
           "publishNow": "Publicar ahora",
           "when": "Cuándo",
@@ -2563,6 +2560,8 @@
           "canceled": "Publicación cancelada.",
           "conflict": "Esta publicación se modificó en otro lugar. Cargando la versión más reciente.",
           "failed": "Algo salió mal. Inténtalo de nuevo.",
+          "offline": "Estás sin conexión. Inténtalo de nuevo.",
+          "timeout": "Se agotó el tiempo. Inténtalo de nuevo.",
           "unauthenticated": "Inicia sesión para continuar.",
           "unauthenticatedAction": "Iniciar sesión",
           "published": "Publicación publicada.",
@@ -2584,17 +2583,32 @@
           "description": "La publicación saldrá de inmediato en lugar de esperar a la hora programada.",
           "confirm": "Publicar ahora"
         },
+        "retryDialog": {
+          "title": "¿Reintentar esta publicación?",
+          "description": "La publicación saldrá ahora.",
+          "confirm": "Reintentar"
+        },
         "connectPrompt": {
           "title": "Conecta una cuenta para empezar a publicar",
-          "body": "Las publicaciones salen de las cuentas de X, Instagram, LinkedIn, Facebook y YouTube conectadas a este proyecto.",
+          "body": "Las publicaciones salen de las cuentas de este proyecto.",
           "action": "Conectar X, YouTube, LinkedIn…"
+        },
+        "reconnectPrompt": {
+          "title": "Vuelve a conectar para publicar",
+          "body": "Inicia sesión de nuevo en una cuenta conectada.",
+          "action": "Reconectar"
         },
         "preview": {
           "label": "Vista previa de {provider}",
           "now": "ahora",
           "accountFallback": "Tu cuenta",
           "open": "Vista previa",
+          "accounts": "Cuenta de vista previa",
+          "as": "Vista previa como {handle}",
           "dialogTitle": "Vista previa de la publicación",
+          "offline": "Estás sin conexión.",
+          "timeout": "Se agotó el tiempo.",
+          "missing": "No se pudo abrir esta publicación.",
           "linkedin": {
             "like": "Recomendar",
             "comment": "Comentar",
@@ -2606,6 +2620,21 @@
           "instagram": {
             "more": "más",
             "mediaRequired": "Instagram necesita una imagen o un video."
+          },
+          "facebook": {
+            "like": "Me gusta",
+            "comment": "Comentar",
+            "share": "Compartir",
+            "seeMore": "Ver más",
+            "public": "Público"
+          },
+          "youtube": {
+            "seeMore": "Mostrar más",
+            "videoRequired": "YouTube necesita un video."
+          },
+          "tiktok": {
+            "more": "más",
+            "videoRequired": "TikTok necesita un video."
           }
         },
         "statistics": {
@@ -2634,6 +2663,31 @@
             "comments": "Comentarios",
             "shares": "Compartidos",
             "saves": "Guardados"
+          },
+          "performance": {
+            "lastDays": "Últimos {days} días",
+            "moreFilters": "Más filtros",
+            "activeFilters": "{count} activos",
+            "posts": "Publicaciones",
+            "interactions": "Interacciones",
+            "previousPeriod": "Cambio respecto al período anterior",
+            "keyMetrics": "Métricas clave",
+            "sparkline": "{metric} en los días seleccionados",
+            "accountTabs": "Cuentas conectadas",
+            "consistency": "Constancia de publicación",
+            "consistencyEmpty": "Todavía no hay publicaciones en el historial recopilado.",
+            "consistencySummary": "{posts, plural, one {# publicación} other {# publicaciones}} en {active, plural, one {# día activo} other {# días activos}}, del {from} al {until}.",
+            "currentStreak": "Racha actual",
+            "longestStreak": "Racha más larga",
+            "streakDays": "{count, plural, one {# día} other {# días}}",
+            "showPosts": "Publicaciones por día",
+            "showEngagement": "Interacciones por día",
+            "dayPosts": "{date}: {count} publicaciones",
+            "dayEngagement": "{date}: {count} interacciones",
+            "dayEngagementUnavailable": "{date}: interacciones no disponibles",
+            "dayOutside": "{date}: fuera del historial recopilado",
+            "legendNone": "Ninguna",
+            "legendMore": "Más"
           },
           "accountsTitle": "Cuentas conectadas",
           "postsTitle": "Publicaciones de las cuentas",
@@ -3028,10 +3082,10 @@
         "sokoBotHint": "Coméntalo en el chat; Soko Bot la redacta y la programa.",
         "sokoBotSetup": "Configura Soko Bot primero",
         "sokoBotFailed": "No se pudo abrir el chat de Soko Bot. Inténtalo de nuevo.",
-        "sokoBotPrompt": "Ayúdame a crear una publicación social para el proyecto {project}.",
-        "sokoBotPromptAnyProject": "Ayúdame a crear una publicación social.",
+        "sokoBotPrompt": "Ayúdame a crear una publicación para {project}.",
+        "sokoBotPromptAnyProject": "Ayúdame a crear una publicación.",
         "chooseProjectTitle": "Elige un proyecto para esta publicación",
-        "chooseProjectBody": "Una publicación sale desde las cuentas conectadas a un proyecto."
+        "chooseProjectBody": "Sale desde las cuentas de un proyecto."
       },
       "accountsNeedProject": {
         "title": "Conecta tus cuentas de redes sociales",
@@ -3047,15 +3101,16 @@
         "label": "Plataformas de redes sociales"
       },
       "statisticsNeedProject": {
-        "title": "Elige un proyecto para ver estadísticas",
-        "body": "Las estadísticas pertenecen a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
+        "title": "Elige un proyecto para ver el rendimiento",
+        "body": "El rendimiento de las cuentas pertenece a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
       }
     },
     "Error": {
       "title": "Algo salió mal",
-      "description": "Ocurrió un error inesperado. Nuestro equipo ha sido notificado y estamos trabajando en solucionarlo.",
+      "description": "Inténtalo de nuevo en un momento.",
+      "notified": "Nuestro equipo ha sido notificado.",
       "unavailableTitle": "No disponible temporalmente",
-      "unavailableDescription": "No pudimos conectar con el servicio. Suele ser breve, así que inténtalo de nuevo en un momento.",
+      "unavailableDescription": "No pudimos conectar con el servicio. Inténtalo de nuevo en un momento.",
       "errorId": "ID de error: {errorId}",
       "tryAgain": "Intentar de nuevo",
       "goApp": "Ir a la app"
@@ -3241,11 +3296,6 @@
         "unauthenticatedAction": "Iniciar sesión",
         "badInput": "Selección de plan no válida",
         "general": "Algo salió mal. Por favor, inténtalo de nuevo."
-      },
-      "Error": {
-        "title": "Algo salió mal",
-        "message": "Hubo un problema al cargar las suscripciones. Por favor, inténtalo más tarde.",
-        "retryButton": "Intentar de nuevo"
       }
     },
     "Admin": {
@@ -7387,6 +7437,7 @@
       },
       "previous": "Periodo anterior",
       "next": "Periodo siguiente",
+      "today": "Hoy",
       "view": {
         "month": "Mes",
         "week": "Semana",
@@ -7455,11 +7506,6 @@
       },
       "pagination": {
         "error": "No se pudieron cargar más eventos."
-      },
-      "error": {
-        "title": "No se pudo cargar el calendario",
-        "description": "Vuelve a intentarlo en un momento.",
-        "retry": "Intentar de nuevo"
       },
       "agenda": {
         "upcoming": "A continuación",
