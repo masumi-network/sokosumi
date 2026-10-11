@@ -2559,6 +2559,7 @@
           "scheduled": "{count, plural, one {Beitrag geplant.} other {# Beiträge geplant.}}",
           "updated": "Beitrag aktualisiert.",
           "canceled": "Beitrag abgebrochen.",
+          "duplicated": "Entwurf erstellt.",
           "conflict": "Dieser Beitrag wurde an anderer Stelle geändert. Die neueste Version wird geladen.",
           "failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
           "offline": "Du bist offline. Versuche es erneut.",
@@ -2577,7 +2578,8 @@
         "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
         "actions": {
           "publishNow": "Jetzt veröffentlichen",
-          "retry": "Erneut versuchen"
+          "retry": "Erneut versuchen",
+          "duplicate": "Als Entwurf duplizieren"
         },
         "publishDialog": {
           "title": "Diesen Beitrag jetzt veröffentlichen?",

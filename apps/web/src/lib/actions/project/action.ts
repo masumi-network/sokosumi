@@ -134,6 +134,11 @@ interface CancelProjectSocialPostParameters extends AuthenticatedRequest {
   revision: number;
 }
 
+interface DuplicateProjectSocialPostParameters extends AuthenticatedRequest {
+  projectId: string;
+  postId: string;
+}
+
 interface PublishProjectSocialPostParameters extends AuthenticatedRequest {
   projectId: string;
   postId: string;
@@ -646,6 +651,11 @@ const cancelProjectSocialPostSchema = z.object({
   revision: revisionSchema,
 });
 
+const duplicateProjectSocialPostSchema = z.object({
+  projectId: trimmedId,
+  postId: trimmedId,
+});
+
 const publishProjectSocialPostSchema = z.object({
   projectId: trimmedId,
   postId: trimmedId,
@@ -811,6 +821,30 @@ export const cancelProjectSocialPost = withSession<
       parsed.data.projectId,
       parsed.data.postId,
       { revision: parsed.data.revision },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const duplicateProjectSocialPost = withSession<
+  DuplicateProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId }) => {
+  const parsed = duplicateProjectSocialPostSchema.safeParse({
+    projectId,
+    postId,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.duplicateSocialPost(
+      parsed.data.projectId,
+      parsed.data.postId,
     );
     revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
     return toActionResult(ok(post));

@@ -63,6 +63,7 @@ import {
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
   cancelProjectSocialPost,
+  duplicateProjectSocialPost,
   publishProjectSocialPost,
 } from "@/lib/actions/project/action";
 import { cn } from "@/lib/utils";
@@ -230,6 +231,7 @@ export function ProjectSocialPosts({
   const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
   const [publishPending, setPublishPending] = useState(false);
+  const [duplicatePending, setDuplicatePending] = useState(false);
   // The target outlives `previewOpen` so the dialog keeps its content while it
   // animates closed.
   const [previewTarget, setPreviewTarget] = useState<SocialPost | null>(
@@ -340,6 +342,27 @@ export function ProjectSocialPosts({
       showTab(sectionOf(post) ?? (calendar !== undefined ? "calendar" : null));
   }
 
+  async function handleDuplicate(post: SocialPost): Promise<void> {
+    if (duplicatePending) return;
+    setDuplicatePending(true);
+    try {
+      const result = await duplicateProjectSocialPost({
+        projectId,
+        postId: post.id,
+      });
+      if (!result.ok) {
+        handleActionError(result.error);
+        return;
+      }
+      handleSaved(result.value);
+      toast.success(t("toasts.duplicated"));
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
+    } finally {
+      setDuplicatePending(false);
+    }
+  }
+
   async function handleConfirmCancel(): Promise<void> {
     const target = cancelTarget;
     if (!target || cancelPending) return;
@@ -406,7 +429,11 @@ export function ProjectSocialPosts({
     const canRetry = isRetry && post.canPublishNow;
     const canPublishNow = !isRetry && post.canPublishNow;
     const hasMenu =
-      canPublishNow || post.canEdit || post.canSchedule || post.canCancel;
+      canPublishNow ||
+      post.canEdit ||
+      post.canSchedule ||
+      post.canCancel ||
+      post.canDuplicate;
     return (
       <div
         className="ms-auto flex items-center gap-2"
@@ -488,6 +515,17 @@ export function ProjectSocialPosts({
                   {post.status === "SCHEDULED" || isRetry
                     ? t("composer.reschedule")
                     : t("composer.schedule")}
+                </DropdownMenuItem>
+              ) : null}
+              {post.canDuplicate ? (
+                <DropdownMenuItem
+                  className="min-h-11"
+                  onSelect={() => {
+                    if (preview) setPreviewOpen(false);
+                    void handleDuplicate(post);
+                  }}
+                >
+                  {t("actions.duplicate")}
                 </DropdownMenuItem>
               ) : null}
               {post.canCancel ? (

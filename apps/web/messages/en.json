@@ -2559,6 +2559,7 @@
           "scheduled": "{count, plural, one {Post scheduled.} other {# posts scheduled.}}",
           "updated": "Post updated.",
           "canceled": "Post canceled.",
+          "duplicated": "Draft created.",
           "conflict": "This post was changed elsewhere. Reloading the latest version.",
           "failed": "Something went wrong. Try again.",
           "offline": "You're offline. Try again.",
@@ -2577,7 +2578,8 @@
         "attempts": "{count, plural, one {# attempt} other {# attempts}}",
         "actions": {
           "publishNow": "Publish now",
-          "retry": "Retry"
+          "retry": "Retry",
+          "duplicate": "Duplicate as draft"
         },
         "publishDialog": {
           "title": "Publish this post now?",

@@ -4828,6 +4828,7 @@ describe("Soko Bot project social tools", () => {
     canSchedule: true,
     canCancel: true,
     canPublishNow: true,
+    canDuplicate: false,
     connectionNeedsReconnect: false,
   };
   const tx = {
