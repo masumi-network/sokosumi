@@ -51,7 +51,7 @@ function client(
 test("task services encode IDs and serialize all list filters", async () => {
   const calls: Call[] = [];
   const api = client(calls, { data: [{ id: "task-1" }] });
-  await createTask(api, { name: "  Task  " });
+  await createTask(api, { name: "  Task  ", coworkerId: "cow/1" });
   await fetchTask(api, "task/1");
   await fetchTasks(api, {
     q: " review ",
@@ -70,14 +70,14 @@ test("task services encode IDs and serialize all list filters", async () => {
       { method: "GET", path: "/v1/tasks/task%2F1" },
       {
         method: "GET",
-        path: "/v1/tasks?q=review&scope=workspace&coworkerId=cow%2F1&take=10&status=READY&status=DONE",
+        path: "/v1/tasks?q=review&scope=workspace&assigneeId=cow%2F1&take=10&status=READY&status=DONE",
       },
       { method: "GET", path: "/v1/tasks/task%2F1/jobs" },
       { method: "GET", path: "/v1/tasks/task%2F1/events?limit=100" },
       { method: "POST", path: "/v1/tasks/task%2F1/events" },
     ],
   );
-  assert.deepEqual(calls[0]?.body, { name: "Task" });
+  assert.deepEqual(calls[0]?.body, { name: "Task", assigneeId: "cow/1" });
   assert.deepEqual(calls[5]?.body, { comment: "Done" });
 });
 
