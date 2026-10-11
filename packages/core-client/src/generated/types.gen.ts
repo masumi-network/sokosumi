@@ -5977,6 +5977,13 @@ export type SocialStatisticsResearchPost = SocialAccountPost & {
     }>;
 };
 
+export type SocialPerformanceAudienceExportRequest = {
+    format: 'csv' | 'xlsx';
+    pages: Array<SocialPerformanceAudienceResponse & {
+        contacts?: Array<SocialPerformanceContact>;
+    }>;
+};
+
 export type SocialPerformanceBenchmarkResponse = {
     profile: {
         id: string;
@@ -42009,6 +42016,149 @@ export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceResp
 };
 
 export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceResponse = GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceResponses];
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExportData = {
+    body: SocialPerformanceAudienceExportRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-connections/{connectionId}/statistics/audience/export';
+};
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExportErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payload Too Large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExportError = PostProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExportErrors[keyof PostProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExportErrors];
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExportResponses = {
+    /**
+     * Loaded audience sample export
+     */
+    200: string;
+};
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExportResponse = PostProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExportResponses[keyof PostProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExportResponses];
 
 export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkData = {
     body?: never;
