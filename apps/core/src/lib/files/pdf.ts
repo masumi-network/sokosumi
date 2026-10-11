@@ -72,9 +72,9 @@ export const PDF_MAX_OUTPUT_CHARS = 1_000_000;
 /** Wall clock for the whole child, enforced by the parent with SIGKILL. */
 export const PDF_TIMEOUT_MS = 20_000;
 /** Heap ceiling for the child process, in megabytes. */
-export const PDF_MAX_HEAP_MB = 512;
+const PDF_MAX_HEAP_MB = 512;
 /** Bytes the parent will accept on the result channel before giving up. */
-export const PDF_MAX_RESULT_BYTES = 8 * 1024 * 1024;
+const PDF_MAX_RESULT_BYTES = 8 * 1024 * 1024;
 
 export type PdfFailure =
   | "parser-unavailable"

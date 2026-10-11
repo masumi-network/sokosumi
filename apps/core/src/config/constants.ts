@@ -1,9 +1,6 @@
 import { DEFAULT_WEBHOOK_TIMEOUT_MS } from "@sokosumi/net";
 import { FILE_UPLOAD_MAX_SIZE_BYTES } from "@sokosumi/utils";
 
-/**
- * Time durations in seconds
- */
 /** One day in milliseconds. */
 export const DAY_MS = 24 * 60 * 60 * 1_000;
 

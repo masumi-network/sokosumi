@@ -17,7 +17,7 @@ export function jsonInput(value: unknown): Prisma.InputJsonValue {
 }
 
 /** Prisma's directive for writing SQL NULL into a nullable `Json?` column. */
-export type PrismaDbNull = typeof Prisma.NullableJsonNullValueInput.DbNull;
+type PrismaDbNull = typeof Prisma.NullableJsonNullValueInput.DbNull;
 
 /**
  * Adapt a nullable domain value to a Prisma `Json?` column input.
