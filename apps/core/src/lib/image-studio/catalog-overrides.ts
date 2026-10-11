@@ -47,7 +47,7 @@ const PRICES_VERIFIED_AT = "2026-09-27";
  * constants while `catalog.ts` is still evaluating is how a circular import
  * turns into a startup crash.
  */
-export function imageModelOverrides(): ImageModelOverride[] {
+function imageModelOverrides(): ImageModelOverride[] {
   return [
     {
       // Nano Banana 2. The studio's default, and the first model whose

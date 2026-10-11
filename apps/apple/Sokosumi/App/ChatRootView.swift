@@ -116,6 +116,22 @@ struct ChatRootView: View {
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
+    case .updateRequired:
+      VStack(spacing: 8) {
+        Text("Update Sokosumi")
+          .font(.headline)
+        Text(updateMessage)
+          .font(.callout)
+          .foregroundStyle(.secondary)
+          .multilineTextAlignment(.center)
+        HStack {
+          Link("Download Update", destination: latestDownloadURL)
+          Button("Sign out") {
+            auth.signOut()
+          }
+        }
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     case let .failed(message):
       VStack(spacing: 8) {
         Text(message)

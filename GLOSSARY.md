@@ -610,3 +610,17 @@ _Avoid_: Presence (reachability in the organization, not activity in one room), 
 **Typing line**:
 How a room says who is Typing: one name, two names, or the fact that there are more than two. Named in the order people started, so a new typist joins the end rather than resorting the line; somebody who went quiet long enough to disappear and then types again is starting afresh, and joins the end. Sits below the composer where there is already room beneath it, and above the composer where there is not — narrow layouts, where it holds its space, because the composer must not move under someone mid-sentence. Either way it costs the transcript nothing it was not already spending. The open room only — Typing never reaches the sidebar, where bold, the mention badge and the Rail attention pill already compete for a row.
 _Avoid_: "N users are typing" (rooms hold people, and a count is not what the reader wants), an animated indicator (it reads as a coworker thinking), a Typing dot on a sidebar row, spelling out three or more names (they truncate, and a truncated name is worse than none)
+
+### Mac app releases
+
+**Stable release**:
+A numbered version of the Mac app, such as 1.0.0, that every direct-download install is offered as an update. The only kind of build that updates itself.
+_Avoid_: Production build, GA, latest (the newest build of any kind)
+
+**Beta build**:
+The newest build of the Mac app from main, signed and notarized for direct download but never offered as an update. Testers install it by hand and leave it when a newer Stable release reaches them.
+_Avoid_: Prerelease (the GitHub mechanism, not the product term), nightly, Alpha build
+
+**Alpha build**:
+A nightly build of the Mac app from main, handed to testers through TestFlight and updated only by TestFlight.
+_Avoid_: Nightly (unqualified), internal build, Beta build

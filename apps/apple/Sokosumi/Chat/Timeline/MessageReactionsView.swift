@@ -8,7 +8,7 @@ import SwiftUI
     var toggle: ((String) -> Void)?
 
     var body: some View {
-      LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), alignment: .leading)], alignment: .leading, spacing: 6) {
+      WrappingRow(spacing: 6) {
         ForEach(reactions, id: \.emoji) { reaction in
           Group {
             if let toggle {

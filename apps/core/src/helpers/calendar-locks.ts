@@ -9,7 +9,7 @@ interface CalendarProjectReadClient {
 type CalendarLockClient = Pick<Prisma.TransactionClient, "$queryRaw">;
 
 /** Lock an interactive actor before any Workspace, Project, or Task row. */
-export async function lockCalendarActor(
+async function lockCalendarActor(
   tx: CalendarLockClient,
   userId: string,
 ): Promise<boolean> {

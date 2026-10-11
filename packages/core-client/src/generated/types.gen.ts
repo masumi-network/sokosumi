@@ -4812,50 +4812,6 @@ export type NotificationPreference = {
     enabled: boolean;
 };
 
-export type PersonalWorkspaceCreated = {
-    /**
-     * Id of the newly created personal workspace
-     */
-    workspaceId: string;
-};
-
-export type PersonalWorkspaceDeleted = {
-    /**
-     * Id of the deleted personal workspace
-     */
-    workspaceId: string;
-};
-
-export type WorkspaceAccess = {
-    gate: WorkspaceGateStatus;
-    /**
-     * Whether the user owns a personal workspace row
-     */
-    hasPersonalWorkspace: boolean;
-    /**
-     * Whether the user is a member of at least one organization
-     */
-    hasOrganizationMembership: boolean;
-    /**
-     * Whether the user has at least one non-expired pending organization invitation by email
-     */
-    hasPendingOrganizationInvites: boolean;
-};
-
-/**
- * Derived workspace gate: ready when the user has a personal workspace or any organization membership; pending-invites when they have neither but have non-expired pending organization invitations; identity-onboarding when they have neither and no pending org entry
- */
-export const WorkspaceGateStatus = {
-    READY: 'ready',
-    PENDING_INVITES: 'pending-invites',
-    IDENTITY_ONBOARDING: 'identity-onboarding'
-} as const;
-
-/**
- * Derived workspace gate: ready when the user has a personal workspace or any organization membership; pending-invites when they have neither but have non-expired pending organization invitations; identity-onboarding when they have neither and no pending org entry
- */
-export type WorkspaceGateStatus = typeof WorkspaceGateStatus[keyof typeof WorkspaceGateStatus];
-
 export type UserWorkspaces = {
     /**
      * Workspaces the person can act in: their personal workspace first, then their organizations. Exactly one is `preferred` whenever the list is non-empty. Empty means the person still needs identity onboarding
@@ -4919,6 +4875,13 @@ export type CreateUserWorkspace = {
 export type SetPreferredUserWorkspace = {
     /**
      * Id of a workspace the person can act in
+     */
+    workspaceId: string;
+};
+
+export type PersonalWorkspaceDeleted = {
+    /**
+     * Id of the deleted personal workspace
      */
     workspaceId: string;
 };
@@ -5757,6 +5720,13 @@ export type SocialPostCalendarItem = {
         kind: 'image' | 'gif' | 'video';
     } | null;
     scheduledAt: Date;
+    /**
+     * Latest publish attempt outcome and error kind for Failed and Missed chips. Never the raw provider error.
+     */
+    lastAttempt: {
+        outcome: string | null;
+        errorKind: string | null;
+    } | null;
     sourceId: string;
     sourceProjectId: string;
     sourceWorkspaceId: string;
@@ -5851,11 +5821,14 @@ export type SocialAccountStatisticsPage = {
     accounts: Array<SocialAccountStatisticsAccount>;
     posts: Array<SocialAccountPost>;
     nextCursor: string | null;
+    headline: SocialPerformanceHeadline;
+    consistency: SocialPerformanceConsistency;
 };
 
 export type SocialAccountStatisticsAccount = ProjectSocialConnection & {
     statistics?: SocialAccountStatistics;
     postCount: number;
+    sync?: SocialSyncReadModel;
 };
 
 export type SocialAccountStatistics = {
@@ -5868,6 +5841,7 @@ export type SocialAccountStatistics = {
     historyFetchedAt: Date | null;
     historyError: string | null;
     metricWarning?: string | null;
+    consecutiveFailures?: number;
 } | null;
 
 export type SocialAccountMetric = {
@@ -5875,6 +5849,16 @@ export type SocialAccountMetric = {
     value: number | null;
     period: string | null;
     unit: string | null;
+};
+
+export type SocialSyncReadModel = {
+    status: 'fresh' | 'stale' | 'queued' | 'running' | 'reauth_required' | 'partial';
+    dataFetchedAt: Date | null;
+    headFetchedAt: Date | null;
+    dataVersion: string;
+    mayAutoRequest: boolean;
+    lastError: string | null;
+    partialWarnings: Array<string>;
 };
 
 export type SocialAccountPost = {
@@ -5897,6 +5881,44 @@ export type SocialPostMetrics = {
     comments: number | null;
     shares: number | null;
     saves: number | null;
+};
+
+export type SocialPerformanceHeadline = {
+    current: {
+        postCount: number;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+    };
+    previous: {
+        postCount: number;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+    };
+    deltas: {
+        postCount: number | null;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+    };
+    daily: Array<{
+        postCount: number;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+        date: Date;
+    }>;
+};
+
+export type SocialPerformanceConsistency = {
+    from: Date | null;
+    until: Date | null;
+    daily: Array<{
+        date: Date;
+        postCount: number;
+        interactions: number | null;
+    }>;
 };
 
 export type RefreshSocialAccountStatisticsResponse = {
@@ -8266,6 +8288,11 @@ export type ContextUserId = string;
  * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
  */
 export type ContextOrganizationId = string;
+
+/**
+ * Native Mac app build, `macos/<build>`. A build older than the minimum gets 426 with `kind: client_update_required` on every operation (ADR 0053).
+ */
+export type SokosumiClient = string;
 
 export type StopAdminImpersonationData = {
     body?: never;
@@ -32760,222 +32787,6 @@ export type PatchUsersByIdPreferencesResponses = {
 
 export type PatchUsersByIdPreferencesResponse = PatchUsersByIdPreferencesResponses[keyof PatchUsersByIdPreferencesResponses];
 
-export type DeleteUsersByIdPersonalWorkspaceData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/{id}/personal-workspace';
-};
-
-export type DeleteUsersByIdPersonalWorkspaceErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found - Personal workspace is missing
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict - Last workspace, or dependents prevent delete
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteUsersByIdPersonalWorkspaceError = DeleteUsersByIdPersonalWorkspaceErrors[keyof DeleteUsersByIdPersonalWorkspaceErrors];
-
-export type DeleteUsersByIdPersonalWorkspaceResponses = {
-    /**
-     * Personal workspace deleted
-     */
-    200: {
-        data: PersonalWorkspaceDeleted;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteUsersByIdPersonalWorkspaceResponse = DeleteUsersByIdPersonalWorkspaceResponses[keyof DeleteUsersByIdPersonalWorkspaceResponses];
-
-export type PostUsersByIdPersonalWorkspaceData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/{id}/personal-workspace';
-};
-
-export type PostUsersByIdPersonalWorkspaceErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict - Personal workspace already exists
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersByIdPersonalWorkspaceError = PostUsersByIdPersonalWorkspaceErrors[keyof PostUsersByIdPersonalWorkspaceErrors];
-
-export type PostUsersByIdPersonalWorkspaceResponses = {
-    /**
-     * Personal workspace created
-     */
-    201: {
-        data: PersonalWorkspaceCreated;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersByIdPersonalWorkspaceResponse = PostUsersByIdPersonalWorkspaceResponses[keyof PostUsersByIdPersonalWorkspaceResponses];
-
 export type DeleteUsersByIdOauthConsentsByConsentIdData = {
     body?: never;
     path: {
@@ -33094,99 +32905,6 @@ export type DeleteUsersByIdOauthConsentsByConsentIdResponses = {
 };
 
 export type DeleteUsersByIdOauthConsentsByConsentIdResponse = DeleteUsersByIdOauthConsentsByConsentIdResponses[keyof DeleteUsersByIdOauthConsentsByConsentIdResponses];
-
-export type GetUsersByIdWorkspaceAccessData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/{id}/workspace-access';
-};
-
-export type GetUsersByIdWorkspaceAccessErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersByIdWorkspaceAccessError = GetUsersByIdWorkspaceAccessErrors[keyof GetUsersByIdWorkspaceAccessErrors];
-
-export type GetUsersByIdWorkspaceAccessResponses = {
-    /**
-     * Retrieve the user's workspace access
-     */
-    200: {
-        data: WorkspaceAccess;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersByIdWorkspaceAccessResponse = GetUsersByIdWorkspaceAccessResponses[keyof GetUsersByIdWorkspaceAccessResponses];
 
 export type GetUsersByIdWorkspacesData = {
     body?: never;
@@ -42059,7 +41777,7 @@ export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshErro
 
 export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses = {
     /**
-     * Social account statistics refreshed
+     * Social account refresh accepted
      */
     200: {
         data: RefreshSocialAccountStatisticsResponse;

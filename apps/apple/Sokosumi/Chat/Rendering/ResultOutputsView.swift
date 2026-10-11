@@ -11,7 +11,6 @@ struct ResultOutputsView: View {
 
   var body: some View {
     if card.kind == .studioJob {
-      // Web `grid grid-cols-2 gap-3`.
       LazyVGrid(columns: [GridItem(.flexible(), spacing: 12, alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)],
                 alignment: .leading, spacing: 12) {
         ForEach(card.outputs) { output in
@@ -19,7 +18,7 @@ struct ResultOutputsView: View {
         }
       }
     } else {
-      // Web `flex flex-wrap gap-2`; audio and video take the row.
+      // Audio and video take the row.
       WrappingRow(spacing: 8, alignment: .top, constrainsWidth: true) {
         ForEach(card.outputs) { output in
           ResultOutputView(output: output, large: false)
@@ -194,7 +193,7 @@ private struct ResultOutputRowLabel: View {
   }
 }
 
-/// Web's preview frame (`rounded-xl border bg-card-background`): an 80 pt square, or the column's width for a large one.
+/// Web's preview frame: an 80 pt square, or the column's width for a large one.
 private struct ResultOutputTile<Content: View>: View {
   /// Nil fills the column's width (a Studio image).
   let size: CGFloat?

@@ -192,7 +192,7 @@ Beyond the above, `globals.css` exposes:
 - **Overlay / glass:** `--overlay`, `--overlay-primary`, `--surface-glass`, `--surface-sticky`,
   `--scrim`, `--scrim-soft`, `--scrim-strong` for blur and glass UI (alpha lives in the token, not at the call site).
 - **Media:** `--on-media` (text over images and video, with `--on-media-muted`, `--on-media-tertiary`, `--on-media-quaternary`),
-  `--media-ground`, `--hero-wash`, `--hero-ground`.
+  `--media-ground`.
 - **Surfaces and states:** `--background-muted`, `--card-background-hover`,
   `--disabled-foreground`, `--scrollbar-thumb`, `--destructive-halo`, and `*-hover` steps
   for filled controls.

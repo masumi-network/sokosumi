@@ -95,14 +95,6 @@ describe("getEmailLocale", () => {
     expect(getEmailLocale(request)).toBe("de");
   });
 
-  it("falls back to the legacy locale cookie", () => {
-    const request = new Request("https://example.com", {
-      headers: { cookie: "locale=es" },
-    });
-
-    expect(getEmailLocale(request)).toBe("es");
-  });
-
   it("uses accept-language when no cookie is present", () => {
     const request = new Request("https://example.com", {
       headers: { "accept-language": "de-DE,de;q=0.8" },

@@ -8,6 +8,10 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   scrollNext: vi.fn(),
   scrollPrev: vi.fn(),
+  reduceMotion: false,
+  carouselOpts: undefined as
+    | { loop?: boolean; breakpoints?: Record<string, { duration?: number }> }
+    | undefined,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -34,6 +38,9 @@ vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
 vi.mock("@/app/projects/components/project-avatar", () => ({
   ProjectAvatar: () => <span aria-hidden />,
 }));
+vi.mock("motion/react", () => ({
+  useReducedMotion: () => mocks.reduceMotion,
+}));
 vi.mock("embla-carousel-react", () => {
   const carousel = [
     vi.fn(),
@@ -46,7 +53,12 @@ vi.mock("embla-carousel-react", () => {
       off: vi.fn(),
     },
   ];
-  return { default: () => carousel };
+  return {
+    default: (opts?: { loop?: boolean }) => {
+      mocks.carouselOpts = opts;
+      return carousel;
+    },
+  };
 });
 
 import { SocialAccountsProjectPrompt } from "./social-accounts-project-prompt";
@@ -59,7 +71,11 @@ function setup(props: Parameters<typeof SocialAccountsProjectPrompt>[0] = {}) {
   );
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  mocks.reduceMotion = false;
+  mocks.carouselOpts = undefined;
+  vi.clearAllMocks();
+});
 
 describe("SocialAccountsProjectPrompt", () => {
   it("chooses a real project and opens its Accounts tab", async () => {
@@ -97,6 +113,16 @@ describe("SocialAccountsProjectPrompt", () => {
     expect(mocks.scrollNext).toHaveBeenCalledTimes(1);
     await user.keyboard("{ArrowLeft}");
     expect(mocks.scrollPrev).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "Choose a project" }),
+    ).toHaveClass("min-h-11");
+    expect(mocks.carouselOpts?.loop).toBe(true);
+  });
+
+  it("stops the platform carousel looping when motion is reduced", () => {
+    mocks.reduceMotion = true;
+    setup();
+    expect(mocks.carouselOpts?.loop).toBe(false);
   });
 
   it("keeps Drafts as the destination and hides the account carousel", async () => {

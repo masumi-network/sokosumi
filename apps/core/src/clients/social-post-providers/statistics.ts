@@ -4,6 +4,8 @@ import {
 } from "@sokosumi/utils";
 
 import { deleteProjectSocialSession, record } from "@/clients/composio.client";
+import { facebookInsightShareCount } from "@/clients/social-post-providers/facebook-shares";
+import { tiktokPublishedVideoId } from "@/clients/social-post-providers/tiktok-video-id";
 import {
   ComposioToolError,
   createSocialPostToolSession,
@@ -34,7 +36,7 @@ const STATISTICS_TOOLS = {
   instagram: ["INSTAGRAM_GET_IG_MEDIA_INSIGHTS"],
   facebook: ["FACEBOOK_GET_POST", "FACEBOOK_GET_POST_INSIGHTS"],
   youtube: ["YOUTUBE_GET_VIDEO_DETAILS_BATCH"],
-  tiktok: ["TIKTOK_QUERY_VIDEOS"],
+  tiktok: ["TIKTOK_QUERY_VIDEOS", "TIKTOK_FETCH_PUBLISH_STATUS"],
 };
 
 function emptyMetrics(): SocialPostMetrics {
@@ -94,11 +96,6 @@ export async function fetchSocialPostStatistics(
       "LinkedIn personal post statistics are not available through this connection.",
     );
   }
-  if (context.provider === "tiktok" && !/^\d+$/.test(context.externalId)) {
-    throw new SocialPostStatisticsUnavailableError(
-      "TikTok has not provided a published video ID for this post yet.",
-    );
-  }
   const unavailable = `${label} statistics are unavailable. Check the connection permissions or try again later.`;
   let sessionId: string | undefined;
   try {
@@ -131,7 +128,11 @@ export async function fetchSocialPostStatistics(
         metrics.impressions = counter(counts?.impression_count);
         metrics.likes = counter(counts?.like_count);
         metrics.comments = counter(counts?.reply_count);
-        metrics.shares = counter(counts?.retweet_count);
+        metrics.shares = counter(
+          counts?.organic_repost_count ??
+            counts?.repost_count ??
+            counts?.retweet_count,
+        );
         metrics.saves = counter(counts?.bookmark_count);
         break;
       }
@@ -165,14 +166,14 @@ export async function fetchSocialPostStatistics(
         // Insights requires read_insights in addition to basic engagement access.
         // Keep available engagement counters if the connection lacks that scope.
         try {
-          metrics.views =
-            insightValues(
-              await read("FACEBOOK_GET_POST_INSIGHTS", {
-                post_id: context.externalId,
-                metrics: "post_media_view",
-                period: "lifetime",
-              }),
-            ).post_media_view ?? null;
+          const insightPayload = await read("FACEBOOK_GET_POST_INSIGHTS", {
+            post_id: context.externalId,
+            metrics: "post_media_view,post_activity_by_action_type",
+            period: "lifetime",
+          });
+          metrics.views = insightValues(insightPayload).post_media_view ?? null;
+          metrics.shares =
+            facebookInsightShareCount(insightPayload) ?? metrics.shares;
         } catch (error) {
           context.signal?.throwIfAborted();
           if (
@@ -199,10 +200,25 @@ export async function fetchSocialPostStatistics(
         break;
       }
       case "tiktok": {
+        let videoId = /^\d+$/.test(context.externalId)
+          ? context.externalId
+          : null;
+        if (!videoId) {
+          videoId = tiktokPublishedVideoId(
+            await read("TIKTOK_FETCH_PUBLISH_STATUS", {
+              publish_id: context.externalId,
+            }),
+          );
+        }
+        if (!videoId) {
+          throw new SocialPostStatisticsUnavailableError(
+            "TikTok has not provided a published video ID for this post yet.",
+          );
+        }
         const result = await read("TIKTOK_QUERY_VIDEOS", {
-          video_ids: [context.externalId],
+          video_ids: [videoId],
         });
-        const video = matchingVideo(result?.videos, context.externalId);
+        const video = matchingVideo(result?.videos, videoId);
         metrics.views = counter(video?.view_count);
         metrics.likes = counter(video?.like_count);
         metrics.comments = counter(video?.comment_count);
@@ -214,8 +230,9 @@ export async function fetchSocialPostStatistics(
       throw new SocialPostStatisticsUnavailableError(unavailable);
     }
     return metrics;
-  } catch {
+  } catch (error) {
     context.signal?.throwIfAborted();
+    if (error instanceof SocialPostStatisticsUnavailableError) throw error;
     throw new SocialPostStatisticsUnavailableError(unavailable);
   } finally {
     if (sessionId) {

@@ -17,15 +17,9 @@ describe("users workspaces OpenAPI contract (ADR 0051)", () => {
     expect(doc.paths?.["/{id}"]?.patch).toBeDefined();
   });
 
-  it.each([
-    ["/{id}/workspace-access", "get"],
-    ["/{id}/personal-workspace", "post"],
-    ["/{id}/personal-workspace", "delete"],
-  ] as const)("keeps %s %s as a deprecated fallback", (path, method) => {
-    expect(doc.paths?.[path]?.[method]?.deprecated).toBe(true);
-  });
-
-  it("drops the replaced preferred-organization routes", () => {
+  it("drops the replaced personal-workspace, workspace-access, and preferred-organization routes", () => {
+    expect(doc.paths?.["/{id}/workspace-access"]).toBeUndefined();
+    expect(doc.paths?.["/{id}/personal-workspace"]).toBeUndefined();
     expect(doc.paths?.["/{id}/preferred-organization"]).toBeUndefined();
   });
 
