@@ -174,6 +174,9 @@ export interface StudioLabels {
   regenerate: string;
   schedule: string;
   scheduleFailed: string;
+  writeCaption: string;
+  writeCaptionFailed: string;
+  captionLabel: string;
   reroll: string;
   reusePrompt: string;
   download: string;

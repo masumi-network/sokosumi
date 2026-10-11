@@ -44,6 +44,12 @@ export const imageStudioAssetParamsSchema =
       }),
   });
 
+export const imageStudioCaptionSchema = z
+  .object({
+    text: z.string().min(1).max(500),
+  })
+  .openapi("ProjectImageStudioCaption");
+
 export const imageStudioJobParamsSchema = imageStudioProjectParamsSchema.extend(
   {
     jobId: z

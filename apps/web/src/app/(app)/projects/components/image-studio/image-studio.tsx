@@ -26,6 +26,7 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   prepareStudioAssetSocialMedia,
   requestImageJobCancel,
+  writeStudioAssetCaption,
 } from "@/lib/actions/image-studio/action";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { cn } from "@/lib/utils";
@@ -159,6 +160,9 @@ export function ImageStudio({
   const [creatingProjectFor, setCreatingProjectFor] = useState<
     GenerationRequest[] | null
   >(null);
+  const [captionByAssetId, setCaptionByAssetId] = useState<
+    Record<string, string>
+  >({});
 
   const [target, setTarget] = useState<StudioTarget>(() => {
     // The curated five, in Core's order. Only the opening selection: every one
@@ -266,10 +270,29 @@ export function ImageStudio({
       toast.error(labels.scheduleFailed);
       return;
     }
-    writeSocialComposePrefill(asset.projectId, { media: [result.value] });
+    const text = captionByAssetId[asset.id]?.trim();
+    writeSocialComposePrefill(asset.projectId, {
+      media: [result.value],
+      ...(text ? { text } : {}),
+    });
     router.push(
       `/social?projectId=${encodeURIComponent(asset.projectId)}&compose=new`,
     );
+  }
+
+  async function writeCaption(asset: StudioAsset) {
+    const result = await writeStudioAssetCaption({
+      projectId: asset.projectId,
+      assetId: asset.id,
+    });
+    if (!result.ok) {
+      toast.error(labels.writeCaptionFailed);
+      return;
+    }
+    setCaptionByAssetId((current) => ({
+      ...current,
+      [asset.id]: result.value.text,
+    }));
   }
 
   /**
@@ -676,6 +699,20 @@ export function ImageStudio({
           onUseAsReference={(asset) => {
             setCheckedIds([asset.id]);
             setViewing(null);
+          }}
+          onWriteCaption={writeCaption}
+          caption={
+            lightboxAssets.length === 1
+              ? captionByAssetId[lightboxAssets[0].id]
+              : undefined
+          }
+          onCaptionChange={(text) => {
+            const asset = lightboxAssets[0];
+            if (!asset) return;
+            setCaptionByAssetId((current) => ({
+              ...current,
+              [asset.id]: text,
+            }));
           }}
           siblings={state.assets}
         />

@@ -38,6 +38,7 @@ vi.mock("next-intl", () => ({
 vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: mocks.cancel,
   prepareStudioAssetSocialMedia: vi.fn(),
+  writeStudioAssetCaption: vi.fn(),
 }));
 
 vi.mock("./use-studio-state", () => ({
