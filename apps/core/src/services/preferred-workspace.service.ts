@@ -1,8 +1,4 @@
-import {
-  memberRepository,
-  userRepository,
-  workspaceRepository,
-} from "@sokosumi/database/repositories";
+import { membershipAgeOrderBy } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { forbidden, notFound } from "@/helpers/error";
@@ -40,15 +36,25 @@ export function pickActiveOrganizationId({
 export async function resolveActiveOrganizationIdForSession(
   userId: string,
 ): Promise<string | null> {
-  const [user, personalWorkspace, organizationIds] = await Promise.all([
-    userRepository.getUserById(userId, prisma),
-    workspaceRepository.findPersonalWorkspace({ userId, tx: prisma }),
-    memberRepository.getMembersOrganizationIdsByUserId(userId, prisma),
+  const [user, personalWorkspace, memberships] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferredOrganizationId: true },
+    }),
+    prisma.workspace.findUnique({
+      where: { userId },
+      select: { id: true },
+    }),
+    prisma.member.findMany({
+      where: { userId },
+      orderBy: [...membershipAgeOrderBy],
+      select: { organizationId: true },
+    }),
   ]);
   return pickActiveOrganizationId({
     preferredOrganizationId: user?.preferredOrganizationId ?? null,
     hasPersonalWorkspace: personalWorkspace !== null,
-    organizationIds,
+    organizationIds: memberships.map((membership) => membership.organizationId),
   });
 }
 
@@ -66,16 +72,23 @@ export async function setPreferredOrganizationId(
         kind: CORE_API_ERROR_KINDS.PERSONAL_WORKSPACE_MISSING,
       });
     }
-    await userRepository.updatePreferredOrganizationId(userId, null, prisma);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { preferredOrganizationId: null },
+    });
     return;
   }
 
   await prisma.$transaction(async (tx) => {
-    const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-      userId,
-      organizationId,
-      tx,
-    );
+    const member = await tx.member.findUnique({
+      where: {
+        userId_organizationId: {
+          userId,
+          organizationId,
+        },
+      },
+      select: { id: true },
+    });
 
     if (!member) {
       throw forbidden("The user is not a member of the organization", {
@@ -83,10 +96,29 @@ export async function setPreferredOrganizationId(
       });
     }
 
-    await userRepository.updatePreferredOrganizationId(
-      userId,
-      organizationId,
-      tx,
-    );
+    await tx.user.update({
+      where: { id: userId },
+      data: { preferredOrganizationId: organizationId },
+    });
   });
+}
+
+export async function setPreferredWorkspace(
+  userId: string,
+  workspaceId: string,
+): Promise<void> {
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { userId: true, organizationId: true },
+  });
+
+  if (workspace?.organizationId) {
+    await setPreferredOrganizationId(userId, workspace.organizationId);
+    return;
+  }
+  if (workspace?.userId === userId) {
+    await setPreferredOrganizationId(userId, null);
+    return;
+  }
+  throw notFound("Workspace not found");
 }
