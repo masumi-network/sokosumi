@@ -661,6 +661,7 @@ model ProjectSocialConnectionAudit {
 
 enum SocialPostStatus {
   DRAFT
+  NEEDS_APPROVAL
   SCHEDULED
   PUBLISHING
   PUBLISHED

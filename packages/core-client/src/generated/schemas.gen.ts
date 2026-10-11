@@ -19509,6 +19509,7 @@ export const SocialPostCalendarItemSchema = {
             type: 'string',
             enum: [
                 'DRAFT',
+                'NEEDS_APPROVAL',
                 'SCHEDULED',
                 'PUBLISHING',
                 'PUBLISHED',
@@ -20814,6 +20815,12 @@ export const SocialPostSchema = {
         canPublishNow: {
             type: 'boolean'
         },
+        canApprove: {
+            type: 'boolean'
+        },
+        canReject: {
+            type: 'boolean'
+        },
         connectionNeedsReconnect: {
             type: 'boolean',
             description: 'The linked connection exists but is not active, so the post cannot go out until someone reconnects'
@@ -20847,6 +20854,8 @@ export const SocialPostSchema = {
         'canSchedule',
         'canCancel',
         'canPublishNow',
+        'canApprove',
+        'canReject',
         'connectionNeedsReconnect'
     ]
 } as const;
@@ -20905,6 +20914,7 @@ export const SocialPostStatusSchema = {
     type: 'string',
     enum: [
         'DRAFT',
+        'NEEDS_APPROVAL',
         'SCHEDULED',
         'PUBLISHING',
         'PUBLISHED',
@@ -21266,6 +21276,36 @@ export const ScheduleSocialPostRequestSchema = {
     },
     required: [
         'scheduledAt',
+        'revision'
+    ]
+} as const;
+
+export const ApproveSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
+export const RejectSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
         'revision'
     ]
 } as const;

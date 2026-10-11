@@ -111,7 +111,7 @@ describe("Social tool contracts", () => {
     },
   );
 
-  it("bounds pagination and accepts all seven states", () => {
+  it("bounds pagination and accepts all eight states", () => {
     expect(schemas.list_social_posts.parse({ projectId })).toEqual({
       projectId,
       limit: 20,
@@ -123,6 +123,7 @@ describe("Social tool contracts", () => {
         limit: 100,
         statuses: [
           "DRAFT",
+          "NEEDS_APPROVAL",
           "SCHEDULED",
           "PUBLISHING",
           "PUBLISHED",
@@ -208,6 +209,8 @@ describe("Social tool contracts", () => {
     expect(descriptions.list_project_social_accounts).toMatch(/Instagram/);
     expect(descriptions.create_social_post).toMatch(/video/);
     expect(descriptions.create_social_post).toMatch(/LinkedIn/);
+    expect(descriptions.create_social_post).toMatch(/Needs approval/);
+    expect(descriptions.publish_social_post).toMatch(/Needs approval/);
   });
 
   it("requires text or media for creation and preserves partial updates", () => {

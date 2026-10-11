@@ -2,8 +2,10 @@ import {
   getProjectsByIdSocialPostsByPostIdResponseTransformer,
   getProjectsByIdSocialPostsResponseTransformer,
   patchProjectsByIdSocialPostsByPostIdResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdApproveResponseTransformer,
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdRejectResponseTransformer,
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
   postProjectsByIdSocialPostsResponseTransformer,
 } from "@sokosumi/core-client/transformers";
@@ -39,6 +41,8 @@ function buildPost() {
     canSchedule: true,
     canCancel: true,
     canPublishNow: true,
+    canApprove: false,
+    canReject: false,
     connectionNeedsReconnect: false,
   };
 }
@@ -50,6 +54,8 @@ const transformers = [
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdApproveResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdRejectResponseTransformer,
 ];
 
 describe("social post response transformers", () => {
