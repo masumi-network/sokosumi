@@ -121,6 +121,11 @@ describe("Social post calendar event", () => {
       screen.getByRole("button", { name: /X post with 2 images/ }),
     ).toBeInTheDocument();
     expect(screen.getByText("12:00 PM")).toBeInTheDocument();
+    const chip = screen.getByTestId("calendar-social-post");
+    expect(chip.firstElementChild).toBe(
+      screen.getByTestId("social-post-provider-icon"),
+    );
+    expect(chip.lastElementChild).toBe(thumb);
   });
   it("shows a video first-frame on a week chip and keeps the platform logo", () => {
     renderCard(
