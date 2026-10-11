@@ -2396,7 +2396,7 @@
           "disconnected": "{account} getrennt."
         },
         "warning": {
-          "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe den Zugriff in deinen Kontoeinstellungen."
+          "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe die App unter Verbindungen."
         },
         "errors": {
           "facebookPage": "Für das Veröffentlichen auf Facebook braucht das Konto genau eine verwaltete Seite. Verwende ein Konto mit einer einzigen verwaltbaren Seite.",

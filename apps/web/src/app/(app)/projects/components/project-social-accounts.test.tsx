@@ -66,7 +66,7 @@ const MESSAGES: Record<string, string> = {
   "success.connected": "{account} connected.",
   "success.disconnected": "{account} disconnected.",
   "warning.providerRevocationFailed":
-    "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
+    "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections.",
   "errors.notConfigured":
     "This integration is not configured yet. Contact support to enable it.",
   "errors.inFlight": "Another account action is already in progress.",
@@ -1008,14 +1008,14 @@ describe("ProjectSocialAccounts", () => {
 
     expect(
       await screen.findByText(
-        "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
+        "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections.",
       ),
     ).toBeVisible();
     expect(toastWarningMock).toHaveBeenCalledWith(
-      "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
+      "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections.",
     );
     expect(toastSuccessMock).not.toHaveBeenCalledWith(
-      "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
+      "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections.",
     );
   });
 
