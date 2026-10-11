@@ -64,6 +64,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         postId,
         organizationId: workspaceContext.organizationId,
         text: input.text,
+        firstComment: input.firstComment,
         media: input.media,
         socialConnectionId: input.socialConnectionId,
         revision: input.revision,

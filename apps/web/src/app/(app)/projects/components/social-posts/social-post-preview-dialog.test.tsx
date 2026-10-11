@@ -29,6 +29,7 @@ const POST: SocialPost = {
   projectId: "project-1",
   provider: "x",
   text: "Hello",
+  firstComment: null,
   media: [],
   status: "PUBLISHED",
   scheduledAt: null,

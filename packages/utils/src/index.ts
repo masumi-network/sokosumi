@@ -376,6 +376,8 @@ export {
 } from "./social-account-avatar.js";
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
+  SOCIAL_POST_FIRST_COMMENT_LIMITS,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_MEDIA_REQUIREMENTS,
   SOCIAL_POST_MEDIA_RULES,
@@ -387,10 +389,12 @@ export {
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  socialPostFirstCommentLimit,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
   socialPostMimeForFileName,
   socialPostProviderLabel,
+  socialPostSupportsFirstComment,
   validateSocialPostMedia,
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
