@@ -2392,8 +2392,8 @@
         },
         "cancel": "Abbrechen",
         "success": {
-          "connected": "Konto verbunden.",
-          "disconnected": "Konto getrennt."
+          "connected": "{account} verbunden.",
+          "disconnected": "{account} getrennt."
         },
         "warning": {
           "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe den Zugriff in deinen Kontoeinstellungen."
