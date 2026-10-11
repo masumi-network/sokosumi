@@ -59,7 +59,7 @@ export const FILE_INDEX_JOB_REVIVE_AFTER_MS = 12 * 3_600_000;
 /** One sweep moves at most this many rows, so a tick stays bounded. */
 const REVIVE_BATCH = 50;
 
-export function fileIndexJobDedupeKey(input: {
+function fileIndexJobDedupeKey(input: {
   resourceId: string;
   pipeline: FileIndexJobPipeline;
   contentRevision: number;

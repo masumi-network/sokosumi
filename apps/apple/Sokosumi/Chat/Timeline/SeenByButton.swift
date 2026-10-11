@@ -32,7 +32,6 @@ import SwiftUI
   /// Overlapping faces, most-recent-read first and the first on top, capped at three with a `+N` for the rest.
   /// Opacity and grey go on the stack as one layer: per face, the overlaps would composite darker.
   struct SeenByFaces: View {
-    /// Web's `size-4` faces overlapping by `-space-x-1`, as on the thread reply bar.
     static let faceDiameter: CGFloat = ThreadReplyBarButton.faceDiameter
     static let overlap: CGFloat = 4
 
@@ -85,7 +84,6 @@ import SwiftUI
   /// The list behind the faces (web `SeenByDetail`): "Read by" and each reader with the clock time they read,
   /// then, under a divider with no heading, everyone who has not read this far in grey.
   struct SeenByDetail: View {
-    /// Web's `w-56` popover and `max-h-64` list.
     static let width: CGFloat = 224
     static let maxListHeight: CGFloat = 256
     private static let rowHeight: CGFloat = 28

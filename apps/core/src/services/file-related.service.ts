@@ -158,7 +158,7 @@ const RELATED_MIN_RANK = 0.09;
  * not a letter or a digit, with Unicode classes rather than `a-z`, so this
  * does not silently discard every term of a non-Latin document.
  */
-export function seedCandidateTerms(text: string): string[] {
+function seedCandidateTerms(text: string): string[] {
   const seen = new Set<string>();
   const terms: string[] = [];
 

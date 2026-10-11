@@ -10,6 +10,11 @@ import SwiftUI
   struct RoomTimelineView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @State private var preparedTranscript: PreparedTranscript?
+    /// An older page, prepared and waiting for the list to land it (M6). Rows inserted above the realized ones make the
+    /// lazy list measure every realized row again, a dropped frame in mid-flick, so they land once the scroll rests,
+    /// and the list puts the rows the reader saw back where they were.
+    @State private var waitingTranscript: PreparedTranscript?
+    @State private var scrollActivity = TranscriptScrollActivity()
     let roomId: String
 
     private var preparationInput: PreparedTranscript.Input {
@@ -22,15 +27,33 @@ import SwiftUI
     var body: some View {
       let input = preparationInput
       let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
+      let waiting = waitingTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
+      let messages = prepared?.overlaying(input.messages) ?? []
+      // Projection is a live suffix: a shorter nonempty suffix means its older prefix still waits.
+      let olderPageWaits = !messages.isEmpty && messages.count < input.messages.count
       // Keep scroll state below this boundary so scrolling does not rebuild the projection.
-      RoomTranscriptContent(roomId: roomId, messages: prepared?.overlaying(input.messages) ?? [],
-                            hasLiveMessages: !input.messages.isEmpty, preparedTranscript: prepared)
-        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: roomId))
-        .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
-        .task(id: input) {
-          guard let prepared = try? await PreparedTranscript.prepare(input, reusing: preparedTranscript), !Task.isCancelled else { return }
-          preparedTranscript = prepared
+      RoomTranscriptContent(roomId: roomId, messages: messages,
+                            hasLiveMessages: !input.messages.isEmpty, preparedTranscript: waiting ?? prepared,
+                            scrollActivity: scrollActivity, olderPageWaits: olderPageWaits,
+                            hasWaitingPage: waiting != nil) {
+        if let waiting = waitingTranscript, waiting.input.scope == preparationInput.scope, scrollActivity.isAtRest {
+          waitingTranscript = nil
+          preparedTranscript = waiting
+          return true
         }
+        return false
+      }
+      .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: roomId))
+      .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
+      .task(id: input) {
+        guard let next = try? await PreparedTranscript.prepare(input, reusing: waitingTranscript ?? preparedTranscript), !Task.isCancelled else { return }
+        if next.prependsRows(to: preparedTranscript) {
+          waitingTranscript = next
+        } else {
+          waitingTranscript = nil
+          preparedTranscript = next
+        }
+      }
     }
   }
 
@@ -42,7 +65,6 @@ import SwiftUI
     /// lands. Require a trip away from the top before auto-loading.
     @State private var transcriptWasAwayFromTop = false
     @State private var scrollIntent = TimelineScrollIntent()
-    @State private var userIsScrolling = false
     @State private var pendingBottomAlignment = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     /// The mark the last jump left on the row it landed on (row 25b1). The open thread keeps its own.
@@ -54,15 +76,29 @@ import SwiftUI
     @State private var jumpCompletion: CheckedContinuation<Bool, Never>?
     @State private var quoteTarget: String?
     @State private var scrollPosition = ScrollPosition(idType: String.self)
+    @State private var firstRows = FirstRowsPlacement()
     @State private var quoteFocusRequest: String?
 
     let roomId: String
     let messages: [Components.Schemas.ChatRoomMessage]
     let hasLiveMessages: Bool
     let preparedTranscript: PreparedTranscript?
+    /// Whether the reader drives the list; the room view reads it to hold an older page (M6).
+    let scrollActivity: TranscriptScrollActivity
+    /// An older page is preparing or waits for the scroll to rest: its boundary row stays loading and asks for no
+    /// further page.
+    let olderPageWaits: Bool
+    /// An older page is prepared and waits for the list to land it.
+    let hasWaitingPage: Bool
+    /// Lands the waiting page's rows unless the reader scrolls; true when it did.
+    let landWaitingPage: () -> Bool
 
     private var room: Components.Schemas.ChatRoom? {
       workspaces.rooms.first { $0.id == roomId }
+    }
+
+    private var userIsScrolling: Bool {
+      scrollActivity.isScrolling
     }
 
     private func unfurlAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
@@ -114,6 +150,7 @@ import SwiftUI
 
     var body: some View {
       transcriptBody
+        .scrollEdgeEffectStyle(.hard, for: .top)
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
           if let notice = ReadOnlyDirectNotice(room: room) {
@@ -174,6 +211,8 @@ import SwiftUI
         }
         .onDisappear { jumpCompletion?.resume(returning: false)
           jumpCompletion = nil
+          // The room view outlives this list (another workspace or room swaps it): no scroll is left driving it.
+          scrollActivity.update(for: .idle)
         }
         .onChange(of: roomId) { _, _ in
           jumpMark = nil
@@ -232,8 +271,8 @@ import SwiftUI
       return ScrollViewReader { proxy in
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
-            if workspaces.transcriptHasMore {
-              PageBoundaryRow(copy: .transcript(isGap: false), status: workspaces.timeline.oldestBoundaryStatus) {
+            if workspaces.transcriptHasMore || olderPageWaits {
+              PageBoundaryRow(copy: .transcript(isGap: false), status: olderPageWaits ? .loading : workspaces.timeline.oldestBoundaryStatus) {
                 scrollIntent.readOlder()
                 workspaces.loadOlderMessages(auth: auth)
               }
@@ -328,6 +367,12 @@ import SwiftUI
                 }
               }
               .background {
+                // Where the first rows sit in the viewport, so an older page landing above them can leave them there.
+                if index < 2 || message.id == firstRows.landingAnchor {
+                  Color.clear.onGeometryChange(for: CGRect.self) { $0.frame(in: .scrollView) } action: { frame in
+                    firstRows.record(index, id: message.id, frame: frame)
+                  }
+                }
                 if quoteTarget == message.id {
                   Color.clear.onScrollVisibilityChange(threshold: 0.01) { visible in
                     if visible {
@@ -344,6 +389,7 @@ import SwiftUI
             Color.clear.frame(height: 9).id("timeline-bottom")
           }
           .scrollTargetLayout()
+          .environment(\.transcriptScrollActivity, scrollActivity)
           .padding(.top, 8)
         }
         // Row 25b2: the other rows step back while the mark holds.
@@ -356,6 +402,13 @@ import SwiftUI
         }
         .scrollPosition($scrollPosition)
         .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
+        .onChange(of: hasWaitingPage) { _, waits in
+          if waits, scrollActivity.isAtRest {
+            Task { @MainActor in
+              landWaitingPageInPlace()
+            }
+          }
+        }
         .onChange(of: messages.contains(where: { $0.id == quoteTarget }) ? quoteTarget : nil, initial: true) { _, target in
           guard let target else { return }
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
@@ -376,7 +429,13 @@ import SwiftUI
           proxy.scrollTo("timeline-bottom", anchor: .bottom)
         }
         .onScrollPhaseChange { _, phase in
-          userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+          scrollActivity.update(for: phase)
+          // Only a list at rest takes the rows: a jump's scroll animation is motion too.
+          if phase == .idle, hasWaitingPage {
+            Task { @MainActor in
+              landWaitingPageInPlace()
+            }
+          }
           if phase.endsJumpMark {
             jumpMark = jumpMark?.readerScrolled(at: jumpMarkClock.now)
           }
@@ -418,6 +477,8 @@ import SwiftUI
           }
         }
         .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
+          firstRows.viewport = (edges.topInset, edges.viewportHeight)
+          firstRows.offset = edges.offsetY
           if workspaces.timeline.historicalAnchor == nil,
              oldEdges.offsetY != edges.offsetY,
              userIsScrolling || oldEdges.nearBottom != edges.nearBottom {
@@ -445,7 +506,7 @@ import SwiftUI
                   userIsScrolling: userIsScrolling,
                   isNearTop: isNearTop,
                   hasMore: workspaces.transcriptHasMore,
-                  isLoading: workspaces.transcriptLoading || workspaces.transcriptLoadingOlder
+                  isLoading: workspaces.transcriptLoading || workspaces.transcriptLoadingOlder || olderPageWaits
                 ) else { return }
           if nextIntent != scrollIntent {
             scrollIntent = nextIntent
@@ -460,6 +521,28 @@ import SwiftUI
     private func pinAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard workspaces.canUsePins, message.parentMessageId == nil, canReactToMessage(message) else { return nil }
       return { try await workspaces.setPinned(!workspaces.isPinned(message), messageId: message.id, auth: auth) }
+    }
+
+    /// Lands the waiting older page and puts the rows that were first back where they sat in the viewport (row 04). The
+    /// list does not do it by itself: its scroll position names the first row as the page lands, yet the reader ended up
+    /// on the page's own first rows (a real trackpad, the paging harness, the CI runner).
+    private func landWaitingPageInPlace() {
+      let placement = firstRows.placement
+      firstRows.landingAnchor = placement?.id
+      firstRows.forgetAnchorFrame()
+      guard landWaitingPage(), let placement else {
+        firstRows.landingAnchor = nil
+        return
+      }
+      scrollPosition.scrollTo(id: placement.id, anchor: placement.anchor)
+      // The anchor's fraction is measured against the visible rows; where the list lines it up against more (the CI
+      // runner put the row 66 pt low), move it the rest of the way once it has settled.
+      Task { @MainActor in
+        defer { firstRows.landingAnchor = nil }
+        guard await (try? Task.sleep(for: .milliseconds(150))) != nil, scrollActivity.isAtRest,
+              let offset = firstRows.settledOffset(for: placement.id, was: placement.minY) else { return }
+        scrollPosition.scrollTo(y: offset)
+      }
     }
 
     private func completeVisibleJump(_ target: String) {
@@ -519,4 +602,58 @@ import SwiftUI
     }
   }
 
+  /// Where the transcript's first two rows sit in the viewport, and the row an older page's landing keeps in place
+  /// (M6, row 04). A plain object: the geometry callbacks write it on every change without updating the view.
+  @MainActor private final class FirstRowsPlacement {
+    /// The inset above the visible rows and their height.
+    var viewport: (topInset: CGFloat, height: CGFloat) = (0, 0)
+    /// The list's content offset, as the last geometry change reported it.
+    var offset: CGFloat = 0
+    /// The row a landing keeps in place, tracked until it has settled.
+    var landingAnchor: String?
+    private var rows: [Int: (id: String, frame: CGRect)] = [:]
+    private var anchorFrame: CGRect?
+
+    struct Placement {
+      let id: String
+      /// The point of the row lined up with the same point of the viewport.
+      let anchor: UnitPoint
+      /// Where the row's top sat.
+      let minY: CGFloat
+    }
+
+    /// A row on screen and where it sat. The second row first: the first row can lose its day pill once rows from the
+    /// same day land above it, which moves its text by the pill.
+    var placement: Placement? {
+      guard viewport.height > 0 else { return nil }
+      for index in [1, 0] {
+        guard let row = rows[index], row.frame.maxY > viewport.topInset,
+              row.frame.minY < viewport.topInset + viewport.height else { continue }
+        // `scrollTo(id:anchor:)` lines the row's point at `anchor` up with the viewport's: top + f × (H − h) = top.
+        let room = viewport.height - row.frame.height
+        let fraction = abs(room) < 1 ? 0 : (row.frame.minY - viewport.topInset) / room
+        return Placement(id: row.id, anchor: UnitPoint(x: 0, y: fraction), minY: row.frame.minY)
+      }
+      return nil
+    }
+
+    /// The content offset that puts the landing anchor back at `minY`, when it settled elsewhere.
+    func settledOffset(for id: String, was minY: CGFloat) -> CGFloat? {
+      guard id == landingAnchor, let frame = anchorFrame, abs(frame.minY - minY) > 1 else { return nil }
+      return offset + frame.minY - minY
+    }
+
+    func forgetAnchorFrame() {
+      anchorFrame = nil
+    }
+
+    func record(_ index: Int, id: String, frame: CGRect) {
+      if id == landingAnchor {
+        anchorFrame = frame
+      }
+      if index < 2 {
+        rows[index] = (id, frame)
+      }
+    }
+  }
 #endif

@@ -204,7 +204,7 @@ function authHeaders(apiKey: string): Record<string, string> {
 }
 
 /** Every active endpoint in one category, following fal's cursor pagination. */
-export async function fetchFalModels(
+async function fetchFalModels(
   options: FetchOptions,
   category = "text-to-image",
 ): Promise<FalModelRow[]> {
@@ -269,7 +269,7 @@ export async function fetchFalPrices(
  * Null is not a failure to retry: a handful of endpoints simply do not publish
  * a queue schema, and they are excluded rather than guessed at.
  */
-export async function fetchFalSchema(
+async function fetchFalSchema(
   endpointId: string,
   options: FetchOptions,
 ): Promise<unknown | null> {

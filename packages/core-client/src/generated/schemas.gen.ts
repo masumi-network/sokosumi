@@ -16775,77 +16775,6 @@ export const NotificationPreferenceSchema = {
     ]
 } as const;
 
-export const PersonalWorkspaceCreatedSchema = {
-    type: 'object',
-    properties: {
-        workspaceId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'Id of the newly created personal workspace',
-            example: '11111111-1111-7111-8111-111111111111'
-        }
-    },
-    required: [
-        'workspaceId'
-    ]
-} as const;
-
-export const PersonalWorkspaceDeletedSchema = {
-    type: 'object',
-    properties: {
-        workspaceId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'Id of the deleted personal workspace',
-            example: '11111111-1111-7111-8111-111111111111'
-        }
-    },
-    required: [
-        'workspaceId'
-    ]
-} as const;
-
-export const WorkspaceAccessSchema = {
-    type: 'object',
-    properties: {
-        gate: {
-            $ref: '#/components/schemas/WorkspaceGateStatus'
-        },
-        hasPersonalWorkspace: {
-            type: 'boolean',
-            description: 'Whether the user owns a personal workspace row',
-            example: true
-        },
-        hasOrganizationMembership: {
-            type: 'boolean',
-            description: 'Whether the user is a member of at least one organization',
-            example: false
-        },
-        hasPendingOrganizationInvites: {
-            type: 'boolean',
-            description: 'Whether the user has at least one non-expired pending organization invitation by email',
-            example: false
-        }
-    },
-    required: [
-        'gate',
-        'hasPersonalWorkspace',
-        'hasOrganizationMembership',
-        'hasPendingOrganizationInvites'
-    ]
-} as const;
-
-export const WorkspaceGateStatusSchema = {
-    type: 'string',
-    enum: [
-        'ready',
-        'pending-invites',
-        'identity-onboarding'
-    ],
-    description: 'Derived workspace gate: ready when the user has a personal workspace or any organization membership; pending-invites when they have neither but have non-expired pending organization invitations; identity-onboarding when they have neither and no pending org entry',
-    example: 'ready'
-} as const;
-
 export const UserWorkspacesSchema = {
     type: 'object',
     properties: {
@@ -16996,6 +16925,21 @@ export const SetPreferredUserWorkspaceSchema = {
             type: 'string',
             format: 'uuid',
             description: 'Id of a workspace the person can act in',
+            example: '11111111-1111-7111-8111-111111111111'
+        }
+    },
+    required: [
+        'workspaceId'
+    ]
+} as const;
+
+export const PersonalWorkspaceDeletedSchema = {
+    type: 'object',
+    properties: {
+        workspaceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Id of the deleted personal workspace',
             example: '11111111-1111-7111-8111-111111111111'
         }
     },
@@ -19627,6 +19571,31 @@ export const SocialPostCalendarItemSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        lastAttempt: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                outcome: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                errorKind: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'outcome',
+                'errorKind'
+            ],
+            description: 'Latest publish attempt outcome and error kind for Failed and Missed chips. Never the raw provider error.'
+        },
         sourceId: {
             type: 'string'
         },
@@ -19659,6 +19628,7 @@ export const SocialPostCalendarItemSchema = {
         'attachmentCount',
         'previewMedia',
         'scheduledAt',
+        'lastAttempt',
         'sourceId',
         'sourceProjectId',
         'sourceWorkspaceId',
@@ -19970,12 +19940,20 @@ export const SocialAccountStatisticsPageSchema = {
                 'string',
                 'null'
             ]
+        },
+        headline: {
+            $ref: '#/components/schemas/SocialPerformanceHeadline'
+        },
+        consistency: {
+            $ref: '#/components/schemas/SocialPerformanceConsistency'
         }
     },
     required: [
         'accounts',
         'posts',
-        'nextCursor'
+        'nextCursor',
+        'headline',
+        'consistency'
     ]
 } as const;
 
@@ -19993,6 +19971,9 @@ export const SocialAccountStatisticsAccountSchema = {
                 postCount: {
                     type: 'integer',
                     minimum: 0
+                },
+                sync: {
+                    $ref: '#/components/schemas/SocialSyncReadModel'
                 }
             },
             required: [
@@ -20067,6 +20048,11 @@ export const SocialAccountStatisticsSchema = {
                 'null'
             ],
             default: null
+        },
+        consecutiveFailures: {
+            type: 'integer',
+            minimum: 0,
+            default: 0
         }
     },
     required: [
@@ -20117,6 +20103,66 @@ export const SocialAccountMetricSchema = {
         'value',
         'period',
         'unit'
+    ]
+} as const;
+
+export const SocialSyncReadModelSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'fresh',
+                'stale',
+                'queued',
+                'running',
+                'reauth_required',
+                'partial'
+            ]
+        },
+        dataFetchedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        headFetchedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        dataVersion: {
+            type: 'string'
+        },
+        mayAutoRequest: {
+            type: 'boolean'
+        },
+        lastError: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        partialWarnings: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        }
+    },
+    required: [
+        'status',
+        'dataFetchedAt',
+        'headFetchedAt',
+        'dataVersion',
+        'mayAutoRequest',
+        'lastError',
+        'partialWarnings'
     ]
 } as const;
 
@@ -20246,6 +20292,214 @@ export const SocialPostMetricsSchema = {
         'comments',
         'shares',
         'saves'
+    ]
+} as const;
+
+export const SocialPerformanceHeadlineSchema = {
+    type: 'object',
+    properties: {
+        current: {
+            type: 'object',
+            properties: {
+                postCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                views: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                impressions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                interactions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'postCount',
+                'views',
+                'impressions',
+                'interactions'
+            ]
+        },
+        previous: {
+            type: 'object',
+            properties: {
+                postCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                views: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                impressions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                interactions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'postCount',
+                'views',
+                'impressions',
+                'interactions'
+            ]
+        },
+        deltas: {
+            type: 'object',
+            properties: {
+                postCount: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                views: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                impressions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                interactions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'postCount',
+                'views',
+                'impressions',
+                'interactions'
+            ]
+        },
+        daily: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    postCount: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    views: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    impressions: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    interactions: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    date: {
+                        type: 'string',
+                        format: 'date'
+                    }
+                },
+                required: [
+                    'postCount',
+                    'views',
+                    'impressions',
+                    'interactions',
+                    'date'
+                ]
+            },
+            maxItems: 366
+        }
+    },
+    required: [
+        'current',
+        'previous',
+        'deltas',
+        'daily'
+    ]
+} as const;
+
+export const SocialPerformanceConsistencySchema = {
+    type: 'object',
+    properties: {
+        from: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date'
+        },
+        until: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date'
+        },
+        daily: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    postCount: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    interactions: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'date',
+                    'postCount',
+                    'interactions'
+                ]
+            },
+            maxItems: 368
+        }
+    },
+    required: [
+        'from',
+        'until',
+        'daily'
     ]
 } as const;
 

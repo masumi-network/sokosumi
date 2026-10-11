@@ -321,7 +321,7 @@ For internal async-ack sync routes (immediate `200` response + background execut
 
 ## Common Patterns
 
-Before adding or changing a `/v1` route (new route files, OpenAPI definitions, `/{id}` to `/me` migration, cursor pagination, job files and links), read [Core route patterns](../../docs/agents/core-route-patterns.md).
+Before adding, changing, or removing a `/v1` route (new route files, OpenAPI definitions, `/{id}` to `/me` migration, operation removal, cursor pagination, job files and links), read [Core route patterns](../../docs/agents/core-route-patterns.md).
 
 **Note**: New Core routes use direct Prisma via the Core singleton (`import prisma from "@/lib/db/prisma"`) with type-safe includes and flatten helpers. Do not import a default `prisma` from `@sokosumi/database/client` in routes — that module exports `createPrismaClient` (used by `src/lib/db/prisma.ts`, tests, and scripts). Repositories may still appear in legacy services — do not introduce new repository usage in routes.
 

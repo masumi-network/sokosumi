@@ -49,15 +49,6 @@ const OVERSCAN_ROWS = { above: 30, below: 8 };
  */
 const EDITOR_SELECTOR = '[contenteditable="true"]';
 
-/** A scroll is over this long after its last event, where `scrollend` is missing. */
-const SCROLL_END_FALLBACK_MS = 150;
-
-/**
- * A lifted finger is followed by momentum, and the first scroll event of it
- * comes a little later. Until then the touch still counts.
- */
-const TOUCH_END_GRACE_MS = 150;
-
 /**
  * How many frames a landing waits for its row to mount after the scroll.
  * The virtualizer re-issues a scroll while rows above the target are still
@@ -116,143 +107,10 @@ interface TranscriptViewportProps {
 
 type TranscriptVirtualizer = Virtualizer<HTMLElement, HTMLDivElement>;
 
-/** What the hold below needs from the virtualizer, before the rows change. */
-type RowHoldSource = Pick<
-  TranscriptVirtualizer,
-  "scrollOffset" | "getVirtualItemForOffset" | "measurementsCache"
->;
-
-/** A row to put back where it was once the rows around it have changed. */
-export interface RowHold {
-  key: string;
-  /** Scroll offset minus the row's start: where the top edge sat from the row. */
-  offset: number;
-}
-
-function maxScrollOf(element: HTMLElement): number {
-  return element.scrollHeight - element.clientHeight;
-}
-
-/**
- * The scroller is bottom-anchored: `scrollTop` is 0 at the newest message
- * and negative above it. The virtualizer counts from the top.
- */
-function topOffsetOf(element: HTMLElement): number {
-  return maxScrollOf(element) + element.scrollTop;
-}
-
-/**
- * Whether the view sits on the live edge. `scrollTop` is fractional on a
- * zoomed or high-density display, so exactly 0 is not the test.
- */
-function isAtLiveEdge(element: HTMLElement): boolean {
-  return -element.scrollTop < 1;
-}
-
-/**
- * Tells the virtualizer its top-based offset. That offset moves without a
- * scroll event whenever the list grows, which is why `onChange` reads it
- * again, and whenever the scroller is resized, which is reported here.
- */
-export function observeBottomAnchoredOffset(
-  instance: TranscriptVirtualizer,
-  report: (offset: number, isScrolling: boolean) => void,
-): (() => void) | undefined {
-  const element = instance.scrollElement;
-  if (!element) {
-    return undefined;
-  }
-  const read = () => topOffsetOf(element);
-  const hasScrollEnd = "onscrollend" in window;
-  let fallback: number | undefined;
-  const onScroll = () => {
-    if (!hasScrollEnd) {
-      window.clearTimeout(fallback);
-      fallback = window.setTimeout(onScrollEnd, SCROLL_END_FALLBACK_MS);
-    }
-    report(read(), true);
-  };
-  const onScrollEnd = () => {
-    report(read(), false);
-  };
-  // A composer that grows or a keyboard that opens: the distance from the
-  // end holds, so the offset from the top does not.
-  const resize = new ResizeObserver(() => {
-    report(read(), instance.isScrolling);
-  });
-  resize.observe(element);
-  element.addEventListener("scroll", onScroll, { passive: true });
-  element.addEventListener("scrollend", onScrollEnd, { passive: true });
-  onScrollEnd();
-  return () => {
-    resize.disconnect();
-    element.removeEventListener("scroll", onScroll);
-    element.removeEventListener("scrollend", onScrollEnd);
-    window.clearTimeout(fallback);
-  };
-}
-
-/**
- * The virtualizer's top-based offset, written as the distance from the end.
- * Its `adjustments` are dropped: they put the view back after a row above it
- * changed height, and a bottom-anchored scroller never moved it.
- */
-export function scrollBottomAnchored(
-  offset: number,
-  { behavior }: { behavior?: ScrollBehavior },
-  instance: TranscriptVirtualizer,
-): void {
-  const element = instance.scrollElement;
-  if (!element) {
-    return;
-  }
-  // A write that moves nothing still ends a touch scroll's momentum on iOS.
-  const top = offset - maxScrollOf(element);
-  if (Math.abs(top - element.scrollTop) >= 1) {
-    element.scrollTo({ top, behavior });
-  }
-}
-
 function transcriptRangeExtractor(range: Range): number[] {
   const start = Math.max(range.startIndex - OVERSCAN_ROWS.above, 0);
   const end = Math.min(range.endIndex + OVERSCAN_ROWS.below, range.count - 1);
   return Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
-}
-
-/**
- * The row a reader away from the live edge keeps in place when the rows
- * change: the first one from the top edge down that is still there. Mostly
- * that is the row under the edge. It is not when that row is the one that
- * changed: a boundary row is replaced by the page it loaded, or removed once
- * history is exhausted. Then the messages below it are what the reader was
- * reading, and the first of them stays put.
- */
-export function rowHoldAfterRowsChange(
-  virtualizer: RowHoldSource,
-  previousRows: readonly RoomTranscriptRenderRow[],
-  nextRows: readonly RoomTranscriptRenderRow[],
-): RowHold | null {
-  const scrollOffset = virtualizer.scrollOffset ?? 0;
-  // Refreshes the measurements cache read below.
-  const edgeItem = virtualizer.getVirtualItemForOffset(scrollOffset);
-  if (!edgeItem) {
-    return null;
-  }
-  const nextKeys = new Set(nextRows.map(transcriptRowKey));
-  const survivorIndex = previousRows.findIndex(
-    (row, index) =>
-      index >= edgeItem.index && nextKeys.has(transcriptRowKey(row)),
-  );
-  const survivor = virtualizer.measurementsCache[survivorIndex];
-  if (!survivor) {
-    return null;
-  }
-  // Negative when the survivor sat below the edge: it stays where it was,
-  // and the rows that replaced the ones above it fill the gap.
-  return {
-    key: String(survivor.key),
-    offset: scrollOffset - survivor.start,
-  };
 }
 
 function retainedPositionIndex(
@@ -282,15 +140,12 @@ function retainedPositionIndex(
  * A transcript, mounting only the rows near the viewport.
  *
  * The virtualizer owns which rows exist, how tall they are, and following
- * new rows at the live edge. The scroller is bottom-anchored, so whatever
- * changes above the view leaves it where it is. This component owns what
- * changes at or below it, the hold a jump takes on the follow, and landing
- * on a message the reader was sent to. Remount it (key by room or thread
- * parent) to open on the newest message.
+ * new rows at the live edge. This component owns saved reading positions,
+ * jump holds and landings. Remount per room or thread parent.
  */
 export function TranscriptViewport({
   scroller,
-  rows,
+  rows: incomingRows,
   renderRow,
   list = CHAT_MESSAGE_LIST_ROOM,
   holdOffBottom,
@@ -298,6 +153,61 @@ export function TranscriptViewport({
   onPositionChange,
   ref,
 }: TranscriptViewportProps) {
+  const scrollingRef = useRef(false);
+  const touchingRef = useRef(false);
+  const deferredRef = useRef(false);
+  const displayedRowsRef = useRef(incomingRows);
+  const projectedInputRef = useRef(incomingRows);
+  const [, releasePage] = useState(0);
+  // Project only data changes or a settled page, never each virtual range update.
+  if (
+    projectedInputRef.current !== incomingRows ||
+    (deferredRef.current && (!scrollingRef.current || holdOffBottom))
+  ) {
+    let rows = incomingRows;
+    if (scrollingRef.current && !holdOffBottom) {
+      const previous = displayedRowsRef.current;
+      const latest = new Map(
+        incomingRows.map((row) => [transcriptRowKey(row), row]),
+      );
+      const first = previous.find(
+        (row) => row.kind === "message" && latest.has(transcriptRowKey(row)),
+      );
+      const firstIndex = first
+        ? incomingRows.findIndex(
+            (row) => transcriptRowKey(row) === transcriptRowKey(first),
+          )
+        : -1;
+      const prepended = incomingRows
+        .slice(0, firstIndex)
+        .some((row) => row.kind === "message");
+      if (firstIndex >= 0 && (deferredRef.current || prepended)) {
+        // Keep the order being scrolled. Existing messages still receive edits
+        // and streaming chunks; new live messages can still append below it.
+        const last = previous.findLast(
+          (row) => row.kind === "message" && latest.has(transcriptRowKey(row)),
+        );
+        const lastIndex = last
+          ? incomingRows.findIndex(
+              (row) => transcriptRowKey(row) === transcriptRowKey(last),
+            )
+          : -1;
+        rows = [
+          ...previous.flatMap((row) => {
+            const updated = latest.get(transcriptRowKey(row));
+            return updated ? [updated] : row.kind === "boundary" ? [row] : [];
+          }),
+          ...incomingRows.slice(lastIndex + 1),
+        ];
+        deferredRef.current = true;
+      }
+    }
+    if (rows === incomingRows) deferredRef.current = false;
+    displayedRowsRef.current = rows;
+    projectedInputRef.current = incomingRows;
+  }
+  const rows = displayedRowsRef.current;
+
   // A prop of the virtualizer rather than a ref: it decides per render
   // whether an append pulls the view down. A jump that merges a window while
   // the reader sits at the live edge would otherwise be undone by that pull.
@@ -305,7 +215,7 @@ export function TranscriptViewport({
     Boolean(initialPosition && !initialPosition.atLiveEdge),
   );
   const restoreRef = useRef(initialPosition);
-  const restoringRef = useRef(false);
+  const openedRef = useRef(false);
   const positionCallbackRef = useRef(onPositionChange);
   positionCallbackRef.current = onPositionChange;
   const lastPositionRef = useRef("");
@@ -322,41 +232,46 @@ export function TranscriptViewport({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
 
-  // How far above the live edge the reader sat at the last scroll or
-  // virtualizer change. Read then, not when asked: chrome that resizes the
-  // scroller moves the edge away before anyone asks.
-  const distanceFromEndRef = useRef(0);
-  // Whether that is near the edge, as state for the jump-to-latest control
-  // that shows whenever the reader is away from it.
+  // Only the jump-to-latest threshold needs React state.
   const [atEnd, setAtEnd] = useState(true);
-
-  // The previous render's instance, for the look at the old rows below. The
-  // instance itself never changes; the ref exists to read it before the hook
-  // replaces its measurements with this render's rows.
+  const distanceFromEndRef = useRef(0);
+  const viewportHeightRef = useRef(0);
   const virtualizerRef = useRef<TranscriptVirtualizer | null>(null);
   const rowsRef = useRef(rows);
-  // What the rows change below needs from before it: the scroller keeps its
-  // distance from the end through the change, so the top-based offset moves
-  // by however much the list grew.
-  const rowsChangeRef = useRef<{
-    previousOffset: number;
-    previousTotal: number;
-    hold: RowHold | null;
-  } | null>(null);
   if (rowsRef.current !== rows) {
     const previous = virtualizerRef.current;
-    if (previous?.scrollElement) {
-      // A reader following the live edge keeps their distance from it, which
-      // is what the scroller does on its own. Anyone else keeps their row.
-      const follows =
-        !hold && distanceFromEndRef.current <= STICK_TO_BOTTOM_NEAR_PX;
-      rowsChangeRef.current = {
-        previousOffset: previous.scrollOffset ?? 0,
-        previousTotal: previous.getTotalSize(),
-        hold: follows
-          ? null
-          : rowHoldAfterRowsChange(previous, rowsRef.current, rows),
-      };
+    const edge = previous?.getVirtualItemForOffset(previous.scrollOffset ?? 0);
+    // A page replaces its loading boundary. TanStack cannot retain a key
+    // that disappeared; retain the first surviving row below it instead.
+    if (
+      edge &&
+      previous &&
+      !rows.some((row) => transcriptRowKey(row) === edge.key)
+    ) {
+      const nextKeys = new Set(rows.map(transcriptRowKey));
+      const survivor = rowsRef.current.findIndex(
+        (row, index) =>
+          index > edge.index &&
+          row.kind === "message" &&
+          nextKeys.has(transcriptRowKey(row)),
+      );
+      const element = previous.scrollElement;
+      const node = element?.querySelector<HTMLElement>(
+        `[data-index="${survivor}"]`,
+      );
+      const row = rowsRef.current[survivor];
+      if (element && node && row?.kind === "message") {
+        restoreRef.current = {
+          anchorId: row.message.id,
+          anchorCreatedAt: new Date(row.message.createdAt).getTime(),
+          offset:
+            element.getBoundingClientRect().top -
+            node.getBoundingClientRect().top,
+          atLiveEdge: previous.isAtEnd(hold ? 0 : STICK_TO_BOTTOM_NEAR_PX),
+          visibleMessageIds: [],
+        };
+        openedRef.current = false;
+      }
     }
     rowsRef.current = rows;
   }
@@ -365,11 +280,13 @@ export function TranscriptViewport({
   // Called on every scroll and every virtualizer change: chrome that resizes
   // the scroller and rows that grow both move the edge with no scroll event.
   const recordDistance = (element: HTMLElement) => {
-    const distance = Math.max(-element.scrollTop, 0);
+    const distance = Math.max(
+      element.scrollHeight - element.clientHeight - element.scrollTop,
+      0,
+    );
     distanceFromEndRef.current = distance;
     setAtEnd(distance <= STICK_TO_BOTTOM_NEAR_PX);
-    const instance = virtualizerRef.current;
-    if (!instance || restoreRef.current || !positionCallbackRef.current) return;
+    if (restoreRef.current || !positionCallbackRef.current) return;
     const edge = element.getBoundingClientRect();
     // Persist measured DOM coordinates, not estimates that can lag a
     // direct virtualizer layout update by one frame.
@@ -407,56 +324,13 @@ export function TranscriptViewport({
     }
   };
 
-  // Growth at or below the top edge since the last virtualizer change. A
-  // bottom-anchored scroller keeps its distance from the end, so that growth
-  // pushes the rows on screen up; `onChange` puts them back.
-  const growthBelowRef = useRef(0);
-  // Putting them back is a scroll write, and a write during a touch scroll
-  // ends its momentum on iOS. While a scroll is under way the list is pulled
-  // down by a negative bottom margin instead, which hides the growth past
-  // the end of the scroller. Once the scroll is over the margin becomes the
-  // write, in one frame, and nothing on screen moves.
-  const deferredGrowthRef = useRef(0);
-  const touchingRef = useRef(false);
-  const settleDeferredGrowth = (instance: TranscriptVirtualizer) => {
-    const element = instance.scrollElement;
-    const growth = deferredGrowthRef.current;
-    if (
-      !element ||
-      growth === 0 ||
-      instance.isScrolling ||
-      touchingRef.current
-    ) {
-      return;
-    }
-    deferredGrowthRef.current = 0;
-    containerRef.current?.style.removeProperty("margin-bottom");
-    // At the live edge the hidden growth comes into view instead.
-    if (!isAtLiveEdge(element)) {
-      element.scrollTop -= growth;
-    }
-    instance.scrollOffset = topOffsetOf(element);
-  };
-  /** Undo a push up of the rows on screen by `pushedUp` px. */
-  const keepRowsInPlace = (
-    element: HTMLElement,
-    pushedUp: number,
-    scrolling: boolean,
-  ) => {
-    if (pushedUp === 0) {
-      return;
-    }
-    if (!scrolling && !touchingRef.current) {
-      element.scrollTop -= pushedUp;
-      return;
-    }
-    deferredGrowthRef.current += pushedUp;
-    containerRef.current?.style.setProperty(
-      "margin-bottom",
-      `${-deferredGrowthRef.current}px`,
-    );
-  };
-
+  const getItemKey = useCallback(
+    (index: number) => {
+      const row = rows[index];
+      return row ? transcriptRowKey(row) : index;
+    },
+    [rows],
+  );
   const virtualizer = useVirtualizer<HTMLElement, HTMLDivElement>({
     count: rows.length,
     getScrollElement: () => scroller,
@@ -470,13 +344,8 @@ export function TranscriptViewport({
             }
           : undefined,
       ),
-    getItemKey: (index) => {
-      const row = rows[index];
-      return row ? transcriptRowKey(row) : index;
-    },
+    getItemKey,
     rangeExtractor: transcriptRangeExtractor,
-    observeElementOffset: observeBottomAnchoredOffset,
-    scrollToFn: scrollBottomAnchored,
     scrollMargin,
     anchorTo: "end",
     followOnAppend: !hold,
@@ -497,63 +366,60 @@ export function TranscriptViewport({
       if (!element) {
         return;
       }
-      const growth = growthBelowRef.current;
-      growthBelowRef.current = 0;
-      // The distance is still the one from before the growth. A reader
-      // following the live edge keeps it; anyone else keeps their rows. Under
-      // a hold only a view on the edge itself follows a growing row, while a
-      // changed row list (above) is followed by no one.
-      const follows = hold
-        ? isAtLiveEdge(element)
-        : -element.scrollTop <= STICK_TO_BOTTOM_NEAR_PX;
-      if (!follows) {
-        keepRowsInPlace(element, growth, instance.isScrolling);
+      const height = instance.scrollRect?.height ?? 0;
+      const previousHeight = viewportHeightRef.current;
+      viewportHeightRef.current = height;
+      // Composer/keyboard resizing keeps the distance from the end for a
+      // reader following latest. History keeps its normal top offset.
+      if (
+        previousHeight &&
+        height !== previousHeight &&
+        distanceFromEndRef.current <= (hold ? 0 : STICK_TO_BOTTOM_NEAR_PX)
+      ) {
+        instance.scrollToOffset(
+          (instance.scrollOffset ?? 0) + previousHeight - height,
+        );
       }
-      settleDeferredGrowth(instance);
-      // The list's height changed with no scroll event, and with it the
-      // top-based offset of a view that did not move.
-      instance.scrollOffset = topOffsetOf(element);
       recordDistance(element);
     },
   });
-  // An instance property, not an option: as an option it is ignored. The
-  // virtualizer asks before it puts the view back after a row changed height.
-  // It never has to: growth above the view does not move a bottom-anchored
-  // scroller. Growth at or below the top edge does, and is noted here.
-  virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (
-    item,
-    delta,
-    instance,
-  ) => {
-    const offset = instance.scrollOffset ?? 0;
-    // A row measured for the first time grows from its top edge down; one
-    // measured again (a streaming message) grows at its bottom.
-    const above = instance.itemSizeCache.has(item.key)
-      ? item.end <= offset
-      : item.start < offset;
-    if (!above) {
-      growthBelowRef.current += delta;
-    }
-    return false;
-  };
   virtualizerRef.current = virtualizer;
-
   useEffect(() => {
     if (!scroller) {
       return;
     }
-    const record = () => {
-      recordDistance(scroller);
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    const settle = () => {
+      clearTimeout(idleTimer);
+      if (touchingRef.current) return;
+      // Match TanStack's iOS post-touch grace before changing row positions.
+      // Scroll events keep renewing this timer throughout momentum scrolling.
+      idleTimer = setTimeout(() => {
+        if (virtualizer.isScrolling) {
+          settle();
+          return;
+        }
+        scrollingRef.current = false;
+        if (deferredRef.current) releasePage((version) => version + 1);
+      }, 200);
     };
-    let grace: number | undefined;
-    const onTouchStart = () => {
-      window.clearTimeout(grace);
+    const record = () => {
+      scrollingRef.current = true;
+      recordDistance(scroller);
+      settle();
+    };
+    const touchStart = () => {
       touchingRef.current = true;
+      scrollingRef.current = true;
+      clearTimeout(idleTimer);
+    };
+    const touchEnd = () => {
+      touchingRef.current = false;
+      settle();
     };
     // Dragging the transcript means reading, not typing, so the keyboard
     // gets out of the way. On `touchmove` rather than `scroll`: closing the
-    // keyboard resizes the viewport, which scrolls a bottom-anchored
-    // scroller, which would blur again on every keyboard open.
+    // keyboard changes the viewport and can itself emit scroll events.
     const onTouchMove = () => {
       const active = document.activeElement;
       // Only the composer below the transcript. An editor inside the
@@ -567,25 +433,20 @@ export function TranscriptViewport({
         active.blur();
       }
     };
-    const onTouchEnd = () => {
-      window.clearTimeout(grace);
-      grace = window.setTimeout(() => {
-        touchingRef.current = false;
-        settleDeferredGrowth(virtualizer);
-      }, TOUCH_END_GRACE_MS);
-    };
     scroller.addEventListener("scroll", record, { passive: true });
-    scroller.addEventListener("touchstart", onTouchStart, { passive: true });
+    scroller.addEventListener("scrollend", settle, { passive: true });
+    scroller.addEventListener("touchstart", touchStart, { passive: true });
+    scroller.addEventListener("touchend", touchEnd, { passive: true });
+    scroller.addEventListener("touchcancel", touchEnd, { passive: true });
     scroller.addEventListener("touchmove", onTouchMove, { passive: true });
-    scroller.addEventListener("touchend", onTouchEnd, { passive: true });
-    scroller.addEventListener("touchcancel", onTouchEnd, { passive: true });
     return () => {
-      window.clearTimeout(grace);
+      clearTimeout(idleTimer);
       scroller.removeEventListener("scroll", record);
-      scroller.removeEventListener("touchstart", onTouchStart);
+      scroller.removeEventListener("scrollend", settle);
+      scroller.removeEventListener("touchstart", touchStart);
+      scroller.removeEventListener("touchend", touchEnd);
+      scroller.removeEventListener("touchcancel", touchEnd);
       scroller.removeEventListener("touchmove", onTouchMove);
-      scroller.removeEventListener("touchend", onTouchEnd);
-      scroller.removeEventListener("touchcancel", onTouchEnd);
     };
   }, [scroller, virtualizer]);
 
@@ -599,118 +460,55 @@ export function TranscriptViewport({
     const margin = Math.round(
       container.getBoundingClientRect().top -
         scroller.getBoundingClientRect().top +
-        topOffsetOf(scroller),
+        scroller.scrollTop,
     );
     if (margin !== scrollMargin) {
       setScrollMargin(margin);
     }
   });
 
-  // The offset is set before this render's rows mount, so the rows that
-  // mount are the ones the reader will see. With a held row it is that row's
-  // new position, and the scroller is written once the list has its new
-  // height. Without one the scroller has not moved.
-  const rowsChange = rowsChangeRef.current;
-  const writeScrollRef = useRef(false);
-  if (rowsChange) {
-    rowsChangeRef.current = null;
-    // Refreshes the measurements cache for this render's rows.
-    const total = virtualizer.getTotalSize();
-    const rowHold = rowsChange.hold;
-    const item = rowHold
-      ? virtualizer.measurementsCache[
-          rows.findIndex((row) => transcriptRowKey(row) === rowHold.key)
-        ]
-      : undefined;
-    if (rowHold && item) {
-      virtualizer.scrollOffset = Math.max(item.start + rowHold.offset, 0);
-      writeScrollRef.current = true;
-    } else {
-      virtualizer.scrollOffset =
-        rowsChange.previousOffset + total - rowsChange.previousTotal;
-    }
-  }
-  let restoreIndex = -1;
-  if (
-    restoreRef.current &&
-    !restoringRef.current &&
-    scroller &&
-    rows.length > 0
-  ) {
-    const saved = restoreRef.current;
-    const index = retainedPositionIndex(rows, saved);
-    restoreIndex = index;
-    virtualizer.getTotalSize();
-    const item = virtualizer.measurementsCache[index];
-    if (!saved.atLiveEdge && item) {
-      virtualizer.scrollOffset = Math.max(item.start + saved.offset, 0);
-      distanceFromEndRef.current = Infinity;
-      writeScrollRef.current = true;
-    }
-  }
   useLayoutEffect(() => {
+    if (openedRef.current || !scroller || rows.length === 0) return;
+    openedRef.current = true;
     const saved = restoreRef.current;
-    if (saved && !restoringRef.current && scroller && rows.length > 0) {
-      // DOM observers initially report the new scroller's live edge. An
-      // index target survives their first measurements; a numeric offset
-      // can be clamped to the transient DOM height and lose the anchor.
-      restoringRef.current = true;
-      writeScrollRef.current = false;
-      if (saved.atLiveEdge || restoreIndex < 0) {
-        restoreRef.current = undefined;
-        virtualizer.scrollToEnd();
-      } else {
-        virtualizer.scrollToIndex(restoreIndex, { align: "start" });
-        const landing = ++landingRef.current;
-        let frames = 0;
-        let settledFrames = 0;
-        const finishRestore = () => {
-          if (landing !== landingRef.current) return;
-          // Reconciliation may insert/delete rows while the landing settles.
-          // Resolve identity each frame instead of following a stale index.
-          const index = retainedPositionIndex(rowsRef.current, saved);
-          const anchor = scroller.querySelector<HTMLElement>(
-            `[data-index="${index}"]`,
-          );
-          if (!anchor && index >= 0 && index !== restoreIndex) {
-            virtualizer.scrollToIndex(index, { align: "start" });
-          }
-          const correction = anchor
-            ? anchor.getBoundingClientRect().top -
-              scroller.getBoundingClientRect().top +
-              saved.offset
-            : null;
-          if (correction != null && Math.abs(correction) >= 1) {
-            growthBelowRef.current = 0;
-            virtualizer.scrollBy(correction);
-            settledFrames = 0;
-          } else {
-            settledFrames = correction == null ? 0 : settledFrames + 1;
-          }
-          // Hold the measured anchor through late row sizing and the
-          // virtualizer's index reconciliation before publishing position.
-          if (settledFrames < 3 && ++frames < LANDING_FRAMES) {
-            requestAnimationFrame(finishRestore);
-            return;
-          }
-          restoreRef.current = undefined;
-          recordDistance(scroller);
-        };
-        requestAnimationFrame(finishRestore);
+    const index = saved ? retainedPositionIndex(rows, saved) : -1;
+    if (!saved || saved.atLiveEdge || index < 0) {
+      restoreRef.current = undefined;
+      virtualizer.scrollToEnd();
+      return;
+    }
+    virtualizer.scrollToIndex(index, { align: "start" });
+    const landing = ++landingRef.current;
+    let frames = 0;
+    let settledFrames = 0;
+    const finishRestore = () => {
+      if (landing !== landingRef.current) return;
+      const currentIndex = retainedPositionIndex(rowsRef.current, saved);
+      const anchor = scroller.querySelector<HTMLElement>(
+        `[data-index="${currentIndex}"]`,
+      );
+      if (!anchor && currentIndex >= 0 && currentIndex !== index) {
+        virtualizer.scrollToIndex(currentIndex, { align: "start" });
       }
-      return;
-    }
-    if (!writeScrollRef.current || !scroller) {
-      return;
-    }
-    writeScrollRef.current = false;
-    // Rows that only changed above the held one leave it where it is.
-    const target = (virtualizer.scrollOffset ?? 0) - maxScrollOf(scroller);
-    keepRowsInPlace(
-      scroller,
-      Math.round(scroller.scrollTop - target),
-      virtualizer.isScrolling,
-    );
+      const correction = anchor
+        ? anchor.getBoundingClientRect().top -
+          scroller.getBoundingClientRect().top +
+          saved.offset
+        : null;
+      if (correction != null && Math.abs(correction) >= 1) {
+        virtualizer.scrollBy(correction);
+        settledFrames = 0;
+      } else {
+        settledFrames = correction == null ? 0 : settledFrames + 1;
+      }
+      if (settledFrames < 3 && ++frames < LANDING_FRAMES) {
+        requestAnimationFrame(finishRestore);
+        return;
+      }
+      restoreRef.current = undefined;
+      recordDistance(scroller);
+    };
+    requestAnimationFrame(finishRestore);
   });
 
   useImperativeHandle(

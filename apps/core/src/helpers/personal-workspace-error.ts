@@ -7,7 +7,7 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { badRequest, notFound } from "@/helpers/error";
 
-export function rethrowPersonalWorkspaceMissing(error: unknown): never {
+function rethrowPersonalWorkspaceMissing(error: unknown): never {
   if (isPersonalWorkspaceMissingError(error)) {
     throw notFound("Personal workspace is missing", {
       kind: CORE_API_ERROR_KINDS.PERSONAL_WORKSPACE_MISSING,

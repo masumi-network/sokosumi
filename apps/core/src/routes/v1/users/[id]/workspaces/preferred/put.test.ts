@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { forbidden } from "@/helpers/error";
+import { forbidden, notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler.js";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -19,30 +19,24 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const {
-  getUserWorkspaceMock,
-  setPreferredOrganizationIdMock,
-  userFindUniqueMock,
-  workspaceFindUniqueMock,
-} = vi.hoisted(() => ({
-  getUserWorkspaceMock: vi.fn(),
-  setPreferredOrganizationIdMock: vi.fn(),
-  userFindUniqueMock: vi.fn(),
-  workspaceFindUniqueMock: vi.fn(),
-}));
+const { getUserWorkspaceMock, setPreferredWorkspaceMock, userFindUniqueMock } =
+  vi.hoisted(() => ({
+    getUserWorkspaceMock: vi.fn(),
+    setPreferredWorkspaceMock: vi.fn(),
+    userFindUniqueMock: vi.fn(),
+  }));
 
 vi.mock("@/helpers/user-workspaces", () => ({
   getUserWorkspace: getUserWorkspaceMock,
 }));
 
-vi.mock("@/services/preferred-organization.service", () => ({
-  setPreferredOrganizationId: setPreferredOrganizationIdMock,
+vi.mock("@/services/preferred-workspace.service", () => ({
+  setPreferredWorkspace: setPreferredWorkspaceMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     user: { findUnique: userFindUniqueMock },
-    workspace: { findUnique: workspaceFindUniqueMock },
   },
 }));
 
@@ -83,13 +77,10 @@ describe("PUT /users/{id}/workspaces/preferred", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
+    setPreferredWorkspaceMock.mockResolvedValue(undefined);
   });
 
   it("prefers the caller's personal workspace", async () => {
-    workspaceFindUniqueMock.mockResolvedValue({
-      userId: "user_123",
-      organizationId: null,
-    });
     const workspace = {
       id: WORKSPACE_ID,
       kind: "personal",
@@ -106,17 +97,13 @@ describe("PUT /users/{id}/workspaces/preferred", () => {
 
     expect(response.status).toBe(200);
     expect((await response.json()).data).toEqual(workspace);
-    expect(setPreferredOrganizationIdMock).toHaveBeenCalledWith(
+    expect(setPreferredWorkspaceMock).toHaveBeenCalledWith(
       "user_123",
-      null,
+      WORKSPACE_ID,
     );
   });
 
   it("prefers an organization workspace", async () => {
-    workspaceFindUniqueMock.mockResolvedValue({
-      userId: null,
-      organizationId: "org_1",
-    });
     getUserWorkspaceMock.mockResolvedValue({
       id: WORKSPACE_ID,
       kind: "organization",
@@ -131,18 +118,14 @@ describe("PUT /users/{id}/workspaces/preferred", () => {
     const response = await put({ workspaceId: WORKSPACE_ID });
 
     expect(response.status).toBe(200);
-    expect(setPreferredOrganizationIdMock).toHaveBeenCalledWith(
+    expect(setPreferredWorkspaceMock).toHaveBeenCalledWith(
       "user_123",
-      "org_1",
+      WORKSPACE_ID,
     );
   });
 
   it("returns 403 for an organization the caller is not a member of", async () => {
-    workspaceFindUniqueMock.mockResolvedValue({
-      userId: null,
-      organizationId: "org_1",
-    });
-    setPreferredOrganizationIdMock.mockRejectedValue(
+    setPreferredWorkspaceMock.mockRejectedValue(
       forbidden("The user is not a member of the organization"),
     );
 
@@ -151,19 +134,14 @@ describe("PUT /users/{id}/workspaces/preferred", () => {
     expect(response.status).toBe(403);
   });
 
-  it.each([
-    ["an unknown workspace", null],
-    [
-      "another user's personal workspace",
-      { userId: "user_456", organizationId: null },
-    ],
-  ])("returns 404 for %s", async (_label, workspace) => {
-    workspaceFindUniqueMock.mockResolvedValue(workspace);
+  it("returns 404 when the workspace is not the user's", async () => {
+    setPreferredWorkspaceMock.mockRejectedValue(
+      notFound("Workspace not found"),
+    );
 
     const response = await put({ workspaceId: WORKSPACE_ID });
 
     expect(response.status).toBe(404);
-    expect(setPreferredOrganizationIdMock).not.toHaveBeenCalled();
   });
 
   it("returns 422 for a body without a workspace id", async () => {

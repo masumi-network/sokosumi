@@ -86,6 +86,18 @@ app.openAPIRegistry.registerComponent("parameters", "ContextOrganizationId", {
   },
 });
 
+app.openAPIRegistry.registerComponent("parameters", "SokosumiClient", {
+  name: "X-Sokosumi-Client",
+  in: "header",
+  description:
+    "Native Mac app build, `macos/<build>`. A build older than the minimum gets 426 with `kind: client_update_required` on every operation (ADR 0053).",
+  required: false,
+  schema: {
+    type: "string",
+    example: "macos/8040",
+  },
+});
+
 app.use(
   "*",
   cors({
@@ -111,7 +123,8 @@ app.doc31("/openapi.json", {
   info: {
     version: "1.0.0",
     title: "Sokosumi API",
-    description: "Sokosumi API documentation.",
+    description:
+      "Sokosumi API documentation.\n\nEvery operation can also answer 426 `client_update_required` to an outdated Apple build (see the `X-Sokosumi-Client` parameter), and a path or method Core does not serve answers 404 `route_not_found`.",
   },
   servers: [
     {

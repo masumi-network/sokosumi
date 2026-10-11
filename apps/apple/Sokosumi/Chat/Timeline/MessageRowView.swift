@@ -40,6 +40,32 @@ import SwiftUI
     }
   }
 
+  /// Whether the reader is scrolling the room or Thread transcript around a row (M8). An object rather than an
+  /// environment value: only a row under the pointer reads it, so a scroll starting or ending re-evaluates that row
+  /// alone, where a changed environment value reached every realized row.
+  @MainActor @Observable final class TranscriptScrollActivity {
+    var isScrolling = false
+    /// Older-page insertion waits for native idle, including programmatic animations.
+    var isAtRest = true
+
+    func update(for phase: ScrollPhase) {
+      let scrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+      if isScrolling != scrolling {
+        isScrolling = scrolling
+      }
+      let atRest = phase == .idle
+      if isAtRest != atRest {
+        isAtRest = atRest
+      }
+    }
+  }
+
+  extension EnvironmentValues {
+    @Entry var transcriptScrollActivity: TranscriptScrollActivity?
+    /// How long the pointer rests on a row before its hover fill and action bar show (M8).
+    @Entry var messageHoverDelay: Duration = .milliseconds(200)
+  }
+
   struct MessageRowView: View {
     /// Avatar edge: web uses 32px, but that reads oversized next to the
     /// native sidebar (28pt "me" avatar), so the transcript matches in-app.
@@ -92,6 +118,8 @@ import SwiftUI
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
     @Environment(\.timeFormat) private var timeFormat
+    @Environment(\.transcriptScrollActivity) private var scrollActivity
+    @Environment(\.messageHoverDelay) private var hoverDelay
     @State private var quickReactions = ReactionEmojiHistory.defaultQuickReactions
     @State private var showsReactionPicker = false
     @State private var confirmsDeletion = false
@@ -101,6 +129,8 @@ import SwiftUI
     @State private var sentToSelf: Components.Schemas.ChatRoomMessage?
     @State private var failure: Failure?
     @State private var isHovered = false
+    /// The pointer has stayed on the row for `hoverDelay` while the transcript was still (M8).
+    @State private var hoverRested = false
     @State private var isReplyHovered = false
     @State private var hoveredAction: MessageAction?
     @ScaledMetric(relativeTo: .body) private var replyActionHeight: CGFloat = 28
@@ -119,8 +149,26 @@ import SwiftUI
       let message: String
     }
 
+    private var transcriptIsScrolling: Bool {
+      scrollActivity?.isScrolling == true
+    }
+
+    /// M8: the hover fill and action bar wait for a resting pointer and never ride a scroll past it. Web delays
+    /// the bar by the same 200 ms (`MESSAGE_ACTIONS_PILL_REVEAL_DELAY_CLASS`).
+    private var showsHoverChrome: Bool {
+      (isHovered || isReplyHovered) && hoverRested && !transcriptIsScrolling
+    }
+
+    /// Keyboard focus and the open picker show the bar at once.
     private var showsActions: Bool {
-      isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker
+      showsHoverChrome || focusedAction != nil || showsReactionPicker
+    }
+
+    /// The bar exists only while the pointer is on the row or the bar shows, hidden until it does: a hidden bar on
+    /// every realized row cost SwiftUI layout and hit testing on every scroll step (M6). The keyboard and VoiceOver
+    /// reach every action through the row's menu and accessibility actions (M7).
+    private var buildsActionBar: Bool {
+      isHovered || isReplyHovered || showsActions
     }
 
     /// Persisted mention shell (thinking or failed); nil for ordinary rows.
@@ -270,8 +318,6 @@ import SwiftUI
         } else {
           ParticipantProfileButton(sender: message.sender) { avatarView }
         }
-        // Header-to-body rhythm mirrors web: space-y-1.5 (6pt) under the
-        // header, and gap-x-2.5 (10pt) between name and time.
         VStack(alignment: .leading, spacing: 6) {
           if isContinuation, isPinned, message.deletedAt == nil {
             pinnedLabel
@@ -383,11 +429,10 @@ import SwiftUI
       .background {
         if let jumpMark {
           JumpMarkBackground(mark: jumpMark)
-        } else if isHovered || isReplyHovered, showsActionChrome {
+        } else if showsHoverChrome, showsActionChrome {
           Color.primary.opacity(0.04)
         }
       }
-      // Web's `absolute end-2 bottom-1`: the action pill's trailing edge, at the bottom of the row.
       .overlay(alignment: .bottomTrailing) {
         if let seenBy {
           SeenByButton(seenBy: seenBy)
@@ -396,7 +441,7 @@ import SwiftUI
         }
       }
       .overlay(alignment: .topTrailing) {
-        if showsActionChrome {
+        if showsActionChrome, buildsActionBar {
           ViewThatFits(in: .horizontal) {
             actionControls(compact: false)
             actionControls(compact: true)
@@ -441,6 +486,14 @@ import SwiftUI
         }
         if isHovered != hovering {
           isHovered = hovering
+        }
+      }
+      .task(id: (isHovered || isReplyHovered) && !transcriptIsScrolling) {
+        hoverRested = false
+        guard isHovered || isReplyHovered, !transcriptIsScrolling else { return }
+        try? await Task.sleep(for: hoverDelay)
+        if !Task.isCancelled {
+          hoverRested = true
         }
       }
       .alert(failure?.title ?? "", item: $failure) { _ in
@@ -581,7 +634,7 @@ import SwiftUI
     }
 
     /// Web `SokoBotFeedbackButtons`: an icon-only control; the chosen one fills, and both lock at half strength
-    /// (web's `disabled:opacity-50`) while the rating is sent and once it stuck.
+    /// while the rating is sent and once it stuck.
     private func sokoBotFeedbackButton(_ feedback: SokoBotFeedback, useful: Bool) -> some View {
       let focus = MessageAction.feedback(useful: useful)
       let chosen = feedback.isChosen(useful: useful)

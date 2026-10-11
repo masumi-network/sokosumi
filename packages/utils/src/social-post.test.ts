@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_MEDIA_REQUIREMENTS,
   SOCIAL_POST_MEDIA_RULES,
+  SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
+  SOCIAL_POST_TEXT_MAX,
   SOCIAL_POST_TEXT_REQUIRED,
   type SocialPostMediaRef,
   socialPostMaxBytesForKind,
@@ -73,6 +76,13 @@ describe("per-provider limits and requirements", () => {
   ] as const)("labels %s as %s", (provider, label) => {
     expect(socialPostProviderLabel(provider)).toBe(label);
   });
+
+  it("exposes the strictest request bounds and the schedule lead", () => {
+    expect(SOCIAL_POST_TEXT_MAX).toBe(SOCIAL_POST_TEXT_LIMITS.facebook);
+    expect(SOCIAL_POST_MEDIA_MAX).toBe(4);
+    expect(SOCIAL_POST_MIN_SCHEDULE_LEAD_MS).toBe(60_000);
+    expect(SOCIAL_POST_TEXT_MAX).toBeGreaterThan(SOCIAL_POST_TEXT_LIMITS.x);
+  });
 });
 
 describe("socialPostMaxBytesForKind", () => {
@@ -108,6 +118,7 @@ describe("socialPostMediaKindForMime", () => {
     ["video/mp4", "video"],
     ["video/quicktime", "video"],
     ["IMAGE/PNG", "image"],
+    ["  image/png  ", "image"],
   ])("maps %s to %s", (mime, kind) => {
     expect(socialPostMediaKindForMime(mime)).toBe(kind);
   });
@@ -191,6 +202,12 @@ describe("validateSocialPostMedia", () => {
         ref({ mimeType: "image/svg+xml", kind: "image" }),
       ]),
     ).toEqual({ ok: false, reason: "unsupported_type" });
+  });
+
+  it("accepts a padded mime type the provider already allows", () => {
+    expect(
+      validateSocialPostMedia("x", [ref({ mimeType: "  image/png  " })]),
+    ).toEqual({ ok: true });
   });
 
   it("rejects a kind that does not match the mime type", () => {
