@@ -53,16 +53,26 @@ describe("socialPostComposerIssue", () => {
   );
 });
 
+function accounts(
+  providers: readonly ("x" | "instagram" | "youtube" | "facebook")[],
+  text: string,
+) {
+  return providers.map((provider) => ({ provider, text }));
+}
+
 describe("socialPostComposerRequirements", () => {
   it("names every selected provider that still needs text or media", () => {
-    expect(socialPostComposerRequirements(["x"], "", [])).toEqual([
+    expect(socialPostComposerRequirements(accounts(["x"], ""), [])).toEqual([
       { provider: "x", issue: "text_or_media_required" },
     ]);
     expect(
-      socialPostComposerRequirements(["x", "instagram"], "Hello", []),
+      socialPostComposerRequirements(accounts(["x", "instagram"], "Hello"), []),
     ).toEqual([{ provider: "instagram", issue: "media_required" }]);
     expect(
-      socialPostComposerRequirements(["x", "instagram", "youtube"], "", []),
+      socialPostComposerRequirements(
+        accounts(["x", "instagram", "youtube"], ""),
+        [],
+      ),
     ).toEqual([
       { provider: "x", issue: "text_or_media_required" },
       { provider: "instagram", issue: "media_required" },
@@ -71,9 +81,21 @@ describe("socialPostComposerRequirements", () => {
   });
 
   it("says add text or media once when several networks share that rule", () => {
-    expect(socialPostComposerRequirements(["x", "facebook"], "", [])).toEqual([
-      { provider: "x", issue: "text_or_media_required" },
-    ]);
+    expect(
+      socialPostComposerRequirements(accounts(["x", "facebook"], ""), []),
+    ).toEqual([{ provider: "x", issue: "text_or_media_required" }]);
+  });
+
+  it("checks each account's own text", () => {
+    expect(
+      socialPostComposerRequirements(
+        [
+          { provider: "x", text: "Short" },
+          { provider: "linkedin", text: "" },
+        ],
+        [],
+      ),
+    ).toEqual([{ provider: "linkedin", issue: "text_required" }]);
   });
 });
 

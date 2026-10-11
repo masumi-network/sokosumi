@@ -68,6 +68,11 @@ import {
   socialPostComposerRequirements,
 } from "./social-post-composer-rules";
 import {
+  type SocialPostComposerText,
+  socialPostTextFor,
+  socialPostTextWrite,
+} from "./social-post-composer-text";
+import {
   buildSocialPostMediaRef,
   hasSocialPostMedia,
   sameSocialPostMedia,
@@ -236,7 +241,11 @@ export function SocialPostComposerDialog({
   const organizationId = session?.session.activeOrganizationId ?? null;
   const driveStore = driveStoreForActiveWorkspace(organizationId);
 
-  const [text, setText] = useState(post?.text ?? "");
+  const [copy, setCopy] = useState<SocialPostComposerText>({
+    shared: post?.text ?? "",
+    byConnectionId: {},
+    lastSharedEditId: null,
+  });
   const [media, setMedia] = useState<SocialPostMediaRef[]>(
     post?.media ? [...post.media] : [],
   );
@@ -297,26 +306,54 @@ export function SocialPostComposerDialog({
     )?.provider ??
     post?.provider ??
     providers[0];
-  // One text goes to every selected account, so the strictest one rules.
+  // Media errors still name the strictest selected provider.
   const provider = providers.reduce((strictest, candidate) =>
     SOCIAL_POST_TEXT_LIMITS[candidate] < SOCIAL_POST_TEXT_LIMITS[strictest]
       ? candidate
       : strictest,
   );
-  const textLimit = SOCIAL_POST_TEXT_LIMITS[provider];
   const accept = socialPostComposerAccept(providers);
-  const issueProvider =
-    providers.find(
-      (candidate) => socialPostComposerIssue(candidate, text, media) !== null,
-    ) ?? provider;
-  const composerIssue = socialPostComposerIssue(issueProvider, text, media);
-  const requirementHints = socialPostComposerRequirements(
-    providers,
-    text,
-    media,
+  function textFor(connectionId: string | null | undefined): string {
+    return socialPostTextFor(connectionId, copy);
+  }
+  function setDisplayedText(next: string): void {
+    setCopy((current) =>
+      socialPostTextWrite(
+        previewConnection?.id,
+        next,
+        current,
+        multiAccount && selectedConnections.length > 1,
+      ),
+    );
+  }
+  const displayedText = textFor(previewConnection?.id);
+  const displayedLimit =
+    SOCIAL_POST_TEXT_LIMITS[previewConnection?.provider ?? provider];
+  const displayedOverLimit = displayedText.length > displayedLimit;
+  const accountTexts =
+    selectedConnections.length > 0
+      ? selectedConnections.map((connection) => ({
+          provider: connection.provider,
+          text: textFor(connection.id),
+        }))
+      : providers.map((candidate) => ({
+          provider: candidate,
+          text: copy.shared,
+        }));
+  const issueAccount =
+    accountTexts.find(
+      (account) =>
+        socialPostComposerIssue(account.provider, account.text, media) !== null,
+    ) ?? accountTexts[0];
+  const composerIssue = issueAccount
+    ? socialPostComposerIssue(issueAccount.provider, issueAccount.text, media)
+    : null;
+  const requirementHints = socialPostComposerRequirements(accountTexts, media);
+  const trimmedText = displayedText.trim();
+  const overLimit = accountTexts.some(
+    (account) =>
+      account.text.length > SOCIAL_POST_TEXT_LIMITS[account.provider],
   );
-  const trimmedText = text.trim();
-  const overLimit = text.length > textLimit;
   const mediaValid = providers.every(
     (candidate) => validateSocialPostMedia(candidate, media).ok,
   );
@@ -577,7 +614,7 @@ export function SocialPostComposerDialog({
       for (const connection of selectedConnections) {
         const created = await createProjectSocialPost({
           projectId,
-          text: trimmedText,
+          text: textFor(connection.id).trim(),
           media,
           socialConnectionId: connection.id,
         });
@@ -699,7 +736,7 @@ export function SocialPostComposerDialog({
       const created = await createForEachAccount((socialConnectionId) =>
         createProjectSocialPost({
           projectId,
-          text: trimmedText,
+          text: textFor(socialConnectionId).trim(),
           media,
           socialConnectionId,
         }),
@@ -725,7 +762,7 @@ export function SocialPostComposerDialog({
         const created = await createForEachAccount((socialConnectionId) =>
           createProjectSocialPost({
             projectId,
-            text: trimmedText,
+            text: textFor(socialConnectionId).trim(),
             media,
             socialConnectionId,
             scheduledAt: scheduledAtIso,
@@ -804,7 +841,9 @@ export function SocialPostComposerDialog({
     </div>
   );
 
-  const hasContent = trimmedText !== "" || media.length > 0;
+  const hasContent =
+    media.length > 0 ||
+    accountTexts.some((account) => account.text.trim() !== "");
   const footerMessage = scheduledAtTooSoon ? (
     <p id={scheduledAtErrorId} className="text-destructive">
       {t("composer.scheduledAtTooSoon")}
@@ -977,16 +1016,24 @@ export function SocialPostComposerDialog({
 
             {isScheduleOnly ? null : (
               <div className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8">
+                {selectedConnections.length > 1 ? (
+                  <p
+                    className="text-muted-foreground text-xs"
+                    data-testid="social-post-text-for-account"
+                  >
+                    {t("composer.textForAccount")}
+                  </p>
+                ) : null}
                 <textarea
                   id={textId}
-                  aria-invalid={overLimit || undefined}
+                  aria-invalid={displayedOverLimit || undefined}
                   aria-label={t("composer.text")}
                   className="placeholder:text-muted-foreground field-sizing-content min-h-40 w-full resize-none border-0 bg-transparent px-0 text-base leading-relaxed shadow-none outline-none"
                   disabled={isBusy}
-                  onChange={(event) => setText(event.target.value)}
+                  onChange={(event) => setDisplayedText(event.target.value)}
                   placeholder={t("composer.textPlaceholder")}
                   ref={textareaRef}
-                  value={text}
+                  value={displayedText}
                 />
                 {media.length > 0 ? mediaStrip : null}
                 <div className="flex flex-wrap items-center gap-1">
@@ -1029,47 +1076,51 @@ export function SocialPostComposerDialog({
                     aria-live="polite"
                     className={cn(
                       "ms-auto text-xs tabular-nums",
-                      overLimit ? "text-destructive" : "text-muted-foreground",
+                      displayedOverLimit
+                        ? "text-destructive"
+                        : "text-muted-foreground",
                     )}
                     data-testid="social-post-character-count"
                   >
                     {t("composer.characters", {
-                      count: text.length,
-                      limit: textLimit,
+                      count: displayedText.length,
+                      limit: displayedLimit,
                     })}
                   </span>
                 </div>
                 {/* One platform: the count above already is its limit. */}
-                {providers.length > 1 ? (
+                {accountTexts.length > 1 ? (
                   <ul
                     aria-label={t("composer.platforms")}
                     className="flex flex-wrap gap-x-4 gap-y-1 text-xs"
                     data-testid="social-post-platforms"
                   >
-                    {providers.map((candidate) => {
-                      const limit = SOCIAL_POST_TEXT_LIMITS[candidate];
-                      const over = text.length > limit;
+                    {accountTexts.map((account, index) => {
+                      const limit = SOCIAL_POST_TEXT_LIMITS[account.provider];
+                      const over = account.text.length > limit;
                       return (
                         <li
                           className={cn(
                             "inline-flex items-center gap-1.5",
                             over ? "text-destructive" : "text-muted-foreground",
                           )}
-                          data-testid={`social-post-platform-${candidate}`}
-                          key={candidate}
+                          data-testid={`social-post-platform-${account.provider}`}
+                          key={`${account.provider}-${index}`}
                         >
                           <SocialPostProviderIcon
                             aria-hidden
                             className="size-3.5"
-                            provider={candidate}
+                            provider={account.provider}
                           />
                           <span>
                             {t("composer.platformLimit", {
-                              provider: socialPostProviderLabel(candidate),
-                              format: t(
-                                `composer.formats.${socialPostComposerFormat(candidate)}`,
+                              provider: socialPostProviderLabel(
+                                account.provider,
                               ),
-                              count: text.length,
+                              format: t(
+                                `composer.formats.${socialPostComposerFormat(account.provider)}`,
+                              ),
+                              count: account.text.length,
                               limit,
                             })}
                           </span>
@@ -1196,7 +1247,7 @@ export function SocialPostComposerDialog({
                 className={cn(!hasContent && "opacity-60")}
                 media={media}
                 provider={previewProvider}
-                text={hasContent ? text : t("composer.previewEmpty")}
+                text={hasContent ? displayedText : t("composer.previewEmpty")}
                 timestamp={scheduledAtValid ? scheduledDate : null}
               />
             </aside>
