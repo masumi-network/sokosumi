@@ -54,17 +54,17 @@ const MESSAGES: Record<string, string> = {
   "status.pending": "Connection pending",
   "status.reauthorization_required": "Reconnection required",
   unknownHandle: "Unknown account",
-  "replaceDialog.title": "Replace this account?",
+  "replaceDialog.title": "Replace {account}?",
   "replaceDialog.description":
     "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
   "replaceDialog.confirm": "Replace account",
-  "disconnectDialog.title": "Disconnect this account?",
+  "disconnectDialog.title": "Disconnect {account}?",
   "disconnectDialog.description":
     "This project will no longer be authorized to use this account.",
   "disconnectDialog.confirm": "Disconnect account",
   cancel: "Cancel",
-  "success.connected": "Account connected.",
-  "success.disconnected": "Account disconnected.",
+  "success.connected": "{account} connected.",
+  "success.disconnected": "{account} disconnected.",
   "warning.providerRevocationFailed":
     "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
   "errors.notConfigured":
@@ -578,7 +578,7 @@ describe("ProjectSocialAccounts", () => {
         });
       });
       expect(calls).toEqual(["complete", "finalize"]);
-      expect(toastSuccessMock).toHaveBeenCalledWith("Account connected.");
+      expect(toastSuccessMock).toHaveBeenCalledWith("@sokosumi connected.");
       expect(refreshMock).toHaveBeenCalledOnce();
       expect(MockBroadcastChannel.instances[0]?.close).toHaveBeenCalledOnce();
     },
@@ -1034,6 +1034,7 @@ describe("ProjectSocialAccounts", () => {
 
     await chooseAccountAction(user, "Replace");
     const replaceDialog = screen.getByRole("alertdialog");
+    expect(replaceDialog).toHaveAccessibleName("Replace @sokosumi?");
     expect(replaceDialog).toHaveTextContent(
       "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
     );
@@ -1051,6 +1052,7 @@ describe("ProjectSocialAccounts", () => {
 
     await chooseAccountAction(user, "Disconnect");
     const disconnectDialog = screen.getByRole("alertdialog");
+    expect(disconnectDialog).toHaveAccessibleName("Disconnect @sokosumi?");
     expect(disconnectProjectSocialConnection).not.toHaveBeenCalled();
     await user.click(
       within(disconnectDialog).getByRole("button", {
@@ -1063,7 +1065,7 @@ describe("ProjectSocialAccounts", () => {
         socialConnectionId: "connection-1",
       });
     });
-    expect(toastSuccessMock).toHaveBeenCalledWith("Account disconnected.");
+    expect(toastSuccessMock).toHaveBeenCalledWith("@sokosumi disconnected.");
   });
 
   it("returns focus to the account menu when a confirmation is canceled", async () => {

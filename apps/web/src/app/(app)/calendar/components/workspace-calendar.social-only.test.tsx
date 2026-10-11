@@ -150,6 +150,7 @@ const POST: SocialPostCalendarItem = {
   attachmentCount: 0,
   previewMedia: null,
   scheduledAt: new Date("2030-01-03T09:00:00.000Z"),
+  lastAttempt: null,
   sourceId: "project:project-1",
   sourceProjectId: "project-1",
   sourceWorkspaceId: "workspace-1",

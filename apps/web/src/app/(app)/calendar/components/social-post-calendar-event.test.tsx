@@ -23,6 +23,7 @@ const item: SocialPostCalendarItem = {
   sourceId: "project:project",
   sourceType: "PROJECT",
   scheduledAt: new Date("2026-09-23T12:00:00Z"),
+  lastAttempt: null,
   text: "Launch news",
   externalHandle: "team",
   status: "SCHEDULED",
@@ -141,6 +142,56 @@ describe("Social post calendar event", () => {
   it("names a failed post on the compact workspace chip too", () => {
     renderCard({ status: "FAILED" }, "compact");
     expect(screen.getByText("Failed")).toBeVisible();
+  });
+  it("describes a failed chip without showing the provider error", () => {
+    renderCard({
+      status: "FAILED",
+      lastAttempt: { outcome: "failed_permanent", errorKind: "rejected" },
+    });
+    const chip = screen.getByTestId("social-post-status-reason");
+    expect(chip).toHaveAccessibleName("Failed");
+    expect(chip).toHaveAccessibleDescription(
+      "The platform rejected this post.",
+    );
+    expect(
+      screen.queryByText(/403|Duplicate|rejected the post/i),
+    ).not.toBeInTheDocument();
+  });
+  it("opens the reason on tap without opening the post", () => {
+    openPreview.current = vi.fn();
+    renderCard({
+      status: "FAILED",
+      lastAttempt: {
+        outcome: "connection_inactive",
+        errorKind: null,
+      },
+    });
+    fireEvent.click(screen.getByTestId("social-post-status-reason"));
+    expect(openPreview.current).not.toHaveBeenCalled();
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "Account disconnected. Reconnect to retry.",
+    );
+  });
+  it("opens the missed reason on keyboard focus", () => {
+    renderCard({
+      status: "MISSED",
+      lastAttempt: { outcome: "missed", errorKind: null },
+    });
+    fireEvent.focus(screen.getByTestId("social-post-status-reason"));
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "Missed the scheduled time.",
+    );
+  });
+  it("falls back to generic copy when the kind is unknown", () => {
+    renderCard({
+      status: "FAILED",
+      lastAttempt: { outcome: "failed_permanent", errorKind: "unknown" },
+    });
+    expect(
+      screen.getByTestId("social-post-status-reason"),
+    ).toHaveAccessibleDescription(
+      "Couldn't publish. Open the post for details.",
+    );
   });
   it("opens the exact post and shows the X brand, project, scheduler, and attachments", () => {
     renderCard();

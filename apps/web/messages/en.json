@@ -2381,19 +2381,19 @@
           "disconnected": "Disconnected"
         },
         "replaceDialog": {
-          "title": "Replace this account?",
+          "title": "Replace {account}?",
           "description": "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
           "confirm": "Replace account"
         },
         "disconnectDialog": {
-          "title": "Disconnect this account?",
+          "title": "Disconnect {account}?",
           "description": "This project will no longer be authorized to use this account.",
           "confirm": "Disconnect account"
         },
         "cancel": "Cancel",
         "success": {
-          "connected": "Account connected.",
-          "disconnected": "Account disconnected."
+          "connected": "{account} connected.",
+          "disconnected": "{account} disconnected."
         },
         "warning": {
           "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings."
@@ -2426,7 +2426,19 @@
         "moreActions": "Post actions",
         "noAccount": "No account",
         "outcomes": {
-          "authorizationRevoked": "Coworker scheduling access was revoked. Reschedule this post to publish it."
+          "authorizationRevoked": "Coworker scheduling access was revoked. Reschedule this post to publish it.",
+          "connectionInactive": "Account disconnected. Reconnect to retry.",
+          "missed": "Missed the scheduled time."
+        },
+        "failures": {
+          "rateLimited": "Rate limited. Try again later.",
+          "timeout": "Timed out. Try again.",
+          "unauthorized": "Reconnect the account.",
+          "unavailable": "The platform is down. Try again later.",
+          "rejected": "The platform rejected this post.",
+          "mediaMissing": "A file is missing.",
+          "mediaType": "That file type is not allowed.",
+          "generic": "Couldn't publish. Open the post for details."
         },
         "sections": {
           "calendar": "Calendar",
@@ -2534,7 +2546,8 @@
           "connectAccount": "Connect account",
           "dismiss": "Cancel",
           "previewEmpty": "Your post shows here as you write.",
-          "pickAccount": "Pick an account to post to."
+          "pickAccount": "Pick an account to post to.",
+          "tooLong": "Text length is over the limit."
         },
         "cancelDialog": {
           "title": "Cancel this post?",
@@ -2662,6 +2675,8 @@
             "keyMetrics": "Key metrics",
             "sparkline": "{metric} over the selected days",
             "accountTabs": "Connected accounts",
+            "trends": "Performance over time",
+            "trendMetric": "Chart metric",
             "consistency": "Posting consistency",
             "consistencyEmpty": "No published posts in the collected history yet.",
             "consistencySummary": "{posts, plural, one {# post} other {# posts}} across {active, plural, one {# active day} other {# active days}} from {from} to {until}.",
