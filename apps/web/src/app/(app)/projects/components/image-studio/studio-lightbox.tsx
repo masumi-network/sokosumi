@@ -113,6 +113,7 @@ export function StudioLightbox({
                   aria-label={labels.captionLabel}
                   className="mt-1.5"
                   id="studio-asset-caption"
+                  maxLength={500}
                   onChange={(event) => onCaptionChange(event.target.value)}
                   value={caption}
                 />

@@ -148,6 +148,10 @@ describe("write a caption", () => {
     expect(screen.getByLabelText("captionLabel")).toHaveValue(
       "Late sun on a red fox.",
     );
+    expect(screen.getByLabelText("captionLabel")).toHaveAttribute(
+      "maxLength",
+      "500",
+    );
   });
 
   it("keeps the reader on the image when writing fails", async () => {
