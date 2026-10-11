@@ -230,6 +230,16 @@ export const socialPostCalendarItemSchema = z
         description: "The post's first attachment, for a thumbnail.",
       }),
     scheduledAt: dateTimeSchema,
+    lastAttempt: z
+      .object({
+        outcome: z.string().nullable(),
+        errorKind: z.string().nullable(),
+      })
+      .nullable()
+      .openapi({
+        description:
+          "Latest publish attempt outcome and error kind for Failed and Missed chips. Never the raw provider error.",
+      }),
     sourceId: z.string(),
     sourceProjectId: z.uuid(),
     sourceWorkspaceId: z.uuid(),

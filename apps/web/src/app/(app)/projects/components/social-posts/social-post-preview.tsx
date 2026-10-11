@@ -342,7 +342,7 @@ function InstagramPreview({
         data-testid="social-post-preview-instagram-frame"
       >
         {first ? (
-          <PreviewMediaItem media={first} />
+          <PreviewMediaItem media={first} showPlay />
         ) : (
           <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
             {t("instagram.mediaRequired")}
@@ -377,7 +377,7 @@ function InstagramPreview({
             ) : null}
           </p>
         ) : null}
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-2xs uppercase">
           {timestamp
             ? formatter.dateTime(timestamp, { month: "long", day: "numeric" })
             : t("now")}

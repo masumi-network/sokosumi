@@ -2381,19 +2381,19 @@
           "disconnected": "Getrennt"
         },
         "replaceDialog": {
-          "title": "Dieses Konto ersetzen?",
+          "title": "{account} ersetzen?",
           "description": "Alle Entwürfe und geplanten Beiträge dieses Kontos werden auf das neue Konto übertragen. Wenn du sie hier behalten willst, füge ein neues Konto hinzu, statt zu ersetzen.",
           "confirm": "Konto ersetzen"
         },
         "disconnectDialog": {
-          "title": "Dieses Konto trennen?",
+          "title": "{account} trennen?",
           "description": "Dieses Projekt ist dann nicht mehr berechtigt, dieses Konto zu verwenden.",
           "confirm": "Konto trennen"
         },
         "cancel": "Abbrechen",
         "success": {
-          "connected": "Konto verbunden.",
-          "disconnected": "Konto getrennt."
+          "connected": "{account} verbunden.",
+          "disconnected": "{account} getrennt."
         },
         "warning": {
           "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe den Zugriff in deinen Kontoeinstellungen."
@@ -2426,7 +2426,19 @@
         "moreActions": "Beitragsaktionen",
         "noAccount": "Kein Konto",
         "outcomes": {
-          "authorizationRevoked": "Der Planungszugriff des Coworkers wurde widerrufen. Plane diesen Beitrag neu, um ihn zu veröffentlichen."
+          "authorizationRevoked": "Der Planungszugriff des Coworkers wurde widerrufen. Plane diesen Beitrag neu, um ihn zu veröffentlichen.",
+          "connectionInactive": "Konto getrennt. Verbinde es erneut.",
+          "missed": "Der geplante Zeitpunkt wurde verpasst."
+        },
+        "failures": {
+          "rateLimited": "Zu viele Anfragen. Versuche es später erneut.",
+          "timeout": "Zeitüberschreitung. Versuche es erneut.",
+          "unauthorized": "Verbinde das Konto erneut.",
+          "unavailable": "Die Plattform ist nicht erreichbar. Versuche es später erneut.",
+          "rejected": "Die Plattform hat diesen Beitrag abgelehnt.",
+          "mediaMissing": "Eine Datei fehlt.",
+          "mediaType": "Dieser Dateityp ist nicht erlaubt.",
+          "generic": "Veröffentlichung fehlgeschlagen. Öffne den Beitrag für Details."
         },
         "sections": {
           "calendar": "Kalender",
@@ -2534,7 +2546,8 @@
           "connectAccount": "Konto verbinden",
           "dismiss": "Abbrechen",
           "previewEmpty": "Hier erscheint dein Beitrag, während du schreibst.",
-          "pickAccount": "Wähle ein Konto, auf dem gepostet wird."
+          "pickAccount": "Wähle ein Konto, auf dem gepostet wird.",
+          "tooLong": "Die Textlänge überschreitet das Limit."
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
@@ -2662,6 +2675,8 @@
             "keyMetrics": "Kennzahlen",
             "sparkline": "{metric} an den ausgewählten Tagen",
             "accountTabs": "Verbundene Konten",
+            "trends": "Leistung im Zeitverlauf",
+            "trendMetric": "Diagrammkennzahl",
             "consistency": "Veröffentlichungsrhythmus",
             "consistencyEmpty": "In der erfassten Historie gibt es noch keine veröffentlichten Beiträge.",
             "consistencySummary": "{posts, plural, one {# Beitrag} other {# Beiträge}} an {active, plural, one {# aktivem Tag} other {# aktiven Tagen}} von {from} bis {until}.",

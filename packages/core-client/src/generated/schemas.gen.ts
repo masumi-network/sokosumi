@@ -19571,6 +19571,31 @@ export const SocialPostCalendarItemSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        lastAttempt: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                outcome: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                errorKind: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'outcome',
+                'errorKind'
+            ],
+            description: 'Latest publish attempt outcome and error kind for Failed and Missed chips. Never the raw provider error.'
+        },
         sourceId: {
             type: 'string'
         },
@@ -19603,6 +19628,7 @@ export const SocialPostCalendarItemSchema = {
         'attachmentCount',
         'previewMedia',
         'scheduledAt',
+        'lastAttempt',
         'sourceId',
         'sourceProjectId',
         'sourceWorkspaceId',

@@ -97,6 +97,24 @@ describe("SocialPostPreview", () => {
     );
   });
 
+  it("does not treat an email address as a mention", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Write hello@example.com or @alice"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByText("@alice")).toHaveClass("text-social-x-link");
+    expect(screen.queryByText("@example.com")).not.toBeInTheDocument();
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "hello@example.com",
+    );
+  });
+
   it("keeps the X handle and time when the display name is long", () => {
     render(
       <SocialPostPreview
@@ -190,6 +208,30 @@ describe("SocialPostPreview", () => {
     expect(screen.getByText("example.com/a")).toHaveClass(
       "text-social-instagram-link",
     );
+  });
+
+  it("shows Instagram's date in uppercase dense type", () => {
+    const { rerender } = render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="instagram"
+        text="Caption"
+        timestamp={new Date("2026-10-10T12:00:00.000Z")}
+      />,
+    );
+    expect(screen.getByText("October 10")).toHaveClass("text-2xs", "uppercase");
+
+    rerender(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="instagram"
+        text="Caption"
+        timestamp={null}
+      />,
+    );
+    expect(screen.getByText("now")).toHaveClass("text-2xs", "uppercase");
   });
 
   it("shows Instagram's 4:5 media frame and asks for media when missing", () => {
@@ -369,6 +411,34 @@ describe("SocialPostPreview", () => {
     expect(
       screen.queryByRole("button", { name: "youtube.seeMore" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("marks a video with a play badge on Instagram and X", () => {
+    const { rerender } = render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="instagram"
+        text="Clip"
+        timestamp={null}
+      />,
+    );
+    expect(screen.getByTestId("social-post-preview-play")).toBeVisible();
+    expect(screen.getByLabelText("a.mp4")).toHaveAttribute(
+      "src",
+      VIDEO.fileUrl,
+    );
+
+    rerender(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="x"
+        text=""
+        timestamp={null}
+      />,
+    );
+    expect(screen.getByTestId("social-post-preview-play")).toBeVisible();
   });
 
   it("renders a TikTok clip with handle, tags, and a 9:16 frame", () => {

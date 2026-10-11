@@ -187,6 +187,10 @@ describe("SocialPostStatistics account history", () => {
   it("shows headline metrics and imported posts without the old account-card grid", async () => {
     renderStatistics();
     expect(await screen.findByText(post.text)).toBeVisible();
+    expect(screen.getByRole("button", { name: /Sync/ })).toHaveClass(
+      "h-11",
+      "md:h-8",
+    );
     expect(
       screen.getByRole("heading", { name: "Posting consistency" }),
     ).toBeVisible();
@@ -198,8 +202,11 @@ describe("SocialPostStatistics account history", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByText("More filters")).toBeVisible();
     expect(screen.getByTestId("social-performance-overview")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Performance over time" }),
+    ).toBeVisible();
     expect(screen.getByText("Posts")).toBeVisible();
-    expect(screen.getByText("Interactions")).toBeVisible();
+    expect(screen.getAllByText("Interactions")[0]).toBeVisible();
     expect(
       screen.getByRole("combobox", { name: "Connected accounts" }),
     ).toBeVisible();
@@ -209,6 +216,21 @@ describe("SocialPostStatistics account history", () => {
     ).toHaveAttribute("href", post.url);
     expect(
       screen.queryByRole("button", { name: /edit|schedule|post now/i }),
+    ).not.toBeInTheDocument();
+  });
+  it("hides the trend chart when the selected period has no daily points", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        headline: { ...headline, daily: [] },
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(screen.getByTestId("social-performance-overview")).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Performance over time" }),
     ).not.toBeInTheDocument();
   });
   it("filters cached posts by account, platform and UTC dates while retaining the account overview", async () => {
