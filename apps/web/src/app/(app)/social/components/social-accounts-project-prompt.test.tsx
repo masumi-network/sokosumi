@@ -1,17 +1,15 @@
-import { render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
+import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
-  scrollNext: vi.fn(),
-  scrollPrev: vi.fn(),
-  reduceMotion: false,
-  carouselOpts: undefined as
-    | { loop?: boolean; breakpoints?: Record<string, { duration?: number }> }
-    | undefined,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -38,30 +36,10 @@ vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
 vi.mock("@/app/projects/components/project-avatar", () => ({
   ProjectAvatar: () => <span aria-hidden />,
 }));
-vi.mock("motion/react", () => ({
-  useReducedMotion: () => mocks.reduceMotion,
-}));
-vi.mock("embla-carousel-react", () => {
-  const carousel = [
-    vi.fn(),
-    {
-      canScrollPrev: () => true,
-      canScrollNext: () => true,
-      scrollPrev: mocks.scrollPrev,
-      scrollNext: mocks.scrollNext,
-      on: vi.fn(),
-      off: vi.fn(),
-    },
-  ];
-  return {
-    default: (opts?: { loop?: boolean }) => {
-      mocks.carouselOpts = opts;
-      return carousel;
-    },
-  };
-});
 
 import { SocialAccountsProjectPrompt } from "./social-accounts-project-prompt";
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 function setup(props: Parameters<typeof SocialAccountsProjectPrompt>[0] = {}) {
   return render(
@@ -72,8 +50,6 @@ function setup(props: Parameters<typeof SocialAccountsProjectPrompt>[0] = {}) {
 }
 
 beforeEach(() => {
-  mocks.reduceMotion = false;
-  mocks.carouselOpts = undefined;
   vi.clearAllMocks();
 });
 
@@ -93,36 +69,72 @@ describe("SocialAccountsProjectPrompt", () => {
     expect(screen.queryByRole("combobox")).toBeNull();
   });
 
-  it("shows platforms without arrow buttons and supports keyboard scrolling", async () => {
-    const user = userEvent.setup();
+  it("loops platforms once for readers and pauses on hover, focus, or touch", () => {
     setup();
-    const carousel = screen.getByRole("region", { name: "Social platforms" });
-    expect(
-      carousel.querySelectorAll('[data-slot="carousel-item"]'),
-    ).toHaveLength(6);
-    expect(screen.getByText("TikTok")).toBeVisible();
-    expect(screen.getByText("Coming soon")).toBeVisible();
+    const region = screen.getByRole("region", { name: "Social platforms" });
+    const tracks = region.querySelectorAll("ul");
+    expect(tracks).toHaveLength(2);
+    expect(tracks[0]?.children).toHaveLength(SOCIAL_PROVIDERS.length);
+    expect(tracks[1]?.children).toHaveLength(SOCIAL_PROVIDERS.length);
+    expect(tracks[1]).toHaveAttribute("aria-hidden", "true");
+    expect(tracks[1]).toHaveAttribute("inert");
 
+    const primary = tracks[0];
+    if (!primary) {
+      throw new Error("Primary platform track is missing");
+    }
+    expect(within(primary).getByText("TikTok")).toBeVisible();
+    expect(within(primary).getByText("Coming soon")).toBeVisible();
+    for (const provider of SOCIAL_PROVIDERS) {
+      expect(within(primary).getByText(provider.name)).toBeVisible();
+    }
+    expect(screen.getAllByText("TikTok")).toHaveLength(2);
+
+    expect(
+      screen.getByRole("button", { name: "Pause platforms" }),
+    ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Next platforms" })).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Previous platforms" }),
     ).toBeNull();
-    await user.click(carousel);
-    expect(carousel).toHaveFocus();
-    await user.keyboard("{ArrowRight}");
-    expect(mocks.scrollNext).toHaveBeenCalledTimes(1);
-    await user.keyboard("{ArrowLeft}");
-    expect(mocks.scrollPrev).toHaveBeenCalledTimes(1);
     expect(
       screen.getByRole("button", { name: "Choose a project" }),
     ).toHaveClass("min-h-11");
-    expect(mocks.carouselOpts?.loop).toBe(true);
-  });
 
-  it("stops the platform carousel looping when motion is reduced", () => {
-    mocks.reduceMotion = true;
-    setup();
-    expect(mocks.carouselOpts?.loop).toBe(false);
+    const marquee = tracks[0]?.parentElement;
+    expect(marquee).toHaveClass("motion-safe:animate-social-platform-marquee");
+    expect(marquee).toHaveClass(
+      "motion-safe:[@media(hover:hover)]:group-hover:[animation-play-state:paused]",
+    );
+    expect(marquee).toHaveClass(
+      "motion-safe:group-focus-within:[animation-play-state:paused]",
+    );
+    expect(marquee).toHaveClass(
+      "motion-safe:group-active:[animation-play-state:paused]",
+    );
+    expect(tracks[1]).toHaveClass("motion-reduce:hidden");
+
+    const scroller = screen.getByTestId("social-platform-marquee-track");
+    expect(scroller).toHaveAttribute("tabindex", "0");
+    expect(scroller).toHaveClass("overflow-x-auto");
+    expect(scroller).toHaveClass("motion-safe:overflow-x-hidden");
+    expect(scroller.querySelectorAll("li")).toHaveLength(
+      SOCIAL_PROVIDERS.length * 2,
+    );
+    expect(
+      [...scroller.querySelectorAll(".from-background")].length,
+    ).toBeGreaterThanOrEqual(2);
+
+    const globals = readFileSync(
+      join(here, "../../../../app/globals.css"),
+      "utf8",
+    );
+    expect(globals).toMatch(
+      /--animate-social-platform-marquee:\s*auth-logo-marquee 40s linear infinite/,
+    );
+    expect(globals).toMatch(
+      /@keyframes auth-logo-marquee\s*{[\s\S]*?translate3d\(-50%,\s*0,\s*0\)/,
+    );
   });
 
   it("keeps Drafts as the destination and hides the account carousel", async () => {

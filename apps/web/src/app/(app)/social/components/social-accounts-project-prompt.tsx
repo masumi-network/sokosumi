@@ -1,7 +1,6 @@
 "use client";
 
 import { ChevronDown, FolderKanban } from "lucide-react";
-import { useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -11,11 +10,6 @@ import { openScopeCreate } from "@/app/components/project-scope/sidebar-project-
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import { Button } from "@/components/ui/button";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel";
 import {
   Popover,
   PopoverContent,
@@ -100,42 +94,84 @@ export function SocialAccountsProjectPrompt({
   );
 }
 
+function SocialPlatformCard({
+  comingSoonLabel,
+  provider,
+}: {
+  comingSoonLabel: string;
+  provider: (typeof SOCIAL_PROVIDERS)[number];
+}) {
+  return (
+    <div className="bg-card flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border px-3 py-5">
+      <provider.Icon className="size-8" aria-hidden />
+      <div className="space-y-1">
+        <p className="text-sm font-medium">{provider.name}</p>
+        {"comingSoon" in provider ? (
+          <p className="text-muted-foreground text-xs">{comingSoonLabel}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Same -50% CSS loop as the auth customer logos. Always on this empty state. */
 function SocialPlatformCarousel() {
   const t = useTranslations("App.Social");
   const accounts = useTranslations("App.Projects.ProjectSocialAccounts");
-  const reduceMotion = useReducedMotion();
+  const comingSoonLabel = accounts("comingSoon");
 
   return (
-    <Carousel
+    <section
       aria-label={t("platforms.label")}
-      className="w-full rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      tabIndex={0}
-      opts={{
-        align: "start",
-        loop: !reduceMotion,
-        breakpoints: { "(prefers-reduced-motion: reduce)": { duration: 0 } },
-      }}
+      className="group relative w-full"
+      data-testid="social-platform-marquee"
     >
-      <CarouselContent className="-ml-3">
-        {SOCIAL_PROVIDERS.map((provider) => (
-          <CarouselItem
-            key={provider.id}
-            className="basis-2/5 pl-3 sm:basis-1/3 lg:basis-1/6"
-          >
-            <div className="bg-card flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border px-3 py-5">
-              <provider.Icon className="size-8" aria-hidden />
-              <div className="space-y-1">
-                <p className="text-sm font-medium">{provider.name}</p>
-                {"comingSoon" in provider ? (
-                  <p className="text-muted-foreground text-xs">
-                    {accounts("comingSoon")}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          </CarouselItem>
-        ))}
-      </CarouselContent>
-    </Carousel>
+      <button
+        type="button"
+        className="sr-only rounded-sm text-xs focus:not-sr-only focus:absolute focus:top-0 focus:left-0 focus:z-20 focus:bg-background focus:px-1.5 focus:py-0.5 focus:ring-2 focus:ring-ring"
+      >
+        {t("platforms.pause")}
+      </button>
+      <div
+        className="@container relative overflow-x-auto overflow-y-hidden rounded-2xl outline-none motion-safe:overflow-x-hidden focus-visible:ring-2 focus-visible:ring-ring"
+        data-testid="social-platform-marquee-track"
+        tabIndex={0}
+      >
+        <div
+          aria-hidden
+          className="from-background pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-linear-to-r to-transparent"
+        />
+        <div
+          aria-hidden
+          className="from-background pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-linear-to-l to-transparent"
+        />
+        <div className="-ml-3 flex w-max motion-safe:animate-social-platform-marquee motion-safe:group-active:[animation-play-state:paused] motion-safe:group-focus-within:[animation-play-state:paused] motion-safe:[@media(hover:hover)]:group-hover:[animation-play-state:paused]">
+          {[0, 1].map((copy) => (
+            <ul
+              key={copy}
+              aria-hidden={copy === 1 || undefined}
+              inert={copy === 1 || undefined}
+              className={
+                copy === 1
+                  ? "flex shrink-0 motion-reduce:hidden"
+                  : "flex shrink-0"
+              }
+            >
+              {SOCIAL_PROVIDERS.map((provider) => (
+                <li
+                  key={`${provider.id}-${copy}`}
+                  className="w-[40cqw] shrink-0 pl-3 sm:w-[calc(100cqw/3)] lg:w-[calc(100cqw/6)]"
+                >
+                  <SocialPlatformCard
+                    comingSoonLabel={comingSoonLabel}
+                    provider={provider}
+                  />
+                </li>
+              ))}
+            </ul>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }

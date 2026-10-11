@@ -3101,7 +3101,8 @@
       "loading": "Social wird geladen…",
       "pickProject": "Projekt auswählen",
       "platforms": {
-        "label": "Social-Media-Plattformen"
+        "label": "Social-Media-Plattformen",
+        "pause": "Plattformen pausieren"
       },
       "statisticsNeedProject": {
         "title": "Wähle ein Projekt, um die Leistung zu sehen",
