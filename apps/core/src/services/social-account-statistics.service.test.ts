@@ -235,6 +235,11 @@ describe("Social account statistics", () => {
           text: providerPost.text,
           metrics,
           additionalMetrics: providerPost.additionalMetrics,
+          fetchedAt: expect.any(Date),
+        }),
+        update: expect.objectContaining({
+          metrics,
+          fetchedAt: expect.any(Date),
         }),
       }),
     );
