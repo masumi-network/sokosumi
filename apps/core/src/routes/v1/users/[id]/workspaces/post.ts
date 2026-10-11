@@ -23,7 +23,7 @@ import {
   createUserWorkspaceSchema,
   userWorkspaceSchema,
 } from "@/schemas/user-workspace.schema";
-import { setPreferredOrganizationId } from "@/services/preferred-organization.service";
+import { setPreferredOrganizationId } from "@/services/preferred-workspace.service";
 
 const params = z.object({
   id: usersRoutePathUserIdSchema,

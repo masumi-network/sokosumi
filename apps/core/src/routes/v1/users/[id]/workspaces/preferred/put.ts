@@ -1,10 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { getUserWorkspace } from "@/helpers/user-workspaces";
-import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
@@ -15,7 +13,7 @@ import {
   setPreferredUserWorkspaceSchema,
   userWorkspaceSchema,
 } from "@/schemas/user-workspace.schema";
-import { setPreferredOrganizationId } from "@/services/preferred-organization.service";
+import { setPreferredWorkspace } from "@/services/preferred-workspace.service";
 
 const params = z.object({
   id: usersRoutePathUserIdSchema,
@@ -70,21 +68,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
     const { workspaceId } = c.req.valid("json");
 
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      select: { userId: true, organizationId: true },
-    });
-
-    if (workspace?.organizationId) {
-      await setPreferredOrganizationId(
-        resolvedUserId,
-        workspace.organizationId,
-      );
-    } else if (workspace?.userId === resolvedUserId) {
-      await setPreferredOrganizationId(resolvedUserId, null);
-    } else {
-      throw notFound("Workspace not found");
-    }
+    await setPreferredWorkspace(resolvedUserId, workspaceId);
 
     return ok(
       c,

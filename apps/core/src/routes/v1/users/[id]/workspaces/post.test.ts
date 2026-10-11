@@ -52,7 +52,7 @@ vi.mock("@/helpers/user-workspaces", () => ({
   getUserWorkspace: getUserWorkspaceMock,
 }));
 
-vi.mock("@/services/preferred-organization.service", () => ({
+vi.mock("@/services/preferred-workspace.service", () => ({
   setPreferredOrganizationId: setPreferredOrganizationIdMock,
 }));
 
