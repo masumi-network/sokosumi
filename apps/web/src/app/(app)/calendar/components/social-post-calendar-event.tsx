@@ -283,7 +283,7 @@ function CompactSocialPostThumb({
 }) {
   return (
     <span
-      className="relative size-7 shrink-0 overflow-hidden rounded-md @max-[6.875rem]:hidden"
+      className="bg-muted border-border relative size-7 shrink-0 overflow-hidden rounded-md border @max-[6.875rem]:hidden"
       data-testid="calendar-social-post-thumb"
     >
       <span aria-hidden className="absolute inset-0">

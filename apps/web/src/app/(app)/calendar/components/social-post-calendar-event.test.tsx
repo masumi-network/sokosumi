@@ -116,7 +116,12 @@ describe("Social post calendar event", () => {
     expect(image).toHaveAttribute("src", "https://example.com/a.png");
     expect(image).toHaveAttribute("loading", "lazy");
     expect(image).toHaveClass("object-cover");
-    expect(thumb).toHaveClass("size-7", "@max-[6.875rem]:hidden");
+    expect(thumb).toHaveClass(
+      "size-7",
+      "border-border",
+      "bg-muted",
+      "@max-[6.875rem]:hidden",
+    );
     expect(screen.getByTestId("social-post-provider-icon")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /X post with 2 images/ }),
