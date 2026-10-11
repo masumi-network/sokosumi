@@ -130,6 +130,22 @@ function recoveryEventKey(operationId: string): string {
   return `project-close:recovery:${operationId}`;
 }
 
+/** Scheduled posts would still publish after connections retire. Drafts stay. */
+async function cancelScheduledSocialPostsForClose(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  canceledAt: Date,
+): Promise<void> {
+  await tx.socialPost.updateMany({
+    where: { projectId, status: "SCHEDULED" },
+    data: {
+      status: "CANCELED",
+      canceledAt,
+      revision: { increment: 1 },
+    },
+  });
+}
+
 async function isRecoveryReplay(
   tx: Prisma.TransactionClient,
   input: {
@@ -204,6 +220,7 @@ export async function requestProjectClose(
       },
       select: { projectRevision: true },
     });
+    await cancelScheduledSocialPostsForClose(tx, project.id, cutoffAt);
     await retireProjectSocialConnectionsForClose(
       tx,
       project.id,

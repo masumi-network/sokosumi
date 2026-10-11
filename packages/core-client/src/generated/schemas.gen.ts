@@ -18979,6 +18979,13 @@ export const ProjectSchema = {
             description: 'Revision used for optimistic Project mutations',
             example: 0
         },
+        scheduledSocialPostCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Scheduled Social posts this Project still holds. Close cancels them.',
+            example: 0
+        },
         closingAt: {
             type: [
                 'string',

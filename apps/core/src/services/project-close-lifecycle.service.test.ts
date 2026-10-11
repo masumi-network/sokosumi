@@ -12,6 +12,7 @@ const {
   projectFindFirstMock,
   projectUpdateMock,
   serializableTransactionMock,
+  socialPostUpdateManyMock,
   taskScheduleRunCountMock,
   taskScheduleRunUpdateManyMock,
 } = vi.hoisted(() => ({
@@ -28,6 +29,7 @@ const {
   projectFindFirstMock: vi.fn(),
   projectUpdateMock: vi.fn(),
   serializableTransactionMock: vi.fn(),
+  socialPostUpdateManyMock: vi.fn(),
   taskScheduleRunCountMock: vi.fn(),
   taskScheduleRunUpdateManyMock: vi.fn(),
 }));
@@ -99,6 +101,9 @@ function transactionClient() {
       create: projectEventCreateMock,
       findUnique: projectEventFindUniqueMock,
     },
+    socialPost: {
+      updateMany: socialPostUpdateManyMock,
+    },
     taskScheduleRun: {
       count: taskScheduleRunCountMock,
       updateMany: taskScheduleRunUpdateManyMock,
@@ -164,15 +169,26 @@ describe("project close lifecycle", () => {
       reason: " Campaign completed ",
     });
 
+    const created = projectCloseOperationCreateMock.mock.calls[0][0].data;
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+      where: { projectId: PROJECT_ID, status: "SCHEDULED" },
+      data: {
+        status: "CANCELED",
+        canceledAt: created.cutoffAt,
+        revision: { increment: 1 },
+      },
+    });
     expect(retireSocialConnectionsMock).toHaveBeenCalledWith(
       expect.anything(),
       PROJECT_ID,
       scope.actorUserId,
     );
+    expect(socialPostUpdateManyMock.mock.invocationCallOrder[0]).toBeLessThan(
+      retireSocialConnectionsMock.mock.invocationCallOrder[0],
+    );
     expect(
       retireSocialConnectionsMock.mock.invocationCallOrder[0],
     ).toBeLessThan(projectCloseOperationCreateMock.mock.invocationCallOrder[0]);
-    const created = projectCloseOperationCreateMock.mock.calls[0][0].data;
     expect(projectUpdateMock).toHaveBeenCalledWith({
       where: { id: PROJECT_ID },
       data: {
@@ -233,6 +249,7 @@ describe("project close lifecycle", () => {
     expect(status.projectRevision).toBe(8);
     expect(projectUpdateMock).not.toHaveBeenCalled();
     expect(projectCloseOperationCreateMock).not.toHaveBeenCalled();
+    expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("rejects reuse of the close key with a changed reason", async () => {

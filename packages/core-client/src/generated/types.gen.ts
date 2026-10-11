@@ -5552,6 +5552,10 @@ export type Project = {
      */
     projectRevision?: number;
     /**
+     * Scheduled Social posts this Project still holds. Close cancels them.
+     */
+    scheduledSocialPostCount?: number;
+    /**
      * Exclusive release cutoff while the Project is closing
      */
     closingAt?: Date | null;

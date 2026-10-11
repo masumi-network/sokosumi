@@ -8,6 +8,7 @@ interface ProjectHeaderActionsProps {
   closingAt?: Date | string | null;
   projectId: string;
   projectRevision?: number;
+  scheduledSocialPostCount?: number;
 }
 
 /**
@@ -19,6 +20,7 @@ export async function ProjectHeaderActions({
   closingAt,
   projectId,
   projectRevision,
+  scheduledSocialPostCount = 0,
 }: ProjectHeaderActionsProps) {
   const [t, tList] = await Promise.all([
     getTranslations("App.Projects.Detail"),
@@ -48,6 +50,14 @@ export async function ProjectHeaderActions({
           closeDialog: {
             title: t("close.dialog.title"),
             description: t("close.dialog.description"),
+            ...(scheduledSocialPostCount > 0
+              ? {
+                  scheduledPostsWarning: t(
+                    "close.dialog.scheduledPostsWarning",
+                    { count: scheduledSocialPostCount },
+                  ),
+                }
+              : {}),
             reasonLabel: t("close.dialog.reasonLabel"),
             reasonPlaceholder: t("close.dialog.reasonPlaceholder"),
             confirm: t("close.dialog.confirm"),
