@@ -97,6 +97,24 @@ describe("SocialPostPreview", () => {
     );
   });
 
+  it("does not treat an email address as a mention", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Write hello@example.com or @alice"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByText("@alice")).toHaveClass("text-social-x-link");
+    expect(screen.queryByText("@example.com")).not.toBeInTheDocument();
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "hello@example.com",
+    );
+  });
+
   it("keeps the X handle and time when the display name is long", () => {
     render(
       <SocialPostPreview

@@ -55,7 +55,7 @@ export function PreviewAvatar({
 }
 
 const TOKEN_PATTERN =
-  /(https?:\/\/[^\s]+|www\.[^\s]+|#[\p{L}\p{N}_]+|@[\p{L}\p{N}_.]+)/gu;
+  /(https?:\/\/[^\s]+|www\.[^\s]+|#[\p{L}\p{N}_]+|(?<![\p{L}\p{N}_])@[\p{L}\p{N}_.]+)/gu;
 const URL_DISPLAY_MAX = 25;
 
 /** Links show without their scheme and shortened, the way X and LinkedIn do. */
