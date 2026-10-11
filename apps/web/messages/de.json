@@ -2474,6 +2474,9 @@
           "rescheduleTitle": "Beitrag neu planen",
           "text": "Text",
           "textPlaceholder": "Was möchtest du posten?",
+          "firstComment": "Erster Kommentar",
+          "firstCommentPlaceholder": "Hashtags oder ein Aufruf",
+          "firstCommentTooLong": "Der erste Kommentar ist zu lang.",
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Aus Drive hinzufügen",

@@ -2,6 +2,7 @@ import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
   isVercelBlobPublicHost,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_REQUIREMENTS,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
@@ -10,6 +11,7 @@ import {
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  socialPostFirstCommentLimit,
   socialPostMediaKindForMime,
   socialPostProviderLabel,
   validateSocialPostMedia,
@@ -110,6 +112,7 @@ export interface SocialPostSummary {
   projectId: string;
   provider: string;
   text: string;
+  firstComment: string | null;
   media: SocialPostMediaRef[];
   status: SocialPostStatus;
   scheduledAt: Date | null;
@@ -175,6 +178,7 @@ export interface CreateSocialPostInput
   coworkerId?: string;
   sokoBotId?: string;
   text: string;
+  firstComment?: string;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string;
   scheduledAt?: Date;
@@ -188,6 +192,7 @@ export interface UpdateSocialPostInput
   coworkerId?: string;
   postId: string;
   text?: string;
+  firstComment?: string;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string | null;
   revision: number;
@@ -229,6 +234,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     projectId: record.projectId,
     provider: record.provider,
     text: record.text,
+    firstComment: record.firstComment,
     media: parseSocialPostMedia(record.media, record.id),
     status: record.status,
     scheduledAt: record.scheduledAt,
@@ -305,6 +311,25 @@ function requireProvider(provider: string): SocialPostProvider {
 }
 
 /** Text rules differ per provider: some require text, others accept media only. */
+function requireFirstCommentWithinLimit(
+  value: string | null | undefined,
+  provider: string,
+): string | null {
+  const trimmed = value?.trim() ?? "";
+  if (trimmed.length === 0) return null;
+  const scopedProvider = requireProvider(provider);
+  const limit = socialPostFirstCommentLimit(scopedProvider);
+  const cap = limit ?? SOCIAL_POST_FIRST_COMMENT_MAX;
+  if (trimmed.length > cap) {
+    throw badRequest(
+      limit === null
+        ? `First comment must be at most ${cap} characters`
+        : `First comment must be at most ${cap} characters for ${provider}`,
+    );
+  }
+  return trimmed;
+}
+
 function requireTextWithinLimit(
   text: string,
   provider: string,
@@ -610,6 +635,10 @@ export async function createSocialPost(
     media: input.media ?? [],
   });
   const text = requireTextWithinLimit(input.text, provider, media.length > 0);
+  const firstComment = requireFirstCommentWithinLimit(
+    input.firstComment,
+    provider,
+  );
   requireMediaRequirement(requireProvider(provider), media);
   const scheduled = input.scheduledAt !== undefined;
 
@@ -620,6 +649,7 @@ export async function createSocialPost(
       socialConnectionId: connection?.id ?? null,
       provider,
       text,
+      firstComment,
       media: mediaJson(media),
       status: scheduled ? "SCHEDULED" : "DRAFT",
       scheduledAt: input.scheduledAt ?? null,
@@ -716,6 +746,13 @@ export async function updateSocialPost(
     requireMediaRequirement(provider, media);
   }
 
+  if (input.firstComment !== undefined || providerChanged) {
+    data.firstComment = requireFirstCommentWithinLimit(
+      input.firstComment !== undefined ? input.firstComment : post.firstComment,
+      provider,
+    );
+  }
+
   return mapSocialPost(
     await writeWithRevision(input, input.revision, data, tx),
   );
@@ -745,6 +782,7 @@ export async function scheduleSocialPost(
     throw badRequest(mediaValidationMessage(provider, validation.reason));
   }
   requireTextWithinLimit(post.text, provider, media.length > 0);
+  requireFirstCommentWithinLimit(post.firstComment, provider);
   requireMediaRequirement(provider, media);
 
   return mapSocialPost(

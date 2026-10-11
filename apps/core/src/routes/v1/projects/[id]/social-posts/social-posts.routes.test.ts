@@ -127,6 +127,7 @@ const draftPost = {
   projectId: PROJECT_ID,
   provider: "x",
   text: "Hello world",
+  firstComment: null,
   media: [],
   status: "DRAFT",
   scheduledAt: null,

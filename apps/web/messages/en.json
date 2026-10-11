@@ -2474,6 +2474,9 @@
           "rescheduleTitle": "Reschedule post",
           "text": "Text",
           "textPlaceholder": "What do you want to post?",
+          "firstComment": "First comment",
+          "firstCommentPlaceholder": "Hashtags or a call to action",
+          "firstCommentTooLong": "First comment is too long.",
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Add from Drive",

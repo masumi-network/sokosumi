@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import {
   isValidTimezone,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_TEXT_LIMITS,
   SOCIAL_POST_TEXT_MAX,
@@ -54,6 +55,12 @@ const socialPostTextSchema = z
   .trim()
   .max(SOCIAL_POST_TEXT_MAX)
   .openapi({ example: "Shipping the new Calendar today." });
+
+const socialPostFirstCommentSchema = z
+  .string()
+  .trim()
+  .max(SOCIAL_POST_FIRST_COMMENT_MAX)
+  .openapi({ example: "#launch" });
 
 export const socialPostMediaRefSchema = z
   .object({
@@ -143,6 +150,7 @@ export const socialPostSchema = z
     }),
     provider: socialPostProviderSchema,
     text: z.string(),
+    firstComment: z.string().nullable(),
     media: z.array(socialPostMediaRefSchema),
     status: socialPostStatusSchema,
     scheduledAt: dateTimeSchema.nullable(),
@@ -190,6 +198,7 @@ function hasTextOrMedia(value: {
 export const createSocialPostRequestSchema = z
   .object({
     text: socialPostTextSchema,
+    firstComment: socialPostFirstCommentSchema.optional(),
     media: socialPostMediaRequestSchema.optional(),
     socialConnectionId: z.string().uuid().optional(),
     scheduledAt: dateTimeSchema.optional(),
@@ -203,6 +212,7 @@ export const createSocialPostRequestSchema = z
 export const updateSocialPostRequestSchema = z
   .object({
     text: socialPostTextSchema.optional(),
+    firstComment: socialPostFirstCommentSchema.optional(),
     media: socialPostMediaRequestSchema.optional(),
     socialConnectionId: z.string().uuid().nullable().optional(),
     revision: socialPostRevisionSchema,

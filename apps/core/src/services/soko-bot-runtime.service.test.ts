@@ -4798,6 +4798,7 @@ describe("Soko Bot project social tools", () => {
     projectId,
     provider: "x",
     text: "Launch",
+    firstComment: null,
     media: [],
     status: "DRAFT",
     scheduledAt: null,

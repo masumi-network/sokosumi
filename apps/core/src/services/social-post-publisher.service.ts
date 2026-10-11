@@ -12,6 +12,7 @@ import {
   publishSocialPostToProvider,
   SOCIAL_POST_ATTEMPT_TOOL_SLUGS,
 } from "@/clients/social-post-providers";
+import { publishSocialPostFirstComment } from "@/clients/social-post-providers/first-comment";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import type { SocialPostPublishResult } from "@/clients/social-post-providers/types";
 import { badRequest, conflict, notFound } from "@/helpers/error";
@@ -101,6 +102,7 @@ interface ClaimedPost {
   projectId: string;
   provider: string;
   text: string;
+  firstComment: string | null;
   /** Raw `media` Json column; parsed strictly at publish time. */
   media: unknown;
   scheduledAt: Date | null;
@@ -492,6 +494,25 @@ async function attemptPublish(
     lastError: null,
     attemptCount,
   });
+  const firstComment = post.firstComment?.trim() ?? "";
+  if (settled && firstComment) {
+    try {
+      await publishSocialPostFirstComment({
+        provider,
+        connectedAccountId: connection.composioConnectedAccountId,
+        executorUserId: projectExecutorUserId(post.projectId),
+        externalAccountId: connection.externalAccountId,
+        externalId: published.externalId,
+        text: firstComment,
+        signal,
+      });
+    } catch {
+      console.warn("[social-post-publisher] First comment failed", {
+        postId: post.id,
+        provider,
+      });
+    }
+  }
   return settled ? "published" : "skipped";
 }
 
@@ -548,6 +569,7 @@ async function claimDuePost(): Promise<ClaimResult> {
       projectId: candidate.projectId,
       provider: candidate.provider,
       text: candidate.text,
+      firstComment: candidate.firstComment,
       media: candidate.media,
       scheduledAt: candidate.scheduledAt,
       attemptCount: candidate.attemptCount,
@@ -667,6 +689,7 @@ export async function publishSocialPostNow(
       projectId: post.projectId,
       provider: post.provider,
       text: post.text,
+      firstComment: post.firstComment,
       media: post.media,
       scheduledAt: now,
       attemptCount: 0,

@@ -20676,6 +20676,12 @@ export const SocialPostSchema = {
         text: {
             type: 'string'
         },
+        firstComment: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         media: {
             type: 'array',
             items: {
@@ -20824,6 +20830,7 @@ export const SocialPostSchema = {
         'projectId',
         'provider',
         'text',
+        'firstComment',
         'media',
         'status',
         'scheduledAt',
@@ -21124,6 +21131,11 @@ export const CreateSocialPostRequestSchema = {
             maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
+        firstComment: {
+            type: 'string',
+            maxLength: 10000,
+            example: '#launch'
+        },
         media: {
             type: 'array',
             items: {
@@ -21213,6 +21225,11 @@ export const UpdateSocialPostRequestSchema = {
             type: 'string',
             maxLength: 63206,
             example: 'Shipping the new Calendar today.'
+        },
+        firstComment: {
+            type: 'string',
+            maxLength: 10000,
+            example: '#launch'
         },
         media: {
             type: 'array',

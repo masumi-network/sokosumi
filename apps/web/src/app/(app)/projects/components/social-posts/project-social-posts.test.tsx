@@ -131,6 +131,9 @@ const MESSAGES: Record<string, string> = {
     "Write the text, pick the account, and choose when it goes out.",
   "composer.text": "Text",
   "composer.textPlaceholder": "What do you want to post?",
+  "composer.firstComment": "First comment",
+  "composer.firstCommentPlaceholder": "Hashtags or a call to action",
+  "composer.firstCommentTooLong": "First comment is too long.",
   "composer.characters": "{count} / {limit}",
   "composer.media.addFromDrive": "Add from Drive",
   "composer.media.upload": "Upload",
@@ -324,6 +327,7 @@ function buildPost(overrides: Partial<SocialPost> = {}): SocialPost {
     projectId: PROJECT_ID,
     provider: "x",
     text: "Draft text",
+    firstComment: null,
     media: [],
     status: "DRAFT",
     scheduledAt: null,
@@ -1675,6 +1679,61 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
+  it("saves a first comment with the draft", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Fresh");
+    await user.type(
+      within(dialog).getByTestId("social-post-first-comment"),
+      "#launch",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        text: "Fresh",
+        firstComment: "#launch",
+        media: [],
+        socialConnectionId: "connection-1",
+      });
+    });
+  });
+
+  it("hides first comment when only TikTok is selected", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection({
+            id: "connection-tiktok",
+            provider: "tiktok",
+            externalHandle: "sokosumi",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).queryByTestId("social-post-first-comment"),
+    ).not.toBeInTheDocument();
+  });
+
   it("returns focus to the calendar trigger after closing a preview", async () => {
     const user = userEvent.setup();
     render(
@@ -2133,6 +2192,7 @@ describe("ProjectSocialPosts", () => {
         projectId: PROJECT_ID,
         postId: "post-draft",
         text: "Edited",
+        firstComment: "",
         media: [],
         socialConnectionId: "connection-1",
         revision: 4,

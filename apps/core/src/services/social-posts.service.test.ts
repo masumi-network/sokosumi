@@ -100,6 +100,7 @@ const draftPost = {
   socialConnectionId: null,
   provider: "x",
   text: "Hello world",
+  firstComment: null,
   media: [],
   status: "DRAFT",
   scheduledAt: null,
@@ -556,6 +557,7 @@ describe("social posts service", () => {
           socialConnectionId: null,
           provider: "x",
           text: "Hello world",
+          firstComment: null,
           media: [],
           status: "DRAFT",
           scheduledAt: null,
@@ -584,6 +586,49 @@ describe("social posts service", () => {
         text: "x".repeat(281),
       }),
     ).rejects.toMatchObject({ status: 400 });
+    expect(socialPostCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("stores a first comment on create", async () => {
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      firstComment: "#launch",
+    });
+    const { createSocialPost } = await loadService();
+
+    const post = await createSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      text: "Hello world",
+      firstComment: " #launch ",
+    });
+
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ firstComment: "#launch" }),
+      }),
+    );
+    expect(post.firstComment).toBe("#launch");
+  });
+
+  it("rejects a first comment beyond the provider limit", async () => {
+    const { createSocialPost } = await loadService();
+
+    await expect(
+      createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        text: "Hello world",
+        firstComment: "x".repeat(281),
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "First comment must be at most 280 characters for x",
+    });
     expect(socialPostCreateMock).not.toHaveBeenCalled();
   });
 
@@ -1102,6 +1147,36 @@ describe("social posts service", () => {
       },
     });
     expect(post).toMatchObject({ text: "Edited", revision: 1 });
+  });
+
+  it("updates a draft first comment", async () => {
+    socialPostFindFirstMock
+      .mockResolvedValueOnce(draftPost)
+      .mockResolvedValueOnce({
+        ...draftPost,
+        firstComment: "#launch",
+        revision: 1,
+      });
+    const { updateSocialPost } = await loadService();
+
+    const post = await updateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      organizationId: null,
+      postId: POST_ID,
+      firstComment: " #launch ",
+      revision: 0,
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: POST_ID, revision: 0 },
+      data: {
+        firstComment: "#launch",
+        revision: { increment: 1 },
+      },
+    });
+    expect(post.firstComment).toBe("#launch");
   });
 
   it("refuses to clear the connection of a scheduled post", async () => {

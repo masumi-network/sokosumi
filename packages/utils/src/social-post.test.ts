@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  SOCIAL_POST_FIRST_COMMENT_LIMITS,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_MEDIA_REQUIREMENTS,
   SOCIAL_POST_MEDIA_RULES,
@@ -9,10 +11,12 @@ import {
   SOCIAL_POST_TEXT_MAX,
   SOCIAL_POST_TEXT_REQUIRED,
   type SocialPostMediaRef,
+  socialPostFirstCommentLimit,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
   socialPostMimeForFileName,
   socialPostProviderLabel,
+  socialPostSupportsFirstComment,
   validateSocialPostMedia,
 } from "./social-post.js";
 
@@ -82,6 +86,24 @@ describe("per-provider limits and requirements", () => {
     expect(SOCIAL_POST_MEDIA_MAX).toBe(4);
     expect(SOCIAL_POST_MIN_SCHEDULE_LEAD_MS).toBe(60_000);
     expect(SOCIAL_POST_TEXT_MAX).toBeGreaterThan(SOCIAL_POST_TEXT_LIMITS.x);
+  });
+
+  it.each([
+    ["x", 280],
+    ["linkedin", 1250],
+    ["facebook", 8000],
+    ["instagram", 300],
+    ["youtube", 10_000],
+  ] as const)("caps %s first comments at %i characters", (provider, limit) => {
+    expect(SOCIAL_POST_FIRST_COMMENT_LIMITS[provider]).toBe(limit);
+    expect(socialPostFirstCommentLimit(provider)).toBe(limit);
+    expect(socialPostSupportsFirstComment(provider)).toBe(true);
+  });
+
+  it("leaves TikTok without a first comment", () => {
+    expect(socialPostFirstCommentLimit("tiktok")).toBeNull();
+    expect(socialPostSupportsFirstComment("tiktok")).toBe(false);
+    expect(SOCIAL_POST_FIRST_COMMENT_MAX).toBe(10_000);
   });
 });
 
