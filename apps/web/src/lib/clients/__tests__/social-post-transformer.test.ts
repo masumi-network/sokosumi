@@ -2,6 +2,7 @@ import {
   getProjectsByIdSocialPostsByPostIdResponseTransformer,
   getProjectsByIdSocialPostsResponseTransformer,
   patchProjectsByIdSocialPostsByPostIdResponseTransformer,
+  postProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponseTransformer,
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
   postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
@@ -52,6 +53,7 @@ const transformers = [
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
   postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,
+  postProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponseTransformer,
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
 ];
 

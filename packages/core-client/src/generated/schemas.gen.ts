@@ -20217,6 +20217,14 @@ export const SocialAccountPostSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        strong: {
+            type: 'boolean',
+            default: false
+        },
+        canRecycle: {
+            type: 'boolean',
+            default: false
         }
     },
     required: [
@@ -21104,6 +21112,39 @@ export const SocialPostLastAttemptSchema = {
         'providerOutcome',
         'finishedAt'
     ]
+} as const;
+
+export const RecycleSocialAccountPostRequestSchema = {
+    type: 'object',
+    properties: {
+        delayDays: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        7
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        14
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        30
+                    ]
+                }
+            ],
+            example: 7
+        },
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
+        }
+    }
 } as const;
 
 export const PublishSocialPostRequestSchema = {

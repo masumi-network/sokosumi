@@ -30,6 +30,7 @@ const coreClientMock = {
   postProjectsByIdSocialPosts: vi.fn(),
   postProjectsByIdSocialPostsByPostIdCancel: vi.fn(),
   postProjectsByIdSocialPostsByPostIdDuplicate: vi.fn(),
+  postProjectsByIdSocialAccountPostsByAccountPostIdRecycle: vi.fn(),
   postProjectsByIdSocialPostsByPostIdPublish: vi.fn(),
   postProjectsByIdSocialPostsByPostIdSchedule: vi.fn(),
   putProjectsByIdDesignMd: vi.fn(),
@@ -778,6 +779,27 @@ describe("project.service", () => {
       expect(
         coreClientMock.postProjectsByIdSocialPostsByPostIdDuplicate,
       ).toHaveBeenCalledWith("project-1", "post-1");
+    });
+
+    it("recycles a Performance post through the generated client", async () => {
+      coreClientMock.postProjectsByIdSocialAccountPostsByAccountPostIdRecycle.mockResolvedValue(
+        { data: { ...post, id: "post-recycle", status: "SCHEDULED" } },
+      );
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.recycleSocialAccountPost("project-1", "account-post-1", {
+          delayDays: 7,
+          timezone: "Europe/Berlin",
+        }),
+      ).resolves.toMatchObject({ id: "post-recycle", status: "SCHEDULED" });
+      expect(
+        coreClientMock.postProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
+      ).toHaveBeenCalledWith("project-1", "account-post-1", {
+        delayDays: 7,
+        timezone: "Europe/Berlin",
+      });
     });
 
     it("publishes a post now with the observed revision", async () => {

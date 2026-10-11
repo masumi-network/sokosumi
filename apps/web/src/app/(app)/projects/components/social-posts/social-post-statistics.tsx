@@ -5,8 +5,19 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,8 +29,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { refreshProjectSocialAccountStatistics } from "@/lib/actions/project/action";
+import {
+  recycleProjectSocialAccountPost,
+  refreshProjectSocialAccountStatistics,
+} from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
+import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { projectService } from "@/lib/services/project.service";
 import { PerformanceTrendChart } from "./performance-trend-chart";
 import { PostingConsistency } from "./posting-consistency";
@@ -90,6 +105,93 @@ function accountName(account: Account) {
     SOCIAL_PROVIDERS.find((provider) => provider.id === account.provider)
       ?.name ??
     account.provider
+  );
+}
+
+function RecycleAccountPost({
+  projectId,
+  accountPostId,
+}: {
+  projectId: string;
+  accountPostId: string;
+}) {
+  const t = useTranslations("App.Projects.SocialPosts.statistics");
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+
+  async function recycle(delayDays?: 7 | 14 | 30) {
+    if (pending) return;
+    setPending(true);
+    try {
+      const result = await recycleProjectSocialAccountPost({
+        projectId,
+        accountPostId,
+        ...(delayDays ? { delayDays, timezone: getDefaultTimezone() } : {}),
+      });
+      if (!result.ok) {
+        toast.error(result.error.message || t("recycle.failed"));
+        return;
+      }
+      toast.success(delayDays ? t("recycle.scheduled") : t("recycle.drafted"));
+      setOpen(false);
+    } catch {
+      toast.error(t("recycle.failed"));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        size="sm"
+        className="h-11 md:h-8"
+        variant="outline"
+        onClick={() => setOpen(true)}
+      >
+        {t("recycle.action")}
+      </Button>
+      <AlertDialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next && !pending) setOpen(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("recycle.title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("recycle.description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:flex-col sm:space-x-0">
+            <Button
+              type="button"
+              disabled={pending}
+              loading={pending}
+              onClick={() => void recycle()}
+            >
+              {t("recycle.saveDraft")}
+            </Button>
+            {([7, 14, 30] as const).map((days) => (
+              <Button
+                key={days}
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => void recycle(days)}
+              >
+                {t("recycle.inDays", { days })}
+              </Button>
+            ))}
+            <AlertDialogCancel disabled={pending}>
+              {t("recycle.cancel")}
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -536,7 +638,10 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
         />
       ) : null}
       <section className="space-y-4" aria-label={t("postsTitle")}>
-        <h3 className="text-sm font-semibold">{t("postsTitle")}</h3>
+        <div className="space-y-1">
+          <h3 className="text-sm font-semibold">{t("postsTitle")}</h3>
+          <p className="text-muted-foreground text-sm">{t("postsHint")}</p>
+        </div>
         {!query.isPending &&
         !query.isError &&
         validRange &&
@@ -548,15 +653,25 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
         <ul className="space-y-3">
           {posts.map((post) => (
             <li key={post.id} className="space-y-3 rounded-lg border p-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="font-medium">
-                  {accountsById.get(post.connectionId)?.displayName ??
-                    accountsById.get(post.connectionId)?.externalHandle ??
-                    SOCIAL_PROVIDERS.find(
-                      (provider) => provider.id === post.provider,
-                    )?.name ??
-                    post.provider}
-                </p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <SocialPostProviderIcon
+                    provider={post.provider}
+                    className="size-4 shrink-0"
+                    aria-hidden
+                  />
+                  <p className="font-medium truncate">
+                    {accountsById.get(post.connectionId)?.displayName ??
+                      accountsById.get(post.connectionId)?.externalHandle ??
+                      SOCIAL_PROVIDERS.find(
+                        (provider) => provider.id === post.provider,
+                      )?.name ??
+                      post.provider}
+                  </p>
+                  {post.strong ? (
+                    <Badge variant="secondary">{t("recycle.strong")}</Badge>
+                  ) : null}
+                </div>
                 <p className="text-muted-foreground text-xs">
                   {post.publishedAt
                     ? formatDate(post.publishedAt)
@@ -575,6 +690,12 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
                 >
                   {t("openPost")}
                 </a>
+              ) : null}
+              {post.strong && post.canRecycle ? (
+                <RecycleAccountPost
+                  projectId={projectId}
+                  accountPostId={post.id}
+                />
               ) : null}
               <SocialPostMetrics
                 statistics={{
