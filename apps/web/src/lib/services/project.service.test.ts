@@ -15,6 +15,9 @@ const coreClientMock = {
   getProjectsByIdSocialPosts: vi.fn(),
   getProjectsByIdSocialPostsStatistics: vi.fn(),
   getProjectsByIdSocialConnectionsStatistics: vi.fn(),
+  getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience: vi.fn(),
+  getProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark: vi.fn(),
+  getProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery: vi.fn(),
   postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh: vi.fn(),
   postProjectsByIdSocialPostsByPostIdStatisticsRefresh: vi.fn(),
   getProjectsByIdSocialPostsByPostId: vi.fn(),
@@ -561,6 +564,51 @@ describe("project.service", () => {
       await expect(
         projectService.listSocialAccountStatistics("project-1"),
       ).rejects.toThrow("Denied");
+    });
+
+    it("reads X audience, benchmark, and discovery through the selected account", async () => {
+      const { projectService } = await import("./project.service");
+      coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience.mockResolvedValue(
+        { data: { contacts: [] } },
+      );
+      coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark.mockResolvedValue(
+        { data: { posts: [] } },
+      );
+      coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery.mockResolvedValue(
+        { data: { posts: [] } },
+      );
+      expect(
+        await projectService.listSocialStatisticsAudience(
+          "project-1",
+          "connection-1",
+          { kind: "mentions" },
+        ),
+      ).toEqual({ contacts: [] });
+      expect(
+        await projectService.getSocialStatisticsBenchmark(
+          "project-1",
+          "connection-1",
+          "launch",
+        ),
+      ).toEqual({ posts: [] });
+      expect(
+        await projectService.listSocialStatisticsDiscovery(
+          "project-1",
+          "connection-1",
+          { topic: "launch" },
+        ),
+      ).toEqual({ posts: [] });
+      expect(
+        coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience,
+      ).toHaveBeenCalledWith("project-1", "connection-1", {
+        kind: "mentions",
+      });
+      expect(
+        coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark,
+      ).toHaveBeenCalledWith("project-1", "connection-1", "launch");
+      expect(
+        coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery,
+      ).toHaveBeenCalledWith("project-1", "connection-1", { topic: "launch" });
     });
 
     it("syncs first or continued account history pages through Core and propagates failures", async () => {

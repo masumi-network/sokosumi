@@ -60,6 +60,10 @@ export const SOKO_BOT_CAPABILITIES = [
   "refresh_social_post_statistics",
   "list_social_account_statistics",
   "refresh_social_account_statistics",
+  "list_social_performance",
+  "read_social_performance_audience",
+  "read_social_performance_benchmark",
+  "read_social_performance_discovery",
   "get_social_post",
   "create_social_post",
   "update_social_post",
@@ -158,6 +162,10 @@ const DIRECT_READ_CAPABILITIES = [
   "refresh_social_post_statistics",
   "list_social_account_statistics",
   "refresh_social_account_statistics",
+  "list_social_performance",
+  "read_social_performance_audience",
+  "read_social_performance_benchmark",
+  "read_social_performance_discovery",
   "get_social_post",
   // Reads the marketplace listing in Sokosumi and spends nothing, so "what
   // could this cost?" is answerable below the hire route's bar. The input

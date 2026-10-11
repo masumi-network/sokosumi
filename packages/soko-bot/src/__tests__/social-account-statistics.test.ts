@@ -52,10 +52,9 @@ describe("account-wide Social statistics", () => {
     ).toBe(false);
   });
 
-  it("teaches the new default to evaluate externally published posts without changing v22", () => {
-    const version = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
+  it("teaches v23 to evaluate externally published posts without changing v22", () => {
+    const version = getSokoBotVersion("v23");
     const prior = getSokoBotVersion("v22");
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v23");
     expect(version.model).toBe(prior.model);
     expect(version.systemPrompt).toBe(prior.systemPrompt);
     const prompt = composeSystemPrompt(version);
@@ -66,8 +65,10 @@ describe("account-wide Social statistics", () => {
     expect(prompt).toContain("metric period");
     expect(prompt).toContain("do not stop history pagination");
     expect(prompt).not.toContain("# Chat result previews");
+    expect(prompt).not.toContain("# Social performance insights");
     expect(composeSystemPrompt(prior)).not.toContain(
       "# Social account performance",
     );
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v24");
   });
 });
