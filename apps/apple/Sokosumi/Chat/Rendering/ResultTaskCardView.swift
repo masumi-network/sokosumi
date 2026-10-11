@@ -58,7 +58,6 @@ struct ResultTaskCardView: View {
     }
   }
 
-  /// Web's `h3`: the priority mark, the identifier in small grey digits and the name, two lines at most.
   private var title: some View {
     HStack(alignment: .firstTextBaseline, spacing: 6) {
       TaskPriorityMark(priority: task.priority)
