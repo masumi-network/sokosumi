@@ -4977,6 +4977,8 @@
         }
       },
       "SocialAccounts": {
+        "title": "Anmeldung",
+        "description": "Mit diesen Konten kannst du dich anmelden.",
         "connected": "ist verbunden",
         "notConnected": "ist nicht verbunden",
         "success": "Account erfolgreich verbunden",

@@ -5013,6 +5013,8 @@
         }
       },
       "SocialAccounts": {
+        "title": "Sign-in",
+        "description": "Use these accounts to sign in.",
         "connected": "is connected",
         "notConnected": "is not connected",
         "success": "Account connected successfully",

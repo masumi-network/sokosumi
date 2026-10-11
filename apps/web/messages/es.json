@@ -4977,6 +4977,8 @@
         }
       },
       "SocialAccounts": {
+        "title": "Inicio de sesión",
+        "description": "Usa estas cuentas para iniciar sesión.",
         "connected": "está conectado",
         "notConnected": "no está conectado",
         "success": "Cuenta conectada correctamente",
