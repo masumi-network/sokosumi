@@ -144,13 +144,66 @@ describe("Social post calendar event", () => {
       screen.getByRole("button", { name: /X post with video/ }),
     ).toBeInTheDocument();
   });
-  it("uses a muted tile for a text-only week chip and keeps the platform logo", () => {
+  it("omits the thumbnail on a text-only week chip and keeps the platform logo", () => {
     renderCard({ previewMedia: null, attachmentCount: 0 }, "compact", true);
-    const thumb = screen.getByTestId("calendar-social-post-thumb");
-    expect(thumb.querySelector("img")).toBeNull();
-    expect(thumb.querySelector("video")).toBeNull();
+    expect(
+      screen.queryByTestId("calendar-social-post-thumb"),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("social-post-provider-icon")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /X post/ })).toBeInTheDocument();
+  });
+  it("marks a GIF on the week thumb without covering the frame", () => {
+    renderCard(
+      {
+        previewMedia: { fileUrl: "https://example.com/a.gif", kind: "gif" },
+        attachmentCount: 1,
+      },
+      "compact",
+      true,
+    );
+    const thumb = screen.getByTestId("calendar-social-post-thumb");
+    expect(thumb.querySelector("img")).toHaveAttribute(
+      "src",
+      "https://example.com/a.gif",
+    );
+    expect(screen.getByTestId("social-post-preview-gif")).toHaveTextContent(
+      "GIF",
+    );
+    expect(thumb.contains(screen.getByTestId("social-post-preview-gif"))).toBe(
+      true,
+    );
+  });
+  it("keeps a failed week chip as an icon so the word does not crowd the thumb", () => {
+    renderCard(
+      {
+        status: "FAILED",
+        previewMedia: { fileUrl: "https://example.com/a.png", kind: "image" },
+      },
+      "compact",
+      true,
+    );
+    expect(screen.queryByText("Failed")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("social-post-status-reason"),
+    ).toHaveAccessibleName("Failed");
+    expect(
+      screen.getByTestId("calendar-social-post-thumb"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("12:00 PM")).toHaveClass("shrink-0");
+  });
+  it("keeps failed icon-only on a text-only week chip too", () => {
+    renderCard(
+      { status: "FAILED", previewMedia: null, attachmentCount: 0 },
+      "compact",
+      true,
+    );
+    expect(screen.queryByText("Failed")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("social-post-status-reason"),
+    ).toHaveAccessibleName("Failed");
+    expect(
+      screen.queryByTestId("calendar-social-post-thumb"),
+    ).not.toBeInTheDocument();
   });
   it("previews the first image attachment", () => {
     const { container } = renderCard({

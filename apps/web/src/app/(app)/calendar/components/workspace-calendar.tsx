@@ -729,12 +729,14 @@ function CalendarView({
             const start = eventInfo.event.start;
             if (item.kind === "socialPost")
               return (
-                <SocialPostCalendarEvent
-                  item={item}
-                  showThumb={socialOnly && view === "week"}
-                  timeZone={timeZone}
-                  variant={socialPostVariant}
-                />
+                <div className="w-full max-w-full min-w-0 overflow-hidden">
+                  <SocialPostCalendarEvent
+                    item={item}
+                    showThumb={socialOnly && view === "week"}
+                    timeZone={timeZone}
+                    variant={socialPostVariant}
+                  />
+                </div>
               );
             return (
               <CalendarEvent

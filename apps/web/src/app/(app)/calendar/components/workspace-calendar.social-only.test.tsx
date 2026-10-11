@@ -419,7 +419,20 @@ describe("WorkspaceCalendar Social-only view", () => {
 
     it("uses compact chips with a square preview in week view so seven columns stay readable", () => {
       renderCalendar(
-        { includeSocialPosts: true, socialPostsOnly: true },
+        {
+          includeSocialPosts: true,
+          socialPostsOnly: true,
+          items: [
+            {
+              ...POST,
+              previewMedia: {
+                fileUrl: "https://example.com/a.png",
+                kind: "image",
+              },
+              attachmentCount: 1,
+            },
+          ],
+        },
         "?timezone=UTC&view=week",
       );
 
@@ -432,6 +445,20 @@ describe("WorkspaceCalendar Social-only view", () => {
       expect(
         screen.getByTestId("social-post-provider-icon"),
       ).toBeInTheDocument();
+    });
+
+    it("leaves a text-only week chip without a media tile", () => {
+      renderCalendar(
+        { includeSocialPosts: true, socialPostsOnly: true },
+        "?timezone=UTC&view=week",
+      );
+
+      expect(screen.getByTestId("calendar-social-post")).toHaveTextContent(
+        "compactLabel",
+      );
+      expect(
+        screen.queryByTestId("calendar-social-post-thumb"),
+      ).not.toBeInTheDocument();
     });
 
     it("leaves mixed week posts as one line without a media tile", () => {
