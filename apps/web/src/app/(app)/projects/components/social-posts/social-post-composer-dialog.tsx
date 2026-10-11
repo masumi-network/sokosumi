@@ -376,9 +376,10 @@ export function SocialPostComposerDialog({
     reason: SocialPostMediaValidationReason,
     rejectedBy: typeof provider,
   ): string {
+    const rules = SOCIAL_POST_MEDIA_RULES[rejectedBy];
     return t(`composer.media.errors.${reason}`, {
       provider: socialPostProviderLabel(rejectedBy),
-      max: SOCIAL_POST_MEDIA_RULES[rejectedBy].maxImages,
+      max: reason === "too_many_videos" ? rules.maxVideos : rules.maxImages,
     });
   }
 

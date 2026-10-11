@@ -2486,7 +2486,7 @@
             "errors": {
               "too_many_images": "{provider} allows at most {max} images per post.",
               "too_many_gifs": "{provider} allows one GIF per post.",
-              "too_many_videos": "{provider} allows one video per post.",
+              "too_many_videos": "{provider} allows {max, plural, one {one video} other {at most # videos}} per post.",
               "mixed_media": "{provider} does not allow mixing images, a GIF, or a video.",
               "unsupported_type": "{provider} does not accept this file type.",
               "too_large": "A file is too large for {provider}."
@@ -2620,7 +2620,9 @@
           },
           "instagram": {
             "more": "more",
-            "mediaRequired": "Instagram needs an image or video."
+            "mediaRequired": "Instagram needs an image or video.",
+            "slide": "{current} of {total}",
+            "slideIndex": "{current}/{total}"
           },
           "facebook": {
             "like": "Like",

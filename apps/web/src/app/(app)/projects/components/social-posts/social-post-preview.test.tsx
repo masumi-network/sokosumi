@@ -1,5 +1,5 @@
 import type { SocialPostMediaRef } from "@sokosumi/core-client";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -263,6 +263,48 @@ describe("SocialPostPreview", () => {
     expect(
       screen.getByTestId("social-post-preview-instagram-frame"),
     ).toHaveClass("aspect-[4/5]", "bg-media-ground");
+    expect(screen.queryByLabelText("instagram.slide")).not.toBeInTheDocument();
+  });
+
+  it("pages Instagram slides and updates the existing 1/n badge", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[
+          IMAGE,
+          { ...IMAGE, pathname: "drive/b.png", name: "b.png" },
+          { ...IMAGE, pathname: "drive/c.png", name: "c.png" },
+        ]}
+        provider="instagram"
+        text="Caption"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "a.png" })).toBeVisible();
+    expect(screen.getByRole("img", { name: "b.png" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "c.png" })).toBeInTheDocument();
+    const badge = screen.getByLabelText("instagram.slide");
+    expect(badge).toHaveTextContent("instagram.slideIndex");
+    expect(badge).toHaveAttribute("data-current", "1");
+    expect(
+      screen.getByTestId("social-post-preview-instagram-dots").children,
+    ).toHaveLength(3);
+
+    const scroller = screen.getByTestId(
+      "social-post-preview-instagram-scroller",
+    );
+    Object.defineProperty(scroller, "clientWidth", {
+      configurable: true,
+      value: 320,
+    });
+    scroller.scrollLeft = 320;
+    fireEvent.scroll(scroller);
+
+    expect(screen.getByLabelText("instagram.slide")).toHaveAttribute(
+      "data-current",
+      "2",
+    );
   });
 
   it("marks a GIF with a GIF badge", () => {
