@@ -432,6 +432,7 @@ export function ProjectSocialPosts({
             type="button"
             variant="outline"
             size="sm"
+            className="h-11 md:h-8"
             onClick={() => {
               if (preview) setPreviewOpen(false);
               setPublishTarget(post);
@@ -456,6 +457,7 @@ export function ProjectSocialPosts({
             <DropdownMenuContent align="end">
               {canPublishNow ? (
                 <DropdownMenuItem
+                  className="min-h-11"
                   onSelect={() => {
                     if (preview) setPreviewOpen(false);
                     setPublishTarget(post);
@@ -466,6 +468,7 @@ export function ProjectSocialPosts({
               ) : null}
               {post.canEdit ? (
                 <DropdownMenuItem
+                  className="min-h-11"
                   onSelect={() => {
                     if (preview) setPreviewOpen(false);
                     setComposer({ kind: "edit", post });
@@ -476,6 +479,7 @@ export function ProjectSocialPosts({
               ) : null}
               {post.canSchedule ? (
                 <DropdownMenuItem
+                  className="min-h-11"
                   onSelect={() => {
                     if (preview) setPreviewOpen(false);
                     setComposer({ kind: "schedule", post });
@@ -488,6 +492,7 @@ export function ProjectSocialPosts({
               ) : null}
               {post.canCancel ? (
                 <DropdownMenuItem
+                  className="min-h-11"
                   variant="destructive"
                   onSelect={() => {
                     if (preview) setPreviewOpen(false);
@@ -736,7 +741,7 @@ export function ProjectSocialPosts({
                 </p>
               </div>
               <Button
-                className="shrink-0"
+                className="h-11 shrink-0 md:h-8"
                 onClick={() => showTab("accounts")}
                 size="sm"
                 type="button"
@@ -789,6 +794,7 @@ export function ProjectSocialPosts({
                       type="button"
                       variant="outline"
                       size="sm"
+                      className="h-11 md:h-8"
                       disabled={loadingSection !== null}
                       onClick={() => {
                         void handleLoadMore(section);
