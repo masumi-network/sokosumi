@@ -6,7 +6,11 @@ describe("Social list tabs", () => {
   it("keeps drafts and Needs attention as the only post lists", () => {
     expect(SECTION_ORDER).toEqual(["drafts", "attention"]);
     expect(SECTION_STATUSES.drafts).toEqual(["DRAFT"]);
-    expect(SECTION_STATUSES.attention).toEqual(["FAILED", "MISSED"]);
+    expect(SECTION_STATUSES.attention).toEqual([
+      "FAILED",
+      "MISSED",
+      "NEEDS_APPROVAL",
+    ]);
   });
 
   it("puts calendar first and accounts last on Social's own page", () => {

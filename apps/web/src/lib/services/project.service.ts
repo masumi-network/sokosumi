@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  ApproveSocialPostRequest,
   CancelSocialPostRequest,
   CreateSocialPostRequest,
   DisconnectProjectSocialConnectionResponse,
@@ -18,6 +19,7 @@ import type {
   ProjectStar,
   ProjectStatsEntry,
   PublishSocialPostRequest,
+  RejectSocialPostRequest,
   ScheduleSocialPostRequest,
   SocialPost,
   SocialPostStatus,
@@ -466,6 +468,32 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function approveSocialPost(
+    projectId: string,
+    postId: string,
+    input: ApproveSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdApprove(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function rejectSocialPost(
+    projectId: string,
+    postId: string,
+    input: RejectSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdReject(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
+
   async function listProjectJobs(
     projectId: string,
     params: ListProjectResourcesParams = {},
@@ -590,6 +618,8 @@ export const projectService = (() => {
     scheduleSocialPost,
     cancelSocialPost,
     publishSocialPost,
+    approveSocialPost,
+    rejectSocialPost,
     listProjectJobs,
     listProjectTasks,
     addJob,

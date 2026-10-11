@@ -2560,6 +2560,8 @@
           "scheduled": "{count, plural, one {Post scheduled.} other {# posts scheduled.}}",
           "updated": "Post updated.",
           "canceled": "Post canceled.",
+          "approved": "Post approved.",
+          "rejected": "Post rejected.",
           "conflict": "This post was changed elsewhere. Reloading the latest version.",
           "failed": "Something went wrong. Try again.",
           "offline": "You're offline. Try again.",
@@ -2578,7 +2580,9 @@
         "attempts": "{count, plural, one {# attempt} other {# attempts}}",
         "actions": {
           "publishNow": "Publish now",
-          "retry": "Retry"
+          "retry": "Retry",
+          "approve": "Approve",
+          "reject": "Reject"
         },
         "publishDialog": {
           "title": "Publish this post now?",
@@ -2589,6 +2593,16 @@
           "title": "Retry this post?",
           "description": "The post goes out now.",
           "confirm": "Retry"
+        },
+        "approveDialog": {
+          "title": "Approve this post?",
+          "description": "It can then go out at its scheduled time, or stay a draft.",
+          "confirm": "Approve"
+        },
+        "rejectDialog": {
+          "title": "Reject this post?",
+          "description": "The post is canceled and never publishes.",
+          "confirm": "Reject"
         },
         "connectPrompt": {
           "title": "Connect an account to start posting",

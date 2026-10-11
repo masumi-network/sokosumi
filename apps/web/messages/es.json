@@ -2560,6 +2560,8 @@
           "scheduled": "{count, plural, one {Publicación programada.} other {# publicaciones programadas.}}",
           "updated": "Publicación actualizada.",
           "canceled": "Publicación cancelada.",
+          "approved": "Publicación aprobada.",
+          "rejected": "Publicación rechazada.",
           "conflict": "Esta publicación se modificó en otro lugar. Cargando la versión más reciente.",
           "failed": "Algo salió mal. Inténtalo de nuevo.",
           "offline": "Estás sin conexión. Inténtalo de nuevo.",
@@ -2578,7 +2580,9 @@
         "attempts": "{count, plural, one {# intento} other {# intentos}}",
         "actions": {
           "publishNow": "Publicar ahora",
-          "retry": "Reintentar"
+          "retry": "Reintentar",
+          "approve": "Aprobar",
+          "reject": "Rechazar"
         },
         "publishDialog": {
           "title": "¿Publicar esta publicación ahora?",
@@ -2589,6 +2593,16 @@
           "title": "¿Reintentar esta publicación?",
           "description": "La publicación saldrá ahora.",
           "confirm": "Reintentar"
+        },
+        "approveDialog": {
+          "title": "¿Aprobar esta publicación?",
+          "description": "Podrá salir a la hora programada o quedarse como borrador.",
+          "confirm": "Aprobar"
+        },
+        "rejectDialog": {
+          "title": "¿Rechazar esta publicación?",
+          "description": "La publicación se cancela y no se publica.",
+          "confirm": "Rechazar"
         },
         "connectPrompt": {
           "title": "Conecta una cuenta para empezar a publicar",

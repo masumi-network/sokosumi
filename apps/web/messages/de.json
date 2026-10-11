@@ -2560,6 +2560,8 @@
           "scheduled": "{count, plural, one {Beitrag geplant.} other {# Beiträge geplant.}}",
           "updated": "Beitrag aktualisiert.",
           "canceled": "Beitrag abgebrochen.",
+          "approved": "Beitrag freigegeben.",
+          "rejected": "Beitrag abgelehnt.",
           "conflict": "Dieser Beitrag wurde an anderer Stelle geändert. Die neueste Version wird geladen.",
           "failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
           "offline": "Du bist offline. Versuche es erneut.",
@@ -2578,7 +2580,9 @@
         "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
         "actions": {
           "publishNow": "Jetzt veröffentlichen",
-          "retry": "Erneut versuchen"
+          "retry": "Erneut versuchen",
+          "approve": "Freigeben",
+          "reject": "Ablehnen"
         },
         "publishDialog": {
           "title": "Diesen Beitrag jetzt veröffentlichen?",
@@ -2589,6 +2593,16 @@
           "title": "Diesen Beitrag erneut versuchen?",
           "description": "Der Beitrag wird jetzt veröffentlicht.",
           "confirm": "Erneut versuchen"
+        },
+        "approveDialog": {
+          "title": "Diesen Beitrag freigeben?",
+          "description": "Er kann dann zur geplanten Zeit rausgehen oder ein Entwurf bleiben.",
+          "confirm": "Freigeben"
+        },
+        "rejectDialog": {
+          "title": "Diesen Beitrag ablehnen?",
+          "description": "Der Beitrag wird abgebrochen und nie veröffentlicht.",
+          "confirm": "Ablehnen"
         },
         "connectPrompt": {
           "title": "Verbinde ein Konto, um zu posten",

@@ -134,6 +134,7 @@ describe("Social post calendar event", () => {
   it.each([
     ["FAILED", "Failed"],
     ["MISSED", "Missed"],
+    ["NEEDS_APPROVAL", "Needs approval"],
   ] as const)("names %s on the card so a retry is obvious", (status, label) => {
     renderCard({ status });
     expect(screen.getByText(label)).toBeVisible();
@@ -142,6 +143,10 @@ describe("Social post calendar event", () => {
   it("names a failed post on the compact workspace chip too", () => {
     renderCard({ status: "FAILED" }, "compact");
     expect(screen.getByText("Failed")).toBeVisible();
+  });
+  it("names a needs-approval post on the compact workspace chip too", () => {
+    renderCard({ status: "NEEDS_APPROVAL" }, "compact");
+    expect(screen.getByText("Needs approval")).toBeVisible();
   });
   it("describes a failed chip without showing the provider error", () => {
     renderCard({

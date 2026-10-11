@@ -26,6 +26,8 @@ const projectServiceMock = {
   initiateSocialConnection: vi.fn(),
   patchProject: vi.fn(),
   publishSocialPost: vi.fn(),
+  approveSocialPost: vi.fn(),
+  rejectSocialPost: vi.fn(),
   refreshSocialPostStatistics: vi.fn(),
   refreshSocialAccountStatistics: vi.fn(),
   removeProjectDesignMd: vi.fn(),
@@ -960,6 +962,70 @@ describe("project actions", () => {
         },
       });
       expect(revalidatePath).not.toHaveBeenCalled();
+    });
+
+    it("approves and rejects a post through the service and revalidates", async () => {
+      projectServiceMock.approveSocialPost.mockResolvedValue({
+        ...post,
+        status: "DRAFT",
+        revision: 3,
+      });
+      projectServiceMock.rejectSocialPost.mockResolvedValue({
+        ...post,
+        status: "CANCELED",
+        revision: 4,
+      });
+
+      const { approveProjectSocialPost, rejectProjectSocialPost } =
+        await import("./action");
+      const { revalidatePath } = await import("next/cache");
+
+      const approved = await approveProjectSocialPost({
+        projectId: " project-1 ",
+        postId: " post-1 ",
+        revision: 2,
+      });
+      expect(projectServiceMock.approveSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        { revision: 2 },
+      );
+      expect(approved).toMatchObject({
+        ok: true,
+        value: { status: "DRAFT", revision: 3 },
+      });
+
+      const rejected = await rejectProjectSocialPost({
+        projectId: "project-1",
+        postId: "post-1",
+        revision: 3,
+      });
+      expect(projectServiceMock.rejectSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        { revision: 3 },
+      );
+      expect(rejected).toMatchObject({
+        ok: true,
+        value: { status: "CANCELED", revision: 4 },
+      });
+      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
+      expect(revalidatePath).toHaveBeenCalledWith("/social");
+    });
+
+    it("rejects a negative revision before approving", async () => {
+      const { approveProjectSocialPost } = await import("./action");
+      const result = await approveProjectSocialPost({
+        projectId: "project-1",
+        postId: "post-1",
+        revision: -1,
+      });
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: "BAD_INPUT" },
+      });
+      expect(projectServiceMock.approveSocialPost).not.toHaveBeenCalled();
     });
 
     it("converts social post Core errors to a plain action error DTO", async () => {

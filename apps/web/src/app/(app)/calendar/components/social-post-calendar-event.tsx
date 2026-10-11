@@ -17,9 +17,11 @@ import {
 } from "@/components/ui/popover";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 
-/** Failed and missed posts need the word, not only a coloured mark. */
+/** Failed, missed, and needs-approval posts need the word, not only a mark. */
 function needsStatusLabel(status: SocialPostCalendarItem["status"]) {
-  return status === "FAILED" || status === "MISSED";
+  return (
+    status === "FAILED" || status === "MISSED" || status === "NEEDS_APPROVAL"
+  );
 }
 
 function CalendarSocialPostStatus({ item }: { item: SocialPostCalendarItem }) {
@@ -33,7 +35,7 @@ function CalendarSocialPostStatus({ item }: { item: SocialPostCalendarItem }) {
       showLabel={needsStatusLabel(item.status)}
     />
   );
-  if (!needsStatusLabel(item.status)) return badge;
+  if (item.status !== "FAILED" && item.status !== "MISSED") return badge;
   return (
     <SocialPostStatusReasonTooltip
       label={label}
