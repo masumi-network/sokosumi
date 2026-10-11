@@ -115,6 +115,48 @@ describe("SocialPostPreview", () => {
     );
   });
 
+  it("shows a recent X time as relative", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Launch day"
+        timestamp={new Date(Date.now() - 3 * 60 * 60 * 1000)}
+      />,
+    );
+
+    expect(screen.getByText("@sokosumi · 3 hours ago")).toBeVisible();
+  });
+
+  it("shows a scheduled X time as relative", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Launch day"
+        timestamp={new Date(Date.now() + 3 * 60 * 60 * 1000)}
+      />,
+    );
+
+    expect(screen.getByText("@sokosumi · in 3 hours")).toBeVisible();
+  });
+
+  it("keeps an older X time as a short date", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Launch day"
+        timestamp={new Date("2026-09-01T12:00:00.000Z")}
+      />,
+    );
+
+    expect(screen.getByText("@sokosumi · Sep 1")).toBeVisible();
+  });
+
   it("keeps the X handle and time when the display name is long", () => {
     render(
       <SocialPostPreview
