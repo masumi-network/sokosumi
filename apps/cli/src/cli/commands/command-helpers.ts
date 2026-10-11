@@ -113,7 +113,7 @@ export function normalizeCapabilities(value: CommandOption): string[] {
   return [...new Set(capabilities)];
 }
 
-export function normalizeSearch(value: CommandOption): string {
+function normalizeSearch(value: CommandOption): string {
   if (value === undefined || typeof value === "boolean") return "";
   return String(Array.isArray(value) ? value.at(-1) : value)
     .trim()
