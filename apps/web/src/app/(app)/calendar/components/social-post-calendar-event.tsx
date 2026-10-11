@@ -26,10 +26,12 @@ function needsStatusLabel(status: SocialPostCalendarItem["status"]) {
 function CalendarSocialPostStatus({
   item,
   showLabel,
+  className,
 }: {
   item: SocialPostCalendarItem;
-  /** Week media chips stay icon-only so the word does not crowd the thumb. */
+  /** Week chips stay icon-only so the word does not crowd the thumb. */
   showLabel?: boolean;
+  className?: string;
 }) {
   const statuses = useTranslations("App.Projects.SocialPosts.status");
   const copy = useTranslations("App.Projects.SocialPosts");
@@ -37,6 +39,7 @@ function CalendarSocialPostStatus({
   const labeled = showLabel ?? needsStatusLabel(item.status);
   const badge = (
     <SocialPostStatusBadge
+      className={className}
       status={item.status}
       label={label}
       showLabel={labeled}
@@ -117,8 +120,16 @@ function CompactSocialPostCalendarEvent({
   );
   const status = (
     <CalendarSocialPostStatus
+      className={showThumb ? "size-4" : undefined}
       item={item}
       showLabel={showThumb ? false : undefined}
+    />
+  );
+  const logo = (
+    <SocialPostProviderIcon
+      provider={item.provider}
+      aria-hidden
+      className="size-3 shrink-0"
     />
   );
   return (
@@ -127,32 +138,33 @@ function CompactSocialPostCalendarEvent({
         <button
           type="button"
           className={cn(
-            "@container bg-background text-foreground press hover:bg-muted border-border flex w-full max-w-full min-w-0 cursor-pointer select-none items-center overflow-hidden rounded border text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring-halo focus-visible:ring-2 focus-visible:outline-none",
-            media ? "gap-1 px-1 py-1" : "gap-1 px-1.5 py-1",
+            "bg-background text-foreground press hover:bg-muted border-border flex w-full max-w-full min-w-0 cursor-pointer select-none overflow-hidden rounded border text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring-halo focus-visible:ring-2 focus-visible:outline-none",
+            showThumb
+              ? "@container items-center gap-1 px-1 py-1"
+              : "items-center gap-1 px-1.5 py-1",
           )}
           data-testid="calendar-social-post"
         >
-          <SocialPostProviderIcon
-            provider={item.provider}
-            aria-hidden
-            className="size-3 shrink-0"
-          />
-          {media ? (
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="flex min-w-0 items-center gap-1">
-                {time}
-                <span className="shrink-0">{status}</span>
+          {showThumb ? (
+            <>
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="flex flex-nowrap items-center gap-0.5">
+                  {logo}
+                  {time}
+                  <span className="shrink-0">{status}</span>
+                </span>
+                <span className="w-full min-w-0 truncate">{label}</span>
               </span>
-              <span className="min-w-0 truncate">{label}</span>
-            </span>
+              {media ? <CompactSocialPostThumb media={media} /> : null}
+            </>
           ) : (
             <>
+              {logo}
               {time}
               <span className="min-w-0 flex-1 truncate">{label}</span>
               {status}
             </>
           )}
-          {media ? <CompactSocialPostThumb media={media} /> : null}
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-1.5">
@@ -271,7 +283,7 @@ function CompactSocialPostThumb({
 }) {
   return (
     <span
-      className="relative size-6 shrink-0 overflow-hidden rounded-md @max-[8rem]:hidden"
+      className="relative size-7 shrink-0 overflow-hidden rounded-md @max-[6.875rem]:hidden"
       data-testid="calendar-social-post-thumb"
     >
       <span aria-hidden className="absolute inset-0">

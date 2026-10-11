@@ -116,15 +116,18 @@ describe("Social post calendar event", () => {
     expect(image).toHaveAttribute("src", "https://example.com/a.png");
     expect(image).toHaveAttribute("loading", "lazy");
     expect(image).toHaveClass("object-cover");
+    expect(thumb).toHaveClass("size-7", "@max-[6.875rem]:hidden");
     expect(screen.getByTestId("social-post-provider-icon")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /X post with 2 images/ }),
     ).toBeInTheDocument();
     expect(screen.getByText("12:00 PM")).toBeInTheDocument();
     const chip = screen.getByTestId("calendar-social-post");
-    expect(chip.firstElementChild).toBe(
+    const textCol = chip.firstElementChild;
+    expect(textCol).toContainElement(
       screen.getByTestId("social-post-provider-icon"),
     );
+    expect(textCol?.childElementCount).toBe(2);
     expect(chip.lastElementChild).toBe(thumb);
   });
   it("shows a video first-frame on a week chip and keeps the platform logo", () => {
@@ -144,13 +147,20 @@ describe("Social post calendar event", () => {
       screen.getByRole("button", { name: /X post with video/ }),
     ).toBeInTheDocument();
   });
-  it("omits the thumbnail on a text-only week chip and keeps the platform logo", () => {
+  it("omits the thumbnail on a text-only week chip and keeps the name on its own line", () => {
     renderCard({ previewMedia: null, attachmentCount: 0 }, "compact", true);
     expect(
       screen.queryByTestId("calendar-social-post-thumb"),
     ).not.toBeInTheDocument();
     expect(screen.getByTestId("social-post-provider-icon")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /X post/ })).toBeInTheDocument();
+    const name = screen.getByText("X post");
+    expect(name).toBeVisible();
+    expect(name).toHaveClass("truncate");
+    const chip = screen.getByTestId("calendar-social-post");
+    expect(chip.firstElementChild?.childElementCount).toBe(2);
+    expect(chip.lastElementChild).not.toBe(
+      screen.getByTestId("social-post-provider-icon"),
+    );
   });
   it("marks a GIF on the week thumb without covering the frame", () => {
     renderCard(
