@@ -264,6 +264,26 @@ function getRangeLabel(
   return formatDate(date, { month: "long", year: "numeric" });
 }
 
+function calendarTodayKey(timeZone: string): string {
+  return Temporal.Now.plainDateISO(timeZone).toString();
+}
+
+function isShowingToday(
+  date: Date,
+  view: CalendarView,
+  timeZone: string,
+): boolean {
+  const today = calendarTodayKey(timeZone);
+  if (view === "week") {
+    return (
+      today >= format(startOfWeek(date), "yyyy-MM-dd") &&
+      today <= format(endOfWeek(date), "yyyy-MM-dd")
+    );
+  }
+
+  return format(date, "yyyy-MM") === today.slice(0, 7);
+}
+
 /** A moved Run is planned at a time other than the rule's. */
 function isMovedRun(item: WorkspaceCalendarItem): boolean {
   return (
@@ -944,6 +964,10 @@ export function WorkspaceCalendar({
     void setState({ date: format(nextDate, "yyyy-MM-dd") }, { shallow: false });
   }
 
+  function handleToday() {
+    void setState({ date: calendarTodayKey(timeZone) }, { shallow: false });
+  }
+
   function handleViewChange(view: CalendarView) {
     void setState({ view }, { shallow: false });
   }
@@ -1291,6 +1315,14 @@ export function WorkspaceCalendar({
               onClick={() => handleNavigate(1)}
             >
               <ChevronRight aria-hidden />
+            </Button>
+            <Button
+              disabled={isShowingToday(date, view, timeZone)}
+              type="button"
+              variant="outline"
+              onClick={handleToday}
+            >
+              {t("today")}
             </Button>
           </div>
         ) : null}

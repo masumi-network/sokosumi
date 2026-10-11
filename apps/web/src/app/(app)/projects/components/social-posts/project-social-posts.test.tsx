@@ -30,6 +30,7 @@ import {
 } from "@/lib/actions/project/action";
 import { createTestFormatter } from "@/test/intl-formatter";
 import { TestQueryProvider } from "@/test/query-provider";
+import { stubLoadedImage } from "@/test/stub-pending-image-load";
 
 import { loadMoreSocialPosts } from "./actions";
 import { writeRememberedComposerAccounts } from "./social-post-composer-accounts";
@@ -1713,6 +1714,90 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
+  it("keeps the network logo on a composer chip without a photo", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const chip = within(screen.getByRole("dialog")).getByRole("button", {
+      name: "X @sokosumi",
+    });
+    expect(within(chip).getByTestId("social-post-account-logo")).toBeVisible();
+    expect(
+      within(chip).queryByTestId("social-post-account-photo"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(chip).queryByTestId("social-post-account-logo-badge"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the account photo with a network logo badge", async () => {
+    const restore = stubLoadedImage();
+    const photo =
+      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect width='8' height='8' fill='%23111'/></svg>";
+    try {
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection({ avatarUrl: photo })]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const chip = within(screen.getByRole("dialog")).getByRole("button", {
+        name: "X @sokosumi",
+      });
+      await waitFor(() => {
+        expect(
+          within(chip).getByTestId("social-post-account-photo"),
+        ).toHaveAttribute("src", photo);
+      });
+      expect(
+        within(chip).getByTestId("social-post-account-logo"),
+      ).toBeVisible();
+      expect(
+        within(chip).getByTestId("social-post-account-logo-badge"),
+      ).toBeVisible();
+    } finally {
+      restore();
+    }
+  });
+
+  it("falls back to the network logo when the account photo fails", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection({ avatarUrl: "https://example.invalid/missing.png" }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const chip = within(screen.getByRole("dialog")).getByRole("button", {
+      name: "X @sokosumi",
+    });
+    await waitFor(() => {
+      expect(
+        within(chip).queryByTestId("social-post-account-photo"),
+      ).not.toBeInTheDocument();
+    });
+    expect(within(chip).getByTestId("social-post-account-logo")).toBeVisible();
+    expect(
+      within(chip).queryByTestId("social-post-account-logo-badge"),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders media thumbnails in a linked post preview", () => {
     render(
       <ProjectSocialPosts
@@ -2353,6 +2438,66 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(warning).getByRole("link", { name: "Reconnect the account" }),
     ).toHaveAttribute("href", `/social?projectId=${PROJECT_ID}&tab=accounts`);
+  });
+
+  it("links reconnect from a list row to the project's Accounts tab", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          {
+            ...FAILED_POST,
+            socialConnection: {
+              id: "connection-1",
+              externalHandle: "sokosumi",
+              displayName: null,
+              avatarUrl: null,
+              status: "reauthorization_required",
+            },
+            connectionNeedsReconnect: true,
+          },
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+
+    const warning = screen.getByTestId("social-post-needs-reconnect");
+    expect(warning).toHaveTextContent("Account needs reconnecting");
+    expect(
+      within(warning).getByRole("link", { name: "Reconnect the account" }),
+    ).toHaveAttribute("href", "/social?projectId=project-1&tab=accounts");
+  });
+
+  it("sends preview-only connect to the project's Accounts tab", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[]}
+        posts={[SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
+        previewOnly
+      />,
+    );
+
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /^Reschedule/,
+      }),
+    );
+
+    await user.click(
+      within(screen.getByTestId("social-post-composer")).getByRole("button", {
+        name: "Connect account",
+      }),
+    );
+
+    expect(pushMock).toHaveBeenCalledWith(
+      "/social?projectId=project-1&tab=accounts",
+    );
   });
 
   it("does not warn about reconnecting when the connection is active", () => {
