@@ -405,8 +405,14 @@ export function ProjectSocialPosts({
     // Retry sits on the row, the way Reconnect does on a Social account.
     const canRetry = isRetry && post.canPublishNow;
     const canPublishNow = !isRetry && post.canPublishNow;
+    // Preview footer already has Edit and Schedule. Keep the menu for
+    // Publish now and Cancel, and hide it when those are gone.
+    const showComposeInMenu = !preview;
     const hasMenu =
-      canPublishNow || post.canEdit || post.canSchedule || post.canCancel;
+      canPublishNow ||
+      (showComposeInMenu && post.canEdit) ||
+      (showComposeInMenu && post.canSchedule) ||
+      post.canCancel;
     return (
       <div
         className="ms-auto flex items-center gap-2"
@@ -466,22 +472,20 @@ export function ProjectSocialPosts({
                   {t("actions.publishNow")}
                 </DropdownMenuItem>
               ) : null}
-              {post.canEdit ? (
+              {showComposeInMenu && post.canEdit ? (
                 <DropdownMenuItem
                   className="min-h-11"
                   onSelect={() => {
-                    if (preview) setPreviewOpen(false);
                     setComposer({ kind: "edit", post });
                   }}
                 >
                   {t("composer.edit")}
                 </DropdownMenuItem>
               ) : null}
-              {post.canSchedule ? (
+              {showComposeInMenu && post.canSchedule ? (
                 <DropdownMenuItem
                   className="min-h-11"
                   onSelect={() => {
-                    if (preview) setPreviewOpen(false);
                     setComposer({ kind: "schedule", post });
                   }}
                 >

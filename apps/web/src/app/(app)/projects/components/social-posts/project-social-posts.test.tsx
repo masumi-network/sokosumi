@@ -2184,6 +2184,56 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
+  it("keeps Edit and Reschedule on the preview footer, not in the preview menu", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
+      />,
+    );
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: "Edit" })).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
+    ).toBeVisible();
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Post actions" }),
+    );
+    expect(screen.getByRole("menuitem", { name: "Publish now" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "Cancel post" })).toBeVisible();
+    expect(
+      screen.queryByRole("menuitem", { name: "Edit" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Reschedule" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the preview menu when only Edit or Schedule would remain", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[FAILED_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-failed"
+      />,
+    );
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: "Retry" })).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
+    ).toBeVisible();
+    expect(
+      within(dialog).queryByRole("button", { name: "Post actions" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("switches the live preview between selected accounts", async () => {
     const user = userEvent.setup();
     render(
@@ -2233,7 +2283,7 @@ describe("ProjectSocialPosts", () => {
     expect(preview).toHaveAttribute("data-provider", "x");
   });
 
-  it("reschedules a scheduled post from the row menu", async () => {
+  it("reschedules a scheduled post from the preview", async () => {
     freezeClock();
     const user = userEvent.setup();
     render(
@@ -2245,8 +2295,11 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    await openRowMenu(user, "post-scheduled");
-    await user.click(screen.getByRole("menuitem", { name: "Reschedule" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /^Reschedule/,
+      }),
+    );
 
     const dialog = screen.getByRole("dialog");
     expect(
@@ -2287,8 +2340,9 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    await openRowMenu(user, "post-scheduled");
-    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Edit" }),
+    );
     const dialog = screen.getByRole("dialog");
     await user.click(
       within(dialog).getByRole("button", { name: "Add from Drive" }),
@@ -3054,8 +3108,11 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    await openRowMenu(user, "post-scheduled");
-    await user.click(screen.getByRole("menuitem", { name: "Reschedule" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /^Reschedule/,
+      }),
+    );
     expect(
       within(screen.getByRole("dialog")).getByTestId("social-post-timezone"),
     ).toHaveTextContent(`in ${otherZone.replaceAll("_", " ")}.`);
