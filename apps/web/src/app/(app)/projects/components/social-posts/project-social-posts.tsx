@@ -9,6 +9,7 @@ import type {
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   AlertTriangle,
+  Check,
   ExternalLink,
   Eye,
   FileText,
@@ -62,8 +63,10 @@ import {
 } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
+  approveProjectSocialPost,
   cancelProjectSocialPost,
   publishProjectSocialPost,
+  rejectProjectSocialPost,
 } from "@/lib/actions/project/action";
 import { cn } from "@/lib/utils";
 import { loadMoreSocialPosts } from "./actions";
@@ -230,6 +233,10 @@ export function ProjectSocialPosts({
   const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
   const [publishPending, setPublishPending] = useState(false);
+  const [approveTarget, setApproveTarget] = useState<SocialPost | null>(null);
+  const [approvePending, setApprovePending] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState<SocialPost | null>(null);
+  const [rejectPending, setRejectPending] = useState(false);
   // The target outlives `previewOpen` so the dialog keeps its content while it
   // animates closed.
   const [previewTarget, setPreviewTarget] = useState<SocialPost | null>(
@@ -248,7 +255,14 @@ export function ProjectSocialPosts({
   function handleCloseAutoFocus(event: Event) {
     if (!returnFocus) return;
     event.preventDefault();
-    if (!composerMode && !cancelTarget && !publishTarget) returnFocus();
+    if (
+      !composerMode &&
+      !cancelTarget &&
+      !publishTarget &&
+      !approveTarget &&
+      !rejectTarget
+    )
+      returnFocus();
   }
 
   function postsIn(section: SectionKey): SocialPost[] {
@@ -300,6 +314,8 @@ export function ProjectSocialPosts({
       setComposer(null);
       compose?.setOpen(false);
       setCancelTarget(null);
+      setApproveTarget(null);
+      setRejectTarget(null);
       router.refresh();
       return;
     }
@@ -399,6 +415,54 @@ export function ProjectSocialPosts({
     }
   }
 
+  async function handleConfirmApprove(): Promise<void> {
+    const target = approveTarget;
+    if (!target || approvePending) return;
+    setApprovePending(true);
+    try {
+      const result = await approveProjectSocialPost({
+        projectId,
+        postId: target.id,
+        revision: target.revision,
+      });
+      if (!result.ok) {
+        handleActionError(result.error);
+        return;
+      }
+      toast.success(t("toasts.approved"));
+      handleSaved(result.value);
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
+    } finally {
+      setApprovePending(false);
+      setApproveTarget(null);
+    }
+  }
+
+  async function handleConfirmReject(): Promise<void> {
+    const target = rejectTarget;
+    if (!target || rejectPending) return;
+    setRejectPending(true);
+    try {
+      const result = await rejectProjectSocialPost({
+        projectId,
+        postId: target.id,
+        revision: target.revision,
+      });
+      if (!result.ok) {
+        handleActionError(result.error);
+        return;
+      }
+      toast.success(t("toasts.rejected"));
+      handleSaved(result.value);
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
+    } finally {
+      setRejectPending(false);
+      setRejectTarget(null);
+    }
+  }
+
   function renderPostActions(post: SocialPost, preview = false) {
     const isRetry = RETRY_STATUSES.includes(post.status);
     // A post that failed or missed its time has one thing left to do, so
@@ -406,7 +470,11 @@ export function ProjectSocialPosts({
     const canRetry = isRetry && post.canPublishNow;
     const canPublishNow = !isRetry && post.canPublishNow;
     const hasMenu =
-      canPublishNow || post.canEdit || post.canSchedule || post.canCancel;
+      canPublishNow ||
+      post.canEdit ||
+      post.canSchedule ||
+      post.canCancel ||
+      post.canReject;
     return (
       <div
         className="ms-auto flex items-center gap-2"
@@ -440,6 +508,21 @@ export function ProjectSocialPosts({
           >
             <RotateCcw className="size-4" aria-hidden />
             {t("actions.retry")}
+          </Button>
+        ) : null}
+        {post.canApprove ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-11 md:h-8"
+            onClick={() => {
+              if (preview) setPreviewOpen(false);
+              setApproveTarget(post);
+            }}
+          >
+            <Check className="size-4" aria-hidden />
+            {t("actions.approve")}
           </Button>
         ) : null}
         {hasMenu ? (
@@ -500,6 +583,18 @@ export function ProjectSocialPosts({
                   }}
                 >
                   {t("composer.cancel")}
+                </DropdownMenuItem>
+              ) : null}
+              {post.canReject ? (
+                <DropdownMenuItem
+                  className="min-h-11"
+                  variant="destructive"
+                  onSelect={() => {
+                    if (preview) setPreviewOpen(false);
+                    setRejectTarget(post);
+                  }}
+                >
+                  {t("actions.reject")}
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuContent>
@@ -942,6 +1037,66 @@ export function ProjectSocialPosts({
               }}
             >
               {t(`${publishCopy}.confirm`)}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={approveTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !approvePending) setApproveTarget(null);
+        }}
+      >
+        <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("approveDialog.title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("approveDialog.description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={approvePending}>
+              {t("composer.close")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              loading={approvePending}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmApprove();
+              }}
+            >
+              {t("approveDialog.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={rejectTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !rejectPending) setRejectTarget(null);
+        }}
+      >
+        <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("rejectDialog.title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("rejectDialog.description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={rejectPending}>
+              {t("composer.close")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              loading={rejectPending}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmReject();
+              }}
+            >
+              {t("rejectDialog.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -62,7 +62,7 @@ describe("loadMoreSocialPosts", () => {
     });
     expect(SECTION_STATUSES).toEqual({
       drafts: ["DRAFT"],
-      attention: ["FAILED", "MISSED"],
+      attention: ["FAILED", "MISSED", "NEEDS_APPROVAL"],
     });
   });
 });

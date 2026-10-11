@@ -140,6 +140,18 @@ interface PublishProjectSocialPostParameters extends AuthenticatedRequest {
   revision: number;
 }
 
+interface ApproveProjectSocialPostParameters extends AuthenticatedRequest {
+  projectId: string;
+  postId: string;
+  revision: number;
+}
+
+interface RejectProjectSocialPostParameters extends AuthenticatedRequest {
+  projectId: string;
+  postId: string;
+  revision: number;
+}
+
 function normalizeProjectName(name: string): string {
   return name.trim();
 }
@@ -834,6 +846,58 @@ export const publishProjectSocialPost = withSession<
 
   try {
     const post = await projectService.publishSocialPost(
+      parsed.data.projectId,
+      parsed.data.postId,
+      { revision: parsed.data.revision },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const approveProjectSocialPost = withSession<
+  ApproveProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId, revision }) => {
+  const parsed = publishProjectSocialPostSchema.safeParse({
+    projectId,
+    postId,
+    revision,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.approveSocialPost(
+      parsed.data.projectId,
+      parsed.data.postId,
+      { revision: parsed.data.revision },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const rejectProjectSocialPost = withSession<
+  RejectProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId, revision }) => {
+  const parsed = publishProjectSocialPostSchema.safeParse({
+    projectId,
+    postId,
+    revision,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.rejectSocialPost(
       parsed.data.projectId,
       parsed.data.postId,
       { revision: parsed.data.revision },

@@ -21,10 +21,12 @@ import {
   useSocialCompose,
 } from "@/app/social/components/social-compose-context";
 import {
+  approveProjectSocialPost,
   cancelProjectSocialPost,
   createProjectSocialPost,
   publishProjectSocialPost,
   refreshProjectSocialPostStatistics,
+  rejectProjectSocialPost,
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
@@ -96,6 +98,8 @@ const MESSAGES: Record<string, string> = {
   attempts: "{count} attempts",
   "actions.publishNow": "Publish now",
   "actions.retry": "Retry",
+  "actions.approve": "Approve",
+  "actions.reject": "Reject",
   "sections.calendar": "Calendar",
   "sections.drafts": "Drafts",
   "sections.attention": "Needs attention",
@@ -196,7 +200,16 @@ const MESSAGES: Record<string, string> = {
   "retryDialog.title": "Retry this post?",
   "retryDialog.description": "The post goes out now.",
   "retryDialog.confirm": "Retry",
+  "approveDialog.title": "Approve this post?",
+  "approveDialog.description":
+    "It can then go out at its scheduled time, or stay a draft.",
+  "approveDialog.confirm": "Approve",
+  "rejectDialog.title": "Reject this post?",
+  "rejectDialog.description": "The post is canceled and never publishes.",
+  "rejectDialog.confirm": "Reject",
   "toasts.published": "Post published.",
+  "toasts.approved": "Post approved.",
+  "toasts.rejected": "Post rejected.",
   "toasts.publishFailed": "Publishing failed: {error}",
   "toasts.created": "Draft saved.",
   "toasts.scheduled": "Post scheduled.",
@@ -258,10 +271,12 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/lib/actions/project/action", () => ({
+  approveProjectSocialPost: vi.fn(),
   cancelProjectSocialPost: vi.fn(),
   createProjectSocialPost: vi.fn(),
   publishProjectSocialPost: vi.fn(),
   refreshProjectSocialPostStatistics: vi.fn(),
+  rejectProjectSocialPost: vi.fn(),
   scheduleProjectSocialPost: vi.fn(),
   updateProjectSocialPost: vi.fn(),
 }));
@@ -428,6 +443,29 @@ const FAILED_POST = buildPost({
   canSchedule: true,
   canCancel: false,
   canPublishNow: true,
+});
+
+const PENDING_POST = buildPost({
+  id: "post-pending",
+  text: "Agent draft",
+  status: "NEEDS_APPROVAL",
+  scheduledAt: new Date("2026-10-02T10:00:00.000Z"),
+  timezone: "UTC",
+  socialConnection: {
+    id: "connection-1",
+    externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
+    status: "active",
+  },
+  creator: { kind: "sokoBot", id: "bot-1", name: null },
+  revision: 1,
+  canEdit: true,
+  canSchedule: true,
+  canCancel: true,
+  canPublishNow: false,
+  canApprove: true,
+  canReject: true,
 });
 
 const PUBLISHING_POST = buildPost({
@@ -2656,6 +2694,209 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.queryByTestId("social-post-post-failed"),
     ).not.toBeInTheDocument();
+  });
+
+  it("lists a needs-approval post in Needs attention with Approve on the row", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[PENDING_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(getTab("Needs attention")).toHaveTextContent("Needs attention 1");
+    await openTab(user, "Needs attention");
+    const row = screen.getByTestId("social-post-post-pending");
+    expect(within(row).getByText("Needs approval")).toBeVisible();
+    expect(within(row).getByText("Soko Bot")).toBeVisible();
+    expect(within(row).getByRole("button", { name: "Approve" })).toHaveClass(
+      "h-11",
+      "md:h-8",
+    );
+
+    await openRowMenu(user, "post-pending");
+    expect(screen.getByRole("menuitem", { name: "Reject" })).toHaveClass(
+      "min-h-11",
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Approve" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Publish now" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides approve and reject when Core says the actor cannot", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          {
+            ...PENDING_POST,
+            canApprove: false,
+            canReject: false,
+          },
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    const row = screen.getByTestId("social-post-post-pending");
+    expect(
+      within(row).queryByRole("button", { name: "Approve" }),
+    ).not.toBeInTheDocument();
+    await openRowMenu(user, "post-pending");
+    expect(
+      screen.queryByRole("menuitem", { name: "Reject" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("approves a pending post after confirmation and follows it to Drafts", async () => {
+    const user = userEvent.setup();
+    vi.mocked(approveProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: {
+        ...PENDING_POST,
+        status: "DRAFT",
+        revision: 2,
+        canApprove: false,
+        canReject: false,
+        canPublishNow: true,
+      },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[PENDING_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    await user.click(
+      within(screen.getByTestId("social-post-post-pending")).getByRole(
+        "button",
+        { name: "Approve" },
+      ),
+    );
+    expect(approveProjectSocialPost).not.toHaveBeenCalled();
+
+    const alert = screen.getByRole("alertdialog");
+    expect(
+      within(alert).getByRole("heading", { name: "Approve this post?" }),
+    ).toBeVisible();
+    await user.click(within(alert).getByRole("button", { name: "Approve" }));
+
+    await waitFor(() => {
+      expect(approveProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-pending",
+        revision: 1,
+      });
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Post approved.");
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole("tab", { name: /^Needs attention/ }),
+    ).not.toBeInTheDocument();
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("social-post-post-pending")).toBeInTheDocument();
+  });
+
+  it("rejects a pending post after confirmation and drops it from the list", async () => {
+    const user = userEvent.setup();
+    vi.mocked(rejectProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: {
+        ...PENDING_POST,
+        status: "CANCELED",
+        revision: 2,
+        canEdit: false,
+        canSchedule: false,
+        canCancel: false,
+        canApprove: false,
+        canReject: false,
+      },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[PENDING_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    await openRowMenu(user, "post-pending");
+    await user.click(screen.getByRole("menuitem", { name: "Reject" }));
+    expect(rejectProjectSocialPost).not.toHaveBeenCalled();
+
+    const alert = screen.getByRole("alertdialog");
+    expect(
+      within(alert).getByRole("heading", { name: "Reject this post?" }),
+    ).toBeVisible();
+    await user.click(within(alert).getByRole("button", { name: "Reject" }));
+
+    await waitFor(() => {
+      expect(rejectProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-pending",
+        revision: 1,
+      });
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Post rejected.");
+    expect(
+      screen.queryByRole("tab", { name: /^Needs attention/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("social-post-post-pending"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("approves from the calendar preview actions", async () => {
+    const user = userEvent.setup();
+    vi.mocked(approveProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: {
+        ...PENDING_POST,
+        status: "SCHEDULED",
+        revision: 2,
+        canApprove: false,
+        canReject: false,
+      },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[PENDING_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-pending"
+        previewOnly
+      />,
+    );
+
+    const preview = screen.getByTestId("social-post-post-pending");
+    await user.click(within(preview).getByRole("button", { name: "Approve" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Approve",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(approveProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-pending",
+        revision: 1,
+      });
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Post approved.");
   });
 
   it("publishes a draft now and toasts the failure reason when Core reports FAILED", async () => {
