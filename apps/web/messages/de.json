@@ -2533,7 +2533,7 @@
           "noAccountsTitle": "Noch kein Konto verbunden",
           "connectAccount": "Konto verbinden",
           "dismiss": "Abbrechen",
-          "previewEmpty": "Hier erscheint dein Post, während du schreibst.",
+          "previewEmpty": "Hier erscheint dein Beitrag, während du schreibst.",
           "pickAccount": "Wähle ein Konto, auf dem gepostet wird."
         },
         "cancelDialog": {
@@ -2619,6 +2619,10 @@
           "youtube": {
             "seeMore": "Mehr anzeigen",
             "videoRequired": "YouTube braucht ein Video."
+          },
+          "tiktok": {
+            "more": "mehr",
+            "videoRequired": "TikTok braucht ein Video."
           }
         },
         "statistics": {
@@ -2657,7 +2661,21 @@
             "previousPeriod": "Veränderung gegenüber dem vorherigen Zeitraum",
             "keyMetrics": "Kennzahlen",
             "sparkline": "{metric} an den ausgewählten Tagen",
-            "accountTabs": "Verbundene Konten"
+            "accountTabs": "Verbundene Konten",
+            "consistency": "Veröffentlichungsrhythmus",
+            "consistencyEmpty": "In der erfassten Historie gibt es noch keine veröffentlichten Beiträge.",
+            "consistencySummary": "{posts, plural, one {# Beitrag} other {# Beiträge}} an {active, plural, one {# aktivem Tag} other {# aktiven Tagen}} von {from} bis {until}.",
+            "currentStreak": "Aktuelle Serie",
+            "longestStreak": "Längste Serie",
+            "streakDays": "{count, plural, one {# Tag} other {# Tage}}",
+            "showPosts": "Beiträge pro Tag",
+            "showEngagement": "Interaktionen pro Tag",
+            "dayPosts": "{date}: {count} Beiträge",
+            "dayEngagement": "{date}: {count} Interaktionen",
+            "dayEngagementUnavailable": "{date}: Interaktionen nicht verfügbar",
+            "dayOutside": "{date}: außerhalb der erfassten Historie",
+            "legendNone": "Keine",
+            "legendMore": "Mehr"
           },
           "accountsTitle": "Verbundene Konten",
           "postsTitle": "Veröffentlichte Kontobeiträge",
@@ -7407,6 +7425,7 @@
       },
       "previous": "Vorheriger Zeitraum",
       "next": "Nächster Zeitraum",
+      "today": "Heute",
       "view": {
         "month": "Monat",
         "week": "Woche",

@@ -123,6 +123,11 @@ function page(cursor: string | null = null) {
     posts: [post],
     nextCursor: cursor,
     headline,
+    consistency: {
+      from: "2026-10-08",
+      until: "2026-10-08",
+      daily: [{ date: "2026-10-08", postCount: 1, interactions: 4 }],
+    },
   };
 }
 function response(accountValue = account, nextCursor: string | null = null) {
@@ -183,8 +188,14 @@ describe("SocialPostStatistics account history", () => {
     renderStatistics();
     expect(await screen.findByText(post.text)).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "Account performance" }),
+      screen.getByRole("heading", { name: "Posting consistency" }),
     ).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "Account performance" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Account performance" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("More filters")).toBeVisible();
     expect(screen.getByTestId("social-performance-overview")).toBeVisible();
     expect(screen.getByText("Posts")).toBeVisible();
