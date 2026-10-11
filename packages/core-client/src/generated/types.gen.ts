@@ -5815,6 +5815,7 @@ export type SocialAccountStatisticsPage = {
     posts: Array<SocialAccountPost>;
     nextCursor: string | null;
     headline: SocialPerformanceHeadline;
+    consistency: SocialPerformanceConsistency;
 };
 
 export type SocialAccountStatisticsAccount = ProjectSocialConnection & {
@@ -5900,6 +5901,16 @@ export type SocialPerformanceHeadline = {
         impressions: number | null;
         interactions: number | null;
         date: Date;
+    }>;
+};
+
+export type SocialPerformanceConsistency = {
+    from: Date | null;
+    until: Date | null;
+    daily: Array<{
+        date: Date;
+        postCount: number;
+        interactions: number | null;
     }>;
 };
 

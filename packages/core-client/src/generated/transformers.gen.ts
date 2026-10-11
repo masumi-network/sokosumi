@@ -2723,10 +2723,25 @@ const socialPerformanceHeadlineSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const socialPerformanceConsistencySchemaResponseTransformer = (data: any) => {
+    if (data.from) {
+        data.from = new Date(data.from);
+    }
+    if (data.until) {
+        data.until = new Date(data.until);
+    }
+    data.daily = data.daily.map((item: any) => {
+        item.date = new Date(item.date);
+        return item;
+    });
+    return data;
+};
+
 const socialAccountStatisticsPageSchemaResponseTransformer = (data: any) => {
     data.accounts = data.accounts.map((item: any) => socialAccountStatisticsAccountSchemaResponseTransformer(item));
     data.posts = data.posts.map((item: any) => socialAccountPostSchemaResponseTransformer(item));
     data.headline = socialPerformanceHeadlineSchemaResponseTransformer(data.headline);
+    data.consistency = socialPerformanceConsistencySchemaResponseTransformer(data.consistency);
     return data;
 };
 
