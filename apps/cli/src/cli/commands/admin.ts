@@ -101,7 +101,8 @@ export async function runAdminCommand(
   context: AdminCommandContext,
 ): Promise<void> {
   const { client, stdout, json = false, subcommand } = context;
-  const { slug, email } = validateAdminCommand(context);
+  const validated = validateAdminCommand(context);
+  const { slug } = validated;
   const timeout = AbortSignal.timeout(30_000);
   const signal = context.signal
     ? AbortSignal.any([context.signal, timeout])
@@ -148,8 +149,7 @@ export async function runAdminCommand(
     return;
   }
 
-  // Validation above requires email for either mutation command.
-  if (!email) throw new Error("--email is required");
+  const email = validated.email as string;
   let member = selectMember(members, email);
   if (subcommand === "add-member") {
     const created = member === undefined;
