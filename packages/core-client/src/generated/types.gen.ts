@@ -43977,6 +43977,103 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponses = {
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponse = GetProjectsByIdImageStudioAssetsByAssetIdContentResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdContentResponses];
 
+export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        assetId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/assets/{assetId}/social-media';
+};
+
+export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaError = GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaErrors[keyof GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaErrors];
+
+export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponses = {
+    /**
+     * Drive file ready to attach
+     */
+    200: {
+        data: SocialPostMediaRef;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponse = GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponses];
+
 export type DeleteProjectsByIdData = {
     body?: never;
     headers?: {

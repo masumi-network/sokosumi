@@ -81,7 +81,7 @@ import {
 
 /** Composer entry points: a new post, editing text/account, or only picking a time. */
 export type SocialPostComposerMode =
-  | { kind: "create" }
+  | { kind: "create"; media?: SocialPostMediaRef[]; text?: string }
   | { kind: "edit"; post: SocialPost }
   | { kind: "schedule"; post: SocialPost };
 
@@ -236,9 +236,15 @@ export function SocialPostComposerDialog({
   const organizationId = session?.session.activeOrganizationId ?? null;
   const driveStore = driveStoreForActiveWorkspace(organizationId);
 
-  const [text, setText] = useState(post?.text ?? "");
+  const [text, setText] = useState(
+    mode.kind === "create" ? (mode.text ?? "") : (post?.text ?? ""),
+  );
   const [media, setMedia] = useState<SocialPostMediaRef[]>(
-    post?.media ? [...post.media] : [],
+    mode.kind === "create"
+      ? [...(mode.media ?? [])]
+      : post?.media
+        ? [...post.media]
+        : [],
   );
   // A new post may go to several accounts at once, one post each; an existing
   // post belongs to one account.

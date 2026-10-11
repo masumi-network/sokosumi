@@ -277,6 +277,7 @@ import {
   getProjectsByIdClose as coreGetProjectsByIdClose,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
   getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
+  getProjectsByIdImageStudioAssetsByAssetIdSocialMedia as coreGetProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
   getProjectsByIdSocialConnectionsStatistics as coreGetProjectsByIdSocialConnectionsStatistics,
@@ -3298,6 +3299,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdImageStudioAssetsByAssetIdSocialMedia(
+    id: string,
+    assetId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdImageStudioAssetsByAssetIdSocialMedia({
+          client,
+          path: { id, assetId },
+          cache: "no-store",
+        }),
+      "Failed to attach this image",
+    );
+  }
+
   async function postProjectsByIdImageStudioJobs(
     id: string,
     body: NonNullable<PostProjectsByIdImageStudioJobsData["body"]>,
@@ -6217,6 +6234,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getImageStudioCatalog,
     getImageStudioState,
     getProjectsByIdImageStudio,
+    getProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,
     getProjectsByIdSocialPosts,
