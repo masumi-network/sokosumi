@@ -2619,6 +2619,10 @@
           "youtube": {
             "seeMore": "Mostrar más",
             "videoRequired": "YouTube necesita un video."
+          },
+          "tiktok": {
+            "more": "más",
+            "videoRequired": "TikTok necesita un video."
           }
         },
         "statistics": {
