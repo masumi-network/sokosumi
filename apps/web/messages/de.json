@@ -2477,6 +2477,7 @@
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Aus Drive hinzufügen",
+            "drop": "Dateien zum Anhängen ablegen",
             "upload": "Hochladen",
             "remove": "{name} entfernen",
             "unsupported": "Verwende ein Dateiformat, das {provider} akzeptiert.",

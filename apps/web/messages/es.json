@@ -2477,6 +2477,7 @@
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Añadir desde Drive",
+            "drop": "Suelta archivos para adjuntar",
             "upload": "Subir",
             "remove": "Quitar {name}",
             "unsupported": "Usa un tipo de archivo que {provider} acepte.",
