@@ -3141,7 +3141,7 @@ export const getProjectsByIdSocialConnections = <ThrowOnError extends boolean = 
 });
 
 /**
- * Read cached account metrics and provider-authored published posts, including posts published outside Sokosumi. Account totals are independent of publication-date filters and post pagination. Headline totals cover the filtered cohort, not only the current page. History completeness and failures are explicit; GET does not fetch provider history.
+ * Read cached account metrics and provider-authored published posts, including posts published outside Sokosumi. Account totals and the posting-consistency calendar are independent of publication-date filters and post pagination. Headline totals cover the filtered cohort, not only the current page. History completeness and failures are explicit; GET does not fetch provider history.
  */
 export const getProjectsByIdSocialConnectionsStatistics = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdSocialConnectionsStatisticsData, ThrowOnError>): RequestResult<GetProjectsByIdSocialConnectionsStatisticsResponses, GetProjectsByIdSocialConnectionsStatisticsErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdSocialConnectionsStatisticsResponses, GetProjectsByIdSocialConnectionsStatisticsErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdSocialConnectionsStatisticsResponseTransformer,

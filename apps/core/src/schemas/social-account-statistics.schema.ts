@@ -118,6 +118,21 @@ export const socialPerformanceHeadlineSchema = z
       .max(366),
   })
   .openapi("SocialPerformanceHeadline");
+export const socialPerformanceConsistencySchema = z
+  .object({
+    from: z.iso.date().nullable(),
+    until: z.iso.date().nullable(),
+    daily: z
+      .array(
+        z.object({
+          date: z.iso.date(),
+          postCount: z.number().int().min(0),
+          interactions: z.number().finite().nullable(),
+        }),
+      )
+      .max(368),
+  })
+  .openapi("SocialPerformanceConsistency");
 
 export const socialAccountStatisticsPageSchema = z
   .object({
@@ -125,6 +140,7 @@ export const socialAccountStatisticsPageSchema = z
     posts: z.array(socialAccountPostSchema),
     nextCursor: z.string().nullable(),
     headline: socialPerformanceHeadlineSchema,
+    consistency: socialPerformanceConsistencySchema,
   })
   .openapi("SocialAccountStatisticsPage");
 export const refreshSocialAccountStatisticsRequestSchema = z

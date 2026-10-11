@@ -708,7 +708,8 @@
   --semantic-success: hsla(142, 71%, 45%, 1);
   --social-x-link: #1d9bf0;
   --social-linkedin-link: #71b7fb;
-  --social-instagram-link: #e0f1ff;
+  /* Distinct from --foreground so tags stay visible as links. */
+  --social-instagram-link: #80c4ff;
   --social-facebook-link: #6ba4ff;
   --social-youtube-link: #3ea6ff;
   --semantic-success-tertiary: hsla(142, 62.6%, 20.4%, 1);
