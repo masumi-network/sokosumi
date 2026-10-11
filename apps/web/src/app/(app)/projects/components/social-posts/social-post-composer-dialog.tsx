@@ -328,17 +328,14 @@ export function SocialPostComposerDialog({
       : providers
   ).filter(socialPostSupportsFirstComment);
   const showFirstComment = commentProviders.length > 0;
-  const firstCommentLimit =
-    socialPostFirstCommentLimit(previewProvider) ??
-    commentProviders.reduce(
-      (strictest, candidate) =>
-        Math.min(
-          strictest,
-          socialPostFirstCommentLimit(candidate) ??
-            SOCIAL_POST_FIRST_COMMENT_MAX,
-        ),
-      SOCIAL_POST_FIRST_COMMENT_MAX,
-    );
+  const firstCommentLimit = commentProviders.reduce(
+    (strictest, candidate) =>
+      Math.min(
+        strictest,
+        socialPostFirstCommentLimit(candidate) ?? SOCIAL_POST_FIRST_COMMENT_MAX,
+      ),
+    SOCIAL_POST_FIRST_COMMENT_MAX,
+  );
   const overFirstComment =
     showFirstComment && firstComment.length > firstCommentLimit;
   const overLimit = text.length > textLimit;

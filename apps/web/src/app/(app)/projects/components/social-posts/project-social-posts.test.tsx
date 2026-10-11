@@ -1711,6 +1711,43 @@ describe("ProjectSocialPosts", () => {
     });
   });
 
+  it("caps the first comment by the strictest selected network", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),
+    );
+    fireEvent.change(within(dialog).getByTestId("social-post-first-comment"), {
+      target: { value: "x".repeat(281) },
+    });
+
+    expect(
+      within(dialog).getByTestId("social-post-first-comment-count"),
+    ).toHaveTextContent("281 / 280");
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeDisabled();
+  });
+
   it("hides first comment when only TikTok is selected", async () => {
     const user = userEvent.setup();
     render(
