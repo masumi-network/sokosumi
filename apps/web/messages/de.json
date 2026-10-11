@@ -2546,7 +2546,8 @@
           "connectAccount": "Konto verbinden",
           "dismiss": "Abbrechen",
           "previewEmpty": "Hier erscheint dein Beitrag, während du schreibst.",
-          "pickAccount": "Wähle ein Konto, auf dem gepostet wird."
+          "pickAccount": "Wähle ein Konto, auf dem gepostet wird.",
+          "tooLong": "Die Textlänge überschreitet das Limit."
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
