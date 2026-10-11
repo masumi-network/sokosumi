@@ -1,6 +1,6 @@
 "use client";
 
-import type { SocialPost } from "@sokosumi/core-client";
+import type { SocialPost, SocialPostMediaRef } from "@sokosumi/core-client";
 import { socialPostProviderLabel } from "@sokosumi/utils";
 import {
   BarChart2,
@@ -17,7 +17,7 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { cn } from "@/lib/utils";
 import {
@@ -316,6 +316,84 @@ function FacebookPreview({
   );
 }
 
+function InstagramMediaFrame({ media }: { media: SocialPostMediaRef[] }) {
+  const t = useTranslations("App.Projects.SocialPosts.preview");
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [slide, setSlide] = useState(0);
+  const current = media.length === 0 ? 0 : Math.min(slide, media.length - 1);
+
+  function handleScroll() {
+    const scroller = scrollerRef.current;
+    if (!scroller || scroller.clientWidth === 0) return;
+    const next = Math.round(scroller.scrollLeft / scroller.clientWidth);
+    setSlide(Math.min(media.length - 1, Math.max(0, next)));
+  }
+
+  return (
+    <div
+      className="relative aspect-[4/5] overflow-hidden bg-media-ground"
+      data-testid="social-post-preview-instagram-frame"
+    >
+      {media.length === 0 ? (
+        <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
+          {t("instagram.mediaRequired")}
+        </div>
+      ) : (
+        <>
+          <div
+            ref={scrollerRef}
+            className="flex size-full snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            data-testid="social-post-preview-instagram-scroller"
+            onScroll={handleScroll}
+          >
+            {media.map((item) => (
+              <div
+                key={item.pathname}
+                className="size-full shrink-0 snap-center"
+              >
+                <PreviewMediaItem media={item} showPlay />
+              </div>
+            ))}
+          </div>
+          {media.length > 1 ? (
+            <>
+              <span
+                className="bg-scrim-strong text-on-media absolute top-3 right-3 rounded-full px-2 py-1 text-2xs font-medium tabular-nums"
+                aria-label={t("instagram.slide", {
+                  current: current + 1,
+                  total: media.length,
+                })}
+                data-current={current + 1}
+                data-testid="social-post-preview-instagram-slide"
+              >
+                {t("instagram.slideIndex", {
+                  current: current + 1,
+                  total: media.length,
+                })}
+              </span>
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1"
+                data-testid="social-post-preview-instagram-dots"
+              >
+                {media.map((item, index) => (
+                  <span
+                    key={item.pathname}
+                    className={cn(
+                      "size-1.5 rounded-full",
+                      index === current ? "bg-on-media" : "bg-on-media-muted",
+                    )}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
+
 function InstagramPreview({
   account,
   media,
@@ -328,7 +406,6 @@ function InstagramPreview({
     account?.handle?.replace(/^@/, "") ??
     accountName(account, t("accountFallback"));
   const fold = useFold(text, 125, 2);
-  const [first] = media;
 
   return (
     <div>
@@ -337,18 +414,7 @@ function InstagramPreview({
         <span className="min-w-0 flex-1 truncate font-semibold">{name}</span>
         <MoreHorizontal className="size-5 shrink-0" aria-hidden />
       </div>
-      <div
-        className="aspect-[4/5] overflow-hidden bg-media-ground"
-        data-testid="social-post-preview-instagram-frame"
-      >
-        {first ? (
-          <PreviewMediaItem media={first} showPlay />
-        ) : (
-          <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
-            {t("instagram.mediaRequired")}
-          </div>
-        )}
-      </div>
+      <InstagramMediaFrame media={media} />
       <div aria-hidden className="flex items-center gap-4 px-3 pt-3">
         <Heart className="size-6" />
         <MessageCircle className="size-6 -scale-x-100" />
