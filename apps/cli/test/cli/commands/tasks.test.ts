@@ -124,7 +124,7 @@ test("tasks create posts the payload and returns the task with details", async (
   const created = calls.find((call) => call.method === "POST");
   assert.equal(created?.path, "/v1/tasks");
   assert.deepEqual(created?.body, {
-    coworkerId: "cw-1",
+    assigneeId: "cw-1",
     description: "Do the thing",
     name: "Build",
     status: "READY",
