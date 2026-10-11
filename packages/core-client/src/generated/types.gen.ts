@@ -6147,6 +6147,10 @@ export type CancelProjectImageJobResponse = {
     accepted: boolean;
 };
 
+export type ProjectImageStudioCaption = {
+    text: string;
+};
+
 export type PatchProjectRequest = {
     name?: string;
     briefing?: string | null;
@@ -44073,6 +44077,103 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponses = {
 };
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponse = GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponses];
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdCaptionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        assetId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/assets/{assetId}/caption';
+};
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdCaptionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdCaptionError = PostProjectsByIdImageStudioAssetsByAssetIdCaptionErrors[keyof PostProjectsByIdImageStudioAssetsByAssetIdCaptionErrors];
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdCaptionResponses = {
+    /**
+     * Caption written
+     */
+    200: {
+        data: ProjectImageStudioCaption;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdCaptionResponse = PostProjectsByIdImageStudioAssetsByAssetIdCaptionResponses[keyof PostProjectsByIdImageStudioAssetsByAssetIdCaptionResponses];
 
 export type DeleteProjectsByIdData = {
     body?: never;

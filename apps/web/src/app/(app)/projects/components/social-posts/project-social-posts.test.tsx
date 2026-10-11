@@ -832,6 +832,33 @@ describe("ProjectSocialPosts", () => {
     ).toBeInTheDocument();
   });
 
+  it("opens the composer with a studio image and caption already attached", () => {
+    writeSocialComposePrefill(PROJECT_ID, {
+      media: [IMAGE_REF],
+      text: "Late sun on a red fox.",
+    });
+
+    renderUi(
+      <TestQueryProvider>
+        <NuqsTestingAdapter searchParams="?compose=new">
+          <SocialComposeProvider>
+            <ProjectSocialPosts
+              connections={[buildConnection()]}
+              posts={[]}
+              projectId={PROJECT_ID}
+            />
+          </SocialComposeProvider>
+        </NuqsTestingAdapter>
+      </TestQueryProvider>,
+    );
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByTestId("social-post-media")).toBeVisible();
+    expect(within(dialog).getByLabelText("Text")).toHaveValue(
+      "Late sun on a red fox.",
+    );
+  });
+
   it("opens the composer with a studio image already attached", () => {
     writeSocialComposePrefill(PROJECT_ID, { media: [IMAGE_REF] });
 

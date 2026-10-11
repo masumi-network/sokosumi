@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ImageViewer } from "@/components/ui/image-viewer";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 import { resolveModel } from "./catalog";
@@ -45,6 +46,9 @@ export function StudioLightbox({
   onSchedule,
   onSelect,
   onUseAsReference,
+  onWriteCaption,
+  caption,
+  onCaptionChange,
   siblings,
 }: {
   assets: StudioAsset[];
@@ -61,6 +65,11 @@ export function StudioLightbox({
   /** Step to another image while showing one; arrows and swipes live in the viewer. */
   onSelect: (assetId: string) => void;
   onUseAsReference: (asset: StudioAsset) => void;
+  /** Writes post text from the image prompt. Always available. */
+  onWriteCaption: (asset: StudioAsset) => Promise<void>;
+  /** Client-held caption for the open image. Absent until one is written. */
+  caption?: string;
+  onCaptionChange: (text: string) => void;
   /** Every image the viewer can step through, in gallery order. */
   siblings: StudioAsset[];
 }) {
@@ -72,6 +81,7 @@ export function StudioLightbox({
     format.dateTime(new Date(value), "dateTime");
   const single = assets.length === 1 ? assets[0] : null;
   const [scheduling, setScheduling] = useState(false);
+  const [writingCaption, setWritingCaption] = useState(false);
 
   if (assets.length === 0) return null;
 
@@ -91,6 +101,23 @@ export function StudioLightbox({
               formatDate={formatDate}
               labels={labels}
             />
+            {caption !== undefined ? (
+              <div className="mt-4">
+                <label
+                  className="text-muted-foreground text-xs"
+                  htmlFor="studio-asset-caption"
+                >
+                  {labels.captionLabel}
+                </label>
+                <Textarea
+                  aria-label={labels.captionLabel}
+                  className="mt-1.5"
+                  id="studio-asset-caption"
+                  onChange={(event) => onCaptionChange(event.target.value)}
+                  value={caption}
+                />
+              </div>
+            ) : null}
             <div className="mt-4 flex flex-wrap gap-2">
               {onSchedule ? (
                 <Button
@@ -104,6 +131,19 @@ export function StudioLightbox({
                   {labels.schedule}
                 </Button>
               ) : null}
+              <Button
+                loading={writingCaption}
+                onClick={() => {
+                  setWritingCaption(true);
+                  void onWriteCaption(single).finally(() =>
+                    setWritingCaption(false),
+                  );
+                }}
+                size="sm"
+                variant="secondary"
+              >
+                {labels.writeCaption}
+              </Button>
               <Button
                 onClick={() => onRegenerate(single)}
                 size="sm"
