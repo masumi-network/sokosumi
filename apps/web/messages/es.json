@@ -2381,19 +2381,19 @@
           "disconnected": "Desconectada"
         },
         "replaceDialog": {
-          "title": "¿Reemplazar esta cuenta?",
+          "title": "¿Reemplazar {account}?",
           "description": "Todos los borradores y las publicaciones programadas de esta cuenta pasarán a la nueva. Si quieres conservarlas aquí, añade otra cuenta en lugar de reemplazarla.",
           "confirm": "Reemplazar cuenta"
         },
         "disconnectDialog": {
-          "title": "¿Desconectar esta cuenta?",
+          "title": "¿Desconectar {account}?",
           "description": "Este proyecto dejará de estar autorizado para usar esta cuenta.",
           "confirm": "Desconectar cuenta"
         },
         "cancel": "Cancelar",
         "success": {
-          "connected": "Cuenta conectada.",
-          "disconnected": "Cuenta desconectada."
+          "connected": "{account} conectada.",
+          "disconnected": "{account} desconectada."
         },
         "warning": {
           "providerRevocationFailed": "Esta cuenta está desconectada del proyecto, pero el proveedor puede seguir autorizando esta aplicación. Revoca el acceso en la configuración de tu cuenta."
@@ -2426,7 +2426,19 @@
         "moreActions": "Acciones de la publicación",
         "noAccount": "Sin cuenta",
         "outcomes": {
-          "authorizationRevoked": "Se revocó el acceso de programación del Coworker. Reprograma esta publicación para publicarla."
+          "authorizationRevoked": "Se revocó el acceso de programación del Coworker. Reprograma esta publicación para publicarla.",
+          "connectionInactive": "Cuenta desconectada. Vuelve a conectarla para reintentar.",
+          "missed": "Se pasó la hora programada."
+        },
+        "failures": {
+          "rateLimited": "Límite de peticiones. Inténtalo más tarde.",
+          "timeout": "Se agotó el tiempo. Inténtalo de nuevo.",
+          "unauthorized": "Vuelve a conectar la cuenta.",
+          "unavailable": "La plataforma no responde. Inténtalo más tarde.",
+          "rejected": "La plataforma rechazó esta publicación.",
+          "mediaMissing": "Falta un archivo.",
+          "mediaType": "Ese tipo de archivo no está permitido.",
+          "generic": "No se pudo publicar. Abre la publicación para ver los detalles."
         },
         "sections": {
           "calendar": "Calendario",
@@ -2534,7 +2546,8 @@
           "connectAccount": "Conectar cuenta",
           "dismiss": "Cancelar",
           "previewEmpty": "Tu publicación aparece aquí mientras escribes.",
-          "pickAccount": "Elige una cuenta en la que publicar."
+          "pickAccount": "Elige una cuenta en la que publicar.",
+          "tooLong": "La longitud del texto supera el límite."
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
@@ -2662,6 +2675,8 @@
             "keyMetrics": "Métricas clave",
             "sparkline": "{metric} en los días seleccionados",
             "accountTabs": "Cuentas conectadas",
+            "trends": "Rendimiento a lo largo del tiempo",
+            "trendMetric": "Métrica del gráfico",
             "consistency": "Constancia de publicación",
             "consistencyEmpty": "Todavía no hay publicaciones en el historial recopilado.",
             "consistencySummary": "{posts, plural, one {# publicación} other {# publicaciones}} en {active, plural, one {# día activo} other {# días activos}}, del {from} al {until}.",

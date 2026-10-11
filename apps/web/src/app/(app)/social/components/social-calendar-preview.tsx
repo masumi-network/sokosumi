@@ -6,12 +6,13 @@ import type {
 } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { createContext, useContext, useRef, useState } from "react";
-import { toast } from "sonner";
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -61,8 +62,10 @@ export function SocialCalendarPreviewProvider({
 }) {
   const t = useTranslations("App.Projects.SocialPosts");
   const triggerRef = useRef<HTMLElement | null>(null);
+  const pendingRef = useRef<{ projectId: string; postId: string } | null>(null);
   const request = useRef(0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [target, setTarget] = useState<{
     post: SocialPost;
     connections: ProjectSocialConnection[];
@@ -70,16 +73,18 @@ export function SocialCalendarPreviewProvider({
 
   async function show(projectId: string, postId: string, trigger: HTMLElement) {
     triggerRef.current = trigger;
+    pendingRef.current = { projectId, postId };
     const current = ++request.current;
     setTarget(null);
+    setError(null);
     setLoading(true);
     try {
       const next = await loadSocialCalendarPreview({ projectId, postId });
       if (current !== request.current) return;
       setTarget(next);
-    } catch (error) {
+    } catch (cause) {
       if (current === request.current) {
-        toast.error(previewLoadErrorCopy(error, t));
+        setError(previewLoadErrorCopy(cause, t));
       }
     } finally {
       if (current === request.current) setLoading(false);
@@ -94,17 +99,18 @@ export function SocialCalendarPreviewProvider({
     >
       {children}
       <Dialog
-        open={loading}
+        open={loading || Boolean(error)}
         onOpenChange={(open) => {
           if (!open) {
             ++request.current;
             setLoading(false);
+            setError(null);
           }
         }}
       >
         <DialogContent
           className="sm:max-w-md"
-          aria-busy="true"
+          aria-busy={loading || undefined}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             if (!target) triggerRef.current?.focus({ preventScroll: true });
@@ -112,19 +118,38 @@ export function SocialCalendarPreviewProvider({
         >
           <DialogHeader>
             <DialogTitle>{t("preview.dialogTitle")}</DialogTitle>
-            <DialogDescription className="sr-only">
-              {t("loading")}
+            <DialogDescription
+              role={error ? "alert" : undefined}
+              className={error ? undefined : "sr-only"}
+            >
+              {error ?? t("loading")}
             </DialogDescription>
           </DialogHeader>
-          <div
-            aria-hidden
-            className="space-y-2"
-            data-testid="social-calendar-preview-skeleton"
-          >
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-          </div>
+          {error ? (
+            <DialogFooter>
+              <Button
+                type="button"
+                onClick={() => {
+                  const pending = pendingRef.current;
+                  const trigger = triggerRef.current;
+                  if (!pending || !trigger) return;
+                  void show(pending.projectId, pending.postId, trigger);
+                }}
+              >
+                {t("actions.retry")}
+              </Button>
+            </DialogFooter>
+          ) : (
+            <div
+              aria-hidden
+              className="space-y-2"
+              data-testid="social-calendar-preview-skeleton"
+            >
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       {target ? (

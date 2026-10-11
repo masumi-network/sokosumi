@@ -154,6 +154,7 @@ const MESSAGES: Record<string, string> = {
   "composer.accounts": "Post to",
   "composer.publishNow": "Post now",
   "composer.pickAccount": "Pick an account to post to.",
+  "composer.tooLong": "Text length is over the limit.",
   "composer.requirements.text_or_media_required": "Add text or media.",
   "composer.requirements.text_required": "{provider} requires text.",
   "composer.requirements.media_required":
@@ -682,6 +683,11 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(prompt).getByText("Posts go out from this project's accounts."),
     ).toBeVisible();
+    expect(
+      within(prompt).getByRole("button", {
+        name: "Connect X, YouTube, LinkedIn…",
+      }),
+    ).toHaveClass("h-11", "md:h-8");
     await user.click(
       within(prompt).getByRole("button", {
         name: "Connect X, YouTube, LinkedIn…",
@@ -944,6 +950,9 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.getByTestId("social-post-character-count").className,
     ).toContain("text-destructive");
+    expect(
+      within(dialog).getByTestId("social-post-too-long"),
+    ).toHaveTextContent("Text length is over the limit.");
     expect(saveDraft).toBeDisabled();
     expect(
       within(dialog).getByRole("button", { name: "Post now" }),
@@ -953,6 +962,9 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getByTestId("social-post-character-count")).toHaveTextContent(
       "280 / 280",
     );
+    expect(
+      within(dialog).queryByTestId("social-post-too-long"),
+    ).not.toBeInTheDocument();
     expect(saveDraft).toBeEnabled();
   });
 
@@ -2531,10 +2543,15 @@ describe("ProjectSocialPosts", () => {
     expect(within(row).getByText("3 attempts")).toBeVisible();
     expect(within(row).getByText("Failed")).toBeVisible();
     // Retry is the one thing left to do, so it sits on the row.
-    expect(within(row).getByRole("button", { name: "Retry" })).toBeVisible();
+    expect(within(row).getByRole("button", { name: "Retry" })).toHaveClass(
+      "h-11",
+      "md:h-8",
+    );
 
     await openRowMenu(user, "post-failed");
-    expect(screen.getByRole("menuitem", { name: "Reschedule" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "Reschedule" })).toHaveClass(
+      "min-h-11",
+    );
     expect(
       screen.queryByRole("menuitem", { name: "Retry" }),
     ).not.toBeInTheDocument();
@@ -2887,6 +2904,10 @@ describe("ProjectSocialPosts", () => {
     expect(getTab("Drafts")).toHaveTextContent("Drafts 1+");
 
     await openTab(user, "Drafts");
+    expect(screen.getByRole("button", { name: "Load more" })).toHaveClass(
+      "h-11",
+      "md:h-8",
+    );
     await user.click(screen.getByRole("button", { name: "Load more" }));
     await waitFor(() => expect(screen.getByText("Older draft")).toBeVisible());
     expect(loadMoreSocialPosts).toHaveBeenCalledWith({

@@ -431,7 +431,6 @@ export {
 export {
   formatTaskIdentifier,
   parseTaskRef,
-  type TaskRef,
 } from "./task-identifier.js";
 export { isTaskScheduleCronShape } from "./task-schedule-cron.js";
 export {

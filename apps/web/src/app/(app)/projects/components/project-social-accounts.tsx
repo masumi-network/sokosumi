@@ -110,6 +110,17 @@ function accountLabels(
   };
 }
 
+function accountName(
+  connection: ProjectSocialConnection,
+  unknownHandle: string,
+): string {
+  return accountLabels(
+    connection,
+    formatHandle(connection.externalHandle, connection.provider) ??
+      unknownHandle,
+  ).primary;
+}
+
 function isExpiredIntentError(error: ActionError): boolean {
   return error.message?.toLowerCase().includes("unknown or expired") ?? false;
 }
@@ -264,7 +275,12 @@ export function ProjectSocialAccounts({
             return;
           }
 
-          showFeedback({ kind: "success", message: t("success.connected") });
+          showFeedback({
+            kind: "success",
+            message: t("success.connected", {
+              account: accountName(finalization.value, t("unknownHandle")),
+            }),
+          });
           router.refresh();
           refreshed = true;
         } catch {
@@ -310,7 +326,12 @@ export function ProjectSocialAccounts({
         return;
       }
 
-      showFeedback({ kind: "success", message: t("success.disconnected") });
+      showFeedback({
+        kind: "success",
+        message: t("success.disconnected", {
+          account: accountName(connection, t("unknownHandle")),
+        }),
+      });
       if (result.value.providerRevocation === "failed") {
         showFeedback({
           kind: "warning",
@@ -351,6 +372,15 @@ export function ProjectSocialAccounts({
   const listedConnections = connections.filter(
     (connection) => connection.status !== "disconnected",
   );
+  const confirmationAccount = pendingConfirmation
+    ? accountLabels(
+        pendingConfirmation.connection,
+        formatHandle(
+          pendingConfirmation.connection.externalHandle,
+          pendingConfirmation.connection.provider,
+        ) ?? t("unknownHandle"),
+      ).primary
+    : "";
 
   return (
     <section
@@ -596,8 +626,8 @@ export function ProjectSocialAccounts({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {confirmationIsDisconnect
-                ? t("disconnectDialog.title")
-                : t("replaceDialog.title")}
+                ? t("disconnectDialog.title", { account: confirmationAccount })
+                : t("replaceDialog.title", { account: confirmationAccount })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmationIsDisconnect
