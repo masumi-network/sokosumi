@@ -2547,7 +2547,9 @@
           "dismiss": "Cancelar",
           "previewEmpty": "Tu publicación aparece aquí mientras escribes.",
           "pickAccount": "Elige una cuenta en la que publicar.",
-          "tooLong": "La longitud del texto supera el límite."
+          "tooLong": "La longitud del texto supera el límite.",
+          "addToQueue": "Añadir a la cola",
+          "addToQueueNeedSlots": "Añade primero un horario de cola en Cuentas."
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
@@ -2567,7 +2569,34 @@
           "unauthenticatedAction": "Iniciar sesión",
           "published": "Publicación publicada.",
           "publishFailed": "Error al publicar: {error}",
-          "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}"
+          "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}",
+          "queued": "{count, plural, one {Añadida a la cola.} other {# publicaciones añadidas a la cola.}}"
+        },
+        "queue": {
+          "title": "Cola de publicación",
+          "hint": "Horarios semanales con nombre. «Añadir a la cola» usa el siguiente libre.",
+          "empty": "Aún no hay horarios de cola.",
+          "emptyHint": "Añade un horario semanal. Después podrás poner publicaciones en la cola.",
+          "add": "Añadir horario",
+          "save": "Guardar cola",
+          "name": "Nombre",
+          "weekday": "Día",
+          "time": "Hora",
+          "timezone": "Zona horaria",
+          "remove": "Quitar {name}",
+          "toasts": {
+            "saved": "Cola guardada.",
+            "empty": "Cola vaciada."
+          },
+          "weekdays": {
+            "0": "Domingo",
+            "1": "Lunes",
+            "2": "Martes",
+            "3": "Miércoles",
+            "4": "Jueves",
+            "5": "Viernes",
+            "6": "Sábado"
+          }
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
         "needsReconnectLink": "Volver a conectar la cuenta",

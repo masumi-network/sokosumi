@@ -107,6 +107,7 @@ interface CreateProjectSocialPostParameters extends AuthenticatedRequest {
   /** ISO timestamp; Flight-safe stand-in for the Core `Date` field. */
   scheduledAt?: string | null;
   timezone?: string | null;
+  queue?: boolean;
 }
 
 interface UpdateProjectSocialPostParameters extends AuthenticatedRequest {
@@ -126,6 +127,24 @@ interface ScheduleProjectSocialPostParameters extends AuthenticatedRequest {
   timezone?: string | null;
   socialConnectionId?: string | null;
   revision: number;
+}
+
+interface QueueProjectSocialPostParameters extends AuthenticatedRequest {
+  projectId: string;
+  postId: string;
+  socialConnectionId?: string | null;
+  revision: number;
+}
+
+interface ReplaceProjectSocialQueueSlotsParameters
+  extends AuthenticatedRequest {
+  projectId: string;
+  timezone: string;
+  slots: Array<{
+    name: string;
+    weekday: number;
+    minutesFromMidnight: number;
+  }>;
 }
 
 interface CancelProjectSocialPostParameters extends AuthenticatedRequest {
@@ -608,11 +627,15 @@ const createProjectSocialPostSchema = z
     socialConnectionId: optionalConnectionId,
     scheduledAt: isoTimestamp.nullish(),
     timezone: optionalTimezone,
+    queue: z.boolean().optional(),
   })
   .refine(
     (value) => value.text.trim().length > 0 || (value.media?.length ?? 0) > 0,
     { message: "Text or media is required" },
-  );
+  )
+  .refine((value) => !(value.queue && value.scheduledAt), {
+    message: "Choose the queue or a time, not both",
+  });
 
 const updateProjectSocialPostSchema = z
   .object({
@@ -639,6 +662,37 @@ const scheduleProjectSocialPostSchema = z.object({
   socialConnectionId: optionalConnectionId,
   revision: revisionSchema,
 });
+
+const queueProjectSocialPostSchema = z.object({
+  projectId: trimmedId,
+  postId: trimmedId,
+  socialConnectionId: optionalConnectionId,
+  revision: revisionSchema,
+});
+
+const replaceProjectSocialQueueSlotsSchema = z
+  .object({
+    projectId: trimmedId,
+    timezone: z.string().trim().min(1),
+    slots: z
+      .array(
+        z.object({
+          name: z.string().trim().min(1).max(40),
+          weekday: z.number().int().min(0).max(6),
+          minutesFromMidnight: z.number().int().min(0).max(1439),
+        }),
+      )
+      .max(50),
+  })
+  .refine(
+    (value) => {
+      const keys = value.slots.map(
+        (slot) => `${slot.weekday}:${slot.minutesFromMidnight}`,
+      );
+      return new Set(keys).size === keys.length;
+    },
+    { message: "Each weekday and time can be used once" },
+  );
 
 const cancelProjectSocialPostSchema = z.object({
   projectId: trimmedId,
@@ -674,6 +728,7 @@ export const createProjectSocialPost = withSession<
     socialConnectionId,
     scheduledAt,
     timezone,
+    queue,
   }) => {
     const parsed = createProjectSocialPostSchema.safeParse({
       projectId,
@@ -682,6 +737,7 @@ export const createProjectSocialPost = withSession<
       socialConnectionId,
       scheduledAt,
       timezone,
+      queue,
     });
     if (!parsed.success) {
       return badSocialPostInput(parsed);
@@ -696,10 +752,13 @@ export const createProjectSocialPost = withSession<
           ...(parsed.data.socialConnectionId
             ? { socialConnectionId: parsed.data.socialConnectionId }
             : {}),
-          ...(parsed.data.scheduledAt
+          ...(parsed.data.queue ? { queue: true } : {}),
+          ...(!parsed.data.queue && parsed.data.scheduledAt
             ? { scheduledAt: new Date(parsed.data.scheduledAt) }
             : {}),
-          ...(parsed.data.timezone ? { timezone: parsed.data.timezone } : {}),
+          ...(!parsed.data.queue && parsed.data.timezone
+            ? { timezone: parsed.data.timezone }
+            : {}),
         },
       );
       revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
@@ -792,6 +851,74 @@ export const scheduleProjectSocialPost = withSession<
     }
   },
 );
+
+export const queueProjectSocialPost = withSession<
+  QueueProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId, socialConnectionId, revision }) => {
+  const parsed = queueProjectSocialPostSchema.safeParse({
+    projectId,
+    postId,
+    socialConnectionId,
+    revision,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.queueSocialPost(
+      parsed.data.projectId,
+      parsed.data.postId,
+      {
+        revision: parsed.data.revision,
+        ...(parsed.data.socialConnectionId
+          ? { socialConnectionId: parsed.data.socialConnectionId }
+          : {}),
+      },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const replaceProjectSocialQueueSlots = withSession<
+  ReplaceProjectSocialQueueSlotsParameters,
+  ActionResultDto<
+    Awaited<ReturnType<typeof projectService.replaceSocialQueueSlots>>,
+    ActionError
+  >
+>(async ({ projectId, timezone, slots }) => {
+  const parsed = replaceProjectSocialQueueSlotsSchema.safeParse({
+    projectId,
+    timezone,
+    slots,
+  });
+  if (!parsed.success) {
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: parsed.error.issues[0]?.message ?? "Invalid queue times",
+      }),
+    );
+  }
+
+  try {
+    const next = await projectService.replaceSocialQueueSlots(
+      parsed.data.projectId,
+      {
+        timezone: parsed.data.timezone,
+        slots: parsed.data.slots,
+      },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(next));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
 
 export const cancelProjectSocialPost = withSession<
   CancelProjectSocialPostParameters,

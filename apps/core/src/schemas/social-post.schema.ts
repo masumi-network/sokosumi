@@ -194,8 +194,12 @@ export const createSocialPostRequestSchema = z
     socialConnectionId: z.string().uuid().optional(),
     scheduledAt: dateTimeSchema.optional(),
     timezone: socialPostTimezoneSchema.optional(),
+    queue: z.boolean().optional(),
   })
   .refine(hasTextOrMedia, { message: "Text or media is required" })
+  .refine((value) => !(value.queue && value.scheduledAt), {
+    message: "Choose the queue or a time, not both",
+  })
   .openapi("CreateSocialPostRequest");
 
 // No text-or-media refine here: the rule depends on media already stored on

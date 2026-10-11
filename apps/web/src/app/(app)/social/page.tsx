@@ -98,7 +98,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     );
   }
 
-  const [pages, connections, selectedPost, calendar, sokoBot] =
+  const [pages, connections, selectedPost, calendar, sokoBot, queueSlots] =
     await Promise.all([
       Promise.all(
         SECTION_ORDER.map((section) =>
@@ -116,6 +116,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
         searchParams: Promise.resolve(withoutAgendaView(query)),
       }),
       sokoBotService.getMine().catch(() => null),
+      projectService.listSocialQueueSlots(project.id),
     ]);
   const activeConnections = connections.filter(
     (socialConnection) => socialConnection.status === "active",
@@ -141,6 +142,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
               <ProjectSocialAccounts
                 projectId={project.id}
                 connections={connections}
+                queueSlots={queueSlots}
               />
             }
             actions={
@@ -165,6 +167,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             )}
             posts={posts}
             projectId={project.id}
+            queueSlots={queueSlots.slots}
             selectedPostId={selectedPost?.id}
           />
         </SocialComposeProvider>

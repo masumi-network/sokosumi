@@ -5,6 +5,7 @@ import type {
   SocialPost,
   SocialPostMediaRef,
   SocialPostStatus,
+  SocialQueueSlot,
 } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
@@ -97,6 +98,7 @@ interface ProjectSocialPostsProps {
   posts: SocialPost[];
   nextCursors?: Partial<Record<SectionKey, string | null>>;
   projectId: string;
+  queueSlots?: SocialQueueSlot[];
   /** Render only the post dialog and its actions for an unscoped calendar. */
   previewOnly?: boolean;
   returnFocus?: () => void;
@@ -198,6 +200,7 @@ export function ProjectSocialPosts({
   posts: initialPosts,
   nextCursors,
   projectId,
+  queueSlots = [],
   selectedPostId,
   previewOnly = false,
   returnFocus,
@@ -834,6 +837,7 @@ export function ProjectSocialPosts({
         <SocialPostComposerDialog
           connections={connections}
           mode={composerMode}
+          queueSlots={queueSlots}
           onConnectAccount={() => {
             setComposer(null);
             compose?.setOpen(false);

@@ -105,6 +105,7 @@ import type {
   PostProjectsByIdSocialConnectionsInitiateData,
   PostProjectsByIdSocialPostsByPostIdCancelData,
   PostProjectsByIdSocialPostsByPostIdPublishData,
+  PostProjectsByIdSocialPostsByPostIdQueueData,
   PostProjectsByIdSocialPostsByPostIdScheduleData,
   PostProjectsByIdSocialPostsData,
   PostProjectsByIdTasksData,
@@ -119,6 +120,7 @@ import type {
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutProjectsByIdDesignMdData,
+  PutProjectsByIdSocialQueueSlotsData,
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   RefundAdminTaskX402PaymentData,
@@ -283,6 +285,7 @@ import {
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
   getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
   getProjectsByIdSocialPostsStatistics as coreGetProjectsByIdSocialPostsStatistics,
+  getProjectsByIdSocialQueueSlots as coreGetProjectsByIdSocialQueueSlots,
   getProjectsStarred as coreGetProjectsStarred,
   getProjectsStats as coreGetProjectsStats,
   getShareByToken as coreGetShareByToken,
@@ -430,6 +433,7 @@ import {
   postProjectsByIdSocialPosts as corePostProjectsByIdSocialPosts,
   postProjectsByIdSocialPostsByPostIdCancel as corePostProjectsByIdSocialPostsByPostIdCancel,
   postProjectsByIdSocialPostsByPostIdPublish as corePostProjectsByIdSocialPostsByPostIdPublish,
+  postProjectsByIdSocialPostsByPostIdQueue as corePostProjectsByIdSocialPostsByPostIdQueue,
   postProjectsByIdSocialPostsByPostIdSchedule as corePostProjectsByIdSocialPostsByPostIdSchedule,
   postProjectsByIdSocialPostsByPostIdStatisticsRefresh as corePostProjectsByIdSocialPostsByPostIdStatisticsRefresh,
   postProjectsByIdStar as corePostProjectsByIdStar,
@@ -467,6 +471,7 @@ import {
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
+  putProjectsByIdSocialQueueSlots as corePutProjectsByIdSocialQueueSlots,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
@@ -3246,6 +3251,35 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdSocialQueueSlots(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialQueueSlots({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Project posting-queue slots",
+    );
+  }
+
+  async function putProjectsByIdSocialQueueSlots(
+    id: string,
+    body: NonNullable<PutProjectsByIdSocialQueueSlotsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutProjectsByIdSocialQueueSlots({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to save Project posting-queue slots",
+    );
+  }
+
   /**
    * The studio's model catalog, which is global rather than project-scoped.
    *
@@ -3477,6 +3511,23 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
         }),
       "Failed to schedule Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialPostsByPostIdQueue(
+    id: string,
+    postId: string,
+    body: NonNullable<PostProjectsByIdSocialPostsByPostIdQueueData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdQueue({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to queue Project social post",
     );
   }
 
@@ -6221,6 +6272,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobsByJobIdCancel,
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsStatistics,
+    getProjectsByIdSocialQueueSlots,
     getProjectsByIdSocialConnectionsStatistics,
     postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
     postProjectsByIdSocialPostsByPostIdStatisticsRefresh,
@@ -6229,6 +6281,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdSocialPosts,
     postProjectsByIdSocialPostsByPostIdCancel,
     postProjectsByIdSocialPostsByPostIdPublish,
+    postProjectsByIdSocialPostsByPostIdQueue,
     postProjectsByIdSocialPostsByPostIdSchedule,
     completeComposioCallback,
     getProjectsStats,
@@ -6239,6 +6292,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     provideJobInput,
     patchProjectsById,
     putProjectsByIdDesignMd,
+    putProjectsByIdSocialQueueSlots,
     postProjects,
     postProjectsByIdClose,
     postProjectsByIdCloseCancelOwed,

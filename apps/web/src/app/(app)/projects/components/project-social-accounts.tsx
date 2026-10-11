@@ -1,6 +1,9 @@
 "use client";
 
-import type { ProjectSocialConnection } from "@sokosumi/core-client";
+import type {
+  ProjectSocialConnection,
+  SocialQueueSlots,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   Link2,
@@ -42,10 +45,12 @@ import {
 } from "@/lib/actions/project/action";
 import { useComposioOAuthPopup } from "@/lib/composio/use-composio-oauth-popup";
 import { cn } from "@/lib/utils";
+import { ProjectSocialQueueSlots } from "./social-posts/project-social-queue-slots";
 
 interface ProjectSocialAccountsProps {
   connections: ProjectSocialConnection[];
   projectId: string;
+  queueSlots?: SocialQueueSlots;
 }
 
 interface PendingConfirmation {
@@ -128,6 +133,7 @@ function isExpiredIntentError(error: ActionError): boolean {
 export function ProjectSocialAccounts({
   connections,
   projectId,
+  queueSlots,
 }: ProjectSocialAccountsProps) {
   const router = useRouter();
   const t = useTranslations("App.Projects.ProjectSocialAccounts");
@@ -603,6 +609,13 @@ export function ProjectSocialAccounts({
           />
         </div>
       )}
+
+      {queueSlots ? (
+        <ProjectSocialQueueSlots
+          projectId={projectId}
+          queueSlots={queueSlots}
+        />
+      ) : null}
 
       <AlertDialog
         open={pendingConfirmation !== null}
