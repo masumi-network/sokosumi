@@ -5,7 +5,9 @@ import { socialPostProviderLabel } from "@sokosumi/utils";
 import { Paperclip, Play } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
+import { publishFailureCopy } from "@/app/projects/components/social-posts/social-post-publish-failure";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
+import { SocialPostStatusReasonTooltip } from "@/app/projects/components/social-posts/social-post-status-reason-tooltip";
 import { useSocialCalendarPreview } from "@/app/social/components/social-calendar-preview";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import {
@@ -18,6 +20,28 @@ import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 /** Failed and missed posts need the word, not only a coloured mark. */
 function needsStatusLabel(status: SocialPostCalendarItem["status"]) {
   return status === "FAILED" || status === "MISSED";
+}
+
+function CalendarSocialPostStatus({ item }: { item: SocialPostCalendarItem }) {
+  const statuses = useTranslations("App.Projects.SocialPosts.status");
+  const copy = useTranslations("App.Projects.SocialPosts");
+  const label = statuses(item.status);
+  const badge = (
+    <SocialPostStatusBadge
+      status={item.status}
+      label={label}
+      showLabel={needsStatusLabel(item.status)}
+    />
+  );
+  if (!needsStatusLabel(item.status)) return badge;
+  return (
+    <SocialPostStatusReasonTooltip
+      label={label}
+      reason={publishFailureCopy(item, copy)}
+    >
+      {badge}
+    </SocialPostStatusReasonTooltip>
+  );
 }
 
 /** The post on Social, scoped to its project and opened in its list. */
@@ -59,7 +83,6 @@ function CompactSocialPostCalendarEvent({
   timeZone: string;
 }) {
   const t = useTranslations("App.Calendar.socialPost");
-  const statuses = useTranslations("App.Projects.SocialPosts.status");
   const formatter = useFormatter();
   const label = t("compactLabel", {
     provider: socialPostProviderLabel(item.provider),
@@ -83,11 +106,7 @@ function CompactSocialPostCalendarEvent({
             {formatter.dateTime(item.scheduledAt, "time", { timeZone })}
           </span>
           <span className="min-w-0 flex-1 truncate">{label}</span>
-          <SocialPostStatusBadge
-            status={item.status}
-            label={statuses(item.status)}
-            showLabel={needsStatusLabel(item.status)}
-          />
+          <CalendarSocialPostStatus item={item} />
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-1.5">
@@ -105,7 +124,6 @@ function SocialPostPreviewCard({
   timeZone: string;
 }) {
   const t = useTranslations("App.Calendar.socialPost");
-  const statuses = useTranslations("App.Projects.SocialPosts.status");
   const formatter = useFormatter();
   const openPreview = useSocialCalendarPreview();
   const scheduler = t("scheduledBy", {
@@ -152,11 +170,7 @@ function SocialPostPreviewCard({
         {item.text || t("mediaOnly")}
       </span>
       <span className="flex w-full min-w-0 items-center gap-1">
-        <SocialPostStatusBadge
-          status={item.status}
-          label={statuses(item.status)}
-          showLabel={needsStatusLabel(item.status)}
-        />
+        <CalendarSocialPostStatus item={item} />
         <span aria-hidden className="flex shrink-0" title={scheduler}>
           <UserProfileAvatar
             name={item.scheduledByName ?? ""}

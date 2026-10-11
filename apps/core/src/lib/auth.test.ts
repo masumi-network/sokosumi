@@ -355,7 +355,7 @@ vi.mock("@/services/stripe-backed-subscription.service", () => ({
     reconcileActiveStripeBackedSubscriptionMock(...args),
 }));
 
-vi.mock("@/services/preferred-organization.service", () => ({
+vi.mock("@/services/preferred-workspace.service", () => ({
   resolveActiveOrganizationIdForSession: (...args: unknown[]) =>
     resolveActiveOrganizationIdForSessionMock(...args),
 }));
