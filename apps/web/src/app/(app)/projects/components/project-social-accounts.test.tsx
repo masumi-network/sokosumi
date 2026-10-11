@@ -486,6 +486,11 @@ describe("ProjectSocialAccounts", () => {
     );
     expect(within(pendingRow).getByText("Connection pending")).toBeVisible();
     expect(
+      within(pendingRow)
+        .getByText("Connection pending")
+        .closest(".text-semantic-warning-label"),
+    ).toBeTruthy();
+    expect(
       within(pendingRow).queryByRole("button", { name: "Reconnect" }),
     ).not.toBeInTheDocument();
     await user.click(
