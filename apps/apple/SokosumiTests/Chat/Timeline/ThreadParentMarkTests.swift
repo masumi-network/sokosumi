@@ -19,7 +19,8 @@
 
       /// The room's detail pane as the app composes it, the room loaded at its newest message.
       private static func hostedRoom(dark: Bool, clock: any JumpMarkClock = SystemJumpMarkClock()) async throws -> JumpLanding {
-        let state = try TranscriptScrollingTests.fixtureState(thread: false, media: false)
+        // The room's mark lands on its Transcript's clock and holds on the view's, so both read the test's clock.
+        let state = try TranscriptScrollingTests.fixtureState(thread: false, media: false, clock: clock as? ManualJumpMarkClock)
         let room = Components.Schemas.ChatRoom(id: "fixture", name: "General", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
                                                createdByUserId: "person", createdAt: .now, updatedAt: .now, unreadCount: 0,
                                                unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),

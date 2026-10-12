@@ -82,7 +82,7 @@
       /// whatever the pointer does; a test that drags the scroller has to reach it and passes false.
       static func landing(thread: Bool, blocksHover: Bool = true) async throws -> JumpLanding {
         let clock = thread ? nil : ManualJumpMarkClock()
-        let state = try TranscriptScrollingTests.fixtureState(thread: thread, media: false)
+        let state = try TranscriptScrollingTests.fixtureState(thread: thread, media: false, clock: clock)
         let auth = AuthState()
         if thread {
           state.thread.transcript.requestJump(to: Self.landedId)

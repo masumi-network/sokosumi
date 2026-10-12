@@ -67,14 +67,7 @@ import SwiftUI
     @State private var scrollIntent = TimelineScrollIntent()
     @State private var pendingBottomAlignment = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
-    /// The mark the last jump left on the row it landed on (row 25b1). The open thread keeps its own.
-    @State private var jumpMark: JumpMark?
-    /// The Thread's parent a reply jump marked while the Thread covered the room (row 25c). The rows behind the
-    /// Thread are not laid out, so the room lands on it when the Thread closes (user decision, 2026-10-04).
-    @State private var parentBehindThread: String?
     @State private var jumpError: String?
-    @State private var jumpCompletion: CheckedContinuation<Bool, Never>?
-    @State private var quoteTarget: String?
     @State private var scrollPosition = ScrollPosition(idType: String.self)
     @State private var firstRows = FirstRowsPlacement()
     @State private var quoteFocusRequest: String?
@@ -99,6 +92,19 @@ import SwiftUI
 
     private var userIsScrolling: Bool {
       scrollActivity.isScrolling
+    }
+
+    /// The mark the last jump left on the row it landed on (row 25b1). The open thread keeps its own.
+    private var jumpMark: JumpMark? {
+      workspaces.room.jumpTarget?.mark
+    }
+
+    /// The row a jump still has to scroll to. The Thread's parent a reply jump marked waits while the Thread covers the
+    /// room, because the rows behind it are not laid out (row 25c, user decision 2026-10-04).
+    private var scrollTarget: TranscriptSession.JumpTarget? {
+      guard let target = workspaces.room.jumpTarget, !target.hasLanded,
+            !target.isCovered || workspaces.thread.parent == nil else { return nil }
+      return target
     }
 
     private func unfurlAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
@@ -169,27 +175,19 @@ import SwiftUI
           guard let target = workspaces.messageJump, target.roomId == roomId else { return }
           scrollIntent.readOlder()
           if target.isThreadParent {
-            // Row 25c: the Thread's parent, marked now on the room's own clock (web's `landOn`), so its hold runs
-            // under the Thread; the room lands on it when the Thread closes. It replaces a room jump still landing.
-            quoteTarget = nil
-            jumpCompletion?.resume(returning: false)
-            jumpCompletion = nil
-            jumpMark = JumpMark(messageId: target.messageId, landedAt: jumpMarkClock.now)
-            parentBehindThread = target.messageId
+            // Row 25c: the Thread's parent, marked now so its hold runs under the Thread; the room lands on it when
+            // the Thread closes. It replaces a room jump still landing.
+            workspaces.room.markCovered(target.messageId)
           } else {
-            parentBehindThread = nil
-            quoteTarget = target.messageId
+            workspaces.room.requestJump(to: target.messageId)
           }
           workspaces.consumeMessageJump(target.requestId)
         }
         .onChange(of: workspaces.thread.parent == nil) { _, closed in
-          guard closed, let parent = parentBehindThread else { return }
-          if workspaces.displayedTranscript.contains(where: { $0.id == parent }) {
-            quoteTarget = parent
-          } else {
-            // Gone from the loaded rows while the Thread was open: nothing to land on, so forget it.
-            parentBehindThread = nil
-          }
+          guard closed, let target = workspaces.room.jumpTarget, target.isCovered, !target.hasLanded,
+                !workspaces.displayedTranscript.contains(where: { $0.id == target.messageId }) else { return }
+          // Gone from the loaded rows while the Thread was open: nothing to land on, so forget it.
+          Task { @MainActor in workspaces.room.clearJump() }
         }
         .task(id: roomId) {
           if room?.kind == .channel {
@@ -206,21 +204,22 @@ import SwiftUI
         .onChange(of: workspaces.room.timeline.historicalAnchor) { old, new in
           if old != nil, new == nil {
             scrollIntent.followLatest()
-            jumpMark = nil
+            Task { @MainActor in workspaces.room.clearJump() }
           }
         }
-        .onDisappear { jumpCompletion?.resume(returning: false)
-          jumpCompletion = nil
+        .onDisappear {
+          // A jump this list never reached ends with it; another room's Transcript has already dropped it.
+          let shownRoom = roomId
+          Task { @MainActor in
+            if workspaces.room.timeline.roomId == shownRoom {
+              workspaces.room.clearJump()
+            }
+          }
           // The room view outlives this list (another workspace or room swaps it): no scroll is left driving it.
           scrollActivity.update(for: .idle)
         }
         .onChange(of: roomId) { _, _ in
-          jumpMark = nil
-          parentBehindThread = nil
-          jumpCompletion?.resume(returning: false)
-          jumpCompletion = nil
           pendingQuote = nil
-          quoteTarget = nil
           scrollPosition = ScrollPosition(idType: String.self)
           transcriptWasAwayFromTop = false
           scrollIntent = TimelineScrollIntent()
@@ -372,7 +371,7 @@ import SwiftUI
                     firstRows.record(index, id: message.id, frame: frame)
                   }
                 }
-                if quoteTarget == message.id {
+                if scrollTarget?.messageId == message.id {
                   Color.clear.onScrollVisibilityChange(threshold: 0.01) { visible in
                     if visible {
                       completeVisibleJump(message.id)
@@ -396,7 +395,7 @@ import SwiftUI
         .task {
           // Position after the lazy list mounts. A default initial bottom
           // anchor can leave the viewport unrealized on macOS 27.
-          guard workspaces.room.timeline.historicalAnchor == nil, quoteTarget == nil else { return }
+          guard workspaces.room.timeline.historicalAnchor == nil, scrollTarget == nil else { return }
           proxy.scrollTo("timeline-bottom", anchor: .bottom)
         }
         .scrollPosition($scrollPosition)
@@ -408,15 +407,10 @@ import SwiftUI
             }
           }
         }
-        .onChange(of: messages.contains(where: { $0.id == quoteTarget }) ? quoteTarget : nil, initial: true) { _, target in
+        .onChange(of: scrollTarget.flatMap { target in messages.contains { $0.id == target.messageId } ? target.messageId : nil }, initial: true) { _, target in
           guard let target else { return }
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
-            quoteTarget = nil
-            if parentBehindThread == target {
-              parentBehindThread = nil
-            }
-            jumpCompletion?.resume(returning: false)
-            jumpCompletion = nil
+            Task { @MainActor in workspaces.room.clearJump() }
             return
           }
           scrollIntent.readOlder()
@@ -436,14 +430,14 @@ import SwiftUI
             }
           }
           if phase.endsJumpMark {
-            jumpMark = jumpMark?.readerScrolled(at: jumpMarkClock.now)
+            Task { @MainActor in workspaces.room.readerScrolled() }
           }
         }
         .task(id: jumpMark) {
           guard let mark = jumpMark else { return }
           try? await jumpMarkClock.sleep(until: mark.endsAt)
           if !Task.isCancelled, jumpMark == mark {
-            jumpMark = nil
+            workspaces.room.endJumpIfMarkEnded()
           }
         }
         .onChange(of: messages.last?.id) { _, _ in
@@ -459,7 +453,7 @@ import SwiftUI
                   if try await workspaces.returnToLatest(auth: auth) {
                     scrollPosition = ScrollPosition(idType: String.self)
                     scrollIntent.followLatest()
-                    jumpMark = nil
+                    workspaces.room.clearJump()
                     proxy.scrollTo("timeline-bottom", anchor: .bottom)
                   }
                 } catch { jumpError = friendlyMessage(for: error) }
@@ -544,17 +538,10 @@ import SwiftUI
       }
     }
 
+    /// The row came into view: the jump lands. The Thread's parent keeps the mark it got when the jump arrived.
     private func completeVisibleJump(_ target: String) {
-      guard quoteTarget == target else { return }
-      // The Thread's parent keeps the mark it got when the jump arrived, or none once that hold has run out.
-      if parentBehindThread == target {
-        parentBehindThread = nil
-      } else {
-        jumpMark = JumpMark(messageId: target, landedAt: jumpMarkClock.now)
-      }
-      quoteTarget = nil
-      jumpCompletion?.resume(returning: true)
-      jumpCompletion = nil
+      guard let jump = scrollTarget, jump.messageId == target else { return }
+      Task { @MainActor in workspaces.room.landJump(jump.requestId) }
     }
 
     private func jumpToMessage(_ id: String) async throws -> MessageNavigationResult {
@@ -564,12 +551,7 @@ import SwiftUI
       guard result == .opened, workspaces.room.timeline.roomId == expectedRoom else {
         return result == .opened ? .superseded : result
       }
-      jumpCompletion?.resume(returning: false)
-      let landed = await withCheckedContinuation { completion in
-        jumpCompletion = completion
-        quoteTarget = id
-      }
-      return landed ? .opened : .superseded
+      return await workspaces.room.jump(to: id) ? .opened : .superseded
     }
 
     private func transcriptError(_ error: String, retryOlder: Bool) -> some View {

@@ -68,19 +68,19 @@ public extension WorkspaceState {
     if displayedTranscript.contains(where: { $0.id == messageId }) {
       return true
     }
-    guard let client = resolveClient(auth: auth) else {
+    guard resolveClient(auth: auth) != nil else {
       throw ChatServiceError.unauthorized("Log in to view this message.")
     }
-    return try await room.timeline.loadPage(.around(messageId), client: client,
-                                            organizationSlug: selection?.workspace.organizationSlug, generation: room.timeline.generation)
+    connectRoomTranscript(auth: auth)
+    return try await room.loadAround(messageId)
   }
 
   func returnToLatest(auth: AuthState) async throws -> Bool {
     guard room.timeline.historicalAnchor != nil else { return true }
-    guard let client = resolveClient(auth: auth) else {
+    guard resolveClient(auth: auth) != nil else {
       throw ChatServiceError.unauthorized("Log in to load messages.")
     }
-    return try await room.timeline.loadPage(.returnToLatest, client: client,
-                                            organizationSlug: selection?.workspace.organizationSlug, generation: room.timeline.generation)
+    connectRoomTranscript(auth: auth)
+    return try await room.returnToLatest()
   }
 }
