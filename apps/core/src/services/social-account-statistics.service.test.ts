@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   cursor: vi.fn(),
   transaction: vi.fn(),
   snapshot: vi.fn(),
+  published: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -120,10 +121,12 @@ beforeEach(() => {
   mocks.provider.mockResolvedValue(page);
   mocks.update.mockResolvedValue({ count: 1 });
   mocks.count.mockResolvedValue(41);
+  mocks.published.mockResolvedValue({ count: 0 });
   mocks.transaction.mockImplementation(async (operation) =>
     operation({
       projectSocialConnection: { updateMany: mocks.update },
       socialAccountPost: { upsert: mocks.upsert, count: mocks.count },
+      socialPost: { updateMany: mocks.published },
     }),
   );
 });
@@ -283,6 +286,30 @@ describe("Social account statistics", () => {
       statistics: { equals: previous },
     });
   });
+  it("copies measured counters onto the matching published Sokosumi post", async () => {
+    await refreshSocialAccountStatistics({
+      ...scope,
+      connectionId,
+      userId: "reader",
+    });
+    expect(mocks.published).toHaveBeenCalledWith({
+      where: {
+        projectId,
+        workspaceId,
+        socialConnectionId: connectionId,
+        status: "PUBLISHED",
+        publishedExternalId: providerPost.externalId,
+      },
+      data: {
+        statistics: {
+          metrics,
+          fetchedAt: expect.any(String),
+          refreshAttemptedAt: expect.any(String),
+          error: null,
+        },
+      },
+    });
+  });
   it("uses only the stored cursor for one continuation page and preserves the profile timestamp", async () => {
     mocks.provider.mockResolvedValue({
       ...page,
@@ -427,6 +454,7 @@ describe("Social account statistics", () => {
     expect(update).not.toHaveProperty("metrics");
     expect(update).not.toHaveProperty("additionalMetrics");
     expect(update).not.toHaveProperty("fetchedAt");
+    expect(mocks.published).not.toHaveBeenCalled();
   });
   it("still writes measured posts when a sibling insight fails", async () => {
     mocks.provider.mockResolvedValue({
@@ -465,6 +493,14 @@ describe("Social account statistics", () => {
     expect(measured?.update).toMatchObject({ metrics });
     expect(failed?.update).not.toHaveProperty("metrics");
     expect(mocks.snapshot).toHaveBeenCalled();
+    expect(mocks.published).toHaveBeenCalledTimes(1);
+    expect(mocks.published).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          publishedExternalId: providerPost.externalId,
+        }),
+      }),
+    );
   });
   it("retains account metrics and their age when optional analytics fail", async () => {
     mocks.provider.mockResolvedValue({

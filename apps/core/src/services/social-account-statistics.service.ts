@@ -506,6 +506,23 @@ export async function refreshSocialAccountStatistics(
           ? { text: data.text, publishedAt: data.publishedAt, url: data.url }
           : data,
       });
+      if (preservePostMetrics.has(post.externalId)) continue;
+      const publishedStatistics: Prisma.InputJsonObject = {
+        metrics: { ...post.metrics },
+        fetchedAt: fetchedAt.toISOString(),
+        refreshAttemptedAt: attemptedAt,
+        error: null,
+      };
+      await tx.socialPost.updateMany({
+        where: {
+          projectId: input.projectId,
+          workspaceId: input.workspaceId,
+          socialConnectionId: record.id,
+          status: "PUBLISHED",
+          publishedExternalId: post.externalId,
+        },
+        data: { statistics: publishedStatistics },
+      });
     }
     if (
       profileMeasured ||
