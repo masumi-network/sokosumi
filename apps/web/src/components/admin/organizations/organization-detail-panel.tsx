@@ -331,7 +331,11 @@ export function OrganizationDetailPanel({
                     <TableCell className="pr-4 text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={t("members.actions")}
+                          >
                             <Ellipsis className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>

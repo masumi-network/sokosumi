@@ -128,7 +128,7 @@ export async function createComposioToolSession(input: {
 }
 
 /**
- * Executes one tool in a publish session and returns the provider payload with
+ * Executes one tool in a restricted Social post session and returns the provider payload with
  * Composio's envelope layers stripped. A refused or unsuccessful execution is
  * raised as a {@link ComposioToolError}.
  */

@@ -139,11 +139,12 @@ export function DesignMdUploadTrigger({
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={isDisabled}
+                  disabled={disabled}
+                  loading={isUploading}
                   className="shrink-0"
                 >
                   <CloudUpload className="size-4" />
-                  {isUploading ? t("uploading") : t("uploadButton")}
+                  {t("uploadButton")}
                 </Button>
               </FileUploadTrigger>
             </div>
@@ -162,11 +163,12 @@ export function DesignMdUploadTrigger({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={isDisabled}
+                    disabled={disabled}
+                    loading={isUploading}
                     className="mt-2"
                   >
                     <CloudUpload className="size-4" />
-                    {isUploading ? t("uploading") : t("uploadButton")}
+                    {t("uploadButton")}
                   </Button>
                 </FileUploadTrigger>
               </div>

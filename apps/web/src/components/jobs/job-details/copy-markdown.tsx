@@ -35,7 +35,7 @@ export default function CopyMarkdown({
       className={cn("text-muted-foreground", className)}
       title={t("copy")}
     >
-      <Copy className="h-4 w-4" />
+      <Copy className="size-4" />
     </Button>
   );
 }

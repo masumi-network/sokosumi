@@ -18,7 +18,7 @@
       private static let replyId = "reply-12"
 
       /// The room's detail pane as the app composes it, the room loaded at its newest message.
-      private static func hostedRoom(dark: Bool) async throws -> JumpLanding {
+      private static func hostedRoom(dark: Bool, clock: any JumpMarkClock = SystemJumpMarkClock()) async throws -> JumpLanding {
         let state = try TranscriptScrollingTests.fixtureState(thread: false, media: false)
         let room = Components.Schemas.ChatRoom(id: "fixture", name: "General", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
                                                createdByUserId: "person", createdAt: .now, updatedAt: .now, unreadCount: 0,
@@ -28,6 +28,7 @@
         let host = NSHostingView(rootView: AnyView(RoomNavigationStack(room: room)
             .background(.background)
             .overlay { JumpMarkViewTests.hoverBlocker }
+            .environment(\.jumpMarkClock, clock)
             .environmentObject(state).environmentObject(auth)))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
@@ -41,9 +42,9 @@
       }
 
       /// Opens the parent's Thread over the room with its replies loaded, then jumps to one as a search hit does
-      /// (`openMessageReply`, which loads nothing here). Returns when the jump was asked for, once the Thread has
-      /// landed on the reply.
-      private static func jumpToReply(_ state: WorkspaceState, host: NSView) async throws -> Date {
+      /// (`openMessageReply`, which loads nothing here). Returns once the Thread has landed on the reply and the
+      /// room has marked the parent behind it.
+      private static func jumpToReply(_ state: WorkspaceState, host: NSView) async throws {
         let parent = try #require(state.timeline.messages.first { $0.id == Self.parentId })
         state.thread.open(parent)
         state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
@@ -54,11 +55,19 @@
           return reply
         }
         let hit = try #require(state.thread.timeline.messages.first { $0.id == Self.replyId })
-        let requested = Date()
         #expect(try await state.openMessageReply(hit, auth: AuthState()) == .opened)
-        try await JumpMarkViewTests.poll(host) { state.thread.jumpTarget?.mark != nil }
+        try await JumpMarkViewTests.poll(host) { state.thread.jumpTarget?.mark != nil && state.messageJump == nil }
         #expect(state.thread.jumpTarget?.mark?.messageId == Self.replyId, "The Thread landed on the reply.")
-        return requested
+        #expect(state.messageJump == nil, "The room took the parent's jump.")
+      }
+
+      /// Moves the clock on until the room marks the parent again: a room jump marks once it lands, and a mark
+      /// opens over its first tenth.
+      private static func advanceUntilMarked(_ clock: ManualJumpMarkClock, host: NSView, scroll: NSScrollView) async throws {
+        try await JumpMarkViewTests.poll(host) {
+          clock.advance(by: 0.05)
+          return try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) > 40
+        }
       }
 
       /// The room's scroll offset once it has held still for five polls.
@@ -73,14 +82,15 @@
 
       /// The Thread lands on the reply; 2.5 s later, inside the hold, the reader closes it. The room is on the
       /// parent, marked, where a room jump to it would centre it, and the mark ends 4.5 s after the jump,
-      /// not after the close.
+      /// not after the close. The mark runs on a clock the test moves, so a slow runner cannot outlive the hold.
       @Test(arguments: [false, true])
       func closingTheThreadInsideTheHoldShowsTheParentsMark(dark: Bool) async throws {
-        let room = try await Self.hostedRoom(dark: dark)
+        let clock = ManualJumpMarkClock()
+        let room = try await Self.hostedRoom(dark: dark, clock: clock)
         let (state, host) = (room.state, room.host)
         defer { room.window.orderOut(nil) }
-        let requested = try await Self.jumpToReply(state, host: host)
-        try await JumpMarkViewTests.poll(host) { Date() >= requested.addingTimeInterval(2.5) }
+        try await Self.jumpToReply(state, host: host)
+        clock.move(to: 2.5)
         state.thread.close()
 
         let scroll = try await loadedTranscriptScrollView(in: host)
@@ -89,9 +99,7 @@
           marked = try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6)
           return marked > 40
         }
-        let shown = Date().timeIntervalSince(requested)
-        #expect(marked > 40, "The parent is marked once the Thread closes.")
-        #expect(shown < JumpMark.hold, "Marked inside the hold: \(shown) s after the jump.")
+        #expect(marked > 40, "The parent is marked once the Thread closes inside the hold.")
         #expect(TranscriptScrollingTests.distanceFromBottom(scroll) > 400, "The room moved off its newest message to the parent.")
         let landed = try await Self.settledOffset(of: scroll, host: host)
         #expect(try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) > 40, "Still marked once the room has settled on the parent.")
@@ -103,16 +111,15 @@
         let corner = try #require(bitmap.colorAt(x: 2, y: bitmap.pixelsHigh - 2)?.usingColorSpace(.deviceRGB))
         #expect(corner.alphaComponent == 1, "Hosted over the window background: alpha \(corner.alphaComponent)")
 
+        // A mark started at the close would hold to 2.5 + 4.5 s and still be at full strength here; one started
+        // with the jump has ended.
+        clock.move(to: JumpMark.hold + 0.1)
         try await JumpMarkViewTests.poll(host) { try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) == 0 }
-        let gone = Date().timeIntervalSince(requested)
-        #expect(try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) == 0, "The hold is over.")
-        // A mark started at the close would hold to 2.5 + 4.5 s; one started with the jump ends by 4.5 s.
-        #expect(gone > 3, "Held until its closing fade: gone \(gone) s after the jump.")
-        #expect(gone < 5.5, "On the jump's clock: gone \(gone) s after the jump.")
+        #expect(try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) == 0, "On the jump's clock: gone 4.6 s after the jump.")
 
         // Centred where a room jump to the parent centres it: that jump barely moves the room.
         #expect(try await state.openMessage(Self.parentId, auth: AuthState()) == .opened)
-        try await JumpMarkViewTests.poll(host) { try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) > 40 }
+        try await Self.advanceUntilMarked(clock, host: host, scroll: scroll)
         let centred = try await Self.settledOffset(of: scroll, host: host)
         #expect(abs(centred - landed) < 40, "Already centred on the parent: a jump to it moved the room from \(landed) to \(centred).")
       }
@@ -120,11 +127,12 @@
       /// Closed after the hold, the Thread leaves the room on the parent with no mark. A room jump to the parent
       /// then barely moves it, because it is already centred there.
       @Test func closingTheThreadAfterTheHoldLeavesTheRoomOnTheParent() async throws {
-        let room = try await Self.hostedRoom(dark: false)
+        let clock = ManualJumpMarkClock()
+        let room = try await Self.hostedRoom(dark: false, clock: clock)
         let (state, host) = (room.state, room.host)
         defer { room.window.orderOut(nil) }
-        let requested = try await Self.jumpToReply(state, host: host)
-        try await JumpMarkViewTests.poll(host) { Date() >= requested.addingTimeInterval(JumpMark.hold + 0.5) }
+        try await Self.jumpToReply(state, host: host)
+        clock.move(to: JumpMark.hold + 0.5)
         state.thread.close()
 
         let scroll = try await loadedTranscriptScrollView(in: host)
@@ -137,7 +145,7 @@
         diagnosis.snap("closed")
 
         #expect(try await state.openMessage(Self.parentId, auth: AuthState()) == .opened)
-        try await JumpMarkViewTests.poll(host) { try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) > 40 }
+        try await Self.advanceUntilMarked(clock, host: host, scroll: scroll)
         let centred = try await Self.settledOffset(of: scroll, host: host)
         #expect(abs(centred - closed) < 40, "Already on the parent: a jump to it moved the room from \(closed) to \(centred).")
         if abs(centred - closed) >= 40 {
@@ -152,7 +160,7 @@
         let room = try await Self.hostedRoom(dark: false)
         let (state, host) = (room.state, room.host)
         defer { room.window.orderOut(nil) }
-        _ = try await Self.jumpToReply(state, host: host)
+        try await Self.jumpToReply(state, host: host)
         let parent = try #require(state.timeline.messages.first { $0.id == Self.parentId })
         let loaded = state.timeline.messages
         state.timeline.messages = loaded.filter { $0.id != Self.parentId }

@@ -62,7 +62,7 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
       }
       messagesGETReleased = false
     }
-    let next = responses.removeFirst()
+    let next = try nextScriptedResponse(&responses, operationID: operationID)
     if pauseNextRoomsGET, operationID == "get/chats/rooms" {
       pauseNextRoomsGET = false
       await withCheckedContinuation { roomsGETWaiter = $0
@@ -105,15 +105,30 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
   }
 }
 
-private func realtimeAccessBody() -> String {
+private let personalWorkspaceId = "11111111-1111-7111-8111-111111111111"
+private let acmeWorkspaceId = "22222222-2222-7222-8222-222222222222"
+
+/// One `UserWorkspace`: personal for nil, Acme for `org_1`.
+private func userWorkspaceJSON(_ organizationId: String?, preferred: Bool) -> String {
+  organizationId == nil
+    ? #"{"id":"\#(personalWorkspaceId)","kind":"personal","name":"Me","organizationId":null,"slug":null,"logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+    : #"{"id":"\#(acmeWorkspaceId)","kind":"organization","name":"Acme","organizationId":"org_1","slug":"acme","logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+}
+
+/// `GET /users/me/workspaces`: personal and Acme, `preferring` the one a
+/// session opens (nil is personal).
+private func workspacesBody(preferring organizationId: String? = nil) -> String {
   """
-  {"data":{"gate":"ready","hasPersonalWorkspace":true,"hasOrganizationMembership":true,"hasPendingOrganizationInvites":false},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+  {"data":{"workspaces":[\(userWorkspaceJSON(nil, preferred: organizationId == nil)),\(userWorkspaceJSON("org_1", preferred: organizationId == "org_1"))],"pendingInvitationCount":0},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
   """
 }
 
-private let realtimeOrgsBody = """
-{"data":[{"id":"org_1","createdAt":"\(realtimeTimestamp)","name":"Acme","slug":"acme","role":"member"}],"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
-"""
+/// `PUT /users/me/workspaces/preferred` reply.
+private func preferredWorkspaceBody(preferring organizationId: String? = nil) -> String {
+  """
+  {"data":\(userWorkspaceJSON(organizationId, preferred: true)),"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+  """
+}
 
 private let realtimeUserBody = """
 {"data":{"id":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
@@ -197,7 +212,8 @@ private func realtimeState(
   defaults.removePersistentDomain(forName: suite)
   let state = WorkspaceState(
     savedRoom: SavedRoomSelection(defaults: defaults),
-    instanceStore: MemoryRealtimeClientInstanceIdStore(stored: instanceId)
+    instanceStore: MemoryRealtimeClientInstanceIdStore(stored: instanceId),
+    recoverySleep: recoveryTimersNeverFire
   )
   state.setWindowVisible(true, window: realtimeWindow)
   state.clientResolver = { client }
@@ -295,10 +311,8 @@ struct WorkspaceRealtimeTests {
   /// window is active, without marking it read; the second envelope queues one follow-up, and the return reads nothing.
   @Test func hiddenEnvelopeReadsWithoutMarkingRead() async throws {
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
@@ -323,10 +337,8 @@ struct WorkspaceRealtimeTests {
     let firstId = "550e8400-e29b-41d4-a716-446655440710"
     let liveId = "550e8400-e29b-41d4-a716-446655440711"
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA))
@@ -344,12 +356,169 @@ struct WorkspaceRealtimeTests {
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 1)
   }
 
+  /// Row 38e1: the turn's completion arrives as a full update carrying the descriptors (web hydrates
+  /// `resultPreviews` from the realtime DTO), so the row reads its cards without a reload, through the room's
+  /// workspace.
+  @Test func aCompletionUpdateBringsTheDescriptorsAndTheRowReadsItsCards() async throws {
+    let replyId = "550e8400-e29b-41d4-a716-446655440730"
+    let card = "7d1f0c2a-0000-4000-8000-000000000001"
+    let locked = "7d1f0c2a-0000-4000-8000-000000000002"
+    let results = """
+    {"data":[{"id":"\(card)","state":"available","capturedAt":"\(realtimeTimestamp)","kind":"file","title":"plan.pdf",\
+    "status":null,"sourceHref":"/drive/files/f1?scope=org&organizationId=org_1"},{"id":"\(locked)","state":"unavailable"}],\
+    "meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+    """
+    let (state, auth, transport) = try realtimeState([
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [realtimeMessageJSON(id: replyId, roomId: roomA, content: "")])),
+      (200, results)
+    ])
+    // No realtime connection here, so the open room's fallback poll reads history every 3 s while a window is
+    // active; with none active it waits (and nothing is marked read), so the script holds exactly the reads this test
+    // makes however slow the run.
+    state.setWindowVisible(false, window: realtimeWindow)
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let placeholder = try #require(state.transcriptMessages.first { $0.id == replyId })
+    #expect(MessageResultPreviews.descriptorIds(of: placeholder).isEmpty)
+
+    let answered = try await decodeRealtimeMessages([
+      realtimeMessageJSON(id: replyId, roomId: roomA, content: "Here is the plan.", editedAt: nil)
+        .replacingOccurrences(of: #""unfurls":null}"#,
+                              with: #""unfurls":null,"resultPreviews":[{"id":"\#(card)","capturedAt":"\#(realtimeTimestamp)"},{"id":"\#(locked)","capturedAt":"\#(realtimeTimestamp)"}]}"#)
+    ])
+    state.applyRealtimeMessage(roomId: roomA, eventType: .update, message: answered[0])
+    let reply = try #require(state.transcriptMessages.first { $0.id == replyId })
+    #expect(MessageResultPreviews.descriptorIds(of: reply) == [card, locked])
+
+    let previews = try await state.messageResultPreviews(reply, auth: auth)
+    #expect(previews.count == 2)
+    #expect(transport.operationIDs.last == "getChatRoomMessageResults")
+    let request = try #require(transport.requests.last)
+    #expect(request.path?.hasSuffix("/chats/rooms/\(roomA)/messages/\(replyId)/results") == true)
+    #expect(HTTPField.Name("X-Organization-Slug").flatMap { request.headerFields[$0] } == "acme")
+    state.reset()
+  }
+
+  @Test func aProjectPickRepliesToTheBotAndLandsInTheRoomAtOnce() async throws {
+    let questionId = "550e8400-e29b-41d4-a716-446655440731"
+    let replyId = "550e8400-e29b-41d4-a716-446655440732"
+    let preview = "7d1f0c2a-0000-4000-8000-000000000007"
+    let books = "0b5e0e7a-0000-4000-8000-0000000000a1"
+    let results = """
+    {"data":[{"id":"\(preview)","state":"available","capturedAt":"\(realtimeTimestamp)","kind":"project_selection",\
+    "title":"Choose a project","status":null,"sourceHref":"/projects",\
+    "projectOptions":[{"id":"\(books)","name":"Books","identifier":null,"logo":null}]}],\
+    "meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+    """
+    let botSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_1","ownerUserId":"user_1","presence":"online"}}"#
+    let question = realtimeMessageJSON(id: questionId, roomId: roomA, content: "Which project?")
+      .replacingOccurrences(of: #"{"type":"user","user":{"id":"user_2","name":"Ada","email":"ada@example.com","presence":"offline"}}"#, with: botSender)
+    let (state, auth, transport) = try realtimeState([
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [question])),
+      (200, results),
+      (201, realtimeCreatedBody(id: replyId, roomId: roomA, content: #"Use project \"Books\" (project ID: \#(books))."#))
+    ])
+    // As above: no window active, so the fallback poll takes no scripted answer.
+    state.setWindowVisible(false, window: realtimeWindow)
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let asked = try #require(state.transcriptMessages.first { $0.id == questionId })
+
+    try await state.selectProject(books, preview: preview, question: asked, auth: auth)
+    #expect(Array(transport.operationIDs.suffix(2)) == ["getChatRoomMessageResults", "post/chats/rooms/{id}/messages"])
+    #expect(transport.requests.suffix(2).allSatisfy { request in
+      HTTPField.Name("X-Organization-Slug").flatMap { request.headerFields[$0] } == "acme"
+    })
+    let body = try #require(transport.bodies.last)
+    let sent = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    #expect(sent["mentionedSokoBotIds"] as? [String] == ["bot_1"])
+    #expect(sent["clientMessageId"] as? String == ProjectSelection.clientMessageId(
+      userId: "user_1", roomId: roomA, messageId: questionId, previewId: preview, projectId: books
+    ))
+    let reply = try #require(state.transcriptMessages.last)
+    #expect(reply.id == replyId)
+    #expect(ProjectSelectionReply(content: reply.content) == ProjectSelectionReply(projectId: books, name: "Books"))
+    state.reset()
+  }
+
+  /// Row 38h2: Approve on a decision card resolves the owner's decision through the coordinator's client, with no
+  /// workspace header (decisions are the owner's); a 401 reaches the card as the session's rejection (which signs out).
+  @Test func aDecisionResolvesForItsOwnerOutsideTheWorkspace() async throws {
+    let decisionId = "3c4d5e6f-0000-4000-8000-0000000000d1"
+    let settled = """
+    {"data":{"id":"\(decisionId)","turnId":"3c4d5e6f-0000-4000-8000-0000000000e1","toolName":"hire_agent",\
+    "proposal":{"agentId":"agent_123","maxCredits":25},"reason":"Hire Scout","status":"ACCEPTED",\
+    "expiresAt":"\(realtimeTimestamp)","resolvedAt":"\(realtimeTimestamp)","resultingEntityId":"job_1",\
+    "createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)"},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+    """
+    let rejected = #"{"error":"Unauthorized","message":"Session expired","meta":{"timestamp":"\#(realtimeTimestamp)","requestId":"req-1","path":"/x","method":"POST"}}"#
+    let (state, auth, transport) = try realtimeState([
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])),
+      (200, settled),
+      (401, rejected)
+    ])
+    // With no window active the open room's fallback poll waits, so the script holds exactly these reads.
+    state.setWindowVisible(false, window: realtimeWindow)
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+
+    try await state.resolveSokoBotDecision(decisionId, .accept, auth: auth)
+    #expect(transport.operationIDs.last == "resolveMySokoBotDecision")
+    let request = try #require(transport.requests.last)
+    #expect(request.path?.hasSuffix("/soko-bots/me/decisions/\(decisionId)") == true)
+    #expect(HTTPField.Name("X-Organization-Slug").flatMap { request.headerFields[$0] } == nil)
+    let body = try #require(transport.bodies.last)
+    #expect(try JSONSerialization.jsonObject(with: body) as? [String: String] == ["resolution": "ACCEPT"])
+
+    await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
+      try await state.resolveSokoBotDecision(decisionId, .reject, auth: auth)
+    }
+    #expect(transport.operationIDs.suffix(2) == ["resolveMySokoBotDecision", "resolveMySokoBotDecision"])
+    #expect(try JSONSerialization.jsonObject(with: #require(transport.bodies.last)) as? [String: String] == ["resolution": "REJECT"])
+    state.reset()
+  }
+
+  /// Row 38e2: a card's protected output loads through the coordinator's client in the open workspace, as web's
+  /// proxy forwards the session; a 401 reaches the caller as the session's rejection (which signs out).
+  @Test func aResultOutputLoadsInTheOpenWorkspace() async throws {
+    let rejected = #"{"error":"Unauthorized","message":"Session expired","meta":{"timestamp":"\#(realtimeTimestamp)","requestId":"req-1","path":"/x","method":"GET"}}"#
+    let (state, auth, transport) = try realtimeState([
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])),
+      (200, "%PDF-1.7 report"),
+      (401, rejected)
+    ])
+    // With no window active the open room's fallback poll waits, so the script holds exactly these reads.
+    state.setWindowVisible(false, window: realtimeWindow)
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+
+    let file = try await state.resultOutput(.jobFile(jobId: "job-1", fileId: "blob-1", download: true), fileName: "report.pdf", auth: auth)
+    #expect(try Data(contentsOf: file.url) == Data("%PDF-1.7 report".utf8))
+    #expect(file.url.lastPathComponent == "report.pdf")
+    #expect(transport.operationIDs.last == "get/jobs/{id}/files/{fileId}/content")
+    let request = try #require(transport.requests.last)
+    #expect(request.path?.hasSuffix("/jobs/job-1/files/blob-1/content?download=true") == true)
+    #expect(HTTPField.Name("X-Organization-Slug").flatMap { request.headerFields[$0] } == "acme")
+
+    await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
+      try await state.resultOutput(.studioAsset(projectId: "p1", assetId: "a1"), fileName: "fox.png", auth: auth)
+    }
+    #expect(transport.operationIDs.last == "get/projects/{id}/image-studio/assets/{assetId}/content")
+    state.reset()
+  }
+
   @Test func renameRowRetitlesTheOpenGroupDirect() async throws {
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA], groupDirect: true)),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-446655440716", roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA))
@@ -380,10 +549,8 @@ struct WorkspaceRealtimeTests {
     let targetId = "550e8400-e29b-41d4-a716-446655440712"
     let otherId = "550e8400-e29b-41d4-a716-446655440713"
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [
         realtimeMessageJSON(id: targetId, roomId: roomA, content: "hello"),
@@ -412,10 +579,8 @@ struct WorkspaceRealtimeTests {
   @Test func foreignActivityRefreshesSidebarWhileHidden() async throws {
     let firstId = "550e8400-e29b-41d4-a716-446655440714"
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA)),
@@ -445,10 +610,8 @@ struct WorkspaceRealtimeTests {
   @Test func ownSendPlusAblyCreateDedupeToOneBubble() async throws {
     let confirmedId = "550e8400-e29b-41d4-a716-446655440716"
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
@@ -487,8 +650,7 @@ struct WorkspaceRealtimeTests {
   @Test func queuedEnvelopeAfterOlderPageIsRefetched() async throws {
     let messageId = "550e8400-e29b-41d4-a716-446655440717"
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [], nextCursor: "older")),
       (200, realtimeReadBody(id: roomA)),
@@ -513,10 +675,8 @@ struct WorkspaceRealtimeTests {
     let oldId = "550e8400-e29b-41d4-a716-446655440717"
     let newId = "550e8400-e29b-41d4-a716-446655440718"
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
       (200, realtimeReadBody(id: roomA)),
@@ -548,10 +708,8 @@ struct WorkspaceRealtimeTests {
     let oldId = "550e8400-e29b-41d4-a716-446655440742"
     let newId = "550e8400-e29b-41d4-a716-446655440743"
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
       (200, realtimeReadBody(id: roomA)),
@@ -581,15 +739,13 @@ struct WorkspaceRealtimeTests {
     let newId = "550e8400-e29b-41d4-a716-446655440745"
     let laterId = "550e8400-e29b-41d4-a716-446655440746"
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
       (200, realtimeReadBody(id: roomA)),
       (500, """
-      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1","path":"/v1/users/me/workspaces/preferred","method":"PUT"}}
       """),
       (200, realtimePageBody(messages: [
         realtimeMessageJSON(id: oldId, roomId: roomA, content: "old"),
@@ -630,10 +786,8 @@ struct WorkspaceRealtimeTests {
   @Test func envelopeDeleteDropsOnScreenRow() async throws {
     let targetId = "550e8400-e29b-41d4-a716-446655440719"
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: targetId, roomId: roomA, content: "bye")])),
       (200, realtimeReadBody(id: roomA))
@@ -654,10 +808,8 @@ struct WorkspaceRealtimeTests {
   @Test func revokeDropsOpenRoomAndUpdatesMembership() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA, roomB])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(
         id: "550e8400-e29b-41d4-a716-446655440720",
@@ -687,8 +839,7 @@ struct WorkspaceRealtimeTests {
     let envelope = { (data: String) in #"{"data":\#(data),"meta":{"timestamp":"\#(realtimeTimestamp)","requestId":"req-1"}}"# }
     let invitation = #"{"id":"inv-1","roomId":"\#(roomC)","roomName":"Partners","organizationId":"org_2","organizationName":"Acme Partners","email":"me@example.com","status":"pending","inviter":{"id":"host","name":"Hannah"},"expiresAt":"\#(realtimeTimestamp)","createdAt":"\#(realtimeTimestamp)"}"#
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, envelope(#"{"organizationId":"org_1"}"#)),
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
       (200, envelope(#"{"id":"member-me","userId":"user_1","organizationId":"org_1","role":"owner","seatAssignedAt":null,"createdAt":"\#(realtimeTimestamp)"}"#)),
@@ -731,12 +882,11 @@ struct WorkspaceRealtimeTests {
   /// every message re-read both; now each collection recovers on its own and only a workspace change reloads them.
   @Test func collectionsLoadContextSurvivesAListRefresh() async throws {
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
       (200, realtimeRoomsBody(ids: [roomA, roomB])),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, realtimeRoomsBody(ids: [roomB])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
     ])
@@ -766,8 +916,7 @@ struct WorkspaceRealtimeTests {
   @Test func personalWorkspaceIgnoresArchivedInvalidation() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
       (200, #"{"data":[],"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
@@ -789,10 +938,8 @@ struct WorkspaceRealtimeTests {
   @Test func windowVisibilityDrivesNotificationPresence() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA))
@@ -813,8 +960,7 @@ struct WorkspaceRealtimeTests {
 
   @Test func pendingSidebarResponseCannotRestoreRevokedRoom() async throws {
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
@@ -836,12 +982,11 @@ struct WorkspaceRealtimeTests {
   @Test func pendingWorkspaceResponseCannotRestoreRevokedDestination() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, realtimeRoomsBody(ids: [roomB]))
     ])
     state.realtimeConnectionFactory = { fake }
@@ -866,8 +1011,7 @@ struct WorkspaceRealtimeTests {
   @Test func continuityLossReadsWhileHiddenAndIgnoresOtherRooms() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
       (200, realtimePageBody(messages: [])), (200, realtimePageBody(messages: []))
@@ -907,10 +1051,8 @@ struct WorkspaceRealtimeTests {
 
   @Test func revokeKeepsUnrelatedRoomTranscript() async throws {
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA, roomB])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(
         id: "550e8400-e29b-41d4-a716-446655440721",
@@ -933,10 +1075,8 @@ struct WorkspaceRealtimeTests {
     let firstId = "550e8400-e29b-41d4-a716-446655440740"
     let liveId = "550e8400-e29b-41d4-a716-446655440741"
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA)),
@@ -970,10 +1110,8 @@ struct WorkspaceRealtimeTests {
     let fake = FakeRealtimeConnection()
     let (state, auth, transport) = try realtimeState(
       [
-        (200, realtimeAccessBody()),
-        (200, realtimeOrgsBody),
+        (200, workspacesBody()),
         (200, realtimeUserBody),
-        (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
         (200, realtimeRoomsBody(ids: [roomA])),
         (200, realtimePageBody(messages: [])),
         (200, realtimeReadBody(id: roomA)),
@@ -1006,10 +1144,8 @@ struct WorkspaceRealtimeTests {
     let liveId = "550e8400-e29b-41d4-a716-446655440731"
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA)),
@@ -1062,16 +1198,12 @@ struct WorkspaceRealtimeTests {
   @Test func workspaceSwitchRetargetsSlugReauthorizesAndRewatches() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
-      """),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, realtimeRoomsBody(ids: [roomB])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomB))
@@ -1096,13 +1228,12 @@ struct WorkspaceRealtimeTests {
   @Test func orgPresenceFollowsTheActiveOrganization() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, realtimeRoomsBody(ids: [])),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, preferredWorkspaceBody()),
       (200, realtimeRoomsBody(ids: []))
     ])
     state.realtimeConnectionFactory = { fake }
@@ -1146,8 +1277,7 @@ struct WorkspaceRealtimeTests {
   @Test func presencePublishesOnVisibilityAndThrottlesActivity() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: []))
     ])
     state.realtimeConnectionFactory = { fake }
@@ -1259,8 +1389,8 @@ struct WorkspaceRealtimeTests {
   @Test func openingANotificationSwitchesToItsWorkspace() async throws {
     let (state, auth, transport) = try realtimeState(notificationLoadScript + [
       (200, realtimeReadBody(id: roomA)),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, realtimeRoomsBody(ids: ["550e8400-e29b-41d4-a716-446655440702"])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: "550e8400-e29b-41d4-a716-446655440702"))
     ])
@@ -1396,8 +1526,7 @@ struct WorkspaceRealtimeTests {
   @Test func seenByFollowsTheOpenRoomsReadEvents() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA, roomB], userMembers: seenByMembers)),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
@@ -1427,6 +1556,38 @@ struct WorkspaceRealtimeTests {
     #expect(state.roomReadReceipts.readers.map(\.participant.id) == ["pat"])
     state.reset()
   }
+
+  /// Row 31b2: the Members inspector reads its room through the same receipts, so a live `chat_room_read` moves a
+  /// member out of "Not read yet" and up the list; another room's roster takes no live mark from the open one.
+  @Test func membersInspectorFollowsTheOpenRoomsReadEvents() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, _) = try realtimeState([
+      (200, workspacesBody()), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA, roomB], userMembers: seenByMembers)),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let open = try #require(state.rooms.first { $0.id == roomA })
+    let other = try #require(state.rooms.first { $0.id == roomB })
+    func roster(_ room: Components.Schemas.ChatRoom) -> RoomRosterGroups {
+      RoomRoster.groups(in: room, currentUserId: state.currentUserId, receipts: state.readReceipts(for: room))
+    }
+
+    #expect(roster(open).people.map(\.id) == [.human("user_1"), .human("pat")])
+    #expect(roster(open).neverRead.map(\.id) == [.human("kim")])
+
+    fake.deliver(.roomRead(.init(roomId: roomA, userId: "kim", lastReadAt: readAt(minutes: 10))))
+    for _ in 0 ..< 1000 where roster(open).neverRead.count == 1 {
+      await Task.yield()
+    }
+    #expect(roster(open).people.map(\.id) == [.human("user_1"), .human("kim"), .human("pat")])
+    #expect(roster(open).people.map(\.lastReadAt) == [nil, readAt(minutes: 10), readAt(minutes: 5)])
+    #expect(roster(open).neverRead.isEmpty)
+    #expect(roster(other).neverRead.map(\.id) == [.human("kim")])
+    state.reset()
+  }
 }
 
 private let typingOrigin = Date(timeIntervalSince1970: 1_800_000_000)
@@ -1443,8 +1604,7 @@ private func readAt(minutes: Double) -> Date {
 }
 
 private let notificationLoadScript: [(Int, String)] = [
-  (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-  (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+  (200, workspacesBody()), (200, realtimeUserBody),
   (200, realtimeRoomsBody(ids: [roomA, roomB])),
   (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA))
 ]

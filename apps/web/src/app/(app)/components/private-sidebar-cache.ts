@@ -78,8 +78,7 @@ export async function loadChatListArchivedAndMembers(
  * Fail-soft: service errors become empty pages/arrays (same as pre-SOK-779
  * sidebar/page). When used under private cache those empties are shared until
  * revalidate or `invalidatePrivateSidebarChrome` — intentional chrome tradeoff,
- * not a hard fail that would blank the whole layout. Empty members with an
- * active org also skeletons the Workspace switcher until that cache goes stale.
+ * not a hard fail that would blank the whole layout.
  */
 export async function loadChatListChromeData(
   activeOrganizationId: string | null,
@@ -130,7 +129,7 @@ export async function getPrivateCachedChatListArchivedAndMembers(
 
 /**
  * Full chat-list chrome: composes the rooms + archived/members private-cache
- * slices (same tags/life). Sidebar / header keep this one-call API; `/chat`
+ * slices (same tags/life). The sidebar keeps this one-call API; `/chat`
  * awaits rooms first then streams archived+members.
  */
 export async function getPrivateCachedChatListChrome(

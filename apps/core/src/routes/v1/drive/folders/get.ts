@@ -5,7 +5,10 @@ import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 
 const querySchema = z.object({
@@ -23,24 +26,26 @@ const querySchema = z.object({
  */
 const FOLDER_FACET_LIMIT = 500;
 
-const route = createRoute({
-  method: "get",
-  path: "/",
-  description: [
-    "The folders files are filed under in this workspace, deepest paths and",
-    "their ancestors, for the catalog's folder facet.",
-    "",
-    "Derived from the stored blob pathnames, so it lists folders that hold a",
-    "file. An empty folder has no catalog entry and is not returned here.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: { query: querySchema },
-  responses: {
-    200: jsonSuccessResponse(z.array(z.string()), "Folder paths"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-  },
-});
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/",
+    description: [
+      "The folders files are filed under in this workspace, deepest paths and",
+      "their ancestors, for the catalog's folder facet.",
+      "",
+      "Derived from the stored blob pathnames, so it lists folders that hold a",
+      "file. An empty folder has no catalog entry and is not returned here.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: { query: querySchema },
+    responses: {
+      200: jsonSuccessResponse(z.array(z.string()), "Folder paths"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

@@ -38,7 +38,7 @@ export function AssigneeAvatar({
   if (assignee == null) {
     return (
       <Avatar className={`${sizeClass} shrink-0`}>
-        <AvatarFallback className="bg-muted text-[0.625rem] font-medium">
+        <AvatarFallback className="bg-muted text-2xs font-medium">
           ?
         </AvatarFallback>
       </Avatar>
@@ -57,7 +57,7 @@ export function AssigneeAvatar({
           }}
         />
       ) : null}
-      <AvatarFallback className="bg-muted text-[0.625rem] font-medium">
+      <AvatarFallback className="bg-muted text-2xs font-medium">
         {assignee.name?.slice(0, 1).toUpperCase()}
       </AvatarFallback>
     </Avatar>

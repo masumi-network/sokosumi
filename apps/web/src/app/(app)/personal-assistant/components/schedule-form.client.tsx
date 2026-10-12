@@ -131,8 +131,8 @@ export function ScheduleForm() {
         >
           {t("cancel")}
         </Button>
-        <Button type="submit" size="sm" disabled={isPending}>
-          {isPending ? t("submitting") : t("submit")}
+        <Button type="submit" size="sm" loading={isPending}>
+          {t("submit")}
         </Button>
       </div>
     </form>

@@ -4,7 +4,10 @@ import { conflict, notFound } from "@/helpers/error";
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   fileResourceSchema,
@@ -35,41 +38,43 @@ const querySchema = z.object({
   organizationId: z.string().optional(),
 });
 
-const route = createRoute({
-  method: "post",
-  path: "/{id}/suggestions/{suggestionId}/decision",
-  description: [
-    "Accept, dismiss or restore one suggestion.",
-    "",
-    "A dismissal is durable for this source revision and vocabulary policy:",
-    "retrying or reindexing cannot bring the same suggestion back. Dismissing",
-    "a category suggestion never clears a category the reader already set.",
-    "",
-    "`restore` withdraws a dismissal: the label goes back to suggested and the",
-    "tombstone barring it is deleted. It is the only way back, and it exists",
-    "because manual metadata editing — the only other code that cleared a",
-    "tombstone — is gone.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    params: paramsSchema,
-    query: querySchema,
-    body: {
-      required: true,
-      content: {
-        "application/json": { schema: fileSuggestionDecisionRequestSchema },
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/{id}/suggestions/{suggestionId}/decision",
+    description: [
+      "Accept, dismiss or restore one suggestion.",
+      "",
+      "A dismissal is durable for this source revision and vocabulary policy:",
+      "retrying or reindexing cannot bring the same suggestion back. Dismissing",
+      "a category suggestion never clears a category the reader already set.",
+      "",
+      "`restore` withdraws a dismissal: the label goes back to suggested and the",
+      "tombstone barring it is deleted. It is the only way back, and it exists",
+      "because manual metadata editing — the only other code that cleared a",
+      "tombstone — is gone.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      params: paramsSchema,
+      query: querySchema,
+      body: {
+        required: true,
+        content: {
+          "application/json": { schema: fileSuggestionDecisionRequestSchema },
+        },
       },
     },
-  },
-  responses: {
-    200: jsonSuccessResponse(fileResourceSchema, "Updated file"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-  },
-});
+    responses: {
+      200: jsonSuccessResponse(fileResourceSchema, "Updated file"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

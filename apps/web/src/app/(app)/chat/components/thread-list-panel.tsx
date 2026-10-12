@@ -271,17 +271,17 @@ export function ThreadListPanel({
               onClick={() => {
                 void handleMarkAllRead();
               }}
-              disabled={isMarkingAllRead}
+              loading={isMarkingAllRead}
               data-testid="thread-list-mark-all-read"
             >
-              {isMarkingAllRead ? labels.loading : labels.markAllRead}
+              {labels.markAllRead}
             </Button>
           ) : null}
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8 rounded-full"
+            className="size-10 md:size-8 rounded-full"
             aria-label={labels.close}
             title={labels.close}
             onClick={onClose}
@@ -346,7 +346,6 @@ export function ThreadListPanel({
             }}
             labels={{
               load: labels.loadOlder,
-              loading: labels.loading,
               error: labels.error,
               retry: labels.loadOlder,
             }}

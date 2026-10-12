@@ -8,6 +8,42 @@ import {
 import { CORE_REQUEST_ID_HEADER } from "@/lib/clients/utils/core-request-id";
 
 describe("executeCoreOperation", () => {
+  it.each([204, 205])(
+    "accepts an empty successful response (%s)",
+    async (status) => {
+      await expect(
+        executeCoreOperation(
+          async () => ({}) as never,
+          async () => ({ response: new Response(null, { status }) }),
+          "fallback",
+        ),
+      ).resolves.toBeUndefined();
+    },
+  );
+
+  it("reports a failed response transformation as a gateway error", async () => {
+    await expect(
+      executeCoreOperation(
+        async () => ({}) as never,
+        async () => ({
+          error: new TypeError("Cannot read properties of null"),
+          response: new Response(null, { status: 200 }),
+        }),
+        "fallback",
+      ),
+    ).rejects.toMatchObject({ status: 502 });
+  });
+
+  it("reports missing data in a successful response as a gateway error", async () => {
+    await expect(
+      executeCoreOperation(
+        async () => ({}) as never,
+        async () => ({ response: new Response(null, { status: 200 }) }),
+        "fallback",
+      ),
+    ).rejects.toMatchObject({ status: 502 });
+  });
+
   it("copies Core's request id from the error envelope", async () => {
     await expect(
       executeCoreOperation(

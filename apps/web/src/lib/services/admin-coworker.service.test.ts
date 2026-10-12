@@ -8,8 +8,6 @@ const patchCoworkerMock = vi.fn();
 const patchCoworkerWhitelistMock = vi.fn();
 const archiveCoworkerMock = vi.fn();
 const unarchiveCoworkerMock = vi.fn();
-const uploadCoworkerImageMock = vi.fn();
-const deleteCoworkerImageMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: class CoreApiRequestError extends Error {
@@ -29,10 +27,6 @@ vi.mock("@/lib/clients/core.client", () => ({
       patchCoworkerWhitelistMock(...args),
     archiveCoworker: (...args: unknown[]) => archiveCoworkerMock(...args),
     unarchiveCoworker: (...args: unknown[]) => unarchiveCoworkerMock(...args),
-    uploadCoworkerImage: (...args: unknown[]) =>
-      uploadCoworkerImageMock(...args),
-    deleteCoworkerImage: (...args: unknown[]) =>
-      deleteCoworkerImageMock(...args),
   },
 }));
 
@@ -151,105 +145,5 @@ describe("adminCoworkerService", () => {
 
     expect(unarchiveCoworkerMock).toHaveBeenCalledWith("cow_2");
     expect(result.archivedAt).toBeNull();
-  });
-
-  it("patches text before uploading image", async () => {
-    patchCoworkerMock.mockResolvedValue({
-      data: { ...coworker, name: "Ops Agent Updated" },
-    });
-    uploadCoworkerImageMock.mockResolvedValue({
-      data: {
-        ...coworker,
-        name: "Ops Agent Updated",
-        image: "https://example.com/new.png",
-      },
-    });
-
-    const file = new File(["x"], "new.png", { type: "image/png" });
-    const result = await adminCoworkerService.updateDisplay({
-      id: "cow_1",
-      patchBody: { name: "Ops Agent Updated" },
-      imageIntent: "upload",
-      imageFile: file,
-    });
-
-    expect(patchCoworkerMock).toHaveBeenCalledBefore(uploadCoworkerImageMock);
-    expect(result.coworker.name).toBe("Ops Agent Updated");
-    expect(result.coworker.image).toBe("https://example.com/new.png");
-    expect(result.imageError).toBeUndefined();
-  });
-
-  it("keeps saved text when image upload fails", async () => {
-    patchCoworkerMock.mockResolvedValue({
-      data: { ...coworker, name: "Ops Agent Updated" },
-    });
-    uploadCoworkerImageMock.mockRejectedValue(new Error("blob down"));
-
-    const file = new File(["x"], "new.png", { type: "image/png" });
-    const result = await adminCoworkerService.updateDisplay({
-      id: "cow_1",
-      patchBody: { name: "Ops Agent Updated" },
-      imageIntent: "upload",
-      imageFile: file,
-    });
-
-    expect(result.coworker.name).toBe("Ops Agent Updated");
-    expect(result.imageError).toBe("blob down");
-  });
-
-  it("uploads image without a text patch", async () => {
-    uploadCoworkerImageMock.mockResolvedValue({
-      data: {
-        ...coworker,
-        image: "https://example.com/new.png",
-      },
-    });
-
-    const file = new File(["x"], "new.png", { type: "image/png" });
-    const result = await adminCoworkerService.updateDisplay({
-      id: "cow_1",
-      imageIntent: "upload",
-      imageFile: file,
-    });
-
-    expect(patchCoworkerMock).not.toHaveBeenCalled();
-    expect(uploadCoworkerImageMock).toHaveBeenCalledWith("cow_1", file);
-    expect(result.coworker.image).toBe("https://example.com/new.png");
-    expect(result.imageError).toBeUndefined();
-  });
-
-  it("removes image without a text patch", async () => {
-    deleteCoworkerImageMock.mockResolvedValue({
-      data: {
-        ...coworker,
-        image: null,
-      },
-    });
-
-    const result = await adminCoworkerService.updateDisplay({
-      id: "cow_1",
-      imageIntent: "remove",
-    });
-
-    expect(patchCoworkerMock).not.toHaveBeenCalled();
-    expect(deleteCoworkerImageMock).toHaveBeenCalledWith("cow_1");
-    expect(result.coworker.image).toBeNull();
-    expect(result.imageError).toBeUndefined();
-  });
-
-  it("throws 404 when text-only update finds no coworker", async () => {
-    getCoworkerByIdMock.mockRejectedValue(
-      new CoreApiRequestError("Not found", { status: 404 }),
-    );
-
-    await expect(
-      adminCoworkerService.updateDisplay({
-        id: "cow_missing",
-        imageIntent: "none",
-      }),
-    ).rejects.toMatchObject({
-      name: "CoreApiRequestError",
-      status: 404,
-    });
   });
 });

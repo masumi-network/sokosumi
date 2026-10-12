@@ -23,7 +23,6 @@ export interface RoomTranscriptEntry {
   transcript: RoomTranscript;
   resolved: boolean;
   failed: boolean;
-  position?: TranscriptPosition;
   dirtyIds: readonly string[];
   revision: number;
   /** Object identity fences responses from a previous incarnation of this room. */
@@ -57,7 +56,7 @@ function reconcile(
     : mergeRoomHeadPage(retained, page);
 }
 
-/** Query cache owns data; this session object owns only request coalescing and fences. */
+/** Query cache owns data; this session owns scroll positions, request coalescing and fences. */
 export class RoomTranscriptCache {
   readonly prefix: readonly string[];
   private valid = true;
@@ -69,6 +68,8 @@ export class RoomTranscriptCache {
     return this.valid && !this.revoked.has(roomId);
   }
   private readonly reads = new Map<string, Promise<RoomMessagesPage | null>>();
+  // Positions follow the retained entry's lifetime without notifying data subscribers.
+  private readonly positions = new WeakMap<object, TranscriptPosition>();
 
   constructor(
     readonly client: QueryClient,
@@ -108,6 +109,15 @@ export class RoomTranscriptCache {
   }
   current(roomId: string, lifetime: object) {
     return this.available(roomId) && this.get(roomId)?.lifetime === lifetime;
+  }
+
+  getPosition(roomId: string) {
+    const lifetime = this.get(roomId)?.lifetime;
+    return lifetime ? this.positions.get(lifetime) : undefined;
+  }
+
+  setPosition(roomId: string, lifetime: object, position: TranscriptPosition) {
+    if (this.current(roomId, lifetime)) this.positions.set(lifetime, position);
   }
 
   seed(props: RoomsClientProps): RoomTranscriptEntry {
@@ -246,7 +256,7 @@ export class RoomTranscriptCache {
       transcript: reconcile(value.transcript, head),
     }));
 
-    const position = this.get(roomId)?.position;
+    const position = this.getPosition(roomId);
     const visibleIds = position?.visibleMessageIds ?? [];
     const visible = entry.transcript.messages.filter((message) =>
       visibleIds.includes(message.id),

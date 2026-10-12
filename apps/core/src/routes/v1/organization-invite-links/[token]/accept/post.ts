@@ -7,7 +7,6 @@ import { badRequest, notFound } from "@/helpers/error";
 import { cancelPendingOrganizationInvitationsForUser } from "@/helpers/invitation";
 import { tryConsumeOrganizationInviteLink } from "@/helpers/invite-link-consume";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { ensurePersonalWorkspaceForOrganizationMembership } from "@/helpers/org-membership-personal-workspace";
 import { isMemberUserOrganizationUniqueConstraintError } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -106,11 +105,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
         if (!consumed) return "depleted";
 
-        await ensurePersonalWorkspaceForOrganizationMembership(
-          userContext.userId,
-          { tx, organizationId },
-        );
-
         await tx.member.create({
           data: {
             user: {
@@ -140,8 +134,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     } catch (error) {
       // Concurrent join inserted the membership first; the failing tx rolled
-      // back its own consume, so we simply report already_member. Do not treat
-      // a personal-workspace unique on userId as already_member.
+      // back its own consume, so we simply report already_member. Any other
+      // unique violation is not a membership race.
       if (isMemberUserOrganizationUniqueConstraintError(error)) {
         await cancelPendingOrganizationInvitationsForUser(
           userContext.userId,

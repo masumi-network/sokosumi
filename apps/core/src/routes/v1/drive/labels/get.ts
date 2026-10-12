@@ -4,7 +4,10 @@ import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import { workspaceLabelSchema } from "@/schemas/file-resource.schema";
 
@@ -15,22 +18,27 @@ const querySchema = z.object({
   includeArchived: z.enum(["true", "false"]).optional(),
 });
 
-const route = createRoute({
-  method: "get",
-  path: "/",
-  description: [
-    "The workspace vocabulary: categories and tags.",
-    "Archived entries keep historical assignments readable but take no new",
-    "ones, and a merged entry is not listed — its id redirects instead.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: { query: querySchema },
-  responses: {
-    200: jsonSuccessResponse(z.array(workspaceLabelSchema), "Workspace labels"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-  },
-});
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/",
+    description: [
+      "The workspace vocabulary: categories and tags.",
+      "Archived entries keep historical assignments readable but take no new",
+      "ones, and a merged entry is not listed — its id redirects instead.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: { query: querySchema },
+    responses: {
+      200: jsonSuccessResponse(
+        z.array(workspaceLabelSchema),
+        "Workspace labels",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

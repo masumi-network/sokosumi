@@ -1,7 +1,6 @@
 "use client";
 
 import type { ChatRoom, Coworker, Member } from "@sokosumi/core-client";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -255,20 +254,14 @@ export function RoomMembersPanel({
               {tActions("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={isRemoving}
+              loading={isRemoving}
               onClick={(event) => {
                 // Keep the confirm mounted while the action runs, so the
-                // spinner is visible and a second click cannot double-submit.
+                // loading bar is visible and a second click cannot double-submit.
                 event.preventDefault();
                 void handleConfirmRemoval();
               }}
             >
-              {isRemoving ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : null}
               {t("RoomRoster.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -295,18 +288,12 @@ export function RoomMembersPanel({
               {tActions("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={isLeaving}
+              loading={isLeaving}
               onClick={(event) => {
                 event.preventDefault();
                 void handleConfirmLeave();
               }}
             >
-              {isLeaving ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : null}
               {tActions("leaveConfirm")}
             </AlertDialogAction>
           </AlertDialogFooter>

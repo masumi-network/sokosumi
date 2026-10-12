@@ -99,7 +99,7 @@ function AssigneeAvatar({
       <AvatarFallback
         className={cn(
           "rounded-full font-medium",
-          size === "trigger" ? "text-xs" : "text-[0.625rem]",
+          size === "trigger" ? "text-xs" : "text-2xs",
         )}
       >
         {option.name.slice(0, 2).toUpperCase()}
