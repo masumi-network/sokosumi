@@ -343,6 +343,30 @@ describe("social posts service", () => {
     });
   });
 
+  it.each([
+    { provider: "instagram", media: [], canPublishNow: false },
+    { provider: "tiktok", media: [], canPublishNow: false },
+    { provider: "youtube", media: [], canPublishNow: false },
+    { provider: "tiktok", media: [VIDEO_REF], canPublishNow: true },
+    { provider: "instagram", media: [JPEG_REF], canPublishNow: true },
+    { provider: "x", media: [], canPublishNow: true },
+  ] as const)(
+    "sets canPublishNow $canPublishNow on a $provider draft",
+    async ({ provider, media, canPublishNow }) => {
+      socialPostFindManyMock.mockResolvedValue([
+        { ...draftPost, provider, media },
+      ]);
+      const { listSocialPosts } = await loadService();
+
+      const { posts } = await listSocialPosts({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+      });
+
+      expect(posts[0]).toMatchObject({ canPublishNow });
+    },
+  );
+
   it("returns not found for a post in another Project", async () => {
     socialPostFindFirstMock.mockResolvedValue(null);
     const { getSocialPost } = await loadService();
