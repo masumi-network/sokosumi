@@ -2,7 +2,10 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse } from "@/helpers/openapi";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   contentDispositionFor,
@@ -26,30 +29,32 @@ const querySchema = z.object({
   }),
 });
 
-const route = createRoute({
-  method: "get",
-  path: "/{id}/content",
-  description: [
-    "Stream one file's current bytes, authorized per request.",
-    "The stored object key never reaches a reader; the detail view renders",
-    "from this route so no storage URL is handed out. A missing file and a",
-    "denied one answer the same way.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: { params: paramsSchema, query: querySchema },
-  responses: {
-    200: {
-      description: "File bytes",
-      content: { "*/*": { schema: { type: "string", format: "binary" } } },
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/{id}/content",
+    description: [
+      "Stream one file's current bytes, authorized per request.",
+      "The stored object key never reaches a reader; the detail view renders",
+      "from this route so no storage URL is handed out. A missing file and a",
+      "denied one answer the same way.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: { params: paramsSchema, query: querySchema },
+    responses: {
+      200: {
+        description: "File bytes",
+        content: { "*/*": { schema: { type: "string", format: "binary" } } },
+      },
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      // The entry is real but the object store is not configured here. A caller
+      // should retry rather than treat the file as deleted.
+      503: jsonErrorResponse("Service Unavailable - file storage unavailable"),
     },
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    // The entry is real but the object store is not configured here. A caller
-    // should retry rather than treat the file as deleted.
-    503: jsonErrorResponse("Service Unavailable - file storage unavailable"),
-  },
-});
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

@@ -10,10 +10,16 @@
 export const CORE_API_ERROR_KINDS = {
   CALENDAR_CLIENT_UPGRADE_REQUIRED: "calendar_client_upgrade_required",
   CONCURRENCY_CONFLICT: "concurrency_conflict",
+  /** A coworker must send `X-Context-Organization-Id`: the context user has no personal workspace. */
+  CONTEXT_ORGANIZATION_REQUIRED: "context_organization_required",
   INVOICE_INVALID: "invoice_invalid",
   INVOICE_NOT_FOUND: "invoice_not_found",
   INSUFFICIENT_BALANCE: "insufficient_balance",
+  /** A valid OAuth access token without `sokosumi:api` (RFC 6750 §3.1). */
+  INSUFFICIENT_SCOPE: "insufficient_scope",
   MEMBER_NOT_FOUND: "member_not_found",
+  /** The user has no workspace, or a coworker may not act in the preferred one. */
+  NO_PREFERRED_WORKSPACE: "no_preferred_workspace",
   ORGANIZATION_MEMBERSHIP_REQUIRED: "organization_membership_required",
   ORGANIZATION_NOT_FOUND: "organization_not_found",
   ORGANIZATION_ROLE_FORBIDDEN: "organization_role_forbidden",

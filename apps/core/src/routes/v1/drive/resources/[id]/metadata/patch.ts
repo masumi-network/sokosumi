@@ -4,7 +4,10 @@ import { conflict, notFound } from "@/helpers/error";
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   fileResourceSchema,
@@ -31,40 +34,42 @@ const querySchema = z.object({
   organizationId: z.string().optional(),
 });
 
-const route = createRoute({
-  method: "patch",
-  path: "/{id}/metadata",
-  description: [
-    "Edit the category, tags and confirmed projects of one file.",
-    "",
-    "Manual decisions are durable: removing an automatic tag records a",
-    "rejection for that label, and setting a category pins the field, so a",
-    "later re-extraction or model change cannot undo either. Confirming a",
-    "project association changes no access at all.",
-    "",
-    "409 when someone else edited this document first; the client keeps its",
-    "draft and the response carries the current revision.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    params: paramsSchema,
-    query: querySchema,
-    body: {
-      required: true,
-      content: {
-        "application/json": { schema: updateFileMetadataRequestSchema },
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "patch",
+    path: "/{id}/metadata",
+    description: [
+      "Edit the category, tags and confirmed projects of one file.",
+      "",
+      "Manual decisions are durable: removing an automatic tag records a",
+      "rejection for that label, and setting a category pins the field, so a",
+      "later re-extraction or model change cannot undo either. Confirming a",
+      "project association changes no access at all.",
+      "",
+      "409 when someone else edited this document first; the client keeps its",
+      "draft and the response carries the current revision.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      params: paramsSchema,
+      query: querySchema,
+      body: {
+        required: true,
+        content: {
+          "application/json": { schema: updateFileMetadataRequestSchema },
+        },
       },
     },
-  },
-  responses: {
-    200: jsonSuccessResponse(fileResourceSchema, "Updated file"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-  },
-});
+    responses: {
+      200: jsonSuccessResponse(fileResourceSchema, "Updated file"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

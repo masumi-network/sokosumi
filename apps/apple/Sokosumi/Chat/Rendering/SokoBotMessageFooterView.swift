@@ -6,6 +6,8 @@ import SwiftUI
 /// message's hover toolbar since web #5554 (row 38b).
 struct SokoBotMessageFooterView: View {
   let turn: SokoBotTurnMetadata
+  /// Tasks a result card already shows; their Task buttons go (web `previewedTaskIds`, row 38e1).
+  var previewedTaskIds: Set<String> = []
   @Environment(\.openURL) private var openURL
   @ScaledMetric(relativeTo: .caption) private var taskDotSize = 6.0
 
@@ -21,7 +23,7 @@ struct SokoBotMessageFooterView: View {
         }
         .help("Review on the assistant page")
       }
-      ForEach(turn.taskIds, id: \.self) { taskId in
+      ForEach(turn.footerTaskIds(excluding: previewedTaskIds), id: \.self) { taskId in
         if let url = SokoBotTurnMetadata.taskURL(taskId: taskId, webBaseURL: CoreSettings.webBaseURL) {
           FooterChip { openURL(url) } label: {
             Circle().fill(Color.accentColor).frame(width: taskDotSize, height: taskDotSize)

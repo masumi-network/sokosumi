@@ -7,7 +7,7 @@ vi.mock("server-only", () => ({}));
 const getSessionMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
-const getMyWorkspaceAccessMock = vi.fn();
+const getMyWorkspacesMock = vi.fn();
 const getOrganizationByIdMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => {
@@ -33,8 +33,7 @@ vi.mock("@/lib/clients/core.client", () => {
         getMyMembersWithOrganizationsMock(...args),
       getMyMemberInOrganization: (...args: unknown[]) =>
         getMyMemberInOrganizationMock(...args),
-      getMyWorkspaceAccess: (...args: unknown[]) =>
-        getMyWorkspaceAccessMock(...args),
+      getMyWorkspaces: (...args: unknown[]) => getMyWorkspacesMock(...args),
       getOrganizationById: (...args: unknown[]) =>
         getOrganizationByIdMock(...args),
     },
@@ -205,28 +204,31 @@ describe("user.service", () => {
       const { userService } = await import("./user.service");
       const result = await userService.getWorkspaceAccess();
 
-      expect(getMyWorkspaceAccessMock).not.toHaveBeenCalled();
+      expect(getMyWorkspacesMock).not.toHaveBeenCalled();
       expect(result).toBeNull();
     });
 
-    it("returns Core workspace gate for the session user", async () => {
+    it("derives the gate from the session user's workspaces", async () => {
       getSessionMock.mockResolvedValue({
         session: { id: "session-1" },
         user: { id: "user-1" },
       });
-      const workspaceAccess = {
-        gate: "ready",
-        hasPersonalWorkspace: true,
-        hasOrganizationMembership: false,
-        hasPendingOrganizationInvites: false,
-      };
-      getMyWorkspaceAccessMock.mockResolvedValue({ data: workspaceAccess });
+      getMyWorkspacesMock.mockResolvedValue({
+        data: {
+          workspaces: [{ id: "ws-1", kind: "personal" }],
+          pendingInvitationCount: 0,
+        },
+      });
 
       const { userService } = await import("./user.service");
       const result = await userService.getWorkspaceAccess();
 
-      expect(getMyWorkspaceAccessMock).toHaveBeenCalled();
-      expect(result).toEqual(workspaceAccess);
+      expect(getMyWorkspacesMock).toHaveBeenCalledOnce();
+      expect(result).toEqual({
+        gate: "ready",
+        hasPersonalWorkspace: true,
+        hasOrganizationMembership: false,
+      });
     });
   });
 });

@@ -1,12 +1,12 @@
 "use client";
 
 import type { FileResource } from "@sokosumi/core-client";
-import { X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { DriveFileSnippet } from "@/app/drive/components/drive-file-snippet";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
@@ -106,18 +106,14 @@ export function DriveFileRow({
         key={label.id}
         variant={variant}
         title={label.evidenceSnippet ?? undefined}
-        className={cn(dismissable && "gap-1 pr-1")}
+        className={cn(dismissable && "gap-1 overflow-visible py-0 pe-0")}
       >
         {label.displayName}
         {dismissable ? (
-          <button
-            type="button"
+          <ChipRemoveButton
             aria-label={t("removeTag", { name: label.displayName })}
-            className="press hover:bg-card-background-hover focus-visible:ring-ring rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2"
             onClick={() => onDismissLabel(label)}
-          >
-            <X className="size-3" aria-hidden />
-          </button>
+          />
         ) : null}
       </Badge>
     );

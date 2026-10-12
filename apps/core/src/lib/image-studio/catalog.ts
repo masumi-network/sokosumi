@@ -68,7 +68,7 @@ function sortModels(models: ImageModel[]): ImageModel[] {
 }
 
 /** Overrides, then the price filter, then one stable order. */
-export function resolveCatalogModels(fetched: ImageModel[]): ImageModel[] {
+function resolveCatalogModels(fetched: ImageModel[]): ImageModel[] {
   const { models } = excludeUnpriceableModels(applyCatalogOverrides(fetched));
   return sortModels(models);
 }

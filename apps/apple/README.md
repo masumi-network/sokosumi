@@ -49,7 +49,7 @@ The Xcode navigator follows the physical source folders. Start with `Sokosumi/Ap
 | `Sokosumi/Chat/Pins` | Pinned-message inspector and preview cards |
 | `Sokosumi/Chat/Search` | Room Find toolbar, shared inspector presentation and search result rows |
 | `Sokosumi/Chat/Composer` | Rich composer, the Typing line under it, Drive picker and native text input |
-| `Sokosumi/Chat/Rendering` | Markdown, code, thought presentation, Soko Bot footer/hop badge and attachment chips/previews |
+| `Sokosumi/Chat/Rendering` | Markdown, code, Mermaid flowcharts, thought presentation, Soko Bot footer/hop badge and attachment chips/previews |
 | `Sokosumi/Shared` | Participant avatar, `PresenceDot`, `ParticipantProfileButton`, `ParticipantDetailsView`, the shared `WrappingRow` layout and the Channel mark's symbol (`ChannelMark.systemImage`) |
 | `Sokosumi/Settings` | Settings scene content (account, chat display, time format and chat notification delivery) and the time-format environment value |
 | `Sokosumi/Notifications` | `UNUserNotificationCenter` adapter for local chat banners while the app runs; what to show or dismiss is decided in the shared packages |

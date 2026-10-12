@@ -72,7 +72,6 @@ export function SubscriptionEnterprisePlanCard({
             disabled
             isCurrent={isCurrent}
             isPlanPending={false}
-            loadingLabel={t("upgrading")}
             onPress={() => undefined}
           />
         ) : (

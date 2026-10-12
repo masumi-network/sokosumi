@@ -218,7 +218,6 @@ const labels = {
   },
   listPlaceholder: "No tasks",
   loadMore: "Load more",
-  loading: "Loading",
   dragError: "Could not update the task",
   loadMoreError: "Could not load more",
   reopenToReady: {

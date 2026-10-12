@@ -129,7 +129,8 @@ public extension ChatService {
   }
 
   /// `POST /chats/rooms/{id}/messages` with `content` and a client turn id.
-  /// Retry of a failed send reuses that id so Core keeps one row.
+  /// Retry of a failed send reuses that id so Core keeps one row. `skillIds` names the skills.sh skills
+  /// attached to the message (row 42); Core answers 400 for one it cannot read.
   func createMessage(
     client: Client,
     roomId: String,
@@ -138,6 +139,7 @@ public extension ChatService {
     parentMessageId: String? = nil,
     mentions: [ComposerMention] = [],
     quote: Components.Schemas.ChatRoomMessageQuote? = nil,
+    skillIds: [String] = [],
     organizationSlug: String?
   ) async throws -> Components.Schemas.ChatRoomMessage {
     let response = try await client.postChatsRoomsIdMessages(
@@ -150,7 +152,8 @@ public extension ChatService {
                           mentionedUserIds: mentions.filter { $0.kind == .human }.map(\.id),
                           parentMessageId: parentMessageId,
                           quote: quote.map { .init(messageId: $0.messageId, roomId: $0.roomId) },
-                          clientMessageId: clientMessageId))
+                          clientMessageId: clientMessageId,
+                          skillIds: skillIds.isEmpty ? nil : skillIds))
       )
     )
     switch response {

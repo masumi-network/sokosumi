@@ -31,7 +31,7 @@ export const USER_UPLOAD_ALLOWED_CONTENT_TYPES = [
 ] as const;
 
 /** Set of {@link USER_UPLOAD_ALLOWED_CONTENT_TYPES} for fast membership checks. */
-export const USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET = new Set<string>(
+const USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET = new Set<string>(
   USER_UPLOAD_ALLOWED_CONTENT_TYPES,
 );
 
@@ -80,15 +80,6 @@ const EXTENSION_TO_CONTENT_TYPE: Record<string, string> = {
 export function normalizeUserUploadContentType(contentType: string): string {
   const base = contentType.trim().split(";")[0]!.trim().toLowerCase();
   return base === "image/jpg" ? "image/jpeg" : base;
-}
-
-/** True when `contentType` is a non-empty, specific entry in the upload allowlist. */
-export function isUserUploadAllowedContentType(contentType: string): boolean {
-  const normalized = normalizeUserUploadContentType(contentType);
-  if (normalized === "" || normalized === "application/octet-stream") {
-    return false;
-  }
-  return USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET.has(normalized);
 }
 
 function inferContentTypeFromFilename(filename: string): string | undefined {

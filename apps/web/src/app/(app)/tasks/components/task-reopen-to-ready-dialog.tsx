@@ -1,7 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -87,15 +85,10 @@ export function TaskReopenToReadyDialog({
           </Button>
           <Button
             type="button"
-            disabled={isPending || !comment.trim()}
+            disabled={!comment.trim()}
+            loading={isPending}
             onClick={onConfirm}
           >
-            {isPending ? (
-              <Loader2
-                className="size-4 animate-spin motion-reduce:animate-pulse"
-                aria-hidden
-              />
-            ) : null}
             {labels.confirm}
           </Button>
         </DialogFooter>

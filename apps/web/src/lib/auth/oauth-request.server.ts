@@ -11,10 +11,10 @@ import {
 import {
   type AuthRedirectSearchParams,
   buildSignedOAuthQueryFromSearchParams,
-  getRedirectQueryString,
   oauthRequestAsksForNewAccount,
   oauthRequestHasExpired,
   oauthRequestRequiresSignIn,
+  readSearchParams,
 } from "./auth.utils";
 
 export type OAuthRequestAccount = Pick<SessionUser, "id" | "name" | "email">;
@@ -28,7 +28,7 @@ export interface OAuthRequestClient {
   logoUri: string | undefined;
 }
 
-export interface OAuthRequest {
+interface OAuthRequest {
   /** The signed query, as Core's OAuth provider issued it. */
   query: string;
   /** The requesting product, when Core could name it. */
@@ -60,9 +60,7 @@ export interface OAuthRequest {
 export async function readOAuthRequest(
   searchParams: Promise<AuthRedirectSearchParams>,
 ): Promise<OAuthRequest | undefined> {
-  const params = new URLSearchParams(
-    await getRedirectQueryString(searchParams),
-  );
+  const params = await readSearchParams(searchParams);
   const query = buildSignedOAuthQueryFromSearchParams(params);
   const clientId = params.get("client_id");
   if (!query || !clientId) {

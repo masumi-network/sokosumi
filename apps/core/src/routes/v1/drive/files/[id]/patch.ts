@@ -16,44 +16,49 @@ import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import { conflict, notFound, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import {
   driveFileSchema,
   renameDriveFileRequestSchema,
 } from "@/schemas/drive-file.schema";
 import { renameDriveUploadResource } from "@/services/file-catalog.service";
 
-const route = createRoute({
-  method: "patch",
-  path: "/rename",
-  description: [
-    "Rename a drive file (copy to new pathname, then delete old).",
-    "Personal: owner only.",
-    "Organization: any member.",
-    "409 if target pathname already exists.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    body: {
-      required: true,
-      content: {
-        "application/json": {
-          schema: renameDriveFileRequestSchema,
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "patch",
+    path: "/rename",
+    description: [
+      "Rename a drive file (copy to new pathname, then delete old).",
+      "Personal: owner only.",
+      "Organization: any member.",
+      "409 if target pathname already exists.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: renameDriveFileRequestSchema,
+          },
         },
       },
     },
-  },
-  responses: {
-    200: jsonSuccessResponse(driveFileSchema, "Drive file renamed"),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict - target pathname already exists"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-    503: jsonErrorResponse("Service Unavailable"),
-  },
-});
+    responses: {
+      200: jsonSuccessResponse(driveFileSchema, "Drive file renamed"),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict - target pathname already exists"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

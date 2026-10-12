@@ -11,10 +11,12 @@
     let mark: JumpMark
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.jumpMarkClock) private var clock
 
     var body: some View {
-      TimelineView(.animation(paused: reduceMotion)) { context in
-        let drawing = Self.drawing(mark.stage(at: context.date), reduceMotion: reduceMotion)
+      // The timeline only ticks; the mark's own clock says where it is.
+      TimelineView(.animation(paused: reduceMotion)) { _ in
+        let drawing = Self.drawing(mark.stage(at: clock.now), reduceMotion: reduceMotion)
         ZStack(alignment: .leading) {
           wash.scaleEffect(x: 0.55 + 0.45 * drawing.open, y: 1)
           RoundedRectangle(cornerRadius: 3)

@@ -16,18 +16,22 @@ export function SocialPostProviderIcon({
   provider,
   ...props
 }: { provider: Provider } & ComponentProps<"svg">) {
+  const iconProps = {
+    "data-testid": "social-post-provider-icon",
+    ...props,
+  };
   switch (provider) {
     case "x":
-      return <SiX {...props} />;
+      return <SiX {...iconProps} />;
     case "linkedin":
-      return <LinkedInIcon {...props} />;
+      return <LinkedInIcon {...iconProps} />;
     case "facebook":
-      return <FacebookIcon {...props} />;
+      return <FacebookIcon {...iconProps} />;
     case "instagram":
-      return <InstagramIcon {...props} />;
+      return <InstagramIcon {...iconProps} />;
     case "tiktok":
-      return <TikTokIcon {...props} />;
+      return <TikTokIcon {...iconProps} />;
     case "youtube":
-      return <YouTubeIcon {...props} />;
+      return <YouTubeIcon {...iconProps} />;
   }
 }
