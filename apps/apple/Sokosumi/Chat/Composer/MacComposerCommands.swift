@@ -10,6 +10,8 @@
     @Published private(set) var activeStyles: Set<ComposerInlineText.Style> = []
     @Published private(set) var activeBlocks: Set<ComposerBlockFormat> = []
     @Published var linkEditor: LinkEditor?
+    /// Read from the stored preference once, when the composer creates its commands.
+    @Published var toolbar = ComposerToolbarVisibility()
 
     @Published private(set) var mentionOptions: [ComposerMention] = []
     @Published var selectedSuggestionID: String?
@@ -203,6 +205,8 @@
           }
         }
       }
+      // Web's `openLinkDialog`: the bar shows for this composer; the stored preference is not touched.
+      toolbar.reveal()
       linkEditor = LinkEditor(range: range, text: (content.string as NSString).substring(with: range), url: destination)
     }
 

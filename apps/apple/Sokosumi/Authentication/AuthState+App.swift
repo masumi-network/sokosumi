@@ -22,7 +22,7 @@ extension AuthState {
       middlewares: [
         ChatReadCooldownMiddleware(cooldown: cooldown, currentScope: { await session.generation }),
         BearerAuthMiddleware(session: session),
-        ExplicitNullPreferredOrganizationMiddleware(),
+        CoreSettings.clientBuildMiddleware,
         GuestInviteLinkExpiryMiddleware()
       ]
     )

@@ -19,6 +19,15 @@ export const memberOrderBy = [
   { ...memberUserNameOrderBy },
 ] as const;
 
+/**
+ * Oldest membership first. The id breaks ties between memberships created in
+ * the same instant, so every reader agrees on which one is first.
+ */
+export const membershipAgeOrderBy = [
+  { createdAt: "asc" },
+  { id: "asc" },
+] as const;
+
 export type MemberWithUser = Prisma.MemberGetPayload<{
   include: typeof memberUserInclude;
 }>;

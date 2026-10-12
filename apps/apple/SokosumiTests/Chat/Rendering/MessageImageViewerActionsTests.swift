@@ -130,7 +130,7 @@
       @Test func zoomStepsWithinWebsLimits() async throws {
         URLProtocol.registerClass(ScrollMediaProtocol.self)
         defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
-        let fixture = Self.fixture("Only one: " + Gallery.link("b", .portrait, run: UUID()))
+        let fixture = Self.fixture("Only one:\n" + Gallery.link("b", .portrait, run: UUID()))
         defer { Gallery.close(fixture) }
         let (sheet, baseline) = try await Self.open(0, of: 1, .portrait, in: fixture)
 
@@ -206,7 +206,7 @@
         defer { pasteboard.releaseGlobally() }
         pasteboard.clearContents()
         let run = UUID()
-        let fixture = Self.fixture("Only one: " + Gallery.link("b", .portrait, run: run), pasteboard: pasteboard.name)
+        let fixture = Self.fixture("Only one:\n" + Gallery.link("b", .portrait, run: run), pasteboard: pasteboard.name)
         defer { Gallery.close(fixture) }
         let (sheet, _) = try await Self.open(0, of: 1, .portrait, in: fixture)
 
@@ -268,7 +268,7 @@
         URLProtocol.registerClass(ScrollMediaProtocol.self)
         defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
         let printer = RecordingPrinter()
-        let fixture = Self.fixture("Only one: " + Gallery.link("b", .portrait, run: UUID()), printer: printer)
+        let fixture = Self.fixture("Only one:\n" + Gallery.link("b", .portrait, run: UUID()), printer: printer)
         defer { Gallery.close(fixture) }
         let (sheet, _) = try await Self.open(0, of: 1, .portrait, in: fixture)
 

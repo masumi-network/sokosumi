@@ -1,7 +1,7 @@
 "use client";
 
 import type { Account } from "@sokosumi/utils";
-import { Loader2, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { authClient, useSession } from "@/lib/auth/auth.client";
 import {
   discardRetiredAblyRealtimeClientAfterSignIn,
@@ -62,7 +61,6 @@ export function ReauthDialog({
   open,
 }: ReauthDialogProps) {
   const t = useTranslations("Components.ReauthDialog");
-  const authErrorsT = useTranslations("Components.AuthErrors");
   const pathname = usePathname();
   const { data: session, isPending: isLoadingSession } = useSession();
   const [password, setPassword] = useState("");
@@ -143,7 +141,7 @@ export function ReauthDialog({
           fromPassword: true,
           message: captcha.getErrorMessage(
             result.error,
-            describeSignInError(result.error),
+            result.error.message ?? t("passwordError"),
           ),
         });
         return;
@@ -156,22 +154,6 @@ export function ReauthDialog({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  /**
-   * Core rejects any `/sign-in*` for a viewer who has not accepted the terms,
-   * with a code and no message. Both sign-in forms branch on it, so the dialog
-   * must too, or a correct password reads as wrong.
-   */
-  const describeSignInError = (error: {
-    code?: string;
-    message?: string;
-  }): string => {
-    if (error.code === AuthErrorCode.TERMS_NOT_ACCEPTED) {
-      return authErrorsT("termsNotAccepted");
-    }
-
-    return error.message ?? t("passwordError");
   };
 
   /** Both in-place paths end here: the document stays, the session is new. */
@@ -290,16 +272,12 @@ export function ReauthDialog({
                 {captcha.widget}
                 <Button
                   className="w-full"
-                  disabled={
-                    isSubmitting || email.length === 0 || password.length === 0
-                  }
+                  disabled={email.length === 0 || password.length === 0}
+                  // Confirm needs the address the session carries, so it is dead
+                  // until that resolves. Show it loading rather than broken.
+                  loading={isSubmitting || isLoadingSession}
                   type="submit"
                 >
-                  {/* Confirm needs the address the session carries, so it is dead
-                    until that resolves. Spin rather than look broken. */}
-                  {isSubmitting || isLoadingSession ? (
-                    <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                  ) : null}
                   {t("confirm")}
                 </Button>
               </form>

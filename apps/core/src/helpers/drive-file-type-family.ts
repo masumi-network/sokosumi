@@ -2,7 +2,7 @@
  * Stable mime/extension families for Drive type sort.
  * Documented in OpenAPI via drive-list-sort.schema descriptions.
  */
-export const DRIVE_FILE_TYPE_FAMILIES = [
+const DRIVE_FILE_TYPE_FAMILIES = [
   "image",
   "video",
   "audio",

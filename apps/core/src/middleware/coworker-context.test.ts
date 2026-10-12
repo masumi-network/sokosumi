@@ -122,9 +122,7 @@ describe("coworkerContextMiddleware", () => {
     });
   });
 
-  it("accepts legacy X-Delegation-User-Id when context headers are absent", async () => {
-    userFindUniqueMock.mockResolvedValue({ id: "user_legacy" });
-
+  it("ignores leftover X-Delegation-* headers", async () => {
     const app = createApp({
       isAuthenticated: true,
       authContext: {
@@ -146,43 +144,8 @@ describe("coworkerContextMiddleware", () => {
       actor: "coworker",
       coworkerId: "cow_1",
       vendorId: TEST_VENDOR_ID,
-      context: { userId: "user_legacy", organizationId: null },
     });
-  });
-
-  it("prefers X-Context-* over legacy X-Delegation-* when both are sent", async () => {
-    userFindUniqueMock.mockResolvedValue({ id: "context_wins" });
-
-    const app = createApp({
-      isAuthenticated: true,
-      authContext: {
-        actor: "coworker",
-        coworkerId: "cow_1",
-        vendorId: TEST_VENDOR_ID,
-      },
-    });
-
-    const res = await app.request("http://localhost/", {
-      headers: {
-        "X-Context-User-Id": "context_wins",
-        "X-Delegation-User-Id": "legacy_loses",
-      },
-    });
-
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      authContext: AuthVariables["authContext"];
-    };
-    expect(body.authContext).toEqual({
-      actor: "coworker",
-      coworkerId: "cow_1",
-      vendorId: TEST_VENDOR_ID,
-      context: { userId: "context_wins", organizationId: null },
-    });
-    expect(userFindUniqueMock).toHaveBeenCalledWith({
-      where: { id: "context_wins" },
-      select: { id: true, role: true, banned: true, banExpires: true },
-    });
+    expect(userFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("attaches context with organization when both context headers are set and user is a member", async () => {

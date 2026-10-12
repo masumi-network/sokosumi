@@ -148,7 +148,6 @@ export async function runAdminCommand(
     return;
   }
 
-  // Validation above requires email for either mutation command.
   if (!email) throw new Error("--email is required");
   let member = selectMember(members, email);
   if (subcommand === "add-member") {

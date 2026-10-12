@@ -18,7 +18,7 @@ interface ParticipantClient {
  * Workspace humans a Task comment may @.
  * Personal workspace: its user. Organization workspace: current members.
  */
-export async function listTaskWorkspaceMembers(
+async function listTaskWorkspaceMembers(
   tx: ParticipantClient,
   workspaceId: string,
 ): Promise<Array<{ id: string; name: string }>> {

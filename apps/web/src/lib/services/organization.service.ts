@@ -6,8 +6,6 @@ import type {
   UserPendingOrganizationInvitation,
 } from "@sokosumi/core-client";
 import { MemberRole } from "@sokosumi/core-client";
-import { nanoid } from "nanoid";
-import slugify from "slugify";
 import { inviteOrganizationMemberViaCore } from "@/lib/auth/core-auth-http.server";
 import { coreClient } from "@/lib/clients/core.client";
 
@@ -38,21 +36,6 @@ export type PendingInvitationDetail = {
  * invitations (via core) and sending invites (via Core Better Auth HTTP).
  */
 export const organizationService = (() => {
-  /**
-   * Generates a unique, URL-friendly slug for an organization based on its name.
-   *
-   * - Converts the provided name to a lowercase, strict slug.
-   * - Appends a unique 6-character ID to ensure uniqueness.
-   *
-   * @param name - The name of the organization to generate a slug for.
-   * @returns A unique, URL-safe slug string for the organization.
-   */
-  async function generateOrganizationSlugFromName(name: string) {
-    const slugedName = slugify(name, { lower: true, strict: true });
-    const uniqueId = nanoid(6).toLowerCase();
-    return `${slugedName}-${uniqueId}`;
-  }
-
   /**
    * Retrieves a pending invitation by its ID.
    *
@@ -149,7 +132,6 @@ export const organizationService = (() => {
   }
 
   return {
-    generateOrganizationSlugFromName,
     getPendingInvitation,
     getPendingInvitations,
     getMyPendingOrganizationInvitations,

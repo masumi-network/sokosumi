@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader2 } from "lucide-react";
+import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -186,10 +186,7 @@ export function OrganizationInviteLinkForm({
             {t("copied")}
           </span>
         ) : null}
-        <Button type="submit" size="sm" disabled={loading}>
-          {loading ? (
-            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
+        <Button type="submit" size="sm" loading={loading}>
           {t("submit")}
         </Button>
       </div>

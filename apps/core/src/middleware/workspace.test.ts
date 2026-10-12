@@ -364,7 +364,7 @@ describe("workspaceMiddleware", () => {
     const response = await app.request("http://localhost/", {
       headers: {
         authorization: "Bearer coworker_validtoken",
-        "x-delegation-user-id": "user_delegate",
+        "x-context-user-id": "user_delegate",
       },
     });
 

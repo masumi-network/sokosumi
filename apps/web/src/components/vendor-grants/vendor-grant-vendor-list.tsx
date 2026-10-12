@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -265,10 +264,8 @@ function VendorCardActions({
               "approveError",
             )
           }
+          loading={loadingAction === "approve"}
         >
-          {loadingAction === "approve" ? (
-            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {tActions("approve")}
         </Button>
         <Button
@@ -284,10 +281,8 @@ function VendorCardActions({
               "denyError",
             )
           }
+          loading={loadingAction === "deny"}
         >
-          {loadingAction === "deny" ? (
-            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {tActions("deny")}
         </Button>
       </div>
@@ -310,10 +305,8 @@ function VendorCardActions({
               "revokeError",
             )
           }
+          loading={loadingAction === "revoke"}
         >
-          {loadingAction === "revoke" ? (
-            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {tActions("revoke")}
         </Button>
       </div>
@@ -336,10 +329,8 @@ function VendorCardActions({
               "grantError",
             )
           }
+          loading={loadingAction === "grant"}
         >
-          {loadingAction === "grant" ? (
-            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {tGrantForm("submit")}
         </Button>
       </div>

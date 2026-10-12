@@ -48,7 +48,7 @@ function addStatusCount<TStatus extends string>(
   stats.byStatus.push({ status, count });
 }
 
-export async function getProjectTaskStatsByProjectIds(
+async function getProjectTaskStatsByProjectIds(
   workspaceId: string,
   projectIds: readonly string[],
   visibility: ProjectReaderVisibility,
@@ -84,7 +84,7 @@ export async function getProjectTaskStatsByProjectIds(
   return statsByProjectId;
 }
 
-export async function getProjectJobStatsByProjectIds(
+async function getProjectJobStatsByProjectIds(
   workspaceId: string,
   projectIds: readonly string[],
   visibility: ProjectReaderVisibility,

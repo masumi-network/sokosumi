@@ -44,7 +44,6 @@ const labels = {
     action: "New project",
   },
   loadMore: "Load more",
-  loading: "Loading",
   loadMoreError: "Could not load more",
   counts: { tasks: "Tasks", jobs: "Jobs" },
   lastActivity: "Last activity",

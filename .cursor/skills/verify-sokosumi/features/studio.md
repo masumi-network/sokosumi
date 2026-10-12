@@ -10,7 +10,7 @@ Content Studio lets a signed-in user open `/studio` and either pick a project or
 
 ## How to get to it (user POV)
 
-- Choose **Content Studio** in app navigation (desktop sidebar after Calendar; also on the You page).
+- Choose **Content Studio** in app navigation (desktop sidebar after Schedules; also on the You page).
 - Open `/studio` directly. A project-scoped URL is `/studio?projectId=…`.
 
 ## Driving it with agent-browser

@@ -1,9 +1,9 @@
 "use client";
 
-import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { Input } from "@/components/ui/input";
 import {
   MARKET_KEYWORD_LIMIT,
@@ -91,14 +91,10 @@ export function AdsKeywordInput({
               className="bg-muted text-foreground inline-flex items-center rounded-full pl-3 text-sm"
             >
               {keyword}
-              <button
+              <ChipRemoveButton
                 aria-label={t("removeKeyword", { keyword })}
-                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring flex size-8 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:outline-none sm:size-7"
-                type="button"
                 onClick={() => handleRemove(keyword)}
-              >
-                <X aria-hidden className="size-3" />
-              </button>
+              />
             </li>
           ))}
         </ul>

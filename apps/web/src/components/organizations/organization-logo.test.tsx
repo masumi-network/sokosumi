@@ -86,4 +86,20 @@ describe("OrganizationLogo", () => {
     expect(screen.queryByRole("img", { name: "Acme" })).not.toBeInTheDocument();
     expect(container.querySelector("svg")).toBeInTheDocument();
   });
+
+  it("uses the favicon of a workspace's website from Core's workspaces list", () => {
+    render(
+      <OrganizationLogo
+        organization={{
+          name: "Acme",
+          logo: null,
+          websiteUrl: "https://acme.example",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "Acme" }).getAttribute("src")).toBe(
+      "https://acme.example/favicon.ico",
+    );
+  });
 });

@@ -92,6 +92,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             }
             calendar={<SocialCalendar calendar={calendar} />}
             notice={projectId ? t("pickUnavailable") : undefined}
+            workspaceId={calendar.workspaceId}
           />
         </SocialCalendarPreviewProvider>
       </SocialPageShell>
@@ -120,6 +121,9 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
   const activeConnections = connections.filter(
     (socialConnection) => socialConnection.status === "active",
   );
+  const managedAccountCount = connections.filter(
+    (socialConnection) => socialConnection.status !== "disconnected",
+  ).length;
   const posts = selectedPost
     ? [
         selectedPost,
@@ -152,6 +156,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
                 lockedProjectId={project.id}
               />
             }
+            accountCount={managedAccountCount}
             connections={activeConnections}
             nextCursors={Object.fromEntries(
               SECTION_ORDER.map((section, index) => [

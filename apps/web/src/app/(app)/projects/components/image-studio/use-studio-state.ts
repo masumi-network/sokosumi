@@ -58,7 +58,8 @@ export type StudioErrorCode =
   | "load_older_failed";
 
 export function useStudioState(options: {
-  projectId: string;
+  /** Null for the curated landing page, which does not load project images. */
+  projectId: string | null;
   initialState: StudioState;
   initialSelectedAssetId: string | null;
   onSelectionChange?: (assetId: string | null) => void;
@@ -181,6 +182,7 @@ export function useStudioState(options: {
   );
 
   const refresh = useCallback(async () => {
+    if (!projectId) return;
     setIsRefreshing(true);
     try {
       // The selection is pinned into the request so a version older than the
@@ -188,10 +190,10 @@ export function useStudioState(options: {
       // image 101.
       const selected = selectionRef.current.assetId;
       const query = selected ? `?assetId=${encodeURIComponent(selected)}` : "";
-      const response = await fetch(
-        `/api/projects/${projectId}/image-studio/state${query}`,
-        { credentials: "same-origin", cache: "no-store" },
-      );
+      const response = await fetch(`${stateUrl(projectId)}${query}`, {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
       // Abandoned: the reader has moved to another project since this went
       // out. Neither its rows nor its failure belongs to what is on screen.
       if (projectId !== shownProjectIdRef.current) return;
@@ -221,12 +223,13 @@ export function useStudioState(options: {
   // Synchronizing with a server is exactly what an Effect is for. The interval
   // tightens while something is in flight and relaxes when nothing is.
   useEffect(() => {
+    if (!projectId) return;
     const period = hasActive ? ACTIVE_POLL_MS : IDLE_POLL_MS;
     const timer = setInterval(() => {
       void refresh();
     }, period);
     return () => clearInterval(timer);
-  }, [hasActive, refresh]);
+  }, [projectId, hasActive, refresh]);
 
   /**
    * Fetch the next page of older versions and keep what is already shown.
@@ -235,6 +238,7 @@ export function useStudioState(options: {
    * newest page both survive.
    */
   const loadOlder = useCallback(async () => {
+    if (!projectId) return;
     // Through the ref rather than through a dependency: the ref always holds
     // the project on screen, so this cannot page the previous project's
     // history into the current project's gallery.
@@ -249,7 +253,7 @@ export function useStudioState(options: {
         beforeId: cursor.id,
       });
       const response = await fetch(
-        `/api/projects/${projectId}/image-studio/state?${query.toString()}`,
+        `${stateUrl(projectId)}?${query.toString()}`,
         { credentials: "same-origin", cache: "no-store" },
       );
       if (!response.ok) return;
@@ -300,6 +304,10 @@ export function useStudioState(options: {
     isRefreshing: switching ? false : isRefreshing,
     error: switching ? null : error,
   };
+}
+
+function stateUrl(projectId: string): string {
+  return `/api/projects/${projectId}/image-studio/state`;
 }
 
 /**

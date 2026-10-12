@@ -20,18 +20,18 @@ interface SubmitJobInputData {
 export async function fetchJobs(
   client: CoreHttpClient,
   signal?: AbortSignal,
-): Promise<{ response: ApiResponse<unknown[]>; jobs: AgentJob[] }> {
+): Promise<{ jobs: AgentJob[] }> {
   const response = listResponse(
     parseApiResponse(await client.get<unknown>(JOBS_PATH, signal)),
   );
-  return { response, jobs: response.data.map(parseAgentJob) };
+  return { jobs: response.data.map(parseAgentJob) };
 }
 
 export async function fetchJob(
   client: CoreHttpClient,
   jobId: string,
   signal?: AbortSignal,
-): Promise<{ response: ApiResponse<unknown>; job: AgentJob }> {
+): Promise<{ job: AgentJob }> {
   requireId(jobId, "jobId");
   const response = parseApiResponse(
     await client.get<unknown>(
@@ -39,14 +39,14 @@ export async function fetchJob(
       signal,
     ),
   );
-  return { response, job: parseAgentJob(response.data) };
+  return { job: parseAgentJob(response.data) };
 }
 
 export async function fetchJobEvents(
   client: CoreHttpClient,
   jobId: string,
   signal?: AbortSignal,
-): Promise<{ response: ApiResponse<unknown[]>; events: JobEvent[] }> {
+): Promise<{ events: JobEvent[] }> {
   requireId(jobId, "jobId");
   const response = listResponse(
     parseApiResponse(
@@ -56,14 +56,14 @@ export async function fetchJobEvents(
       ),
     ),
   );
-  return { response, events: response.data.map(parseJobEvent) };
+  return { events: response.data.map(parseJobEvent) };
 }
 
 export async function fetchJobFiles(
   client: CoreHttpClient,
   jobId: string,
   signal?: AbortSignal,
-): Promise<{ response: ApiResponse<unknown[]>; files: JobFile[] }> {
+): Promise<{ files: JobFile[] }> {
   requireId(jobId, "jobId");
   const response = listResponse(
     parseApiResponse(
@@ -73,14 +73,14 @@ export async function fetchJobFiles(
       ),
     ),
   );
-  return { response, files: response.data.map(parseJobFile) };
+  return { files: response.data.map(parseJobFile) };
 }
 
 export async function fetchJobLinks(
   client: CoreHttpClient,
   jobId: string,
   signal?: AbortSignal,
-): Promise<{ response: ApiResponse<unknown[]>; links: JobLink[] }> {
+): Promise<{ links: JobLink[] }> {
   requireId(jobId, "jobId");
   const response = listResponse(
     parseApiResponse(
@@ -90,14 +90,14 @@ export async function fetchJobLinks(
       ),
     ),
   );
-  return { response, links: response.data.map(parseJobLink) };
+  return { links: response.data.map(parseJobLink) };
 }
 
 export async function fetchJobInputRequest(
   client: CoreHttpClient,
   jobId: string,
   signal?: AbortSignal,
-): Promise<{ response: ApiResponse<unknown>; inputRequest: unknown }> {
+): Promise<{ inputRequest: unknown }> {
   requireId(jobId, "jobId");
   const response = parseApiResponse(
     await client.get<unknown>(
@@ -105,7 +105,7 @@ export async function fetchJobInputRequest(
       signal,
     ),
   );
-  return { response, inputRequest: response.data };
+  return { inputRequest: response.data };
 }
 
 export async function submitJobInput(

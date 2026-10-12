@@ -111,7 +111,10 @@ describe("ssrfSafeFetch", () => {
       maxResponseBytes: 1024,
     });
     expect(captured[0].body).toEqual(bytes);
-    expect(captured[0].options.headers).toEqual({ "Content-Length": "3" });
+    expect(captured[0].options.headers).toEqual({
+      "Content-Length": "3",
+      "User-Agent": "sokosumi-core",
+    });
     expect(useAgentMock).toHaveBeenCalledWith(
       "https://uploads.example.com/file",
     );
@@ -157,6 +160,55 @@ describe("ssrfSafeFetch", () => {
       "Content-Length": String(Buffer.byteLength(body)),
     });
   });
+
+  it("sends a default User-Agent on every hop when the caller sets none", async () => {
+    const captured: CapturedRequest[] = [];
+    httpsRequestMock
+      .mockImplementationOnce(
+        mockRequestImplementation(
+          {
+            status: 302,
+            headers: { location: "https://cdn.example.com/file.pdf" },
+          },
+          captured,
+        ),
+      )
+      .mockImplementationOnce(
+        mockRequestImplementation({ status: 200, body: "ok" }, captured),
+      );
+
+    await ssrfSafeFetch("https://example.com/file.pdf", {
+      headers: { Accept: "application/pdf" },
+      maxResponseBytes: 1024,
+    });
+
+    expect(captured).toHaveLength(2);
+    for (const request of captured) {
+      expect(request.options.headers).toEqual({
+        Accept: "application/pdf",
+        "User-Agent": "sokosumi-core",
+      });
+    }
+  });
+
+  it.each(["User-Agent", "user-agent", "USER-AGENT"])(
+    "preserves a caller-provided %s header",
+    async (name) => {
+      const captured: CapturedRequest[] = [];
+      httpsRequestMock.mockImplementation(
+        mockRequestImplementation({ status: 200 }, captured),
+      );
+
+      await ssrfSafeFetch("https://example.com/x", {
+        headers: { [name]: "SokosumiBot/1.0" },
+        maxResponseBytes: 1024,
+      });
+
+      expect(captured[0].options.headers).toEqual({
+        [name]: "SokosumiBot/1.0",
+      });
+    },
+  );
 
   it("follows a GET redirect and re-applies the agent to the new host", async () => {
     httpsRequestMock

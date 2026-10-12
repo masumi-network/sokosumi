@@ -7,7 +7,10 @@ import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import { activateDriveUploadResource } from "@/services/file-catalog.service";
 
@@ -21,32 +24,34 @@ const responseSchema = z.object({
   resourceId: z.string(),
 });
 
-const route = createRoute({
-  method: "post",
-  path: "/finalize",
-  description: [
-    "Confirm that an upload's bytes landed, and start indexing it.",
-    "",
-    "The bytes go client → Blob, so nothing server-side sees them arrive.",
-    "This verifies the object exists, activates the catalog entry reserved",
-    "when the grant was minted, and queues extraction. A pathname that no",
-    "object backs finalizes nothing.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    body: {
-      required: true,
-      content: { "application/json": { schema: bodySchema } },
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/finalize",
+    description: [
+      "Confirm that an upload's bytes landed, and start indexing it.",
+      "",
+      "The bytes go client → Blob, so nothing server-side sees them arrive.",
+      "This verifies the object exists, activates the catalog entry reserved",
+      "when the grant was minted, and queues extraction. A pathname that no",
+      "object backs finalizes nothing.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      body: {
+        required: true,
+        content: { "application/json": { schema: bodySchema } },
+      },
     },
-  },
-  responses: {
-    200: jsonSuccessResponse(responseSchema, "Upload finalized"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    503: jsonErrorResponse("Service Unavailable"),
-  },
-});
+    responses: {
+      200: jsonSuccessResponse(responseSchema, "Upload finalized"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
