@@ -57,7 +57,7 @@ struct ChatRootView: View {
     .onChange(of: workspaces.readContent) { _, _ in
       Task { @MainActor in await workspaces.syncReadAttention(auth: auth) }
     }
-    .onChange(of: workspaces.thread.timeline.isLoading) { _, _ in
+    .onChange(of: workspaces.thread.transcript.timeline.isLoading) { _, _ in
       Task { @MainActor in await workspaces.syncReadAttention(auth: auth) }
     }
     .onChange(of: workspaces.timeline.hasLoadedHistory) { _, _ in

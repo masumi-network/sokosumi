@@ -24,7 +24,7 @@ public extension WorkspaceState {
       if let parent = thread.parent {
         thread.apply(eventType: .update, message: removingPreview(parent))
       }
-      thread.timeline.messages = thread.timeline.messages.map(removingPreview)
+      thread.transcript.timeline.messages = thread.transcript.timeline.messages.map(removingPreview)
     } catch {
       guard generation == timeline.generation, !Task.isCancelled else { return }
       if let error = error as? ChatServiceError {

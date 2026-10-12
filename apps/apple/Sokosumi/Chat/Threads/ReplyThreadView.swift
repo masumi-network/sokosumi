@@ -7,7 +7,7 @@ import SwiftUI
 #if os(macOS)
   private func threadPreparationScope(_ workspaces: WorkspaceState) -> [String] {
     [workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "",
-     workspaces.thread.parent?.id ?? "", String(workspaces.thread.timeline.generation)]
+     workspaces.thread.parent?.id ?? "", String(workspaces.thread.transcript.timeline.generation)]
   }
 
   struct ReplyThreadView: View {
@@ -30,13 +30,13 @@ import SwiftUI
                          preparationScope: input.scope, preparedHasMore: preparedHasMore)
         .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: workspaces.transcriptRoomId ?? "", parentMessageId: workspaces.thread.parent?.id))
         .id([workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "", workspaces.thread.parent?.id ?? ""])
-        .onChange(of: workspaces.thread.timeline.hasMore) { _, hasMore in
+        .onChange(of: workspaces.thread.transcript.timeline.hasMore) { _, hasMore in
           if preparedTranscript?.input == input {
             preparedHasMore = hasMore
           }
         }
         .task(id: input) {
-          let hasMore = workspaces.thread.timeline.hasMore
+          let hasMore = workspaces.thread.transcript.timeline.hasMore
           guard let prepared = try? await PreparedTranscript.prepare(input, reusing: preparedTranscript), !Task.isCancelled else { return }
           preparedTranscript = prepared
           preparedHasMore = hasMore
@@ -53,8 +53,8 @@ import SwiftUI
     let preparationScope: [String]
     let preparedHasMore: Bool
 
-    private func readyJump(in messages: [Components.Schemas.ChatRoomMessage]) -> ThreadSession.JumpTarget? {
-      guard let target = workspaces.thread.jumpTarget,
+    private func readyJump(in messages: [Components.Schemas.ChatRoomMessage]) -> TranscriptSession.JumpTarget? {
+      guard let target = workspaces.thread.transcript.jumpTarget,
             messages.contains(where: { $0.id == target.messageId }) else { return nil }
       return target
     }
@@ -186,10 +186,10 @@ import SwiftUI
                   }
                   .buttonStyle(.link)
                   .controlSize(.small)
-                  .disabled(workspaces.thread.timeline.isLoadingOlder || workspaces.directStream.isBusy)
-                  .opacity(workspaces.thread.timeline.isLoadingOlder ? 0 : 1)
+                  .disabled(workspaces.thread.transcript.timeline.isLoadingOlder || workspaces.directStream.isBusy)
+                  .opacity(workspaces.thread.transcript.timeline.isLoadingOlder ? 0 : 1)
                   .overlay {
-                    if workspaces.thread.timeline.isLoadingOlder {
+                    if workspaces.thread.transcript.timeline.isLoadingOlder {
                       ProgressView().controlSize(.small)
                     }
                   }
@@ -216,13 +216,13 @@ import SwiftUI
             scrollIntent.readOlder()
             pendingBottomAlignment = false
             proxy.scrollTo(target.messageId, anchor: .center)
-            workspaces.thread.landJump(target.requestId)
+            workspaces.thread.transcript.landJump(target.requestId)
           }
-          .task(id: workspaces.thread.jumpTarget?.mark) {
-            guard let mark = workspaces.thread.jumpTarget?.mark else { return }
+          .task(id: workspaces.thread.transcript.jumpTarget?.mark) {
+            guard let mark = workspaces.thread.transcript.jumpTarget?.mark else { return }
             try? await jumpMarkClock.sleep(until: mark.endsAt)
             guard !Task.isCancelled else { return }
-            workspaces.thread.endJumpIfMarkEnded()
+            workspaces.thread.transcript.endJumpIfMarkEnded()
           }
           .task(id: pendingBottomAlignment && !userIsScrolling && scrollIntent.followsLatest) {
             guard pendingBottomAlignment, !userIsScrolling, scrollIntent.followsLatest else { return }
@@ -232,7 +232,7 @@ import SwiftUI
           .onScrollPhaseChange { _, phase in
             scrollActivity.update(for: phase)
             if phase.endsJumpMark {
-              Task { @MainActor in workspaces.thread.readerScrolled() }
+              Task { @MainActor in workspaces.thread.transcript.readerScrolled() }
             }
             loadOlderRepliesAutomatically()
           }
@@ -258,8 +258,8 @@ import SwiftUI
           .overlay(alignment: .bottom) {
             if !scrollIntent.followsLatest {
               JumpToLatestButton {
-                workspaces.thread.clearJump()
-                if workspaces.thread.timeline.historicalAnchor != nil {
+                workspaces.thread.transcript.clearJump()
+                if workspaces.thread.transcript.timeline.historicalAnchor != nil {
                   workspaces.loadThreadPage(.returnToLatest, auth: auth)
                 }
                 scrollIntent.followLatest()
@@ -320,8 +320,8 @@ import SwiftUI
     }
 
     private func loadOlderRepliesAutomatically() {
-      let timeline = workspaces.thread.timeline
-      guard timeline.errorMessage == nil, workspaces.thread.loadTask == nil,
+      let timeline = workspaces.thread.transcript.timeline
+      guard timeline.errorMessage == nil, workspaces.thread.transcript.loadTask == nil,
             scrollIntent.beginAutomaticOlderPage(
               userIsScrolling: userIsScrolling,
               isNearTop: olderBoundaryVisible,
@@ -331,13 +331,13 @@ import SwiftUI
       olderBoundaryVisible = false
       let generation = timeline.generation
       Task { @MainActor in
-        guard timeline.generation == generation, workspaces.thread.loadTask == nil else { return }
+        guard timeline.generation == generation, workspaces.thread.transcript.loadTask == nil else { return }
         workspaces.loadThreadPage(.older, auth: auth)
       }
     }
 
     @ViewBuilder private func replies(messages: [Components.Schemas.ChatRoomMessage], channels: [ComposerChannel], room: Components.Schemas.ChatRoom?) -> some View {
-      let timeline = workspaces.thread.timeline
+      let timeline = workspaces.thread.transcript.timeline
       if timeline.isLoading {
         ProgressView("Loading replies…")
       } else {
@@ -361,19 +361,19 @@ import SwiftUI
       channels: [ComposerChannel],
       room: Components.Schemas.ChatRoom?
     ) -> some View {
-      let gaps = workspaces.thread.timeline.historyGapMessageIds
+      let gaps = workspaces.thread.transcript.timeline.historyGapMessageIds
       return ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
         let hasGap = gaps.contains(message.id)
         let previous = index > 0 && !hasGap ? messages[index - 1] : nil
         let streaming = isCoworkerStreamOverlay(message)
         let thinking = streaming && message.content.isEmpty && workspaces.directStream.isBusy
-        let outbox = workspaces.thread.outbox
+        let outbox = workspaces.thread.transcript.outbox
         let shell = outbox.shells.first { $0.id == message.id }
         VStack(alignment: .leading, spacing: 0) {
           if hasGap {
             // Web's thread panel has no gap row (a reply jump is Apple's), so this stays a
             // tap; the row and its failure follow the room's gap row.
-            PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.thread.timeline.boundaryLoads.status(of: message.id)) {
+            PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.thread.transcript.timeline.boundaryLoads.status(of: message.id)) {
               workspaces.loadThreadPage(.boundary(message.id), auth: auth)
             }
           }
@@ -391,7 +391,7 @@ import SwiftUI
                            onRetryMention: mentionRetryAction(for: message),
                            onQuote: quoteAction(for: message),
                            onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
-                           jumpMark: workspaces.thread.jumpTarget.flatMap { $0.messageId == message.id ? $0.mark : nil },
+                           jumpMark: workspaces.thread.transcript.jumpTarget.flatMap { $0.messageId == message.id ? $0.mark : nil },
                            onDelete: deletionAction(for: message),
                            onRemoveUnfurl: unfurlAction(for: message),
                            onToggleReaction: reactionAction(for: message),
