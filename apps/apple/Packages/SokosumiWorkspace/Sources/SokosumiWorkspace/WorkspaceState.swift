@@ -127,8 +127,6 @@ public final class WorkspaceState: ObservableObject {
     workspaceSession.currentUser?.image
   }
 
-  /// The viewer's unconfirmed reaction taps (ADR 0032); see `WorkspaceState+Reactions`.
-  @Published var pendingReactions = PendingReactions()
   /// Failed mention shells whose retry POST is in flight; see `WorkspaceState+Mentions`.
   @Published var pendingMentionRetries: Set<MentionRetryRequest> = []
   /// Soko Bot turns rated in this session, by turn id; see `WorkspaceState+SokoBot`.
@@ -142,10 +140,9 @@ public final class WorkspaceState: ObservableObject {
   var notificationBanners = ChatNotificationBanners()
   /// The open room's main Transcript: its history, Send queue, realtime updates and recovery.
   public let room: TranscriptSession
-  /// Every loaded copy of a message: the room's history, the open Thread's parent and its replies.
-  public var loaded: LoadedMessages {
-    LoadedMessages(room: room, thread: thread)
-  }
+  /// Every loaded copy of a message (the room's history, the open Thread's parent and its replies) and the viewer's
+  /// Pending reactions on them.
+  public let loaded: LoadedMessages
 
   public let pins = PinnedMessages()
   @Published var pendingPins: Set<String> = []
@@ -210,7 +207,7 @@ public final class WorkspaceState: ObservableObject {
   /// Confirmed history plus unresolved outbound shells (sticky at the end), with Pending reactions on top.
   public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
     let messages = directStream.displayedMessages(persisted: room.displayedMessages)
-    let rows = pendingReactions.overlaying(messages, viewer: reactionViewer)
+    let rows = loaded.pendingReactions.overlaying(messages, viewer: reactionViewer)
     // Once the room's unread-thread read has answered it owns every reply bar's count (web, SOK-1151).
     return threadOverview.unreadReplyCounts.map { applyThreadUnreadReplyCounts(rows, counts: $0) } ?? rows
   }
@@ -257,13 +254,14 @@ public final class WorkspaceState: ObservableObject {
   ) {
     room = TranscriptSession(now: now, makeId: makeId, sleep: sleep)
     thread = ThreadSession(now: now, makeId: makeId, sleep: sleep)
+    loaded = LoadedMessages(room: room, thread: thread)
     directStream = DirectStreamSession(now: now, makeId: makeId)
     sidebarRecovery = SidebarCollectionsRecovery(sleep: sleep)
     self.clientProvider = clientProvider
     self.openRoomUnreadRecheck = openRoomUnreadRecheck
     sidebar = ConversationSidebar(savedRoom: savedRoom, unreadsFilter: unreadsFilter)
     realtimeClientInstanceId = getOrCreateRealtimeClientInstanceId(store: instanceStore)
-    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, room.objectWillChange, room.timeline.objectWillChange, room.outbox.objectWillChange, thread.objectWillChange, thread.transcript.objectWillChange, thread.transcript.timeline.objectWillChange, thread.transcript.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange, roomReads.objectWillChange] {
+    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, loaded.objectWillChange, room.objectWillChange, room.timeline.objectWillChange, room.outbox.objectWillChange, thread.objectWillChange, thread.transcript.objectWillChange, thread.transcript.timeline.objectWillChange, thread.transcript.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange, roomReads.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
     // Rows need editor identity changes; draft and save state are observed by the editor itself.
@@ -320,7 +318,7 @@ public final class WorkspaceState: ObservableObject {
     updatingRoom = false
     channelLifecycle = nil
     invitationResponse = nil
-    pendingReactions = PendingReactions()
+    loaded.clearPendingReactions()
     sokoBotFeedback = [:]
     pendingSokoBotFeedback = []
     chatDisplay.reset()

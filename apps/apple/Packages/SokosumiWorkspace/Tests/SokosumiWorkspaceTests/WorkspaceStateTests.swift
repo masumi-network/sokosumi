@@ -2139,7 +2139,7 @@ extension WorkspaceStateTests {
     #expect(updated?.content == "New content")
     #expect(updated?.reactions.first?.count == 1)
     #expect(updated?.reactions.first?.reactedByCurrentUser == true)
-    #expect(state.pendingReactions.intents.isEmpty)
+    #expect(state.loaded.pendingReactions.intents.isEmpty)
     #expect((reply ? state.displayedThreadReplies.first : state.displayedTranscript.first) == updated)
     if !reply {
       #expect(state.thread.parent?.reactions.first?.count == 1)
@@ -2172,7 +2172,7 @@ extension WorkspaceStateTests {
       "delete/chats/rooms/{id}/messages/{messageId}/reactions/{emoji}"
     ])
     #expect(state.room.timeline.messages.first?.reactions.isEmpty == true)
-    #expect(state.pendingReactions.intents.isEmpty)
+    #expect(state.loaded.pendingReactions.intents.isEmpty)
   }
 
   @Test func reversedTapsEndingOnTheSentIntentSendNothingMore() async throws {
@@ -2211,14 +2211,14 @@ extension WorkspaceStateTests {
     transport.releasePausedRequest()
     await #expect(throws: (any Error).self) { try await failing.value }
     // Only 👍 rolled back: the 🎉 removal is still shown, and confirmed rows never moved.
-    #expect(state.pendingReactions.intents == [.init(messageId: "message", emoji: "🎉", reacted: false)])
+    #expect(state.loaded.pendingReactions.intents == [.init(messageId: "message", emoji: "🎉", reacted: false)])
     #expect(state.displayedTranscript.first?.reactions == [heart])
     #expect(state.room.timeline.messages.first?.reactions.map(\.emoji) == ["❤️", "🎉"])
     #expect(state.room.timeline.messages.first?.content == "New content")
     transport.releasePausedRequest()
     #expect(try await removing.value == false)
     #expect(state.room.timeline.messages.first?.reactions == [heart])
-    #expect(state.pendingReactions.intents.isEmpty)
+    #expect(state.loaded.pendingReactions.intents.isEmpty)
   }
 
   @Test func reactionRequestOutlivesLeavingTheRoom() async throws {
@@ -2237,7 +2237,7 @@ extension WorkspaceStateTests {
     #expect(state.displayedTranscript.first?.reactions.first?.reactedByCurrentUser == true)
     transport.releasePausedRequest()
     #expect(try await toggle.value)
-    #expect(state.pendingReactions.intents.isEmpty)
+    #expect(state.loaded.pendingReactions.intents.isEmpty)
     #expect(state.room.timeline.messages.first?.reactions.first?.reactedByCurrentUser == true)
   }
 
@@ -2253,7 +2253,7 @@ extension WorkspaceStateTests {
     transport.releasePausedRequest()
     await #expect(throws: (any Error).self) { try await toggle.value }
     #expect(state.room.timeline.messages.isEmpty)
-    #expect(state.pendingReactions.intents.isEmpty)
+    #expect(state.loaded.pendingReactions.intents.isEmpty)
   }
 }
 
