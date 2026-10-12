@@ -46,7 +46,12 @@ const SCHEDULABLE_STATUSES: readonly SocialPostStatus[] = [
   "FAILED",
   "MISSED",
 ];
-const CANCELABLE_STATUSES: readonly SocialPostStatus[] = ["DRAFT", "SCHEDULED"];
+const CANCELABLE_STATUSES: readonly SocialPostStatus[] = [
+  "DRAFT",
+  "SCHEDULED",
+  "FAILED",
+  "MISSED",
+];
 const PUBLISH_NOW_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "SCHEDULED",
@@ -785,7 +790,9 @@ export async function cancelSocialPost(
     return mapSocialPost(post);
   }
   if (!CANCELABLE_STATUSES.includes(post.status)) {
-    throw conflict("Only a draft or scheduled post can be canceled");
+    throw conflict(
+      "Only a draft, scheduled, failed, or missed post can be canceled",
+    );
   }
   requireRevision(post, input.revision);
 
