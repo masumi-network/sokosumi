@@ -40,7 +40,8 @@
       }
 
       private static func host(delay: Duration, flag: TranscriptScrollActivity) async throws -> (NSHostingView<AnyView>, NSWindow) {
-        let row = MessageRowView(message: message(), isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+        let message = message()
+        let row = MessageRowView(message: message, row: transcriptRow(message), outbound: nil, onRetry: nil, onRemove: nil,
                                  onReply: {}, onQuote: {}, horizontalInset: 12)
         let host = NSHostingView(rootView: AnyView(HoverDelayHost(flag: flag, delay: delay, row: row)
             .padding(.top, top)

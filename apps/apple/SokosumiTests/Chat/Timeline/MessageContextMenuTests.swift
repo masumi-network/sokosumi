@@ -1,6 +1,7 @@
 #if os(macOS)
   import AppKit
   import CoreAPI
+  import OpenAPIRuntime
   @testable import Sokosumi
   import SokosumiAuth
   import SokosumiChat
@@ -138,7 +139,10 @@
                                                   createdAt: Date(),
                                                   sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
         message.id = "message_1"
-        message.metadata = nil
+        // A rated row is a Soko Bot turn: its metadata names the turn the thumbs rate.
+        message.metadata = try sokoBotFeedback.map {
+          try .init(additionalProperties: ["soko_bot": OpenAPIValueContainer(unvalidatedValue: ["turn_id": $0.turnId])])
+        }
         message.quote = quote
         let workspaces = WorkspaceState()
         let editing = workspaces.messageEditing
@@ -146,7 +150,8 @@
           editing.start(message, userId: "user")
         }
         let calls = Calls()
-        let row = MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+        let row = MessageRowView(message: message, row: transcriptRow(message, viewerId: "user", allowsPins: true, editing: editingRow),
+                                 outbound: nil, onRetry: nil, onRemove: nil,
                                  onReply: {}, onQuote: { calls.quotes += 1 }, onEdit: {},
                                  isPinned: false, onTogglePin: {}, onDelete: {},
                                  onToggleReaction: { _ in true }, editing: editing, onSendToSelf: { message },
@@ -319,7 +324,8 @@
                                                     sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
           message.id = id
           message.metadata = nil
-          return MessageRowView(message: message, isContinuation: continuation, outbound: nil, onRetry: nil, onRemove: nil,
+          return MessageRowView(message: message, row: transcriptRow(message, viewerId: "user", previous: continuation ? message : nil),
+                                outbound: nil, onRetry: nil, onRemove: nil,
                                 onReply: {}, onQuote: { calls.quotes += 1 }, onEdit: {}, onDelete: {},
                                 onToggleReaction: { _ in true }, onSendToSelf: { message })
         }
