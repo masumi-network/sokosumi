@@ -22,6 +22,9 @@ const PROPER_PHRASES = [
   "Social Scheduling",
   "Sokosumi Projects",
   "Agent Identities",
+  // Ad platforms.
+  "Google Ads",
+  "Meta Ads",
   // The Files area, named as a destination ("Copy to Files").
   "to Files",
   "from Files",

@@ -166,7 +166,7 @@ describe("AdsAccounts", () => {
   });
 
   describe("busy state", () => {
-    it("shows a spinner on the button being connected", async () => {
+    it("shows a loading state on the button being connected", async () => {
       let finish: (value: unknown) => void = () => {};
       flow.waitForCallback.mockReturnValue(
         new Promise((resolve) => {
@@ -181,16 +181,15 @@ describe("AdsAccounts", () => {
       );
 
       const button = screen.getByRole("button", { name: "Connect Meta Ads" });
-      expect(button).toBeDisabled();
       expect(button).toHaveAttribute("aria-busy", "true");
-      expect(button.querySelector("svg.animate-spin")).not.toBeNull();
+      expect(button).toHaveAttribute("aria-disabled", "true");
       expect(
         screen.getByRole("button", { name: "Connect Google Ads" }),
       ).toBeDisabled();
 
       finish({ kind: "cancelled" });
-      await waitFor(() => expect(button).toBeEnabled());
-      expect(button.querySelector("svg.animate-spin")).toBeNull();
+      await waitFor(() => expect(button).not.toHaveAttribute("aria-busy"));
+      expect(button).toBeEnabled();
     });
   });
 
