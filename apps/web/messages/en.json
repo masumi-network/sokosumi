@@ -3266,6 +3266,27 @@
             "item": "Description {number}",
             "add": "Add description",
             "remove": "Remove description {number}"
+          },
+          "sitelinks": {
+            "title": "Sitelinks (optional)",
+            "summary": "{count, plural, one {# sitelink} other {# sitelinks}}",
+            "help": "Extra links shown under your ad. Up to {max}. Add both description lines or neither.",
+            "item": "Sitelink {number}",
+            "text": "Link text",
+            "finalUrl": "URL",
+            "description1": "Description line 1",
+            "description2": "Description line 2",
+            "add": "Add sitelink",
+            "remove": "Remove sitelink {number}"
+          },
+          "callouts": {
+            "title": "Callouts (optional)",
+            "summary": "{count, plural, one {# callout} other {# callouts}}",
+            "label": "Callouts",
+            "help": "Short highlights such as \"Free shipping\". Up to {max}, with up to {length} characters each.",
+            "item": "Callout {number}",
+            "add": "Add callout",
+            "remove": "Remove callout {number}"
           }
         },
         "submit": "Create campaign",
@@ -3283,6 +3304,13 @@
           "pathTooLong": "Use at most {max} characters.",
           "pathNeedsFirst": "Fill in path 1 first.",
           "endBeforeStart": "The end date can't be before the start date.",
+          "sitelinkTextRequired": "Enter the link text or remove this sitelink.",
+          "sitelinkTextTooLong": "Use at most {max} characters.",
+          "sitelinkDescriptionTooLong": "Use at most {max} characters.",
+          "sitelinkDescriptionsPair": "Add both description lines or neither.",
+          "sitelinkDuplicate": "Each sitelink must be different.",
+          "calloutTooLong": "Use at most {max} characters.",
+          "calloutDuplicate": "Each callout must be different.",
           "failed": "Failed to create campaign"
         }
       },

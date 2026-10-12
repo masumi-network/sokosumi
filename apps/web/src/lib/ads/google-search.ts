@@ -1,5 +1,11 @@
-import type { GoogleSearchCampaignSpec } from "@sokosumi/core-client";
-import { GoogleSearchCampaignSpecSchema } from "@sokosumi/core-client/schemas";
+import type {
+  GoogleSearchCampaignSpec,
+  GoogleSitelink,
+} from "@sokosumi/core-client";
+import {
+  GoogleSearchCampaignSpecSchema,
+  GoogleSitelinkSchema,
+} from "@sokosumi/core-client/schemas";
 import * as z from "zod";
 
 import {
@@ -13,6 +19,7 @@ import {
 import type { GoogleTarget } from "./targeting";
 
 const spec = GoogleSearchCampaignSpecSchema.properties;
+const sitelink = GoogleSitelinkSchema.properties;
 
 /** Core's limits for a Search campaign's ad, from its API schema. */
 export const GOOGLE_SEARCH_LIMITS = {
@@ -29,6 +36,17 @@ export const GOOGLE_SEARCH_LIMITS = {
   path: spec.path1.maxLength,
   finalUrl: spec.finalUrl.maxLength,
   targetIds: spec.locationIds.maxItems,
+  sitelinks: {
+    max: spec.sitelinks.maxItems,
+    text: sitelink.text.maxLength,
+    url: sitelink.finalUrl.maxLength,
+    description: sitelink.description1.maxLength,
+  },
+  callouts: {
+    min: spec.callouts.minItems,
+    max: spec.callouts.maxItems,
+    length: spec.callouts.items.maxLength,
+  },
 } as const;
 
 /** What a refusal says. Without them (the server action) zod's defaults do. */
@@ -45,6 +63,13 @@ export interface GoogleSearchMessages {
   keywordsRequired: string;
   keywordsTooMany: string;
   keywordsInvalid: (line: number, issue: GoogleKeywordIssue) => string;
+  sitelinkTextRequired: string;
+  sitelinkTextTooLong: string;
+  sitelinkDescriptionTooLong: string;
+  sitelinkDescriptionsPair: string;
+  sitelinkDuplicate: string;
+  calloutTooLong: string;
+  calloutDuplicate: string;
 }
 
 type OptionalMessages = Partial<GoogleSearchMessages>;
@@ -52,12 +77,18 @@ type OptionalMessages = Partial<GoogleSearchMessages>;
 const HEADLINE_LIMITS = GOOGLE_SEARCH_LIMITS.headlines;
 const DESCRIPTION_LIMITS = GOOGLE_SEARCH_LIMITS.descriptions;
 
-const finalUrl = (messages: OptionalMessages) =>
+const SITELINK_LIMITS = GOOGLE_SEARCH_LIMITS.sitelinks;
+const CALLOUT_LIMITS = GOOGLE_SEARCH_LIMITS.callouts;
+
+const httpUrl = (max: number, message?: string) =>
   z
     .string()
     .trim()
-    .max(GOOGLE_SEARCH_LIMITS.finalUrl, messages.finalUrl)
-    .pipe(z.url({ protocol: /^https?$/, error: messages.finalUrl }));
+    .max(max, message)
+    .pipe(z.url({ protocol: /^https?$/, error: message }));
+
+const finalUrl = (messages: OptionalMessages) =>
+  httpUrl(GOOGLE_SEARCH_LIMITS.finalUrl, messages.finalUrl);
 
 const headline = (messages: OptionalMessages) =>
   z
@@ -73,6 +104,44 @@ const description = (messages: OptionalMessages) =>
     .min(1, messages.descriptionRequired)
     .max(DESCRIPTION_LIMITS.length, messages.descriptionTooLong);
 
+/** One sitelink as Core takes it: both description lines or neither. */
+const sitelinkSchema = (messages: OptionalMessages) =>
+  z
+    .object({
+      text: z
+        .string()
+        .trim()
+        .min(1, messages.sitelinkTextRequired)
+        .max(SITELINK_LIMITS.text, messages.sitelinkTextTooLong),
+      finalUrl: httpUrl(SITELINK_LIMITS.url, messages.finalUrl),
+      description1: z
+        .string()
+        .trim()
+        .min(1)
+        .max(SITELINK_LIMITS.description, messages.sitelinkDescriptionTooLong)
+        .optional(),
+      description2: z
+        .string()
+        .trim()
+        .min(1)
+        .max(SITELINK_LIMITS.description, messages.sitelinkDescriptionTooLong)
+        .optional(),
+    })
+    .superRefine((value, ctx) => {
+      if (!value.description1 !== !value.description2) {
+        ctx.addIssue({
+          code: "custom",
+          path: [value.description1 ? "description2" : "description1"],
+          message:
+            messages.sitelinkDescriptionsPair ??
+            "Add both description lines or neither",
+        });
+      }
+    });
+
+const callout = (messages: OptionalMessages) =>
+  z.string().trim().max(CALLOUT_LIMITS.length, messages.calloutTooLong);
+
 /** The optional display path: empty or up to Core's length. */
 const path = (messages: OptionalMessages) =>
   z.string().trim().max(GOOGLE_SEARCH_LIMITS.path, messages.pathTooLong);
@@ -85,6 +154,8 @@ function refineAcrossFields(
     path1?: string | undefined;
     path2?: string | undefined;
     headlines: readonly string[];
+    sitelinks?: readonly { text: string }[] | undefined;
+    callouts?: readonly string[] | undefined;
   },
   ctx: z.RefinementCtx,
   messages: OptionalMessages,
@@ -103,16 +174,40 @@ function refineAcrossFields(
       message: messages.pathNeedsFirst ?? "Path 2 needs path 1",
     });
   }
-  const seen = new Set<string>();
-  value.headlines.forEach((text, index) => {
-    const key = text.trim().toLowerCase();
-    if (key !== "" && seen.has(key)) {
+  forEachDuplicate(value.headlines, (index) =>
+    ctx.addIssue({
+      code: "custom",
+      path: ["headlines", index],
+      message: messages.headlineDuplicate ?? "Headlines must be different",
+    }),
+  );
+  forEachDuplicate(
+    (value.sitelinks ?? []).map(({ text }) => text),
+    (index) =>
       ctx.addIssue({
         code: "custom",
-        path: ["headlines", index],
-        message: messages.headlineDuplicate ?? "Headlines must be different",
-      });
-    }
+        path: ["sitelinks", index, "text"],
+        message: messages.sitelinkDuplicate ?? "Sitelinks must be different",
+      }),
+  );
+  forEachDuplicate(value.callouts ?? [], (index) =>
+    ctx.addIssue({
+      code: "custom",
+      path: ["callouts", index],
+      message: messages.calloutDuplicate ?? "Callouts must be different",
+    }),
+  );
+}
+
+/** Calls `report` with the index of each text that repeats an earlier one, ignoring case. */
+function forEachDuplicate(
+  texts: readonly string[],
+  report: (index: number) => void,
+): void {
+  const seen = new Set<string>();
+  texts.forEach((text, index) => {
+    const key = text.trim().toLowerCase();
+    if (key !== "" && seen.has(key)) report(index);
     seen.add(key);
   });
 }
@@ -168,6 +263,14 @@ export function googleSearchSpecSchema(messages: OptionalMessages = {}) {
         .max(DESCRIPTION_LIMITS.max),
       path1: path(messages).min(1).optional(),
       path2: path(messages).min(1).optional(),
+      sitelinks: z
+        .array(sitelinkSchema(messages))
+        .max(SITELINK_LIMITS.max)
+        .optional(),
+      callouts: z
+        .array(callout(messages).min(1))
+        .max(CALLOUT_LIMITS.max)
+        .optional(),
     })
     .superRefine((value, ctx) => refineAcrossFields(value, ctx, messages));
 }
@@ -184,6 +287,38 @@ export interface GoogleSearchFormValues {
   path2: string;
   headlines: string[];
   descriptions: string[];
+  sitelinks: SitelinkFormValues[];
+  callouts: string[];
+}
+
+/** A sitelink as typed; a row with nothing in it is not sent. */
+export interface SitelinkFormValues {
+  text: string;
+  finalUrl: string;
+  description1: string;
+  description2: string;
+}
+
+const isBlankSitelink = (row: SitelinkFormValues): boolean =>
+  Object.values(row).every((text) => text.trim() === "");
+
+const toSitelink = (row: SitelinkFormValues): GoogleSitelink => ({
+  text: row.text.trim(),
+  finalUrl: row.finalUrl.trim(),
+  ...(row.description1.trim() ? { description1: row.description1.trim() } : {}),
+  ...(row.description2.trim() ? { description2: row.description2.trim() } : {}),
+});
+
+/** The sitelinks the form would send: the rows with something in them. */
+export function filledSitelinks(
+  rows: readonly SitelinkFormValues[],
+): GoogleSitelink[] {
+  return rows.filter((row) => !isBlankSitelink(row)).map(toSitelink);
+}
+
+/** The callouts the form would send: the texts with something in them. */
+export function filledCallouts(texts: readonly string[]): string[] {
+  return texts.map((text) => text.trim()).filter(Boolean);
 }
 
 /** The same limits for the form's fields, in the reader's words. */
@@ -224,6 +359,28 @@ export function googleSearchFormSchema(messages: OptionalMessages = {}) {
       path2: path(messages),
       headlines: z.array(headline(messages)),
       descriptions: z.array(description(messages)),
+      sitelinks: z
+        .array(
+          z
+            .object({
+              text: z.string(),
+              finalUrl: z.string(),
+              description1: z.string(),
+              description2: z.string(),
+            })
+            .superRefine((row, ctx) => {
+              if (isBlankSitelink(row)) return;
+              // Core's rules for a row with something in it; a blank row is skipped.
+              const result = sitelinkSchema(messages).safeParse(
+                toSitelink(row),
+              );
+              for (const { path, message } of result.error?.issues ?? []) {
+                ctx.addIssue({ code: "custom", path, message });
+              }
+            }),
+        )
+        .max(SITELINK_LIMITS.max),
+      callouts: z.array(callout(messages)).max(CALLOUT_LIMITS.max),
     })
     .superRefine((value, ctx) => refineAcrossFields(value, ctx, messages));
 }
@@ -237,6 +394,8 @@ export function toGoogleSearchSpec(
 ): GoogleSearchCampaignSpec {
   const path1 = values.path1.trim();
   const path2 = values.path2.trim();
+  const sitelinks = filledSitelinks(values.sitelinks);
+  const callouts = filledCallouts(values.callouts);
   return {
     type: "SEARCH",
     ...(values.startDate ? { startDate: values.startDate } : {}),
@@ -249,6 +408,8 @@ export function toGoogleSearchSpec(
     descriptions: values.descriptions.map((text) => text.trim()),
     ...(path1 ? { path1 } : {}),
     ...(path1 && path2 ? { path2 } : {}),
+    ...(sitelinks.length > 0 ? { sitelinks } : {}),
+    ...(callouts.length > 0 ? { callouts } : {}),
   };
 }
 

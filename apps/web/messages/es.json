@@ -3266,6 +3266,27 @@
             "item": "Descripción {number}",
             "add": "Añadir descripción",
             "remove": "Quitar la descripción {number}"
+          },
+          "sitelinks": {
+            "title": "Enlaces de sitio (opcional)",
+            "summary": "{count, plural, one {# enlace de sitio} other {# enlaces de sitio}}",
+            "help": "Enlaces adicionales bajo tu anuncio. Hasta {max}. Rellena las dos líneas de descripción o ninguna.",
+            "item": "Enlace de sitio {number}",
+            "text": "Texto del enlace",
+            "finalUrl": "URL",
+            "description1": "Línea de descripción 1",
+            "description2": "Línea de descripción 2",
+            "add": "Añadir enlace de sitio",
+            "remove": "Quitar enlace de sitio {number}"
+          },
+          "callouts": {
+            "title": "Textos destacados (opcional)",
+            "summary": "{count, plural, one {# texto destacado} other {# textos destacados}}",
+            "label": "Textos destacados",
+            "help": "Destacados breves como «Envío gratis». Hasta {max}, de hasta {length} caracteres cada uno.",
+            "item": "Texto destacado {number}",
+            "add": "Añadir texto destacado",
+            "remove": "Quitar texto destacado {number}"
           }
         },
         "submit": "Crear campaña",
@@ -3283,6 +3304,13 @@
           "pathTooLong": "Usa como máximo {max} caracteres.",
           "pathNeedsFirst": "Rellena primero la ruta 1.",
           "endBeforeStart": "La fecha de finalización no puede ser anterior a la de inicio.",
+          "sitelinkTextRequired": "Introduce el texto del enlace o quita este enlace de sitio.",
+          "sitelinkTextTooLong": "Usa como máximo {max} caracteres.",
+          "sitelinkDescriptionTooLong": "Usa como máximo {max} caracteres.",
+          "sitelinkDescriptionsPair": "Rellena las dos líneas de descripción o ninguna.",
+          "sitelinkDuplicate": "Cada enlace de sitio debe ser distinto.",
+          "calloutTooLong": "Usa como máximo {max} caracteres.",
+          "calloutDuplicate": "Cada texto destacado debe ser distinto.",
           "failed": "No se pudo crear la campaña"
         }
       },

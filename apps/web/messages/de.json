@@ -3266,6 +3266,27 @@
             "item": "Beschreibung {number}",
             "add": "Beschreibung hinzufügen",
             "remove": "Beschreibung {number} entfernen"
+          },
+          "sitelinks": {
+            "title": "Sitelinks (optional)",
+            "summary": "{count, plural, one {# Sitelink} other {# Sitelinks}}",
+            "help": "Zusätzliche Links unter deiner Anzeige. Bis zu {max}. Fülle beide Beschreibungszeilen aus oder keine.",
+            "item": "Sitelink {number}",
+            "text": "Linktext",
+            "finalUrl": "URL",
+            "description1": "Beschreibungszeile 1",
+            "description2": "Beschreibungszeile 2",
+            "add": "Sitelink hinzufügen",
+            "remove": "Sitelink {number} entfernen"
+          },
+          "callouts": {
+            "title": "Zusatzinformationen (optional)",
+            "summary": "{count, plural, one {# Zusatzinformation} other {# Zusatzinformationen}}",
+            "label": "Zusatzinformationen",
+            "help": "Kurze Highlights wie „Kostenloser Versand“. Bis zu {max} mit je höchstens {length} Zeichen.",
+            "item": "Zusatzinformation {number}",
+            "add": "Zusatzinformation hinzufügen",
+            "remove": "Zusatzinformation {number} entfernen"
           }
         },
         "submit": "Kampagne erstellen",
@@ -3283,6 +3304,13 @@
           "pathTooLong": "Verwende höchstens {max} Zeichen.",
           "pathNeedsFirst": "Fülle zuerst Pfad 1 aus.",
           "endBeforeStart": "Das Enddatum darf nicht vor dem Startdatum liegen.",
+          "sitelinkTextRequired": "Gib den Linktext ein oder entferne diesen Sitelink.",
+          "sitelinkTextTooLong": "Verwende höchstens {max} Zeichen.",
+          "sitelinkDescriptionTooLong": "Verwende höchstens {max} Zeichen.",
+          "sitelinkDescriptionsPair": "Fülle beide Beschreibungszeilen aus oder keine.",
+          "sitelinkDuplicate": "Jeder Sitelink muss sich unterscheiden.",
+          "calloutTooLong": "Verwende höchstens {max} Zeichen.",
+          "calloutDuplicate": "Jede Zusatzinformation muss sich unterscheiden.",
           "failed": "Kampagne konnte nicht erstellt werden"
         }
       },

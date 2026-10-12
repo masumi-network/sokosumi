@@ -366,6 +366,8 @@ const EMPTY_GOOGLE_VALUES = {
     { length: GOOGLE_SEARCH_LIMITS.descriptions.min },
     () => "",
   ),
+  sitelinks: [],
+  callouts: [],
 };
 
 /**
@@ -400,6 +402,19 @@ export function GoogleSearchCampaignForm({
           }),
           pathNeedsFirst: t("errors.pathNeedsFirst"),
           endBeforeStart: t("errors.endBeforeStart"),
+          sitelinkTextRequired: t("errors.sitelinkTextRequired"),
+          sitelinkTextTooLong: t("errors.sitelinkTextTooLong", {
+            max: GOOGLE_SEARCH_LIMITS.sitelinks.text,
+          }),
+          sitelinkDescriptionTooLong: t("errors.sitelinkDescriptionTooLong", {
+            max: GOOGLE_SEARCH_LIMITS.sitelinks.description,
+          }),
+          sitelinkDescriptionsPair: t("errors.sitelinkDescriptionsPair"),
+          sitelinkDuplicate: t("errors.sitelinkDuplicate"),
+          calloutTooLong: t("errors.calloutTooLong", {
+            max: GOOGLE_SEARCH_LIMITS.callouts.length,
+          }),
+          calloutDuplicate: t("errors.calloutDuplicate"),
           keywordsRequired: t("keywords.errors.required"),
           keywordsTooMany: t("keywords.errors.tooMany", {
             max: GOOGLE_KEYWORD_LIMIT,

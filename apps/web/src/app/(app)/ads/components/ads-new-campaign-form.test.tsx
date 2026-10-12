@@ -285,6 +285,266 @@ describe("AdsNewCampaignForm", () => {
       });
     });
 
+    describe("sitelinks and callouts", () => {
+      const sitelinksToggle = () =>
+        screen.getByRole("button", { name: /^Sitelinks/ });
+      const calloutsToggle = () =>
+        screen.getByRole("button", { name: /^Callouts/ });
+      const sitelink = (number: number) =>
+        within(screen.getByRole("group", { name: `Sitelink ${number}` }));
+
+      async function addSitelink(
+        user: User,
+        number: number,
+        values: Partial<Record<string, string>>,
+      ) {
+        await user.click(screen.getByRole("button", { name: "Add sitelink" }));
+        const row = sitelink(number);
+        for (const [label, text] of Object.entries(values)) {
+          await user.type(row.getByLabelText(label), text ?? "");
+        }
+      }
+
+      it("starts closed, with nothing to fill in and no count", async () => {
+        const user = await renderForm();
+
+        expect(sitelinksToggle()).toHaveAccessibleName("Sitelinks (optional)");
+        expect(calloutsToggle()).toHaveAccessibleName("Callouts (optional)");
+        expect(sitelinksToggle()).toHaveAttribute("aria-expanded", "false");
+        expect(
+          screen.queryByRole("button", { name: "Add sitelink" }),
+        ).toBeNull();
+
+        await user.click(sitelinksToggle());
+        expect(sitelinksToggle()).toHaveAttribute("aria-expanded", "true");
+        expect(
+          screen.getByRole("button", { name: "Add sitelink" }),
+        ).toBeVisible();
+        expect(screen.queryByRole("group", { name: /^Sitelink/ })).toBeNull();
+      });
+
+      it("adds sitelinks up to 8, counts their characters and removes one", async () => {
+        const user = await renderForm();
+        await user.click(sitelinksToggle());
+
+        await addSitelink(user, 1, {
+          "Link text": "Shoes",
+          "Description line 1": "Free returns",
+        });
+        expect(sitelink(1).getByText("5/25")).toBeVisible();
+        expect(sitelink(1).getByText("12/35")).toBeVisible();
+        expect(sitelinksToggle()).toHaveAccessibleName(
+          "Sitelinks (optional) 1 sitelink",
+        );
+
+        for (let number = 2; number <= 8; number += 1) {
+          await user.click(
+            screen.getByRole("button", { name: "Add sitelink" }),
+          );
+        }
+        expect(
+          screen.getAllByRole("group", { name: /^Sitelink/ }),
+        ).toHaveLength(8);
+        expect(
+          screen.queryByRole("button", { name: "Add sitelink" }),
+        ).toBeNull();
+
+        await user.click(
+          screen.getByRole("button", { name: "Remove sitelink 1" }),
+        );
+        expect(
+          screen.getAllByRole("group", { name: /^Sitelink/ }),
+        ).toHaveLength(7);
+        expect(sitelink(1).getByLabelText("Link text")).toHaveValue("");
+        expect(
+          screen.getByRole("button", { name: "Add sitelink" }),
+        ).toBeVisible();
+      });
+
+      it("focuses the add button after the last sitelink is removed", async () => {
+        const user = await renderForm();
+        await user.click(sitelinksToggle());
+        await user.click(screen.getByRole("button", { name: "Add sitelink" }));
+
+        await user.click(
+          screen.getByRole("button", { name: "Remove sitelink 1" }),
+        );
+
+        expect(
+          screen.getByRole("button", { name: "Add sitelink" }),
+        ).toHaveFocus();
+      });
+
+      it("adds callouts up to 10, counts their characters and removes one", async () => {
+        const user = await renderForm();
+        await user.click(calloutsToggle());
+        expect(screen.queryByLabelText(/^Callout \d+$/)).toBeNull();
+
+        await user.click(screen.getByRole("button", { name: "Add callout" }));
+        await user.type(screen.getByLabelText("Callout 1"), "Free shipping");
+        expect(screen.getByText("13/25")).toBeVisible();
+        expect(calloutsToggle()).toHaveAccessibleName(
+          "Callouts (optional) 1 callout",
+        );
+
+        for (let count = 1; count < 10; count += 1) {
+          await user.click(screen.getByRole("button", { name: "Add callout" }));
+        }
+        expect(screen.getAllByLabelText(/^Callout \d+$/)).toHaveLength(10);
+        expect(
+          screen.queryByRole("button", { name: "Add callout" }),
+        ).toBeNull();
+
+        await user.click(
+          screen.getByRole("button", { name: "Remove callout 1" }),
+        );
+        expect(screen.getAllByLabelText(/^Callout \d+$/)).toHaveLength(9);
+      });
+
+      it("sends the filled sitelinks and callouts, trimmed, and skips empty rows", async () => {
+        createMock.mockResolvedValue({ ok: true, value: { id: "42" } });
+        const user = await renderForm();
+        await fillGoogle(user);
+        await user.click(sitelinksToggle());
+        await addSitelink(user, 1, {
+          "Link text": " Shoes ",
+          URL: "https://example.com/shoes",
+          "Description line 1": "Free returns",
+          "Description line 2": "Shipped in a day",
+        });
+        await addSitelink(user, 2, {
+          "Link text": "Sale",
+          URL: "https://example.com/sale",
+        });
+        await user.click(screen.getByRole("button", { name: "Add sitelink" }));
+        await user.click(calloutsToggle());
+        await user.click(screen.getByRole("button", { name: "Add callout" }));
+        await user.type(screen.getByLabelText("Callout 1"), " Free shipping ");
+        await user.click(screen.getByRole("button", { name: "Add callout" }));
+
+        await user.click(submit());
+
+        await waitFor(() => expect(createMock).toHaveBeenCalled());
+        expect(createMock.mock.calls[0]?.[0].google).toMatchObject({
+          sitelinks: [
+            {
+              text: "Shoes",
+              finalUrl: "https://example.com/shoes",
+              description1: "Free returns",
+              description2: "Shipped in a day",
+            },
+            { text: "Sale", finalUrl: "https://example.com/sale" },
+          ],
+          callouts: ["Free shipping"],
+        });
+      });
+
+      it("sends neither when none were added or all rows are empty", async () => {
+        createMock.mockResolvedValue({ ok: true, value: { id: "42" } });
+        const user = await renderForm();
+        await fillGoogle(user);
+        await user.click(sitelinksToggle());
+        await user.click(screen.getByRole("button", { name: "Add sitelink" }));
+
+        await user.click(submit());
+
+        await waitFor(() => expect(createMock).toHaveBeenCalled());
+        const google = createMock.mock.calls[0]?.[0].google;
+        expect(google).not.toHaveProperty("sitelinks");
+        expect(google).not.toHaveProperty("callouts");
+      });
+
+      it("refuses a sitelink without text or URL, calling nothing", async () => {
+        const user = await renderForm();
+        await fillGoogle(user);
+        await user.click(sitelinksToggle());
+        await addSitelink(user, 1, { "Description line 1": "x" });
+
+        await user.click(submit());
+
+        expect(
+          await screen.findByText(
+            "Enter the link text or remove this sitelink.",
+          ),
+        ).toBeVisible();
+        expect(
+          sitelink(1).getByText(
+            "Enter a full address starting with http:// or https://.",
+          ),
+        ).toBeVisible();
+        expect(
+          sitelink(1).getByText("Add both description lines or neither."),
+        ).toBeVisible();
+        expect(createMock).not.toHaveBeenCalled();
+      });
+
+      it("refuses a duplicate sitelink text and a long description", async () => {
+        const user = await renderForm();
+        await fillGoogle(user);
+        await user.click(sitelinksToggle());
+        const url = { URL: "https://example.com/a" };
+        await addSitelink(user, 1, { "Link text": "Shoes", ...url });
+        await addSitelink(user, 2, {
+          "Link text": "SHOES",
+          "Description line 1": "x".repeat(36),
+          "Description line 2": "ok",
+          ...url,
+        });
+
+        await user.click(submit());
+
+        expect(
+          await screen.findByText("Each sitelink must be different."),
+        ).toBeVisible();
+        expect(sitelink(2).getByText("36/35")).toBeVisible();
+        expect(
+          sitelink(2).getByText("Use at most 35 characters."),
+        ).toBeVisible();
+        expect(createMock).not.toHaveBeenCalled();
+      });
+
+      it("refuses a duplicate and a long callout", async () => {
+        const user = await renderForm();
+        await fillGoogle(user);
+        await user.click(calloutsToggle());
+        for (const text of ["Free shipping", "free shipping", "x".repeat(26)]) {
+          await user.click(screen.getByRole("button", { name: "Add callout" }));
+          await user.type(
+            screen.getAllByLabelText(/^Callout \d+$/).at(-1)!,
+            text,
+          );
+        }
+
+        await user.click(submit());
+
+        expect(
+          await screen.findByText("Each callout must be different."),
+        ).toBeVisible();
+        expect(screen.getByText("Use at most 25 characters.")).toBeVisible();
+        expect(createMock).not.toHaveBeenCalled();
+      });
+
+      it("opens a closed section that holds a refusal", async () => {
+        const user = await renderForm();
+        await fillGoogle(user);
+        await user.click(sitelinksToggle());
+        await addSitelink(user, 1, { "Link text": "Shoes" });
+        await user.click(sitelinksToggle());
+        expect(sitelinksToggle()).toHaveAttribute("aria-expanded", "false");
+
+        await user.click(submit());
+
+        await waitFor(() =>
+          expect(sitelinksToggle()).toHaveAttribute("aria-expanded", "true"),
+        );
+        expect(
+          sitelink(1).getByText(
+            "Enter a full address starting with http:// or https://.",
+          ),
+        ).toBeVisible();
+      });
+    });
+
     describe("Add from Market", () => {
       it("appends the keywords not there yet as broad lines", async () => {
         listMock.mockResolvedValue({

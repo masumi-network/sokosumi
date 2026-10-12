@@ -1,10 +1,8 @@
 "use client";
 
-import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useFormContext } from "react-hook-form";
 
-import { Button } from "@/components/ui/button";
 import {
   FormControl,
   FormDescription,
@@ -30,7 +28,12 @@ import { cn } from "@/lib/utils";
 
 import { AdsAddMarketKeywords } from "./ads-add-market-keywords";
 import { AdsFormSection } from "./ads-form-section";
+import {
+  AdsCalloutsSection,
+  AdsSitelinksSection,
+} from "./ads-search-assets-fields";
 import { AdsGoogleTargetingFields } from "./ads-targeting-fields";
+import { AdsTextList } from "./ads-text-list";
 
 interface AdsGoogleSearchFieldsProps {
   accountId: string;
@@ -226,106 +229,13 @@ function AdSection() {
           {t("pathPreview", { url: adDisplayUrl(finalUrl, path1, path2) })}
         </p>
       </fieldset>
-      <TextList limits={GOOGLE_SEARCH_LIMITS.headlines} name="headlines" />
-      <TextList
+      <AdsTextList limits={GOOGLE_SEARCH_LIMITS.headlines} name="headlines" />
+      <AdsTextList
         limits={GOOGLE_SEARCH_LIMITS.descriptions}
         name="descriptions"
       />
+      <AdsSitelinksSection />
+      <AdsCalloutsSection />
     </AdsFormSection>
-  );
-}
-
-interface TextListProps {
-  limits: { min: number; max: number; length: number };
-  name: "headlines" | "descriptions";
-}
-
-/**
- * A list of single-line texts with a character counter on each: it starts
- * with the minimum Core needs, grows to the maximum and shrinks back to the
- * minimum.
- */
-function TextList({ limits, name }: TextListProps) {
-  const t = useTranslations(`App.Ads.newCampaign.ad.${name}`);
-  const form = useFormContext<GoogleSearchFormValues>();
-  const values = form.watch(name);
-  // Once the reader has submitted, a changed list is checked again at once.
-  const revalidate = form.formState.isSubmitted;
-
-  function handleAdd(): void {
-    form.setValue(name, [...values, ""], { shouldDirty: true });
-    // The new input mounts after this render.
-    requestAnimationFrame(() => form.setFocus(`${name}.${values.length}`));
-  }
-
-  function handleRemove(index: number): void {
-    form.setValue(
-      name,
-      values.filter((_, position) => position !== index),
-      { shouldDirty: true, shouldValidate: revalidate },
-    );
-    form.setFocus(`${name}.${Math.max(0, index - 1)}`);
-  }
-
-  return (
-    <fieldset className="grid gap-3">
-      <legend className="text-sm font-medium">{t("label")}</legend>
-      <p className="text-muted-foreground text-sm">
-        {t("help", { ...limits })}
-      </p>
-      {values.map((value, index) => (
-        // The row is its position: fields are bound by `name.index`.
-        <FormField
-          control={form.control}
-          key={index}
-          name={`${name}.${index}`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="sr-only">
-                {t("item", { number: index + 1 })}
-              </FormLabel>
-              <div className="flex items-center gap-2">
-                <FormControl>
-                  <Input autoComplete="off" {...field} />
-                </FormControl>
-                <span
-                  className={cn(
-                    "w-12 shrink-0 text-right text-xs tabular-nums",
-                    value.length > limits.length
-                      ? "text-destructive"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {value.length}/{limits.length}
-                </span>
-                {values.length > limits.min ? (
-                  <Button
-                    aria-label={t("remove", { number: index + 1 })}
-                    onClick={() => handleRemove(index)}
-                    size="icon"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <X />
-                  </Button>
-                ) : null}
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      ))}
-      {values.length < limits.max ? (
-        <Button
-          className="self-start"
-          onClick={handleAdd}
-          size="sm"
-          type="button"
-          variant="ghost"
-        >
-          {t("add")}
-        </Button>
-      ) : null}
-    </fieldset>
   );
 }

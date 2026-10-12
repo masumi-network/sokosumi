@@ -20,6 +20,15 @@ const form: GoogleSearchFormValues = {
   path2: "",
   headlines: ["One", "Two", "Three"],
   descriptions: ["First description", "Second description"],
+  sitelinks: [],
+  callouts: [],
+};
+
+const sitelink = {
+  text: "Shoes",
+  finalUrl: "https://example.com/shoes",
+  description1: "Free returns",
+  description2: "Shipped in a day",
 };
 
 const spec = {
@@ -33,7 +42,10 @@ const spec = {
 };
 
 function firstIssue(
-  result: { success: boolean; error?: { issues: { path: PropertyKey[] }[] } },
+  result: {
+    success: boolean;
+    error?: { issues: { path: PropertyKey[]; message: string }[] };
+  },
   path: string,
 ) {
   return result.error?.issues.find((issue) => issue.path.join(".") === path);
@@ -45,6 +57,8 @@ describe("Core's limits", () => {
       headlines: { min: 3, max: 15, length: 30 },
       descriptions: { min: 2, max: 4, length: 90 },
       path: 15,
+      sitelinks: { max: 8, text: 25, url: 2048, description: 35 },
+      callouts: { max: 10, length: 25 },
     });
   });
 });
@@ -124,6 +138,111 @@ describe("googleSearchFormSchema", () => {
     });
   });
 
+  describe("sitelinks and callouts", () => {
+    const check = (change: object) => schema.safeParse({ ...form, ...change });
+
+    it("accepts none, a full sitelink, one without descriptions and blank rows", () => {
+      expect(check({}).success).toBe(true);
+      expect(check({ sitelinks: [sitelink] }).success).toBe(true);
+      expect(
+        check({
+          sitelinks: [
+            { ...sitelink, description1: "", description2: "" },
+            { text: "", finalUrl: " ", description1: "", description2: "" },
+          ],
+          callouts: ["Free shipping", "", "  "],
+        }).success,
+      ).toBe(true);
+    });
+
+    it.each([
+      ["no text", { ...sitelink, text: " " }, "sitelinks.0.text"],
+      [
+        "text over 25",
+        { ...sitelink, text: "x".repeat(26) },
+        "sitelinks.0.text",
+      ],
+      ["no URL", { ...sitelink, finalUrl: "" }, "sitelinks.0.finalUrl"],
+      [
+        "a non-http URL",
+        { ...sitelink, finalUrl: "ftp://a.com" },
+        "sitelinks.0.finalUrl",
+      ],
+      [
+        "a URL over 2048",
+        { ...sitelink, finalUrl: `https://a.com/${"x".repeat(2048)}` },
+        "sitelinks.0.finalUrl",
+      ],
+      [
+        "a description over 35",
+        { ...sitelink, description1: "x".repeat(36) },
+        "sitelinks.0.description1",
+      ],
+      [
+        "only description 1",
+        { ...sitelink, description2: "" },
+        "sitelinks.0.description2",
+      ],
+      [
+        "only description 2",
+        { ...sitelink, description1: " " },
+        "sitelinks.0.description1",
+      ],
+    ])("refuses a sitelink with %s", (_name, row, path) => {
+      expect(firstIssue(check({ sitelinks: [row] }), path)).toBeDefined();
+    });
+
+    it("refuses a duplicate sitelink text, ignoring case, on the later row", () => {
+      const result = check({
+        sitelinks: [sitelink, { ...sitelink, text: " SHOES " }],
+      });
+      expect(firstIssue(result, "sitelinks.0.text")).toBeUndefined();
+      expect(firstIssue(result, "sitelinks.1.text")).toBeDefined();
+    });
+
+    it("takes 8 sitelinks and refuses a ninth", () => {
+      const many = (count: number) =>
+        Array.from({ length: count }, (_, i) => ({
+          ...sitelink,
+          text: `S${i}`,
+        }));
+      expect(check({ sitelinks: many(8) }).success).toBe(true);
+      expect(
+        firstIssue(check({ sitelinks: many(9) }), "sitelinks"),
+      ).toBeDefined();
+    });
+
+    it("refuses a callout over 25, a duplicate and an eleventh", () => {
+      expect(
+        firstIssue(check({ callouts: ["x".repeat(26)] }), "callouts.0"),
+      ).toBeDefined();
+      expect(
+        firstIssue(check({ callouts: ["Free", "free "] }), "callouts.1"),
+      ).toBeDefined();
+      const many = (count: number) =>
+        Array.from({ length: count }, (_, i) => `C${i}`);
+      expect(check({ callouts: many(10) }).success).toBe(true);
+      expect(
+        firstIssue(check({ callouts: many(11) }), "callouts"),
+      ).toBeDefined();
+    });
+
+    it("says it in the given words", () => {
+      const result = googleSearchFormSchema({
+        sitelinkDescriptionsPair: "pair",
+        calloutDuplicate: "dup",
+      }).safeParse({
+        ...form,
+        sitelinks: [{ ...sitelink, description2: "" }],
+        callouts: ["a", "A"],
+      });
+      expect(firstIssue(result, "sitelinks.0.description2")?.message).toBe(
+        "pair",
+      );
+      expect(firstIssue(result, "callouts.1")?.message).toBe("dup");
+    });
+  });
+
   it("accepts the same dates and a path pair", () => {
     expect(
       schema.safeParse({
@@ -170,8 +289,54 @@ describe("googleSearchSpecSchema", () => {
     ],
     ["a non-http URL", { finalUrl: "javascript:alert(1)" }],
     ["another type", { type: "DISPLAY" }],
+    ["a sitelink without text", { sitelinks: [{ ...sitelink, text: "" }] }],
+    [
+      "a sitelink with a non-http URL",
+      { sitelinks: [{ ...sitelink, finalUrl: "javascript:alert(1)" }] },
+    ],
+    [
+      "a sitelink with one description",
+      { sitelinks: [{ ...sitelink, description2: undefined }] },
+    ],
+    [
+      "a sitelink description over 35",
+      { sitelinks: [{ ...sitelink, description1: "x".repeat(36) }] },
+    ],
+    [
+      "duplicate sitelinks",
+      { sitelinks: [sitelink, { ...sitelink, text: "shoes" }] },
+    ],
+    [
+      "nine sitelinks",
+      {
+        sitelinks: Array.from({ length: 9 }, (_, i) => ({
+          ...sitelink,
+          text: `S${i}`,
+        })),
+      },
+    ],
+    ["a blank callout", { callouts: [""] }],
+    ["a callout over 25", { callouts: ["x".repeat(26)] }],
+    ["duplicate callouts", { callouts: ["Free", "FREE"] }],
+    [
+      "eleven callouts",
+      { callouts: Array.from({ length: 11 }, (_, i) => `C${i}`) },
+    ],
   ])("refuses %s", (_name, change) => {
     expect(schema.safeParse({ ...spec, ...change }).success).toBe(false);
+  });
+
+  it("accepts sitelinks with or without descriptions, and callouts", () => {
+    expect(
+      schema.safeParse({
+        ...spec,
+        sitelinks: [
+          sitelink,
+          { text: "Sale", finalUrl: "https://example.com/sale" },
+        ],
+        callouts: ["Free shipping"],
+      }).success,
+    ).toBe(true);
   });
 });
 
@@ -211,6 +376,53 @@ describe("toGoogleSearchSpec", () => {
       locationIds: ["2276", "1003854"],
       languageIds: ["1001"],
     });
+  });
+
+  it("sends sitelinks and callouts trimmed, and leaves out blank rows", () => {
+    expect(
+      toGoogleSearchSpec({
+        ...form,
+        sitelinks: [
+          {
+            text: " Shoes ",
+            finalUrl: " https://example.com/shoes ",
+            description1: " Free returns ",
+            description2: "Shipped in a day",
+          },
+          {
+            text: "Sale",
+            finalUrl: "https://example.com/sale",
+            description1: "",
+            description2: " ",
+          },
+          { text: " ", finalUrl: "", description1: "", description2: "" },
+        ],
+        callouts: [" Free shipping ", "", "  "],
+      }),
+    ).toMatchObject({
+      sitelinks: [
+        {
+          text: "Shoes",
+          finalUrl: "https://example.com/shoes",
+          description1: "Free returns",
+          description2: "Shipped in a day",
+        },
+        { text: "Sale", finalUrl: "https://example.com/sale" },
+      ],
+      callouts: ["Free shipping"],
+    });
+  });
+
+  it("omits sitelinks and callouts when all rows are blank", () => {
+    const sent = toGoogleSearchSpec({
+      ...form,
+      sitelinks: [
+        { text: "", finalUrl: "", description1: "", description2: "" },
+      ],
+      callouts: [" "],
+    });
+    expect(sent).not.toHaveProperty("sitelinks");
+    expect(sent).not.toHaveProperty("callouts");
   });
 
   it("keeps dates and paths when given, and drops path2 without path1", () => {
