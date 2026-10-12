@@ -96,7 +96,7 @@ public final class InvitationDetail: ObservableObject {
     } catch {
       guard attempt == generation, !Task.isCancelled, !(error is CancellationError) else { return }
       // Web's `getInvitation` treats 403/404 as "not found"; other failures are retryable.
-      if case let ChatServiceError.unprocessable(status, _) = error, status == 403 || status == 404 {
+      if case let ChatServiceError.unprocessable(status, _, _) = error, status == 403 || status == 404 {
         presentation = .notFound
       } else {
         loadError = friendlyMessage(for: error)

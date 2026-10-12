@@ -31,39 +31,24 @@ public extension ChatService {
       if cause is CancellationError || (networkError.domain == NSURLErrorDomain && networkError.code == URLError.cancelled.rawValue) {
         throw CancellationError()
       }
-      if clientError?.response?.status.code == 401 {
-        throw unauthorized("Log in required.")
-      }
       return nil
     }
   }
 
   /// The caller's organization role gates channel settings, archive, restore and delete; a missing membership is not elevated.
   func isOrganizationOwnerOrAdmin(client: Client, organizationId: String) async throws -> Bool {
-    let response = try await client.getUsersIdOrganizationsOrganizationIdMember(.init(path: .init(id: "me", organizationId: organizationId)))
-    switch response {
-    case let .ok(value):
-      let role = try value.body.json.data.role
+    do {
+      let role = try await call {
+        try await client.getUsersIdOrganizationsOrganizationIdMember(.init(path: .init(id: "me", organizationId: organizationId)))
+      }.ok.body.json.data.role
       return role == .owner || role == .admin
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case .notFound: return false
-    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
+    } catch ChatServiceError.unprocessable(404, _, _) {
+      return false
     }
   }
 
   func channelSlugIsAvailable(client: Client, slug: String, organizationSlug: String) async throws -> Bool {
-    let response = try await client.getChatsRoomsChannelSlugAvailability(.init(query: .init(slug: slug), headers: .init(xOrganizationSlug: organizationSlug)))
-    switch response {
-    case let .ok(value): return try value.body.json.data.status == .free
-    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
-    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    try await call { try await client.getChatsRoomsChannelSlugAvailability(.init(query: .init(slug: slug), headers: .init(xOrganizationSlug: organizationSlug))) }.ok.body.json.data.status == .free
   }
 
   func createChannel(client: Client, draft: ChannelDraft, roster: ChatRecipientRoster, currentUserId: String, organizationSlug: String) async throws -> Components.Schemas.ChatRoom {

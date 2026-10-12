@@ -46,7 +46,7 @@
 
       @Test func markAllIsNotOfferedWhileOneRuns() async throws {
         let transport = ReadsTransport(holdsReads: true)
-        let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+        let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
         let state = WorkspaceState(clientProvider: { _ in client })
         state.rooms = [Self.room("launch", channel: 2)]
         state.sidebar.readAttention.setVisible(true, window: UUID())
@@ -65,7 +65,7 @@
 
       @Test func markAllRunsTheCommandAction() async throws {
         let transport = ReadsTransport()
-        let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+        let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
         let state = WorkspaceState(clientProvider: { _ in client })
         state.rooms = [Self.room("launch", channel: 2)]
         state.sidebar.readAttention.setVisible(true, window: UUID())

@@ -78,7 +78,7 @@ public extension WorkspaceState {
       if let failure = error as? ChatServiceError {
         switch failure {
         case .unauthorized: throw failure
-        case let .unprocessable(status, _) where status == 403 || status == 404: throw failure
+        case let .unprocessable(status, _, _) where status == 403 || status == 404: throw failure
         default: break
         }
       }
@@ -203,7 +203,7 @@ public extension WorkspaceState {
     guard isCurrent(navigation) else { return .superseded }
     if let failure = error as? ChatServiceError {
       signOutIfUnauthorized(failure, auth: auth)
-      if mapRefusal, case let .unprocessable(status, _) = failure, status == 403 || status == 404 {
+      if mapRefusal, case let .unprocessable(status, _, _) = failure, status == 403 || status == 404 {
         return .unavailable
       }
     }

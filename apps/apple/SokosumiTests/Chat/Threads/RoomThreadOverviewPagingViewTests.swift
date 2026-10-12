@@ -129,7 +129,7 @@
       private static func loaded(_ threads: [ThreadOverviewFixtureRow]) async throws -> RoomThreadOverview {
         let transport = try ScriptedOverviewTransport([.answer(200, threadOverviewPageBody(threads, nextCursor: "older"))])
         let overview = RoomThreadOverview()
-        try await overview.load(client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport), roomId: "room", organizationSlug: nil)
+        try await overview.load(client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport), roomId: "room", organizationSlug: nil)
         try #require(overview.items.count == threads.count)
         return overview
       }
@@ -193,7 +193,7 @@
       case .firstPageFailed: ScriptedOverviewTransport([.answer(200, "not json")])
       case .markingAll: ScriptedOverviewTransport([.answer(200, page), .hold(200, #"{"data":{"markedCount":1},"meta":{"timestamp":"2026-09-23T12:00:00.000Z","requestId":"fixture"}}"#)])
       }
-      let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+      let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport)
       let overview = RoomThreadOverview()
       _ = try? await overview.load(client: client, roomId: "room", organizationSlug: nil)
       switch self {

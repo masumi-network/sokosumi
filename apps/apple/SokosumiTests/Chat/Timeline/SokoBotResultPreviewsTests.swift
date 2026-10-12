@@ -61,7 +61,7 @@
         throw failure
       }
       let bytes = fileName.hasSuffix(".png") ? image : fileName.hasSuffix(".wav") ? Self.wave : Data("fixture \(fileName)".utf8)
-      let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: OutputBytesTransport(bytes: bytes))
+      let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: OutputBytesTransport(bytes: bytes))
       let file = try await ChatService().resultOutput(client: client, source: source, fileName: fileName, organizationSlug: nil)
       answered += 1
       return file

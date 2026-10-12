@@ -190,7 +190,7 @@ private func realtimeCreatedBody(id: String, roomId: String, content: String) ->
 /// apply path exercises the same shapes the transcript renders.
 private func decodeRealtimeMessages(_ messages: [String]) async throws -> [Components.Schemas.ChatRoomMessage] {
   let transport = RealtimeScriptedTransport([(200, realtimePageBody(messages: messages))])
-  let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+  let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
   let response = try await client.getChatsRoomsIdMessages(
     .init(path: .init(id: roomA), query: .init(), headers: .init())
   )
@@ -206,7 +206,7 @@ private func realtimeState(
   instanceId: String = "inst_test00000001"
 ) throws -> (WorkspaceState, AuthState, RealtimeScriptedTransport) { // swiftlint:disable:this large_tuple
   let transport = RealtimeScriptedTransport(responses)
-  let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+  let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
   let suite = "sokosumi-workspace-realtime-tests.\(UUID().uuidString)"
   let defaults = UserDefaults(suiteName: suite)!
   defaults.removePersistentDomain(forName: suite)
