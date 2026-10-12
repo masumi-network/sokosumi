@@ -60,6 +60,7 @@
       func messageLinkWaitsForPreparedTranscript(thread: Bool) async throws {
         let clock = ManualJumpMarkClock()
         let state = try Self.fixtureState(thread: thread, media: false, clock: clock)
+        #expect(!clock.wasRead, "Only the jump reads the clock, so the check below proves it landed.")
         let auth = AuthState()
         if thread {
           state.thread.requestJump(to: "fixture-2")
@@ -145,11 +146,11 @@
       }
 
       /// A hundred tall text messages in room `fixture`; with `thread`, the first opens a thread holding the rest.
-      /// `clock`, when given, is the Thread's clock; the view under test needs it as its `jumpMarkClock` too.
+      /// `clock`, when given, is the transcripts' clock; the view under test needs it as its `jumpMarkClock` too.
       static func fixtureState(thread: Bool, media: Bool, clock: ManualJumpMarkClock? = nil) throws -> WorkspaceState {
         let state = WorkspaceState(
           clientProvider: { _ in Client.core(baseURL: URL(string: "https://example.com")!) },
-          threadNow: clock.map { clock in { MainActor.assumeIsolated { clock.now } } } ?? Date.init
+          now: clock.map { clock in { MainActor.assumeIsolated { clock.now } } } ?? Date.init
         )
         state.timeline.reset(roomId: "fixture")
         state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)

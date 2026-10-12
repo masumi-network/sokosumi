@@ -21,7 +21,8 @@ public final class DirectStreamSession: ObservableObject {
   private var sender: Components.Schemas.ChatRoomUserParticipant?
   private var coworker: Components.Schemas.ChatRoomCoworkerParticipant?
   private var generation = UUID()
-  private var responseDate: Date
+  /// Set when a response starts; read only while one exists, so `init` never asks the clock.
+  private var responseDate = Date.distantPast
   private var hasResponse = false
   private let service = ChatService()
   private var scope: [String]?
@@ -32,7 +33,6 @@ public final class DirectStreamSession: ObservableObject {
   public init(now: @escaping () -> Date = Date.init, makeId: @escaping () -> String = { UUID().uuidString }) {
     self.now = now
     self.makeId = makeId
-    responseDate = now()
   }
 
   public var isBusy: Bool {
