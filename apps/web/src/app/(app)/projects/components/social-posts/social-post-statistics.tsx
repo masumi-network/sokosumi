@@ -100,7 +100,18 @@ function accountName(account: Account) {
   );
 }
 
-export function SocialPostStatistics({ projectId }: { projectId: string }) {
+export function SocialPostStatistics(
+  props: { projectId: string } | { workspaceId: string },
+) {
+  const projectId = "projectId" in props ? props.projectId : undefined;
+  const workspaceId = "workspaceId" in props ? props.workspaceId : undefined;
+  const scopeId = projectId ?? workspaceId ?? "";
+  const statisticsPath = projectId
+    ? `/api/projects/${encodeURIComponent(projectId)}/social-statistics`
+    : `/api/workspaces/${encodeURIComponent(workspaceId ?? "")}/social-statistics`;
+  const accountsHref = projectId
+    ? `/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`
+    : "/social?tab=accounts";
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const formatter = useFormatter();
   const { data: session } = useSession();
@@ -131,7 +142,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
     "social-account-statistics",
     session?.user.id,
     session?.session.activeOrganizationId ?? null,
-    projectId,
+    scopeId,
   ];
   const query = useInfiniteQuery({
     queryKey: [...queryScope, filters, publishedFrom, publishedUntil],
@@ -147,10 +158,10 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       if (publishedUntil)
         params.set("publishedUntil", `${publishedUntil}T23:59:59.999Z`);
       if (pageParam) params.set("cursor", pageParam);
-      const response = await fetch(
-        `/api/projects/${encodeURIComponent(projectId)}/social-statistics?${params}`,
-        { signal, cache: "no-store" },
-      );
+      const response = await fetch(`${statisticsPath}?${params}`, {
+        signal,
+        cache: "no-store",
+      });
       if (!response.ok) throw new Error(t("loadFailed"));
       const page: StatisticsPage = await response.json();
       if (
@@ -202,6 +213,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       for (const account of targets) {
         setEnqueueingId(account.id);
         try {
+          if (!projectId) return;
           const result = await refreshProjectSocialAccountStatistics({
             projectId,
             connectionId: account.id,
@@ -284,7 +296,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       params.set("publishedFrom", `${publishedFrom}T00:00:00.000Z`);
     if (typeof publishedUntil === "string")
       params.set("publishedUntil", `${publishedUntil}T23:59:59.999Z`);
-    return `/api/projects/${encodeURIComponent(projectId)}/social-statistics/export?${params}`;
+    return `${statisticsPath}/export?${params}`;
   }
 
   function formatDate(value: string | Date) {
@@ -338,10 +350,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       {!query.isPending && !query.isError && accounts.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           {t("noAccounts")}{" "}
-          <Link
-            className="underline underline-offset-4"
-            href={`/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`}
-          >
+          <Link className="underline underline-offset-4" href={accountsHref}>
             {t("manageAccounts")}
           </Link>
         </p>
@@ -394,35 +403,39 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                className="h-11 md:h-8"
-                variant="outline"
-                loading={Boolean(enqueueingId)}
-                disabled={
-                  Boolean(enqueueingId) ||
-                  (selectedAccount
-                    ? selectedAccount.status !== "active"
-                    : !accounts.some((account) => account.status === "active"))
-                }
-                onClick={() =>
-                  void handleSync(
-                    selectedAccount
-                      ? [selectedAccount]
-                      : accounts.filter(
+              {projectId ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-11 md:h-8"
+                  variant="outline"
+                  loading={Boolean(enqueueingId)}
+                  disabled={
+                    Boolean(enqueueingId) ||
+                    (selectedAccount
+                      ? selectedAccount.status !== "active"
+                      : !accounts.some(
                           (account) => account.status === "active",
-                        ),
-                  )
-                }
-              >
-                {statusSnapshot?.historyNextCursor &&
-                !statusSnapshot.historyComplete
-                  ? t("resumeSync")
-                  : selectedAccount || accounts.length === 1
-                    ? t("syncAccount")
-                    : t("syncAll")}
-              </Button>
+                        ))
+                  }
+                  onClick={() =>
+                    void handleSync(
+                      selectedAccount
+                        ? [selectedAccount]
+                        : accounts.filter(
+                            (account) => account.status === "active",
+                          ),
+                    )
+                  }
+                >
+                  {statusSnapshot?.historyNextCursor &&
+                  !statusSnapshot.historyComplete
+                    ? t("resumeSync")
+                    : selectedAccount || accounts.length === 1
+                      ? t("syncAccount")
+                      : t("syncAll")}
+                </Button>
+              ) : null}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -465,7 +478,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
               {t("reconnectHint")}{" "}
               <Link
                 className="underline underline-offset-4"
-                href={`/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`}
+                href={accountsHref}
               >
                 {t("manageAccounts")}
               </Link>
