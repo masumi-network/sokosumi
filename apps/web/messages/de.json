@@ -3301,15 +3301,12 @@
           "headlineDuplicate": "Jede Überschrift muss sich unterscheiden.",
           "descriptionRequired": "Gib eine Beschreibung ein oder entferne diese.",
           "descriptionTooLong": "Verwende höchstens {max} Zeichen.",
-          "pathTooLong": "Verwende höchstens {max} Zeichen.",
+          "tooLong": "Verwende höchstens {max} Zeichen.",
           "pathNeedsFirst": "Fülle zuerst Pfad 1 aus.",
           "endBeforeStart": "Das Enddatum darf nicht vor dem Startdatum liegen.",
           "sitelinkTextRequired": "Gib den Linktext ein oder entferne diesen Sitelink.",
-          "sitelinkTextTooLong": "Verwende höchstens {max} Zeichen.",
-          "sitelinkDescriptionTooLong": "Verwende höchstens {max} Zeichen.",
           "sitelinkDescriptionsPair": "Fülle beide Beschreibungszeilen aus oder keine.",
           "sitelinkDuplicate": "Jeder Sitelink muss sich unterscheiden.",
-          "calloutTooLong": "Verwende höchstens {max} Zeichen.",
           "calloutDuplicate": "Jede Zusatzinformation muss sich unterscheiden.",
           "failed": "Kampagne konnte nicht erstellt werden"
         }

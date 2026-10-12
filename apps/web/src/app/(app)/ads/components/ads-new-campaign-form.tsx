@@ -397,23 +397,12 @@ export function GoogleSearchCampaignForm({
           descriptionTooLong: t("errors.descriptionTooLong", {
             max: GOOGLE_SEARCH_LIMITS.descriptions.length,
           }),
-          pathTooLong: t("errors.pathTooLong", {
-            max: GOOGLE_SEARCH_LIMITS.path,
-          }),
+          tooLong: (max) => t("errors.tooLong", { max }),
           pathNeedsFirst: t("errors.pathNeedsFirst"),
           endBeforeStart: t("errors.endBeforeStart"),
           sitelinkTextRequired: t("errors.sitelinkTextRequired"),
-          sitelinkTextTooLong: t("errors.sitelinkTextTooLong", {
-            max: GOOGLE_SEARCH_LIMITS.sitelinks.text,
-          }),
-          sitelinkDescriptionTooLong: t("errors.sitelinkDescriptionTooLong", {
-            max: GOOGLE_SEARCH_LIMITS.sitelinks.description,
-          }),
           sitelinkDescriptionsPair: t("errors.sitelinkDescriptionsPair"),
           sitelinkDuplicate: t("errors.sitelinkDuplicate"),
-          calloutTooLong: t("errors.calloutTooLong", {
-            max: GOOGLE_SEARCH_LIMITS.callouts.length,
-          }),
           calloutDuplicate: t("errors.calloutDuplicate"),
           keywordsRequired: t("keywords.errors.required"),
           keywordsTooMany: t("keywords.errors.tooMany", {

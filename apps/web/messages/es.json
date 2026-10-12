@@ -3301,15 +3301,12 @@
           "headlineDuplicate": "Cada título debe ser distinto.",
           "descriptionRequired": "Introduce una descripción o quita esta.",
           "descriptionTooLong": "Usa como máximo {max} caracteres.",
-          "pathTooLong": "Usa como máximo {max} caracteres.",
+          "tooLong": "Usa como máximo {max} caracteres.",
           "pathNeedsFirst": "Rellena primero la ruta 1.",
           "endBeforeStart": "La fecha de finalización no puede ser anterior a la de inicio.",
           "sitelinkTextRequired": "Introduce el texto del enlace o quita este enlace de sitio.",
-          "sitelinkTextTooLong": "Usa como máximo {max} caracteres.",
-          "sitelinkDescriptionTooLong": "Usa como máximo {max} caracteres.",
           "sitelinkDescriptionsPair": "Rellena las dos líneas de descripción o ninguna.",
           "sitelinkDuplicate": "Cada enlace de sitio debe ser distinto.",
-          "calloutTooLong": "Usa como máximo {max} caracteres.",
           "calloutDuplicate": "Cada texto destacado debe ser distinto.",
           "failed": "No se pudo crear la campaña"
         }

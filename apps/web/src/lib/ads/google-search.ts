@@ -57,18 +57,16 @@ export interface GoogleSearchMessages {
   headlineDuplicate: string;
   descriptionRequired: string;
   descriptionTooLong: string;
-  pathTooLong: string;
+  /** Said for any text over its limit (path, sitelinks, callouts). */
+  tooLong: (max: number) => string;
   pathNeedsFirst: string;
   endBeforeStart: string;
   keywordsRequired: string;
   keywordsTooMany: string;
   keywordsInvalid: (line: number, issue: GoogleKeywordIssue) => string;
   sitelinkTextRequired: string;
-  sitelinkTextTooLong: string;
-  sitelinkDescriptionTooLong: string;
   sitelinkDescriptionsPair: string;
   sitelinkDuplicate: string;
-  calloutTooLong: string;
   calloutDuplicate: string;
 }
 
@@ -77,7 +75,7 @@ type OptionalMessages = Partial<GoogleSearchMessages>;
 const HEADLINE_LIMITS = GOOGLE_SEARCH_LIMITS.headlines;
 const DESCRIPTION_LIMITS = GOOGLE_SEARCH_LIMITS.descriptions;
 
-const SITELINK_LIMITS = GOOGLE_SEARCH_LIMITS.sitelinks;
+export const SITELINK_LIMITS = GOOGLE_SEARCH_LIMITS.sitelinks;
 const CALLOUT_LIMITS = GOOGLE_SEARCH_LIMITS.callouts;
 
 const httpUrl = (max: number, message?: string) =>
@@ -104,6 +102,20 @@ const description = (messages: OptionalMessages) =>
     .min(1, messages.descriptionRequired)
     .max(DESCRIPTION_LIMITS.length, messages.descriptionTooLong);
 
+const tooLong = (messages: OptionalMessages, max: number) =>
+  messages.tooLong?.(max);
+
+const sitelinkDescription = (messages: OptionalMessages) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .max(
+      SITELINK_LIMITS.description,
+      tooLong(messages, SITELINK_LIMITS.description),
+    )
+    .optional();
+
 /** One sitelink as Core takes it: both description lines or neither. */
 const sitelinkSchema = (messages: OptionalMessages) =>
   z
@@ -112,20 +124,10 @@ const sitelinkSchema = (messages: OptionalMessages) =>
         .string()
         .trim()
         .min(1, messages.sitelinkTextRequired)
-        .max(SITELINK_LIMITS.text, messages.sitelinkTextTooLong),
+        .max(SITELINK_LIMITS.text, tooLong(messages, SITELINK_LIMITS.text)),
       finalUrl: httpUrl(SITELINK_LIMITS.url, messages.finalUrl),
-      description1: z
-        .string()
-        .trim()
-        .min(1)
-        .max(SITELINK_LIMITS.description, messages.sitelinkDescriptionTooLong)
-        .optional(),
-      description2: z
-        .string()
-        .trim()
-        .min(1)
-        .max(SITELINK_LIMITS.description, messages.sitelinkDescriptionTooLong)
-        .optional(),
+      description1: sitelinkDescription(messages),
+      description2: sitelinkDescription(messages),
     })
     .superRefine((value, ctx) => {
       if (!value.description1 !== !value.description2) {
@@ -140,11 +142,20 @@ const sitelinkSchema = (messages: OptionalMessages) =>
     });
 
 const callout = (messages: OptionalMessages) =>
-  z.string().trim().max(CALLOUT_LIMITS.length, messages.calloutTooLong);
+  z
+    .string()
+    .trim()
+    .max(CALLOUT_LIMITS.length, tooLong(messages, CALLOUT_LIMITS.length));
 
 /** The optional display path: empty or up to Core's length. */
 const path = (messages: OptionalMessages) =>
-  z.string().trim().max(GOOGLE_SEARCH_LIMITS.path, messages.pathTooLong);
+  z
+    .string()
+    .trim()
+    .max(
+      GOOGLE_SEARCH_LIMITS.path,
+      tooLong(messages, GOOGLE_SEARCH_LIMITS.path),
+    );
 
 /** Rules that span fields; absent values may be undefined or empty. */
 function refineAcrossFields(
@@ -291,13 +302,23 @@ export interface GoogleSearchFormValues {
   callouts: string[];
 }
 
+/** The fields of a sitelink as typed, whatever is in them. */
+const sitelinkRow = z.object({
+  text: z.string(),
+  finalUrl: z.string(),
+  description1: z.string(),
+  description2: z.string(),
+});
+
 /** A sitelink as typed; a row with nothing in it is not sent. */
-export interface SitelinkFormValues {
-  text: string;
-  finalUrl: string;
-  description1: string;
-  description2: string;
-}
+export type SitelinkFormValues = z.infer<typeof sitelinkRow>;
+
+export const EMPTY_SITELINK: SitelinkFormValues = {
+  text: "",
+  finalUrl: "",
+  description1: "",
+  description2: "",
+};
 
 const isBlankSitelink = (row: SitelinkFormValues): boolean =>
   Object.values(row).every((text) => text.trim() === "");
@@ -332,6 +353,7 @@ export function googleSearchFormSchema(messages: OptionalMessages = {}) {
       }),
     )
     .max(GOOGLE_SEARCH_LIMITS.targetIds);
+  const sitelinkRules = sitelinkSchema(messages);
   return z
     .object({
       startDate: z.string(),
@@ -361,23 +383,14 @@ export function googleSearchFormSchema(messages: OptionalMessages = {}) {
       descriptions: z.array(description(messages)),
       sitelinks: z
         .array(
-          z
-            .object({
-              text: z.string(),
-              finalUrl: z.string(),
-              description1: z.string(),
-              description2: z.string(),
-            })
-            .superRefine((row, ctx) => {
-              if (isBlankSitelink(row)) return;
-              // Core's rules for a row with something in it; a blank row is skipped.
-              const result = sitelinkSchema(messages).safeParse(
-                toSitelink(row),
-              );
-              for (const { path, message } of result.error?.issues ?? []) {
-                ctx.addIssue({ code: "custom", path, message });
-              }
-            }),
+          sitelinkRow.superRefine((row, ctx) => {
+            if (isBlankSitelink(row)) return;
+            // Core's rules for a row with something in it; a blank row is skipped.
+            const result = sitelinkRules.safeParse(toSitelink(row));
+            for (const { path, message } of result.error?.issues ?? []) {
+              ctx.addIssue({ code: "custom", path, message });
+            }
+          }),
         )
         .max(SITELINK_LIMITS.max),
       callouts: z.array(callout(messages)).max(CALLOUT_LIMITS.max),

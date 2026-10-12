@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef } from "react";
+import { type ComponentProps, useId, useRef } from "react";
 import { useFormContext } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -17,17 +17,47 @@ import { Input } from "@/components/ui/input";
 import type { GoogleSearchFormValues } from "@/lib/ads/google-search";
 import { cn } from "@/lib/utils";
 
+interface AdsCharCountProps {
+  /** Its id, for the input it counts to name in `aria-describedby`. */
+  id: string;
+  /** As typed; the count is of the trimmed text, as the limit is. */
+  text: string;
+  max: number;
+}
+
 /** `12/30`: how much of a field's limit is used; red once over. */
-export function AdsCharCount({ length, max }: { length: number; max: number }) {
+export function AdsCharCount({ id, text, max }: AdsCharCountProps) {
+  const length = text.trim().length;
+
   return (
     <span
       className={cn(
-        "shrink-0 text-right text-xs tabular-nums",
+        "w-12 shrink-0 text-right text-xs tabular-nums",
         length > max ? "text-destructive" : "text-muted-foreground",
       )}
+      id={id}
     >
       {length}/{max}
     </span>
+  );
+}
+
+interface AdsCountedInputProps extends ComponentProps<typeof Input> {
+  /** The `AdsCharCount` of this input, said after what the field already says. */
+  counterId?: string;
+}
+
+/** An input inside a `FormControl` that its counter is read with. */
+export function AdsCountedInput({
+  counterId,
+  "aria-describedby": describedBy,
+  ...props
+}: AdsCountedInputProps) {
+  return (
+    <Input
+      aria-describedby={[describedBy, counterId].filter(Boolean).join(" ")}
+      {...props}
+    />
   );
 }
 
@@ -47,6 +77,8 @@ export function AdsTextList({ limits, name, hideLegend }: AdsTextListProps) {
   const t = useTranslations(`App.Ads.newCampaign.ad.${name}`);
   const form = useFormContext<GoogleSearchFormValues>();
   const values = form.watch(name);
+  const listId = useId();
+  const counterId = (index: number) => `${listId}-${index}`;
   const addRef = useRef<HTMLButtonElement>(null);
   // Once the reader has submitted, a changed list is checked again at once.
   const revalidate = form.formState.isSubmitted;
@@ -78,7 +110,7 @@ export function AdsTextList({ limits, name, hideLegend }: AdsTextListProps) {
       <p className="text-muted-foreground text-sm">
         {t("help", { ...limits })}
       </p>
-      {values.map((value, index) => (
+      {values.map((_, index) => (
         // The row is its position: fields are bound by `name.index`.
         <FormField
           control={form.control}
@@ -91,11 +123,17 @@ export function AdsTextList({ limits, name, hideLegend }: AdsTextListProps) {
               </FormLabel>
               <div className="flex items-center gap-2">
                 <FormControl>
-                  <Input autoComplete="off" {...field} />
+                  <AdsCountedInput
+                    autoComplete="off"
+                    counterId={counterId(index)}
+                    {...field}
+                  />
                 </FormControl>
-                <span className="w-12 shrink-0 text-right">
-                  <AdsCharCount length={value.length} max={limits.length} />
-                </span>
+                <AdsCharCount
+                  id={counterId(index)}
+                  max={limits.length}
+                  text={field.value}
+                />
                 {values.length > limits.min ? (
                   <Button
                     aria-label={t("remove", { number: index + 1 })}
