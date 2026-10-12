@@ -101,6 +101,54 @@ struct TranscriptSessionTests {
     #expect(session.jumpTarget == nil)
   }
 
+  /// Row 25c: a covered row is marked at once and keeps that mark when the list lands; once its hold has run out
+  /// it still waits for the list, unmarked, and landing then leaves nothing.
+  @Test func aCoveredRowIsMarkedAtOnceAndLandsWithoutANewMark() async throws {
+    let marked = Date(timeIntervalSince1970: 1_800_000_000)
+    var now = marked
+    let session = TranscriptSession(now: { now })
+    let message = try await parent()
+    session.timeline.messages = [message]
+
+    session.markCovered(message.id)
+    let covered = try #require(session.jumpTarget)
+    #expect(covered.isCovered && !covered.hasLanded)
+    #expect(covered.mark == JumpMark(messageId: message.id, landedAt: marked))
+    now = marked.addingTimeInterval(1)
+    session.landJump(covered.requestId)
+    #expect(session.jumpTarget?.hasLanded == true)
+    #expect(session.jumpTarget?.mark?.landedAt == marked)
+
+    session.markCovered(message.id)
+    let expiring = try #require(session.jumpTarget)
+    now = now.addingTimeInterval(10)
+    session.endJumpIfMarkEnded()
+    #expect(session.jumpTarget?.requestId == expiring.requestId)
+    #expect(session.jumpTarget?.mark == nil)
+    session.landJump(expiring.requestId)
+    #expect(session.jumpTarget == nil)
+  }
+
+  /// A caller waiting on `jump(to:)` hears true when the list lands and false when another jump replaces it.
+  @Test func aJumpAnswersWhetherTheListLanded() async throws {
+    let session = TranscriptSession()
+    let message = try await parent()
+    var other = message
+    other.id = "other"
+    session.timeline.messages = [message, other]
+
+    async let first = session.jump(to: message.id)
+    await Task.yield()
+    let replaced = try #require(session.jumpTarget)
+    #expect(replaced.messageId == message.id)
+    async let second = session.jump(to: other.id)
+    await Task.yield()
+    #expect(await first == false)
+    try session.landJump(#require(session.jumpTarget).requestId)
+    #expect(await second)
+    #expect(session.jumpTarget?.mark != nil)
+  }
+
   @Test func clearingJumpPublishesOnlyWhenTargetChanges() async throws {
     let session = TranscriptSession()
     let message = try await parent()

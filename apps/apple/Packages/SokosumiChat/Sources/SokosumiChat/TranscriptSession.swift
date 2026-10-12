@@ -12,8 +12,14 @@ public final class TranscriptSession: ObservableObject {
   public struct JumpTarget: Equatable, Sendable {
     public let requestId = UUID()
     public let messageId: String
-    /// Nil until the prepared row is ready to land. Its hold must not consume a pending jump.
+    /// Nil until the prepared row is ready to land. Its hold must not consume a pending jump. A covered target is
+    /// marked at once and keeps no mark once that hold has run out.
     public fileprivate(set) var mark: JumpMark?
+    /// Marked while something covers the row (row 25c: the Thread's parent behind the open Thread); the list lands on
+    /// it once nothing does, without restarting the mark.
+    public fileprivate(set) var isCovered = false
+    /// Whether the list has reached the row.
+    public fileprivate(set) var hasLanded = false
   }
 
   /// What the Transcript needs from its owner to load on its own.
@@ -50,6 +56,8 @@ public final class TranscriptSession: ObservableObject {
   public private(set) var gapTask: Task<Void, Never>?
   private var gapRequest = 0
   private var transcriptObservation: AnyCancellable?
+  /// The caller of `jump(to:)` waiting for the list to land.
+  private var landing: CheckedContinuation<Bool, Never>?
   private let service = ChatService()
   private let now: () -> Date
   private let makeId: () -> String
@@ -82,7 +90,7 @@ public final class TranscriptSession: ObservableObject {
   /// Drops what the previous scope left running: its jump, page and gap loads, recovery and Send queue. The timeline resets
   /// once, in `open` or `close`, so it never publishes an empty scope between two rooms.
   private func stop() {
-    jumpTarget = nil
+    clearJump()
     loadTask?.cancel()
     loadTask = nil
     gapTask?.cancel()
@@ -93,20 +101,43 @@ public final class TranscriptSession: ObservableObject {
 
   public func requestJump(to messageId: String) {
     guard timeline.messages.contains(where: { $0.id == messageId }) else { return }
-    jumpTarget = JumpTarget(messageId: messageId)
+    replaceJump(with: JumpTarget(messageId: messageId))
+  }
+
+  /// Marks a row something covers now, on this Transcript's clock, so its hold runs under the cover (web's `landOn`).
+  public func markCovered(_ messageId: String) {
+    guard timeline.messages.contains(where: { $0.id == messageId }) else { return }
+    replaceJump(with: JumpTarget(messageId: messageId, mark: JumpMark(messageId: messageId, landedAt: now()), isCovered: true))
+  }
+
+  /// Requests a jump and answers once the list lands on the row: false when another jump, a close or a dropped row
+  /// replaces it first.
+  public func jump(to messageId: String) async -> Bool {
+    requestJump(to: messageId)
+    guard let target = jumpTarget, target.messageId == messageId, !target.hasLanded else { return false }
+    return await withCheckedContinuation { landing = $0 }
   }
 
   /// Start the hold only after the view has issued the scroll to the prepared row. A late acknowledgement
   /// cannot mark a replacement request, and another layout pass cannot restart an existing hold.
   public func landJump(_ requestId: UUID) {
-    guard let target = jumpTarget, target.requestId == requestId, target.mark == nil else { return }
-    jumpTarget?.mark = JumpMark(messageId: target.messageId, landedAt: now())
+    guard let target = jumpTarget, target.requestId == requestId, !target.hasLanded else { return }
+    if target.isCovered, target.mark == nil {
+      // The covered row's hold ran out before the list reached it: nothing is left to show.
+      jumpTarget = nil
+    } else {
+      jumpTarget?.hasLanded = true
+      if !target.isCovered {
+        jumpTarget?.mark = JumpMark(messageId: target.messageId, landedAt: now())
+      }
+    }
+    finishLanding(true)
   }
 
   /// A reader scroll (web `fadeOutHighlight`): the mark fades out, or ends outright outside its full-strength stretch.
   public func readerScrolled() {
     guard let target = jumpTarget, let currentMark = target.mark else { return }
-    guard let mark = currentMark.readerScrolled(at: now()) else { return clearJump() }
+    guard let mark = currentMark.readerScrolled(at: now()) else { return markEnded() }
     if mark != target.mark {
       jumpTarget?.mark = mark
     }
@@ -115,13 +146,33 @@ public final class TranscriptSession: ObservableObject {
   /// Drop the jump once its mark has run out (web `landOn`'s timer).
   public func endJumpIfMarkEnded() {
     if jumpTarget?.mark?.stage(at: now()) == .ended {
-      clearJump()
+      markEnded()
     }
   }
 
   public func clearJump() {
+    finishLanding(false)
     guard jumpTarget != nil else { return }
     jumpTarget = nil
+  }
+
+  /// A landed jump ends with its mark; a covered one still waits for the list, unmarked.
+  private func markEnded() {
+    if jumpTarget?.hasLanded == false, jumpTarget?.isCovered == true {
+      jumpTarget?.mark = nil
+    } else {
+      clearJump()
+    }
+  }
+
+  private func replaceJump(with target: JumpTarget) {
+    finishLanding(false)
+    jumpTarget = target
+  }
+
+  private func finishLanding(_ landed: Bool) {
+    landing?.resume(returning: landed)
+    landing = nil
   }
 
   /// Starts a page read unless one is running. A refresh or older page asked for while another runs is dropped: the
@@ -147,6 +198,23 @@ public final class TranscriptSession: ObservableObject {
     }
     loadTask = task
     return task
+  }
+
+  /// Loads the page around a message the reader jumps to. Not queued: it answers its caller directly, and the timeline
+  /// refuses it while another page runs.
+  public func loadAround(_ messageId: String) async throws -> Bool {
+    try await loadDirectly(.around(messageId))
+  }
+
+  /// Leaves a jump's history window for the latest page; true when the list already shows it.
+  public func returnToLatest() async throws -> Bool {
+    guard timeline.historicalAnchor != nil else { return true }
+    return try await loadDirectly(.returnToLatest)
+  }
+
+  private func loadDirectly(_ page: RoomTimeline.Page) async throws -> Bool {
+    guard let access = hooks.access() else { throw ChatServiceError.unauthorized(Self.signInMissing) }
+    return try await timeline.loadPage(page, client: access.client, organizationSlug: access.organizationSlug, generation: timeline.generation)
   }
 
   /// Waits until no page load runs for this Transcript.
