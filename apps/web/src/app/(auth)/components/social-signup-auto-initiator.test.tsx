@@ -54,12 +54,7 @@ describe("SocialSignupAutoInitiator", () => {
   });
 
   it("tracks a direct sign-up link as a sign-up", async () => {
-    render(
-      <SocialSignupAutoInitiator
-        provider="microsoft"
-        providerName="Microsoft"
-      />,
-    );
+    render(<SocialSignupAutoInitiator provider="microsoft" />);
 
     await waitFor(() => {
       expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
@@ -97,9 +92,7 @@ describe("SocialSignupAutoInitiator", () => {
       returnUrl: "/oauth/consent?client_id=explicit-client",
     });
 
-    render(
-      <SocialSignupAutoInitiator provider="google" providerName="Google" />,
-    );
+    render(<SocialSignupAutoInitiator provider="google" />);
 
     await waitFor(() => {
       expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
@@ -127,9 +120,7 @@ describe("SocialSignupAutoInitiator", () => {
     const expectedReturnUrl =
       "/signin?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&code_challenge_method=S256&scope=openid&state=test-state&response_type=code&exp=1772367377&sig=signed-value";
 
-    render(
-      <SocialSignupAutoInitiator provider="google" providerName="Google" />,
-    );
+    render(<SocialSignupAutoInitiator provider="google" />);
 
     await waitFor(() => {
       expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
@@ -145,9 +136,7 @@ describe("SocialSignupAutoInitiator", () => {
     const startPage = window.location.href;
     window.history.replaceState(null, "", "/auth/google?returnUrl=%2Fchat");
     try {
-      render(
-        <SocialSignupAutoInitiator provider="google" providerName="Google" />,
-      );
+      render(<SocialSignupAutoInitiator provider="google" />);
 
       await waitFor(() => {
         expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
@@ -163,9 +152,7 @@ describe("SocialSignupAutoInitiator", () => {
   // Back from the provider would land here and start it again, or, restored
   // from the back/forward cache, spin with nothing left to run.
   it("replaces this page with the provider, so Back skips it", async () => {
-    render(
-      <SocialSignupAutoInitiator provider="google" providerName="Google" />,
-    );
+    render(<SocialSignupAutoInitiator provider="google" />);
 
     await waitFor(() => {
       expect(mockLocationReplace).toHaveBeenCalledWith(
@@ -178,9 +165,7 @@ describe("SocialSignupAutoInitiator", () => {
   });
 
   it("offers to start again when the page comes back from the back/forward cache", async () => {
-    render(
-      <SocialSignupAutoInitiator provider="google" providerName="Google" />,
-    );
+    render(<SocialSignupAutoInitiator provider="google" />);
     await waitFor(() => expect(mockLocationReplace).toHaveBeenCalled());
     expect(screen.queryByRole("button", { name: "Google.retry" })).toBeNull();
 
@@ -201,13 +186,14 @@ describe("SocialSignupAutoInitiator", () => {
       error: null,
     });
 
-    render(
-      <SocialSignupAutoInitiator provider="google" providerName="Google" />,
-    );
+    render(<SocialSignupAutoInitiator provider="google" />);
 
     expect(
       await screen.findByRole("button", { name: "Google.retry" }),
     ).toBeVisible();
+    // The error takes the place of "Redirecting you…".
+    expect(screen.getByText("Google.error")).toBeVisible();
+    expect(screen.queryByText("Google.description")).toBeNull();
     expect(mockLocationReplace).not.toHaveBeenCalled();
   });
 });

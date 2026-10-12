@@ -21,46 +21,51 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { renameDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
 import { reconcileDriveUploadMoves } from "@/services/file-catalog.service";
 
-const route = createRoute({
-  method: "patch",
-  path: "/rename",
-  description: [
-    "Rename a Drive folder (rename all blobs under the old prefix to new prefix).",
-    "Personal: owner only. Organization: any member.",
-    "409 if target folder path already exists.",
-    "Renames all blobs recursively (files and nested folder markers).",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    body: {
-      required: true,
-      content: {
-        "application/json": {
-          schema: renameDriveFolderRequestSchema,
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "patch",
+    path: "/rename",
+    description: [
+      "Rename a Drive folder (rename all blobs under the old prefix to new prefix).",
+      "Personal: owner only. Organization: any member.",
+      "409 if target folder path already exists.",
+      "Renames all blobs recursively (files and nested folder markers).",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: renameDriveFolderRequestSchema,
+          },
         },
       },
     },
-  },
-  responses: {
-    200: jsonSuccessResponse(
-      renameDriveFolderRequestSchema,
-      "Drive folder renamed",
-    ),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict - target folder already exists"),
-    422: jsonErrorResponse(
-      "Unprocessable Entity - folder exceeds 500 descendant limit",
-    ),
-    503: jsonErrorResponse("Service Unavailable"),
-  },
-});
+    responses: {
+      200: jsonSuccessResponse(
+        renameDriveFolderRequestSchema,
+        "Drive folder renamed",
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict - target folder already exists"),
+      422: jsonErrorResponse(
+        "Unprocessable Entity - folder exceeds 500 descendant limit",
+      ),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
 
 // Maximum descendants allowed for folder rename/move operations
 const MAX_FOLDER_DESCENDANTS = 500;

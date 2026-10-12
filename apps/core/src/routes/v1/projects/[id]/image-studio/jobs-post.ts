@@ -84,6 +84,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         c,
         imageStudioJobSchema.parse({
           id: job.id,
+          projectId: job.projectId,
           status: job.status,
           kind: job.kind,
           model: job.model,

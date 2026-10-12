@@ -341,7 +341,7 @@ export function DriveRecentsPanel({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="size-8"
+                          className="size-10 md:size-8"
                           aria-label={t("moreActions")}
                         >
                           <MoreHorizontal className="size-4" aria-hidden />
@@ -504,7 +504,7 @@ export function DriveRecentsPanel({
                                   type="button"
                                   variant="ghost"
                                   size="icon"
-                                  className="size-8"
+                                  className="size-10 md:size-8"
                                   aria-label={t("moreActions")}
                                 >
                                   <MoreHorizontal

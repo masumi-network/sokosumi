@@ -16,6 +16,7 @@ vi.mock("@/lib/actions/soko-bot/action", () => ({
 import {
   hasSokoBotMessageFooter,
   SokoBotFeedbackButtons,
+  SokoBotMessageFooter,
   sokoBotSourceLabel,
 } from "./soko-bot-message-footer";
 
@@ -86,5 +87,40 @@ describe("SokoBotFeedbackButtons", () => {
     expect(
       screen.getByRole("button", { name: "feedbackNotUseful" }),
     ).toBeDisabled();
+  });
+});
+
+describe("SokoBotMessageFooter task previews", () => {
+  it("omits only tasks already shown as cards and keeps approvals", () => {
+    render(
+      <SokoBotMessageFooter
+        metadata={meta({
+          task_ids: ["task-1", "task-2"],
+          pending_decision_ids: ["decision-1"],
+        })}
+        previewedTaskIds={["task-1"]}
+      />,
+    );
+    const links = screen.getAllByRole("link");
+    expect(links.map((link) => link.getAttribute("href"))).toContain(
+      "/tasks/task-2",
+    );
+    expect(links.map((link) => link.getAttribute("href"))).not.toContain(
+      "/tasks/task-1",
+    );
+    expect(links).toHaveLength(2);
+  });
+  it("keeps the task link until its preview is available", () => {
+    const { rerender } = render(
+      <SokoBotMessageFooter metadata={meta({ task_ids: ["task-1"] })} />,
+    );
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/tasks/task-1");
+    rerender(
+      <SokoBotMessageFooter
+        metadata={meta({ task_ids: ["task-1"] })}
+        previewedTaskIds={["task-1"]}
+      />,
+    );
+    expect(screen.queryByRole("link")).toBeNull();
   });
 });

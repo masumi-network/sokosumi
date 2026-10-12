@@ -47,7 +47,7 @@ export function ConfettiBurst({
       {CONFETTI_PARTICLES.map((p) => (
         <motion.span
           key={`${p.c}-${p.x}-${p.y}`}
-          className="absolute rounded-[2px]"
+          className="absolute rounded-xs"
           style={{ width: p.s, height: p.s, backgroundColor: p.c }}
           initial={{ opacity: 0, x: 0, y: 0, scale: 0 }}
           animate={{

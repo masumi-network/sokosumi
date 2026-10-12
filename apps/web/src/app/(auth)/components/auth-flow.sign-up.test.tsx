@@ -539,12 +539,14 @@ describe("AuthFlow signUp", () => {
 
       await waitFor(() => expect(pushMock).toHaveBeenCalledTimes(1));
       expect(emailField()).toBeDisabled();
-      // Continue keeps spinning until the page has gone.
+      // Continue keeps loading until the page has gone.
       const continueButton = screen.getByRole("button", {
         name: "continueWithEmail",
       });
-      expect(continueButton).toBeDisabled();
-      expect(continueButton.querySelector(".animate-spin")).not.toBeNull();
+      expect(continueButton).toHaveAttribute("aria-busy", "true");
+      expect(
+        continueButton.querySelector('[data-slot="button-loading-bar"]'),
+      ).not.toBeNull();
       expect(socialButtonsMock).toHaveBeenLastCalledWith(
         expect.objectContaining({ disabled: true }),
       );

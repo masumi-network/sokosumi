@@ -29,7 +29,7 @@ interface RenderAuthActionEmailOptions {
   footer: string;
   greeting?: string;
   lang: string;
-  linkInstructions?: string;
+  linkInstructions: string;
   subject: string;
   title: string;
 }

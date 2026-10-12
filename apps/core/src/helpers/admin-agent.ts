@@ -60,7 +60,7 @@ export type AdminAgentDetailRecord = Prisma.AgentGetPayload<{
   include: typeof adminAgentDetailInclude;
 }>;
 
-export function mapAdminAgentRegistry(agent: Agent): AdminAgentRegistry {
+function mapAdminAgentRegistry(agent: Agent): AdminAgentRegistry {
   return adminAgentRegistrySchema.parse({
     id: agent.id,
     blockchainIdentifier: agent.blockchainIdentifier,
@@ -93,7 +93,7 @@ export function mapAdminAgentRegistry(agent: Agent): AdminAgentRegistry {
   });
 }
 
-export function mapAdminAgentMetadataOverride(
+function mapAdminAgentMetadataOverride(
   override:
     | (AgentMetadataOverride & {
         tags: Array<{ name: string }>;
@@ -290,7 +290,7 @@ export async function findAdminAgentIdsOrderedByDisplayName(
   return rows.map((row) => row.id);
 }
 
-export function buildAdminAgentSearchWhere(
+function buildAdminAgentSearchWhere(
   query?: string,
 ): Prisma.AgentWhereInput | undefined {
   const trimmed = query?.trim();

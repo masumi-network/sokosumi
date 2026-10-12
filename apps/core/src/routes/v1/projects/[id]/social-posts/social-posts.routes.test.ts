@@ -12,8 +12,10 @@ import mountGetSocialPost from "./[postId]/get.js";
 import mountPatchSocialPost from "./[postId]/patch.js";
 import mountPublishSocialPost from "./[postId]/publish/post.js";
 import mountScheduleSocialPost from "./[postId]/schedule/post.js";
+import mountRefreshStatistics from "./[postId]/statistics/refresh/post.js";
 import mountListSocialPosts from "./get.js";
 import mountCreateSocialPost from "./post.js";
+import mountStatistics from "./statistics/get.js";
 
 const {
   requireAuthorizedUserContextMock,
@@ -21,6 +23,8 @@ const {
   cancelSocialPostMock,
   createSocialPostMock,
   getSocialPostMock,
+  listSocialPostStatisticsMock,
+  refreshSocialPostStatisticsMock,
   listSocialPostsMock,
   publishSocialPostNowMock,
   requireSocialBetaAccessMock,
@@ -32,6 +36,8 @@ const {
   cancelSocialPostMock: vi.fn(),
   createSocialPostMock: vi.fn(),
   getSocialPostMock: vi.fn(),
+  listSocialPostStatisticsMock: vi.fn(),
+  refreshSocialPostStatisticsMock: vi.fn(),
   listSocialPostsMock: vi.fn(),
   publishSocialPostNowMock: vi.fn(),
   requireSocialBetaAccessMock: vi.fn(),
@@ -50,6 +56,11 @@ vi.mock("@/services/social-posts.service", () => ({
   listSocialPosts: listSocialPostsMock,
   scheduleSocialPost: scheduleSocialPostMock,
   updateSocialPost: updateSocialPostMock,
+}));
+
+vi.mock("@/services/social-post-statistics.service", () => ({
+  listSocialPostStatistics: listSocialPostStatisticsMock,
+  refreshSocialPostStatistics: refreshSocialPostStatisticsMock,
 }));
 
 vi.mock("@/helpers/social-beta-access", () => ({
@@ -178,6 +189,8 @@ function createApp(
 
   mountListSocialPosts(app);
   mountCreateSocialPost(app);
+  mountStatistics(app);
+  mountRefreshStatistics(app);
   mountGetSocialPost(app);
   mountPatchSocialPost(app);
   mountScheduleSocialPost(app);
@@ -371,6 +384,74 @@ describe("Project social post routes", () => {
 
     expect(response.status).toBe(422);
     expect(listSocialPostsMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["signed out", null, 401],
+    ["bare API key", USER_API_KEY_AUTH, 403],
+    ["ungranted Coworker", COWORKER_CONTEXT_AUTH, 403],
+    ["direct Soko Bot REST", SOKO_BOT_CONTEXT_AUTH, 403],
+  ] as const)(
+    "blocks statistics access for %s",
+    async (_name, auth, status) => {
+      const app = createApp(auth);
+      const base = `http://localhost/${PROJECT_ID}/social-posts`;
+      expect((await app.request(`${base}/statistics`)).status).toBe(status);
+      expect(
+        (
+          await app.request(`${base}/${POST_ID}/statistics/refresh`, {
+            method: "POST",
+          })
+        ).status,
+      ).toBe(status);
+      expect(listSocialPostStatisticsMock).not.toHaveBeenCalled();
+      expect(refreshSocialPostStatisticsMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("allows a delegated Coworker to read and refresh workspace statistics", async () => {
+    requireAuthorizedUserContextMock.mockResolvedValue({ userId: USER_ID });
+    listSocialPostStatisticsMock.mockResolvedValue({
+      posts: [draftPost],
+      summary: [],
+      nextCursor: null,
+    });
+    refreshSocialPostStatisticsMock.mockResolvedValue(draftPost);
+    const app = createApp(COWORKER_CONTEXT_AUTH);
+    const base = `http://localhost/${PROJECT_ID}/social-posts`;
+    const response = await app.request(
+      `${base}/statistics?provider=x&publishedFrom=2026-10-01T00:00:00Z`,
+    );
+    expect(response.status).toBe(200);
+    expect(listSocialPostStatisticsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        provider: "x",
+        publishedFrom: new Date("2026-10-01T00:00:00Z"),
+      }),
+    );
+    expect(
+      (
+        await app.request(`${base}/${POST_ID}/statistics/refresh`, {
+          method: "POST",
+        })
+      ).status,
+    ).toBe(200);
+    expect(refreshSocialPostStatisticsMock).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      postId: POST_ID,
+      userId: USER_ID,
+    });
+  });
+
+  it("rejects invalid publication ranges before statistics reads", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts/statistics?publishedFrom=2026-10-08T00:00:00Z&publishedUntil=2026-10-01T00:00:00Z`,
+    );
+    expect(response.status).toBe(422);
+    expect(listSocialPostStatisticsMock).not.toHaveBeenCalled();
   });
 
   it("creates a draft", async () => {

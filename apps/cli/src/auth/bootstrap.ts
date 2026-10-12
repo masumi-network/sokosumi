@@ -15,7 +15,7 @@ import {
   targetFromUserApiKey,
 } from "./config.js";
 
-export type BootRoute = "boot" | "auth" | "signed-in";
+type BootRoute = "boot" | "auth" | "signed-in";
 
 export const AUTHENTICATION_REQUIRED_MESSAGE =
   "Authentication required. Run `sokosumi auth login` first.";

@@ -169,6 +169,49 @@ test("jobs get text surfaces the newest Core event result", async () => {
   assert.doesNotMatch(output.join(""), /latest event: Oldest feedback\./);
 });
 
+test("jobs get text falls back to event status when result is missing", async () => {
+  const output: string[] = [];
+  const client: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      let data: unknown = { id: "job-1", status: "PROCESSING" };
+      if (path === "/v1/jobs/job-1/events") {
+        data = [
+          {
+            id: "event-status",
+            createdAt: "2026-01-01T00:01:00.000Z",
+            updatedAt: "2026-01-01T00:02:00.000Z",
+            status: "RUNNING",
+            result: null,
+            files: [],
+            links: [],
+          },
+        ];
+      } else if (
+        path === "/v1/jobs/job-1/files" ||
+        path === "/v1/jobs/job-1/links"
+      ) {
+        data = [];
+      }
+      return { data } as T;
+    },
+    post: async <T>() => ({ data: null }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
+    patch: async <T>() => ({ data: null }) as T,
+  };
+
+  await runJobsCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+    subcommand: "get",
+    positionalId: "job-1",
+    options: { details: true },
+  });
+
+  assert.match(output.join(""), /latest event: RUNNING/);
+});
+
 test("jobs get --details maps events, files, links, and input request", async () => {
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {

@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
@@ -17,12 +16,9 @@ export function WorkspaceGateRetry() {
       type="button"
       variant="primary"
       onClick={() => startTransition(() => router.refresh())}
-      disabled={isPending}
+      loading={isPending}
       data-workspace-gate-retry
     >
-      {isPending && (
-        <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-      )}
       {t("retry")}
     </Button>
   );

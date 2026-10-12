@@ -301,7 +301,7 @@ function PersonAvatar({ person }: { person: PersonDisplay }) {
           className="object-cover"
         />
       ) : null}
-      <AvatarFallback className="bg-muted text-[0.625rem]">
+      <AvatarFallback className="bg-muted text-2xs">
         {person.name.slice(0, 1).toUpperCase()}
       </AvatarFallback>
     </Avatar>

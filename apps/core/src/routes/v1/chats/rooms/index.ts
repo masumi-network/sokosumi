@@ -23,6 +23,7 @@ import mountUnpinChatRoomMessage from "./[id]/messages/[messageId]/pin/delete.js
 import mountPinChatRoomMessage from "./[id]/messages/[messageId]/pin/post.js";
 import mountDeleteChatRoomMessageReaction from "./[id]/messages/[messageId]/reactions/[emoji]/delete.js";
 import mountPutChatRoomMessageReaction from "./[id]/messages/[messageId]/reactions/[emoji]/put.js";
+import mountGetChatRoomMessageResults from "./[id]/messages/[messageId]/results/get.js";
 import mountSendChatRoomMessageToSelf from "./[id]/messages/[messageId]/send-to-self/post.js";
 import mountRemoveChatRoomMessageUnfurl from "./[id]/messages/[messageId]/unfurls/remove/post.js";
 import mountGetChatRoomMessages from "./[id]/messages/get.js";
@@ -101,6 +102,7 @@ mountPostChatRoomMute(app);
 mountDeleteChatRoomMute(app);
 mountGetChatRoomMessages(app);
 mountGetChatRoomMessage(app);
+mountGetChatRoomMessageResults(app);
 mountPostChatRoomMessage(app);
 mountDeleteChatRoomMessage(app);
 mountPatchChatRoomMessage(app);

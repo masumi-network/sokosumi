@@ -159,7 +159,7 @@ function Raw({ label, value }: { label: string; value: unknown }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="text-muted-foreground press hover:text-foreground inline-flex items-center gap-1 text-[0.6875rem] font-medium"
+        className="text-muted-foreground press hover:text-foreground inline-flex items-center gap-1 text-2xs font-medium"
       >
         <ChevronRight
           aria-hidden
@@ -169,7 +169,7 @@ function Raw({ label, value }: { label: string; value: unknown }) {
         <span className="text-muted-foreground tabular-nums">· {size}</span>
       </button>
       {open ? (
-        <pre className="app-scrollbar bg-card-background text-foreground mt-1 max-h-96 overflow-auto rounded-md p-2 font-mono text-[0.6875rem] leading-snug whitespace-pre-wrap break-words">
+        <pre className="app-scrollbar bg-card-background text-foreground mt-1 max-h-96 overflow-auto rounded-md p-2 font-mono text-2xs leading-snug whitespace-pre-wrap break-words">
           {text}
         </pre>
       ) : null}

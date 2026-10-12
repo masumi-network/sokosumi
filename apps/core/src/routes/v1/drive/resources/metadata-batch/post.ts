@@ -10,7 +10,10 @@ import {
   decodeSearchCursor,
   loadResultWindow,
 } from "@/lib/files/search-session";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   fileMetadataBatchRequestSchema,
@@ -28,36 +31,38 @@ const bodySchema = fileMetadataBatchRequestSchema.extend({
   organizationId: z.string().optional(),
 });
 
-const route = createRoute({
-  method: "post",
-  path: "/metadata-batch",
-  description: [
-    "Apply one metadata change to explicit ids, or to a selection token.",
-    "",
-    "At most 100 documents are edited synchronously, and the set never grows:",
-    "a token materializes the window the reader saw, and nothing is discovered",
-    "asynchronously. Every item is authorized and revision-checked on its own,",
-    "so a partial failure returns per-item outcomes and the caller keeps the",
-    "failed rows selected.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    body: {
-      required: true,
-      content: { "application/json": { schema: bodySchema } },
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/metadata-batch",
+    description: [
+      "Apply one metadata change to explicit ids, or to a selection token.",
+      "",
+      "At most 100 documents are edited synchronously, and the set never grows:",
+      "a token materializes the window the reader saw, and nothing is discovered",
+      "asynchronously. Every item is authorized and revision-checked on its own,",
+      "so a partial failure returns per-item outcomes and the caller keeps the",
+      "failed rows selected.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      body: {
+        required: true,
+        content: { "application/json": { schema: bodySchema } },
+      },
     },
-  },
-  responses: {
-    200: jsonSuccessResponse(
-      fileMetadataBatchResponseSchema,
-      "Per-item outcomes",
-    ),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-  },
-});
+    responses: {
+      200: jsonSuccessResponse(
+        fileMetadataBatchResponseSchema,
+        "Per-item outcomes",
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

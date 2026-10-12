@@ -85,6 +85,7 @@ export function RoomOpenLoadingView(): React.ReactElement {
                   className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
                   disabled
                   tabIndex={-1}
+                  aria-hidden
                 >
                   <Paperclip className="size-4" aria-hidden />
                 </Button>
@@ -98,6 +99,7 @@ export function RoomOpenLoadingView(): React.ReactElement {
                   )}
                   disabled
                   tabIndex={-1}
+                  aria-hidden
                   aria-pressed={formatToolbarOpen}
                 >
                   <ALargeSmall className="size-4" aria-hidden />
@@ -109,6 +111,7 @@ export function RoomOpenLoadingView(): React.ReactElement {
                   className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
                   disabled
                   tabIndex={-1}
+                  aria-hidden
                 >
                   <SmilePlus className="size-4" aria-hidden />
                 </Button>
@@ -119,6 +122,7 @@ export function RoomOpenLoadingView(): React.ReactElement {
                   className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
                   disabled
                   tabIndex={-1}
+                  aria-hidden
                 >
                   <AtSign className="size-4" aria-hidden />
                 </Button>

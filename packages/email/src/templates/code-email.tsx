@@ -25,7 +25,7 @@ export interface CodeEmailTemplateProps {
  * A one-time code to type back into Sokosumi. No link: the code goes into
  * the tab that asked for it, so a scanner that opens links cannot use it up.
  */
-export function CodeEmailTemplate({
+function CodeEmailTemplate({
   body,
   code,
   footer,

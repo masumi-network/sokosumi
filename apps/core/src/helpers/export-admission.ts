@@ -5,14 +5,14 @@ import pTimeout from "p-timeout";
 import { serviceUnavailable, tooManyRequests } from "@/helpers/error";
 import { getRedisClient } from "@/lib/redis";
 
-export const EXPORT_OPERATION_DURATION_MS = 45_000;
-export const EXPORT_LEASE_TTL_MS = 120_000;
+const EXPORT_OPERATION_DURATION_MS = 45_000;
+const EXPORT_LEASE_TTL_MS = 120_000;
 const EXPORT_RATE_WINDOW_MS = 60_000;
 const EXPORT_RATE_LIMIT = 5;
 const REDIS_TIMEOUT_MS = 2_000;
 
 // Admission and rate accounting must succeed together across all Web instances.
-export const ACQUIRE_EXPORT_LEASE_SCRIPT = `
+const ACQUIRE_EXPORT_LEASE_SCRIPT = `
 local clock = redis.call('TIME')
 local now = tonumber(clock[1]) * 1000 + math.floor(tonumber(clock[2]) / 1000)
 local window = tonumber(ARGV[3])
@@ -31,7 +31,7 @@ redis.call('PEXPIRE', KEYS[2], window)
 return 0
 `;
 
-export const RELEASE_EXPORT_LEASE_SCRIPT = `
+const RELEASE_EXPORT_LEASE_SCRIPT = `
 if redis.call('GET', KEYS[1]) == ARGV[1] then
   return redis.call('DEL', KEYS[1])
 end

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -141,12 +142,15 @@ export function UserList({ initialPage }: UserListProps) {
               {users.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="pl-4">
-                    <span className="flex flex-col">
+                    <Link
+                      href={`/admin/users/${encodeURIComponent(user.id)}`}
+                      className="flex flex-col hover:underline"
+                    >
                       <span className="font-medium">{user.name}</span>
                       <span className="text-muted-foreground text-xs">
                         {user.email}
                       </span>
-                    </span>
+                    </Link>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatter.number(formatCreditsForDisplay(user.credits))}

@@ -5,7 +5,10 @@ import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { empty } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 
 const paramsSchema = z.object({
@@ -20,22 +23,24 @@ const querySchema = z.object({
   organizationId: z.string().optional(),
 });
 
-const route = createRoute({
-  method: "delete",
-  path: "/{id}",
-  description: [
-    "Delete one of your own collections.",
-    "This removes a saved view, never a file.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: { params: paramsSchema, query: querySchema },
-  responses: {
-    204: { description: "Collection deleted" },
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-  },
-});
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "delete",
+    path: "/{id}",
+    description: [
+      "Delete one of your own collections.",
+      "This removes a saved view, never a file.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: { params: paramsSchema, query: querySchema },
+    responses: {
+      204: { description: "Collection deleted" },
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

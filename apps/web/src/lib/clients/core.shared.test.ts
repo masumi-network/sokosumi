@@ -3,6 +3,8 @@ import {
   getCoworkers as coreGetCoworkers,
   getCoworkersById as coreGetCoworkersById,
   getProjectsByIdClose as coreGetProjectsByIdClose,
+  getUsersById as coreGetUsersById,
+  getUsersByIdSignUp as coreGetUsersByIdSignUp,
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
@@ -21,6 +23,8 @@ vi.mock("@sokosumi/core-client", async (importOriginal) => {
     getCoworkers: vi.fn(),
     getCoworkersById: vi.fn(),
     getProjectsByIdClose: vi.fn(),
+    getUsersById: vi.fn(),
+    getUsersByIdSignUp: vi.fn(),
     postProjectsByIdClose: vi.fn(),
     postProjectsByIdCloseCancelOwed: vi.fn(),
     postProjectsByIdCloseRetry: vi.fn(),
@@ -219,5 +223,112 @@ describe("createCoreClient impersonation", () => {
       email: "a@example.com",
     });
     expect(result.response).toBe(response);
+  });
+});
+
+/** A Core error result as the generated client resolves it. */
+function coreErrorResult(status: number, error: string) {
+  return {
+    data: undefined,
+    error: {
+      error,
+      message: error,
+      meta: {
+        timestamp: new Date(),
+        requestId: "req_1",
+        path: "/",
+        method: "GET",
+      },
+    },
+    response: new Response(null, { status }),
+  };
+}
+
+describe("createCoreClient user by id", () => {
+  it("returns null when no user matches", async () => {
+    vi.mocked(coreGetUsersById).mockResolvedValue(
+      coreErrorResult(404, "Not Found"),
+    );
+
+    const core = createCoreClient(async () => ({}) as Client);
+
+    await expect(core.getUserById("user_gone")).resolves.toBeNull();
+    expect(coreGetUsersById).toHaveBeenCalledWith({
+      client: {},
+      path: { id: "user_gone" },
+      cache: "no-store",
+    });
+  });
+
+  it("returns the user", async () => {
+    const user = { id: "user_1", email: "ada@example.com" };
+    vi.mocked(coreGetUsersById).mockResolvedValue({
+      data: {
+        data: user,
+        meta: { timestamp: new Date(), requestId: "r" },
+      } as never,
+      response: { ok: true, status: 200 } as Response,
+    });
+
+    const core = createCoreClient(async () => ({}) as Client);
+
+    await expect(core.getUserById("user_1")).resolves.toEqual(user);
+  });
+
+  it("rethrows errors other than a missing user", async () => {
+    vi.mocked(coreGetUsersById).mockResolvedValue(
+      coreErrorResult(403, "Forbidden"),
+    );
+
+    const core = createCoreClient(async () => ({}) as Client);
+
+    await expect(core.getUserById("user_x")).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+});
+
+describe("createCoreClient user sign-up", () => {
+  it("returns null when Core has no sign-up recorded for the user", async () => {
+    vi.mocked(coreGetUsersByIdSignUp).mockResolvedValue(
+      coreErrorResult(404, "Not Found"),
+    );
+
+    const core = createCoreClient(async () => ({}) as Client);
+
+    await expect(core.getUserSignUp("user_old")).resolves.toBeNull();
+    expect(coreGetUsersByIdSignUp).toHaveBeenCalledWith({
+      client: {},
+      path: { id: "user_old" },
+      cache: "no-store",
+    });
+  });
+
+  it("returns the recorded sign-up", async () => {
+    const signUp = {
+      origin: "cmo",
+      context: { campaign: "https://example.com/launch", seats: 3 },
+      createdAt: new Date("2026-10-07T12:00:00.000Z"),
+    };
+    vi.mocked(coreGetUsersByIdSignUp).mockResolvedValue({
+      data: { data: signUp, meta: { timestamp: new Date(), requestId: "r" } },
+      response: { ok: true, status: 200 } as Response,
+    });
+
+    const core = createCoreClient(async () => ({}) as Client);
+
+    await expect(core.getUserSignUp("user_new")).resolves.toEqual(signUp);
+  });
+
+  it("rethrows errors other than a missing record", async () => {
+    vi.mocked(coreGetUsersByIdSignUp).mockResolvedValue(
+      coreErrorResult(403, "Forbidden"),
+    );
+
+    const core = createCoreClient(async () => ({}) as Client);
+
+    await expect(core.getUserSignUp("user_x")).rejects.toMatchObject({
+      status: 403,
+    });
   });
 });

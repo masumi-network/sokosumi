@@ -16,10 +16,7 @@ vi.mock("../repositories/subscription.repository.js", () => ({
   },
 }));
 
-import {
-  resolveOrganizationBillingPlan,
-  resolveOrganizationBillingPlanWithActiveSubscription,
-} from "./organization-billing-plan.js";
+import { resolveOrganizationBillingPlan } from "./organization-billing-plan.js";
 
 function createTx(enterpriseContract: unknown): PrismaType.TransactionClient {
   return {
@@ -29,7 +26,7 @@ function createTx(enterpriseContract: unknown): PrismaType.TransactionClient {
   } as unknown as PrismaType.TransactionClient;
 }
 
-describe("resolveOrganizationBillingPlanWithActiveSubscription", () => {
+describe("resolveOrganizationBillingPlan", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -43,21 +40,18 @@ describe("resolveOrganizationBillingPlanWithActiveSubscription", () => {
       status: "active",
     });
 
-    const { billingPlan, activeSubscription } =
-      await resolveOrganizationBillingPlanWithActiveSubscription(
-        "org-1",
-        tx,
-        new Date("2026-02-01T00:00:00.000Z"),
-      );
+    const billingPlan = await resolveOrganizationBillingPlan(
+      "org-1",
+      tx,
+      new Date("2026-02-01T00:00:00.000Z"),
+    );
 
     expect(billingPlan.mode).toBe("enterprise_contract");
     expect(billingPlan.purchasedSeats).toBe(5);
-    expect(activeSubscription).toBeNull();
-    // Enterprise path must not query the subscription row at all.
     expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
   });
 
-  it("returns the self-serve plan and hands back the subscription it fetched", async () => {
+  it("returns the self-serve plan from the subscription it fetched", async () => {
     const subscription = {
       id: "sub-1",
       status: "active",
@@ -69,15 +63,12 @@ describe("resolveOrganizationBillingPlanWithActiveSubscription", () => {
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(subscription);
     const tx = createTx(null);
 
-    const { billingPlan, activeSubscription } =
-      await resolveOrganizationBillingPlanWithActiveSubscription("org-1", tx);
+    const billingPlan = await resolveOrganizationBillingPlan("org-1", tx);
 
     expect(billingPlan.mode).toBe("self_serve");
     if (billingPlan.mode === "self_serve") {
       expect(billingPlan.subscriptionId).toBe("sub-1");
     }
-    // The fetched subscription is returned so callers don't query the same row twice.
-    expect(activeSubscription).toBe(subscription);
     expect(resolveActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
       "org-1",
       tx,
@@ -88,33 +79,13 @@ describe("resolveOrganizationBillingPlanWithActiveSubscription", () => {
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
     const tx = createTx(null);
 
-    const { billingPlan, activeSubscription } =
-      await resolveOrganizationBillingPlanWithActiveSubscription("org-1", tx);
+    const billingPlan = await resolveOrganizationBillingPlan("org-1", tx);
 
     expect(billingPlan.mode).toBe("self_serve");
     if (billingPlan.mode === "self_serve") {
       expect(billingPlan.plan).toBe("free");
       expect(billingPlan.purchasedSeats).toBe(0);
       expect(billingPlan.subscriptionId).toBeNull();
-    }
-    expect(activeSubscription).toBeNull();
-  });
-});
-
-describe("resolveOrganizationBillingPlan", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("delegates to the combined helper and returns only the billing plan", async () => {
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
-    const tx = createTx(null);
-
-    const billingPlan = await resolveOrganizationBillingPlan("org-1", tx);
-
-    expect(billingPlan.mode).toBe("self_serve");
-    if (billingPlan.mode === "self_serve") {
-      expect(billingPlan.plan).toBe("free");
     }
   });
 });

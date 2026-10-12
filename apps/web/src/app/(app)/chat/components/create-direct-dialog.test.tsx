@@ -181,8 +181,8 @@ describe("CreateDirectDialog", () => {
     );
     await user.click(screen.getByRole("button", { name: "Dialog.create" }));
     expect(
-      screen.getByRole("button", { name: "CreateWizard.creating" }),
-    ).toBeDisabled();
+      screen.getByRole("button", { name: "Dialog.create" }),
+    ).toHaveAttribute("aria-busy", "true");
     await user.keyboard("{Escape}");
     expect(
       screen.getByRole("heading", { name: "Draft.title" }),

@@ -12,7 +12,8 @@ public struct MessageImageGallery: Equatable, Sendable {
     images = attachments.filter { $0.kind == .image && seen.insert($0.url).inserted }
   }
 
-  /// The attachments the body renders, in document order (code samples stay text).
+  /// The images embedded in rendered blocks, in document order (code samples stay text), for a document drawn from
+  /// its whole blocks, as the text-file preview draws one.
   public init(blocks: [MessageMarkdownBlock]) {
     self.init(MessageMarkdown.attachmentRows(in: blocks).flatMap(\.self))
   }
