@@ -619,8 +619,4 @@ _Avoid_: Production build, GA, latest (the newest build of any kind)
 
 **Beta build**:
 The newest build of the Mac app from main, signed and notarized for direct download but never offered as an update. Testers install it by hand and leave it when a newer Stable release reaches them.
-_Avoid_: Prerelease (the GitHub mechanism, not the product term), nightly, Alpha build
-
-**Alpha build**:
-A nightly build of the Mac app from main, handed to testers through TestFlight and updated only by TestFlight.
-_Avoid_: Nightly (unqualified), internal build, Beta build
+_Avoid_: Prerelease (the GitHub mechanism, not the product term), nightly, Alpha build (the TestFlight track was removed on 2026-10-09)
