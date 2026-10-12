@@ -44,6 +44,13 @@ def replace_once(path, before, after):
     path.write_text(text.replace(before, after))
 
 rendering = source / "Sokosumi/Chat/Rendering"
+# The paragraph control uses the production styling function, prepared before timing.
+replace_once(rendering / "MessageMarkdownView.swift", "private struct MarkdownBlockView: View {", "struct MarkdownBlockView: View {")
+replace_once(rendering / "MessageMarkdownView.swift", "  private func styled(_ text: AttributedString)", "  static func styled(_ text: AttributedString)")
+replace_once(rendering / "MessageMarkdownView.swift", "Text(styled(segment.text))", "Text(Self.styled(segment.text))")
+replace_once(rendering / "MessageMarkdownView.swift", "      if let count = jumboEmojiCount(source) {", '''      if RichRowFixture.contentRenderer == "prepared-text", let text = RichRowFixture.preparedText[source] {
+        Text(text).fixedSize(horizontal: false, vertical: true)
+      } else if let count = jumboEmojiCount(source) {''')
 replace_once(rendering / "MessageMarkdownView.swift", ".textSelection(.enabled)", ".reproductionBodySelection()")
 for name in ["MessageCodeBlock.swift", "MessageQuoteView.swift"]:
     replace_once(rendering / name, ".textSelection(.enabled)", ".reproductionBodySelection(nested: true)")
@@ -101,7 +108,7 @@ replace_once(row, "      // AppKit answers a right-click on selectable text with
 
 replace_once(rendering / "MessageMarkdownView.swift", "  private func attachmentContent(_ text: AttributedString) -> some View {", "  @ViewBuilder private func attachmentContent(_ text: AttributedString) -> some View {")
 replace_once(rendering / "MessageMarkdownView.swift", "    return VStack(alignment: .leading, spacing: 8) {\n      ForEach(segments) { segment in", '''    if ["flat-text", "flat-markdown"].contains(RichRowFixture.omittedComponent), segments.count == 1, let segment = segments.first, segment.attachment == nil {
-      Text(styled(segment.text)).fixedSize(horizontal: false, vertical: true)
+      Text(Self.styled(segment.text)).fixedSize(horizontal: false, vertical: true)
     } else {
       wrappedSegments(segments)
     }
@@ -294,6 +301,30 @@ lifecycle = lifecycle.replace(appearance_seam, appearance_seam + '''
       .onAppear { RichRowFixture.recordLifetime(message.id, token: revealToken, event: "appear") }
       .onDisappear { RichRowFixture.recordLifetime(message.id, token: revealToken, event: "disappear") }''')
 row.write_text(text[:end] + "\n" + grouped + "\n" + metrics + "\n" + original + "\n" + lifecycle + text[end:])
+
+# Reuse native action tests against the original shell and rich paragraph control.
+tests = source / "SokosumiTests/Chat/Timeline"
+for name in ["MessageContextMenuTests.swift", "MessageHoverDelayTests.swift"]:
+    path = tests / name
+    text = path.read_text().replace("MessageRowView", "OriginalMessageRowView")
+    text = text.replace("OriginalMessageRowView(message: message,", "OriginalMessageRowView(preparedDocument: RichRowFixture.actionDocument(message.content), message: message,")
+    text = text.replace("OriginalMessageRowView(message: message(),", "OriginalMessageRowView(preparedDocument: RichRowFixture.actionDocument(message().content), message: message(),")
+    path.write_text(text)
+menu_tests = tests / "MessageContextMenuTests.swift"
+replace_once(menu_tests, '"Release notes for the whole team are in the shared folder now."',
+             '"Release **notes for** the whole team with *emphasis*, `inline code`, and a [link](https://example.com)."')
+menu_tests.write_text(menu_tests.read_text() + '''
+@MainActor extension RichRowFixture {
+  static func actionDocument(_ source: String) -> MessageMarkdown {
+    let document = MessageMarkdown(source)
+    if document.segments.count == 1, let segment = document.segments.first, segment.files.isEmpty,
+       segment.blocks.count == 1, let block = segment.blocks.first, block.kind == .paragraph, block.children.isEmpty {
+      preparedText[source] = MarkdownBlockView.styled(block.text)
+    }
+    return document
+  }
+}
+''')
 
 # Scope the fixture flag to the copied app. A global override erases SwiftPM's SWIFT_PACKAGE flag.
 project = source / "Sokosumi.xcodeproj/project.pbxproj"

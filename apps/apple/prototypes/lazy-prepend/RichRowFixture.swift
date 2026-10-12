@@ -19,6 +19,29 @@ extension View {
   static let omittedComponent = ProcessInfo.processInfo.environment["REPRO_OMIT"] ?? "none"
   static let diagnostics = ProcessInfo.processInfo.environment["REPRO_DIAGNOSTICS"] == "1"
   static let repeatReveal = ProcessInfo.processInfo.environment["REPRO_REPEAT_ROW_COUNT"] != nil
+  static let contentRenderer = ProcessInfo.processInfo.environment["REPRO_CONTENT_RENDERER"] ?? "markdown"
+  static var preparedText: [String: AttributedString] = [:]
+
+  static func prepareText(_ transcript: PreparedTranscript) {
+    guard repeatReveal else { return }
+    for message in messages {
+      guard let document = transcript.document(for: message), document.segments.count == 1,
+            let segment = document.segments.first, segment.files.isEmpty, segment.blocks.count == 1,
+            let block = segment.blocks.first, block.kind == .paragraph, block.children.isEmpty else {
+        preconditionFailure("Prepared Text control requires one paragraph")
+      }
+      let pieces = MessageAttachmentSegment.split(block.text)
+      precondition(pieces.count == 1 && pieces[0].attachment == nil && pieces[0].text == block.text)
+      let text = MarkdownBlockView.styled(block.text)
+      precondition(text.runs.contains { $0.link == URL(string: "https://example.com") })
+      for intent: InlinePresentationIntent in [.stronglyEmphasized, .emphasized, .code] {
+        precondition(text.runs.contains { $0.inlinePresentationIntent?.contains(intent) == true })
+      }
+      precondition(preparedText[message.content] == nil || preparedText[message.content] == text)
+      preparedText[message.content] = text
+    }
+  }
+
   static let auth = AuthState(store: InMemoryTokenStore())
   static let workspace = WorkspaceState()
   static var renderEvaluations: [Int: Int] = [:]

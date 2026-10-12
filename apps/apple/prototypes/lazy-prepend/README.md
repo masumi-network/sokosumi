@@ -16,6 +16,11 @@ row state separately. Eight cold rows reach 79.4 ms; repeated reveals have a
 20.6 ms median. This remains a diagnostic reproduction, with native row actions
 preserved and no production optimization.
 
+The [prepared styled-Text comparison](prepared-text-reveal.md) retains the original
+row shell and native actions while bypassing the rich-content hierarchy for the
+same paragraph. It measures both renderers in one team-signed Release binary;
+this is a content-boundary diagnostic, not a production renderer replacement.
+
 ## Portable rich rows
 
 From any checkout of this PR, using a fresh output directory:

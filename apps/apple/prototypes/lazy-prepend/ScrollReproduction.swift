@@ -51,6 +51,9 @@ struct ScrollReproduction: View {
             .init(scope: ["portable-reproduction"], messages: RichRowFixture.messages,
                   mentions: nil, channels: [], baseURL: CoreSettings.webBaseURL), reusing: nil
           )
+          if let prepared {
+            RichRowFixture.prepareText(prepared)
+          }
         } catch { fatalError("Cannot prepare rich rows: \(error)") }
       #endif
       guard ProcessInfo.processInfo.environment["REPRO_INSPECT"] != "1" else { return }
@@ -225,6 +228,7 @@ struct ScrollReproduction: View {
   let revealRows: Bool
   let fixedRowHeight: Bool
   let omittedComponent: String
+  let contentRenderer: String
   let diagnostics: Bool
   let repeatRowCount: Int?
   var insertsPages: Bool {
@@ -277,6 +281,7 @@ struct ScrollReproduction: View {
     revealRows = env["REPRO_REVEAL_ROWS"] == "1"
     fixedRowHeight = env["REPRO_FIXED_ROW_HEIGHT"] == "1"
     omittedComponent = env["REPRO_OMIT"] ?? "none"
+    contentRenderer = env["REPRO_CONTENT_RENDERER"] ?? "markdown"
     diagnostics = env["REPRO_DIAGNOSTICS"] == "1"
     if let value = env["REPRO_REPEAT_ROW_COUNT"] {
       guard let count = Int(value) else { preconditionFailure("Invalid repeat row count") }
@@ -288,6 +293,8 @@ struct ScrollReproduction: View {
     precondition(["prepend", "append", "no-insertion"].contains(direction))
     precondition((1 ... 100).contains(pageSize))
     super.init()
+    precondition(["markdown", "prepared-text"].contains(contentRenderer))
+    precondition(contentRenderer == "markdown" || repeatRowCount != nil)
     precondition(["none", "body-selection", "clamp", "code-highlighting", "all-selection", "row-interactions", "row-alerts", "flat-text", "flat-markdown", "content-only", "row-content", "hover-events", "hover-writes", "row-state", "row-metrics", "row-accessibility", "menu-sizing", "alert-host", "original-row", "row-overlays"].contains(omittedComponent))
     precondition(richRows || omittedComponent == "none")
     precondition(insertsPages || (richRows && revealRows), "No-insertion control needs visible rich rows")
@@ -394,6 +401,7 @@ struct ScrollReproduction: View {
                                  "row_kind": richRows ? "production-rich" : "plain", "reveal_rows": revealRows,
                                  "fixed_row_height": fixedRowHeight,
                                  "omitted_component": omittedComponent,
+                                 "content_renderer": contentRenderer,
                                  "diagnostics": diagnostics,
                                  "page_size": pageSize, "final_rows": rows, "callback_count": callbacks.count,
                                  "viewport_width": viewportSize.width, "viewport_height": viewportSize.height,
