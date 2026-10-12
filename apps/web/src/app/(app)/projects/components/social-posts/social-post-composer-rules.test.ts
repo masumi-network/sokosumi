@@ -2,6 +2,7 @@ import type { SocialPostMediaRef } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import {
   socialPostComposerAccept,
+  socialPostComposerDraftIssue,
   socialPostComposerFormat,
   socialPostComposerIssue,
   socialPostComposerProviders,
@@ -47,6 +48,28 @@ describe("socialPostComposerIssue", () => {
     "scores %s text=%s media=%s",
     (provider, text, media, expected) => {
       expect(socialPostComposerIssue(provider, text, [...media])).toBe(
+        expected,
+      );
+    },
+  );
+});
+
+describe("socialPostComposerDraftIssue", () => {
+  it.each([
+    ["instagram", "Hello", [], null],
+    ["tiktok", "Hello", [], null],
+    ["youtube", "Hello", [], null],
+    ["instagram", "", [], "media_required"],
+    ["tiktok", "", [], "video_required"],
+    ["youtube", "", [], "text_required"],
+    ["tiktok", "Hello", [IMAGE], "unsupported_type"],
+    ["linkedin", "", [IMAGE], "text_required"],
+    ["x", "", [], "text_or_media_required"],
+    ["x", "Hello", [], null],
+  ] as const)(
+    "scores draft %s text=%s media=%s",
+    (provider, text, media, expected) => {
+      expect(socialPostComposerDraftIssue(provider, text, [...media])).toBe(
         expected,
       );
     },

@@ -62,6 +62,7 @@ import {
 } from "./social-post-composer-accounts";
 import {
   socialPostComposerAccept,
+  socialPostComposerDraftIssue,
   socialPostComposerFormat,
   socialPostComposerIssue,
   socialPostComposerProviders,
@@ -310,6 +311,16 @@ export function SocialPostComposerDialog({
       (candidate) => socialPostComposerIssue(candidate, text, media) !== null,
     ) ?? provider;
   const composerIssue = socialPostComposerIssue(issueProvider, text, media);
+  const draftIssueProvider =
+    providers.find(
+      (candidate) =>
+        socialPostComposerDraftIssue(candidate, text, media) !== null,
+    ) ?? provider;
+  const draftIssue = socialPostComposerDraftIssue(
+    draftIssueProvider,
+    text,
+    media,
+  );
   const requirementHints = socialPostComposerRequirements(
     providers,
     text,
@@ -321,6 +332,7 @@ export function SocialPostComposerDialog({
     (candidate) => validateSocialPostMedia(candidate, media).ok,
   );
   const textValid = isScheduleOnly || (composerIssue === null && !overLimit);
+  const draftValid = isScheduleOnly || (draftIssue === null && !overLimit);
   const earliestScheduledAt = Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
   const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
   const scheduledAtTooSoon =
@@ -337,7 +349,7 @@ export function SocialPostComposerDialog({
     connectionId !== "" &&
     scheduledAtValid &&
     !isBusy;
-  const canSave = textValid && !isBusy;
+  const canSave = draftValid && !isBusy;
   // Posting now is for a new post: the fastest path is open, type, post.
   const canPublishNow =
     mode.kind === "create" &&
