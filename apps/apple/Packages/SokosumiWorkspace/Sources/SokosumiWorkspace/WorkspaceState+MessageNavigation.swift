@@ -43,7 +43,7 @@ public extension WorkspaceState {
     guard let roomId = transcriptRoomId, let client = resolveClient(auth: auth) else { return .unavailable }
     let request = UUID()
     messageNavigationRequest = request
-    let initialThreadGeneration = thread.timeline.generation
+    let initialThreadGeneration = thread.transcript.timeline.generation
     let generation = timeline.generation
     let slug = selection?.workspace.organizationSlug
     let navigation = NavigationGuard(request: request, generation: generation)
@@ -111,7 +111,7 @@ public extension WorkspaceState {
     guard let client = resolveClient(auth: auth) else {
       throw ChatServiceError.unauthorized("Log in to view this reply.")
     }
-    let initialThreadGeneration = thread.timeline.generation
+    let initialThreadGeneration = thread.transcript.timeline.generation
     let generation = timeline.generation
     let slug = selection?.workspace.organizationSlug
     let navigation = NavigationGuard(request: request, generation: generation)
@@ -120,8 +120,8 @@ public extension WorkspaceState {
       guard isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
       guard parent.id == parentId, parent.roomId == hit.roomId, parent.parentMessageId == nil else { return .unavailable }
       openThread(parent, auth: auth)
-      let threadGeneration = thread.timeline.generation
-      await thread.loadTask?.value
+      let threadGeneration = thread.transcript.timeline.generation
+      await thread.transcript.loadTask?.value
       guard isCurrent(navigation, threadGeneration: threadGeneration),
             thread.parent?.id == parentId else { return .superseded }
       // Web lands the room on the parent after the reply's branch, whatever that branch found (row 25c,
@@ -158,11 +158,11 @@ public extension WorkspaceState {
     }
     guard isCurrent(navigation, threadGeneration: threadGeneration) else { return .superseded }
     // A search hit keeps its old body; the loaded row says whether the thread still shows it.
-    if let loaded = thread.timeline.messages.first(where: { $0.id == hit.id }), !shouldKeepPersistedMessage(loaded) {
+    if let loaded = thread.transcript.timeline.messages.first(where: { $0.id == hit.id }), !shouldKeepPersistedMessage(loaded) {
       return .unavailable
     }
-    thread.requestJump(to: hit.id)
-    return thread.jumpTarget?.messageId == hit.id ? .opened : .unavailable
+    thread.transcript.requestJump(to: hit.id)
+    return thread.transcript.jumpTarget?.messageId == hit.id ? .opened : .unavailable
   }
 
   /// Sends the room to the open Thread's parent, which it marks on its own clock (row 25c, web
@@ -180,16 +180,16 @@ public extension WorkspaceState {
     organizationSlug: String?,
     generation: Int
   ) async throws -> MessageNavigationResult? {
-    guard !thread.timeline.messages.contains(where: { $0.id == hit.id }) else { return nil }
-    guard try await thread.timeline.loadPage(.around(hit.id), client: client, organizationSlug: organizationSlug,
-                                             generation: generation) else { return .superseded }
+    guard !thread.transcript.timeline.messages.contains(where: { $0.id == hit.id }) else { return nil }
+    guard try await thread.transcript.timeline.loadPage(.around(hit.id), client: client, organizationSlug: organizationSlug,
+                                                        generation: generation) else { return .superseded }
     return nil
   }
 
   private func isCurrent(_ navigation: NavigationGuard, threadGeneration: Int? = nil) -> Bool {
     guard messageNavigationRequest == navigation.request, navigation.generation == timeline.generation, !Task.isCancelled else { return false }
     if let threadGeneration {
-      return threadGeneration == thread.timeline.generation
+      return threadGeneration == thread.transcript.timeline.generation
     }
     return true
   }

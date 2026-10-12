@@ -74,7 +74,7 @@
         let originalHeight = try #require(scroll.documentView?.frame.height)
         let index = readingHistory ? 40 : 49
         if thread {
-          state.thread.timeline.messages[index].content += String(repeating: "\nMore loaded content", count: lines)
+          state.thread.transcript.timeline.messages[index].content += String(repeating: "\nMore loaded content", count: lines)
         } else {
           state.timeline.messages[index].content += String(repeating: "\nMore loaded content", count: lines)
         }
@@ -104,8 +104,8 @@
         }
         if thread, let parent = state.timeline.messages.first {
           state.thread.open(parent)
-          state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
-          state.thread.timeline.messages = state.timeline.messages.map { message in
+          state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
+          state.thread.transcript.timeline.messages = state.timeline.messages.map { message in
             var reply = message
             reply.id = "reply-\(message.id)"
             reply.parentMessageId = parent.id

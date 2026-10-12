@@ -142,13 +142,13 @@ struct LiveThreadReplyCountTests {
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(rootId)\"")
     let client = try makeTestClient(TestTransport([(201, replyBody)]))
     #expect(session.send("Reply", client: client, organizationSlug: nil, sender: sender, settled: { _ in }))
-    let before = [session.parent].compactMap(\.self) + session.displayedReplies
+    let before = [session.parent].compactMap(\.self) + session.transcript.displayedMessages
     #expect(before.count == 2)
     #expect(liveThreadReplyCount(before) == 0)
-    while session.outbox.isSending {
+    while session.transcript.outbox.isSending {
       await Task.yield()
     }
-    let after = [session.parent].compactMap(\.self) + session.displayedReplies
+    let after = [session.parent].compactMap(\.self) + session.transcript.displayedMessages
     #expect(after.count == before.count)
     #expect(liveThreadReplyCount(after) == 1)
   }

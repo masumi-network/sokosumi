@@ -23,7 +23,7 @@
         var parent = try #require(state.thread.parent)
         parent.content = "Previous thread projection marker"
         state.thread.open(parent)
-        let scope = [state.currentUserId, state.selectionId ?? "", state.transcriptRoomId ?? "", parent.id, String(state.thread.timeline.generation)]
+        let scope = [state.currentUserId, state.selectionId ?? "", state.transcriptRoomId ?? "", parent.id, String(state.thread.transcript.timeline.generation)]
         let prepared = try await PreparedTranscript.prepare(.init(scope: scope, messages: [parent], mentions: nil, channels: [],
                                                                   baseURL: #require(URL(string: "https://example.com"))), reusing: nil)
         let host = NSHostingView(rootView: ReplyThreadContent(messages: [parent], preparedTranscript: prepared,
@@ -47,7 +47,7 @@
         }
         try #require(texts.contains(where: { $0.contains(parent.content) }), "The original projection must render before its scope changes: \(texts)")
         if sameParent {
-          state.thread.timeline.reset(roomId: parent.roomId, parentMessageId: parent.id)
+          state.thread.transcript.timeline.reset(roomId: parent.roomId, parentMessageId: parent.id)
         } else {
           var replacement = parent
           replacement.id = "replacement-thread"
@@ -69,7 +69,7 @@
       @Test func aReaderScrollMovesTheContentByTheScrollWhileTheRowsAboveAreMeasured() async throws {
         let state = try TranscriptScrollingTests.fixtureState(thread: true, media: false)
         let auth = AuthState()
-        state.thread.requestJump(to: "fixture-2")
+        state.thread.transcript.requestJump(to: "fixture-2")
         let host = NSHostingView(rootView: AnyView(ReplyThreadView()
             .background(.background)
             // Takes the pointer's hover, so no row draws its hover wash into the pixels compared.
@@ -88,10 +88,10 @@
         // Overlay scrollers would leave the content 900 pt wide, and a plain 40 pt scroll still moves the pixels by 40.
         try #require(scroll.scrollerStyle == .legacy)
         _ = try await waitForView(in: host, timeoutMessage: "The jump did not land") {
-          state.thread.jumpTarget?.mark != nil && TranscriptScrollingTests.distanceFromBottom(scroll) > 400 ? scroll : nil
+          state.thread.transcript.jumpTarget?.mark != nil && TranscriptScrollingTests.distanceFromBottom(scroll) > 400 ? scroll : nil
         }
         // The mark's wash would differ between the two captures.
-        state.thread.clearJump()
+        state.thread.transcript.clearJump()
         try await Task.sleep(for: .milliseconds(500))
         host.layoutSubtreeIfNeeded()
         try JumpMarkViewTests.keepPointerOff(window)

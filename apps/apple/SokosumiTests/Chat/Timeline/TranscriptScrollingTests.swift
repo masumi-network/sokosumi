@@ -63,8 +63,8 @@
         #expect(!clock.wasRead, "Only the jump reads the clock, so the check below proves it landed.")
         let auth = AuthState()
         if thread {
-          state.thread.requestJump(to: "fixture-2")
-          #expect(state.thread.jumpTarget?.messageId == "fixture-2")
+          state.thread.transcript.requestJump(to: "fixture-2")
+          #expect(state.thread.transcript.jumpTarget?.messageId == "fixture-2")
         } else {
           #expect(try await state.openMessage("fixture-2", auth: auth) == .opened)
         }
@@ -86,7 +86,7 @@
         }
         #expect(clock.wasRead, "The jump landed on the test clock.")
         if thread {
-          #expect(state.thread.jumpTarget?.messageId == "fixture-2")
+          #expect(state.thread.transcript.jumpTarget?.messageId == "fixture-2")
         } else {
           #expect(state.messageJump == nil)
         }
@@ -158,8 +158,8 @@
         if thread {
           let parent = try #require(state.timeline.messages.first)
           state.thread.open(parent)
-          state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
-          state.thread.timeline.messages = state.timeline.messages.dropFirst().map { message in
+          state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
+          state.thread.transcript.timeline.messages = state.timeline.messages.dropFirst().map { message in
             var reply = message
             reply.parentMessageId = parent.id
             return reply
