@@ -190,8 +190,9 @@ struct TranscriptSessionTests {
   }
 
   /// A latest refresh held back by a gap page lands like any latest page once it runs, whether the gap applied or not.
-  @Test(arguments: [false, true])
-  func aLatestRefreshHeldByAGapPageLandsOnceItRuns(gapFails: Bool) async throws {
+  /// A held refresh that fails lands nothing.
+  @Test(arguments: zip([false, true, false], [false, false, true]))
+  func aLatestRefreshHeldByAGapPageLandsOnceItRuns(gapFails: Bool, latestFails: Bool) async throws {
     func row(_ id: String) -> String {
       testMessageJSON(id: id, content: id, sender: testUserSender(name: "Ada", email: "ada@example.com"))
     }
@@ -199,7 +200,7 @@ struct TranscriptSessionTests {
       (200, testMessagesPageBody(messages: [row("z")], nextCursor: "z")),
       (200, testMessagesPageBody(messages: [row("a")], nextCursor: "a")),
       gapFails ? (500, "{}") : (200, testMessagesPageBody(messages: [row("a"), row("m")], nextCursor: "a")),
-      (200, testMessagesPageBody(messages: [row("z"), row("zz")], nextCursor: "z"))
+      latestFails ? (500, "{}") : (200, testMessagesPageBody(messages: [row("z"), row("zz")], nextCursor: "z"))
     ], holding: 3)
     let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let session = TranscriptSession()
@@ -219,9 +220,10 @@ struct TranscriptSessionTests {
     #expect(events == ["landed initial after 1", "landed around(\"a\") after 2"])
     await transport.release()
     await session.gapTask?.value
-    #expect(events == ["landed initial after 1", "landed around(\"a\") after 2", "landed latest after 4"])
+    #expect(await transport.paths.count == 4, "The held refresh ran once.")
+    #expect(events == ["landed initial after 1", "landed around(\"a\") after 2"] + (latestFails ? [] : ["landed latest after 4"]))
     #expect(failures == (gapFails ? 1 : 0))
-    #expect(session.timeline.messages.map(\.id) == (gapFails ? ["a", "z", "zz"] : ["a", "m", "z", "zz"]))
+    #expect(session.timeline.messages.map(\.id) == (gapFails ? ["a", "z"] : ["a", "m", "z"]) + (latestFails ? [] : ["zz"]))
   }
 
   @Test func sendUsesInjectedTurnIdAndNow() async throws {
