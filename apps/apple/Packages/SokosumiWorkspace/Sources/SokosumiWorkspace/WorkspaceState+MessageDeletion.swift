@@ -17,18 +17,12 @@ public extension WorkspaceState {
       let message = try await ChatService().deleteMessage(client: client, roomId: source.roomId, messageId: source.id,
                                                           organizationSlug: selection?.workspace.organizationSlug)
       guard generation == room.timeline.generation, message.roomId == transcriptRoomId, !Task.isCancelled else { return }
-      thread.apply(eventType: .delete, message: message)
-      room.timeline.messages = applyRealtimeFullEvent(messages: room.timeline.messages, shells: [], eventType: .delete, message: message).messages
+      loaded.apply(eventType: .delete, message: message)
       if messageEditing.source?.id == message.id {
         messageEditing.reset()
       }
       if message.deletedAt != nil, let parentId, let parentCount {
-        room.timeline.messages = room.timeline.messages.map { parent in
-          applyingReplyDeletion(to: parent, parentId: parentId, previousReplyCount: parentCount)
-        }
-        if let parent = thread.parent, parent.id == parentId {
-          thread.apply(eventType: .update, message: applyingReplyDeletion(to: parent, parentId: parentId, previousReplyCount: parentCount))
-        }
+        loaded.update(parentId) { applyingReplyDeletion(to: $0, parentId: parentId, previousReplyCount: parentCount) }
       }
     } catch {
       guard generation == room.timeline.generation else { return }

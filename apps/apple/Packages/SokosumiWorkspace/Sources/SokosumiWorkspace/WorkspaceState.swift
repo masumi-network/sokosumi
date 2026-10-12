@@ -142,6 +142,11 @@ public final class WorkspaceState: ObservableObject {
   var notificationBanners = ChatNotificationBanners()
   /// The open room's main Transcript: its history, Send queue, realtime updates and recovery.
   public let room: TranscriptSession
+  /// Every loaded copy of a message: the room's history, the open Thread's parent and its replies.
+  public var loaded: LoadedMessages {
+    LoadedMessages(room: room, thread: thread)
+  }
+
   public let pins = PinnedMessages()
   @Published var pendingPins: Set<String> = []
 
@@ -865,7 +870,7 @@ public final class WorkspaceState: ObservableObject {
     case let .patch(patch):
       applyRealtimeMessagePatch(patch)
     case let .pin(roomId, messageId, isPinned, count):
-      applyRealtimePin(roomId: roomId, messageId: messageId, isPinned: isPinned, count: count)
+      applyPin(roomId: roomId, messageId: messageId, isPinned: isPinned, count: count)
     case let .roomHealth(roomId, healthy, continuityLost):
       applyRealtimeHealth(roomId: roomId, healthy: healthy, continuityLost: continuityLost)
     case let .envelope(envelope):
@@ -902,11 +907,11 @@ public final class WorkspaceState: ObservableObject {
   }
 
   func applyRealtimeMessagePatch(_ patch: RealtimeMessagePatch) {
-    thread.apply(patch)
-    room.apply(patch)
+    loaded.apply(patch)
   }
 
-  private func applyRealtimePin(roomId: String, messageId: String, isPinned: Bool, count: Int) {
+  /// A pin changed, here or in another client: the sidebar count, the row's pin and the open room's Pins follow.
+  func applyPin(roomId: String, messageId: String, isPinned: Bool, count: Int) {
     guard let index = rooms.firstIndex(where: { $0.id == roomId }) else { return }
     rooms[index].pinnedMessageCount = count
     room.timeline.applyPin(roomId: roomId, messageId: messageId, isPinned: isPinned)
@@ -941,7 +946,6 @@ public final class WorkspaceState: ObservableObject {
     eventType: ChatRoomMessageRealtimeEventType,
     message: Components.Schemas.ChatRoomMessage
   ) {
-    thread.apply(eventType: eventType, message: message)
     if roomId == transcriptRoomId, message.parentMessageId != nil {
       threadAttentionRevision += 1
     }
@@ -953,8 +957,11 @@ public final class WorkspaceState: ObservableObject {
        let renamed = rooms[index].applyingGroupNameChange(message) {
       rooms[index] = renamed
     }
-    guard roomId == transcriptRoomId, message.roomId == transcriptRoomId, !directStream.isBusy || eventType == .delete else { return }
-    room.apply(eventType: eventType, message: message)
+    // While the coworker stream draws the room's newest rows, only a delete reaches the room's own history.
+    guard roomId == transcriptRoomId, message.roomId == transcriptRoomId, !directStream.isBusy || eventType == .delete else {
+      return thread.apply(eventType: eventType, message: message)
+    }
+    loaded.apply(eventType: eventType, message: message)
   }
 
   /// Apply an id envelope (ADR 0014): delete tombstones the on-screen row,

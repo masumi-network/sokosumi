@@ -214,8 +214,8 @@ public extension WorkspaceState {
   }
 
   private func messageParent(_ id: String, roomId: String, client: Client, organizationSlug: String?) async throws -> Components.Schemas.ChatRoomMessage {
-    if let loaded = transcriptMessages.first(where: { $0.id == id }) ?? thread.parent.flatMap({ $0.id == id ? $0 : nil }) {
-      return loaded
+    if let parent = loaded.message(id) {
+      return parent
     }
     return try await ChatService().getThread(client: client, roomId: roomId, parentMessageId: id, organizationSlug: organizationSlug).parentMessage
   }

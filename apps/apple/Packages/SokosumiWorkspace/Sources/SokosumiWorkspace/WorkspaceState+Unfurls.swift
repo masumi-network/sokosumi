@@ -20,11 +20,7 @@ public extension WorkspaceState {
         updated.unfurls = message.unfurls?.filter { $0.url != url }
         return updated
       }
-      room.timeline.messages = room.timeline.messages.map(removingPreview)
-      if let parent = thread.parent {
-        thread.apply(eventType: .update, message: removingPreview(parent))
-      }
-      thread.transcript.timeline.messages = thread.transcript.timeline.messages.map(removingPreview)
+      loaded.update(source.id, removingPreview)
     } catch {
       guard generation == room.timeline.generation, !Task.isCancelled else { return }
       if let error = error as? ChatServiceError {
