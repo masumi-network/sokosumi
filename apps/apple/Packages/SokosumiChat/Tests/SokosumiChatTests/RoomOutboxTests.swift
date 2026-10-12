@@ -205,13 +205,14 @@ struct RoomOutboxTests {
   }
 }
 
-/// Holds every outbox sleep until the test fires it, so Sent feedback expires on the test's word.
+/// Holds the Sent feedback sleep until the test fires it. The send timeout keeps a real sleep, so cancelling it ends it.
 @MainActor
 private final class OutboxSleep {
   var intervals: [Duration] = []
   private var pending: [CheckedContinuation<Void, Never>] = []
 
   func sleep(_ duration: Duration) async throws {
+    guard duration == .milliseconds(1600) else { return try await Task.sleep(for: duration) }
     intervals.append(duration)
     await withCheckedContinuation { pending.append($0) }
   }

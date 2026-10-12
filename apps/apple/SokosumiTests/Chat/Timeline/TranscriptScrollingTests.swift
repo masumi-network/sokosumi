@@ -60,6 +60,7 @@
       func messageLinkWaitsForPreparedTranscript(thread: Bool) async throws {
         let clock = ManualJumpMarkClock()
         let state = try Self.fixtureState(thread: thread, media: false, clock: clock)
+        #expect(!clock.wasRead, "Only the jump reads the clock, so the check below proves it landed.")
         let auth = AuthState()
         if thread {
           state.thread.requestJump(to: "fixture-2")
