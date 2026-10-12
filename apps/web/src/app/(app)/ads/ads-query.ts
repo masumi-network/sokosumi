@@ -32,3 +32,9 @@ export function selectAccount(
 ): ProjectAdAccount | undefined {
   return accounts.find(({ id }) => id === accountId) ?? accounts[0];
 }
+
+/** The create page's URL state: the project and the account to create in. */
+export const loadNewCampaignSearchParams = createLoader({
+  projectId: parseAsString,
+  accountId: parseAsString,
+});

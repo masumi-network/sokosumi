@@ -1,9 +1,11 @@
 "use client";
 
 import type { ProjectAdAccount } from "@sokosumi/core-client";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -14,7 +16,6 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 import { adsSearchParams, RANGE_PARAMS, type RangeParam } from "../ads-query";
-import { AdsNewCampaign } from "./ads-new-campaign";
 
 const queryParsers = {
   account: adsSearchParams.account,
@@ -31,7 +32,7 @@ interface AdsCampaignsToolbarProps {
 /**
  * Account and range, kept in `?account=` and `?range=` so the server loads
  * what the URL names. The switcher only appears with two or more accounts.
- * "New campaign" creates in the selected account.
+ * "New campaign" opens the create page for the selected account.
  */
 export function AdsCampaignsToolbar({
   accounts,
@@ -80,12 +81,13 @@ export function AdsCampaignsToolbar({
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-        <AdsNewCampaign
-          accountId={account.id}
-          currency={account.currency}
-          projectId={projectId}
-          provider={account.provider}
-        />
+        <Button asChild size="sm">
+          <Link
+            href={`/ads/campaigns/new?${new URLSearchParams({ projectId, accountId: account.id })}`}
+          >
+            {t("new")}
+          </Link>
+        </Button>
       </div>
     </div>
   );

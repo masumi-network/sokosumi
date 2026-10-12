@@ -168,7 +168,8 @@ The suggest body is JSON, so `q` needs no character whitelist.
 - You page: "Ads" row in `you-page.client.tsx`, same gate passed from `you-page-content.tsx`.
 - `/ads?projectId=…&tab=campaigns|market|accounts`. Template: `(app)/social/`.
 - Accounts: connect via `useComposioOAuthPopup`, pick accounts, disconnect.
-- Campaigns: table on desktop, stacked rows on mobile; range switch; pause/resume and budget with confirm; "New campaign" sheet.
+- Campaigns: table on desktop, stacked rows on mobile; range switch; pause/resume and budget with confirm; "New campaign" links to the create page.
+- Create page `/ads/campaigns/new?projectId=…&accountId=…` (same beta gate; unknown project or account is a 404). Meta: name, budget, objective. Google Search: Basics (name, budget, optional dates), Targeting (empty for now: all countries and languages), Keywords (one textarea, `kw` broad, `"kw"` phrase, `[kw]` exact, live count; "Add from Market" appends the project's cached trending keywords as broad lines up to 50) and the responsive search ad (final URL, display paths, 3-15 headlines, 2-4 descriptions with counters). Core's 422 message (Google's own wording) shows above the form with the input kept; 409 links to Accounts.
 - Market: profile form (keywords, country, language); trending keywords list; ads gallery of `preview_image` cards.
 - Ad preview images are Google-hosted URLs (https, from DataForSEO); render them with a plain `<img>` and `referrerPolicy="no-referrer"`, not `next/image`.
 - Calm UI per DESIGN.md: one accent, typography over boxes, empty/loading/error states, en/de/es messages.

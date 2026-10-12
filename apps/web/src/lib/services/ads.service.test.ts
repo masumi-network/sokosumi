@@ -211,6 +211,35 @@ describe("adsService", () => {
     );
   });
 
+  it("sends a Google campaign's spec in the request body", async () => {
+    coreClientMock.postProjectsByIdAdsAccountsByAccountIdCampaigns.mockResolvedValue(
+      { data: { id: "42" } },
+    );
+    const google = {
+      type: "SEARCH" as const,
+      locationIds: [],
+      languageIds: [],
+      finalUrl: "https://example.com",
+      keywords: [{ text: "running shoes", matchType: "EXACT" as const }],
+      headlines: ["One", "Two", "Three"],
+      descriptions: ["First description", "Second description"],
+    };
+
+    const { adsService } = await import("./ads.service");
+
+    await adsService.createCampaign("project-1", "account-1", {
+      name: "Spring sale",
+      dailyBudget: 25,
+      google,
+    });
+    expect(
+      coreClientMock.postProjectsByIdAdsAccountsByAccountIdCampaigns,
+    ).toHaveBeenCalledWith(
+      { id: "project-1", accountId: "account-1" },
+      { name: "Spring sale", dailyBudget: 25, google },
+    );
+  });
+
   it("reads the market profile, which is null until one is saved", async () => {
     coreClientMock.getProjectsByIdAdsMarket.mockResolvedValue({
       data: { profile: null },

@@ -16,6 +16,7 @@ import {
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { AD_CAMPAIGN_OBJECTIVES } from "@/lib/ads/campaign";
+import { googleSearchSpecSchema } from "@/lib/ads/google-search";
 import { createMarketProfileSchema } from "@/lib/ads/market";
 import {
   CoreApiRequestError,
@@ -149,7 +150,12 @@ export const updateAdCampaign = adsAction(
   },
 );
 
-/** Creates a campaign. Core always creates it paused. */
+/**
+ * Creates a campaign. Core always creates it paused. A Google campaign carries
+ * its `google` spec and no objective; a Meta one the reverse. Core refuses a
+ * mismatch with 422, and so does Google for what it dislikes: the message
+ * reaches the UI.
+ */
 export const createAdCampaign = adsAction(
   z.object({
     projectId: trimmedId,
@@ -157,12 +163,14 @@ export const createAdCampaign = adsAction(
     name: z.string().trim().min(1).max(255),
     dailyBudget: z.number().positive(),
     objective: z.enum(AD_CAMPAIGN_OBJECTIVES).optional(),
+    google: googleSearchSpecSchema().optional(),
   }),
-  async ({ projectId, accountId, name, dailyBudget, objective }) => {
+  async ({ projectId, accountId, name, dailyBudget, objective, google }) => {
     const campaign = await adsService.createCampaign(projectId, accountId, {
       name,
       dailyBudget,
       ...(objective ? { objective } : {}),
+      ...(google ? { google } : {}),
     });
     revalidatePath("/ads");
     return campaign;

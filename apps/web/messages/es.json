@@ -3158,32 +3158,6 @@
           "change": "El presupuesto diario cambia de {old} a {new}.",
           "notSet": "sin definir"
         },
-        "newCampaign": {
-          "title": "Nueva campaña",
-          "note": {
-            "google_ads": "Las campañas se crean en pausa. Añade grupos de anuncios y anuncios en Google Ads y reanúdalas aquí.",
-            "meta_ads": "Las campañas se crean en pausa. Añade conjuntos de anuncios y anuncios en Meta Ads Manager y reanúdalas aquí."
-          },
-          "name": "Nombre",
-          "objective": "Objetivo",
-          "objectivePlaceholder": "Selecciona un objetivo",
-          "objectives": {
-            "OUTCOME_TRAFFIC": "Tráfico",
-            "OUTCOME_AWARENESS": "Notoriedad",
-            "OUTCOME_ENGAGEMENT": "Interacción",
-            "OUTCOME_LEADS": "Clientes potenciales",
-            "OUTCOME_SALES": "Ventas"
-          },
-          "submit": "Crear campaña",
-          "saving": "Creando…",
-          "success": "Campaña creada correctamente",
-          "errors": {
-            "nameRequired": "Introduce un nombre.",
-            "nameTooLong": "Usa como máximo 255 caracteres.",
-            "objectiveRequired": "Elige un objetivo.",
-            "failed": "No se pudo crear la campaña"
-          }
-        },
         "success": {
           "updated": "Campaña actualizada correctamente"
         },
@@ -3200,6 +3174,92 @@
           "failed": {
             "title": "No se pudieron cargar las campañas"
           }
+        },
+        "new": "Nueva campaña"
+      },
+      "newCampaign": {
+        "title": "Nueva campaña",
+        "back": "Volver a las campañas",
+        "inAccount": "Cuenta de {provider} {name}",
+        "note": {
+          "google_ads": "Las campañas se crean en pausa. Reanúdala aquí cuando esté lista.",
+          "meta_ads": "Las campañas se crean en pausa. Añade conjuntos de anuncios y anuncios en Meta Ads Manager y reanúdalas aquí."
+        },
+        "sections": {
+          "basics": "Datos básicos",
+          "targeting": "Segmentación",
+          "keywords": "Palabras clave",
+          "ad": "Anuncio"
+        },
+        "name": "Nombre",
+        "objective": "Objetivo",
+        "objectivePlaceholder": "Selecciona un objetivo",
+        "objectives": {
+          "OUTCOME_TRAFFIC": "Tráfico",
+          "OUTCOME_AWARENESS": "Notoriedad",
+          "OUTCOME_ENGAGEMENT": "Interacción",
+          "OUTCOME_LEADS": "Clientes potenciales",
+          "OUTCOME_SALES": "Ventas"
+        },
+        "startDate": "Fecha de inicio",
+        "endDate": "Fecha de finalización",
+        "datesHelp": "Opcional. Se usa la zona horaria de la cuenta publicitaria.",
+        "targeting": "Todos los países · Todos los idiomas",
+        "keywords": {
+          "label": "Palabras clave",
+          "help": "Una palabra clave por línea. Usa \"comillas\" para concordancia de frase y [corchetes] para concordancia exacta.",
+          "placeholder": "zapatillas running\n\"zapatillas trail running\"\n[comprar zapatillas running]",
+          "count": "{count, plural, one {# palabra clave} other {# palabras clave}}",
+          "addFromMarket": "Añadir desde Mercado",
+          "errors": {
+            "required": "Añade al menos una palabra clave.",
+            "tooMany": "Usa como máximo {max} palabras clave.",
+            "syntax": "Línea {line}: revisa las comillas y los corchetes.",
+            "tooLong": "Línea {line}: usa como máximo {max} caracteres.",
+            "tooManyWords": "Línea {line}: usa como máximo {max} palabras."
+          }
+        },
+        "ad": {
+          "finalUrl": "URL final",
+          "finalUrlHelp": "La página a la que llegan las personas al hacer clic en tu anuncio.",
+          "finalUrlPlaceholder": "https://example.com/zapatillas",
+          "displayPath": "Ruta visible",
+          "displayPathHelp": "Opcional. Dos rutas cortas que se muestran después de tu dominio en el anuncio.",
+          "path1": "Ruta 1",
+          "path2": "Ruta 2",
+          "pathPreview": "Se muestra como {url}",
+          "headlines": {
+            "label": "Títulos",
+            "help": "De {min} a {max} títulos de hasta {length} caracteres. Google los combina para encontrar lo que funciona.",
+            "item": "Título {number}",
+            "add": "Añadir título",
+            "remove": "Quitar el título {number}"
+          },
+          "descriptions": {
+            "label": "Descripciones",
+            "help": "De {min} a {max} descripciones de hasta {length} caracteres.",
+            "item": "Descripción {number}",
+            "add": "Añadir descripción",
+            "remove": "Quitar la descripción {number}"
+          }
+        },
+        "submit": "Crear campaña",
+        "success": "Campaña creada (en pausa)",
+        "errors": {
+          "nameRequired": "Introduce un nombre.",
+          "nameTooLong": "Usa como máximo 255 caracteres.",
+          "objectiveRequired": "Elige un objetivo.",
+          "finalUrl": "Introduce una dirección completa que empiece por http:// o https://.",
+          "headlineRequired": "Introduce un título o quita este.",
+          "headlineTooLong": "Usa como máximo {max} caracteres.",
+          "headlineDuplicate": "Cada título debe ser distinto.",
+          "descriptionRequired": "Introduce una descripción o quita esta.",
+          "descriptionTooLong": "Usa como máximo {max} caracteres.",
+          "pathTooLong": "Usa como máximo {max} caracteres.",
+          "pathNeedsFirst": "Rellena primero la ruta 1.",
+          "endBeforeStart": "La fecha de finalización no puede ser anterior a la de inicio.",
+          "refusedTitle": "No se creó la campaña",
+          "failed": "No se pudo crear la campaña"
         }
       },
       "market": {

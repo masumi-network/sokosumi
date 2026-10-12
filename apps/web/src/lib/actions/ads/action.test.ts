@@ -458,8 +458,40 @@ describe("ads actions", () => {
       );
     });
 
+    const google = {
+      type: "SEARCH" as const,
+      locationIds: [],
+      languageIds: [],
+      finalUrl: "https://example.com",
+      keywords: [{ text: "running shoes", matchType: "BROAD" as const }],
+      headlines: ["One", "Two", "Three"],
+      descriptions: ["First description", "Second description"],
+    };
+
+    it("passes the Google spec to Core, without an objective", async () => {
+      adsServiceMock.createCampaign.mockResolvedValue({ id: "42" });
+
+      const { createAdCampaign } = await import("./action");
+      const result = await createAdCampaign({ ...base, google });
+
+      expect(adsServiceMock.createCampaign).toHaveBeenCalledWith(
+        "project-1",
+        "account-1",
+        { name: "Spring sale", dailyBudget: 25.5, google },
+      );
+      expect(result).toEqual({ ok: true, value: { id: "42" } });
+    });
+
     it.each([
       ["a blank name", { name: "   " }],
+      [
+        "a Google spec without keywords",
+        { google: { ...google, keywords: [] } },
+      ],
+      [
+        "a Google spec with two headlines",
+        { google: { ...google, headlines: ["One", "Two"] } },
+      ],
       ["a name over 255 characters", { name: "a".repeat(256) }],
       ["a zero budget", { dailyBudget: 0 }],
     ])("rejects %s, calling nothing", async (_name, changes) => {
@@ -470,6 +502,20 @@ describe("ads actions", () => {
       expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
       expect(adsServiceMock.createCampaign).not.toHaveBeenCalled();
       expect(revalidatePath).not.toHaveBeenCalled();
+    });
+
+    it("passes Google's 422 message through", async () => {
+      adsServiceMock.createCampaign.mockRejectedValue(
+        await coreError("Destination not working.", 422),
+      );
+
+      const { createAdCampaign } = await import("./action");
+      const result = await createAdCampaign({ ...base, google });
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: { status: 422, message: "Destination not working." },
+      });
     });
 
     it.each([409, 422])("tells the UI Core refused with %i", async (status) => {

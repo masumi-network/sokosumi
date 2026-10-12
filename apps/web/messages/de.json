@@ -3158,32 +3158,6 @@
           "change": "Das Tagesbudget ändert sich von {old} auf {new}.",
           "notSet": "nicht festgelegt"
         },
-        "newCampaign": {
-          "title": "Neue Kampagne",
-          "note": {
-            "google_ads": "Kampagnen werden pausiert erstellt. Füge Anzeigengruppen und Anzeigen in Google Ads hinzu und setze sie dann hier fort.",
-            "meta_ads": "Kampagnen werden pausiert erstellt. Füge Anzeigengruppen und Anzeigen im Meta Ads Manager hinzu und setze sie dann hier fort."
-          },
-          "name": "Name",
-          "objective": "Ziel",
-          "objectivePlaceholder": "Ziel auswählen",
-          "objectives": {
-            "OUTCOME_TRAFFIC": "Traffic",
-            "OUTCOME_AWARENESS": "Bekanntheit",
-            "OUTCOME_ENGAGEMENT": "Interaktion",
-            "OUTCOME_LEADS": "Leads",
-            "OUTCOME_SALES": "Verkäufe"
-          },
-          "submit": "Kampagne erstellen",
-          "saving": "Wird erstellt…",
-          "success": "Kampagne erfolgreich erstellt",
-          "errors": {
-            "nameRequired": "Gib einen Namen ein.",
-            "nameTooLong": "Verwende höchstens 255 Zeichen.",
-            "objectiveRequired": "Wähle ein Ziel.",
-            "failed": "Kampagne konnte nicht erstellt werden"
-          }
-        },
         "success": {
           "updated": "Kampagne erfolgreich aktualisiert"
         },
@@ -3200,6 +3174,92 @@
           "failed": {
             "title": "Kampagnen konnten nicht geladen werden"
           }
+        },
+        "new": "Neue Kampagne"
+      },
+      "newCampaign": {
+        "title": "Neue Kampagne",
+        "back": "Zurück zu den Kampagnen",
+        "inAccount": "{provider}-Konto {name}",
+        "note": {
+          "google_ads": "Kampagnen werden pausiert erstellt. Setze sie hier fort, wenn sie bereit sind.",
+          "meta_ads": "Kampagnen werden pausiert erstellt. Füge Anzeigengruppen und Anzeigen im Meta Ads Manager hinzu und setze sie dann hier fort."
+        },
+        "sections": {
+          "basics": "Grundlagen",
+          "targeting": "Targeting",
+          "keywords": "Keywords",
+          "ad": "Anzeige"
+        },
+        "name": "Name",
+        "objective": "Ziel",
+        "objectivePlaceholder": "Ziel auswählen",
+        "objectives": {
+          "OUTCOME_TRAFFIC": "Traffic",
+          "OUTCOME_AWARENESS": "Bekanntheit",
+          "OUTCOME_ENGAGEMENT": "Interaktion",
+          "OUTCOME_LEADS": "Leads",
+          "OUTCOME_SALES": "Verkäufe"
+        },
+        "startDate": "Startdatum",
+        "endDate": "Enddatum",
+        "datesHelp": "Optional. Es gilt die Zeitzone des Anzeigenkontos.",
+        "targeting": "Alle Länder · Alle Sprachen",
+        "keywords": {
+          "label": "Keywords",
+          "help": "Ein Keyword pro Zeile. Mit \"Anführungszeichen\" für passende Wortgruppe und [eckigen Klammern] für genau passend.",
+          "placeholder": "laufschuhe\n\"trailrunning schuhe\"\n[laufschuhe kaufen]",
+          "count": "{count, plural, one {# Keyword} other {# Keywords}}",
+          "addFromMarket": "Aus Markt hinzufügen",
+          "errors": {
+            "required": "Füge mindestens ein Keyword hinzu.",
+            "tooMany": "Verwende höchstens {max} Keywords.",
+            "syntax": "Zeile {line}: Prüfe die Anführungszeichen und Klammern.",
+            "tooLong": "Zeile {line}: Verwende höchstens {max} Zeichen.",
+            "tooManyWords": "Zeile {line}: Verwende höchstens {max} Wörter."
+          }
+        },
+        "ad": {
+          "finalUrl": "Ziel-URL",
+          "finalUrlHelp": "Die Seite, auf der Personen nach dem Klick auf deine Anzeige landen.",
+          "finalUrlPlaceholder": "https://example.com/schuhe",
+          "displayPath": "Anzeigepfad",
+          "displayPathHelp": "Optional. Zwei kurze Pfade, die in der Anzeige nach deiner Domain stehen.",
+          "path1": "Pfad 1",
+          "path2": "Pfad 2",
+          "pathPreview": "Angezeigt als {url}",
+          "headlines": {
+            "label": "Überschriften",
+            "help": "{min} bis {max} Überschriften mit je höchstens {length} Zeichen. Google kombiniert sie, um herauszufinden, was funktioniert.",
+            "item": "Überschrift {number}",
+            "add": "Überschrift hinzufügen",
+            "remove": "Überschrift {number} entfernen"
+          },
+          "descriptions": {
+            "label": "Beschreibungen",
+            "help": "{min} bis {max} Beschreibungen mit je höchstens {length} Zeichen.",
+            "item": "Beschreibung {number}",
+            "add": "Beschreibung hinzufügen",
+            "remove": "Beschreibung {number} entfernen"
+          }
+        },
+        "submit": "Kampagne erstellen",
+        "success": "Kampagne erstellt (pausiert)",
+        "errors": {
+          "nameRequired": "Gib einen Namen ein.",
+          "nameTooLong": "Verwende höchstens 255 Zeichen.",
+          "objectiveRequired": "Wähle ein Ziel.",
+          "finalUrl": "Gib eine vollständige Adresse ein, die mit http:// oder https:// beginnt.",
+          "headlineRequired": "Gib eine Überschrift ein oder entferne diese.",
+          "headlineTooLong": "Verwende höchstens {max} Zeichen.",
+          "headlineDuplicate": "Jede Überschrift muss sich unterscheiden.",
+          "descriptionRequired": "Gib eine Beschreibung ein oder entferne diese.",
+          "descriptionTooLong": "Verwende höchstens {max} Zeichen.",
+          "pathTooLong": "Verwende höchstens {max} Zeichen.",
+          "pathNeedsFirst": "Fülle zuerst Pfad 1 aus.",
+          "endBeforeStart": "Das Enddatum darf nicht vor dem Startdatum liegen.",
+          "refusedTitle": "Die Kampagne wurde nicht erstellt",
+          "failed": "Kampagne konnte nicht erstellt werden"
         }
       },
       "market": {

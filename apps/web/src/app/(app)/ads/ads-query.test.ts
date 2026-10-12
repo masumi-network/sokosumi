@@ -1,7 +1,11 @@
 import type { ProjectAdAccount } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
-import { loadAdsSearchParams, selectAccount } from "./ads-query";
+import {
+  loadAdsSearchParams,
+  loadNewCampaignSearchParams,
+  selectAccount,
+} from "./ads-query";
 
 const accounts = [{ id: "a1" }, { id: "a2" }] as ProjectAdAccount[];
 
@@ -46,5 +50,17 @@ describe("selectAccount", () => {
 
   it("has no account without accounts", () => {
     expect(selectAccount([], null)).toBeUndefined();
+  });
+});
+
+describe("loadNewCampaignSearchParams", () => {
+  it("reads the project and the account", () => {
+    expect(
+      loadNewCampaignSearchParams({ projectId: "p1", accountId: "a2" }),
+    ).toEqual({ projectId: "p1", accountId: "a2" });
+    expect(loadNewCampaignSearchParams({})).toEqual({
+      projectId: null,
+      accountId: null,
+    });
   });
 });

@@ -3158,32 +3158,6 @@
           "change": "Daily budget changes from {old} to {new}.",
           "notSet": "not set"
         },
-        "newCampaign": {
-          "title": "New campaign",
-          "note": {
-            "google_ads": "Campaigns are created paused. Add ad groups and ads in Google Ads, then resume here.",
-            "meta_ads": "Campaigns are created paused. Add ad sets and ads in Meta Ads Manager, then resume here."
-          },
-          "name": "Name",
-          "objective": "Objective",
-          "objectivePlaceholder": "Select an objective",
-          "objectives": {
-            "OUTCOME_TRAFFIC": "Traffic",
-            "OUTCOME_AWARENESS": "Awareness",
-            "OUTCOME_ENGAGEMENT": "Engagement",
-            "OUTCOME_LEADS": "Leads",
-            "OUTCOME_SALES": "Sales"
-          },
-          "submit": "Create campaign",
-          "saving": "Creating…",
-          "success": "Campaign created successfully",
-          "errors": {
-            "nameRequired": "Enter a name.",
-            "nameTooLong": "Use at most 255 characters.",
-            "objectiveRequired": "Choose an objective.",
-            "failed": "Failed to create campaign"
-          }
-        },
         "success": {
           "updated": "Campaign updated successfully"
         },
@@ -3200,6 +3174,92 @@
           "failed": {
             "title": "Failed to load campaigns"
           }
+        },
+        "new": "New campaign"
+      },
+      "newCampaign": {
+        "title": "New campaign",
+        "back": "Back to campaigns",
+        "inAccount": "{provider} account {name}",
+        "note": {
+          "google_ads": "Campaigns are created paused. Resume one here when it is ready.",
+          "meta_ads": "Campaigns are created paused. Add ad sets and ads in Meta Ads Manager, then resume here."
+        },
+        "sections": {
+          "basics": "Basics",
+          "targeting": "Targeting",
+          "keywords": "Keywords",
+          "ad": "Ad"
+        },
+        "name": "Name",
+        "objective": "Objective",
+        "objectivePlaceholder": "Select an objective",
+        "objectives": {
+          "OUTCOME_TRAFFIC": "Traffic",
+          "OUTCOME_AWARENESS": "Awareness",
+          "OUTCOME_ENGAGEMENT": "Engagement",
+          "OUTCOME_LEADS": "Leads",
+          "OUTCOME_SALES": "Sales"
+        },
+        "startDate": "Start date",
+        "endDate": "End date",
+        "datesHelp": "Optional. Uses the ad account's time zone.",
+        "targeting": "All countries · All languages",
+        "keywords": {
+          "label": "Keywords",
+          "help": "One keyword per line. Use \"quotes\" for phrase match and [brackets] for exact match.",
+          "placeholder": "running shoes\n\"trail running shoes\"\n[buy running shoes]",
+          "count": "{count, plural, one {# keyword} other {# keywords}}",
+          "addFromMarket": "Add from Market",
+          "errors": {
+            "required": "Add at least one keyword.",
+            "tooMany": "Use at most {max} keywords.",
+            "syntax": "Line {line}: check the quotes and brackets.",
+            "tooLong": "Line {line}: use at most {max} characters.",
+            "tooManyWords": "Line {line}: use at most {max} words."
+          }
+        },
+        "ad": {
+          "finalUrl": "Final URL",
+          "finalUrlHelp": "The page people land on after they click your ad.",
+          "finalUrlPlaceholder": "https://example.com/shoes",
+          "displayPath": "Display path",
+          "displayPathHelp": "Optional. Two short paths shown after your domain in the ad.",
+          "path1": "Path 1",
+          "path2": "Path 2",
+          "pathPreview": "Shown as {url}",
+          "headlines": {
+            "label": "Headlines",
+            "help": "{min} to {max} headlines of up to {length} characters. Google combines them to find what works.",
+            "item": "Headline {number}",
+            "add": "Add headline",
+            "remove": "Remove headline {number}"
+          },
+          "descriptions": {
+            "label": "Descriptions",
+            "help": "{min} to {max} descriptions of up to {length} characters.",
+            "item": "Description {number}",
+            "add": "Add description",
+            "remove": "Remove description {number}"
+          }
+        },
+        "submit": "Create campaign",
+        "success": "Campaign created (paused)",
+        "errors": {
+          "nameRequired": "Enter a name.",
+          "nameTooLong": "Use at most 255 characters.",
+          "objectiveRequired": "Choose an objective.",
+          "finalUrl": "Enter a full address starting with http:// or https://.",
+          "headlineRequired": "Enter a headline or remove this one.",
+          "headlineTooLong": "Use at most {max} characters.",
+          "headlineDuplicate": "Each headline must be different.",
+          "descriptionRequired": "Enter a description or remove this one.",
+          "descriptionTooLong": "Use at most {max} characters.",
+          "pathTooLong": "Use at most {max} characters.",
+          "pathNeedsFirst": "Fill in path 1 first.",
+          "endBeforeStart": "The end date can't be before the start date.",
+          "refusedTitle": "The campaign wasn't created",
+          "failed": "Failed to create campaign"
         }
       },
       "market": {
