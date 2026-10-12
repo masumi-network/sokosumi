@@ -45,7 +45,7 @@ extension View {
   }
 
   static let auth = AuthState(store: InMemoryTokenStore())
-  static let workspace = WorkspaceState()
+  static let workspace = WorkspaceState(auth: auth)
   static var renderEvaluations: [Int: Int] = [:]
   static var bodyEvaluations: [String: Int] = [:]
   static var stateTokens: [String: String] = [:]

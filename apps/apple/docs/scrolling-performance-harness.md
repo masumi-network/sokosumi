@@ -343,7 +343,7 @@ import Synchronization
       if thread { for index in 1..<count { fixture[index].parentMessageId = fixture[0].id } }
       M6Probe.reset()
       if env["M6_ONLY"] == "prepare" { await prepareSamples(fixture, count: count, mix: mix); continue }
-      let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
+      let state = WorkspaceState(auth: AuthState(store: InMemoryTokenStore()), clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
       state.room.timeline.reset(roomId: "fixture")
       state.room.timeline.failInitialLoad(message: "", generation: state.room.timeline.generation)
       state.room.timeline.messages = thread ? [fixture[0]] : fixture
