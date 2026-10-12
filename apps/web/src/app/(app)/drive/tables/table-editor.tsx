@@ -639,7 +639,7 @@ function TableWorkspace({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-muted-foreground size-7 shrink-0"
+                          className="text-muted-foreground hit-area size-7 shrink-0"
                           aria-label={t("columnMenu", { column: column.name })}
                         >
                           <MoreHorizontal className="size-4" />
@@ -1208,7 +1208,8 @@ function TableWorkspace({
           {dialog !== "history" && (
             <DialogFooter>
               <Button
-                disabled={pending || (dialog === "enrich" && !!taskId)}
+                disabled={dialog === "enrich" && !!taskId}
+                loading={pending}
                 onClick={() =>
                   void run(
                     async () => {
@@ -1295,11 +1296,7 @@ function TableWorkspace({
                   )
                 }
               >
-                {pending
-                  ? t("saving")
-                  : dialog === "enrich"
-                    ? t("createTask")
-                    : t("save")}
+                {dialog === "enrich" ? t("createTask") : t("save")}
               </Button>
             </DialogFooter>
           )}

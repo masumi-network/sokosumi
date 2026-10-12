@@ -1,7 +1,8 @@
 import type { OrganizationInviteLink } from "@sokosumi/database";
 
-import { getWebAppBaseUrl } from "@/config/env";
 import { organizationInviteLinkSchema } from "@/schemas/organization-invite-link.schema";
+
+import { buildWebAppUrl } from "./web-app-url";
 
 /**
  * Maps a Prisma invite-link row to the shared OpenAPI response DTO
@@ -10,7 +11,7 @@ import { organizationInviteLinkSchema } from "@/schemas/organization-invite-link
 export function toOrganizationInviteLinkResponse(link: OrganizationInviteLink) {
   return organizationInviteLinkSchema.parse({
     token: link.token,
-    url: `${getWebAppBaseUrl()}/join/${link.token}`,
+    url: buildWebAppUrl(`/join/${link.token}`),
     role: link.role,
     createdAt: link.createdAt.toISOString(),
     expiresAt: link.expiresAt.toISOString(),

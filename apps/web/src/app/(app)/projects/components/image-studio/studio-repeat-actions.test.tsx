@@ -156,12 +156,12 @@ describe("the page around the results", () => {
     ).toBeTruthy();
   });
 
-  it("opens on the composer, above the templates, when there is nothing yet", () => {
+  it("shows the empty-state carousel above the composer", () => {
     mount([]);
     const composer = screen.getByRole("region", { name: "composerTitle" });
     const tile = screen.getByRole("button", { name: "poster" });
     expect(
-      composer.compareDocumentPosition(tile) & Node.DOCUMENT_POSITION_FOLLOWING,
+      tile.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 

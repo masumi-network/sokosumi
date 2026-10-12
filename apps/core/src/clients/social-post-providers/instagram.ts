@@ -5,8 +5,8 @@ import { socialPostPublishedUrl } from "@/clients/social-post-providers/publishe
 import {
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
-  createSocialPublishSession,
-  executeSocialPublishTool,
+  createSocialPostToolSession,
+  executeSocialPostTool,
   guardSocialCreateOutcome,
 } from "@/clients/social-post-providers/tools";
 import type {
@@ -39,7 +39,7 @@ export async function publishInstagramPost(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("instagram");
-  const sessionId = await createSocialPublishSession({
+  const sessionId = await createSocialPostToolSession({
     toolkitSlug: "instagram",
     connectedAccountId: context.connectedAccountId,
     executorUserId: context.executorUserId,
@@ -50,7 +50,7 @@ export async function publishInstagramPost(
   const igUserId = context.externalAccountId;
   try {
     const video = context.media.find((ref) => ref.kind === "video");
-    const container = await executeSocialPublishTool({
+    const container = await executeSocialPostTool({
       sessionId,
       toolSlug: INSTAGRAM_CREATE_CONTAINER_TOOL_SLUG,
       arguments: {
@@ -73,7 +73,7 @@ export async function publishInstagramPost(
       });
     }
     const published = await guardSocialCreateOutcome(label, () =>
-      executeSocialPublishTool({
+      executeSocialPostTool({
         sessionId,
         toolSlug: INSTAGRAM_PUBLISH_TOOL_SLUG,
         arguments: {

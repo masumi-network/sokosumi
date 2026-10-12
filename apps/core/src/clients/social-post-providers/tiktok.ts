@@ -3,11 +3,12 @@ import { socialPostProviderLabel } from "@sokosumi/utils";
 
 import { deleteProjectSocialSession } from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
+import { tiktokPublishedVideoId } from "@/clients/social-post-providers/tiktok-video-id";
 import {
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
-  createSocialPublishSession,
-  executeSocialPublishTool,
+  createSocialPostToolSession,
+  executeSocialPostTool,
   guardSocialCreateOutcome,
 } from "@/clients/social-post-providers/tools";
 import type {
@@ -54,17 +55,6 @@ function statusOf(data: Record<string, unknown> | null): string | null {
   return stringOf(data?.status)?.toUpperCase() ?? null;
 }
 
-function postIdOf(data: Record<string, unknown> | null): string | null {
-  const available = data?.publicaly_available_post_id;
-  if (Array.isArray(available)) {
-    for (const candidate of available) {
-      const id = stringOf(candidate);
-      if (id) return id;
-    }
-  }
-  return stringOf(data?.post_id) ?? stringOf(data?.id);
-}
-
 /**
  * Publishes a video to TikTok: reads the creator's live privacy options, posts
  * with the most permissive one, then polls until the provider finishes. Once
@@ -75,7 +65,11 @@ export async function publishTikTokVideo(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("tiktok");
-  const sessionId = await createSocialPublishSession({
+  const video = context.media.find((ref) => ref.kind === "video");
+  if (!video?.fileUrl) {
+    throw new ComposioToolError({ message: "TikTok requires a video" });
+  }
+  const sessionId = await createSocialPostToolSession({
     toolkitSlug: "tiktok",
     connectedAccountId: context.connectedAccountId,
     executorUserId: context.executorUserId,
@@ -83,9 +77,8 @@ export async function publishTikTokVideo(
     context: "create Project TikTok publish session",
     signal: context.signal,
   });
-  const video = context.media.find((ref) => ref.kind === "video");
   try {
-    const creator = await executeSocialPublishTool({
+    const creator = await executeSocialPostTool({
       sessionId,
       toolSlug: TIKTOK_QUERY_CREATOR_TOOL_SLUG,
       arguments: {},
@@ -101,11 +94,11 @@ export async function publishTikTokVideo(
     const privacyLevel = pickTikTokPrivacyLevel(options);
 
     const published = await guardSocialCreateOutcome(label, () =>
-      executeSocialPublishTool({
+      executeSocialPostTool({
         sessionId,
         toolSlug: TIKTOK_PUBLISH_TOOL_SLUG,
         arguments: {
-          video_url: video?.fileUrl,
+          video_url: video.fileUrl,
           caption: context.text,
           privacy_level: privacyLevel,
         },
@@ -124,7 +117,7 @@ export async function publishTikTokVideo(
     try {
       for (;;) {
         context.signal?.throwIfAborted();
-        const status = await executeSocialPublishTool({
+        const status = await executeSocialPostTool({
           sessionId,
           toolSlug: TIKTOK_STATUS_TOOL_SLUG,
           arguments: { publish_id: publishId },
@@ -134,12 +127,13 @@ export async function publishTikTokVideo(
         });
         const state = statusOf(status);
         if (state === "PUBLISH_COMPLETE") {
+          const videoId = tiktokPublishedVideoId(status) ?? publishId;
           return {
-            externalId: postIdOf(status) ?? publishId,
+            externalId: videoId,
             publishedUrl: socialPostPublishedUrl(
               "tiktok",
               context.externalHandle,
-              postIdOf(status) ?? publishId,
+              videoId,
             ),
             providerOutcome: `published (${privacyLevel})`,
             toolSlug: TIKTOK_PUBLISH_TOOL_SLUG,

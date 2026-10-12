@@ -345,14 +345,10 @@ export function PasskeySettings({
                           type="submit"
                           size="icon"
                           disabled={isMutatingPasskeys}
+                          loading={savingPasskeyId === passkey.id}
                           aria-label={t("save")}
                         >
-                          {savingPasskeyId === passkey.id && (
-                            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                          )}
-                          {savingPasskeyId !== passkey.id && (
-                            <Check className="size-4" />
-                          )}
+                          <Check className="size-4" />
                         </Button>
                       </div>
                     </form>
@@ -391,6 +387,7 @@ export function PasskeySettings({
                           variant="ghost"
                           size="icon"
                           disabled={isMutatingPasskeys}
+                          loading={removingPasskeyId === passkey.id}
                           aria-label={t("deleteAriaLabel", {
                             name: passkey.name || t("defaultName"),
                           })}
@@ -398,11 +395,7 @@ export function PasskeySettings({
                             void handleDeletePasskey(passkey.id);
                           }}
                         >
-                          {removingPasskeyId === passkey.id ? (
-                            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                          ) : (
-                            <Trash2 className="size-4" />
-                          )}
+                          <Trash2 className="size-4" />
                         </Button>
                       </div>
                     </div>
@@ -423,13 +416,11 @@ export function PasskeySettings({
           type="button"
           className="w-full"
           disabled={!canAddPasskey || isLoadingPasskeys || isMutatingPasskeys}
+          loading={isAddingPasskey}
           onClick={() => {
             void handleAddPasskey();
           }}
         >
-          {isAddingPasskey && (
-            <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-          )}
           {t("add")}
         </Button>
       </CardFooter>

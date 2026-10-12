@@ -3,7 +3,7 @@
 import * as Sentry from "@sentry/nextjs";
 import type { OrganizationRecord } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -117,10 +117,7 @@ export function TaskWorkspaceSwitchDialog({
           <AlertDialogCancel disabled={isPending} onClick={handleCancel}>
             {t("cancel")}
           </AlertDialogCancel>
-          <Button disabled={isPending} onClick={handleSwitchWorkspace}>
-            {isPending ? (
-              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-            ) : null}
+          <Button loading={isPending} onClick={handleSwitchWorkspace}>
             {t("confirm")}
           </Button>
         </AlertDialogFooter>

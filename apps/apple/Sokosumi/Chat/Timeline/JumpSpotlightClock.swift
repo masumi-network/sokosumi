@@ -46,6 +46,7 @@
     @State private var clock = JumpSpotlightClock()
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.jumpMarkClock) private var jumpMarkClock
 
     func body(content: Content) -> some View {
       content
@@ -54,8 +55,8 @@
           // Reduce Motion casts no spotlight (web's `prefers-reduced-motion` block), so nothing ticks.
           if let mark, !reduceMotion {
             TimelineView(.animation) { context in
-              Color.clear.onChange(of: context.date, initial: true) { _, now in
-                clock.show(JumpSpotlight(stage: mark.stage(at: now), dark: colorScheme == .dark, reduceMotion: false,
+              Color.clear.onChange(of: context.date, initial: true) {
+                clock.show(JumpSpotlight(stage: mark.stage(at: jumpMarkClock.now), dark: colorScheme == .dark, reduceMotion: false,
                                          easing: UnitCurve.easeOut.value(at:)), for: mark)
               }
             }

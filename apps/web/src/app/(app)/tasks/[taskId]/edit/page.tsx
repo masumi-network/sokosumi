@@ -7,7 +7,7 @@ import {
 } from "@/app/tasks/[taskId]/_lib/load-task-edit";
 
 export const metadata: Metadata = {
-  title: "Edit Task",
+  title: "Edit task",
 };
 
 export default async function EditTaskPage({

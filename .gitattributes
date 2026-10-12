@@ -1,0 +1,4 @@
+# Parallel Apple parity sessions each append a slice section to the end of the
+# log; union keeps both sides instead of stopping on a conflict. Local merges
+# only: GitHub's conflict check ignores merge drivers.
+apps/apple/PARITY-LOG.md merge=union

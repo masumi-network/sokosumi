@@ -5,8 +5,8 @@ import { socialPostPublishedUrl } from "@/clients/social-post-providers/publishe
 import {
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
-  createSocialPublishSession,
-  executeSocialPublishTool,
+  createSocialPostToolSession,
+  executeSocialPostTool,
   guardSocialCreateOutcome,
   stageSocialPublishFile,
 } from "@/clients/social-post-providers/tools";
@@ -30,6 +30,17 @@ export function deriveYouTubeTitle(text: string): string {
   return (line ?? "Untitled").slice(0, YOUTUBE_TITLE_LIMIT);
 }
 
+/** Everything after the title line. Empty when the post is only a title. */
+export function deriveYouTubeDescription(text: string): string {
+  const lines = text.split(/\r?\n/);
+  const titleIndex = lines.findIndex((part) => part.trim().length > 0);
+  if (titleIndex === -1) return "";
+  return lines
+    .slice(titleIndex + 1)
+    .join("\n")
+    .trim();
+}
+
 function videoIdOf(data: Record<string, unknown> | null): string | null {
   const candidates = [data?.id, data?.videoId, data?.video_id];
   for (const candidate of candidates) {
@@ -46,7 +57,7 @@ export async function publishYouTubeVideo(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("youtube");
-  const sessionId = await createSocialPublishSession({
+  const sessionId = await createSocialPostToolSession({
     toolkitSlug: "youtube",
     connectedAccountId: context.connectedAccountId,
     executorUserId: context.executorUserId,
@@ -71,12 +82,12 @@ export async function publishYouTubeVideo(
       signal: context.signal,
     });
     const uploaded = await guardSocialCreateOutcome(label, () =>
-      executeSocialPublishTool({
+      executeSocialPostTool({
         sessionId,
         toolSlug: YOUTUBE_UPLOAD_TOOL_SLUG,
         arguments: {
           title: deriveYouTubeTitle(context.text),
-          description: context.text,
+          description: deriveYouTubeDescription(context.text),
           tags: [],
           categoryId: YOUTUBE_DEFAULT_CATEGORY_ID,
           privacyStatus: "public",

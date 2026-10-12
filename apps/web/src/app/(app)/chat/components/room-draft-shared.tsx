@@ -213,7 +213,7 @@ export function DirectDraftTargetRow({
     >
       <Avatar className="size-7 shrink-0">
         <AvatarImage src={target.image ?? undefined} alt="" />
-        <AvatarFallback className="text-[0.625rem]">
+        <AvatarFallback className="text-2xs">
           {getInitials(target.name)}
         </AvatarFallback>
       </Avatar>
@@ -292,7 +292,7 @@ export function DirectDraftTargetList({
           }
         >
           {showSectionLabels ? (
-            <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-[0.6875rem] font-medium">
+            <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-2xs font-medium">
               {t("Dialog.humans")}
             </div>
           ) : null}
@@ -313,7 +313,7 @@ export function DirectDraftTargetList({
       {coworkerTargets.length > 0 ? (
         <div className={sokoBotTargets.length > 0 ? "pb-1" : undefined}>
           {showSectionLabels ? (
-            <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-[0.6875rem] font-medium">
+            <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-2xs font-medium">
               {t("Dialog.coworkers")}
             </div>
           ) : null}
@@ -334,7 +334,7 @@ export function DirectDraftTargetList({
       {sokoBotTargets.length > 0 ? (
         <div>
           {showSectionLabels ? (
-            <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-[0.6875rem] font-medium">
+            <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-2xs font-medium">
               {t("Dialog.personalAssistants")}
             </div>
           ) : null}

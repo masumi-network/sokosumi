@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it, vi } from "vitest";
 import { type Prisma as PrismaType } from "../generated/prisma/client.js";
 import {
-  buildLocalFreeOrganizationMemberSubscriptionReferenceId,
   buildLocalFreeOrganizationSubscriptionReferenceId,
   buildLocalFreeUserSubscriptionReferenceId,
   ensureInitialLocalFreeSubscriptionPeriod,
@@ -128,17 +127,6 @@ describe("local free subscription references", () => {
         new Date("2026-05-01T00:00:00.000Z"),
       ),
       "user:user-1:local-free:2026-05-01T00:00:00.000Z:subscription",
-    );
-  });
-
-  it("builds organization member reference ids with organization context", () => {
-    assert.equal(
-      buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-        "user-1",
-        "org-1",
-        new Date("2026-05-01T00:00:00.000Z"),
-      ),
-      "member:user-1:local-free:org-1:2026-05-01T00:00:00.000Z",
     );
   });
 });

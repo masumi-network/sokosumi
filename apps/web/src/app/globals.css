@@ -17,6 +17,12 @@
      own follows this. */
   --default-transition-duration: 310ms;
 
+  /* The one step below Tailwind's `text-xs`, for dense meta and badges only.
+     rem, so it follows the root size with Dynamic Type like the rest of the
+     scale. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -36,8 +42,6 @@
   --color-scrim-strong: var(--scrim-strong);
   --color-on-media: var(--on-media);
   --color-media-ground: var(--media-ground);
-  --color-hero-wash: var(--hero-wash);
-  --color-hero-ground: var(--hero-ground);
   --color-on-media-muted: var(--on-media-muted);
   --color-on-media-tertiary: var(--on-media-tertiary);
   --color-on-media-quaternary: var(--on-media-quaternary);
@@ -148,6 +152,8 @@
   --color-social-x-link: var(--social-x-link);
   --color-social-linkedin-link: var(--social-linkedin-link);
   --color-social-instagram-link: var(--social-instagram-link);
+  --color-social-facebook-link: var(--social-facebook-link);
+  --color-social-youtube-link: var(--social-youtube-link);
 
   --animate-reasoning-text-shine: reasoning-text-shine 2.5s ease-in-out infinite;
   /* Beautiful UI shimmer — register like reasoning-text-shine so Tailwind emits it. */
@@ -157,6 +163,18 @@
   --animate-auth-logo-marquee: auth-logo-marquee 40s linear infinite;
   /* The drawn caret in an InputOTP slot. */
   --animate-caret-blink: caret-blink 1.25s ease-out infinite;
+  /* A loading Button's bar: sweeps out past one edge, then back out past the other. */
+  --animate-button-loading-sweep: button-loading-sweep 1.1s ease-in-out infinite
+    alternate;
+
+  @keyframes button-loading-sweep {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(250%);
+    }
+  }
 
   @keyframes caret-blink {
     0%,
@@ -255,38 +273,9 @@
     }
   }
 
-  @keyframes reasoning-step-in {
-    from {
-      opacity: 0;
-      transform: translateY(0.25rem);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes reasoning-cursor-blink {
-    0%,
-    50% {
-      opacity: 1;
-    }
-    51%,
-    100% {
-      opacity: 0;
-    }
-  }
-
-  --animate-reasoning-step-in: reasoning-step-in 0.25s ease-out both;
-  --animate-reasoning-cursor-blink: reasoning-cursor-blink 1s step-end infinite;
-
   --animate-rotate-once: rotate-once 0.6s ease-in-out;
   --animate-roll-up: roll-up 0.2s ease-out forwards;
   --animate-roll-down: roll-down 0.2s ease-out forwards;
-  --animate-chat-input-border-spin: chat-input-border-angle-spin 1.2s linear
-    forwards;
-  --animate-chat-input-border-rest: chat-input-border-rest-focus 0.25s 1.2s
-    ease-out forwards;
 }
 
 :root {
@@ -335,11 +324,6 @@
   --scrim: hsla(0, 0%, 0%, 0.5);
   --scrim-strong: hsla(0, 0%, 0%, 0.8);
   --media-ground: hsla(0, 0%, 0%, 1);
-  /* The landing hero is a photograph with a wash over it. The wash hue and
-     the stop under it differ per theme, so they are tokens, not a dark
-     variant on the utility. */
-  --hero-wash: hsla(200.6, 100%, 49%, 0.39);
-  --hero-ground: hsla(0, 0%, 100%, 1);
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
@@ -497,6 +481,8 @@
   --social-x-link: #1d9bf0;
   --social-linkedin-link: #0a66c2;
   --social-instagram-link: #00376b;
+  --social-facebook-link: #0866ff;
+  --social-youtube-link: #065fd4;
   --semantic-success-tertiary: hsla(142, 26.6%, 79.6%, 1);
   --semantic-success-quaternary: hsla(142, 100.0%, 90.0%, 1);
   --semantic-success-quinary: hsla(142, 26.6%, 93.4%, 1);
@@ -605,8 +591,6 @@
   --scrim: hsla(0, 0%, 0%, 0.5);
   --scrim-strong: hsla(0, 0%, 0%, 0.8);
   --media-ground: hsla(0, 0%, 0%, 1);
-  --hero-wash: hsla(201.9, 100%, 38.6%, 0.62);
-  --hero-ground: hsla(0, 0%, 0%, 1);
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
@@ -724,7 +708,10 @@
   --semantic-success: hsla(142, 71%, 45%, 1);
   --social-x-link: #1d9bf0;
   --social-linkedin-link: #71b7fb;
-  --social-instagram-link: #e0f1ff;
+  /* Distinct from --foreground so tags stay visible as links. */
+  --social-instagram-link: #80c4ff;
+  --social-facebook-link: #6ba4ff;
+  --social-youtube-link: #3ea6ff;
   --semantic-success-tertiary: hsla(142, 62.6%, 20.4%, 1);
   --semantic-success-quaternary: hsla(142, 56.7%, 14.7%, 1);
   --semantic-success-quinary: hsla(142, 45.9%, 9.7%, 1);
@@ -763,6 +750,22 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /*
+   * Wrap once, here, instead of per element. A heading balances its lines so a
+   * title never strands one word; a paragraph avoids a lone last word.
+   * `truncate`, `line-clamp-*` and `text-wrap` utilities still win: they sit in
+   * the later utilities layer.
+   */
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
   }
 
   /*
@@ -846,6 +849,14 @@
 }
 
 /*
+ * Week chips must not grow past the day column. FullCalendar's event host
+ * sizes to content; clip here so the thumb stays inside the chip.
+ */
+.workspace-calendar-theme [data-testid="calendar-social-post"] {
+  max-width: 100%;
+}
+
+/*
  * Below md the day grids keep readable 7rem columns and pan sideways inside
  * the wrapper's overflow-x-auto instead of squeezing seven days into a phone
  * width. FullCalendar's own dayMinWidth needs the premium scrollgrid plugin.
@@ -909,40 +920,37 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   font-variant-ligatures: no-contextual;
 }
 
-@utility landing-hero-bg {
-  background-image:
-    linear-gradient(var(--hero-wash), var(--hero-ground)),
-    url("/backgrounds/landing-hero.jpg");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-@utility landing-join-our-community-bg {
-  background: url("/backgrounds/join-our-community.jpg");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-@utility agent-card-image-shadow {
-  box-shadow: 0px 0px 8px 2px
-    color-mix(in oklab, var(--muted-foreground) 30%, transparent);
-}
-
-@utility job-table-width {
-  @apply w-full lg:w-[max(480px,32%)];
-}
-
-@utility job-details-width {
-  @apply w-full lg:w-[calc(100%-max(480px,32%))];
-}
-
 @utility press {
   /* Pointer-down feedback (DESIGN.md Motion: scale 0.995). Transform only. */
   @media (prefers-reduced-motion: no-preference) {
     &:active:not(:disabled, [aria-disabled="true"]) {
       transform: scale(0.995);
+    }
+  }
+}
+
+/* Tap target for an icon control whose painted box stays small (dense toolbars,
+   chips, inline dismiss). A transparent ::after centered on the control grows
+   what a finger can hit to 40px below md and 32px from md up; a control that
+   is already that big keeps its own box. DESIGN.md → Accessibility → Touch
+   targets has the rule and the spacing it needs from its neighbours.
+
+   It sets `position: relative`. `absolute` or `fixed` on the same element
+   still wins: Tailwind emits single-property utilities after this one. A
+   scroll container (`overflow-*-auto`) clips the ::after, so give the
+   container room (`-m-1.5 p-1.5`) or grow the control instead. */
+@utility hit-area {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: min(0px, calc((100% - --spacing(10)) / 2));
+  }
+
+  @variant md {
+    &::after {
+      inset: min(0px, calc((100% - --spacing(8)) / 2));
     }
   }
 }
@@ -1100,94 +1108,6 @@ time {
   }
 }
 
-@property --chat-input-border-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-
-.chat-input-border-anchor {
-  --chat-input-border-angle: 0deg;
-  position: relative;
-  /* Whole pixels. 1.5px is 3 device pixels on a 2x Mac and an ambiguous
-     round on a 1x display, where the ring lands at 1px on one edge and 2px
-     on another. 2px keeps the author's intent of a ring heavier than a
-     hairline and renders the same everywhere. */
-  padding: 2px;
-  border: 2px solid transparent;
-  background:
-    linear-gradient(var(--background), var(--background)) padding-box,
-    linear-gradient(
-      to right,
-      color-mix(in oklch, var(--primary) 50%, transparent),
-      color-mix(in oklch, var(--chart-1) 50%, transparent)
-    )
-    border-box;
-}
-
-.chat-input-border-anchor:focus-within {
-  --chat-input-border-angle: 0deg;
-  background:
-    linear-gradient(var(--background), var(--background)) padding-box,
-    conic-gradient(
-      from var(--chat-input-border-angle),
-      var(--primary) 0deg,
-      color-mix(in oklch, var(--primary) 70%, var(--chart-1)) 45deg,
-      color-mix(in oklch, var(--primary) 40%, var(--chart-1)) 90deg,
-      color-mix(in oklch, var(--primary) 15%, var(--chart-1)) 135deg,
-      var(--chart-1) 180deg,
-      color-mix(in oklch, var(--primary) 15%, var(--chart-1)) 225deg,
-      color-mix(in oklch, var(--primary) 40%, var(--chart-1)) 270deg,
-      color-mix(in oklch, var(--primary) 70%, var(--chart-1)) 315deg,
-      var(--primary) 360deg
-    )
-    border-box;
-  animation:
-    var(--animate-chat-input-border-spin), var(--animate-chat-input-border-rest);
-}
-
-@keyframes chat-input-border-angle-spin {
-  from {
-    --chat-input-border-angle: 0deg;
-  }
-
-  to {
-    --chat-input-border-angle: 360deg;
-  }
-}
-
-@keyframes chat-input-border-rest-focus {
-  to {
-    background:
-      linear-gradient(var(--background), var(--background)) padding-box,
-      linear-gradient(to right, var(--primary), var(--chart-1)) border-box;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chat-input-border-anchor:focus-within {
-    animation: none;
-    background:
-      linear-gradient(var(--background), var(--background)) padding-box,
-      linear-gradient(to right, var(--primary), var(--chart-1)) border-box;
-  }
-}
-
-@keyframes welcome-suggestion-in {
-  from {
-    opacity: 0;
-    transform: translateY(0.5rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.welcome-suggestion-item {
-  animation: welcome-suggestion-in 0.3s ease-out both;
-}
-
 @utility reasoning-text-shine {
   background: linear-gradient(
     90deg,
@@ -1217,26 +1137,6 @@ time {
   background-clip: text;
   color: transparent;
   animation: var(--animate-bui-shimmer-text);
-}
-
-@utility reasoning-step-in {
-  animation: var(--animate-reasoning-step-in);
-}
-
-.reasoning-step-typing {
-  position: relative;
-}
-.reasoning-step-typing::after {
-  content: "";
-  position: relative;
-  display: inline-block;
-  width: 2px;
-  height: 1em;
-  margin-left: 1px;
-  vertical-align: text-bottom;
-  background-color: currentColor;
-  opacity: 0.7;
-  animation: var(--animate-reasoning-cursor-blink);
 }
 
 /* Respect reduced-motion for the chat "thinking" indicator: freeze the

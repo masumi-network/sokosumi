@@ -14,14 +14,14 @@ import { listResponse, requireId } from "../models/parse-helpers.js";
 
 const COWORKERS_PATH = "/v1/coworkers";
 
-export interface FetchCoworkersOptions {
+interface FetchCoworkersOptions {
   scope?: string;
   capabilities?: string | readonly string[];
 }
 
-export type CoworkerMutationData = Record<string, unknown>;
+type CoworkerMutationData = Record<string, unknown>;
 
-export interface CoworkerApiKeyData {
+interface CoworkerApiKeyData {
   name?: string | null;
   expiresAt?: string | null;
 }

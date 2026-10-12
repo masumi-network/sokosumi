@@ -1,6 +1,7 @@
 """Extract the Apple client's existing operations plus requested paths (optionally path#method) from Core OpenAPI.
 
-Paths or methods Core no longer serves are dropped, so a removed contract leaves the snapshot too."""
+A selection prefixed with `-` drops that path or method instead. Paths or methods Core no longer serves are dropped
+too, so a removed contract leaves the snapshot."""
 import json
 import sys
 from pathlib import Path
@@ -10,8 +11,11 @@ target = Path(__file__).resolve().parents[1] / 'Packages/CoreAPI/Sources/CoreAPI
 previous = json.loads(target.read_text())
 paths = dict(previous['paths'])
 for selection in sys.argv[2:]:
-    path, _, method = selection.partition('#')
-    if method:
+    drop = selection.startswith('-')
+    path, _, method = selection.removeprefix('-').partition('#')
+    if drop:
+        paths[path] = {name: operation for name, operation in paths.get(path, {}).items() if method and name != method}
+    elif method:
         paths.setdefault(path, {})[method] = source['paths'][path][method]
     else:
         paths[path] = source['paths'][path]

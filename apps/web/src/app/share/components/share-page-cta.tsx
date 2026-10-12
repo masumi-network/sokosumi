@@ -41,7 +41,7 @@ export default function SharePageCTA({ className }: SharePageCTAProps) {
         >
           <Link href="https://www.sokosumi.com/agents">
             {t("buttonText")}
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="size-4" />
           </Link>
         </Button>
       </div>

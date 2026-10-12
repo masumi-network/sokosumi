@@ -32,6 +32,9 @@ export const NEXT_IMAGE_REMOTE_PATTERNS = [
 ] as const;
 
 export function canUseNextImageSrc(url: string): boolean {
+  // Protected API media needs the browser's session cookie on every read.
+  // The optimizer neither forwards that cookie nor rechecks viewer access.
+  if (url.startsWith("/api/")) return false;
   if (url.startsWith("/")) {
     return true;
   }

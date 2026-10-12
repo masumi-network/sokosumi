@@ -51,7 +51,8 @@ it("keeps Sign out busy until signing out settles", async () => {
 
     await act(async () => button.click());
     expect(signOut).toHaveBeenCalledTimes(1);
-    expect(button.disabled).toBe(true);
+    expect(button.disabled).toBe(false);
+    expect(button.getAttribute("aria-disabled")).toBe("true");
     expect(button.getAttribute("aria-busy")).toBe("true");
     expect(button.textContent).toBe("Sign out");
     expect(button.querySelector("[aria-hidden='true']")).not.toBeNull();

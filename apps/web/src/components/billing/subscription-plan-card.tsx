@@ -28,7 +28,6 @@ interface SubscriptionPlanCardProps {
   isDisabled?: boolean;
   isAnyPlanPending: boolean;
   isPlanPending: boolean;
-  loadingLabel?: string;
   onAction: (plan: PaidSubscriptionPlanName) => void;
   plan: PaidSubscriptionPlanView;
 }
@@ -39,7 +38,6 @@ export function SubscriptionPlanCard({
   isDisabled,
   isAnyPlanPending,
   isPlanPending,
-  loadingLabel,
   onAction,
   plan,
 }: SubscriptionPlanCardProps) {
@@ -55,7 +53,6 @@ export function SubscriptionPlanCard({
         ? t("currentPlanCta")
         : t("upgradePlanCta")
       : actionLabel;
-  const resolvedLoadingLabel = loadingLabel ?? t("upgrading");
 
   return (
     <Card
@@ -106,7 +103,6 @@ export function SubscriptionPlanCard({
             disabled={resolvedDisabled}
             isCurrent={plan.isCurrent}
             isPlanPending={isPlanPending}
-            loadingLabel={resolvedLoadingLabel}
             onPress={() => onAction(plan.name)}
           />
         </CardFooter>

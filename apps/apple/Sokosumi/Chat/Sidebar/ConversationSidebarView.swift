@@ -327,7 +327,8 @@ struct ConversationSidebarView: View {
           Text("Unreads")
             .lineLimit(1)
             .fontWeight(isOn ? .medium : .regular)
-            .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+            // Off, it rests muted like the Threads row (web's `THREADS_ROW_CLASS`).
+            .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
         } icon: {
           Image(systemName: "tray")
             .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
@@ -648,17 +649,19 @@ struct ConversationSidebarView: View {
 
   /// Web's Threads entry (`ChatUnreadNavRows`, SOK-1159): opens the chat-level Threads view in the detail
   /// column. It carries the one number a room row does, from the rooms alone: the mention badge where an
-  /// unread Thread names the reader, the muted count of unread Threads otherwise, nothing at zero; bold
-  /// while any Thread is unread. VoiceOver hears web's words for both.
+  /// unread Thread names the reader, the muted count of unread Threads otherwise, nothing at zero. The label
+  /// is bold and full strength while any Thread is unread and muted at rest, like web's `THREADS_ROW_CLASS`.
+  /// VoiceOver hears web's words for both.
   private var threadsRow: some View {
     let attention = resolveUnreadThreadsAttention(workspaces.rooms)
     return Label {
       HStack(spacing: 6) {
         Text("Threads")
           .lineLimit(1)
-          .fontWeight(attention.threadCount > 0 ? .bold : .regular)
+          .fontWeight(attention.isUnread ? .bold : .regular)
+          .foregroundStyle(attention.isUnread ? .primary : .secondary)
         Spacer(minLength: 0)
-        if attention.mentionCount == 0, attention.threadCount > 0 {
+        if attention.mentionCount == 0, attention.isUnread {
           Text(roomCountLabel(attention.threadCount))
             .font(.caption.weight(.semibold)).monospacedDigit()
             .foregroundStyle(.secondary)
@@ -747,7 +750,7 @@ struct ConversationSidebarView: View {
 
   @ViewBuilder
   private func roomActions(_ room: Components.Schemas.ChatRoom) -> some View {
-    Button("Mark unread", systemImage: "envelope.badge") {
+    Button("Mark as unread", systemImage: "envelope.badge") {
       Task { @MainActor in await workspaces.performSidebarAction(.markUnread, roomId: room.id, auth: auth) }
     }
     .disabled(!workspaces.sidebar.canPerform(.markUnread, roomId: room.id))
@@ -907,7 +910,7 @@ private struct RoomLeadingIcon: View {
 }
 
 struct DirectRoomAvatarStack: View {
-  /// Web `DirectRoomAvatarStack`: `size-5` faces, `-ml-1.5` overlap, `size-2` marks.
+  /// Web `DirectRoomAvatarStack`.
   static let faceSize: CGFloat = 20
   private static let overlap: CGFloat = 6
   private static let markSize: CGFloat = 8
