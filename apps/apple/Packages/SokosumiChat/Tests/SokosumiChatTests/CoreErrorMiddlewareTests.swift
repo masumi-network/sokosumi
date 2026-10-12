@@ -29,6 +29,25 @@ struct CoreErrorMiddlewareTests {
     #expect(await mapped(status: 401, body: body) == .unauthorized(CoreErrorMiddleware.fallbackMessage))
   }
 
+  /// The caller left while the error body was arriving: cancellation, not a 401 that would sign out.
+  @Test func cancellationWhileReadingTheBodyStaysCancellation() async throws {
+    let body = HTTPBody(AsyncThrowingStream<ArraySlice<UInt8>, any Error> { $0.finish(throwing: CancellationError()) }, length: .unknown)
+    await #expect(throws: CancellationError.self) {
+      _ = try await CoreErrorMiddleware().intercept(request, body: nil, baseURL: baseURL, operationID: "get/chats/rooms") { _, _, _ in
+        (HTTPResponse(status: .unauthorized), body)
+      }
+    }
+  }
+
+  @Test func aFailedBodyReadKeepsTheStatusWithFallback() async throws {
+    let body = HTTPBody(AsyncThrowingStream<ArraySlice<UInt8>, any Error> { $0.finish(throwing: URLError(.networkConnectionLost)) }, length: .unknown)
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 500, message: CoreErrorMiddleware.fallbackMessage)) {
+      _ = try await CoreErrorMiddleware().intercept(request, body: nil, baseURL: baseURL, operationID: "get/chats/rooms") { _, _, _ in
+        (HTTPResponse(status: .internalServerError), body)
+      }
+    }
+  }
+
   /// Streams and file downloads must arrive incrementally: a 2xx body is the transport's own, unread.
   @Test(arguments: [200, 201, 204])
   func successPassesThroughUnread(status: Int) async throws {

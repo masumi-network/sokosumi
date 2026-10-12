@@ -25,13 +25,19 @@ public struct CoreErrorMiddleware: ClientMiddleware {
   ) async throws -> (HTTPResponse, HTTPBody?) {
     let (response, responseBody) = try await next(request, body, baseURL)
     guard response.status.kind != .successful else { return (response, responseBody) }
-    throw await Self.error(statusCode: response.status.code, body: responseBody)
+    throw try await Self.error(statusCode: response.status.code, body: responseBody)
   }
 
-  static func error(statusCode: Int, body: HTTPBody?) async -> ChatServiceError {
+  /// A read that fails keeps the fallback copy, except cancellation: the caller left, so a 401 must not sign out.
+  static func error(statusCode: Int, body: HTTPBody?) async throws -> ChatServiceError {
     var envelope: Envelope?
-    if let body, let bytes = try? await Array(collecting: body, upTo: maxEnvelopeBytes) {
-      envelope = try? JSONDecoder().decode(Envelope.self, from: Data(bytes))
+    if let body {
+      do {
+        let bytes = try await Array(collecting: body, upTo: maxEnvelopeBytes)
+        envelope = try? JSONDecoder().decode(Envelope.self, from: Data(bytes))
+      } catch is CancellationError {
+        throw CancellationError()
+      } catch {}
     }
     let message = envelope?.message.flatMap { $0.isEmpty ? nil : $0 } ?? fallbackMessage
     if statusCode == 401 {
