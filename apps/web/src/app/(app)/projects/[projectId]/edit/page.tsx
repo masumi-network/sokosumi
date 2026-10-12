@@ -6,7 +6,7 @@ import { ProjectEditModal } from "@/app/projects/components/project-edit-modal";
 import { projectService } from "@/lib/services/project.service";
 
 export const metadata: Metadata = {
-  title: "Edit Project",
+  title: "Edit project",
 };
 
 export default async function EditProjectPage({

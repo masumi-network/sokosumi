@@ -62,13 +62,13 @@ describe("VerifyEmailButton", () => {
       callbackURL: window.location.href,
       fetchOptions: captchaFetchOptions,
     });
-    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("aria-busy", "true");
 
     resolveRequest?.({ data: { status: true }, error: null });
 
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith("Verification email sent.");
-      expect(button).not.toBeDisabled();
+      expect(button).not.toHaveAttribute("aria-busy");
     });
   });
 

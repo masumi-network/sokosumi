@@ -36,6 +36,7 @@ interface TaskProjectSelectProps extends TaskProjectSelectLabels {
   value: string | null | undefined;
   onChange: (value: string | null) => void;
   onCreateProject?: (searchQuery: string) => void;
+  allowNone?: boolean;
   variant?: "field" | "chip";
   ref?: Ref<HTMLButtonElement>;
   invalid?: boolean;
@@ -56,6 +57,7 @@ export function TaskProjectSelect({
   projectCreate,
   projectCreateNamed,
   onCreateProject,
+  allowNone = true,
   variant = "field",
   ref,
   invalid,
@@ -177,20 +179,22 @@ export function TaskProjectSelect({
           />
           <CommandList>
             <CommandEmpty>{emptyResults}</CommandEmpty>
-            <CommandItem
-              value={NO_PROJECT_VALUE}
-              keywords={[noneLabel]}
-              onSelect={() => handleSelect(null)}
-            >
-              <span className="flex-1 truncate">{noneLabel}</span>
-              <Check
-                className={cn(
-                  "size-4",
-                  value === null ? "opacity-100" : "opacity-0",
-                )}
-                aria-hidden
-              />
-            </CommandItem>
+            {allowNone && (
+              <CommandItem
+                value={NO_PROJECT_VALUE}
+                keywords={[noneLabel]}
+                onSelect={() => handleSelect(null)}
+              >
+                <span className="flex-1 truncate">{noneLabel}</span>
+                <Check
+                  className={cn(
+                    "size-4",
+                    value === null ? "opacity-100" : "opacity-0",
+                  )}
+                  aria-hidden
+                />
+              </CommandItem>
+            )}
             {optionItems.map((project) => (
               <CommandItem
                 key={project.id}

@@ -406,12 +406,8 @@ export function TableCreateDialog({
               {t("openTable")}
             </Button>
           )}
-          <Button disabled={pending} onClick={() => void handleCreate()}>
-            {pending
-              ? t("saving")
-              : attempt?.tableId
-                ? t("retry")
-                : t("create")}
+          <Button loading={pending} onClick={() => void handleCreate()}>
+            {attempt?.tableId ? t("retry") : t("create")}
           </Button>
         </DialogFooter>
       </DialogContent>

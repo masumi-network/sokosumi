@@ -23,6 +23,7 @@
 - signup/login ∈ web `/signin` during OAuth authorize. ⊥ CLI email/password form.
 - hosted public OAuth IDs built in: mainnet → `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod → `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`; explicit `--client-id`, target-specific, or generic `SOKOSUMI_OAUTH_CLIENT_ID` override. OAuth flow uses PKCE. Native clients = public (`application_type=native`, `token_endpoint_auth_method=none`) with canonical portless redirect `http://127.0.0.1/oauth/callback`; runtime redirect = `http://127.0.0.1:<port>/oauth/callback`, default port `53682` valid under RFC 8252 §7.3. Current CLI binds IPv4 only. ⊥ `localhost`; ⊥ claim current IPv6 runtime support.
 - consent on (`skipConsent: false`). scopes `openid sokosumi:api offline_access`.
+- each env's client row → `signUpOrigin: cli`; ⊥ → sign-ups record `unknown`. Correction for earlier sign-ups → [ADR 0052](../../docs/adr/0052-sign-up-context-travels-in-the-signed-authorize-query.md#consequences).
 - TUI menus use arrows + Enter. Esc back. q quit. ⊥ letter/numeric aliases.
 - v1 visual source = external user-provided `I-Want-You-Desing-Tui-Sokosumi` bundle. Production TUI = Ink/React. ⊥ HTML/CSS runtime, copied prototype fixtures, browser `localStorage`.
 - Biome format. Conventional Commits. pinned deps (no semver ranges).

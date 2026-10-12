@@ -23,7 +23,6 @@ const taskFileUploadCompletedTokenPayloadSchema = z
     uploadedByUserId: z.string().min(1).nullable(),
     uploadedByCoworkerId: z.string().min(1).nullable(),
     uploadedBySokoBotId: z.uuid().nullable().optional(),
-    uploadedByOrchestratorId: z.uuid().nullable().optional(),
   })
   .transform((payload) => ({
     taskId: payload.taskId,
@@ -32,8 +31,7 @@ const taskFileUploadCompletedTokenPayloadSchema = z
     size: payload.size,
     uploadedByUserId: payload.uploadedByUserId,
     uploadedByCoworkerId: payload.uploadedByCoworkerId,
-    uploadedBySokoBotId:
-      payload.uploadedBySokoBotId ?? payload.uploadedByOrchestratorId ?? null,
+    uploadedBySokoBotId: payload.uploadedBySokoBotId ?? null,
   }));
 
 type TaskFileUploadCompletedTokenPayload = z.infer<

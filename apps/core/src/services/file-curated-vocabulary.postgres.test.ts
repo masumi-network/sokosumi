@@ -4,6 +4,7 @@ import { workspaceRepository } from "@sokosumi/database/repositories";
 import { CURATED_FILE_VOCABULARY } from "@sokosumi/utils";
 import { afterAll, describe, expect, it } from "vitest";
 
+import { createPersonalWorkspace } from "@/helpers/personal-workspace";
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -63,16 +64,10 @@ describe.skipIf(!enabled)("curated vocabulary on workspace creation", () => {
   it("seeds a personal workspace, and is a no-op the second time", async () => {
     const userId = await createUser("personal");
 
-    const first = await prisma.$transaction((tx) =>
-      workspaceRepository.ensurePersonalWorkspaceKeepingPreferred({
-        userId,
-        tx,
-      }),
-    );
-    expect(first.created).toBe(true);
+    const first = await createPersonalWorkspace(userId);
 
     const labels = await prisma.workspaceLabel.findMany({
-      where: { workspaceId: first.workspace.id },
+      where: { workspaceId: first.id },
       select: { kind: true, displayName: true, createdByUserId: true },
     });
     expect(labels).toHaveLength(CURATED_FILE_VOCABULARY.length);
@@ -90,11 +85,11 @@ describe.skipIf(!enabled)("curated vocabulary on workspace creation", () => {
 
     // Idempotent on (workspaceId, kind, normalizedName).
     await prisma.$transaction((tx) =>
-      workspaceRepository.seedCuratedVocabulary(first.workspace.id, tx),
+      workspaceRepository.seedCuratedVocabulary(first.id, tx),
     );
     await expect(
       prisma.workspaceLabel.count({
-        where: { workspaceId: first.workspace.id },
+        where: { workspaceId: first.id },
       }),
     ).resolves.toBe(CURATED_FILE_VOCABULARY.length);
   }, 60_000);
@@ -126,12 +121,7 @@ describe.skipIf(!enabled)("curated vocabulary on workspace creation", () => {
 
   it("never overwrites a label a person made", async () => {
     const userId = await createUser("collision");
-    const { workspace } = await prisma.$transaction((tx) =>
-      workspaceRepository.ensurePersonalWorkspaceKeepingPreferred({
-        userId,
-        tx,
-      }),
-    );
+    const workspace = await createPersonalWorkspace(userId);
 
     // Retire the curated Finance row and put a hand-made one in its place, the
     // way an old workspace that used the create route directly would look.

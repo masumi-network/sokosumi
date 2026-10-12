@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -128,10 +127,7 @@ export default function OrganizationBulkInviteModal({
               />
               <p className="text-muted-foreground text-sm">{t("hint")}</p>
             </div>
-            <Button type="submit" disabled={isSubmitting} className="w-full">
-              {isSubmitting && (
-                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-              )}
+            <Button type="submit" className="w-full" loading={isSubmitting}>
               {t("submit")}
             </Button>
           </form>

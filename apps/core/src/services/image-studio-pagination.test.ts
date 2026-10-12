@@ -10,17 +10,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * the page, and it identifies a row rather than an instant.
  */
 
-const { assetFindManyMock, assetFindFirstMock, requireProjectAccessMock } =
-  vi.hoisted(() => ({
-    assetFindManyMock: vi.fn(),
-    assetFindFirstMock: vi.fn(),
-    requireProjectAccessMock: vi.fn(),
-  }));
+const {
+  assetFindManyMock,
+  assetFindFirstMock,
+  requireProjectAccessMock,
+  requireWorkspaceAccessMock,
+} = vi.hoisted(() => ({
+  assetFindManyMock: vi.fn(),
+  assetFindFirstMock: vi.fn(),
+  requireProjectAccessMock: vi.fn(),
+  requireWorkspaceAccessMock: vi.fn(),
+}));
 
 vi.mock("@/config/env", () => ({ getEnv: () => ({}) }));
 vi.mock("@vercel/blob", () => ({ get: vi.fn() }));
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: requireProjectAccessMock,
+  requireWorkspaceAccess: requireWorkspaceAccessMock,
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -43,6 +49,8 @@ const SCOPE = {
 function asset(index: number, createdAt: Date) {
   return {
     id: `asset-${String(index).padStart(3, "0")}`,
+    projectId: "project-1",
+    project: { name: "Launch" },
     createdAt,
     settings: {},
     rootId: "root",
@@ -113,5 +121,34 @@ describe("listAssets", () => {
     assetFindManyMock.mockResolvedValue([asset(2, new Date())]);
     const result = await listAssets({ ...SCOPE, limit: 10 });
     expect(result.nextCursor).toBeNull();
+  });
+
+  it("reads every project in the workspace when no project is named", async () => {
+    assetFindManyMock.mockResolvedValue([asset(2, new Date())]);
+
+    const result = await listAssets({ ...SCOPE, projectId: null, limit: 10 });
+
+    // Membership of the workspace, not of one project, is the check.
+    expect(requireWorkspaceAccessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: "workspace-1", userId: "user-1" }),
+    );
+    expect(requireProjectAccessMock).not.toHaveBeenCalled();
+    expect(assetFindManyMock.mock.calls[0]![0].where).toMatchObject({
+      project: { workspaceId: "workspace-1" },
+    });
+    expect(result.assets[0]).toMatchObject({
+      projectId: "project-1",
+      projectName: "Launch",
+    });
+    expect(result.assets[0]).not.toHaveProperty("project");
+  });
+
+  it("refuses the workspace view to a caller who is no longer a member", async () => {
+    requireWorkspaceAccessMock.mockRejectedValue(new Error("not found"));
+
+    await expect(
+      listAssets({ ...SCOPE, projectId: null, limit: 10 }),
+    ).rejects.toThrow("not found");
+    expect(assetFindManyMock).not.toHaveBeenCalled();
   });
 });
