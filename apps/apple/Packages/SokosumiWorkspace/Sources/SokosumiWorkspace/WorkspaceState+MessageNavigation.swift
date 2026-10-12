@@ -27,7 +27,10 @@ public extension WorkspaceState {
     let request = UUID()
     messageNavigationRequest = request
     let generation = room.timeline.generation
-    await transcriptLoadTask?.value
+    // Only the room's first page decides whether the message is there; a refresh or older page may keep running.
+    if room.timeline.isLoading {
+      _ = await room.loadTask?.value
+    }
     guard isCurrent(NavigationGuard(request: request, generation: generation)), transcriptRoomId == roomId else { return .superseded }
     guard let messageId else { thread.close()
       return .opened
@@ -121,7 +124,7 @@ public extension WorkspaceState {
       guard parent.id == parentId, parent.roomId == hit.roomId, parent.parentMessageId == nil else { return .unavailable }
       openThread(parent, auth: auth)
       let threadGeneration = thread.transcript.timeline.generation
-      await thread.transcript.loadTask?.value
+      _ = await thread.transcript.loadTask?.value
       guard isCurrent(navigation, threadGeneration: threadGeneration),
             thread.parent?.id == parentId else { return .superseded }
       // Web lands the room on the parent after the reply's branch, whatever that branch found (row 25c,

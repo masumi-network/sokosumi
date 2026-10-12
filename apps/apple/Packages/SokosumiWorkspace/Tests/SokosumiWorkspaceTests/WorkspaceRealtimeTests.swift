@@ -221,11 +221,9 @@ private func realtimeState(
 }
 
 private func waitForRealtimeIdle(_ state: WorkspaceState) async {
-  while state.sidebarRecovery.isRefreshing || state.roomsRefreshTask != nil || state.room.recovery.isRefreshing || state.transcriptLoadTask != nil || state.olderPageTask != nil || state.transcriptRefreshTask != nil {
+  while state.sidebarRecovery.isRefreshing || state.roomsRefreshTask != nil || state.room.recovery.isRefreshing || state.room.loadTask != nil {
     await state.roomsRefreshTask?.value
-    await state.transcriptLoadTask?.value
-    await state.olderPageTask?.value
-    await state.transcriptRefreshTask?.value
+    _ = await state.room.loadTask?.value
     await Task.yield()
   }
   for _ in 0 ..< 1000 where state.outboundInFlight {

@@ -243,10 +243,8 @@ private func ephemeralState(
 /// spawn, so stubbed responses are consumed in order. Every load in these
 /// tests must be followed by one before the next load or op assertion.
 private func waitForTranscriptIdle(_ state: WorkspaceState) async {
-  while state.transcriptLoadTask != nil || state.olderPageTask != nil || state.transcriptRefreshTask != nil {
-    await state.transcriptLoadTask?.value
-    await state.olderPageTask?.value
-    await state.transcriptRefreshTask?.value
+  while let task = state.room.loadTask {
+    _ = await task.value
   }
 }
 
@@ -1010,7 +1008,7 @@ struct WorkspaceStateTests {
     #expect(transport.remainingStubs == 0)
   }
 
-  @Test func missingThreadClientEndsInitialLoading() throws {
+  @Test func missingThreadClientEndsInitialLoading() async throws {
     let (state, _, _, _) = try ephemeralState([])
     let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     state.clientResolver = nil
@@ -1018,6 +1016,7 @@ struct WorkspaceStateTests {
     state.thread.transcript.timeline.reset(roomId: "room", parentMessageId: "parent")
     #expect(state.thread.transcript.timeline.isLoading)
     state.loadThreadPage(.initial, auth: auth)
+    _ = await state.thread.transcript.loadTask?.value
     #expect(!state.thread.transcript.timeline.isLoading)
     #expect(state.thread.transcript.timeline.failedPage == .initial)
     #expect(state.thread.transcript.timeline.errorMessage == "Sign-in is not configured.")
@@ -1058,11 +1057,11 @@ struct WorkspaceStateTests {
     await waitForTranscriptIdle(state)
     if olderRoomFailure {
       state.loadOlderMessages(auth: auth)
-      await state.olderPageTask?.value
+      _ = await state.room.loadTask?.value
       #expect(state.room.timeline.failedPage == .older)
     }
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.transcript.loadTask?.value
+    _ = await state.thread.transcript.loadTask?.value
     if initialFailure {
       #expect(state.thread.transcript.timeline.failedPage == .initial)
       state.thread.transcript.recovery.requestRefresh()
@@ -1110,7 +1109,7 @@ struct WorkspaceStateTests {
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.transcript.loadTask?.value
+    _ = await state.thread.transcript.loadTask?.value
     #expect(state.thread.transcript.displayedMessages.map(\.content) == ["Reply"])
     let writes = transport.operationIDs.filter { $0.hasPrefix("post/") }.count
 
@@ -1662,8 +1661,8 @@ struct WorkspaceStateTests {
     #expect(state.thread.open(parent))
     state.room.recovery.start(foreground: true, healthy: true) {
       state.refreshTranscript(auth: auth)
-      while state.transcriptRefreshTask != nil {
-        await state.transcriptRefreshTask?.value
+      while state.room.loadTask != nil {
+        _ = await state.room.loadTask?.value
       }
     }
     transport.pauseStream = true
@@ -1704,7 +1703,7 @@ struct WorkspaceStateTests {
     }
     #expect(state.room.timeline.hasMore)
     state.loadOlderMessages(auth: auth)
-    #expect(state.olderPageTask == nil)
+    #expect(state.room.loadTask == nil)
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 1)
     transport.releasePausedRequest()
     await state.directStream.task?.value
@@ -2684,7 +2683,7 @@ extension WorkspaceStateTests {
     #expect(try await state.jumpToMessage("parent", auth: auth))
     // The quote's lookup answers from loaded rows: the reply is in the open Thread.
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.transcript.loadTask?.value
+    _ = await state.thread.transcript.loadTask?.value
     #expect(try await state.openMessage("reply", auth: auth, marksThreadParent: false) == .opened)
     #expect(state.thread.transcript.jumpTarget?.messageId == "reply", "The quote still opens the Thread on the reply.")
     #expect(state.messageJump == nil)
@@ -3805,18 +3804,18 @@ extension WorkspaceStateTests {
     state.setHistoryGapVisible(before: "z", true, auth: auth)
     #expect(state.room.timeline.boundaryLoads.status(of: "z") == .loading)
     state.setHistoryGapVisible(before: "z", true, auth: auth)
-    await state.historyGapTask?.value
+    await state.room.gapTask?.value
     #expect(gapPages(transport) == ["cursor=z"], "Once per arming, and never twice for one in-flight request.")
     #expect(state.room.timeline.historyGapMessageIds == ["m"], "The page stopped short of the jump window, so the gap moved to its oldest row.")
     #expect(state.room.timeline.boundaryLoads.status(of: "z") == .idle)
     #expect(state.transcriptError == nil)
 
     state.setHistoryGapVisible(before: "m", true, auth: auth)
-    await state.historyGapTask?.value
+    await state.room.gapTask?.value
     #expect(gapPages(transport) == ["cursor=z", "cursor=m"])
     #expect(state.room.timeline.historyGapMessageIds.isEmpty)
     #expect(state.room.timeline.boundaryLoads == TranscriptBoundaryLoads())
-    #expect(state.historyGapTask == nil)
+    #expect(state.room.gapTask == nil)
   }
 
   @Test func aFailedHistoryGapWaitsForTryAgainWithoutATranscriptError() async throws {
@@ -3826,7 +3825,7 @@ extension WorkspaceStateTests {
     ])
     defer { state.reset() }
     state.setHistoryGapVisible(before: "z", true, auth: auth)
-    await state.historyGapTask?.value
+    await state.room.gapTask?.value
     #expect(state.room.timeline.boundaryLoads.status(of: "z") == .failed)
     #expect(state.transcriptError == nil, "No banner above the transcript and nothing for an alert to show.")
     #expect(state.room.timeline.failedPage == nil)
@@ -3835,12 +3834,12 @@ extension WorkspaceStateTests {
 
     state.setHistoryGapVisible(before: "z", false, auth: auth)
     state.setHistoryGapVisible(before: "z", true, auth: auth)
-    await state.historyGapTask?.value
+    await state.room.gapTask?.value
     #expect(gapPages(transport) == ["cursor=z"], "A failed row does not load itself again.")
 
     state.loadHistoryGap(before: "z", auth: auth)
     #expect(state.room.timeline.boundaryLoads.status(of: "z") == .loading)
-    await state.historyGapTask?.value
+    await state.room.gapTask?.value
     #expect(gapPages(transport) == ["cursor=z", "cursor=z"])
     #expect(state.room.timeline.historyGapMessageIds.isEmpty)
     #expect(state.transcriptMessages.map(\.id) == ["a", "m", "z"])
@@ -3860,8 +3859,8 @@ extension WorkspaceStateTests {
     state.setHistoryGapVisible(before: "z", true, auth: auth)
     #expect(state.room.timeline.boundaryLoads.status(of: "m") == .loading)
     #expect(state.room.timeline.boundaryLoads.status(of: "z") == .idle, "The second gap waits; the timeline admits one page at a time.")
-    await state.historyGapTask?.value
-    await state.historyGapTask?.value
+    await state.room.gapTask?.value
+    await state.room.gapTask?.value
     #expect(gapPages(transport) == ["cursor=m", "cursor=z"])
     #expect(state.room.timeline.historyGapMessageIds.isEmpty)
     #expect(state.transcriptMessages.map(\.id) == ["a", "b", "m", "n", "z"])
@@ -3871,11 +3870,11 @@ extension WorkspaceStateTests {
     let (state, auth, _) = try await stateWithGap([(500, "{}")])
     defer { state.reset() }
     state.setHistoryGapVisible(before: "z", true, auth: auth)
-    await state.historyGapTask?.value
+    await state.room.gapTask?.value
     #expect(state.room.timeline.boundaryLoads.status(of: "z") == .failed)
     state.clearTranscript()
     #expect(state.room.timeline.boundaryLoads == TranscriptBoundaryLoads())
-    #expect(state.historyGapTask == nil)
+    #expect(state.room.gapTask == nil)
     state.setHistoryGapVisible(before: "z", true, auth: auth)
     #expect(state.room.timeline.boundaryLoads == TranscriptBoundaryLoads(), "No transcript, no gap rows.")
   }
@@ -3912,7 +3911,7 @@ extension WorkspaceStateTests {
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.transcript.loadTask?.value
+    _ = await state.thread.transcript.loadTask?.value
     return (state, auth, transport)
   }
 
@@ -4235,7 +4234,7 @@ extension WorkspaceStateTests {
     let (state, auth, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.otherRootId]))
     #expect(Self.insetThreads(state) == [Self.muteRootId, Self.otherRootId], "The room read lists both Threads.")
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.transcript.loadTask?.value
+    _ = await state.thread.transcript.loadTask?.value
     #expect(Self.insetThreads(state) == [Self.otherRootId], "The Look's room read drops the Thread just read.")
     #expect(transport.remainingStubs == 0)
     state.thread.close()
@@ -4247,7 +4246,7 @@ extension WorkspaceStateTests {
       (200, roomReadBody(id: Self.muteRoomId, unread: 1, split: (channel: 0, threads: 1), threads: [Self.otherRootId]))
     ])
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.transcript.loadTask?.value
+    _ = await state.thread.transcript.loadTask?.value
     #expect(Self.insetThreads(state) == [Self.muteRootId, Self.otherRootId])
     await state.readThreadMuteIfNeeded(auth: auth)
     await state.toggleThreadMute(auth: auth)
@@ -4294,7 +4293,7 @@ extension WorkspaceStateTests {
   @Test func theOverflowRowOpensTheRoomsThreadOverview() async throws {
     let (state, auth, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.muteRootId, Self.otherRootId]))
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.transcript.loadTask?.value
+    _ = await state.thread.transcript.loadTask?.value
     let written = transport.operationIDs.count
     await state.openThreadOverview(roomId: Self.muteRoomId, auth: auth)
     #expect(state.thread.parent == nil, "The open thread steps aside for the list.")
@@ -4478,7 +4477,7 @@ extension WorkspaceStateTests {
     await state.updateThreadOverview(.count, roomId: Self.muteRoomId, auth: auth)
     let revision = state.threadAttentionRevision
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.transcript.loadTask?.value
+    _ = await state.thread.transcript.loadTask?.value
     #expect(transport.operationIDs.contains("post/chats/rooms/{id}/threads/{parentMessageId}/read"))
     #expect(state.threadOverview.unreadReplyCounts == [Self.otherRootId: 1], "The looked Thread leaves the trigger at once.")
     #expect(shownUnread(state) == [0, 1], "Its bar untints without waiting for the re-count.")
@@ -4588,7 +4587,7 @@ extension WorkspaceStateTests {
     #expect(Self.roomGets(transport) == 1 && Self.roomReads(transport) == 1)
 
     clock.fireAll()
-    await waitWhile { state.transcriptRefreshTask == nil }
+    await waitWhile { state.room.loadTask == nil }
     await waitForTranscriptIdle(state)
     #expect(Self.roomGets(transport) == 2 && Self.roomReads(transport) == 2)
     #expect(state.transcriptMessages.map(\.content) == ["First", "Missed"])
@@ -4612,7 +4611,7 @@ extension WorkspaceStateTests {
     #expect(clock.intervals == [.seconds(4)])
     await state.refreshRooms(auth: auth)
     clock.fireAll()
-    await waitWhile { state.transcriptRefreshTask == nil }
+    await waitWhile { state.room.loadTask == nil }
     await waitForTranscriptIdle(state)
     #expect(Self.roomGets(transport) == 1)
     #expect(clock.intervals.count == 1)
@@ -4649,7 +4648,7 @@ extension WorkspaceStateTests {
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.transcript.loadTask?.value
+    _ = await state.thread.transcript.loadTask?.value
     await waitWhile { clock.pending == 0 }
     #expect(clock.intervals == [.seconds(4)])
     #expect(Self.roomGets(transport) == 1 && transport.threadGets == 1)
@@ -4657,7 +4656,7 @@ extension WorkspaceStateTests {
     clock.fireAll()
     await waitWhile { Self.roomGets(transport) < 2 || transport.threadGets < 2 }
     await waitForTranscriptIdle(state)
-    await state.thread.transcript.loadTask?.value
+    _ = await state.thread.transcript.loadTask?.value
     #expect(Self.roomGets(transport) == 2 && transport.threadGets == 2)
     #expect(!transport.operationIDs.contains { $0.hasPrefix("post/") })
     #expect(transport.remainingStubs == 0)
