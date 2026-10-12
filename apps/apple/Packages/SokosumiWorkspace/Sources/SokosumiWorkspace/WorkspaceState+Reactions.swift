@@ -30,7 +30,7 @@ public extension WorkspaceState {
         if let parent = thread.parent {
           thread.apply(eventType: .update, message: applyingReactionResponse(response, emoji: emoji, to: parent))
         }
-        thread.timeline.messages = thread.timeline.messages.map { applyingReactionResponse(response, emoji: emoji, to: $0) }
+        thread.transcript.timeline.messages = thread.transcript.timeline.messages.map { applyingReactionResponse(response, emoji: emoji, to: $0) }
         guard let next = pendingReactions.intent(messageId: source.id, emoji: emoji, after: sent) else { return sent }
         sent = next
       }
@@ -61,6 +61,6 @@ private extension WorkspaceState {
   func confirmedMessage(_ messageId: String) -> Components.Schemas.ChatRoomMessage? {
     timeline.messages.first { $0.id == messageId }
       ?? (thread.parent?.id == messageId ? thread.parent : nil)
-      ?? thread.timeline.messages.first { $0.id == messageId }
+      ?? thread.transcript.timeline.messages.first { $0.id == messageId }
   }
 }

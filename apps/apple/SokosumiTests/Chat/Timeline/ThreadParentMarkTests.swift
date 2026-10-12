@@ -47,17 +47,17 @@
       private static func jumpToReply(_ state: WorkspaceState, host: NSView) async throws {
         let parent = try #require(state.timeline.messages.first { $0.id == Self.parentId })
         state.thread.open(parent)
-        state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
-        state.thread.timeline.messages = (0 ..< 30).map { index in
+        state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
+        state.thread.transcript.timeline.messages = (0 ..< 30).map { index in
           var reply = state.timeline.messages[index + 50]
           reply.id = "reply-\(index)"
           reply.parentMessageId = parent.id
           return reply
         }
-        let hit = try #require(state.thread.timeline.messages.first { $0.id == Self.replyId })
+        let hit = try #require(state.thread.transcript.timeline.messages.first { $0.id == Self.replyId })
         #expect(try await state.openMessageReply(hit, auth: AuthState()) == .opened)
-        try await JumpMarkViewTests.poll(host) { state.thread.jumpTarget?.mark != nil && state.messageJump == nil }
-        #expect(state.thread.jumpTarget?.mark?.messageId == Self.replyId, "The Thread landed on the reply.")
+        try await JumpMarkViewTests.poll(host) { state.thread.transcript.jumpTarget?.mark != nil && state.messageJump == nil }
+        #expect(state.thread.transcript.jumpTarget?.mark?.messageId == Self.replyId, "The Thread landed on the reply.")
         #expect(state.messageJump == nil, "The room took the parent's jump.")
       }
 
@@ -174,7 +174,7 @@
         state.timeline.messages = loaded
         let other = try #require(state.timeline.messages.first { $0.id == "fixture-60" })
         state.thread.open(other)
-        state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
+        state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
         settled = Date().addingTimeInterval(0.5)
         try await JumpMarkViewTests.poll(host) { Date() >= settled }
         state.thread.close()

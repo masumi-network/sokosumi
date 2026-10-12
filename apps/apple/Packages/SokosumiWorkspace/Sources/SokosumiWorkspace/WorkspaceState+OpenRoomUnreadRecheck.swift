@@ -24,6 +24,6 @@ extension WorkspaceState {
   /// (`refreshFocusedRoomMessages`); Apple keeps the two in separate schedulers and asks both, as lost continuity does.
   private func recheckOpenRoom() {
     transcriptRecovery.requestRefresh()
-    thread.recovery.requestRefresh()
+    thread.transcript.recovery.requestRefresh()
   }
 }

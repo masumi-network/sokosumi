@@ -53,12 +53,12 @@
 
     private func describe(_ bitmap: NSBitmapImageRep?) -> String {
       let window = host.window
-      let thread = state.thread.timeline
+      let thread = state.thread.transcript.timeline
       var lines = [
         "scroll offset \(scroll.contentView.bounds.minY), viewport \(scroll.contentView.bounds.size), document \(scroll.documentView?.frame.size ?? .zero), insets \(scroll.contentInsets)",
         "window \(window?.frame ?? .zero), screen \(window?.screen?.frame ?? .zero) visible \(window?.screen?.visibleFrame ?? .zero), backing scale \(window?.backingScaleFactor ?? 0)",
         "pointer \(NSEvent.mouseLocation), reduce motion \(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)",
-        "thread jump \(String(describing: state.thread.jumpTarget))",
+        "thread jump \(String(describing: state.thread.transcript.jumpTarget))",
         "thread timeline loading \(thread.isLoading), loading older \(thread.isLoadingOlder), has more \(thread.hasMore), error \(thread.errorMessage ?? "none")",
         "room historical anchor \(state.timeline.historicalAnchor ?? "none"), room loading older \(state.timeline.isLoadingOlder)"
       ]

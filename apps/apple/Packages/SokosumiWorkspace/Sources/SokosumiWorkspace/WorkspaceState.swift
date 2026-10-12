@@ -282,7 +282,7 @@ public final class WorkspaceState: ObservableObject {
     self.openRoomUnreadRecheck = openRoomUnreadRecheck
     sidebar = ConversationSidebar(savedRoom: savedRoom, unreadsFilter: unreadsFilter)
     realtimeClientInstanceId = getOrCreateRealtimeClientInstanceId(store: instanceStore)
-    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange, roomReads.objectWillChange] {
+    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.transcript.objectWillChange, thread.transcript.timeline.objectWillChange, thread.transcript.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange, roomReads.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
     // Rows need editor identity changes; draft and save state are observed by the editor itself.
@@ -725,7 +725,7 @@ public final class WorkspaceState: ObservableObject {
   public func setWindowVisible(_ visible: Bool, window: UUID) {
     let wasVisible = readAttention.isVisible
     readAttention.setVisible(visible, window: window)
-    thread.recovery.setForeground(readAttention.isVisible)
+    thread.transcript.recovery.setForeground(readAttention.isVisible)
     transcriptRecovery.setForeground(readAttention.isVisible)
     sidebarRecovery.setForeground(readAttention.isVisible)
     if !wasVisible, readAttention.isVisible {
@@ -947,11 +947,11 @@ public final class WorkspaceState: ObservableObject {
   private func applyRealtimeHealth(roomId: String, healthy: Bool, continuityLost: Bool) {
     guard roomId == transcriptRoomId else { return }
     transcriptRealtimeHealthy = healthy
-    thread.recovery.setHealthy(healthy)
+    thread.transcript.recovery.setHealthy(healthy)
     transcriptRecovery.setHealthy(healthy)
     if continuityLost {
       threadAttentionRevision += 1
-      thread.recovery.requestRefresh()
+      thread.transcript.recovery.requestRefresh()
       transcriptRecovery.requestRefresh()
     }
   }
@@ -1075,23 +1075,23 @@ public final class WorkspaceState: ObservableObject {
     var openedGeneration: Int?
     if let parent = streamingThreadToOpen {
       openThread(parent, auth: auth)
-      openedGeneration = thread.timeline.generation
+      openedGeneration = thread.transcript.timeline.generation
     }
     guard let parentId = directStream.parentMessageId, thread.parent?.id == parentId else {
       return true
     }
-    await thread.loadTask?.value
+    await thread.transcript.loadTask?.value
     guard generation == transcriptGeneration else { return false }
     guard thread.parent?.id == parentId else { return true }
     // A thread opened after the room refresh already fetched the completed turn.
-    if openedGeneration == thread.timeline.generation, thread.timeline.hasLoadedHistory, thread.timeline.errorMessage == nil {
+    if openedGeneration == thread.transcript.timeline.generation, thread.transcript.timeline.hasLoadedHistory, thread.transcript.timeline.errorMessage == nil {
       return true
     }
-    loadThreadPage(thread.timeline.hasLoadedHistory ? .latest : .initial, auth: auth)
-    await thread.loadTask?.value
+    loadThreadPage(thread.transcript.timeline.hasLoadedHistory ? .latest : .initial, auth: auth)
+    await thread.transcript.loadTask?.value
     guard generation == transcriptGeneration else { return false }
     guard thread.parent?.id == parentId else { return true }
-    return thread.timeline.errorMessage == nil
+    return thread.transcript.timeline.errorMessage == nil
   }
 
   /// Drop a revoked room from the sidebar (chat-control event, SOK-742).
@@ -1174,7 +1174,7 @@ public final class WorkspaceState: ObservableObject {
   public var readContent: RoomReadAttention.Content {
     .init(messages: transcriptMessages.map { .init(id: $0.id, content: $0.content) },
           parentMessageId: thread.parent?.id,
-          replies: thread.timeline.messages.map { .init(id: $0.id, content: $0.content) })
+          replies: thread.transcript.timeline.messages.map { .init(id: $0.id, content: $0.content) })
   }
 
   var roomHistoryReadable: Bool {
@@ -1190,7 +1190,7 @@ public final class WorkspaceState: ObservableObject {
       try await readAttention.readIfNeeded(
         room: room,
         content: content,
-        historyReadable: roomHistoryReadable && !thread.timeline.isLoading,
+        historyReadable: roomHistoryReadable && !thread.transcript.timeline.isLoading,
         client: client,
         organizationSlug: selection?.workspace.organizationSlug,
         threadLooked: { threadLooked(content.parentMessageId) }

@@ -53,7 +53,7 @@ public extension WorkspaceState {
 
 private extension WorkspaceState {
   var mentionRetrySources: [Components.Schemas.ChatRoomMessage] {
-    transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.timeline.messages
+    transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.transcript.timeline.messages
   }
 
   /// Update-only: a row that is not loaded stays absent, unlike a realtime create.
@@ -64,7 +64,7 @@ private extension WorkspaceState {
         thread.apply(eventType: .update, message: message)
       }
     } else if thread.parent?.id == message.parentMessageId {
-      thread.timeline.messages = thread.timeline.messages.map { $0.id == message.id ? message : $0 }
+      thread.transcript.timeline.messages = thread.transcript.timeline.messages.map { $0.id == message.id ? message : $0 }
     }
   }
 }

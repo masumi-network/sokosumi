@@ -27,17 +27,17 @@
         try await scrollToBoundary(scroll)
         host.layoutSubtreeIfNeeded()
         let before = try TranscriptReadingPosition.snapshot(host)
-        try #require(state.thread.timeline.messages.count == 30)
+        try #require(state.thread.transcript.timeline.messages.count == 30)
         try TranscriptPageProtocol.releaseHeldPage()
         for _ in 0 ..< 100 {
-          if state.thread.timeline.messages.count == 59 {
+          if state.thread.transcript.timeline.messages.count == 59 {
             break
           }
           try await Task.sleep(for: .milliseconds(20))
         }
         #expect(TranscriptPageProtocol.requests.withLock { $0 } == 2)
-        #expect(state.thread.timeline.messages.count == 59)
-        #expect(!state.thread.timeline.hasMore)
+        #expect(state.thread.transcript.timeline.messages.count == 59)
+        #expect(!state.thread.transcript.timeline.hasMore)
         try await Task.sleep(for: .milliseconds(300))
         host.layoutSubtreeIfNeeded()
         try await TranscriptReadingPosition.expectStable(host, before: before)
@@ -57,8 +57,8 @@
         defer { window.orderOut(nil) }
         let scroll = try await loadedTranscriptScrollView(in: host)
         let initialOffset = scroll.contentView.bounds.minY
-        let target = try #require(state.thread.timeline.messages.first?.id)
-        state.thread.requestJump(to: target)
+        let target = try #require(state.thread.transcript.timeline.messages.first?.id)
+        state.thread.transcript.requestJump(to: target)
         for _ in 0 ..< 50 {
           if scroll.contentView.bounds.minY < initialOffset - 200 {
             break
@@ -66,7 +66,7 @@
           try await Task.sleep(for: .milliseconds(20))
         }
         #expect(scroll.contentView.bounds.minY < initialOffset - 200)
-        #expect(state.thread.jumpTarget?.messageId == target)
+        #expect(state.thread.transcript.jumpTarget?.messageId == target)
       }
 
       private func scrollToBoundary(_ scroll: NSScrollView) async throws {
@@ -96,7 +96,7 @@
           TranscriptPageProtocol.page((30 ..< 60).map { message($0, parent: parent.id) }, cursor: "older"),
           TranscriptPageProtocol.page((1 ..< 30).map { message($0, parent: parent.id) }, cursor: nil)
         ])
-        _ = try await state.thread.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.thread.timeline.generation)
+        _ = try await state.thread.transcript.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.thread.transcript.timeline.generation)
         return (state, session)
       }
 
