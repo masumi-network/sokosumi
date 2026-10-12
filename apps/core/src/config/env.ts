@@ -6,6 +6,12 @@ import {
 import { withRelatedProject } from "@vercel/related-projects";
 import { v4 as uuidv4 } from "uuid";
 
+// Blank means unset, so a copied `KEY=` line does not fail startup.
+const minimumBuildSchema = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.coerce.number().int().positive().optional(),
+);
+
 /**
  * Environment variables schema for Core API
  * This ensures the app isn't built with invalid env vars.
@@ -191,13 +197,6 @@ const baseEnvSchema = z.object({
     .default("false")
     .transform((value) => value.trim().toLowerCase() === "true"),
 
-  // Temporary overlay (ADR 0010): org-first membership also gets a personal
-  // workspace. Default false is ADR 0005 (personal optional).
-  REQUIRE_PERSONAL_WORKSPACE: z
-    .string()
-    .default("false")
-    .transform((val: string) => val.trim().toLowerCase() === "true"),
-
   /** Platform-wide kill switch for everything Soko Bots start on their own. */
   SOKO_BOT_PROACTIVE_PAUSED: z
     .string()
@@ -287,6 +286,11 @@ const baseEnvSchema = z.object({
     .string()
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
+  /**
+   * Oldest macOS build `/v1` still serves; older builds get 426
+   * `client_update_required` (ADR 0053). Unset: no minimum.
+   */
+  MACOS_MINIMUM_BUILD: minimumBuildSchema,
 
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),

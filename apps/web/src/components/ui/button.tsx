@@ -2,10 +2,11 @@ import * as React from "react"
 import { Slot as SlotPrimitive } from "radix-ui"
 import { cva, type VariantProps } from "class-variance-authority"
 
+import { ButtonLoadingBar } from "@/components/ui/button-loading-bar"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out press disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none border border-transparent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-invalid:ring-2 aria-invalid:ring-destructive aria-invalid:ring-offset-2 aria-invalid:ring-offset-background",
+  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[color,background-color,border-color,transform] duration-150 ease-out press disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none border border-transparent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-invalid:ring-2 aria-invalid:ring-destructive aria-invalid:ring-offset-2 aria-invalid:ring-offset-background",
   {
     variants: {
       variant: {
@@ -44,24 +45,58 @@ const buttonVariants = cva(
   }
 )
 
+function preventActivation(event: React.MouseEvent<HTMLButtonElement>) {
+  // Also cancels the implicit form submission that Enter in a field fires
+  // through the submit button, and keeps the click from reaching a clickable
+  // parent such as a row.
+  event.preventDefault()
+  event.stopPropagation()
+}
+
 function Button({
   className,
   variant,
   size,
   asChild = false,
+  loading = false,
+  disabled,
+  onClick,
+  children,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
+    /**
+     * A request this button started is running. A bar sweeps along the bottom
+     * edge while the label and icon stay as they are, so the button never
+     * changes size and its name still says what is busy. It stays focusable
+     * (`aria-disabled`, not `disabled`, so it keeps full contrast) and ignores
+     * clicks, Enter and form submission until `loading` is false again.
+     * Screen readers hear "<label>, in progress" once, through the polite
+     * region `ButtonLoadingAnnouncer` mounts at the root.
+     */
+    loading?: boolean
   }) {
   const Comp = asChild ? SlotPrimitive.Slot : "button"
-
   return (
     <Comp
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+      className={cn(
+        buttonVariants({ variant, size }),
+        loading && "relative cursor-progress overflow-hidden",
+        className
+      )}
+      // Loading wins over disabled: a native `disabled` would drop focus and
+      // fade the bar, and the two must never be set together.
+      disabled={loading ? undefined : disabled}
+      aria-busy={loading || undefined}
+      aria-disabled={loading || props["aria-disabled"]}
+      onClick={loading ? preventActivation : onClick}
+    >
+      <SlotPrimitive.Slottable>{children}</SlotPrimitive.Slottable>
+      {loading && <ButtonLoadingBar />}
+    </Comp>
   )
 }
 

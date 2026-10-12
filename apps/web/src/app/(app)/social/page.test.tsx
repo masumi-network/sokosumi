@@ -69,6 +69,7 @@ vi.mock("@/app/calendar/components/workspace-calendar", () => ({
 vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
   ProjectSocialPosts: (props: {
     accounts?: React.ReactNode;
+    accountCount?: number;
     actions?: React.ReactNode;
     calendar?: React.ReactNode;
     posts: { id: string }[];
@@ -78,6 +79,7 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
   }) => (
     <div
       data-testid="social-posts"
+      data-account-count={String(props.accountCount ?? "")}
       data-connections={props.connections.map((c) => c.id).join(",")}
       data-order={props.posts.map((post) => post.id).join(",")}
       data-project={props.projectId}
@@ -110,8 +112,12 @@ vi.mock("./components/social-all-projects-tabs", () => ({
     actions: React.ReactNode;
     calendar: React.ReactNode;
     notice?: string;
+    workspaceId: string;
   }) => (
-    <div data-testid="social-all-projects-tabs">
+    <div
+      data-testid="social-all-projects-tabs"
+      data-workspace={props.workspaceId}
+    >
       {props.actions}
       {props.calendar}
       <div data-testid="social-no-project">
@@ -214,6 +220,29 @@ describe("SocialPage", () => {
       "data-connections",
       "conn-x,conn-ig",
     );
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-account-count",
+      "2",
+    );
+  });
+
+  it("counts expired accounts for the Accounts tab even with no actives", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialConnections.mockResolvedValue([
+      { id: "conn-x", status: "reauthorization_required", provider: "x" },
+      { id: "conn-pending", status: "pending", provider: "youtube" },
+    ]);
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-connections",
+      "",
+    );
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-account-count",
+      "2",
+    );
   });
 
   it("stays hidden outside the beta", async () => {
@@ -246,7 +275,10 @@ describe("SocialPage", () => {
     );
     // The same tab row a project gets; accounts belong to a project, so
     // their tab says so instead.
-    expect(screen.getByTestId("social-all-projects-tabs")).toBeInTheDocument();
+    expect(screen.getByTestId("social-all-projects-tabs")).toHaveAttribute(
+      "data-workspace",
+      "workspace-1",
+    );
     expect(screen.getByTestId("social-no-project")).toBeInTheDocument();
     expect(screen.queryByTestId("social-posts")).not.toBeInTheDocument();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
@@ -299,6 +331,15 @@ describe("SocialPage", () => {
     // grid missing posts.
     const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
     await expect(searchParams).resolves.toMatchObject({ view: undefined });
+  });
+
+  it("drops view=agenda on the all-projects calendar too", async () => {
+    await visit({ view: "agenda" });
+
+    expect(screen.getByTestId("social-all-projects-tabs")).toBeInTheDocument();
+    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
+    await expect(searchParams).resolves.toMatchObject({ view: undefined });
+    expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
   });
 
   it("opens the scoped project's posts, calendar and accounts", async () => {
@@ -399,5 +440,27 @@ describe("SocialPage", () => {
     await expect(generateMetadata()).resolves.toEqual({
       title: "App.Social.title",
     });
+  });
+
+  it("ignores a linked post this project no longer has", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialPosts.mockResolvedValue({
+      posts: [{ id: "post-a" }],
+      nextCursor: null,
+    });
+    projectServiceMock.getSocialPost.mockResolvedValue(null);
+
+    await visit({ projectId: "project-1", postId: "post-gone" });
+
+    expect(projectServiceMock.getSocialPost).toHaveBeenCalledWith(
+      "project-1",
+      "post-gone",
+    );
+    expect(
+      screen.getByTestId("social-posts").getAttribute("data-order"),
+    ).not.toContain("post-gone");
+    expect(screen.getByTestId("social-posts")).not.toHaveAttribute(
+      "data-selected",
+    );
   });
 });

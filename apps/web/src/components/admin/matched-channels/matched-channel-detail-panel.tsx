@@ -274,15 +274,13 @@ export function MatchedChannelDetailPanel({
                       {t("Restore.cancel")}
                     </AlertDialogCancel>
                     <AlertDialogAction
-                      disabled={isRestoring}
+                      loading={isRestoring}
                       onClick={(event) => {
                         event.preventDefault();
                         void handleRestore();
                       }}
                     >
-                      {isRestoring
-                        ? t("Restore.restoring")
-                        : t("Restore.confirm")}
+                      {t("Restore.confirm")}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -311,14 +309,14 @@ export function MatchedChannelDetailPanel({
                       {t("Delete.cancel")}
                     </AlertDialogCancel>
                     <AlertDialogAction
-                      disabled={isDeleting}
+                      loading={isDeleting}
                       className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
                       onClick={(event) => {
                         event.preventDefault();
                         void handleDelete();
                       }}
                     >
-                      {isDeleting ? t("Delete.deleting") : t("Delete.confirm")}
+                      {t("Delete.confirm")}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -349,16 +347,14 @@ export function MatchedChannelDetailPanel({
                     {t("Archive.cancel")}
                   </AlertDialogCancel>
                   <AlertDialogAction
-                    disabled={isArchiving}
+                    loading={isArchiving}
                     className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
                     onClick={(event) => {
                       event.preventDefault();
                       void handleArchive();
                     }}
                   >
-                    {isArchiving
-                      ? t("Archive.archiving")
-                      : t("Archive.confirm")}
+                    {t("Archive.confirm")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -453,8 +449,12 @@ export function MatchedChannelDetailPanel({
                 labels={userLabels}
               />
             </div>
-            <Button type="submit" disabled={isAddingUser || !selectedUser}>
-              {isAddingUser ? t("AddUser.submitting") : t("AddUser.submit")}
+            <Button
+              type="submit"
+              disabled={!selectedUser}
+              loading={isAddingUser}
+            >
+              {t("AddUser.submit")}
             </Button>
           </form>
 
@@ -492,10 +492,8 @@ export function MatchedChannelDetailPanel({
                 {t("AddOrganization.helper")}
               </p>
             </div>
-            <Button type="submit" disabled={isAddingOrg || !selectedOrg}>
-              {isAddingOrg
-                ? t("AddOrganization.submitting")
-                : t("AddOrganization.submit")}
+            <Button type="submit" disabled={!selectedOrg} loading={isAddingOrg}>
+              {t("AddOrganization.submit")}
             </Button>
           </form>
         </>

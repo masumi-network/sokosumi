@@ -10,12 +10,14 @@ struct MessageMarkdownView: View {
   var room: Components.Schemas.ChatRoom?
   var channels: [ComposerChannel] = []
   var preparedDocument: MessageMarkdown?
+  /// Web `enableMermaid`: a message body draws `mermaid` fences; a pinned quote keeps them as code (row 10d).
+  var diagrams = true
   @EnvironmentObject private var workspaces: WorkspaceState
   @Environment(\.openURL) private var openURL
   @EnvironmentObject private var auth: AuthState
   @State private var selectedProfile: ChatParticipantProfile?
   var body: some View {
-    MessageMarkdownContent(source: source, room: room, channels: channels, preparedDocument: preparedDocument)
+    MessageMarkdownContent(source: source, room: room, channels: channels, preparedDocument: preparedDocument, diagrams: diagrams)
       .textSelection(.enabled)
       .frame(maxWidth: .infinity, alignment: .leading)
       .environment(\.openURL, OpenURLAction { url in
@@ -45,10 +47,12 @@ private struct MessageMarkdownContent: View {
   var room: Components.Schemas.ChatRoom?
   var channels: [ComposerChannel]
   var preparedDocument: MessageMarkdown?
+  var diagrams: Bool
   private struct RenderInput: Hashable {
     let source: String
     let mentions: MessageMentions?
     let channels: [ComposerChannel]
+    let diagrams: Bool
   }
 
   @State private var document: MessageMarkdown?
@@ -93,14 +97,15 @@ private struct MessageMarkdownContent: View {
           .accessibilityLabel("Loading message")
       }
     }
-    .task(id: RenderInput(source: source, mentions: room.map(MessageMentions.init), channels: channels)) {
+    .task(id: RenderInput(source: source, mentions: room.map(MessageMentions.init), channels: channels, diagrams: diagrams)) {
       guard preparedDocument == nil else { return }
       let source = source
       let channels = channels
       let mentions = room.map(MessageMentions.init)
+      let diagrams = diagrams
       let baseURL = CoreSettings.webBaseURL
       let parsed = await Task.detached(priority: .userInitiated) {
-        MessageMarkdown(source, baseURL: baseURL, mentions: mentions, channels: channels)
+        MessageMarkdown(source, baseURL: baseURL, mentions: mentions, channels: channels, diagrams: diagrams)
       }.value
       guard !Task.isCancelled else { return }
       document = parsed
@@ -110,12 +115,11 @@ private struct MessageMarkdownContent: View {
 
 struct MarkdownBlocksView: View {
   let blocks: [MessageMarkdownBlock]
-  var presentsFileAttachments = true
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       ForEach(blocks) { block in
-        MarkdownBlockView(block: block, presentsFileAttachments: presentsFileAttachments)
+        MarkdownBlockView(block: block)
       }
     }
   }
@@ -123,7 +127,6 @@ struct MarkdownBlocksView: View {
 
 private struct MarkdownBlockView: View {
   let block: MessageMarkdownBlock
-  var presentsFileAttachments = true
 
   var body: some View {
     switch block.kind {
@@ -140,14 +143,18 @@ private struct MarkdownBlockView: View {
     case .blockQuote:
       HStack(alignment: .top, spacing: 10) {
         Rectangle().fill(.secondary.opacity(0.4)).frame(width: 3)
-        MarkdownBlocksView(blocks: block.children, presentsFileAttachments: presentsFileAttachments)
+        MarkdownBlocksView(blocks: block.children)
       }
       .fixedSize(horizontal: false, vertical: true)
       .foregroundStyle(.secondary)
     case .thematicBreak:
       Divider().padding(.vertical, 4)
     case let .codeBlock(languageHint):
-      MessageCodeBlock(source: String(block.text.characters), languageHint: languageHint)
+      if let diagram = block.diagram {
+        MermaidFigureView(diagram: diagram)
+      } else {
+        MessageCodeBlock(source: String(block.text.characters), languageHint: languageHint)
+      }
     case let .table(columns):
       ScrollView(.horizontal) {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
@@ -170,13 +177,14 @@ private struct MarkdownBlockView: View {
       if block.children.isEmpty {
         attachmentContent(block.text)
       } else {
-        MarkdownBlocksView(blocks: block.children, presentsFileAttachments: presentsFileAttachments)
+        MarkdownBlocksView(blocks: block.children)
       }
     }
   }
 
+  /// Embedded media splits out of the text; a file link stays a native link in it (row 15c).
   private func attachmentContent(_ text: AttributedString) -> some View {
-    let segments = MessageAttachmentSegment.split(text, includeFileAttachments: presentsFileAttachments).filter { segment in
+    let segments = MessageAttachmentSegment.split(text).filter { segment in
       segment.attachment != nil
         || !String(segment.text.characters).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -189,7 +197,6 @@ private struct MarkdownBlockView: View {
         }
       }
     }
-    .padding(.bottom, presentsFileAttachments && segments.last?.attachment?.kind == .file ? 8 : 0)
   }
 
   private func styled(_ text: AttributedString) -> AttributedString {
@@ -217,7 +224,7 @@ private struct MarkdownBlockView: View {
           } else {
             Text("•")
           }
-          MarkdownBlocksView(blocks: item.children, presentsFileAttachments: presentsFileAttachments)
+          MarkdownBlocksView(blocks: item.children)
         }
       }
     }

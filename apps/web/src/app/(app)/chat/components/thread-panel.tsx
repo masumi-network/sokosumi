@@ -353,7 +353,7 @@ export function ThreadPanel({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="size-8 rounded-full"
+                className="size-10 md:size-8 rounded-full"
                 aria-label={t("Thread.back")}
                 title={t("Thread.back")}
                 onClick={onBack}
@@ -366,7 +366,7 @@ export function ThreadPanel({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="size-8 rounded-full"
+                className="size-10 md:size-8 rounded-full"
                 aria-label={t("Thread.close")}
                 title={t("Thread.close")}
                 onClick={onClose}

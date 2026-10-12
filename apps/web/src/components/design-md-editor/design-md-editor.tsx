@@ -37,7 +37,6 @@ export function DesignMdEditor({
     editTab: t("editTab"),
     previewTab: t("previewTab"),
     save: t("editSave"),
-    saving: t("editSaving"),
     title: t("editPageTitle"),
   };
 

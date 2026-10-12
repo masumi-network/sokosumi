@@ -19,7 +19,7 @@ import prisma from "@/lib/db/prisma";
  */
 
 export const FILE_INDEX_JOB_MAX_ATTEMPTS = 5;
-export const FILE_INDEX_JOB_LEASE_MS = 60_000;
+const FILE_INDEX_JOB_LEASE_MS = 60_000;
 const RETRY_BACKOFF_MS = [60_000, 300_000, 1_800_000];
 
 /**
@@ -31,7 +31,7 @@ const RETRY_BACKOFF_MS = [60_000, 300_000, 1_800_000];
  * a file the parser cannot read, a resource that no longer exists — is
  * retried a few times and then left alone rather than forever.
  */
-export const FILE_INDEX_JOB_MAX_REVIVALS = 3;
+const FILE_INDEX_JOB_MAX_REVIVALS = 3;
 
 /**
  * How long a FAILED job waits before a sweep will touch it.
@@ -54,12 +54,12 @@ export const FILE_INDEX_JOB_MAX_REVIVALS = 3;
  * exceeds that fixture's eight-hour outage. A red there is the sweep
  * firing mid-incident, not a stale assertion.
  */
-export const FILE_INDEX_JOB_REVIVE_AFTER_MS = 12 * 3_600_000;
+const FILE_INDEX_JOB_REVIVE_AFTER_MS = 12 * 3_600_000;
 
 /** One sweep moves at most this many rows, so a tick stays bounded. */
 const REVIVE_BATCH = 50;
 
-export function fileIndexJobDedupeKey(input: {
+function fileIndexJobDedupeKey(input: {
   resourceId: string;
   pipeline: FileIndexJobPipeline;
   contentRevision: number;
@@ -148,7 +148,7 @@ export async function enqueueFileIndexJob(
   return job.id;
 }
 
-export interface RequeueOutcome {
+interface RequeueOutcome {
   jobId: string;
   /**
    * True when this call made work runnable that was not runnable before.

@@ -1,11 +1,6 @@
 import { asRecord } from "./parse-helpers.js";
 import { parseVendor, type Vendor } from "./vendor.js";
 
-export interface CoworkerPrice {
-  credits: number | null;
-  includedFee: number | null;
-}
-
 export interface Coworker {
   id: string | null;
   createdAt: string | null;
@@ -16,21 +11,13 @@ export interface Coworker {
   name: string | null;
   vendor: Vendor | null;
   caption: string | null;
-  company: string | null;
-  companyLogo: string | null;
   url: string | null;
   baseURL: string | null;
-  email: string | null;
   description: string | null;
   image: string | null;
   metadata: Record<string, unknown> | null;
-  status: string | null;
-  isNew: boolean;
-  isShown: boolean;
   isWhitelisted: boolean;
-  price: CoworkerPrice;
   capabilities: unknown[];
-  estimatedDuration: string | number | null;
 }
 
 export interface CoworkerApiKey {
@@ -42,7 +29,6 @@ export interface CoworkerApiKey {
 
 export function parseCoworker(input: unknown): Coworker {
   const value = asRecord(input);
-  const price = asRecord(value.price);
   const metadata = value.metadata;
   return {
     id: typeof value.id === "string" ? value.id : null,
@@ -57,12 +43,8 @@ export function parseCoworker(input: unknown): Coworker {
     name: typeof value.name === "string" ? value.name : null,
     vendor: value.vendor == null ? null : parseVendor(value.vendor),
     caption: typeof value.caption === "string" ? value.caption : null,
-    company: typeof value.company === "string" ? value.company : null,
-    companyLogo:
-      typeof value.companyLogo === "string" ? value.companyLogo : null,
     url: typeof value.url === "string" ? value.url : null,
     baseURL: typeof value.baseURL === "string" ? value.baseURL : null,
-    email: typeof value.email === "string" ? value.email : null,
     description:
       typeof value.description === "string" ? value.description : null,
     image: typeof value.image === "string" ? value.image : null,
@@ -70,28 +52,9 @@ export function parseCoworker(input: unknown): Coworker {
       metadata && typeof metadata === "object" && !Array.isArray(metadata)
         ? (metadata as Record<string, unknown>)
         : null,
-    status: typeof value.status === "string" ? value.status : null,
-    isNew: typeof value.isNew === "boolean" ? value.isNew : false,
-    isShown: typeof value.isShown === "boolean" ? value.isShown : false,
     isWhitelisted:
       typeof value.isWhitelisted === "boolean" ? value.isWhitelisted : false,
-    price: {
-      credits:
-        typeof price.credits === "number" && Number.isFinite(price.credits)
-          ? price.credits
-          : null,
-      includedFee:
-        typeof price.includedFee === "number" &&
-        Number.isFinite(price.includedFee)
-          ? price.includedFee
-          : null,
-    },
     capabilities: Array.isArray(value.capabilities) ? value.capabilities : [],
-    estimatedDuration:
-      typeof value.estimatedDuration === "string" ||
-      typeof value.estimatedDuration === "number"
-        ? value.estimatedDuration
-        : null,
   };
 }
 

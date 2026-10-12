@@ -11,7 +11,7 @@ import type prisma from "@/lib/db/prisma";
 
 const PAGE_SIZE = 1000;
 
-export const TRANSACTION_CSV_HEADER = "date,source,label,credits";
+const TRANSACTION_CSV_HEADER = "date,source,label,credits";
 
 /**
  * One CSV field. Quoted when it holds a separator, quote or line break, with

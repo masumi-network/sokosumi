@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { claimSignUpConversion } from "@/lib/actions/auth/action";
-import { normalizeAuthReturnUrl } from "@/lib/auth/auth.utils";
+import { sanitizeAuthRedirectPath } from "@/lib/auth/auth.utils";
 import { waitForClientSession } from "@/lib/auth/finish-auth.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { authMethodIdSchema } from "@/lib/schemas/auth";
@@ -22,7 +22,7 @@ export default function SocialAuthCallback({
     const provider = params.get("provider");
     const returnUrl = params.get("returnUrl") ?? null;
     const validationResult = authMethodIdSchema.safeParse(provider);
-    const redirectUrl = normalizeAuthReturnUrl(returnUrl ?? undefined);
+    const redirectUrl = sanitizeAuthRedirectPath(returnUrl ?? undefined);
 
     // Social sign-ins land here via a full page load (Better Auth
     // hard-redirects to `callbackURL` on success). Credential, passkey and

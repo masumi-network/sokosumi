@@ -31,7 +31,10 @@ import {
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
@@ -119,35 +122,37 @@ const query = z
     },
   );
 
-const route = createRoute({
-  method: "get",
-  path: "/",
-  description: [
-    "List Drive Tasks (virtual folder over READY TASK_OUTPUT TaskFiles). One level at a time:",
-    "- No projectId, no taskId → project rows (+ no-project row when unscoped tasks have files)",
-    "- projectId set, no taskId → task rows with output files",
-    "- taskId set → TASK_OUTPUT TaskFile rows",
-    "Omit sortBy/sortOrder for today's default: updatedAt descending with id tie-breakers.",
-    "sortBy=name|date|type with sortOrder=asc|desc at every level.",
-    "Date uses latest READY task-output activity for project/task rows and file updatedAt for files.",
-    "Type is meaningful for file rows; at project/task levels type falls back to name.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    query,
-  },
-  responses: {
-    200: jsonPaginatedSuccessResponse(
-      driveTasksListSchema,
-      "Drive Tasks list retrieved",
-    ),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-  },
-});
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/",
+    description: [
+      "List Drive Tasks (virtual folder over READY TASK_OUTPUT TaskFiles). One level at a time:",
+      "- No projectId, no taskId → project rows (+ no-project row when unscoped tasks have files)",
+      "- projectId set, no taskId → task rows with output files",
+      "- taskId set → TASK_OUTPUT TaskFile rows",
+      "Omit sortBy/sortOrder for today's default: updatedAt descending with id tie-breakers.",
+      "sortBy=name|date|type with sortOrder=asc|desc at every level.",
+      "Date uses latest READY task-output activity for project/task rows and file updatedAt for files.",
+      "Type is meaningful for file rows; at project/task levels type falls back to name.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      query,
+    },
+    responses: {
+      200: jsonPaginatedSuccessResponse(
+        driveTasksListSchema,
+        "Drive Tasks list retrieved",
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+    },
+  }),
+);
 
 function taskFileOrderBy(
   sort: DriveListSort | null,

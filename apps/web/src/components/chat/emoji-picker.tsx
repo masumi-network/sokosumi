@@ -55,7 +55,7 @@ function EmojiGridButton({
       type="button"
       title={`:${primaryName}:`}
       aria-label={entry.description || primaryName}
-      className="press hover:bg-muted focus-visible:ring-ring flex size-8 items-center justify-center rounded-md text-lg outline-none transition focus-visible:ring-2"
+      className="press hover:bg-muted focus-visible:ring-ring flex size-8 items-center justify-center rounded-md text-lg outline-none transition-[color,background-color,border-color,transform] focus-visible:ring-2"
       onClick={() => onPick(entry.emoji)}
     >
       {entry.emoji}

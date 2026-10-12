@@ -200,9 +200,10 @@ export function TableColumnDialog({
         <DialogFooter>
           <Button
             onClick={() => void handleSave()}
-            disabled={pending || reviewConflict}
+            loading={pending}
+            disabled={reviewConflict}
           >
-            {pending ? t("saving") : request ? t("retry") : t("save")}
+            {request ? t("retry") : t("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

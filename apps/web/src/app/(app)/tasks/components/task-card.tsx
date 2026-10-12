@@ -16,8 +16,26 @@ import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusBadge } from "./task-status-badge";
 import { TaskTags } from "./task-tags";
 
+/** Only the display fields shared by task boards and recorded chat results. */
+export interface TaskCardData
+  extends Pick<
+    TaskWithCoworker,
+    | "id"
+    | "identifier"
+    | "name"
+    | "status"
+    | "priority"
+    | "visibility"
+    | "project"
+    | "createdAt"
+    | "assignee"
+    | "participants"
+    | "commentsCount"
+    | "tags"
+    | "runAt"
+  > {}
 interface TaskCardProps {
-  task: TaskWithCoworker;
+  task: TaskCardData;
   dragHandleProps?: DragHandleProps;
   compact?: boolean;
   statusLabels?: Record<TaskStatusType, string>;

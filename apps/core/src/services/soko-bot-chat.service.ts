@@ -3,9 +3,11 @@ import {
   composeSokoBotIntroduction,
   isSokoBotSilentAnswer,
 } from "@sokosumi/soko-bot";
+import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
-
 import prisma from "@/lib/db/prisma";
+import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
+import { collectTurnResultSnapshots } from "@/services/chat-result-preview.service";
 
 /**
  * Soko Bot in chat. The bot is a first-class sokoBot member, sender,
@@ -23,6 +25,7 @@ const CAPABILITY_LABELS: Record<string, string> = {
   update_task: "Updating a Task",
   assign_task: "Assigning a Task",
   get_task_status: "Checking Task status",
+  preview_result: "Preparing a result preview",
   find_agents: "Searching Agents",
   get_agent_input_schema: "Reading Agent inputs",
   hire_agent: "Hiring an Agent",
@@ -416,11 +419,15 @@ export async function persistSokoBotChatTurn(
     // The transition timestamp is the response's unread clock. Losing or
     // repeated finalizers must preserve both that clock and the response.
     if (claimed.count !== 1) return;
+    const snapshots = await collectTurnResultSnapshots(turn.id, tx);
     await tx.chatRoomMessage.update({
       where: { id: responseMessageId },
       data: {
         content: answer,
         metadata: {
+          ...(snapshots.length
+            ? { [RESULT_SNAPSHOTS_KEY]: sanitizePersistedValue(snapshots) }
+            : {}),
           in_reply_to_message_id: mention.messageId,
           mention_id: mention.id,
           // Same shape `thoughtMetadataFields` writes for coworkers, inlined

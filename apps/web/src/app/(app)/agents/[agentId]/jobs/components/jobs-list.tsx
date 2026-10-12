@@ -229,7 +229,7 @@ export function JobsList({
           />
         </ChannelProvider>
       </LazyAblyProvider>
-      <aside className="@4xl/jobs-panes:border-border flex h-full min-h-0 w-full flex-col py-4 @4xl/jobs-panes:border-r">
+      <aside className="@4xl/jobs-panes:border-border flex size-full min-h-0 flex-col py-4 @4xl/jobs-panes:border-r">
         <JobsSearch
           jobs={localJobs}
           hasMoreHistory={Boolean(nextCursor)}
@@ -268,10 +268,10 @@ export function JobsList({
                 variant="outline"
                 size="sm"
                 className="text-muted-foreground hover:text-foreground w-full text-xs"
-                disabled={isLoadingMore}
+                loading={isLoadingMore}
                 onClick={handleLoadMore}
               >
-                {isLoadingMore ? t("loading") : t("loadMore")}
+                {t("loadMore")}
               </Button>
             </div>
           ) : null}

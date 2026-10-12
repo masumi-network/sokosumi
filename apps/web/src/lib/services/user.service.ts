@@ -5,11 +5,15 @@ import type {
   MemberRecord,
   MemberWithOrganization,
   Organization,
-  WorkspaceAccess,
+  UserWorkspaces,
 } from "@sokosumi/core-client";
 import { cache } from "react";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import {
+  type WorkspaceAccess,
+  workspaceAccessFrom,
+} from "@/lib/workspace-gate";
 
 /**
  * Service for user-related operations.
@@ -111,20 +115,26 @@ export const userService = (() => {
   );
 
   /**
-   * Current-user workspace access from Core.
-   * Sole access decision for the workspace gate (not `onboardingCompleted`).
-   * Deduplicated per request via React cache().
+   * The current user's workspaces from Core (ADR 0051), for the gate and the
+   * workspace switcher. Deduplicated per request via React cache().
    */
-  const getWorkspaceAccess = cache(
-    async (): Promise<WorkspaceAccess | null> => {
-      const session = await getSession();
-      if (!session) {
-        return null;
-      }
-      const response = await coreClient.getMyWorkspaceAccess();
-      return response.data;
-    },
-  );
+  const getMyWorkspaces = cache(async (): Promise<UserWorkspaces | null> => {
+    const session = await getSession();
+    if (!session) {
+      return null;
+    }
+    const response = await coreClient.getMyWorkspaces();
+    return response.data;
+  });
+
+  /**
+   * Current-user workspace access, derived from {@link getMyWorkspaces}.
+   * Sole access decision for the workspace gate (not `onboardingCompleted`).
+   */
+  async function getWorkspaceAccess(): Promise<WorkspaceAccess | null> {
+    const workspaces = await getMyWorkspaces();
+    return workspaces ? workspaceAccessFrom(workspaces) : null;
+  }
 
   return {
     getActiveOrganizationId,
@@ -132,6 +142,7 @@ export const userService = (() => {
     getMyMembersWithOrganizations,
     getMyMemberInOrganization,
     getOrganizationMembers,
+    getMyWorkspaces,
     getWorkspaceAccess,
   };
 })();

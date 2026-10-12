@@ -24,10 +24,17 @@ helper at the top of the handler:
 | Helper | Import | Use when |
 | --- | --- | --- |
 | `requireUserContext` | `@/middleware/auth` | Task/job grant-gated flows only. Coworker context may be **unbound** (no vendor grant yet) so delegated create can park as `GRANT_PENDING`. |
-| `requireAuthorizedUserContext` | `@/helpers/coworker-user-context-binding` | **Default** for user-scoped routes (profile, credits, projects, org metadata, …). Coworker must pass binding: DENIED/REVOKED → reject; GRANTED → allow; else baseline assignee/sibling task; else reject. |
+| `requireAuthorizedUserContext` | `@/helpers/coworker-user-context-binding` | **Default** for user-scoped routes (profile, credits, projects, org metadata, …). Coworker must pass binding: DENIED/REVOKED → reject; GRANTED → allow; else baseline assignee/sibling task; else reject. A route that binds through it, directly or through a helper, wraps its route in `withCoworkerContextHeaderParameters` (`src/lib/hono-openapi-headers.test.ts` enforces it). |
 | `requireOwnerUserContext` | `@/middleware/auth` | Human/owner-only surfaces (notifications, history, billing, member lists, …). Interactive user session only; no coworker. |
 | `requireUserAuthContext` | `@/middleware/auth` | Must be the real interactive session user (admin role, consent). Rejects coworker. |
 | `resolveUserContext` | `@/middleware/auth` | Task-collaboration routes that accept standalone coworker keys but still apply user-scoped gates (organization seat, Calendar beta). Returns the effective user, or `null` for a standalone coworker key. |
+
+**Data from other workspaces.** The binding authorizes the context workspace
+only. An agent-callable route that returns data from the user's other
+workspaces (organization lists, per-organization reads) passes those
+organizations through `filterAuthorizedOrganizationIds`, so a vendor sees only
+workspaces that granted it or hold its baseline task. Review checks this for
+every route on the agent allowlist.
 
 Policy details and decision order: `src/helpers/coworker-user-context-binding.ts`
 and the `UserContext` JSDoc in `src/middleware/auth.ts`. Vendor grant semantics
@@ -49,6 +56,8 @@ The live tree is `apps/core/src/`.
 | `clients/` | External HTTP clients |
 | `services/` | Longer-lived / legacy service modules |
 | `middleware/` | Auth, org, workspace, coworker context |
+
+**OAuth provider / first-party sign-up** (CMO, `prompt=create`, signed authorize query, user-create hooks): ADRs 0045, 0046, 0052 and the header of `lib/auth-sign-up-conversion.ts`.
 
 Email rendering lives in `@sokosumi/email`, not under Core `lib/email` or `locales/`.
 
@@ -189,7 +198,7 @@ Buckets use `referenceType: SIGNUP_BONUS` and `referenceId: user:{userId}`. Gran
 ### CORS and Better Auth origins
 
 - **CORS** (`src/config/cors-allow-origin.ts`): `Access-Control-Allow-Origin` is echoed only for `https://sokosumi.com` / `https://*.sokosumi.com` in non-development, or for `localhost` with `http`/`https` when `NODE_ENV=development`. Wildcard Vercel preview hosts are not allowlisted.
-- **Better Auth** (`src/lib/auth.ts`): `trustedOrigins` lists explicit web app hosts (`https://app.sokosumi.com`, `https://preprod.sokosumi.com`, `https://*.preview.sokosumi.com`) plus in development only `http://localhost:*`. Web no longer runs Better Auth; keep this list aligned with browser origins that call Core `/auth`. CORS remains broader (`https://sokosumi.com` / `https://*.sokosumi.com`); do not widen `trustedOrigins` to match CORS — it is a CSRF allowlist, not general API access control.
+- **Better Auth** (`src/lib/auth.ts`): `trustedOrigins` lists explicit web app hosts (`https://app.sokosumi.com`, `https://preprod.sokosumi.com`), plus `https://*.preview.sokosumi.com` on Vercel Preview only and `http://localhost:*` in development only. Production leaves the preview suffix out because previews share its `sokosumi.com` cookies. Web no longer runs Better Auth; keep this list aligned with browser origins that call Core `/auth`. CORS remains broader (`https://sokosumi.com` / `https://*.sokosumi.com`); do not widen `trustedOrigins` to match CORS — it is a CSRF allowlist, not general API access control.
 
 Cross-origin calls from the web app require the web deployment to use a hostname that satisfies both checks (e.g. `*.sokosumi.com` in hosted environments).
 
@@ -306,13 +315,13 @@ For internal async-ack sync routes (immediate `200` response + background execut
 | `pnpm --filter @sokosumi/core vercel-build` | Vercel: `prisma:generate`, build, then `prisma migrate deploy` |
 | `pnpm core:start`                 | Run production build     |
 | `pnpm --filter core lint`         | Lint core app            |
-| `pnpm --filter core write-openapi-snapshot` | Writes `packages/core-client/openapi-core.snapshot.json` (gitignored) from the in-memory v1 router for `openapi-ts` |
+| `pnpm --filter core write-openapi-snapshot` | Builds Core's workspace dependencies through turbo, then writes `packages/core-client/openapi-core.snapshot.json` (gitignored) from the in-memory v1 router for `openapi-ts` |
 | `pnpm --filter @sokosumi/core-client generate:snapshot` | Runs the snapshot script + regenerates `packages/core-client/src/generated` (no running Core server) |
 | `pnpm --filter @sokosumi/core-client generate` | Regenerates the Core client from `http://localhost:8787/v1/openapi.json` (Core must be running) |
 
 ## Common Patterns
 
-Before adding or changing a `/v1` route (new route files, OpenAPI definitions, `/{id}` to `/me` migration, cursor pagination, job files and links), read [Core route patterns](../../docs/agents/core-route-patterns.md).
+Before adding, changing, or removing a `/v1` route (new route files, OpenAPI definitions, `/{id}` to `/me` migration, operation removal, cursor pagination, job files and links), read [Core route patterns](../../docs/agents/core-route-patterns.md).
 
 **Note**: New Core routes use direct Prisma via the Core singleton (`import prisma from "@/lib/db/prisma"`) with type-safe includes and flatten helpers. Do not import a default `prisma` from `@sokosumi/database/client` in routes — that module exports `createPrismaClient` (used by `src/lib/db/prisma.ts`, tests, and scripts). Repositories may still appear in legacy services — do not introduce new repository usage in routes.
 
@@ -344,7 +353,7 @@ Environment variables required by Vitest (or by code under test) must be set in 
 - Internal tokens have full access; user tokens and session-authenticated requests are scoped to the authenticated user
 - Session cookies must be forwarded with requests (`credentials: "include"`) and rely on the Better Auth handler configuration documented above
 - Use `c.var.user` for direct user access, or `c.get("auth")` for full auth context
-- Coworker and Soko Bot tokens may only `GET` `/users/{id}`, its `/credits`, `/organizations`, and `/organizations/{id}/credits` (`src/routes/v1/users/user-coworker-route-allowlist.ts`); every other `/users` route answers them 403. Mounting a new user route for agents means extending that allowlist
+- Coworker and Soko Bot tokens may only `GET` `/users/{id}`, its `/credits`, `/organizations`, `/organizations/{id}/credits`, `/workspaces`, and `/workspaces/preferred` (`src/routes/v1/users/user-coworker-route-allowlist.ts`); every other `/users` route answers them 403. Both workspace reads skip the context binding and narrow their result instead (`AGENT_SELF_FILTERING_USER_SUBPATH_PATTERNS`). Mounting a new user route for agents means extending that allowlist
 
 ### Error Handling
 
@@ -465,5 +474,5 @@ The evlog block above is the generic convention. This app narrows it:
 - Do **not** add `log.audit` unless a ticket asks for an audit trail (see `build-audit-logs`).
 - Skills: `apps/core/.agents/skills/review-logging-patterns`, `build-audit-logs`, `analyze-logs`. `analyze-logs` reads `.evlog/logs/`; this app drains to stdout and Sentry Logs, not the filesystem.
 - Do not run `evlog agents` at the repo root. Re-run from `apps/core` with `--no-skills`.
-- CLI is a Core devDependency (`@evlog/cli` 0.8.0). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
+- CLI is a Core devDependency (`@evlog/cli` 0.9.0). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
 

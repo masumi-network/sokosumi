@@ -113,7 +113,7 @@ const EMPTY_PENDING_INVITATIONS: ChatRoomInvitation[] = [];
 
 /** Same absolute slot as live room rows so archived height matches Channels/DMs. */
 const ARCHIVED_TRAILING_CONTROL_CLASS =
-  "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center after:absolute after:-inset-1.5 md:size-7 md:after:hidden";
+  "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center after:absolute after:-inset-1.5 md:size-7 md:after:-inset-0.5";
 
 /**
  * A room the All unreads filter lists with nothing unread: read during the
@@ -775,13 +775,12 @@ export function OrganizationChatList({
                                   variant="default"
                                   className="h-6 px-2 text-xs"
                                   disabled={anyBusy}
+                                  loading={acceptBusy}
                                   onClick={() =>
                                     handleAcceptInvitation(invitation)
                                   }
                                 >
-                                  {acceptBusy
-                                    ? t("loading")
-                                    : tExternal("accept")}
+                                  {tExternal("accept")}
                                 </Button>
                                 <Button
                                   type="button"
@@ -789,13 +788,12 @@ export function OrganizationChatList({
                                   variant="outline"
                                   className="h-6 px-2 text-xs"
                                   disabled={anyBusy}
+                                  loading={declineBusy}
                                   onClick={() =>
                                     handleDeclineInvitation(invitation)
                                   }
                                 >
-                                  {declineBusy
-                                    ? t("loading")
-                                    : tExternal("decline")}
+                                  {tExternal("decline")}
                                 </Button>
                               </div>
                             </div>
@@ -961,17 +959,11 @@ export function OrganizationChatList({
                                   : "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100",
                               )}
                               disabled={actionBusy}
+                              loading={isRestoring}
                               onClick={() => handleRestoreRoom(room)}
                               aria-label={`${tActions("restore")} ${room.name}`}
                             >
-                              <RotateCcw
-                                className={cn(
-                                  "size-3.5",
-                                  isRestoring &&
-                                    "animate-spin motion-reduce:animate-pulse",
-                                )}
-                                aria-hidden
-                              />
+                              <RotateCcw className="size-3.5" aria-hidden />
                             </Button>
                           )}
                         </SidebarMenuItem>
@@ -1012,7 +1004,7 @@ export function OrganizationChatList({
                     {tActions("cancel")}
                   </AlertDialogCancel>
                   <AlertDialogAction
-                    disabled={deletingRoomId !== null}
+                    loading={deletingRoomId !== null}
                     onClick={(event) => {
                       event.preventDefault();
                       handleConfirmDeleteRoom();
