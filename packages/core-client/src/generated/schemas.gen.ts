@@ -21038,12 +21038,16 @@ export const GoogleCampaignSpecSchema = {
     oneOf: [
         {
             $ref: '#/components/schemas/GoogleSearchCampaignSpec'
+        },
+        {
+            $ref: '#/components/schemas/GoogleDisplayCampaignSpec'
         }
     ],
     discriminator: {
         propertyName: 'type',
         mapping: {
-            SEARCH: '#/components/schemas/GoogleSearchCampaignSpec'
+            SEARCH: '#/components/schemas/GoogleSearchCampaignSpec',
+            DISPLAY: '#/components/schemas/GoogleDisplayCampaignSpec'
         }
     },
     description: 'Required for Google ad accounts; 422 for Meta'
@@ -21221,6 +21225,164 @@ export const GoogleSitelinkSchema = {
     required: [
         'text',
         'finalUrl'
+    ]
+} as const;
+
+export const GoogleDisplayCampaignSpecSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'DISPLAY'
+            ]
+        },
+        startDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign starts at 00:00:00 of this day in the account\'s time zone'
+        },
+        endDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign ends at 23:59:59 of this day in the account\'s time zone; not before startDate'
+        },
+        locationIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^\\d{1,20}$'
+            },
+            maxItems: 25,
+            description: 'Geo target constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        languageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^\\d{1,20}$'
+            },
+            maxItems: 25,
+            description: 'Language constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        finalUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri',
+            example: 'https://example.com/spring'
+        },
+        businessName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 25
+        },
+        headlines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 30
+            },
+            minItems: 1,
+            maxItems: 5
+        },
+        longHeadline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 90
+        },
+        descriptions: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 90
+            },
+            minItems: 1,
+            maxItems: 5
+        },
+        images: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleDisplayImage'
+            },
+            maxItems: 8,
+            description: 'Drive images: 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each file once'
+        }
+    },
+    required: [
+        'type',
+        'locationIds',
+        'languageIds',
+        'finalUrl',
+        'businessName',
+        'headlines',
+        'longHeadline',
+        'descriptions',
+        'images'
+    ]
+} as const;
+
+export const GoogleDisplayImageSchema = {
+    type: 'object',
+    properties: {
+        pathname: {
+            type: 'string',
+            minLength: 1,
+            example: 'drive/users/user_123/banner.png',
+            description: 'Drive blob pathname; must belong to the active workspace'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/banner.png',
+            description: 'Public Blob URL of the Drive file'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            example: 'banner.png'
+        },
+        size: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 5242880,
+            description: 'Bytes; at most 5120 KB',
+            example: 240000
+        },
+        mimeType: {
+            type: 'string',
+            enum: [
+                'image/jpeg',
+                'image/png',
+                'image/gif'
+            ]
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'LANDSCAPE',
+                'SQUARE',
+                'LOGO'
+            ],
+            description: 'LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit'
+        }
+    },
+    required: [
+        'pathname',
+        'fileUrl',
+        'name',
+        'size',
+        'mimeType',
+        'role'
     ]
 } as const;
 

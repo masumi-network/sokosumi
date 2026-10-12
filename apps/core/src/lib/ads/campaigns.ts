@@ -85,8 +85,48 @@ export interface GoogleSearchCampaignSpec extends GoogleCampaignSpecBase {
   callouts?: string[];
 }
 
+export const GOOGLE_DISPLAY_IMAGE_ROLES = [
+  "LANDSCAPE",
+  "SQUARE",
+  "LOGO",
+] as const;
+export type GoogleDisplayImageRole =
+  (typeof GOOGLE_DISPLAY_IMAGE_ROLES)[number];
+
+/** Image types Google accepts for a responsive display ad. */
+export const GOOGLE_DISPLAY_IMAGE_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+] as const;
+
+/** Largest image Google accepts: 5120 KB. */
+export const GOOGLE_DISPLAY_IMAGE_MAX_BYTES = 5_242_880;
+
+/** A Drive image of a responsive display ad, with the slot it fills. */
+export interface GoogleDisplayImage {
+  pathname: string;
+  fileUrl: string;
+  name: string;
+  size: number;
+  mimeType: (typeof GOOGLE_DISPLAY_IMAGE_MIME_TYPES)[number];
+  role: GoogleDisplayImageRole;
+}
+
+export interface GoogleDisplayCampaignSpec extends GoogleCampaignSpecBase {
+  type: "DISPLAY";
+  businessName: string;
+  headlines: string[];
+  longHeadline: string;
+  descriptions: string[];
+  /** At least one LANDSCAPE and one SQUARE; LANDSCAPE + SQUARE at most 6, LOGO at most 2. */
+  images: GoogleDisplayImage[];
+}
+
 /** What a new Google campaign contains beyond its name and budget; one member per campaign type. */
-export type GoogleCampaignSpec = GoogleSearchCampaignSpec;
+export type GoogleCampaignSpec =
+  | GoogleSearchCampaignSpec
+  | GoogleDisplayCampaignSpec;
 
 export interface GoogleCampaignCreate extends AdCampaignCreate {
   google: GoogleCampaignSpec;

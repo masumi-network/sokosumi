@@ -6104,7 +6104,11 @@ export type CreateAdCampaignRequest = {
 /**
  * Required for Google ad accounts; 422 for Meta
  */
-export type GoogleCampaignSpec = GoogleSearchCampaignSpec;
+export type GoogleCampaignSpec = ({
+    type: 'SEARCH';
+} & GoogleSearchCampaignSpec) | ({
+    type: 'DISPLAY';
+} & GoogleDisplayCampaignSpec);
 
 export type GoogleSearchCampaignSpec = {
     type: 'SEARCH';
@@ -6153,6 +6157,56 @@ export type GoogleSitelink = {
     finalUrl: string;
     description1?: string;
     description2?: string;
+};
+
+export type GoogleDisplayCampaignSpec = {
+    type: 'DISPLAY';
+    /**
+     * Campaign starts at 00:00:00 of this day in the account's time zone
+     */
+    startDate?: string;
+    /**
+     * Campaign ends at 23:59:59 of this day in the account's time zone; not before startDate
+     */
+    endDate?: string;
+    /**
+     * Geo target constant ids (0-25); none targets all
+     */
+    locationIds: Array<string>;
+    /**
+     * Language constant ids (0-25); none targets all
+     */
+    languageIds: Array<string>;
+    finalUrl: string;
+    businessName: string;
+    headlines: Array<string>;
+    longHeadline: string;
+    descriptions: Array<string>;
+    /**
+     * Drive images: 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each file once
+     */
+    images: Array<GoogleDisplayImage>;
+};
+
+export type GoogleDisplayImage = {
+    /**
+     * Drive blob pathname; must belong to the active workspace
+     */
+    pathname: string;
+    /**
+     * Public Blob URL of the Drive file
+     */
+    fileUrl: string;
+    name: string;
+    /**
+     * Bytes; at most 5120 KB
+     */
+    size: number;
+    mimeType: 'image/jpeg' | 'image/png' | 'image/gif';
+    /**
+     * LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit
+     */
+    role: 'LANDSCAPE' | 'SQUARE' | 'LOGO';
 };
 
 export type ListGoogleLocationsResponse = {

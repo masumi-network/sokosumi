@@ -534,6 +534,8 @@ describe("Project ads routes", () => {
           projectId: PROJECT_ID,
           workspaceId: WORKSPACE_ID,
           accountId: ACCOUNT_UUID,
+          userId: USER_ID,
+          organizationId: null,
           ...body,
         });
       },
@@ -800,6 +802,185 @@ describe("Project ads routes", () => {
     ])("accepts a Google spec with %s", async (_name, changes) => {
       const response = await createPost(withGoogle(changes));
       expect(response.status).toBe(201);
+    });
+
+    describe("Display spec", () => {
+      const BLOB = "https://store.public.blob.vercel-storage.com";
+      const image = (
+        role: "LANDSCAPE" | "SQUARE" | "LOGO",
+        n: number,
+        changes: Record<string, unknown> = {},
+      ) => ({
+        pathname: `drive/users/${USER_ID}/${role.toLowerCase()}-${n}.png`,
+        fileUrl: `${BLOB}/drive/users/${USER_ID}/${role.toLowerCase()}-${n}.png`,
+        name: `${role.toLowerCase()}-${n}.png`,
+        size: 240_000,
+        mimeType: "image/png",
+        role,
+        ...changes,
+      });
+      const images = (landscape: number, square: number, logo = 0) => [
+        ...Array.from({ length: landscape }, (_, i) => image("LANDSCAPE", i)),
+        ...Array.from({ length: square }, (_, i) => image("SQUARE", i)),
+        ...Array.from({ length: logo }, (_, i) => image("LOGO", i)),
+      ];
+      const displaySpec = {
+        type: "DISPLAY",
+        locationIds: ["2276"],
+        languageIds: ["1001"],
+        finalUrl: "https://example.com/spring",
+        businessName: "Acme Shoes",
+        headlines: ["Run faster"],
+        longHeadline: "Run faster in the lightest shoes",
+        descriptions: ["Shoes for every runner."],
+        images: images(1, 1),
+      };
+      const withDisplay = (changes: Record<string, unknown>) => ({
+        name: "Spring",
+        dailyBudget: 5,
+        google: { ...displaySpec, ...changes },
+      });
+
+      it("creates a Display campaign and hands the spec to the service with the Workspace", async () => {
+        const response = await createPost(withDisplay({}));
+        expect(response.status).toBe(201);
+        expect(m.createCampaign).toHaveBeenCalledWith(
+          expect.objectContaining({
+            userId: USER_ID,
+            organizationId: null,
+            google: displaySpec,
+          }),
+        );
+      });
+
+      it("trims the business name, headlines, long headline and descriptions", async () => {
+        await createPost(
+          withDisplay({
+            businessName: " Acme ",
+            headlines: [" One "],
+            longHeadline: " Long ",
+            descriptions: [" First "],
+          }),
+        );
+        expect(m.createCampaign.mock.calls[0]?.[0].google).toMatchObject({
+          businessName: "Acme",
+          headlines: ["One"],
+          longHeadline: "Long",
+          descriptions: ["First"],
+        });
+      });
+
+      it.each([
+        ["no images", { images: [] }],
+        ["no LANDSCAPE image", { images: images(0, 1, 1) }],
+        ["no SQUARE image", { images: images(1, 0, 1) }],
+        ["only logos", { images: images(0, 0, 2) }],
+        ["7 marketing images", { images: images(4, 3) }],
+        ["3 logos", { images: images(1, 1, 3) }],
+        ["more than 8 images", { images: images(3, 3, 3) }],
+        [
+          "the same file twice",
+          { images: [...images(1, 1), image("LANDSCAPE", 0)] },
+        ],
+        [
+          "a webp image",
+          {
+            images: [
+              image("LANDSCAPE", 0, { mimeType: "image/webp" }),
+              image("SQUARE", 0),
+            ],
+          },
+        ],
+        [
+          "an image over 5120 KB",
+          {
+            images: [
+              image("LANDSCAPE", 0, { size: 5_242_881 }),
+              image("SQUARE", 0),
+            ],
+          },
+        ],
+        [
+          "an empty image",
+          { images: [image("LANDSCAPE", 0, { size: 0 }), image("SQUARE", 0)] },
+        ],
+        [
+          "an unknown image role",
+          {
+            images: [
+              image("LANDSCAPE", 0, { role: "BANNER" }),
+              image("SQUARE", 0),
+            ],
+          },
+        ],
+        [
+          "an image without a URL",
+          {
+            images: [
+              image("LANDSCAPE", 0, { fileUrl: undefined }),
+              image("SQUARE", 0),
+            ],
+          },
+        ],
+        ["no business name", { businessName: undefined }],
+        [
+          "a business name over 25 characters",
+          { businessName: "a".repeat(26) },
+        ],
+        ["no headlines", { headlines: [] }],
+        ["6 headlines", { headlines: ["1", "2", "3", "4", "5", "6"] }],
+        ["a headline over 30 characters", { headlines: ["a".repeat(31)] }],
+        [
+          "duplicate headlines ignoring case",
+          { headlines: ["Run faster", "run FASTER"] },
+        ],
+        ["no long headline", { longHeadline: undefined }],
+        [
+          "a long headline over 90 characters",
+          { longHeadline: "a".repeat(91) },
+        ],
+        ["no descriptions", { descriptions: [] }],
+        ["6 descriptions", { descriptions: ["1", "2", "3", "4", "5", "6"] }],
+        [
+          "a description over 90 characters",
+          { descriptions: ["a".repeat(91)] },
+        ],
+        ["a missing final URL", { finalUrl: undefined }],
+      ])("rejects a Display spec with %s", async (_name, changes) => {
+        const response = await createPost(withDisplay(changes));
+        expect(response.status).toBe(422);
+        expect(m.createCampaign).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        ["6 marketing images and 2 logos", { images: images(3, 3, 2) }],
+        ["5 landscape and 1 square image", { images: images(5, 1) }],
+        [
+          "JPEG and GIF images of exactly 5120 KB",
+          {
+            images: [
+              image("LANDSCAPE", 0, {
+                mimeType: "image/jpeg",
+                size: 5_242_880,
+              }),
+              image("SQUARE", 0, { mimeType: "image/gif" }),
+            ],
+          },
+        ],
+        [
+          "5 headlines, 5 descriptions and the longest texts",
+          {
+            businessName: "a".repeat(25),
+            headlines: ["1", "2", "3", "4", "a".repeat(30)],
+            longHeadline: "a".repeat(90),
+            descriptions: ["1", "2", "3", "4", "a".repeat(90)],
+          },
+        ],
+        ["no locations or languages", { locationIds: [], languageIds: [] }],
+      ])("accepts a Display spec with %s", async (_name, changes) => {
+        const response = await createPost(withDisplay(changes));
+        expect(response.status).toBe(201);
+      });
     });
 
     it.each([

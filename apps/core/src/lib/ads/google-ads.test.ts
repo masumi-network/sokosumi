@@ -1,3 +1,4 @@
+import { SsrfError } from "@sokosumi/net";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ComposioApiError } from "@/clients/composio.client";
@@ -8,11 +9,18 @@ const {
   executeToolMock,
   deleteSessionMock,
   proxyFetchMock,
+  ssrfSafeFetchMock,
 } = vi.hoisted(() => ({
   createSessionMock: vi.fn(),
   executeToolMock: vi.fn(),
   deleteSessionMock: vi.fn(),
   proxyFetchMock: vi.fn(),
+  ssrfSafeFetchMock: vi.fn(),
+}));
+
+vi.mock("@sokosumi/net", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/net")>()),
+  ssrfSafeFetch: ssrfSafeFetchMock,
 }));
 
 vi.mock("@/clients/composio.client", async (importOriginal) => ({
@@ -1024,6 +1032,419 @@ describe("createGoogleCampaign", () => {
       const error = new ComposioApiError(502, undefined, "gateway");
       executeToolMock.mockRejectedValue(error);
       await expect(createGoogleCampaign(create)).rejects.toBe(error);
+    });
+  });
+});
+
+describe("createGoogleCampaign for Display", () => {
+  const BLOB = "https://store.public.blob.vercel-storage.com/drive/users/u1";
+  const image = (
+    name: string,
+    role: "LANDSCAPE" | "SQUARE" | "LOGO",
+    mimeType: "image/png" | "image/jpeg" | "image/gif" = "image/png",
+  ) => ({
+    pathname: `drive/users/u1/${name}`,
+    fileUrl: `${BLOB}/${name}`,
+    name,
+    size: 3,
+    mimeType,
+    role,
+  });
+  const wide = image("wide.png", "LANDSCAPE");
+  const square = image("square.jpg", "SQUARE", "image/jpeg");
+  const logo = image("logo.gif", "LOGO", "image/gif");
+  const google = {
+    type: "DISPLAY" as const,
+    locationIds: ["2276"],
+    languageIds: ["1001"],
+    finalUrl: "https://example.com/spring",
+    businessName: "Acme Shoes",
+    headlines: ["Run faster", "Light shoes"],
+    longHeadline: "Run faster in the lightest shoes",
+    descriptions: ["Shoes for every runner."],
+    images: [wide, square, logo],
+  };
+  const create = {
+    ...input,
+    customerId: "111",
+    name: "Spring sale",
+    dailyBudget: 12.34,
+    google,
+  };
+  const assetResult = (id: number) => ({
+    mutate_operation_responses: [
+      { asset_result: { resource_name: `customers/111/assets/${id}` } },
+    ],
+  });
+  const treeResult = {
+    mutate_operation_responses: [
+      { campaign_result: { resource_name: "customers/111/campaigns/42" } },
+    ],
+  };
+  const served: Record<string, { type: string; bytes: number[] }> = {
+    "wide.png": { type: "image/png", bytes: [1, 2, 3] },
+    "square.jpg": { type: "image/jpeg; charset=binary", bytes: [4, 5, 6] },
+    "logo.gif": { type: "image/gif", bytes: [7, 8, 9] },
+  };
+  const calls = () => executeToolMock.mock.calls.map(([call]) => call);
+  const tree = () => calls().at(-1);
+  const operationsOf = (key: string) =>
+    (
+      tree()?.arguments.mutate_operations as Record<
+        string,
+        Record<string, Record<string, unknown>>
+      >[]
+    )
+      .filter((operation) => key in operation)
+      .map((operation) => operation[key]?.create);
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    createSessionMock.mockResolvedValue("sess_1");
+    ssrfSafeFetchMock.mockImplementation(async (url: string) => {
+      const file = served[url.slice(url.lastIndexOf("/") + 1)];
+      return file
+        ? new Response(new Uint8Array(file.bytes), {
+            headers: { "content-type": file.type },
+          })
+        : new Response(null, { status: 404 });
+    });
+    let assetId = 100;
+    executeToolMock.mockImplementation(
+      async (call: { arguments: { mutate_operations: object[] } }) =>
+        "asset_operation" in (call.arguments.mutate_operations[0] ?? {})
+          ? assetResult(assetId++)
+          : treeResult,
+    );
+  });
+
+  it("downloads each image through the SSRF guard with the 5120 KB cap", async () => {
+    await createGoogleCampaign(create);
+    expect(ssrfSafeFetchMock.mock.calls.map(([url]) => url)).toEqual([
+      `${BLOB}/wide.png`,
+      `${BLOB}/square.jpg`,
+      `${BLOB}/logo.gif`,
+    ]);
+    for (const [, options] of ssrfSafeFetchMock.mock.calls) {
+      expect(options).toMatchObject({
+        maxResponseBytes: 5_242_880,
+        signal: expect.any(AbortSignal),
+      });
+    }
+  });
+
+  it("uploads every image in a call of its own, then creates the tree and returns the campaign id", async () => {
+    await expect(createGoogleCampaign(create)).resolves.toBe("42");
+    expect(calls()).toHaveLength(4);
+    expect(createSessionMock).toHaveBeenCalledTimes(1);
+    expect(createSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ toolSlugs: ["GOOGLEADS_BATCH_MUTATE"] }),
+    );
+    const uploads = calls().slice(0, 3);
+    const encoded = ["AQID", "BAUG", "BwgJ"];
+    const names = ["wide.png", "square.jpg", "logo.gif"];
+    uploads.forEach((call, index) => {
+      expect(call).toEqual({
+        sessionId: "sess_1",
+        toolSlug: "GOOGLEADS_BATCH_MUTATE",
+        arguments: {
+          customer_id: "111",
+          partial_failure: false,
+          mutate_operations: [
+            {
+              asset_operation: {
+                create: {
+                  name: expect.stringMatching(
+                    new RegExp(
+                      `^${names[index]?.replace(".", "\\.")} [0-9a-f]{8}$`,
+                    ),
+                  ),
+                  type: "IMAGE",
+                  image_asset: { data: encoded[index] },
+                },
+              },
+            },
+          ],
+        },
+        context: "run GOOGLEADS_BATCH_MUTATE",
+        refused: expect.any(String),
+        timeoutMs: 60_000,
+      });
+    });
+    expect(deleteSessionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends the tree after the uploads, with the image assets in their slots", async () => {
+    await createGoogleCampaign(create);
+    expect(tree()?.timeoutMs).toBeUndefined();
+    const operations = tree()?.arguments.mutate_operations as Record<
+      string,
+      unknown
+    >[];
+    expect(operations.map((operation) => Object.keys(operation)[0])).toEqual([
+      "campaign_budget_operation",
+      "campaign_operation",
+      "campaign_criterion_operation",
+      "campaign_criterion_operation",
+      "ad_group_operation",
+      "ad_group_ad_operation",
+    ]);
+    expect(operationsOf("campaign_operation")).toEqual([
+      {
+        resource_name: "customers/111/campaigns/-2",
+        name: "Spring sale",
+        status: "PAUSED",
+        advertising_channel_type: "DISPLAY",
+        campaign_budget: "customers/111/campaignBudgets/-1",
+        target_spend: {},
+        contains_eu_political_advertising:
+          "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
+      },
+    ]);
+    expect(operationsOf("campaign_criterion_operation")).toEqual([
+      {
+        campaign: "customers/111/campaigns/-2",
+        location: { geo_target_constant: "geoTargetConstants/2276" },
+      },
+      {
+        campaign: "customers/111/campaigns/-2",
+        language: { language_constant: "languageConstants/1001" },
+      },
+    ]);
+    expect(operationsOf("ad_group_operation")).toEqual([
+      {
+        resource_name: "customers/111/adGroups/-3",
+        campaign: "customers/111/campaigns/-2",
+        name: "Ad group 1",
+        status: "ENABLED",
+        type: "DISPLAY_STANDARD",
+      },
+    ]);
+    expect(operationsOf("ad_group_ad_operation")).toEqual([
+      {
+        ad_group: "customers/111/adGroups/-3",
+        status: "ENABLED",
+        ad: {
+          final_urls: ["https://example.com/spring"],
+          responsive_display_ad: {
+            marketing_images: [{ asset: "customers/111/assets/100" }],
+            square_marketing_images: [{ asset: "customers/111/assets/101" }],
+            logo_images: [{ asset: "customers/111/assets/102" }],
+            headlines: [{ text: "Run faster" }, { text: "Light shoes" }],
+            long_headline: { text: "Run faster in the lightest shoes" },
+            descriptions: [{ text: "Shoes for every runner." }],
+            business_name: "Acme Shoes",
+          },
+        },
+      },
+    ]);
+  });
+
+  it("sends no sitelinks, callouts or keywords", async () => {
+    await createGoogleCampaign(create);
+    expect(operationsOf("asset_operation")).toEqual([]);
+    expect(operationsOf("campaign_asset_operation")).toEqual([]);
+    expect(operationsOf("ad_group_criterion_operation")).toEqual([]);
+  });
+
+  it("keeps several images of a slot in order and omits logo_images without logos", async () => {
+    const wide2 = image("wide2.png", "LANDSCAPE");
+    served["wide2.png"] = { type: "image/png", bytes: [1] };
+    await createGoogleCampaign({
+      ...create,
+      google: { ...google, images: [wide, wide2, square] },
+    });
+    const ad = operationsOf("ad_group_ad_operation")[0]?.ad as {
+      responsive_display_ad: Record<string, unknown>;
+    };
+    expect(ad.responsive_display_ad.marketing_images).toEqual([
+      { asset: "customers/111/assets/100" },
+      { asset: "customers/111/assets/101" },
+    ]);
+    expect(ad.responsive_display_ad.square_marketing_images).toEqual([
+      { asset: "customers/111/assets/102" },
+    ]);
+    expect(ad.responsive_display_ad).not.toHaveProperty("logo_images");
+    delete served["wide2.png"];
+  });
+
+  it("keeps the asset name within Google's length limit", async () => {
+    const long = image(`${"a".repeat(200)}.png`, "LANDSCAPE");
+    served[long.name] = { type: "image/png", bytes: [1] };
+    await createGoogleCampaign({
+      ...create,
+      google: { ...google, images: [long, square] },
+    });
+    const name = (
+      calls()[0]?.arguments.mutate_operations[0].asset_operation.create as {
+        name: string;
+      }
+    ).name;
+    expect(name.length).toBeLessThanOrEqual(128);
+    delete served[long.name];
+  });
+
+  describe("downloads", () => {
+    const rejectsBeforeWriting = async (message: string | RegExp) => {
+      await expect(createGoogleCampaign(create)).rejects.toMatchObject({
+        status: 422,
+        message: expect.stringMatching(message),
+      });
+      expect(createSessionMock).not.toHaveBeenCalled();
+      expect(executeToolMock).not.toHaveBeenCalled();
+    };
+
+    it("raises 422 naming the file when it is larger than the cap", async () => {
+      ssrfSafeFetchMock.mockRejectedValue(
+        new SsrfError("Response exceeds maxResponseBytes"),
+      );
+      await rejectsBeforeWriting(/"wide\.png".*5120 KB/);
+    });
+
+    it("raises 422 naming the file when it is larger than the cap after the download", async () => {
+      ssrfSafeFetchMock.mockResolvedValue(
+        new Response(new Uint8Array(5_242_881), {
+          headers: { "content-type": "image/png" },
+        }),
+      );
+      await rejectsBeforeWriting(/"wide\.png".*5120 KB/);
+    });
+
+    it("raises 422 naming the file when it is no longer there", async () => {
+      ssrfSafeFetchMock.mockResolvedValue(new Response(null, { status: 404 }));
+      await rejectsBeforeWriting(/"wide\.png".*no longer available/);
+    });
+
+    it.each(["image/webp", "text/html", "application/octet-stream", ""])(
+      "raises 422 naming the file when it is served as %j",
+      async (type) => {
+        ssrfSafeFetchMock.mockResolvedValue(
+          new Response(new Uint8Array([1]), {
+            headers: type ? { "content-type": type } : {},
+          }),
+        );
+        await rejectsBeforeWriting(/"wide\.png".*JPEG, PNG or GIF/);
+      },
+    );
+
+    it("keeps other fetch failures unchanged", async () => {
+      const error = new SsrfError("blocked host");
+      ssrfSafeFetchMock.mockRejectedValue(error);
+      await expect(createGoogleCampaign(create)).rejects.toBe(error);
+      expect(executeToolMock).not.toHaveBeenCalled();
+    });
+
+    it("downloads nothing for a Search campaign", async () => {
+      executeToolMock.mockResolvedValue(treeResult);
+      await createGoogleCampaign({
+        ...create,
+        google: {
+          type: "SEARCH",
+          locationIds: [],
+          languageIds: [],
+          finalUrl: "https://example.com",
+          keywords: [{ text: "shoes", matchType: "BROAD" }],
+          headlines: ["One", "Two", "Three"],
+          descriptions: ["First description", "Second description"],
+        },
+      });
+      expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("failures", () => {
+    const failure = (message: string) =>
+      `API Error (400): ${JSON.stringify({
+        error: {
+          details: [
+            {
+              errors: [
+                {
+                  errorCode: { imageError: "INVALID_IMAGE" },
+                  message,
+                },
+              ],
+            },
+          ],
+        },
+      })}`;
+
+    it("raises 422 naming the image when Google rejects an upload, and stops there", async () => {
+      executeToolMock
+        .mockResolvedValueOnce(assetResult(100))
+        .mockRejectedValueOnce(
+          new ComposioToolError({
+            message: "refused",
+            providerMessage: failure("The image is too small."),
+          }),
+        );
+      await expect(createGoogleCampaign(create)).rejects.toMatchObject({
+        status: 422,
+        message: 'Image "square.jpg": The image is too small.',
+      });
+      expect(calls()).toHaveLength(2);
+      expect(deleteSessionMock).toHaveBeenCalled();
+    });
+
+    it("keeps a provider failure of an upload unchanged", async () => {
+      const error = new ComposioApiError(502, undefined, "gateway");
+      executeToolMock.mockRejectedValue(error);
+      await expect(createGoogleCampaign(create)).rejects.toBe(error);
+      expect(calls()).toHaveLength(1);
+    });
+
+    it.each([
+      ["no asset result", { mutate_operation_responses: [] }],
+      ["an empty payload", null],
+      [
+        "a malformed resource name",
+        {
+          mutate_operation_responses: [
+            { asset_result: { resource_name: "customers/111/assets/abc" } },
+          ],
+        },
+      ],
+      [
+        "a partial failure",
+        { ...assetResult(100), partial_failure_error: { code: 3 } },
+      ],
+    ])("raises a tool error for an upload with %s", async (_name, payload) => {
+      executeToolMock.mockResolvedValue(payload);
+      await expect(createGoogleCampaign(create)).rejects.toBeInstanceOf(
+        ComposioToolError,
+      );
+      expect(calls()).toHaveLength(1);
+    });
+
+    it("raises the tree failure after the uploads without retrying", async () => {
+      executeToolMock
+        .mockResolvedValueOnce(assetResult(100))
+        .mockResolvedValueOnce(assetResult(101))
+        .mockResolvedValueOnce(assetResult(102))
+        .mockRejectedValueOnce(
+          new ComposioToolError({
+            message: "refused",
+            providerMessage: failure("Destination not working"),
+          }),
+        );
+      await expect(createGoogleCampaign(create)).rejects.toMatchObject({
+        status: 422,
+        message: "Destination not working",
+      });
+      expect(calls()).toHaveLength(4);
+      expect(deleteSessionMock).toHaveBeenCalled();
+    });
+
+    it("raises a tool error for a tree without a campaign result", async () => {
+      executeToolMock.mockImplementation(
+        async (call: { arguments: { mutate_operations: object[] } }) =>
+          "asset_operation" in (call.arguments.mutate_operations[0] ?? {})
+            ? assetResult(100)
+            : { mutate_operation_responses: [] },
+      );
+      await expect(createGoogleCampaign(create)).rejects.toBeInstanceOf(
+        ComposioToolError,
+      );
     });
   });
 });

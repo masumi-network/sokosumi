@@ -26,6 +26,10 @@ export interface AdsConnectedAccount {
 export type ExecuteAdsTool = (
   toolSlug: string,
   args: Record<string, unknown>,
+  options?: {
+    /** Milliseconds to wait for the tool; the Composio default suits small calls. */
+    timeoutMs?: number;
+  },
 ) => Promise<Record<string, unknown> | null>;
 
 /**
@@ -51,13 +55,14 @@ export async function withAdsToolSession<T>(
     context: `create ${label} session`,
   });
   try {
-    return await run((toolSlug, args) =>
+    return await run((toolSlug, args, options) =>
       executeComposioTool({
         sessionId,
         toolSlug,
         arguments: args,
         context: `run ${toolSlug}`,
         refused: `${name} refused the request`,
+        timeoutMs: options?.timeoutMs,
       }),
     );
   } finally {
