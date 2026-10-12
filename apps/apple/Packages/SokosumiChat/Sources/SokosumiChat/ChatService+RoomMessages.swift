@@ -44,32 +44,17 @@ public extension ChatService {
     query: String? = nil,
     organizationSlug: String?
   ) async throws -> (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?) {
-    let response = try await client.getChatsRoomsIdMessages(
-      .init(
-        path: .init(id: roomId),
-        query: .init(cursor: cursor, limit: limit ?? roomHistoryLimit, q: query, around: around),
-        headers: .init(xOrganizationSlug: organizationSlug)
+    let okResponse = try await call {
+      try await client.getChatsRoomsIdMessages(
+        .init(
+          path: .init(id: roomId),
+          query: .init(cursor: cursor, limit: limit ?? roomHistoryLimit, q: query, around: around),
+          headers: .init(xOrganizationSlug: organizationSlug)
+        )
       )
-    )
-    switch response {
-    case let .ok(okResponse):
-      let payload = try okResponse.body.json
-      return (payload.data, payload.meta.pagination.nextCursor)
-    case let .unauthorized(value):
-      throw try unauthorized(value.body.json.message)
-    case let .forbidden(forbidden):
-      throw try rejected(status: 403, message: forbidden.body.json.message)
-    case let .notFound(notFound):
-      throw try rejected(status: 404, message: notFound.body.json.message)
-    case let .unprocessableContent(invalid):
-      throw try rejected(status: 422, message: invalid.body.json.message)
-    case let .internalServerError(serverError):
-      throw try rejected(status: 500, message: serverError.body.json.message)
-    case let .tooManyRequests(value):
-      throw try rejected(status: 429, message: value.body.json.message)
-    case let .undocumented(statusCode, payload):
-      throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    }.ok
+    let payload = try okResponse.body.json
+    return (payload.data, payload.meta.pagination.nextCursor)
   }
 
   /// `POST /chats/rooms/{id}/read`. Returns the updated room DTO — the
@@ -79,26 +64,14 @@ public extension ChatService {
     roomId: String,
     organizationSlug: String?
   ) async throws -> Components.Schemas.ChatRoom {
-    let response = try await client.postChatsRoomsIdRead(
-      .init(
-        path: .init(id: roomId),
-        headers: .init(xOrganizationSlug: organizationSlug)
+    try await call {
+      try await client.postChatsRoomsIdRead(
+        .init(
+          path: .init(id: roomId),
+          headers: .init(xOrganizationSlug: organizationSlug)
+        )
       )
-    )
-    switch response {
-    case let .ok(okResponse):
-      return try okResponse.body.json.data
-    case let .unauthorized(value):
-      throw try unauthorized(value.body.json.message)
-    case let .forbidden(forbidden):
-      throw try rejected(status: 403, message: forbidden.body.json.message)
-    case let .notFound(notFound):
-      throw try rejected(status: 404, message: notFound.body.json.message)
-    case let .internalServerError(serverError):
-      throw try rejected(status: 500, message: serverError.body.json.message)
-    case let .undocumented(statusCode, payload):
-      throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    }.ok.body.json.data
   }
 
   func markRoomUnread(
@@ -106,26 +79,14 @@ public extension ChatService {
     roomId: String,
     organizationSlug: String?
   ) async throws -> Components.Schemas.ChatRoom {
-    let response = try await client.postChatsRoomsIdUnread(
-      .init(
-        path: .init(id: roomId),
-        headers: .init(xOrganizationSlug: organizationSlug)
+    try await call {
+      try await client.postChatsRoomsIdUnread(
+        .init(
+          path: .init(id: roomId),
+          headers: .init(xOrganizationSlug: organizationSlug)
+        )
       )
-    )
-    switch response {
-    case let .ok(okResponse):
-      return try okResponse.body.json.data
-    case let .unauthorized(value):
-      throw try unauthorized(value.body.json.message)
-    case let .forbidden(forbidden):
-      throw try rejected(status: 403, message: forbidden.body.json.message)
-    case let .notFound(notFound):
-      throw try rejected(status: 404, message: notFound.body.json.message)
-    case let .internalServerError(serverError):
-      throw try rejected(status: 500, message: serverError.body.json.message)
-    case let .undocumented(statusCode, payload):
-      throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    }.ok.body.json.data
   }
 
   /// `POST /chats/rooms/{id}/messages` with `content` and a client turn id.
@@ -142,37 +103,21 @@ public extension ChatService {
     skillIds: [String] = [],
     organizationSlug: String?
   ) async throws -> Components.Schemas.ChatRoomMessage {
-    let response = try await client.postChatsRoomsIdMessages(
-      .init(
-        path: .init(id: roomId),
-        headers: .init(xOrganizationSlug: organizationSlug),
-        body: .json(.init(content: content,
-                          mentionedCoworkerIds: mentions.filter { $0.kind == .coworker }.map(\.id),
-                          mentionedSokoBotIds: mentions.filter { $0.kind == .sokoBot }.map(\.id),
-                          mentionedUserIds: mentions.filter { $0.kind == .human }.map(\.id),
-                          parentMessageId: parentMessageId,
-                          quote: quote.map { .init(messageId: $0.messageId, roomId: $0.roomId) },
-                          clientMessageId: clientMessageId,
-                          skillIds: skillIds.isEmpty ? nil : skillIds))
+    try await call {
+      try await client.postChatsRoomsIdMessages(
+        .init(
+          path: .init(id: roomId),
+          headers: .init(xOrganizationSlug: organizationSlug),
+          body: .json(.init(content: content,
+                            mentionedCoworkerIds: mentions.filter { $0.kind == .coworker }.map(\.id),
+                            mentionedSokoBotIds: mentions.filter { $0.kind == .sokoBot }.map(\.id),
+                            mentionedUserIds: mentions.filter { $0.kind == .human }.map(\.id),
+                            parentMessageId: parentMessageId,
+                            quote: quote.map { .init(messageId: $0.messageId, roomId: $0.roomId) },
+                            clientMessageId: clientMessageId,
+                            skillIds: skillIds.isEmpty ? nil : skillIds))
+        )
       )
-    )
-    switch response {
-    case let .created(createdResponse):
-      return try createdResponse.body.json.data
-    case let .badRequest(badRequest):
-      throw try rejected(status: 400, message: badRequest.body.json.message)
-    case let .unauthorized(value):
-      throw try unauthorized(value.body.json.message)
-    case let .forbidden(forbidden):
-      throw try rejected(status: 403, message: forbidden.body.json.message)
-    case let .notFound(notFound):
-      throw try rejected(status: 404, message: notFound.body.json.message)
-    case let .conflict(conflict):
-      throw try ChatServiceError.unprocessable(statusCode: 409, message: conflict.body.json.message)
-    case let .internalServerError(serverError):
-      throw try rejected(status: 500, message: serverError.body.json.message)
-    case let .undocumented(statusCode, payload):
-      throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    }.created.body.json.data
   }
 }

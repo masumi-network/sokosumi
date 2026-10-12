@@ -12,25 +12,13 @@ public extension ChatService {
     clientInstanceId: String,
     organizationSlug: String?
   ) async throws -> Components.Schemas.AblyTokenRequest {
-    let response = try await client.postRealtimeAblyToken(
-      .init(
-        query: .init(clientInstanceId: clientInstanceId),
-        headers: .init(xOrganizationSlug: organizationSlug)
+    try await call {
+      try await client.postRealtimeAblyToken(
+        .init(
+          query: .init(clientInstanceId: clientInstanceId),
+          headers: .init(xOrganizationSlug: organizationSlug)
+        )
       )
-    )
-    switch response {
-    case let .ok(okResponse):
-      return try okResponse.body.json.data
-    case let .badRequest(badRequest):
-      throw try rejected(status: 400, message: badRequest.body.json.message)
-    case let .unauthorized(value):
-      throw try unauthorized(value.body.json.message)
-    case let .forbidden(forbidden):
-      throw try rejected(status: 403, message: forbidden.body.json.message)
-    case let .internalServerError(serverError):
-      throw try rejected(status: 500, message: serverError.body.json.message)
-    case let .undocumented(statusCode, payload):
-      throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    }.ok.body.json.data
   }
 }
