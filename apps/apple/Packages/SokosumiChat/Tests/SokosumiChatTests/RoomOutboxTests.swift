@@ -18,8 +18,9 @@ struct RoomOutboxTests {
     )
   }
 
-  @Test func slowHTTPConfirmationShowsThenExpiresSentFeedback() async throws {
-    let outbox = outbox()
+  @Test func slowHTTPConfirmationShowsThenExpiresSentFeedback() async {
+    let clock = OutboxSleep()
+    let outbox = RoomOutbox(now: { now }, sleep: clock.sleep)
     let pending = shell("slow", createdAt: now.addingTimeInterval(-1))
     var response = chatRoomMessage(from: pending)
     response.id = "confirmed"
@@ -29,10 +30,10 @@ struct RoomOutboxTests {
       await Task.yield()
     }
     #expect(outbox.sentAt[confirmed.id] != nil)
-    // Timer tasks may start late while parallel package tests load the executor.
-    let deadline = ContinuousClock.now.advanced(by: .seconds(5))
-    while !outbox.sentAt.isEmpty, ContinuousClock.now < deadline {
-      try await Task.sleep(for: .milliseconds(20))
+    #expect(clock.intervals.contains(.milliseconds(1600)))
+    clock.fireAll()
+    for _ in 0 ..< 1000 where !outbox.sentAt.isEmpty {
+      await Task.yield()
     }
     #expect(outbox.sentAt.isEmpty)
   }
@@ -197,5 +198,25 @@ struct RoomOutboxTests {
     #expect(!sendCancelled)
     #expect(outbox.shells.isEmpty)
     #expect(!outbox.isSending)
+  }
+}
+
+/// Holds every outbox sleep until the test fires it, so Sent feedback expires on the test's word.
+@MainActor
+private final class OutboxSleep {
+  var intervals: [Duration] = []
+  private var pending: [CheckedContinuation<Void, Never>] = []
+
+  func sleep(_ duration: Duration) async throws {
+    intervals.append(duration)
+    await withCheckedContinuation { pending.append($0) }
+  }
+
+  func fireAll() {
+    let callbacks = pending
+    pending = []
+    for callback in callbacks {
+      callback.resume()
+    }
   }
 }

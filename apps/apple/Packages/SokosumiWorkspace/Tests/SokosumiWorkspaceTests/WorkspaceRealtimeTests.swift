@@ -213,7 +213,7 @@ private func realtimeState(
   let state = WorkspaceState(
     savedRoom: SavedRoomSelection(defaults: defaults),
     instanceStore: MemoryRealtimeClientInstanceIdStore(stored: instanceId),
-    recoverySleep: recoveryTimersNeverFire
+    sleep: recoveryTimersNeverFire
   )
   state.setWindowVisible(true, window: realtimeWindow)
   state.clientResolver = { client }

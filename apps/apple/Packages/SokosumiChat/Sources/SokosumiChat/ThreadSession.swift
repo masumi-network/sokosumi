@@ -28,13 +28,13 @@ public final class ThreadSession: ObservableObject {
   private let now: () -> Date
   private let makeId: () -> String
 
-  /// `recoverySleep` paces the recovery timer.
+  /// `sleep` paces the recovery timer and the Send queue's timers.
   public init(now: @escaping () -> Date = Date.init, makeId: @escaping () -> String = { UUID().uuidString },
-              recoverySleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
+              sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
     self.now = now
     self.makeId = makeId
-    recovery = ChatRefreshScheduler(sleep: recoverySleep)
-    outbox = RoomOutbox(now: now)
+    recovery = ChatRefreshScheduler(sleep: sleep)
+    outbox = RoomOutbox(now: now, sleep: sleep)
     transcriptObservation = timeline.$messages.sink { [weak outbox] in outbox?.reconcile(messages: $0) }
   }
 

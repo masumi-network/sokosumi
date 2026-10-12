@@ -145,11 +145,11 @@
       }
 
       /// A hundred tall text messages in room `fixture`; with `thread`, the first opens a thread holding the rest.
-      /// `clock`, when given, is the Thread's clock; the view under test needs it as its `jumpMarkClock` too.
+      /// `clock`, when given, is the transcripts' clock; the view under test needs it as its `jumpMarkClock` too.
       static func fixtureState(thread: Bool, media: Bool, clock: ManualJumpMarkClock? = nil) throws -> WorkspaceState {
         let state = WorkspaceState(
           clientProvider: { _ in Client.connecting(to: URL(string: "https://example.com")!) },
-          threadNow: clock.map { clock in { MainActor.assumeIsolated { clock.now } } } ?? Date.init
+          now: clock.map { clock in { MainActor.assumeIsolated { clock.now } } } ?? Date.init
         )
         state.timeline.reset(roomId: "fixture")
         state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
