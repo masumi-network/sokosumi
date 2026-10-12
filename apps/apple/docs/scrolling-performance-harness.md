@@ -215,7 +215,7 @@ shutil.copy(work/'Probe.swift',out/'Sokosumi/App/SokosumiApp.swift')
 shutil.copy(source/'SokosumiTests/Chat/Timeline/ScrollMediaProtocol.swift',out/'Sokosumi/App/ScrollMediaProtocol.swift')
 
 patch('Packages/SokosumiWorkspace/Sources/SokosumiWorkspace/WorkspaceState+Mentions.swift','struct MentionRetryRequest: Hashable {','@MainActor public enum M6MentionRetryProbe {\n  public static var sourceCollections = 0\n}\n\nstruct MentionRetryRequest: Hashable {')
-patch('Packages/SokosumiWorkspace/Sources/SokosumiWorkspace/WorkspaceState+Mentions.swift','    transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.timeline.messages','    M6MentionRetryProbe.sourceCollections += 1\n    return transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.timeline.messages')
+patch('Packages/SokosumiWorkspace/Sources/SokosumiWorkspace/WorkspaceState+Mentions.swift','    transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.transcript.timeline.messages','    M6MentionRetryProbe.sourceCollections += 1\n    return transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.transcript.timeline.messages')
 patch('Sokosumi/Chat/Threads/ReplyThreadView.swift','    var body: some View {\n      content','    var body: some View {\n      let _ = M6Probe.threadBody()\n      content')
 if '    private var preparedMessages:' in (out/'Sokosumi/Chat/Threads/ReplyThreadView.swift').read_text():
  patch('Sokosumi/Chat/Threads/ReplyThreadView.swift','    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {','    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {\n      let start = ProcessInfo.processInfo.systemUptime\n      defer { M6Probe.scans["preparedMessages", default: []].append((ProcessInfo.processInfo.systemUptime - start) * 1000) }')
@@ -349,8 +349,8 @@ import Synchronization
       state.timeline.messages = thread ? [fixture[0]] : fixture
       if thread {
         state.thread.open(fixture[0])
-        state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
-        state.thread.timeline.messages = Array(fixture.dropFirst())
+        state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
+        state.thread.transcript.timeline.messages = Array(fixture.dropFirst())
       }
       if env["M6_ONLY"] == "lookup" {
         let message = fixture[count/2]
@@ -423,7 +423,7 @@ import Synchronization
   }
   func validateUpdates(_ state: WorkspaceState, auth: AuthState, host: NSView,
                        fixture: [Components.Schemas.ChatRoomMessage], thread: Bool) async {
-    let timeline = thread ? state.thread.timeline : state.timeline
+    let timeline = thread ? state.thread.transcript.timeline : state.timeline
     let target = fixture.last!.id
     var passed: [String] = []
     func check(_ label: String, _ condition: () -> Bool) async {
@@ -485,7 +485,7 @@ import Synchronization
     timeline.messages.removeAll { $0.id == "arriving" }
     await check("removal") { !M6Probe.projectedRows.contains { $0.id == "arriving" } }
 
-    let outbox = thread ? state.thread.outbox : state.outbox
+    let outbox = thread ? state.thread.transcript.outbox : state.outbox
     let shell = OutboundShell(clientTurnId: "projection-outbox", roomId: "fixture",
       parentMessageId: thread ? fixture.first!.id : nil, content: "Pending projection marker",
       createdAt: Date(timeIntervalSince1970: 1_700_000_000),
