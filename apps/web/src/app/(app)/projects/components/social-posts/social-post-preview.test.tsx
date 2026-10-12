@@ -78,6 +78,31 @@ describe("SocialPostPreview", () => {
     );
   });
 
+  it("keeps wrapping quotes out of a shortened URL", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text={
+          "See \"https://www.example.com/launch\" or 'www.example.com/press'"
+        }
+        timestamp={null}
+      />,
+    );
+
+    const httpsLink = screen.getByText("example.com/launch");
+    const wwwLink = screen.getByText("example.com/press");
+    expect(httpsLink).toHaveClass("text-social-x-link");
+    expect(wwwLink).toHaveClass("text-social-x-link");
+    expect(httpsLink).toHaveTextContent("example.com/launch");
+    expect(httpsLink).not.toHaveTextContent('"');
+    expect(wwwLink).not.toHaveTextContent("'");
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "See \"example.com/launch\" or 'example.com/press'",
+    );
+  });
+
   it("highlights a www address and leaves the period as text", () => {
     render(
       <SocialPostPreview
