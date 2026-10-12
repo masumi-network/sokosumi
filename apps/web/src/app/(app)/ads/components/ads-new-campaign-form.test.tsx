@@ -11,10 +11,7 @@ import {
 } from "@/lib/actions/ads/action";
 import type { GoogleTargeting } from "@/lib/ads/targeting";
 import messages from "../../../../../messages/en.json";
-import {
-  GoogleSearchCampaignForm,
-  MetaCampaignForm,
-} from "./ads-new-campaign-form";
+import { GoogleCampaignForm, MetaCampaignForm } from "./ads-new-campaign-form";
 
 const { pushMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
   pushMock: vi.fn(),
@@ -36,6 +33,12 @@ vi.mock("@/lib/actions/ads/action", () => ({
 }));
 vi.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => ({ NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: 0 }),
+}));
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: null }),
+}));
+vi.mock("@/components/drive/drive-file-picker", () => ({
+  DriveFilePicker: () => null,
 }));
 
 const createMock = vi.mocked(createAdCampaign);
@@ -82,7 +85,7 @@ async function renderForm({
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       {provider === "google_ads" ? (
-        <GoogleSearchCampaignForm
+        <GoogleCampaignForm
           {...props}
           hasMarketProfile={hasMarketProfile}
           targeting={targeting}

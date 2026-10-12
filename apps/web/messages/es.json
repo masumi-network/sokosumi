@@ -3186,9 +3186,18 @@
           "meta_ads": "Las campañas se crean en pausa. Añade conjuntos de anuncios y anuncios en Meta Ads Manager y reanúdalas aquí."
         },
         "sections": {
+          "type": "Tipo",
           "basics": "Datos básicos",
           "targeting": "Segmentación",
           "ad": "Anuncio"
+        },
+        "types": {
+          "SEARCH": "Búsqueda",
+          "DISPLAY": "Display"
+        },
+        "typeHelp": {
+          "SEARCH": "Anuncios de texto en los resultados de búsqueda de Google.",
+          "DISPLAY": "Anuncios con imágenes en sitios web y aplicaciones de la Red de Display de Google."
         },
         "name": "Nombre",
         "objective": "Objetivo",
@@ -3248,6 +3257,8 @@
           "finalUrl": "URL final",
           "finalUrlHelp": "La página a la que llegan las personas al hacer clic en tu anuncio.",
           "finalUrlPlaceholder": "https://example.com/zapatillas",
+          "businessName": "Nombre de la empresa",
+          "longHeadline": "Título largo",
           "displayPath": "Ruta visible",
           "displayPathHelp": "Opcional. Dos rutas cortas que se muestran después de tu dominio en el anuncio.",
           "path1": "Ruta 1",
@@ -3287,6 +3298,54 @@
             "item": "Texto destacado {number}",
             "add": "Añadir texto destacado",
             "remove": "Quitar texto destacado {number}"
+          },
+          "images": {
+            "label": "Imágenes",
+            "help": "JPEG, PNG o GIF, de hasta {maxMb} MB cada una. Las imágenes horizontales son 1,91:1 (de al menos {landscape} px) y las cuadradas 1:1 (de al menos {square} px). Hasta {maxImages} en total.",
+            "counts": "Horizontales {landscape} · Cuadradas {square} · {total} de {max} imágenes",
+            "missing": {
+              "both": "Añade al menos una imagen horizontal y una cuadrada.",
+              "landscape": "Añade al menos una imagen horizontal.",
+              "square": "Añade al menos una imagen cuadrada."
+            },
+            "logoLabel": "Logotipo",
+            "logoHelp": "Opcional. Imágenes cuadradas, 1:1, de al menos {logo} px. Hasta {maxLogos}.",
+            "logoCounts": "{count} de {max} logotipos",
+            "roles": {
+              "LANDSCAPE": "Horizontal",
+              "SQUARE": "Cuadrada",
+              "LOGO": "Logotipo"
+            },
+            "slots": {
+              "images": {
+                "upload": "Subir imágenes",
+                "choose": "Elegir imágenes de Drive",
+                "files": "Archivos de imagen"
+              },
+              "logo": {
+                "upload": "Subir logotipo",
+                "choose": "Elegir logotipo de Drive",
+                "files": "Archivos de logotipo"
+              }
+            },
+            "upload": "Subir",
+            "choose": "Elegir de Drive",
+            "remove": "Quitar {name}",
+            "uploadFailed": "No se pudo subir la imagen",
+            "uploadDuplicate": "Ya hay un archivo con este nombre en tu Drive. Elígelo desde Drive.",
+            "errors": {
+              "unreadable": "{name}: no se pudo leer esta imagen.",
+              "type": "{name}: usa una imagen JPEG, PNG o GIF.",
+              "tooLarge": "{name}: usa una imagen de como máximo {maxMb} MB.",
+              "duplicate": "{name} ya está añadida.",
+              "full": "Usa como máximo {maxImages} imágenes horizontales y cuadradas.",
+              "fullLogo": "Usa como máximo {maxLogos} logotipos.",
+              "ratio": "{name}: usa una imagen horizontal (1,91:1, de al menos {landscape} px) o cuadrada (1:1, de al menos {square} px).",
+              "landscapeTooSmall": "{name}: las imágenes horizontales necesitan al menos {landscape} px.",
+              "squareTooSmall": "{name}: las imágenes cuadradas necesitan al menos {square} px.",
+              "logoRatio": "{name}: los logotipos deben ser cuadrados (1:1).",
+              "logoTooSmall": "{name}: los logotipos necesitan al menos {logo} px."
+            }
           }
         },
         "submit": "Crear campaña",
@@ -3311,6 +3370,10 @@
           "sitelinkDuplicate": "Cada enlace de sitio debe ser distinto.",
           "calloutTooLong": "Usa como máximo {max} caracteres.",
           "calloutDuplicate": "Cada texto destacado debe ser distinto.",
+          "businessNameRequired": "Introduce el nombre de la empresa.",
+          "businessNameTooLong": "Usa como máximo {max} caracteres.",
+          "longHeadlineRequired": "Introduce un título largo.",
+          "longHeadlineTooLong": "Usa como máximo {max} caracteres.",
           "failed": "No se pudo crear la campaña"
         }
       },

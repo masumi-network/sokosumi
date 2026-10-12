@@ -10,7 +10,7 @@ import {
 } from "@/app/ads/ads-query";
 import { settleAdsLoad } from "@/app/ads/components/ads-load-error";
 import {
-  GoogleSearchCampaignForm,
+  GoogleCampaignForm,
   MetaCampaignForm,
 } from "@/app/ads/components/ads-new-campaign-form";
 import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
@@ -131,7 +131,7 @@ export default async function NewAdsCampaignPage({
           </div>
         </header>
         {google ? (
-          <GoogleSearchCampaignForm
+          <GoogleCampaignForm
             accountId={account.id}
             currency={account.currency}
             hasMarketProfile={google.hasMarketProfile}

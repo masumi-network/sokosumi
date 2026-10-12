@@ -22,8 +22,8 @@ import {
   adDisplayUrl,
   GOOGLE_SEARCH_LIMITS,
   type GoogleSearchFormValues,
+  type GoogleSharedFormValues,
 } from "@/lib/ads/google-search";
-import type { GoogleTarget } from "@/lib/ads/targeting";
 import { cn } from "@/lib/utils";
 
 import { AdsAddMarketKeywords } from "./ads-add-market-keywords";
@@ -32,42 +32,24 @@ import {
   AdsCalloutsSection,
   AdsSitelinksSection,
 } from "./ads-search-assets-fields";
-import { AdsGoogleTargetingFields } from "./ads-targeting-fields";
 import { AdsTextList } from "./ads-text-list";
 
 interface AdsGoogleSearchFieldsProps {
-  accountId: string;
   projectId: string;
-  /** Google's languages to pick from; null when they could not be loaded. */
-  languageOptions: GoogleTarget[] | null;
   /** Whether "Add from Market" has keywords to draw on. */
   hasMarketProfile: boolean;
 }
 
 /**
- * The Search campaign's own sections, inside the create form: the targeting
- * line, keywords and the ad. They read and write the form around them.
+ * The Search campaign's own sections, inside the create form: keywords and
+ * the ad. They read and write the form around them.
  */
 export function AdsGoogleSearchFields({
-  accountId,
-  languageOptions,
   projectId,
   hasMarketProfile,
 }: AdsGoogleSearchFieldsProps) {
-  const t = useTranslations("App.Ads.newCampaign");
-
   return (
     <>
-      <AdsFormSection
-        id="new-campaign-targeting"
-        title={t("sections.targeting")}
-      >
-        <AdsGoogleTargetingFields
-          accountId={accountId}
-          languageOptions={languageOptions}
-          projectId={projectId}
-        />
-      </AdsFormSection>
       <KeywordsSection
         hasMarketProfile={hasMarketProfile}
         projectId={projectId}
@@ -80,7 +62,7 @@ export function AdsGoogleSearchFields({
 /** The optional dates, which close the Basics section. */
 export function AdsGoogleDateFields() {
   const t = useTranslations("App.Ads.newCampaign");
-  const form = useFormContext<GoogleSearchFormValues>();
+  const form = useFormContext<GoogleSharedFormValues>();
 
   return (
     <div className="grid gap-2">
@@ -172,6 +154,37 @@ function KeywordsSection({
   );
 }
 
+/** Where the ad leads: the same field for a Search and a Display ad. */
+export function AdsFinalUrlField() {
+  const t = useTranslations("App.Ads.newCampaign.ad");
+  const form = useFormContext<GoogleSharedFormValues>();
+
+  return (
+    <FormField
+      control={form.control}
+      name="finalUrl"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>{t("finalUrl")}</FormLabel>
+          <FormDescription>{t("finalUrlHelp")}</FormDescription>
+          <FormControl>
+            <Input
+              autoCapitalize="off"
+              autoComplete="off"
+              inputMode="url"
+              placeholder={t("finalUrlPlaceholder")}
+              spellCheck={false}
+              type="url"
+              {...field}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
 function AdSection() {
   const t = useTranslations("App.Ads.newCampaign.ad");
   const tSection = useTranslations("App.Ads.newCampaign.sections");
@@ -180,28 +193,7 @@ function AdSection() {
 
   return (
     <AdsFormSection id="new-campaign-ad" title={tSection("ad")}>
-      <FormField
-        control={form.control}
-        name="finalUrl"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t("finalUrl")}</FormLabel>
-            <FormDescription>{t("finalUrlHelp")}</FormDescription>
-            <FormControl>
-              <Input
-                autoCapitalize="off"
-                autoComplete="off"
-                inputMode="url"
-                placeholder={t("finalUrlPlaceholder")}
-                spellCheck={false}
-                type="url"
-                {...field}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <AdsFinalUrlField />
       <fieldset className="grid gap-2">
         <legend className="text-sm font-medium">{t("displayPath")}</legend>
         <p className="text-muted-foreground text-sm">{t("displayPathHelp")}</p>

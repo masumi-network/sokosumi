@@ -528,6 +528,106 @@ describe("ads actions", () => {
       expect(revalidatePath).not.toHaveBeenCalled();
     });
 
+    describe("Display", () => {
+      const image = (role: "LANDSCAPE" | "SQUARE" | "LOGO", name: string) => ({
+        pathname: `drive/users/user_1/${name}`,
+        fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/user_1/${name}`,
+        name,
+        size: 240000,
+        mimeType: "image/png" as const,
+        role,
+      });
+      const display = {
+        type: "DISPLAY" as const,
+        locationIds: ["2276"],
+        languageIds: [],
+        finalUrl: "https://example.com",
+        businessName: "Acme",
+        headlines: ["One"],
+        longHeadline: "A longer headline",
+        descriptions: ["First description"],
+        images: [
+          image("LANDSCAPE", "wide.png"),
+          image("SQUARE", "square.png"),
+          image("LOGO", "logo.png"),
+        ],
+      };
+
+      it("passes the Display spec to Core as it is", async () => {
+        adsServiceMock.createCampaign.mockResolvedValue({ id: "42" });
+
+        const { createAdCampaign } = await import("./action");
+        const result = await createAdCampaign({ ...base, google: display });
+
+        expect(adsServiceMock.createCampaign).toHaveBeenCalledWith(
+          "project-1",
+          "account-1",
+          { name: "Spring sale", dailyBudget: 25.5, google: display },
+        );
+        expect(result).toEqual({ ok: true, value: { id: "42" } });
+      });
+
+      it.each([
+        ["no landscape image", { images: display.images.slice(1) }],
+        ["no square image", { images: [display.images[0]] }],
+        [
+          "seven marketing images",
+          {
+            images: [
+              ...Array.from({ length: 6 }, (_, i) =>
+                image("LANDSCAPE", `wide-${i}.png`),
+              ),
+              image("SQUARE", "square.png"),
+            ],
+          },
+        ],
+        [
+          "three logos",
+          {
+            images: [
+              ...display.images,
+              image("LOGO", "logo-2.png"),
+              image("LOGO", "logo-3.png"),
+            ],
+          },
+        ],
+        [
+          "one file twice",
+          { images: [...display.images, image("LOGO", "wide.png")] },
+        ],
+        [
+          "an image over 5120 KB",
+          {
+            images: [
+              { ...display.images[0], size: 5 * 1024 * 1024 + 1 },
+              display.images[1],
+            ],
+          },
+        ],
+        ["a 26-character business name", { businessName: "a".repeat(26) }],
+        ["a 91-character long headline", { longHeadline: "a".repeat(91) }],
+        ["six headlines", { headlines: ["a", "b", "c", "d", "e", "f"] }],
+        ["repeated headlines", { headlines: ["Same", "same"] }],
+        ["no descriptions", { descriptions: [] }],
+        [
+          "an end before the start",
+          { startDate: "2026-11-02", endDate: "2026-11-01" },
+        ],
+      ])("rejects %s, calling nothing", async (_name, changes) => {
+        const { createAdCampaign } = await import("./action");
+        const result = await createAdCampaign({
+          ...base,
+          google: { ...display, ...changes },
+        });
+
+        expect(result).toMatchObject({
+          ok: false,
+          error: { code: "BAD_INPUT" },
+        });
+        expect(adsServiceMock.createCampaign).not.toHaveBeenCalled();
+      });
+    });
+
     it("passes Google's 422 message through", async () => {
       adsServiceMock.createCampaign.mockRejectedValue(
         await coreError("Destination not working.", 422),

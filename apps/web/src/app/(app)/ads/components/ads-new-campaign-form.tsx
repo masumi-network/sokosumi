@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { GoogleSearchCampaignSpec } from "@sokosumi/core-client";
+import type { GoogleCampaignSpec } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { createAdCampaign } from "@/lib/actions/ads/action";
 import {
@@ -36,22 +37,31 @@ import {
   AD_CAMPAIGN_OBJECTIVES,
 } from "@/lib/ads/campaign";
 import {
+  GOOGLE_DISPLAY_LIMITS,
+  type GoogleDisplayFormValues,
+  googleDisplayFormSchema,
+  toGoogleDisplaySpec,
+} from "@/lib/ads/google-display";
+import {
   GOOGLE_KEYWORD_LIMIT,
   GOOGLE_KEYWORD_MAX_LENGTH,
   GOOGLE_KEYWORD_MAX_WORDS,
 } from "@/lib/ads/google-keywords";
 import {
   GOOGLE_SEARCH_LIMITS,
+  type GoogleSearchFormValues,
   googleSearchFormSchema,
   toGoogleSearchSpec,
 } from "@/lib/ads/google-search";
 import type { GoogleTargeting } from "@/lib/ads/targeting";
 import { useAdsBudget } from "./ads-budget";
 import { AdsFormSection } from "./ads-form-section";
+import { AdsGoogleDisplayFields } from "./ads-google-display-fields";
 import {
   AdsGoogleDateFields,
   AdsGoogleSearchFields,
 } from "./ads-google-search-fields";
+import { AdsGoogleTargetingFields } from "./ads-targeting-fields";
 
 interface CampaignFormProps {
   accountId: string;
@@ -59,7 +69,7 @@ interface CampaignFormProps {
   projectId: string;
 }
 
-interface GoogleSearchCampaignFormProps extends CampaignFormProps {
+interface GoogleCampaignFormProps extends CampaignFormProps {
   /** Whether the project has a Market profile, which "Add from Market" reads. */
   hasMarketProfile: boolean;
   /** The languages to pick from and the Market profile's suggestions. */
@@ -71,7 +81,7 @@ interface CampaignDetails {
   name: string;
   dailyBudget: number;
   objective?: (typeof AD_CAMPAIGN_OBJECTIVES)[number];
-  google?: GoogleSearchCampaignSpec;
+  google?: GoogleCampaignSpec;
 }
 
 /** Why the last attempt failed, and which attempt it was (to re-focus). */
@@ -349,86 +359,164 @@ export function MetaCampaignForm(props: CampaignFormProps) {
   );
 }
 
+const GOOGLE_TYPES = ["SEARCH", "DISPLAY"] as const;
+type GoogleType = (typeof GOOGLE_TYPES)[number];
+
+/** Everything a Google campaign form holds: the fields of both types, one shown. */
+interface GoogleCampaignFormValues
+  extends BasicsValues,
+    GoogleSearchFormValues,
+    GoogleDisplayFormValues {
+  type: GoogleType;
+}
+
+const blankTexts = (count: number): string[] =>
+  Array.from({ length: count }, () => "");
+
+/** What a Google form starts with: the fields of both types, one shown. */
 const EMPTY_GOOGLE_VALUES = {
+  type: "SEARCH" as const,
   name: "",
   dailyBudget: "",
   startDate: "",
   endDate: "",
-  keywords: "",
   finalUrl: "",
+  keywords: "",
   path1: "",
   path2: "",
-  headlines: Array.from(
-    { length: GOOGLE_SEARCH_LIMITS.headlines.min },
-    () => "",
-  ),
-  descriptions: Array.from(
-    { length: GOOGLE_SEARCH_LIMITS.descriptions.min },
-    () => "",
-  ),
+  headlines: blankTexts(GOOGLE_SEARCH_LIMITS.headlines.min),
+  descriptions: blankTexts(GOOGLE_SEARCH_LIMITS.descriptions.min),
   sitelinks: [],
   callouts: [],
+  businessName: "",
+  displayHeadlines: blankTexts(GOOGLE_DISPLAY_LIMITS.headlines.min),
+  longHeadline: "",
+  displayDescriptions: blankTexts(GOOGLE_DISPLAY_LIMITS.descriptions.min),
+  images: [],
 };
 
+/** Search or Display. Switching keeps what both share and swaps the rest. */
+function GoogleTypePicker() {
+  const t = useTranslations("App.Ads.newCampaign");
+  const form = useFormContext<{ type: GoogleType }>();
+
+  return (
+    <AdsFormSection id="new-campaign-type" title={t("sections.type")}>
+      <ToggleGroup
+        aria-label={t("sections.type")}
+        className="w-full sm:w-72"
+        onValueChange={(value) => {
+          // Clicking the chosen type again would clear it; keep it.
+          const type = GOOGLE_TYPES.find((candidate) => candidate === value);
+          if (type) {
+            form.setValue("type", type);
+            // The other type's refusals are not this form's.
+            form.clearErrors();
+          }
+        }}
+        type="single"
+        value={form.watch("type")}
+        variant="outline"
+      >
+        {GOOGLE_TYPES.map((type) => (
+          <ToggleGroupItem key={type} value={type}>
+            {t(`types.${type}`)}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+      <p className="text-muted-foreground -mt-3 text-sm">
+        {t(`typeHelp.${form.watch("type")}`)}
+      </p>
+    </AdsFormSection>
+  );
+}
+
 /**
- * A Google Search campaign: Core's rules are dates, keywords and a responsive
- * search ad on top of the name and budget.
+ * A Google campaign, Search or Display: the type is picked at the top, and the
+ * name, budget, dates, targeting and final URL stay when it changes. Core's
+ * rules per type are the Search keywords and responsive search ad, or the
+ * Display images and responsive display ad.
  */
-export function GoogleSearchCampaignForm({
+export function GoogleCampaignForm({
   hasMarketProfile,
   targeting,
   ...props
-}: GoogleSearchCampaignFormProps) {
+}: GoogleCampaignFormProps) {
   const t = useTranslations("App.Ads.newCampaign");
   const creation = useCreateCampaign(props);
   const { budget, shape } = useBasics(props.currency);
-  const form = useForm({
-    resolver: zodResolver(
-      z.intersection(
-        z.object(shape),
-        googleSearchFormSchema({
-          finalUrl: t("errors.finalUrl"),
-          headlineRequired: t("errors.headlineRequired"),
-          headlineTooLong: t("errors.headlineTooLong", {
-            max: GOOGLE_SEARCH_LIMITS.headlines.length,
-          }),
-          headlineDuplicate: t("errors.headlineDuplicate"),
-          descriptionRequired: t("errors.descriptionRequired"),
-          descriptionTooLong: t("errors.descriptionTooLong", {
-            max: GOOGLE_SEARCH_LIMITS.descriptions.length,
-          }),
-          pathTooLong: t("errors.pathTooLong", {
-            max: GOOGLE_SEARCH_LIMITS.path,
-          }),
-          pathNeedsFirst: t("errors.pathNeedsFirst"),
-          endBeforeStart: t("errors.endBeforeStart"),
-          sitelinkTextRequired: t("errors.sitelinkTextRequired"),
-          sitelinkTextTooLong: t("errors.sitelinkTextTooLong", {
-            max: GOOGLE_SEARCH_LIMITS.sitelinks.text,
-          }),
-          sitelinkDescriptionTooLong: t("errors.sitelinkDescriptionTooLong", {
-            max: GOOGLE_SEARCH_LIMITS.sitelinks.description,
-          }),
-          sitelinkDescriptionsPair: t("errors.sitelinkDescriptionsPair"),
-          sitelinkDuplicate: t("errors.sitelinkDuplicate"),
-          calloutTooLong: t("errors.calloutTooLong", {
-            max: GOOGLE_SEARCH_LIMITS.callouts.length,
-          }),
-          calloutDuplicate: t("errors.calloutDuplicate"),
-          keywordsRequired: t("keywords.errors.required"),
-          keywordsTooMany: t("keywords.errors.tooMany", {
-            max: GOOGLE_KEYWORD_LIMIT,
-          }),
-          keywordsInvalid: (line, issue) =>
-            t(`keywords.errors.${issue}`, {
-              line,
-              max:
-                issue === "tooLong"
-                  ? GOOGLE_KEYWORD_MAX_LENGTH
-                  : GOOGLE_KEYWORD_MAX_WORDS,
-            }),
+  const common = {
+    finalUrl: t("errors.finalUrl"),
+    headlineRequired: t("errors.headlineRequired"),
+    headlineTooLong: t("errors.headlineTooLong", {
+      max: GOOGLE_SEARCH_LIMITS.headlines.length,
+    }),
+    headlineDuplicate: t("errors.headlineDuplicate"),
+    descriptionRequired: t("errors.descriptionRequired"),
+    descriptionTooLong: t("errors.descriptionTooLong", {
+      max: GOOGLE_SEARCH_LIMITS.descriptions.length,
+    }),
+    endBeforeStart: t("errors.endBeforeStart"),
+  };
+  const searchSchema = z.intersection(
+    z.object(shape),
+    googleSearchFormSchema({
+      ...common,
+      pathTooLong: t("errors.pathTooLong", { max: GOOGLE_SEARCH_LIMITS.path }),
+      pathNeedsFirst: t("errors.pathNeedsFirst"),
+      sitelinkTextRequired: t("errors.sitelinkTextRequired"),
+      sitelinkTextTooLong: t("errors.sitelinkTextTooLong", {
+        max: GOOGLE_SEARCH_LIMITS.sitelinks.text,
+      }),
+      sitelinkDescriptionTooLong: t("errors.sitelinkDescriptionTooLong", {
+        max: GOOGLE_SEARCH_LIMITS.sitelinks.description,
+      }),
+      sitelinkDescriptionsPair: t("errors.sitelinkDescriptionsPair"),
+      sitelinkDuplicate: t("errors.sitelinkDuplicate"),
+      calloutTooLong: t("errors.calloutTooLong", {
+        max: GOOGLE_SEARCH_LIMITS.callouts.length,
+      }),
+      calloutDuplicate: t("errors.calloutDuplicate"),
+      keywordsRequired: t("keywords.errors.required"),
+      keywordsTooMany: t("keywords.errors.tooMany", {
+        max: GOOGLE_KEYWORD_LIMIT,
+      }),
+      keywordsInvalid: (line, issue) =>
+        t(`keywords.errors.${issue}`, {
+          line,
+          max:
+            issue === "tooLong"
+              ? GOOGLE_KEYWORD_MAX_LENGTH
+              : GOOGLE_KEYWORD_MAX_WORDS,
         }),
-      ),
+    }),
+  );
+  const displaySchema = z.intersection(
+    z.object(shape),
+    googleDisplayFormSchema({
+      ...common,
+      businessNameRequired: t("errors.businessNameRequired"),
+      businessNameTooLong: t("errors.businessNameTooLong", {
+        max: GOOGLE_DISPLAY_LIMITS.businessName,
+      }),
+      longHeadlineRequired: t("errors.longHeadlineRequired"),
+      longHeadlineTooLong: t("errors.longHeadlineTooLong", {
+        max: GOOGLE_DISPLAY_LIMITS.longHeadline,
+      }),
+      imagesMissing: (missing) => t(`ad.images.missing.${missing}`),
+    }),
+  );
+  const form = useForm({
+    // The form holds the fields of both types; only the shown type is judged.
+    resolver: zodResolver(
+      z.custom<GoogleCampaignFormValues>().superRefine((values, ctx) => {
+        const checked = (
+          values.type === "SEARCH" ? searchSchema : displaySchema
+        ).safeParse(values);
+        for (const { path, message } of checked.error?.issues ?? []) {
+          ctx.addIssue({ code: "custom", path, message });
+        }
+      }),
     ),
     mode: "onTouched",
     // The Market profile's suggestions start the pickers; the reader may remove them.
@@ -438,6 +526,7 @@ export function GoogleSearchCampaignForm({
       languages: targeting.defaultLanguages,
     },
   });
+  const type = form.watch("type");
 
   return (
     <Form {...form}>
@@ -446,23 +535,39 @@ export function GoogleSearchCampaignForm({
         creation={creation}
         onSubmit={form.handleSubmit((values) =>
           creation.create({
-            name: values.name,
+            name: values.name.trim(),
             dailyBudget: Number(values.dailyBudget),
-            google: toGoogleSearchSpec(values),
+            google:
+              values.type === "SEARCH"
+                ? toGoogleSearchSpec(values)
+                : toGoogleDisplaySpec(values),
           }),
         )}
         submitting={form.formState.isSubmitting}
       >
+        <GoogleTypePicker />
         <AdsFormSection id="new-campaign-basics" title={t("sections.basics")}>
           <NameAndBudgetFields budget={budget} />
           <AdsGoogleDateFields />
         </AdsFormSection>
-        <AdsGoogleSearchFields
-          accountId={props.accountId}
-          hasMarketProfile={hasMarketProfile}
-          languageOptions={targeting.languageOptions}
-          projectId={props.projectId}
-        />
+        <AdsFormSection
+          id="new-campaign-targeting"
+          title={t("sections.targeting")}
+        >
+          <AdsGoogleTargetingFields
+            accountId={props.accountId}
+            languageOptions={targeting.languageOptions}
+            projectId={props.projectId}
+          />
+        </AdsFormSection>
+        {type === "SEARCH" ? (
+          <AdsGoogleSearchFields
+            hasMarketProfile={hasMarketProfile}
+            projectId={props.projectId}
+          />
+        ) : (
+          <AdsGoogleDisplayFields />
+        )}
       </CampaignFormFrame>
     </Form>
   );

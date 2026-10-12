@@ -29,7 +29,7 @@ import {
 import { searchAdLocations } from "@/lib/actions/ads/action";
 import {
   GOOGLE_SEARCH_LIMITS,
-  type GoogleSearchFormValues,
+  type GoogleSharedFormValues,
 } from "@/lib/ads/google-search";
 import {
   GOOGLE_LOCATION_QUERY_MAX_LENGTH,
@@ -74,7 +74,7 @@ export function AdsGoogleTargetingFields({
  * before then.
  */
 function useTargets(name: "locations" | "languages", pickerId: string) {
-  const form = useFormContext<GoogleSearchFormValues>();
+  const form = useFormContext<GoogleSharedFormValues>();
   const selected = form.watch(name);
 
   function set(next: GoogleTarget[]): void {

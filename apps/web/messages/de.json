@@ -3186,9 +3186,18 @@
           "meta_ads": "Kampagnen werden pausiert erstellt. Füge Anzeigengruppen und Anzeigen im Meta Ads Manager hinzu und setze sie dann hier fort."
         },
         "sections": {
+          "type": "Typ",
           "basics": "Grundlagen",
           "targeting": "Targeting",
           "ad": "Anzeige"
+        },
+        "types": {
+          "SEARCH": "Suche",
+          "DISPLAY": "Display"
+        },
+        "typeHelp": {
+          "SEARCH": "Textanzeigen in den Google-Suchergebnissen.",
+          "DISPLAY": "Bildanzeigen auf Websites und in Apps im Google Displaynetzwerk."
         },
         "name": "Name",
         "objective": "Ziel",
@@ -3248,6 +3257,8 @@
           "finalUrl": "Ziel-URL",
           "finalUrlHelp": "Die Seite, auf der Personen nach dem Klick auf deine Anzeige landen.",
           "finalUrlPlaceholder": "https://example.com/schuhe",
+          "businessName": "Firmenname",
+          "longHeadline": "Lange Überschrift",
           "displayPath": "Anzeigepfad",
           "displayPathHelp": "Optional. Zwei kurze Pfade, die in der Anzeige nach deiner Domain stehen.",
           "path1": "Pfad 1",
@@ -3287,6 +3298,54 @@
             "item": "Zusatzinformation {number}",
             "add": "Zusatzinformation hinzufügen",
             "remove": "Zusatzinformation {number} entfernen"
+          },
+          "images": {
+            "label": "Bilder",
+            "help": "JPEG, PNG oder GIF, je höchstens {maxMb} MB. Bilder im Querformat haben 1,91:1 (mindestens {landscape} px), quadratische Bilder 1:1 (mindestens {square} px). Insgesamt höchstens {maxImages}.",
+            "counts": "Querformat {landscape} · Quadrat {square} · {total} von {max} Bildern",
+            "missing": {
+              "both": "Füge mindestens ein Bild im Querformat und ein quadratisches Bild hinzu.",
+              "landscape": "Füge mindestens ein Bild im Querformat hinzu.",
+              "square": "Füge mindestens ein quadratisches Bild hinzu."
+            },
+            "logoLabel": "Logo",
+            "logoHelp": "Optional. Quadratische Bilder, 1:1, mindestens {logo} px. Höchstens {maxLogos}.",
+            "logoCounts": "{count} von {max} Logos",
+            "roles": {
+              "LANDSCAPE": "Querformat",
+              "SQUARE": "Quadrat",
+              "LOGO": "Logo"
+            },
+            "slots": {
+              "images": {
+                "upload": "Bilder hochladen",
+                "choose": "Bilder aus Drive wählen",
+                "files": "Bilddateien"
+              },
+              "logo": {
+                "upload": "Logo hochladen",
+                "choose": "Logo aus Drive wählen",
+                "files": "Logodateien"
+              }
+            },
+            "upload": "Hochladen",
+            "choose": "Aus Drive wählen",
+            "remove": "{name} entfernen",
+            "uploadFailed": "Das Bild konnte nicht hochgeladen werden",
+            "uploadDuplicate": "Eine Datei mit diesem Namen gibt es in deinem Drive schon. Wähle sie stattdessen aus Drive.",
+            "errors": {
+              "unreadable": "{name}: Das Bild konnte nicht gelesen werden.",
+              "type": "{name}: Verwende ein JPEG-, PNG- oder GIF-Bild.",
+              "tooLarge": "{name}: Verwende ein Bild mit höchstens {maxMb} MB.",
+              "duplicate": "{name} ist schon hinzugefügt.",
+              "full": "Verwende höchstens {maxImages} Bilder im Querformat und quadratische Bilder.",
+              "fullLogo": "Verwende höchstens {maxLogos} Logos.",
+              "ratio": "{name}: Verwende ein Bild im Querformat (1,91:1, mindestens {landscape} px) oder ein quadratisches Bild (1:1, mindestens {square} px).",
+              "landscapeTooSmall": "{name}: Bilder im Querformat brauchen mindestens {landscape} px.",
+              "squareTooSmall": "{name}: Quadratische Bilder brauchen mindestens {square} px.",
+              "logoRatio": "{name}: Logos müssen quadratisch sein (1:1).",
+              "logoTooSmall": "{name}: Logos brauchen mindestens {logo} px."
+            }
           }
         },
         "submit": "Kampagne erstellen",
@@ -3311,6 +3370,10 @@
           "sitelinkDuplicate": "Jeder Sitelink muss sich unterscheiden.",
           "calloutTooLong": "Verwende höchstens {max} Zeichen.",
           "calloutDuplicate": "Jede Zusatzinformation muss sich unterscheiden.",
+          "businessNameRequired": "Gib den Firmennamen ein.",
+          "businessNameTooLong": "Verwende höchstens {max} Zeichen.",
+          "longHeadlineRequired": "Gib eine lange Überschrift ein.",
+          "longHeadlineTooLong": "Verwende höchstens {max} Zeichen.",
           "failed": "Kampagne konnte nicht erstellt werden"
         }
       },

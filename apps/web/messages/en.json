@@ -3186,9 +3186,18 @@
           "meta_ads": "Campaigns are created paused. Add ad sets and ads in Meta Ads Manager, then resume here."
         },
         "sections": {
+          "type": "Type",
           "basics": "Basics",
           "targeting": "Targeting",
           "ad": "Ad"
+        },
+        "types": {
+          "SEARCH": "Search",
+          "DISPLAY": "Display"
+        },
+        "typeHelp": {
+          "SEARCH": "Text ads on Google Search results.",
+          "DISPLAY": "Image ads on websites and apps across the Google Display Network."
         },
         "name": "Name",
         "objective": "Objective",
@@ -3248,6 +3257,8 @@
           "finalUrl": "Final URL",
           "finalUrlHelp": "The page people land on after they click your ad.",
           "finalUrlPlaceholder": "https://example.com/shoes",
+          "businessName": "Business name",
+          "longHeadline": "Long headline",
           "displayPath": "Display path",
           "displayPathHelp": "Optional. Two short paths shown after your domain in the ad.",
           "path1": "Path 1",
@@ -3287,6 +3298,54 @@
             "item": "Callout {number}",
             "add": "Add callout",
             "remove": "Remove callout {number}"
+          },
+          "images": {
+            "label": "Images",
+            "help": "JPEG, PNG or GIF, up to {maxMb} MB each. Landscape images are 1.91:1 (at least {landscape} px), square images 1:1 (at least {square} px). Up to {maxImages} in total.",
+            "counts": "Landscape {landscape} · Square {square} · {total} of {max} images",
+            "missing": {
+              "both": "Add at least one landscape and one square image.",
+              "landscape": "Add at least one landscape image.",
+              "square": "Add at least one square image."
+            },
+            "logoLabel": "Logo",
+            "logoHelp": "Optional. Square images, 1:1, at least {logo} px. Up to {maxLogos}.",
+            "logoCounts": "{count} of {max} logos",
+            "roles": {
+              "LANDSCAPE": "Landscape",
+              "SQUARE": "Square",
+              "LOGO": "Logo"
+            },
+            "slots": {
+              "images": {
+                "upload": "Upload images",
+                "choose": "Choose images from Drive",
+                "files": "Image files"
+              },
+              "logo": {
+                "upload": "Upload logo",
+                "choose": "Choose logo from Drive",
+                "files": "Logo files"
+              }
+            },
+            "upload": "Upload",
+            "choose": "Choose from Drive",
+            "remove": "Remove {name}",
+            "uploadFailed": "Failed to upload the image",
+            "uploadDuplicate": "A file with this name already exists in your Drive. Choose it from Drive instead.",
+            "errors": {
+              "unreadable": "{name}: failed to read this image.",
+              "type": "{name}: use a JPEG, PNG or GIF image.",
+              "tooLarge": "{name}: use an image of at most {maxMb} MB.",
+              "duplicate": "{name} is already added.",
+              "full": "Use at most {maxImages} landscape and square images.",
+              "fullLogo": "Use at most {maxLogos} logos.",
+              "ratio": "{name}: use a landscape image (1.91:1, at least {landscape} px) or a square image (1:1, at least {square} px).",
+              "landscapeTooSmall": "{name}: landscape images need at least {landscape} px.",
+              "squareTooSmall": "{name}: square images need at least {square} px.",
+              "logoRatio": "{name}: logos must be square (1:1).",
+              "logoTooSmall": "{name}: logos need at least {logo} px."
+            }
           }
         },
         "submit": "Create campaign",
@@ -3311,6 +3370,10 @@
           "sitelinkDuplicate": "Each sitelink must be different.",
           "calloutTooLong": "Use at most {max} characters.",
           "calloutDuplicate": "Each callout must be different.",
+          "businessNameRequired": "Enter the business name.",
+          "businessNameTooLong": "Use at most {max} characters.",
+          "longHeadlineRequired": "Enter a long headline.",
+          "longHeadlineTooLong": "Use at most {max} characters.",
           "failed": "Failed to create campaign"
         }
       },

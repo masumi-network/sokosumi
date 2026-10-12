@@ -40,7 +40,7 @@ vi.mock("@/lib/social-beta-access.server", () => ({
   hasCurrentUserSocialBetaAccess: hasSocialBetaAccessMock,
 }));
 vi.mock("@/app/ads/components/ads-new-campaign-form", () => ({
-  GoogleSearchCampaignForm: (props: Record<string, unknown>) => {
+  GoogleCampaignForm: (props: Record<string, unknown>) => {
     formMock({ ...props, form: "google" });
     return <div data-testid="form" />;
   },

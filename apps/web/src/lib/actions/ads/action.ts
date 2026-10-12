@@ -20,6 +20,7 @@ import {
   AD_CAMPAIGN_NAME_MAX_LENGTH,
   AD_CAMPAIGN_OBJECTIVES,
 } from "@/lib/ads/campaign";
+import { googleDisplaySpecSchema } from "@/lib/ads/google-display";
 import { googleSearchSpecSchema } from "@/lib/ads/google-search";
 import { createMarketProfileSchema } from "@/lib/ads/market";
 import { GOOGLE_LOCATION_QUERY_MAX_LENGTH } from "@/lib/ads/targeting";
@@ -168,7 +169,12 @@ export const createAdCampaign = adsAction(
     name: z.string().trim().min(1).max(AD_CAMPAIGN_NAME_MAX_LENGTH),
     dailyBudget: z.number().positive(),
     objective: z.enum(AD_CAMPAIGN_OBJECTIVES).optional(),
-    google: googleSearchSpecSchema().optional(),
+    google: z
+      .discriminatedUnion("type", [
+        googleSearchSpecSchema(),
+        googleDisplaySpecSchema(),
+      ])
+      .optional(),
   }),
   async ({ projectId, accountId, name, dailyBudget, objective, google }) => {
     const campaign = await adsService.createCampaign(projectId, accountId, {

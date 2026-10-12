@@ -87,7 +87,7 @@ const httpUrl = (max: number, message?: string) =>
     .max(max, message)
     .pipe(z.url({ protocol: /^https?$/, error: message }));
 
-const finalUrl = (messages: OptionalMessages) =>
+export const googleFinalUrl = (messages: { finalUrl?: string }) =>
   httpUrl(GOOGLE_SEARCH_LIMITS.finalUrl, messages.finalUrl);
 
 const headline = (messages: OptionalMessages) =>
@@ -200,7 +200,7 @@ function refineAcrossFields(
 }
 
 /** Calls `report` with the index of each text that repeats an earlier one, ignoring case. */
-function forEachDuplicate(
+export function forEachDuplicate(
   texts: readonly string[],
   report: (index: number) => void,
 ): void {
@@ -213,7 +213,7 @@ function forEachDuplicate(
 }
 
 /** Whether `YYYY-MM-DD` is a real day: 2026-02-31 is not. */
-function isCalendarDate(value: string): boolean {
+export function isCalendarDate(value: string): boolean {
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
 }
@@ -236,7 +236,7 @@ export function googleSearchSpecSchema(messages: OptionalMessages = {}) {
       endDate: date.optional(),
       locationIds: z.array(id).max(GOOGLE_SEARCH_LIMITS.targetIds),
       languageIds: z.array(id).max(GOOGLE_SEARCH_LIMITS.targetIds),
-      finalUrl: finalUrl(messages),
+      finalUrl: googleFinalUrl(messages),
       keywords: z
         .array(
           z.object({
@@ -275,14 +275,18 @@ export function googleSearchSpecSchema(messages: OptionalMessages = {}) {
     .superRefine((value, ctx) => refineAcrossFields(value, ctx, messages));
 }
 
-/** What the Search part of the create page holds: text, as typed. */
-export interface GoogleSearchFormValues {
+/** What every Google campaign's part of the create page holds, as typed. */
+export interface GoogleSharedFormValues {
   startDate: string;
   endDate: string;
   locations: GoogleTarget[];
   languages: GoogleTarget[];
-  keywords: string;
   finalUrl: string;
+}
+
+/** What the Search part of the create page holds: text, as typed. */
+export interface GoogleSearchFormValues extends GoogleSharedFormValues {
+  keywords: string;
   path1: string;
   path2: string;
   headlines: string[];
@@ -321,8 +325,8 @@ export function filledCallouts(texts: readonly string[]): string[] {
   return texts.map((text) => text.trim()).filter(Boolean);
 }
 
-/** The same limits for the form's fields, in the reader's words. */
-export function googleSearchFormSchema(messages: OptionalMessages = {}) {
+/** The form's fields every Google campaign has, whatever its type. */
+export function googleSharedFormShape(messages: { finalUrl?: string } = {}) {
   const targets = z
     .array(
       z.object({
@@ -332,12 +336,20 @@ export function googleSearchFormSchema(messages: OptionalMessages = {}) {
       }),
     )
     .max(GOOGLE_SEARCH_LIMITS.targetIds);
+  return {
+    startDate: z.string(),
+    endDate: z.string(),
+    locations: targets,
+    languages: targets,
+    finalUrl: googleFinalUrl(messages),
+  };
+}
+
+/** The same limits for the form's fields, in the reader's words. */
+export function googleSearchFormSchema(messages: OptionalMessages = {}) {
   return z
     .object({
-      startDate: z.string(),
-      endDate: z.string(),
-      locations: targets,
-      languages: targets,
+      ...googleSharedFormShape(messages),
       keywords: z.string().superRefine((value, ctx) => {
         const { keywords, invalid } = parseGoogleKeywords(value);
         const first = invalid[0];
@@ -354,7 +366,6 @@ export function googleSearchFormSchema(messages: OptionalMessages = {}) {
           ctx.addIssue({ code: "custom", message: messages.keywordsTooMany });
         }
       }),
-      finalUrl: finalUrl(messages),
       path1: path(messages),
       path2: path(messages),
       headlines: z.array(headline(messages)),

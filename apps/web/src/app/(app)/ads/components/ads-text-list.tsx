@@ -14,7 +14,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import type { GoogleSearchFormValues } from "@/lib/ads/google-search";
 import { cn } from "@/lib/utils";
 
 /** `12/30`: how much of a field's limit is used; red once over. */
@@ -31,9 +30,26 @@ export function AdsCharCount({ length, max }: { length: number; max: number }) {
   );
 }
 
+/** The lists of texts in the form, each an array of strings. */
+type TextListName =
+  | "headlines"
+  | "descriptions"
+  | "callouts"
+  | "displayHeadlines"
+  | "displayDescriptions";
+
+/** The words a list uses; a Display ad's lists read like a Search ad's. */
+const MESSAGES = {
+  headlines: "headlines",
+  descriptions: "descriptions",
+  callouts: "callouts",
+  displayHeadlines: "headlines",
+  displayDescriptions: "descriptions",
+} as const;
+
 interface AdsTextListProps {
   limits: { min: number; max: number; length: number };
-  name: "headlines" | "descriptions" | "callouts";
+  name: TextListName;
   /** The list is named by the disclosure around it. */
   hideLegend?: boolean;
 }
@@ -44,8 +60,8 @@ interface AdsTextListProps {
  * minimum.
  */
 export function AdsTextList({ limits, name, hideLegend }: AdsTextListProps) {
-  const t = useTranslations(`App.Ads.newCampaign.ad.${name}`);
-  const form = useFormContext<GoogleSearchFormValues>();
+  const t = useTranslations(`App.Ads.newCampaign.ad.${MESSAGES[name]}`);
+  const form = useFormContext<Record<TextListName, string[]>>();
   const values = form.watch(name);
   const addRef = useRef<HTMLButtonElement>(null);
   // Once the reader has submitted, a changed list is checked again at once.

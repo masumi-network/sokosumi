@@ -1,0 +1,240 @@
+import type { GoogleDisplayImage } from "@sokosumi/core-client";
+import { describe, expect, it } from "vitest";
+
+import {
+  GOOGLE_DISPLAY_LIMITS,
+  type GoogleDisplayFormValues,
+  googleDisplayFormSchema,
+  googleDisplaySpecSchema,
+  toGoogleDisplaySpec,
+} from "./google-display";
+
+const image = (
+  role: GoogleDisplayImage["role"],
+  name = `${role}.png`,
+): GoogleDisplayImage => ({
+  pathname: `drive/users/user_1/${name}`,
+  fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/user_1/${name}`,
+  name,
+  size: 240000,
+  mimeType: "image/png",
+  role,
+});
+
+const IMAGES = [image("LANDSCAPE"), image("SQUARE")];
+
+const form: GoogleDisplayFormValues = {
+  startDate: "",
+  endDate: "",
+  locations: [],
+  languages: [],
+  finalUrl: "https://example.com/spring",
+  businessName: "Acme",
+  displayHeadlines: ["One"],
+  longHeadline: "A longer headline",
+  displayDescriptions: ["First description"],
+  images: IMAGES,
+};
+
+const spec = {
+  type: "DISPLAY" as const,
+  locationIds: [],
+  languageIds: [],
+  finalUrl: "https://example.com/spring",
+  businessName: "Acme",
+  headlines: ["One"],
+  longHeadline: "A longer headline",
+  descriptions: ["First description"],
+  images: IMAGES,
+};
+
+function firstIssue(
+  result: {
+    success: boolean;
+    error?: { issues: { path: PropertyKey[]; message: string }[] };
+  },
+  path: string,
+) {
+  return result.error?.issues.find((issue) => issue.path.join(".") === path);
+}
+
+describe("Core's limits", () => {
+  it("come from the API schema", () => {
+    expect(GOOGLE_DISPLAY_LIMITS).toMatchObject({
+      businessName: 25,
+      headlines: { min: 1, max: 5, length: 30 },
+      longHeadline: 90,
+      descriptions: { min: 1, max: 5, length: 90 },
+      images: 8,
+    });
+  });
+});
+
+describe("googleDisplayFormSchema", () => {
+  const schema = googleDisplayFormSchema();
+
+  it("accepts a minimal ad", () => {
+    expect(schema.safeParse(form).success).toBe(true);
+  });
+
+  it.each([
+    ["businessName", { businessName: "a".repeat(26) }],
+    ["businessName", { businessName: "  " }],
+    ["longHeadline", { longHeadline: "a".repeat(91) }],
+    ["displayHeadlines.0", { displayHeadlines: ["a".repeat(31)] }],
+    ["displayHeadlines.0", { displayHeadlines: [""] }],
+    ["displayDescriptions.0", { displayDescriptions: ["a".repeat(91)] }],
+    ["finalUrl", { finalUrl: "example.com" }],
+  ])("refuses %s: %j", (path, changes) => {
+    expect(
+      firstIssue(schema.safeParse({ ...form, ...changes }), path),
+    ).toBeDefined();
+  });
+
+  it("refuses repeated headlines, ignoring case", () => {
+    const result = schema.safeParse({
+      ...form,
+      displayHeadlines: ["Sale", "Free returns", "sale "],
+    });
+    expect(firstIssue(result, "displayHeadlines.2")).toBeDefined();
+    expect(firstIssue(result, "displayHeadlines.0")).toBeUndefined();
+  });
+
+  it("refuses an end date before the start date", () => {
+    const result = schema.safeParse({
+      ...form,
+      startDate: "2026-11-02",
+      endDate: "2026-11-01",
+    });
+    expect(firstIssue(result, "endDate")).toBeDefined();
+  });
+
+  it("asks for the image that is missing, in the reader's words", () => {
+    const words = googleDisplayFormSchema({
+      imagesMissing: (missing) => `missing ${missing}`,
+    });
+    expect(
+      firstIssue(words.safeParse({ ...form, images: [] }), "images")?.message,
+    ).toBe("missing both");
+    expect(
+      firstIssue(
+        words.safeParse({ ...form, images: [image("SQUARE")] }),
+        "images",
+      )?.message,
+    ).toBe("missing landscape");
+    expect(
+      firstIssue(
+        words.safeParse({ ...form, images: [image("LANDSCAPE")] }),
+        "images",
+      )?.message,
+    ).toBe("missing square");
+  });
+
+  it("does not count a logo as a landscape or a square image", () => {
+    const result = schema.safeParse({
+      ...form,
+      images: [image("LANDSCAPE"), image("LOGO")],
+    });
+    expect(firstIssue(result, "images")).toBeDefined();
+  });
+});
+
+describe("googleDisplaySpecSchema", () => {
+  const schema = googleDisplaySpecSchema();
+
+  it("accepts Core's minimum, with and without logos", () => {
+    expect(schema.safeParse(spec).success).toBe(true);
+    expect(
+      schema.safeParse({ ...spec, images: [...IMAGES, image("LOGO")] }).success,
+    ).toBe(true);
+  });
+
+  it("takes 6 marketing images and 2 logos, and no more", () => {
+    const six = [
+      ...[1, 2, 3].map((n) => image("LANDSCAPE", `w${n}.png`)),
+      ...[1, 2, 3].map((n) => image("SQUARE", `s${n}.png`)),
+    ];
+    const logos = [image("LOGO", "l1.png"), image("LOGO", "l2.png")];
+    expect(
+      schema.safeParse({ ...spec, images: [...six, ...logos] }).success,
+    ).toBe(true);
+    expect(
+      schema.safeParse({ ...spec, images: [...six, image("SQUARE", "s4.png")] })
+        .success,
+    ).toBe(false);
+    expect(
+      schema.safeParse({
+        ...spec,
+        images: [...IMAGES, ...logos, image("LOGO", "l3.png")],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("refuses a file used twice", () => {
+    const result = schema.safeParse({
+      ...spec,
+      images: [...IMAGES, image("LOGO", "LANDSCAPE.png")],
+    });
+    expect(firstIssue(result, "images")).toBeDefined();
+  });
+
+  it("refuses other types and sizes over 5120 KB", () => {
+    expect(
+      schema.safeParse({
+        ...spec,
+        images: [{ ...IMAGES[0], mimeType: "image/webp" }, IMAGES[1]],
+      }).success,
+    ).toBe(false);
+    expect(
+      schema.safeParse({
+        ...spec,
+        images: [{ ...IMAGES[0], size: 5120 * 1024 + 1 }, IMAGES[1]],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("refuses a SEARCH spec", () => {
+    expect(schema.safeParse({ ...spec, type: "SEARCH" }).success).toBe(false);
+  });
+
+  it("holds headlines and descriptions to 1 to 5", () => {
+    expect(schema.safeParse({ ...spec, headlines: [] }).success).toBe(false);
+    expect(
+      schema.safeParse({ ...spec, headlines: ["a", "b", "c", "d", "e", "f"] })
+        .success,
+    ).toBe(false);
+    expect(schema.safeParse({ ...spec, descriptions: [] }).success).toBe(false);
+  });
+});
+
+describe("toGoogleDisplaySpec", () => {
+  it("sends the ad as typed, trimmed, with the images", () => {
+    expect(
+      toGoogleDisplaySpec({
+        ...form,
+        finalUrl: " https://example.com/spring ",
+        businessName: " Acme ",
+        displayHeadlines: [" One ", "Two"],
+        longHeadline: " A longer headline ",
+        displayDescriptions: [" First description "],
+        locations: [{ id: "2276", name: "Germany" }],
+        languages: [{ id: "1001", name: "German" }],
+        startDate: "2026-11-01",
+        images: [...IMAGES, image("LOGO")],
+      }),
+    ).toEqual({
+      ...spec,
+      headlines: ["One", "Two"],
+      locationIds: ["2276"],
+      languageIds: ["1001"],
+      startDate: "2026-11-01",
+      images: [...IMAGES, image("LOGO")],
+    });
+  });
+
+  it("leaves out dates that are empty", () => {
+    const sent = toGoogleDisplaySpec(form);
+    expect(sent).not.toHaveProperty("startDate");
+    expect(sent).not.toHaveProperty("endDate");
+  });
+});
