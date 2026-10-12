@@ -23,42 +23,47 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { createDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
 
-const route = createRoute({
-  method: "post",
-  path: "/",
-  description: [
-    "Create an empty Drive folder by writing a folder marker blob.",
-    "The folder appears in the parent list immediately, even when empty.",
-    "Personal: owner only. Organization: any member.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    body: {
-      required: true,
-      content: {
-        "application/json": {
-          schema: createDriveFolderRequestSchema,
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/",
+    description: [
+      "Create an empty Drive folder by writing a folder marker blob.",
+      "The folder appears in the parent list immediately, even when empty.",
+      "Personal: owner only. Organization: any member.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: createDriveFolderRequestSchema,
+          },
         },
       },
     },
-  },
-  responses: {
-    201: jsonSuccessResponse(
-      createDriveFolderRequestSchema,
-      "Folder created (marker written)",
-    ),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict - folder already exists"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-    503: jsonErrorResponse("Service Unavailable"),
-  },
-});
+    responses: {
+      201: jsonSuccessResponse(
+        createDriveFolderRequestSchema,
+        "Folder created (marker written)",
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict - folder already exists"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

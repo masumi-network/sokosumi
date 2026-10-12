@@ -142,7 +142,7 @@ export function SortablePinnedRoomRow({
           aria-label={t("reorderHandle", { name: rowProps.label })}
           className={cn(
             // Same box and 44px touch target as the room menu it stands in for.
-            "text-muted-foreground press hover:text-foreground ring-sidebar-ring relative flex size-8 touch-none items-center justify-center rounded-md outline-hidden after:absolute after:-inset-1.5 focus-visible:ring-2 md:size-7 md:after:hidden",
+            "text-muted-foreground press hover:text-foreground ring-sidebar-ring relative flex size-8 touch-none items-center justify-center rounded-md outline-hidden after:absolute after:-inset-1.5 focus-visible:ring-2 md:size-7 md:after:-inset-0.5",
             isDragging ? "cursor-grabbing" : "cursor-grab",
           )}
         >

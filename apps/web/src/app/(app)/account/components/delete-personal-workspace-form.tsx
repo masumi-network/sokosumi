@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -122,14 +121,12 @@ export function DeletePersonalWorkspaceForm({
               <Button
                 type="button"
                 variant="destructive"
-                disabled={isSubmitting || !hasOrganizationMembership}
+                disabled={!hasOrganizationMembership}
+                loading={isSubmitting}
                 onClick={() => {
                   void handleDelete();
                 }}
               >
-                {isSubmitting && (
-                  <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-                )}
                 {t("confirm")}
               </Button>
             </DialogFooter>

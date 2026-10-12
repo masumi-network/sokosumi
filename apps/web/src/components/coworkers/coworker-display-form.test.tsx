@@ -48,7 +48,6 @@ const messages = {
           uploadError: "Could not process the selected image.",
         },
         saveChanges: "Save display",
-        saving: "Saving…",
         cancel: "Cancel",
         validation: {
           nameMinLength: "Name must be at least {min} characters.",

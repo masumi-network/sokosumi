@@ -1,5 +1,4 @@
 import { z } from "@hono/zod-openapi";
-
 import { dateTimeSchema } from "@/helpers/datetime";
 import {
   judgeCaseSummarySchema,
@@ -7,7 +6,9 @@ import {
   routerCaseSummarySchema,
   routerModelSummarySchema,
 } from "@/lib/soko-bot/model-evaluation";
+import { chatResultDescriptorSchema } from "@/schemas/chat-result-descriptor.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
+import { sokoBotPendingDecisionSchema } from "./soko-bot-pending-decision.schema";
 
 export const sokoBotSummarySchema = z
   .object({
@@ -97,28 +98,6 @@ export const sokoBotScheduleSchema = z
     updatedAt: dateTimeSchema,
   })
   .openapi("SokoBotSchedule");
-
-export const sokoBotPendingDecisionSchema = z
-  .object({
-    id: z.string().uuid(),
-    turnId: z.string().uuid(),
-    toolName: z.string(),
-    proposal: z.record(z.string(), z.unknown()),
-    reason: z.string(),
-    status: z.enum([
-      "PENDING",
-      "PROCESSING",
-      "ACCEPTED",
-      "REJECTED",
-      "EXPIRED",
-    ]),
-    expiresAt: dateTimeSchema,
-    resolvedAt: dateTimeSchema.nullable(),
-    resultingEntityId: z.string().nullable(),
-    createdAt: dateTimeSchema,
-    updatedAt: dateTimeSchema,
-  })
-  .openapi("SokoBotPendingDecision");
 
 export const sokoBotEventSchema = z
   .object({
@@ -254,6 +233,7 @@ export const sokoBotTurnSchema = z
     qualityModel: z.string().nullable().optional(),
     judgedAt: dateTimeSchema.nullable().optional(),
     userMessage: z.string(),
+    resultPreviews: z.array(chatResultDescriptorSchema).max(6).optional(),
     finalAnswer: z.string().nullable(),
     classification: z.record(z.string(), z.unknown()).nullable(),
     classifierModel: z.string().nullable(),

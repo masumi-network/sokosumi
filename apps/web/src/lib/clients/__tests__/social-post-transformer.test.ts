@@ -64,6 +64,7 @@ describe("social post response transformers", () => {
       expect(result.data.lastAttempt).toBeNull();
       expect(result.data.scheduledAt).toEqual(new Date(timestamp));
       expect(result.data.createdAt).toEqual(new Date(timestamp));
+      expect(result.data.timezone).toBe("Europe/Prague");
     },
   );
 

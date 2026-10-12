@@ -56,7 +56,7 @@ export function HeaderNotificationBell() {
           : t("notifications");
 
   const buttonClassName =
-    "press hover:bg-muted relative flex size-8 shrink-0 items-center justify-center rounded-full transition-colors";
+    "press hover:bg-muted relative flex size-10 md:size-8 shrink-0 items-center justify-center rounded-full transition-colors";
 
   const bellFace = (
     <>

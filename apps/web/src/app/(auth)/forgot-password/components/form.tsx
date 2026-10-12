@@ -90,11 +90,7 @@ export default function ForgotPasswordForm({
           return;
         }
 
-        setError(
-          result.error.status === 429
-            ? t("Errors.rateLimited")
-            : getErrorMessage(result.error, t("Errors.generic")),
-        );
+        setError(getErrorMessage(result.error, t("Errors.generic")));
       });
     } catch {
       setError(t("Errors.generic"));

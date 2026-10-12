@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -414,10 +413,7 @@ export function CreateOAuthClientDialog({
                   >
                     {t("CreateDialog.cancelButton")}
                   </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-                    ) : null}
+                  <Button type="submit" loading={isSubmitting}>
                     {t("CreateDialog.createButton")}
                   </Button>
                 </DialogFooter>

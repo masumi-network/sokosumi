@@ -195,6 +195,25 @@ describe("social provider options", () => {
     });
   });
 
+  it("leaves the name for onboarding when the provider's is over the limit", async () => {
+    // The create hook refuses an overlong name; a pre-fill must not fail the
+    // sign-up.
+    await expect(
+      socialProviderOptions.google.mapProfileToUser({
+        name: "Ada Lovelace",
+        picture: "",
+        given_name: "A".repeat(100),
+        family_name: "L".repeat(100),
+      }),
+    ).resolves.toStrictEqual({
+      name: "Ada Lovelace",
+      image: undefined,
+      firstName: undefined,
+      lastName: undefined,
+      emailVerified: true,
+    });
+  });
+
   it("falls back when social profile mapping fails", async () => {
     uploadProfileImageMock.mockRejectedValueOnce(new Error("upload failed"));
 

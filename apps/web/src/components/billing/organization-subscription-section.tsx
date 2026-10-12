@@ -231,7 +231,6 @@ export function OrganizationSubscriptionSection({
         (isCurrentPlan && hasSamePlanAndSeats) ||
         targetSeats < minimumSeats,
       isPlanPending: pendingPlan === plan.name,
-      loadingLabel: t("updating"),
     };
   }
 

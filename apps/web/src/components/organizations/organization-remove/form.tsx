@@ -5,7 +5,6 @@ import type {
   OrganizationDeletionEvaluation,
   OrganizationRecord,
 } from "@sokosumi/core-client";
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -167,12 +166,14 @@ export default function OrganizationRemoveForm({
   };
 
   const { isSubmitting, isValid } = form.formState;
-  const confirmDisabled =
-    isSubmitting || !isValid || blockers.length > 0 || preflightFailed;
+  const confirmDisabled = !isValid || blockers.length > 0 || preflightFailed;
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-4"
+      >
         <fieldset disabled={isSubmitting} className="flex flex-col gap-4">
           {preflightFailed ? (
             <div className="space-y-2">
@@ -233,22 +234,22 @@ export default function OrganizationRemoveForm({
               </FormItem>
             )}
           />
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>
-              {t("cancel")}
-            </AlertDialogCancel>
-            <Button
-              type="submit"
-              variant="destructive"
-              disabled={confirmDisabled}
-            >
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-pulse" />
-              )}
-              {t("confirm")}
-            </Button>
-          </AlertDialogFooter>
         </fieldset>
+        {/* Outside the fieldset: a disabled fieldset would natively
+            disable the button and fade its loading bar. */}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isSubmitting}>
+            {t("cancel")}
+          </AlertDialogCancel>
+          <Button
+            type="submit"
+            variant="destructive"
+            disabled={confirmDisabled}
+            loading={isSubmitting}
+          >
+            {t("confirm")}
+          </Button>
+        </AlertDialogFooter>
       </form>
     </Form>
   );

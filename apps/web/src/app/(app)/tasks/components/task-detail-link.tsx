@@ -10,10 +10,7 @@ import type {
   TouchEvent,
 } from "react";
 
-import {
-  isTasksRootPath,
-  TASKS_RETURN_PATH_SESSION_KEY,
-} from "./task-navigation";
+import { storeTasksReturnPath } from "./task-navigation";
 
 interface TaskDetailLinkProps
   extends Omit<ComponentProps<typeof Link>, "href"> {
@@ -40,12 +37,7 @@ export function TaskDetailLink({
       return;
     }
 
-    if (isTasksRootPath(window.location.pathname)) {
-      window.sessionStorage.setItem(
-        TASKS_RETURN_PATH_SESSION_KEY,
-        `${window.location.pathname}${window.location.search}`,
-      );
-    }
+    storeTasksReturnPath();
   }
 
   function handlePointerEnter(event: PointerEvent<HTMLAnchorElement>) {

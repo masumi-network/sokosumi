@@ -171,7 +171,7 @@ export function X402PaymentAction({
             {t("Actions.cancel")}
           </AlertDialogCancel>
           <AlertDialogAction
-            disabled={isSubmitting}
+            loading={isSubmitting}
             onClick={(event) => {
               event.preventDefault();
               void handleSubmit();
@@ -182,7 +182,7 @@ export function X402PaymentAction({
                 : undefined
             }
           >
-            {isSubmitting ? t("Actions.submitting") : t(`Actions.${action}`)}
+            {t(`Actions.${action}`)}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

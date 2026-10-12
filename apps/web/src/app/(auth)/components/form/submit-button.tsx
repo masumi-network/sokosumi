@@ -1,47 +1,24 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import type { ComponentProps } from "react";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 type ButtonProps = ComponentProps<typeof Button>;
 
 interface SubmitButtonProps extends Omit<ButtonProps, "form"> {
   isSubmitting: boolean;
   label: string;
-  spinnerPosition?: "inline" | "start";
 }
 
 export function SubmitButton({
   isSubmitting,
   label,
-  className,
-  spinnerPosition = "inline",
   ...props
 }: SubmitButtonProps) {
-  const isStart = spinnerPosition === "start";
-
   return (
-    <Button
-      {...props}
-      type="submit"
-      variant="primary"
-      className={cn(isStart && "relative", className)}
-      disabled={isSubmitting || Boolean(props.disabled)}
-    >
-      {isSubmitting && (
-        <Loader2
-          aria-hidden="true"
-          className={
-            isStart
-              ? "absolute top-1/2 left-4 size-4 -translate-y-1/2 animate-spin motion-reduce:animate-pulse"
-              : "mr-2 size-4 animate-spin motion-reduce:animate-pulse"
-          }
-        />
-      )}
-      {isStart ? <span className="w-full text-center">{label}</span> : label}
+    <Button {...props} type="submit" variant="primary" loading={isSubmitting}>
+      {label}
     </Button>
   );
 }

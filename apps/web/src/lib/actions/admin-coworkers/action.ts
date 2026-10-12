@@ -23,7 +23,10 @@ import {
   adminCoworkerService,
 } from "@/lib/services/admin-coworker.service";
 import { coworkerAccessService } from "@/lib/services/coworker-access.service";
-import { type UpdateCoworkerDisplayResult } from "@/lib/services/coworker-display.service";
+import {
+  coworkerDisplayService,
+  type UpdateCoworkerDisplayResult,
+} from "@/lib/services/coworker-display.service";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -71,7 +74,7 @@ export const updateAdminCoworkerDisplayAction = withSession<
       return toActionResult(err(validatedInput.error));
     }
 
-    const result = await adminCoworkerService.updateDisplay(
+    const result = await coworkerDisplayService.updateDisplay(
       validatedInput.value,
     );
 

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import {
+  deriveYouTubeDescription,
   deriveYouTubeTitle,
   publishYouTubeVideo,
 } from "@/clients/social-post-providers/youtube";
@@ -103,6 +104,28 @@ describe("deriveYouTubeTitle", () => {
   });
 });
 
+describe("deriveYouTubeDescription", () => {
+  it("uses the lines after the title, not the title itself", () => {
+    expect(deriveYouTubeDescription("Launching today\nSecond line")).toBe(
+      "Second line",
+    );
+  });
+
+  it("is empty when the post is only a title", () => {
+    expect(deriveYouTubeDescription("Launching today")).toBe("");
+  });
+
+  it("skips leading blank lines the same way the title does", () => {
+    expect(deriveYouTubeDescription("\n  Launch today  \nmore text")).toBe(
+      "more text",
+    );
+  });
+
+  it("is empty when there is no title line", () => {
+    expect(deriveYouTubeDescription("   \n  ")).toBe("");
+  });
+});
+
 describe("publishYouTubeVideo", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -145,7 +168,7 @@ describe("publishYouTubeVideo", () => {
         tool_slug: "YOUTUBE_UPLOAD_VIDEO",
         arguments: {
           title: "Launching today",
-          description: "Launching today\nSecond line",
+          description: "Second line",
           tags: [],
           categoryId: "22",
           privacyStatus: "public",

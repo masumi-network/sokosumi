@@ -174,7 +174,7 @@ export function TaskShareModal({
             <div className="divide-y rounded-md border">
               <div
                 className={cn(
-                  "press hover:bg-card-background flex cursor-pointer items-center gap-2 rounded-t-md p-4 transition-all",
+                  "press hover:bg-card-background flex cursor-pointer items-center gap-2 rounded-t-md p-4 transition-[background-color,opacity,transform]",
                   {
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   },
@@ -194,7 +194,7 @@ export function TaskShareModal({
               </div>
               <div
                 className={cn(
-                  "press hover:bg-card-background flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-all",
+                  "press hover:bg-card-background flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-[background-color,opacity,transform]",
                   {
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   },
@@ -223,7 +223,12 @@ export function TaskShareModal({
                 >
                   {link.toString()}
                 </a>
-                <Button variant="ghost" size="icon" onClick={handleCopyLink}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCopyLink}
+                  aria-label={t("copyLink")}
+                >
                   <Copy className="size-4" />
                 </Button>
               </div>

@@ -136,7 +136,7 @@ export function SkillsSection({
           >
             <span className="flex items-center justify-between gap-2">
               <span className="truncate font-medium">{skill.name}</span>
-              <span className="text-muted-foreground shrink-0 text-[0.6875rem]">
+              <span className="text-muted-foreground shrink-0 text-2xs">
                 {t("builtIn")}
               </span>
             </span>
@@ -150,14 +150,16 @@ export function SkillsSection({
             key={skill.id}
             className="flex flex-col gap-1 rounded-lg border px-3 py-2.5 text-sm"
           >
-            <span className="flex items-center justify-between gap-2">
+            {/* `gap-5`: with a long name the link's hit area reaches 14px
+                right and the remove button's 6px left, so they meet at 20px. */}
+            <span className="flex items-center justify-between gap-5">
               <span className="flex min-w-0 items-center gap-1.5">
                 <span className="truncate font-medium">{skill.name}</span>
                 <a
                   href={skill.sourceUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-muted-foreground hover:text-foreground shrink-0"
+                  className="text-muted-foreground hover:text-foreground hit-area shrink-0"
                   aria-label={skill.slug}
                 >
                   <ExternalLink aria-hidden className="size-3" />
@@ -167,7 +169,7 @@ export function SkillsSection({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="-my-1 -mr-1.5 size-7"
+                className="hit-area -my-1 -mr-1.5 size-7"
                 aria-label={t("remove")}
                 disabled={isPending}
                 onClick={() => remove(skill)}

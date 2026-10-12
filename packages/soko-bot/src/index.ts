@@ -10,7 +10,6 @@ export {
 } from "./integrations.js";
 export {
   SOKO_BOT_JUDGE_RUBRIC,
-  SOKO_BOT_PROACTIVE_JUDGE_RUBRIC,
   type SokoBotJudgeVerdict,
   sokoBotJudgeVerdictSchema,
 } from "./judge.js";
@@ -49,6 +48,12 @@ export {
   SOKO_BOT_SYSTEM_SCHEDULES,
   upcomingFollowUps,
 } from "./proactive.js";
+export {
+  CHAT_RESULT_PREVIEW_LIMIT,
+  type ChatResultReference,
+  chatResultReferenceSchema,
+  sokoBotPreviewResultInputSchema,
+} from "./result-previews.js";
 export type {
   IndexedRuntimeEvent,
   RuntimeCancelInput,

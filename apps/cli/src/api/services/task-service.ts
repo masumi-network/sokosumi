@@ -47,7 +47,7 @@ function tasksPath(options: FetchTasksOptions = {}): string {
   if (options.q) params.set("q", String(options.q).trim());
   if (options.scope) params.set("scope", String(options.scope).trim());
   if (options.coworkerId)
-    params.set("coworkerId", String(options.coworkerId).trim());
+    params.set("assigneeId", String(options.coworkerId).trim());
   if (options.take !== undefined) params.set("take", String(options.take));
   for (const status of values(options.status)) params.append("status", status);
   const query = params.toString();
@@ -59,7 +59,11 @@ export async function createTask(
   data: CreateTaskData = {},
   signal?: AbortSignal,
 ): Promise<{ response: ApiResponse<unknown>; task: Task }> {
-  const payload = { ...data };
+  const { coworkerId, ...rest } = data;
+  const payload = {
+    ...rest,
+    ...(coworkerId !== undefined ? { assigneeId: coworkerId } : {}),
+  };
   if (typeof payload.name === "string") payload.name = payload.name.trim();
   const response = parseApiResponse(
     await client.post<unknown>(TASKS_PATH, payload, signal),

@@ -81,6 +81,29 @@ export async function requireProjectAccess(
 }
 
 /**
+ * The workspace-wide form of `requireProjectAccess`, for reads that span every
+ * project in the workspace.
+ *
+ * @throws 404 when the workspace does not exist or the caller is no longer a
+ * member of it.
+ */
+export async function requireWorkspaceAccess(options: {
+  workspaceId: string;
+  userId: string;
+}): Promise<void> {
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: options.workspaceId },
+    select: { userId: true, organizationId: true },
+  });
+  if (
+    !workspace ||
+    !(await isCurrentMember(options.userId, workspace, prisma))
+  ) {
+    throw notFound("Workspace not found");
+  }
+}
+
+/**
  * The same check without a workspace context to compare against.
  *
  * The agent runtime runs outside Core and names a user and a project; it has

@@ -307,6 +307,83 @@ export const projectService = (() => {
     };
   }
 
+  async function listSocialAccountStatistics(
+    projectId: string,
+    params: {
+      provider?: SocialPost["provider"];
+      connectionId?: string;
+      publishedFrom?: string;
+      publishedUntil?: string;
+      cursor?: string;
+    } = {},
+  ) {
+    const result = await coreClient.getProjectsByIdSocialConnectionsStatistics(
+      projectId,
+      {
+        ...params,
+        publishedFrom: params.publishedFrom
+          ? new Date(params.publishedFrom)
+          : undefined,
+        publishedUntil: params.publishedUntil
+          ? new Date(params.publishedUntil)
+          : undefined,
+        limit: 20,
+      },
+    );
+    return result.data;
+  }
+
+  async function refreshSocialAccountStatistics(
+    projectId: string,
+    connectionId: string,
+    continueHistory = false,
+  ) {
+    const result =
+      await coreClient.postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh(
+        projectId,
+        connectionId,
+        { continueHistory },
+      );
+    return result.data;
+  }
+
+  async function listSocialPostStatistics(
+    projectId: string,
+    params: {
+      provider?: SocialPost["provider"];
+      publishedFrom?: string;
+      publishedUntil?: string;
+      cursor?: string;
+    } = {},
+  ) {
+    const result = await coreClient.getProjectsByIdSocialPostsStatistics(
+      projectId,
+      {
+        ...params,
+        publishedFrom: params.publishedFrom
+          ? new Date(params.publishedFrom)
+          : undefined,
+        publishedUntil: params.publishedUntil
+          ? new Date(params.publishedUntil)
+          : undefined,
+        limit: 20,
+      },
+    );
+    return result.data;
+  }
+
+  async function refreshSocialPostStatistics(
+    projectId: string,
+    postId: string,
+  ): Promise<SocialPost> {
+    const result =
+      await coreClient.postProjectsByIdSocialPostsByPostIdStatisticsRefresh(
+        projectId,
+        postId,
+      );
+    return result.data;
+  }
+
   async function getSocialPost(
     projectId: string,
     postId: string,
@@ -503,6 +580,10 @@ export const projectService = (() => {
     retryProjectClose,
     cancelProjectCloseOwedWork,
     listSocialPosts,
+    listSocialPostStatistics,
+    listSocialAccountStatistics,
+    refreshSocialAccountStatistics,
+    refreshSocialPostStatistics,
     getSocialPost,
     createSocialPost,
     updateSocialPost,

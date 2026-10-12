@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Loader2 } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 import {
   type FormEvent,
   type MouseEvent,
@@ -41,7 +41,7 @@ export const ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME =
   "empty:before:pointer-events-none empty:before:block empty:before:max-w-full empty:before:overflow-clip empty:before:text-ellipsis empty:before:whitespace-nowrap empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]";
 
 export const ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME =
-  "size-9 rounded-full sm:size-8";
+  "size-10 rounded-full md:size-8";
 
 export const ROOM_COMPOSER_MENTION_ANCHOR_ATTR =
   "data-room-composer-mention-anchor";
@@ -276,19 +276,13 @@ function RoomComposerSendButton({
       size="icon"
       className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
       disabled={sendBlocked}
+      loading={isSending}
       aria-label={ariaLabel}
       data-testid={testId}
       onPointerDown={handleSendPointerDown}
       onClick={handleSendClick}
     >
-      {isSending ? (
-        <Loader2
-          className="size-4 animate-spin motion-reduce:animate-pulse"
-          aria-hidden
-        />
-      ) : (
-        <ArrowUp className="size-4" aria-hidden />
-      )}
+      <ArrowUp className="size-4" aria-hidden />
     </Button>
   );
 }
