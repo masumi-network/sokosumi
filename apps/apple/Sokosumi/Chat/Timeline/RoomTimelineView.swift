@@ -288,6 +288,10 @@ import SwiftUI
                 .padding(.horizontal, 12)
             }
             let gaps = workspaces.room.timeline.historyGapMessageIds
+            let rowContext = TranscriptContext(
+              room: transcriptRoom, viewerId: workspaces.currentUserId, allowsPins: workspaces.canUsePins, allowsThreads: true,
+              outbound: workspaces.room.outbox.shells, editingMessageId: workspaces.messageEditing.source?.id
+            )
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
               let previous = index > 0 ? messages[index - 1] : nil
               let hasGap = gaps.contains(message.id)
@@ -317,7 +321,7 @@ import SwiftUI
                   let outbound = workspaces.room.outbox.shells.first { $0.id == message.id }
                   MessageRowView(channels: channels, room: transcriptRoom, preparedDocument: preparedTranscript?.document(for: message),
                                  message: message,
-                                 isContinuation: isMessageContinuation(previous: hasGap ? nil : previous, current: message),
+                                 row: MessageRow(message, in: rowContext, previous: hasGap ? nil : previous, isNewest: message.id == newestMessageId),
                                  outbound: outbound,
                                  sentAt: workspaces.room.outbox.sentAt[message.id],
                                  onRetry: outbound.map { shell in
@@ -327,16 +331,12 @@ import SwiftUI
                                    { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                                  },
                                  onRetryMention: mentionRetryAction(for: message),
-                                 // Web hides the thread button on stream overlays and mention shells (`shouldShowChatRoomThreadButton`),
-                                 // and in a Read-only Direct on a message with no replies yet (`canOpenThread`).
-                                 onReply: outbound == nil && !message.id.hasPrefix("stream:") && MentionThoughtShell(message: message) == nil
-                                   && canOpenThread(message, in: transcriptRoom)
-                                   ? { workspaces.openThread(message, auth: auth) } : nil,
-                                 // Quoting fills the composer, which a Read-only Direct lacks.
-                                 onQuote: canQuoteMessage(message) && roomTakesNewMessages(transcriptRoom) ? { pendingQuote = messageQuote(from: message)
+                                 onReply: { workspaces.openThread(message, auth: auth) },
+                                 onQuote: {
+                                   pendingQuote = messageQuote(from: message)
                                    quoteFocusRequest = UUID().uuidString
-                                 } : nil,
-                                 onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
+                                 },
+                                 onEdit: { workspaces.startEditing(message) },
                                  jumpMark: jumpMark?.messageId == message.id ? jumpMark : nil,
                                  isPinned: workspaces.canUsePins && workspaces.isPinned(message),
                                  isUpdatingPin: workspaces.isUpdatingPin(message.id),
@@ -361,7 +361,6 @@ import SwiftUI
                                  resolveDecision: resolveDecisionAction,
                                  horizontalInset: 12,
                                  streamThinking: isCoworkerStreamOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
-                                 newestEndsInAttachment: message.id == newestMessageId && MessageMarkdown.endsWithAttachmentRun(message.content),
                                  seenBy: readReceipts.seenBy(messageId: message.id, createdAt: message.createdAt, newestMessageId: newestMessageId))
                     .jumpSpotlightRow(messageId: message.id)
                 }

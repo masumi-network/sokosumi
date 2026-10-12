@@ -62,8 +62,8 @@
       /// raw sentence and id never show.
       @Test func aReplyShowsTheChosenProjectAsAChip() async throws {
         var opened: [URL] = []
-        let row = MessageRowView(message: Self.reply(#"Use project "Books" (project ID: \#(Self.books))."#),
-                                 isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
+        let reply = Self.reply(#"Use project "Books" (project ID: \#(Self.books))."#)
+        let row = MessageRowView(message: reply, row: transcriptRow(reply), outbound: nil, onRetry: nil, onRemove: nil)
           .environment(\.openURL, OpenURLAction { opened.append($0)
             return .handled
           })
@@ -172,9 +172,9 @@
           let answered = PickGate()
           guard case let .available(card) = Self.question(options: Self.options + [(id: "p3", name: "Quarterly planning")]) else { return }
           let size = NSSize(width: 520, height: 120)
+          let reply = Self.reply(#"Use project "Books" (project ID: \#(Self.books))."#)
           try await columns.append([
-            Helpers.draw(MessageRowView(message: Self.reply(#"Use project "Books" (project ID: \#(Self.books))."#),
-                                        isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil).padding(12),
+            Helpers.draw(MessageRowView(message: reply, row: transcriptRow(reply), outbound: nil, onRetry: nil, onRemove: nil).padding(12),
                          size: size, dark: dark, until: "Selected project"),
             Helpers.draw(ResultPreviewCardView(item: .available(card), select: { _, _ in }).padding(12),
                          size: size, dark: dark, until: "Choose a project"),

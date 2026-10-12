@@ -56,7 +56,7 @@
       private static func render(_ messages: [Components.Schemas.ChatRoomMessage], dark: Bool, opens: Bool = true) async throws -> NSBitmapImageRep {
         let content = VStack(alignment: .leading, spacing: 0) {
           ForEach(messages, id: \.id) { message in
-            MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+            MessageRowView(message: message, row: transcriptRow(message), outbound: nil, onRetry: nil, onRemove: nil,
                            onReply: opens ? {} : nil, horizontalInset: 12)
           }
         }
