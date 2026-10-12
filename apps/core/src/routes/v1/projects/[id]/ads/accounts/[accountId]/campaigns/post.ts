@@ -23,7 +23,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/{id}/ads/accounts/{accountId}/campaigns",
     description:
-      "Create a campaign in an attached ad account. The campaign is always created paused. dailyBudget is a decimal in the account currency. Meta accounts require an objective and take no google spec (422 otherwise); Google accounts require a google spec (a Search campaign with locations, languages, keywords and a responsive search ad, created in one atomic call) and take no objective (422 otherwise). A Google validation or policy failure is returned as 422 with Google's message. Requires an interactive user session in the Project's Workspace.",
+      "Create a campaign in an attached ad account. The campaign is always created paused. dailyBudget is a decimal in the account currency. Meta accounts require an objective and take no google spec (422 otherwise); Google accounts require a google spec (type SEARCH: locations, languages, keywords and a responsive search ad with optional sitelinks and callouts; type DISPLAY: a responsive display ad with Drive images, which must belong to the active Workspace's Drive; the tree is created in one atomic call) and take no objective (422 otherwise). A Google validation or policy failure is returned as 422 with Google's message. Requires an interactive user session in the Project's Workspace.",
     tags: ["Projects"],
     request: {
       params: projectAdAccountParamsSchema,
@@ -65,6 +65,8 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         projectId,
         workspaceId: workspaceContext.workspaceId,
         accountId,
+        userId: userContext.userId,
+        organizationId: workspaceContext.organizationId,
         name,
         dailyBudget,
         objective,

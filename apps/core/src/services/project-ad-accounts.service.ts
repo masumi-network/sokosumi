@@ -17,6 +17,7 @@ import {
   type ProjectAdProvider,
 } from "@/config/ads-providers";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import { requireWorkspaceDriveFileUrl } from "@/helpers/drive-file-ref";
 import {
   badRequest,
   conflict,
@@ -57,6 +58,7 @@ import {
 } from "@/lib/ads/meta-ads";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import type { UserContext } from "@/middleware/auth";
 import { projectAdConnectionStatusSchema } from "@/schemas/project-ad-account.schema";
 import {
   projectConnectorUserId,
@@ -499,12 +501,17 @@ export async function updateProjectAdCampaign(
 /**
  * Creates a paused campaign in an attached ad account and returns its id. Meta
  * needs an objective and takes no `google` spec; Google needs the spec and
- * takes no objective. All refusals happen before the provider is called.
+ * takes no objective. The Drive images of a Display spec must belong to the
+ * active Workspace's Drive (`userId`, `organizationId`). All refusals happen
+ * before the provider is called.
  */
 export async function createProjectAdCampaign(
   input: ProjectScope &
     AdCampaignCreate & {
       accountId: string;
+      userId: string;
+      /** Active Workspace owner: null for a personal Workspace. */
+      organizationId: string | null;
       objective?: MetaCampaignObjective;
       google?: GoogleCampaignSpec;
     },
@@ -527,7 +534,7 @@ export async function createProjectAdCampaign(
       id: await createGoogleCampaign({
         ...campaign,
         customerId: account.externalAccountId,
-        google: input.google,
+        google: pinDisplayImagesToDrive(input, input.google),
       }),
     };
   }
@@ -543,6 +550,21 @@ export async function createProjectAdCampaign(
       adAccountId: account.externalAccountId,
       objective: input.objective,
     }),
+  };
+}
+
+/** A Display spec with every image pinned to a file of the active Workspace's Drive; other specs unchanged. */
+function pinDisplayImagesToDrive(
+  workspace: Pick<UserContext, "userId" | "organizationId">,
+  google: GoogleCampaignSpec,
+): GoogleCampaignSpec {
+  if (google.type !== "DISPLAY") return google;
+  return {
+    ...google,
+    images: google.images.map((image) => ({
+      ...image,
+      fileUrl: requireWorkspaceDriveFileUrl(workspace, image),
+    })),
   };
 }
 

@@ -8,24 +8,38 @@ import {
 } from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { PROJECT_AD_PROVIDERS } from "@/config/ads-providers";
+import {
+  DriveFileDownloadError,
+  downloadDriveFile,
+} from "@/helpers/drive-file-download";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import {
   type AdCampaign,
+  type AdCampaignCreate,
   type AdCampaignStatus,
   type AdCampaignUpdate,
   type AdRange,
   buildAdCampaign,
+  GOOGLE_DISPLAY_IMAGE_MAX_BYTES,
+  GOOGLE_DISPLAY_IMAGE_MAX_LABEL,
+  GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
   GOOGLE_MAX_IDS,
   GOOGLE_MAX_LOCATION_SUGGESTIONS,
   type GoogleCampaignCreate,
+  type GoogleCampaignSpec,
+  type GoogleDisplayCampaignSpec,
+  type GoogleDisplayImage,
+  type GoogleDisplayImageRole,
   type GoogleKeyword,
   type GoogleLocationLookup,
+  type GoogleSearchCampaignSpec,
   noAdMetrics,
   sumAdMetrics,
 } from "@/lib/ads/campaigns";
 import {
   type AdsConnectedAccount,
   type AvailableAdAccount,
+  type ExecuteAdsTool,
   parseToolRow,
   parseToolRows,
   requireToolRows,
@@ -357,26 +371,129 @@ function dedupeGoogleKeywords(
   });
 }
 
+/** What differs between campaign types in the common operations. */
+const CHANNELS = {
+  SEARCH: {
+    adGroupType: "SEARCH_STANDARD",
+    // Google Search network only.
+    networkSettings: {
+      target_google_search: true,
+      target_search_network: false,
+      target_content_network: false,
+    },
+  },
+  // Display Network: Google's default network settings.
+  DISPLAY: { adGroupType: "DISPLAY_STANDARD", networkSettings: undefined },
+} as const;
+
+/** At most `max` code points, so a surrogate pair is never split. */
+function truncate(text: string, max: number): string {
+  return Array.from(text).slice(0, max).join("");
+}
+
 /**
- * The operations of a paused Search campaign: budget, campaign (Maximize
- * clicks, Google Search network only), location and language criteria, one
- * ad group with its keywords and one responsive search ad, then the
- * sitelink and callout assets with their campaign links. Each item has
+ * The operations every paused campaign starts with: budget, campaign, location
+ * and language criteria, and one ad group. `campaign` and `adGroup` are the
+ * temporary resource names the rest of the tree links to. Each item has
  * exactly one operation key, as the tool requires.
  */
-function searchCampaignOperations(
+function campaignOperations(
   customerId: string,
-  { name, dailyBudget, google }: GoogleCampaignCreate,
-): Record<string, unknown>[] {
+  { name, dailyBudget }: AdCampaignCreate,
+  google: GoogleCampaignSpec,
+): {
+  campaign: string;
+  adGroup: string;
+  operations: Record<string, unknown>[];
+} {
+  const channel = CHANNELS[google.type];
   const budget = `customers/${customerId}/campaignBudgets/${BUDGET_TEMP_ID}`;
   const campaign = `customers/${customerId}/campaigns/${CAMPAIGN_TEMP_ID}`;
   const adGroup = `customers/${customerId}/adGroups/${AD_GROUP_TEMP_ID}`;
   // Budget names are unique per customer; the suffix avoids clashes with
   // earlier campaigns of the same name.
-  const budgetName = `${name.slice(0, MAX_BUDGET_NAME_LENGTH - BUDGET_NAME_SUFFIX_LENGTH)} budget ${randomUUID().slice(0, 8)}`;
+  const budgetName = `${truncate(name, MAX_BUDGET_NAME_LENGTH - BUDGET_NAME_SUFFIX_LENGTH)} budget ${randomUUID().slice(0, 8)}`;
   const criterion = (target: Record<string, unknown>) => ({
     campaign_criterion_operation: { create: { campaign, ...target } },
   });
+  return {
+    campaign,
+    adGroup,
+    operations: [
+      {
+        campaign_budget_operation: {
+          create: {
+            resource_name: budget,
+            name: budgetName,
+            amount_micros: Math.round(dailyBudget * MICROS),
+            delivery_method: "STANDARD",
+            explicitly_shared: false,
+          },
+        },
+      },
+      {
+        campaign_operation: {
+          create: {
+            resource_name: campaign,
+            name,
+            status: "PAUSED",
+            advertising_channel_type: google.type,
+            campaign_budget: budget,
+            target_spend: {},
+            ...(channel.networkSettings && {
+              network_settings: channel.networkSettings,
+            }),
+            contains_eu_political_advertising:
+              "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
+            ...(google.startDate && {
+              start_date_time: `${google.startDate} 00:00:00`,
+            }),
+            ...(google.endDate && {
+              end_date_time: `${google.endDate} 23:59:59`,
+            }),
+          },
+        },
+      },
+      ...[...new Set(google.locationIds)].map((id) =>
+        criterion({
+          location: { geo_target_constant: `geoTargetConstants/${id}` },
+        }),
+      ),
+      ...[...new Set(google.languageIds)].map((id) =>
+        criterion({
+          language: { language_constant: `languageConstants/${id}` },
+        }),
+      ),
+      {
+        ad_group_operation: {
+          create: {
+            resource_name: adGroup,
+            campaign,
+            name: "Ad group 1",
+            status: "ENABLED",
+            type: channel.adGroupType,
+          },
+        },
+      },
+    ],
+  };
+}
+
+/**
+ * The operations of a paused Search campaign (Maximize clicks, Google Search
+ * network only): the common operations, the keywords and one responsive
+ * search ad, then the sitelink and callout assets with their campaign links.
+ */
+function searchCampaignOperations(
+  customerId: string,
+  create: AdCampaignCreate,
+  google: GoogleSearchCampaignSpec,
+): Record<string, unknown>[] {
+  const { campaign, adGroup, operations } = campaignOperations(
+    customerId,
+    create,
+    google,
+  );
   // Assets first, then their links: a link names its asset's temporary id.
   const assets = [
     ...(google.sitelinks ?? []).map(
@@ -402,61 +519,7 @@ function searchCampaignOperations(
   }));
 
   return [
-    {
-      campaign_budget_operation: {
-        create: {
-          resource_name: budget,
-          name: budgetName,
-          amount_micros: Math.round(dailyBudget * MICROS),
-          delivery_method: "STANDARD",
-          explicitly_shared: false,
-        },
-      },
-    },
-    {
-      campaign_operation: {
-        create: {
-          resource_name: campaign,
-          name,
-          status: "PAUSED",
-          advertising_channel_type: "SEARCH",
-          campaign_budget: budget,
-          target_spend: {},
-          network_settings: {
-            target_google_search: true,
-            target_search_network: false,
-            target_content_network: false,
-          },
-          contains_eu_political_advertising:
-            "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
-          ...(google.startDate && {
-            start_date_time: `${google.startDate} 00:00:00`,
-          }),
-          ...(google.endDate && {
-            end_date_time: `${google.endDate} 23:59:59`,
-          }),
-        },
-      },
-    },
-    ...[...new Set(google.locationIds)].map((id) =>
-      criterion({
-        location: { geo_target_constant: `geoTargetConstants/${id}` },
-      }),
-    ),
-    ...[...new Set(google.languageIds)].map((id) =>
-      criterion({ language: { language_constant: `languageConstants/${id}` } }),
-    ),
-    {
-      ad_group_operation: {
-        create: {
-          resource_name: adGroup,
-          campaign,
-          name: "Ad group 1",
-          status: "ENABLED",
-          type: "SEARCH_STANDARD",
-        },
-      },
-    },
+    ...operations,
     ...dedupeGoogleKeywords(google.keywords).map(({ text, matchType }) => ({
       ad_group_criterion_operation: {
         create: {
@@ -491,6 +554,61 @@ function searchCampaignOperations(
         create: { campaign, asset: resourceName, field_type: fieldType },
       },
     })),
+  ];
+}
+
+/** An image already uploaded to the customer, with the slot it fills. */
+interface UploadedDisplayImage {
+  role: GoogleDisplayImageRole;
+  resourceName: string;
+}
+
+/**
+ * The operations of a paused Display campaign (Maximize clicks, Display
+ * Network): the common operations and one responsive display ad that uses the
+ * already uploaded image assets.
+ */
+function displayCampaignOperations(
+  customerId: string,
+  create: AdCampaignCreate,
+  google: GoogleDisplayCampaignSpec,
+  images: readonly UploadedDisplayImage[],
+): Record<string, unknown>[] {
+  const { adGroup, operations } = campaignOperations(
+    customerId,
+    create,
+    google,
+  );
+  const assets = (role: GoogleDisplayImageRole) =>
+    images
+      .filter((image) => image.role === role)
+      .map(({ resourceName }) => ({ asset: resourceName }));
+  // Our LOGO is a square (1:1) logo; `logo_images` is for 4:1 landscape ones.
+  const squareLogos = assets("LOGO");
+  return [
+    ...operations,
+    {
+      ad_group_ad_operation: {
+        create: {
+          ad_group: adGroup,
+          status: "ENABLED",
+          ad: {
+            final_urls: [google.finalUrl],
+            responsive_display_ad: {
+              marketing_images: assets("LANDSCAPE"),
+              square_marketing_images: assets("SQUARE"),
+              ...(squareLogos.length > 0 && {
+                square_logo_images: squareLogos,
+              }),
+              headlines: google.headlines.map((text) => ({ text })),
+              long_headline: { text: google.longHeadline },
+              descriptions: google.descriptions.map((text) => ({ text })),
+              business_name: google.businessName,
+            },
+          },
+        },
+      },
+    },
   ];
 }
 
@@ -531,17 +649,138 @@ function googleValidationMessage(error: unknown): string | null {
   }
 }
 
+const IMAGE_DOWNLOAD_TIMEOUT_MS = 20_000;
+// An image is up to 5 MB, base64-encoded and forwarded to Google.
+const IMAGE_UPLOAD_TIMEOUT_MS = 60_000;
+const MAX_ASSET_NAME_LENGTH = 128;
+const ASSET_NAME_SUFFIX_LENGTH = 1 + 8;
+
+const assetResultSchema = z.object({
+  asset_result: z.object({
+    resource_name: z.string().regex(/^customers\/\d+\/assets\/\d+$/),
+  }),
+});
+
+interface DownloadedDisplayImage {
+  image: GoogleDisplayImage;
+  bytes: Uint8Array;
+}
+
+const DISPLAY_IMAGE_MIME_TYPES = new Set<string>(
+  GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
+);
+
 /**
- * Creates a paused Search campaign with its own (not shared) daily budget in
- * ONE atomic `GOOGLEADS_BATCH_MUTATE` call (`partial_failure: false`): either
- * the whole tree exists afterwards or nothing does. Returns the campaign id.
- * A Google validation or policy failure is raised as 422 with Google's
- * message; other failures are raised unchanged.
+ * Fetches a Drive image through the SSRF guard. The file must still be there
+ * (2xx), fit Google's size limit and be served as JPEG, PNG or GIF; anything
+ * else is 422 naming the file.
+ */
+async function downloadDisplayImage(
+  image: GoogleDisplayImage,
+): Promise<DownloadedDisplayImage> {
+  try {
+    const { bytes } = await downloadDriveFile(image.fileUrl, {
+      maxBytes: GOOGLE_DISPLAY_IMAGE_MAX_BYTES,
+      timeoutMs: IMAGE_DOWNLOAD_TIMEOUT_MS,
+      acceptsMimeType: (mimeType) => DISPLAY_IMAGE_MIME_TYPES.has(mimeType),
+    });
+    return { image, bytes };
+  } catch (error) {
+    if (!(error instanceof DriveFileDownloadError)) throw error;
+    switch (error.reason) {
+      case "too_large":
+        throw unprocessableEntity(
+          `Image "${image.name}" is larger than ${GOOGLE_DISPLAY_IMAGE_MAX_LABEL}`,
+        );
+      case "unavailable":
+        throw unprocessableEntity(
+          `Image "${image.name}" is no longer available`,
+        );
+      case "wrong_type":
+        throw unprocessableEntity(
+          `Image "${image.name}" is not a JPEG, PNG or GIF image`,
+        );
+    }
+  }
+}
+
+/**
+ * Uploads one image as an IMAGE asset in a call of its own (a call carrying
+ * every image would be huge) and returns the asset's resource name. A Google
+ * validation failure (aspect ratio, size) is 422 naming the file.
+ */
+async function uploadDisplayImage(
+  execute: ExecuteAdsTool,
+  customerId: string,
+  { image, bytes }: DownloadedDisplayImage,
+): Promise<UploadedDisplayImage> {
+  // Asset names are unique per customer; the suffix avoids clashes with
+  // earlier uploads of a file of the same name.
+  const name = `${truncate(image.name, MAX_ASSET_NAME_LENGTH - ASSET_NAME_SUFFIX_LENGTH)} ${randomUUID().slice(0, 8)}`;
+  let payload: Record<string, unknown> | null;
+  try {
+    payload = await execute(
+      BATCH_MUTATE,
+      {
+        customer_id: customerId,
+        partial_failure: false,
+        mutate_operations: [
+          {
+            asset_operation: {
+              create: {
+                name,
+                type: "IMAGE",
+                image_asset: { data: Buffer.from(bytes).toString("base64") },
+              },
+            },
+          },
+        ],
+      },
+      { timeoutMs: IMAGE_UPLOAD_TIMEOUT_MS },
+    );
+  } catch (error) {
+    const message = googleValidationMessage(error);
+    throw message
+      ? unprocessableEntity(`Image "${image.name}": ${message}`)
+      : error;
+  }
+  const parsed = assetResultSchema.safeParse(
+    toolRows(payload, "mutate_operation_responses")[0],
+  );
+  if (hasPartialFailure(payload) || !parsed.success) {
+    throw new ComposioToolError({
+      message: "upload Google Ads image was not applied",
+    });
+  }
+  return {
+    role: image.role,
+    resourceName: parsed.data.asset_result.resource_name,
+  };
+}
+
+/**
+ * Creates a paused Search or Display campaign with its own (not shared) daily
+ * budget in ONE atomic `GOOGLEADS_BATCH_MUTATE` call (`partial_failure:
+ * false`): either the whole tree exists afterwards or nothing does. Returns
+ * the campaign id. A Google validation or policy failure is raised as 422
+ * with Google's message; other failures are raised unchanged.
+ *
+ * Display images come first: they are all downloaded (so a bad file fails
+ * before anything is written), then uploaded as image assets, one call each.
+ * Google cannot remove assets, so images uploaded before a failed tree stay
+ * unused in the account; the failure is raised, not retried.
  */
 export async function createGoogleCampaign(
   input: AdsConnectedAccount & GoogleCampaignCreate & { customerId: string },
 ): Promise<string> {
-  const { customerId, connectedAccountId, executorUserId } = input;
+  const { customerId, connectedAccountId, executorUserId, google } = input;
+
+  const downloads: DownloadedDisplayImage[] = [];
+  if (google.type === "DISPLAY") {
+    for (const image of google.images) {
+      downloads.push(await downloadDisplayImage(image));
+    }
+  }
 
   const payload = await withAdsToolSession(
     {
@@ -551,11 +790,28 @@ export async function createGoogleCampaign(
       toolSlugs: [BATCH_MUTATE],
     },
     async (execute) => {
+      let operations: Record<string, unknown>[];
+      if (google.type === "DISPLAY") {
+        const uploaded: UploadedDisplayImage[] = [];
+        for (const download of downloads) {
+          uploaded.push(
+            await uploadDisplayImage(execute, customerId, download),
+          );
+        }
+        operations = displayCampaignOperations(
+          customerId,
+          input,
+          google,
+          uploaded,
+        );
+      } else {
+        operations = searchCampaignOperations(customerId, input, google);
+      }
       try {
         return await execute(BATCH_MUTATE, {
           customer_id: customerId,
           partial_failure: false,
-          mutate_operations: searchCampaignOperations(customerId, input),
+          mutate_operations: operations,
         });
       } catch (error) {
         const message = googleValidationMessage(error);

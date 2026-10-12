@@ -1,3 +1,5 @@
+import type { DriveFileRef } from "@/helpers/drive-file-ref";
+
 export const AD_RANGES = ["LAST_7_DAYS", "LAST_30_DAYS"] as const;
 export type AdRange = (typeof AD_RANGES)[number];
 
@@ -85,8 +87,47 @@ export interface GoogleSearchCampaignSpec extends GoogleCampaignSpecBase {
   callouts?: string[];
 }
 
+/** LOGO is a square (1:1) logo, at least 128x128; it fills `square_logo_images`. */
+export const GOOGLE_DISPLAY_IMAGE_ROLES = [
+  "LANDSCAPE",
+  "SQUARE",
+  "LOGO",
+] as const;
+export type GoogleDisplayImageRole =
+  (typeof GOOGLE_DISPLAY_IMAGE_ROLES)[number];
+
+/** Image types Google accepts for a responsive display ad. */
+export const GOOGLE_DISPLAY_IMAGE_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+] as const;
+
+/** Largest image Google accepts: 5120 KB. */
+export const GOOGLE_DISPLAY_IMAGE_MAX_BYTES = 5120 * 1024;
+export const GOOGLE_DISPLAY_IMAGE_MAX_LABEL = `${GOOGLE_DISPLAY_IMAGE_MAX_BYTES / 1024} KB`;
+
+/** A Drive image of a responsive display ad, with the slot it fills. */
+export interface GoogleDisplayImage extends DriveFileRef {
+  size: number;
+  mimeType: (typeof GOOGLE_DISPLAY_IMAGE_MIME_TYPES)[number];
+  role: GoogleDisplayImageRole;
+}
+
+export interface GoogleDisplayCampaignSpec extends GoogleCampaignSpecBase {
+  type: "DISPLAY";
+  businessName: string;
+  headlines: string[];
+  longHeadline: string;
+  descriptions: string[];
+  /** At least one LANDSCAPE and one SQUARE; LANDSCAPE + SQUARE at most 6, LOGO at most 2. */
+  images: GoogleDisplayImage[];
+}
+
 /** What a new Google campaign contains beyond its name and budget; one member per campaign type. */
-export type GoogleCampaignSpec = GoogleSearchCampaignSpec;
+export type GoogleCampaignSpec =
+  | GoogleSearchCampaignSpec
+  | GoogleDisplayCampaignSpec;
 
 export interface GoogleCampaignCreate extends AdCampaignCreate {
   google: GoogleCampaignSpec;

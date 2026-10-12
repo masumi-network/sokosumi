@@ -21,7 +21,7 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | Google Ads accounts | `GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS`, GAQL on `customer` / `customer_client` | Per-user OAuth; Composio auth config holds our Google Ads developer token |
 | Google campaigns + metrics | `GOOGLEADS_SEARCH_STREAM_GAQL` | same |
 | Google status / budget | `GOOGLEADS_MUTATE_CAMPAIGNS`, `GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS` | same |
-| Google create | `GOOGLEADS_BATCH_MUTATE` (`partial_failure: false`): budget, PAUSED campaign, criteria, ad group, keywords and ad in one atomic call. See [Google campaign builder](#google-campaign-builder) | same |
+| Google create | `GOOGLEADS_BATCH_MUTATE` (`partial_failure: false`): budget, PAUSED campaign, criteria, ad group, keywords or display ad in one atomic call; Display images are uploaded first, one `BATCH_MUTATE` call each. See [Google campaign builder](#google-campaign-builder) | same |
 | Meta ad accounts | `METAADS_GET_AD_ACCOUNTS` | Per-user OAuth; our own Meta app (no Composio-managed OAuth) |
 | Meta campaigns + metrics | `METAADS_LIST_CAMPAIGNS`, `METAADS_GET_INSIGHTS` (level=campaign) | same |
 | Meta status / budget | `METAADS_UPDATE_CAMPAIGN` (one budget field per call) | same |
@@ -84,7 +84,7 @@ Errors map through the existing Composio error classes (`ComposioConfigError` �
 
 ## Google campaign builder
 
-Goal: "New campaign" for Google produces a campaign that can run. Still always created **PAUSED**. Search ships first (with sitelinks and callouts); Display follows in the stack below.
+Goal: "New campaign" for Google produces a campaign that can run. Still always created **PAUSED**. Search (with sitelinks and callouts) and Display (with Drive images).
 
 ### Gap map (Google Ads UI walk, 2026-10-12)
 
@@ -100,7 +100,7 @@ Goal: "New campaign" for Google produces a campaign that can run. Still always c
 | Ad group + keywords | One ad group "Ad group 1"; keywords with BROAD / PHRASE / EXACT |
 | Responsive search ad | Final URL, 2 display paths, 3-15 headlines, 2-4 descriptions |
 | Sitelinks, callouts | Yes: optional on Search |
-| Responsive display ad | Yes (later PR), images from Drive |
+| Responsive display ad | Yes: business name, headlines, long headline, descriptions, images from Drive (landscape, square, square logo) |
 | Budget | Daily, unchanged |
 | Audiences, ad schedule, AI Max, page feeds, promotions, prices, calls, lead forms | Out of scope |
 
@@ -115,7 +115,7 @@ Goal: "New campaign" for Google produces a campaign that can run. Still always c
 }
 
 type GoogleCampaignSpec = {            // discriminated on `type`
-  type: "SEARCH";                      // "DISPLAY" is added by its PR
+  type: "SEARCH";                      // see the Display member below
   startDate?: "YYYY-MM-DD";            // sent as `${d} 00:00:00`
   endDate?: "YYYY-MM-DD";              // not before startDate; sent as `${d} 23:59:59`
   locationIds: string[];               // 0-25 digit ids; [] = all countries
@@ -130,19 +130,48 @@ type GoogleCampaignSpec = {            // discriminated on `type`
 };
 ```
 
+```ts
+type GoogleDisplayCampaignSpec = {     // type: "DISPLAY"; same startDate, endDate, locationIds, languageIds, finalUrl
+  type: "DISPLAY";
+  businessName: string;                // 1-25
+  headlines: string[];                 // 1-5, each 1-30, unique ignoring case (else 422)
+  longHeadline: string;                // 1-90
+  descriptions: string[];              // 1-5, each 1-90
+  images: {                            // 2-8 Drive files, each file once
+    pathname: string; fileUrl: string; name: string;
+    size: number;                      // 1..5_242_880 (5120 KB)
+    mimeType: "image/jpeg" | "image/png" | "image/gif";
+    role: "LANDSCAPE" | "SQUARE" | "LOGO";  // LOGO = square 1:1 logo, >= 128x128
+  }[];                                 // >= 1 LANDSCAPE, >= 1 SQUARE, LANDSCAPE + SQUARE <= 6, LOGO <= 2
+};
+```
+
 Keywords repeating another with the same match type (ignoring case) are dropped, not rejected. Zod covers the documented limits; Google stays the authority for width rules and policy.
+
+### Display images
+
+The images are Drive files, bound to the active Workspace the way Social post media is (one shared check, `requireWorkspaceDriveFileUrl`): the pathname must be in the Workspace's Drive store (403 for another store, 422 for a pathname that is not a Drive path), and `fileUrl` must be an https Vercel Blob URL of exactly that pathname (400). All refusals happen before Google is called.
+
+Before the tree, Core, for every image in request order:
+
+1. Downloads it with the shared `downloadDriveFile` (`ssrfSafeFetch`, also used for Social post media; at most 5,242,880 bytes, 20 s). A missing file, a file over the cap or a file not served as `image/jpeg`, `image/png` or `image/gif` is **422 naming the file**. All downloads finish before the first write.
+2. Uploads it in a `GOOGLEADS_BATCH_MUTATE` call of its own (`partial_failure: false`, 60 s timeout): one `asset_operation` create with `{name: "<file name> <8 hex>", type: "IMAGE", image_asset: {data: "<base64>"}}`. Separate calls keep each request body to one image (up to about 7 MB encoded). The asset's resource name comes from `mutate_operation_responses[0].asset_result.resource_name`. A Google rejection (aspect ratio, too small) is **422 prefixed with the file name** (`Image "banner.png": <Google's message>`).
+
+Google checks the aspect ratio and pixel size; Core does not read the image. The asset name has a random suffix because Google asset names are unique per customer.
+
+**Orphaned assets.** Image uploads are not part of the atomic call, and Google cannot remove assets. If an upload or the tree fails after earlier uploads, those image assets stay unused in the account. They serve nothing and cost nothing, and there is no retry or cleanup. Uploading the same image again may create another asset (unverified).
 
 ### One atomic call
 
 `GOOGLEADS_BATCH_MUTATE` with `partial_failure: false` (Google's `GoogleAdsService.Mutate`): every operation is applied or none is, so there is no rollback code. Negative temporary ids link the resources: budget `-1`, campaign `-2`, ad group `-3`. Each `mutate_operations` item has exactly one key:
 
 1. `campaign_budget_operation`: unique name (`<name> budget <8 hex>`), STANDARD, not shared.
-2. `campaign_operation`: PAUSED, `advertising_channel_type: SEARCH`, `target_spend: {}`, Google Search network only, `contains_eu_political_advertising`, `start_date_time` / `end_date_time` (`YYYY-MM-DD HH:MM:SS`, account time zone).
+2. `campaign_operation`: PAUSED, `advertising_channel_type: SEARCH | DISPLAY`, `target_spend: {}`, `contains_eu_political_advertising`, `start_date_time` / `end_date_time` (`YYYY-MM-DD HH:MM:SS`, account time zone). Search sets `network_settings` to Google Search only; Display sends none (Display Network).
 3. `campaign_criterion_operation` per location (`geoTargetConstants/<id>`) and language (`languageConstants/<id>`).
-4. `ad_group_operation`: `Ad group 1`, ENABLED, `SEARCH_STANDARD`.
-5. `ad_group_criterion_operation` per keyword, ENABLED.
-6. `ad_group_ad_operation`: ENABLED, `final_urls`, `responsive_search_ad`.
-7. Sitelinks and callouts (none when omitted): an `asset_operation` per asset (`sitelink_asset` with `final_urls`, or `callout_asset`; temporary ids `-10`, `-11`, …), then a `campaign_asset_operation` per asset (`field_type` `SITELINK` / `CALLOUT`) linking it to the campaign.
+4. `ad_group_operation`: `Ad group 1`, ENABLED, `SEARCH_STANDARD` | `DISPLAY_STANDARD`.
+5. Search: `ad_group_criterion_operation` per keyword, ENABLED.
+6. `ad_group_ad_operation`: ENABLED, `final_urls`, and `responsive_search_ad` (Search) or `responsive_display_ad` (Display: `marketing_images` (LANDSCAPE), `square_marketing_images` (SQUARE), `square_logo_images` (LOGO, omitted without logos; `logo_images` is for 4:1 landscape logos, which we do not send), each `[{asset: "customers/<cid>/assets/<id>"}]`, plus `headlines`, `long_headline`, `descriptions`, `business_name`).
+7. Search only, sitelinks and callouts (none when omitted): an `asset_operation` per asset (`sitelink_asset` with `final_urls`, or `callout_asset`; temporary ids `-10`, `-11`, …), then a `campaign_asset_operation` per asset (`field_type` `SITELINK` / `CALLOUT`) linking it to the campaign.
 
 The campaign id is the id in the campaign result's resource name (`mutate_operation_responses[].campaign_result`). A `partial_failure_error` or a missing campaign result means nothing was applied (502). Only the campaign is PAUSED; enabling it later makes everything serve.
 
@@ -160,6 +189,7 @@ The suggest body is JSON, so `q` needs no character whitelist.
 
 - A Google validation or policy failure (the Composio tool error carries a `GoogleAdsFailure`, e.g. "Too long.", "Destination not working") is **422 with Google's first error message**. The message is read from the tool error text (Core keeps its first 2000 characters, enough for Google's envelope), matched on the text because a long failure can still be cut. Authentication, authorization, quota, internal and transient (concurrent modification, database) failures stay provider errors (502).
 - Authentication, authorization, quota and internal Google errors, and transport errors, keep the usual mapping (502, 503 for missing configuration). Other routes are unchanged.
+- A Display image outside the active Workspace's Drive is 403 / 422 / 400 (see [Display images](#display-images)); one that cannot be downloaded or has the wrong served type is 422 naming the file.
 - Account rules (422): Google account without `google`, Google account with `objective`, Meta account with `google`, Meta account without `objective`.
 
 ## Web (`apps/web/src/app/(app)/ads`)

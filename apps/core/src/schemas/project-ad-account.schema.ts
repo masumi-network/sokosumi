@@ -9,11 +9,16 @@ import {
   AD_CAMPAIGN_SETTABLE_STATUSES,
   AD_CAMPAIGN_STATUSES,
   AD_RANGES,
+  GOOGLE_DISPLAY_IMAGE_MAX_BYTES,
+  GOOGLE_DISPLAY_IMAGE_MAX_LABEL,
+  GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
+  GOOGLE_DISPLAY_IMAGE_ROLES,
   GOOGLE_KEYWORD_MATCH_TYPES,
   GOOGLE_MAX_IDS,
   type GoogleLocationLookup,
   META_CAMPAIGN_OBJECTIVES,
 } from "@/lib/ads/campaigns";
+import { driveFileRefShape } from "@/schemas/drive-file-ref.schema";
 import { projectSocialConnectionProjectParamsSchema } from "@/schemas/project-social-connection.schema";
 
 export const projectAdProviderSchema = z
@@ -316,8 +321,62 @@ const googleSearchCampaignSpecSchema = z
   })
   .openapi("GoogleSearchCampaignSpec");
 
+const googleDisplayImageSchema = z
+  .object({
+    ...driveFileRefShape,
+    size: z
+      .number()
+      .int()
+      .min(1)
+      .max(GOOGLE_DISPLAY_IMAGE_MAX_BYTES)
+      .openapi({
+        description: `Bytes; at most ${GOOGLE_DISPLAY_IMAGE_MAX_LABEL}`,
+        example: 240000,
+      }),
+    mimeType: z.enum(GOOGLE_DISPLAY_IMAGE_MIME_TYPES),
+    role: z.enum(GOOGLE_DISPLAY_IMAGE_ROLES).openapi({
+      description:
+        "LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional square (1:1, at least 128x128) logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit",
+    }),
+  })
+  .openapi("GoogleDisplayImage");
+
+const googleDisplayCampaignSpecSchema = z
+  .object({
+    type: z.literal("DISPLAY"),
+    ...googleCampaignSpecShape,
+    businessName: googleTextSchema(25),
+    headlines: googleAdTextsSchema(1, 5, 30).refine(uniqueIgnoringCase, {
+      message: "Headlines must be unique (ignoring case)",
+    }),
+    longHeadline: googleTextSchema(90),
+    descriptions: googleAdTextsSchema(1, 5, 90),
+    images: z.array(googleDisplayImageSchema).max(8).openapi({
+      description:
+        "Drive images: 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each file once",
+    }),
+  })
+  .superRefine(({ images }, ctx) => {
+    const count = (role: (typeof GOOGLE_DISPLAY_IMAGE_ROLES)[number]) =>
+      images.filter((image) => image.role === role).length;
+    const marketing = count("LANDSCAPE") + count("SQUARE");
+    const issue = (message: string) =>
+      ctx.addIssue({ code: "custom", message, path: ["images"] });
+    if (count("LANDSCAPE") < 1) issue("Add at least one LANDSCAPE image");
+    if (count("SQUARE") < 1) issue("Add at least one SQUARE image");
+    if (marketing > 6) issue("Use at most 6 LANDSCAPE and SQUARE images");
+    if (count("LOGO") > 2) issue("Use at most 2 LOGO images");
+    if (new Set(images.map(({ pathname }) => pathname)).size < images.length) {
+      issue("Use each image file once");
+    }
+  })
+  .openapi("GoogleDisplayCampaignSpec");
+
 export const googleCampaignSpecSchema = z
-  .discriminatedUnion("type", [googleSearchCampaignSpecSchema])
+  .discriminatedUnion("type", [
+    googleSearchCampaignSpecSchema,
+    googleDisplayCampaignSpecSchema,
+  ])
   .refine(
     ({ startDate, endDate }) =>
       startDate === undefined || endDate === undefined || endDate >= startDate,
