@@ -27,6 +27,8 @@ import {
   createGoogleCampaign,
   listGoogleAdAccounts,
   listGoogleCampaigns,
+  listGoogleLanguages,
+  searchGoogleLocations,
   updateGoogleCampaign,
 } from "./google-ads";
 
@@ -935,6 +937,175 @@ describe("createGoogleCampaign", () => {
       const error = new ComposioApiError(502, undefined, "gateway");
       executeToolMock.mockRejectedValue(error);
       await expect(createGoogleCampaign(create)).rejects.toBe(error);
+    });
+  });
+});
+
+describe("Google targeting lookups", () => {
+  const lookup = { ...input, customerId: "111" };
+  const LOCATION_SELECT =
+    "SELECT geo_target_constant.id, geo_target_constant.name, geo_target_constant.canonical_name, geo_target_constant.target_type, geo_target_constant.country_code FROM geo_target_constant WHERE geo_target_constant.status = 'ENABLED'";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    createSessionMock.mockResolvedValue("sess_1");
+  });
+
+  describe("searchGoogleLocations", () => {
+    it("searches enabled locations by name, ordered by name, at most 20", async () => {
+      executeToolMock.mockResolvedValue({ results: [] });
+      await searchGoogleLocations({ ...lookup, q: "São Paulo (BR)" });
+      expect(executeToolMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toolSlug: "GOOGLEADS_SEARCH_STREAM_GAQL",
+          arguments: {
+            customer_id: "111",
+            query: `${LOCATION_SELECT} AND geo_target_constant.name LIKE '%São Paulo (BR)%' ORDER BY geo_target_constant.name LIMIT 20`,
+          },
+        }),
+      );
+      expect(createSessionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toolkitSlug: "googleads",
+          connectedAccountId: "ca_google",
+          toolSlugs: ["GOOGLEADS_SEARCH_STREAM_GAQL"],
+        }),
+      );
+      expect(deleteSessionMock).toHaveBeenCalledWith(
+        "sess_1",
+        expect.any(String),
+      );
+    });
+
+    it("looks enabled locations up by id", async () => {
+      executeToolMock.mockResolvedValue({ results: [] });
+      await searchGoogleLocations({ ...lookup, ids: ["2372", "2840"] });
+      expect(executeToolMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          arguments: {
+            customer_id: "111",
+            query: `${LOCATION_SELECT} AND geo_target_constant.id IN (2372, 2840) LIMIT 20`,
+          },
+        }),
+      );
+    });
+
+    it.each([
+      "O'Brien",
+      "100%",
+      "back\\slash",
+      "a' OR 1=1",
+      "x",
+      "x".repeat(61),
+    ])("refuses the search text %j before calling Google", async (q) => {
+      await expect(
+        searchGoogleLocations({ ...lookup, q }),
+      ).rejects.toMatchObject({ status: 422 });
+      expect(createSessionMock).not.toHaveBeenCalled();
+    });
+
+    it.each([["12) OR (1=1"], ["abc"], [""]])(
+      "refuses the id %j before calling Google",
+      async (id) => {
+        await expect(
+          searchGoogleLocations({ ...lookup, ids: [id] }),
+        ).rejects.toMatchObject({ status: 422 });
+        expect(createSessionMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it("parses rows, coercing numeric ids and keeping missing fields null", async () => {
+      executeToolMock.mockResolvedValue({
+        results: [
+          {
+            geoTargetConstant: {
+              id: "2276",
+              name: "Germany",
+              canonicalName: "Germany",
+              targetType: "Country",
+              countryCode: "DE",
+            },
+          },
+          {
+            geoTargetConstant: {
+              id: 1003854,
+              name: "Berlin",
+              canonicalName: "Berlin,Berlin,Germany",
+            },
+          },
+        ],
+      });
+      expect(await searchGoogleLocations({ ...lookup, q: "Ger" })).toEqual([
+        {
+          id: "2276",
+          name: "Germany",
+          canonicalName: "Germany",
+          targetType: "Country",
+          countryCode: "DE",
+        },
+        {
+          id: "1003854",
+          name: "Berlin",
+          canonicalName: "Berlin,Berlin,Germany",
+          targetType: null,
+          countryCode: null,
+        },
+      ]);
+    });
+
+    it("returns no locations for an empty result", async () => {
+      executeToolMock.mockResolvedValue({ results: [] });
+      expect(await searchGoogleLocations({ ...lookup, q: "Nowhere" })).toEqual(
+        [],
+      );
+    });
+
+    it("raises a payload without a results list and a row of the wrong shape", async () => {
+      executeToolMock.mockResolvedValue({ unexpected: true });
+      await expect(
+        searchGoogleLocations({ ...lookup, q: "Berlin" }),
+      ).rejects.toBeInstanceOf(ComposioApiError);
+      executeToolMock.mockResolvedValue({
+        results: [{ geoTargetConstant: { name: "no id" } }],
+      });
+      await expect(
+        searchGoogleLocations({ ...lookup, q: "Berlin" }),
+      ).rejects.toThrow(/invalid response/);
+    });
+  });
+
+  describe("listGoogleLanguages", () => {
+    it("lists targetable languages sorted by name", async () => {
+      executeToolMock.mockResolvedValue({
+        results: [
+          { languageConstant: { id: "1001", code: "de", name: "German" } },
+          { languageConstant: { id: 1000, code: "en", name: "English" } },
+          { languageConstant: { id: "1003", code: "es", name: "Spanish" } },
+        ],
+      });
+      expect(await listGoogleLanguages(lookup)).toEqual([
+        { id: "1000", code: "en", name: "English" },
+        { id: "1001", code: "de", name: "German" },
+        { id: "1003", code: "es", name: "Spanish" },
+      ]);
+      expect(executeToolMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toolSlug: "GOOGLEADS_SEARCH_STREAM_GAQL",
+          arguments: {
+            customer_id: "111",
+            query:
+              "SELECT language_constant.id, language_constant.code, language_constant.name FROM language_constant WHERE language_constant.targetable = TRUE",
+          },
+        }),
+      );
+      expect(deleteSessionMock).toHaveBeenCalled();
+    });
+
+    it("raises a payload without a results list", async () => {
+      executeToolMock.mockResolvedValue(null);
+      await expect(listGoogleLanguages(lookup)).rejects.toBeInstanceOf(
+        ComposioApiError,
+      );
     });
   });
 });

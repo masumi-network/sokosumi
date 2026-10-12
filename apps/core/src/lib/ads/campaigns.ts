@@ -45,6 +45,16 @@ export interface GoogleKeyword {
   matchType: GoogleKeywordMatchType;
 }
 
+/**
+ * Search text for Google locations: letters (any script), marks, digits,
+ * spaces and `.,-()`. It goes into a GAQL string, so it must not contain a
+ * quote, `%`, `_` or a backslash.
+ */
+export const GOOGLE_LOCATION_QUERY_PATTERN = /^[\p{L}\p{M}\p{N} .,()-]{2,60}$/u;
+
+/** A Google resource id (geo target constant): digits only. */
+export const GOOGLE_ID_PATTERN = /^\d{1,20}$/;
+
 interface GoogleCampaignSpecBase {
   /** `YYYY-MM-DD`, the account's time zone. */
   startDate?: string;

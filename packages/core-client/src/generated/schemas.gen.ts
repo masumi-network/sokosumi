@@ -21179,6 +21179,103 @@ export const GoogleKeywordSchema = {
     ]
 } as const;
 
+export const ListGoogleLocationsResponseSchema = {
+    type: 'object',
+    properties: {
+        locations: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleLocation'
+            },
+            maxItems: 20
+        }
+    },
+    required: [
+        'locations'
+    ]
+} as const;
+
+export const GoogleLocationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Geo target constant id; pass it in `google.locationIds`',
+            example: '2276'
+        },
+        name: {
+            type: 'string',
+            example: 'Germany'
+        },
+        canonicalName: {
+            type: 'string',
+            example: 'Berlin,Berlin,Germany'
+        },
+        targetType: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when Google omits it',
+            example: 'City'
+        },
+        countryCode: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when Google omits it',
+            example: 'DE'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'canonicalName',
+        'targetType',
+        'countryCode'
+    ]
+} as const;
+
+export const ListGoogleLanguagesResponseSchema = {
+    type: 'object',
+    properties: {
+        languages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleLanguage'
+            }
+        }
+    },
+    required: [
+        'languages'
+    ]
+} as const;
+
+export const GoogleLanguageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Language constant id; pass it in `google.languageIds`',
+            example: '1001'
+        },
+        code: {
+            type: 'string',
+            example: 'de'
+        },
+        name: {
+            type: 'string',
+            example: 'German'
+        }
+    },
+    required: [
+        'id',
+        'code',
+        'name'
+    ]
+} as const;
+
 export const GetAdMarketProfileResponseSchema = {
     type: 'object',
     properties: {

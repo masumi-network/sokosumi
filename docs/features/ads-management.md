@@ -58,6 +58,8 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | GET | `/ads/accounts/{accountId}/campaigns?range=LAST_7_DAYS\|LAST_30_DAYS` | Campaigns + spend, impressions, clicks, CTR, CPC, conversions |
 | PATCH | `/ads/accounts/{accountId}/campaigns/{campaignId}` `{status?: ACTIVE\|PAUSED, dailyBudget?}` | Pause/resume, budget |
 | POST | `/ads/accounts/{accountId}/campaigns` `{name, dailyBudget, objective? (Meta, required), google? (Google, required)}` | Create, always PAUSED → 201 `{id}`. Google: `google` spec, `objective` is 422; Meta: `google` is 422. See [Google campaign builder](#google-campaign-builder) |
+| GET | `/ads/accounts/{accountId}/targeting/locations?q=<2-60>` or `?ids=2276,2840` | Google only (Meta is 404): `{locations: {id, name, canonicalName, targetType, countryCode}[]}`, at most 20 enabled Google locations. Send exactly one of `q` (letters, digits, spaces and `.,-()`) or `ids` (1-25 digit ids), else 422. See [Targeting lookups](#targeting-lookups) |
+| GET | `/ads/accounts/{accountId}/targeting/languages` | Google only (Meta is 404): `{languages: {id, code, name}[]}`, targetable languages sorted by name |
 | GET / PUT | `/ads/market` | Market profile |
 | GET | `/ads/market/keywords` | Trending keywords (volume, 12-month trend, competition, CPC range) |
 | GET | `/ads/market/ads` | `{status: ready\|gathering\|failed, ads, fetchedAt}`: search competitors for the profile keywords → their recent ads with `preview_image`, format, first/last shown. Clients poll every ~20s while `gathering` |
@@ -140,6 +142,17 @@ Keywords repeating another with the same match type (ignoring case) are dropped,
 6. `ad_group_ad_operation`: ENABLED, `final_urls`, `responsive_search_ad`.
 
 The campaign id is the id in the campaign result's resource name (`mutate_operation_responses[].campaign_result`). A `partial_failure_error` or a missing campaign result means nothing was applied (502). Only the campaign is PAUSED; enabling it later makes everything serve.
+
+### Targeting lookups
+
+The ids for `locationIds` and `languageIds` come from two read-only GAQL queries (`GOOGLEADS_SEARCH_STREAM_GAQL`, run in the account's customer):
+
+- Locations: `geo_target_constant` with `status = 'ENABLED'`, `LIMIT 20`. `q` adds `name LIKE '%<q>%'` and `ORDER BY name`; `ids` adds `id IN (…)`.
+- Languages: `language_constant WHERE targetable = TRUE`, sorted by name in code.
+
+`q` is interpolated into the GAQL string. That is safe only because the input is restricted to letters (any script), marks, digits, spaces and `.,-()`: no quote, `%`, `_` or backslash. Core checks this in the route schema and again before building the query; ids must be digits only. Keep the pattern tight.
+
+Check live on the preview: whether GAQL `LIKE` is case-sensitive here (does "berlin" find "Berlin"?). The tests only pin the query text, and the result decides whether the query needs a case-insensitive form.
 
 ### Errors
 

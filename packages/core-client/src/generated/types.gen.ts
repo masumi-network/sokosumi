@@ -6146,6 +6146,40 @@ export type GoogleKeyword = {
     matchType: 'BROAD' | 'PHRASE' | 'EXACT';
 };
 
+export type ListGoogleLocationsResponse = {
+    locations: Array<GoogleLocation>;
+};
+
+export type GoogleLocation = {
+    /**
+     * Geo target constant id; pass it in `google.locationIds`
+     */
+    id: string;
+    name: string;
+    canonicalName: string;
+    /**
+     * Null when Google omits it
+     */
+    targetType: string | null;
+    /**
+     * Null when Google omits it
+     */
+    countryCode: string | null;
+};
+
+export type ListGoogleLanguagesResponse = {
+    languages: Array<GoogleLanguage>;
+};
+
+export type GoogleLanguage = {
+    /**
+     * Language constant id; pass it in `google.languageIds`
+     */
+    id: string;
+    code: string;
+    name: string;
+};
+
 export type GetAdMarketProfileResponse = {
     /**
      * Null until a market profile is saved
@@ -44067,6 +44101,329 @@ export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse
 };
 
 export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse = PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses[keyof PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: {
+        /**
+         * Text the location name contains (2-60 letters, digits, spaces and `.,-()`); send either `q` or `ids`
+         */
+        q?: string;
+        /**
+         * Comma-separated geo target constant ids (1-25); send either `q` or `ids`
+         */
+        ids?: string;
+    };
+    url: '/projects/{id}/ads/accounts/{accountId}/targeting/locations';
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsError = GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsErrors[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsErrors];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponses = {
+    /**
+     * Matching Google locations
+     */
+    200: {
+        data: ListGoogleLocationsResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponse = GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponses[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponses];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}/targeting/languages';
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesError = GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesErrors[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesErrors];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponses = {
+    /**
+     * Targetable Google languages
+     */
+    200: {
+        data: ListGoogleLanguagesResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponse = GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponses[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponses];
 
 export type GetProjectsByIdAdsMarketData = {
     body?: never;

@@ -11,6 +11,8 @@ import {
   type AdCampaignUpdate,
   type AdRange,
   buildAdCampaign,
+  GOOGLE_ID_PATTERN,
+  GOOGLE_LOCATION_QUERY_PATTERN,
   type GoogleCampaignCreate,
   type GoogleKeyword,
   noAdMetrics,
@@ -534,4 +536,115 @@ export async function createGoogleCampaign(
     });
   }
   return campaignResourceName.slice(campaignResourceName.lastIndexOf("/") + 1);
+}
+
+export interface GoogleLocation {
+  id: string;
+  name: string;
+  canonicalName: string;
+  targetType: string | null;
+  countryCode: string | null;
+}
+
+export interface GoogleLanguage {
+  id: string;
+  code: string;
+  name: string;
+}
+
+const MAX_LOCATIONS = 20;
+const LOCATIONS_QUERY = `SELECT geo_target_constant.id, geo_target_constant.name, geo_target_constant.canonical_name, geo_target_constant.target_type, geo_target_constant.country_code FROM geo_target_constant WHERE geo_target_constant.status = 'ENABLED'`;
+const LANGUAGES_QUERY =
+  "SELECT language_constant.id, language_constant.code, language_constant.name FROM language_constant WHERE language_constant.targetable = TRUE";
+
+const locationRowSchema = z.object({
+  geoTargetConstant: z.object({
+    id: z.coerce.string().min(1),
+    name: z.string(),
+    canonicalName: z.string(),
+    targetType: z.string().nullish(),
+    countryCode: z.string().nullish(),
+  }),
+});
+
+const languageRowSchema = z.object({
+  languageConstant: z.object({
+    id: z.coerce.string().min(1),
+    code: z.string(),
+    name: z.string(),
+  }),
+});
+
+/**
+ * Up to 20 enabled Google locations, found by a name containing `q` (ordered
+ * by name) or by geo target constant `ids`. Both go into the GAQL text, so
+ * they are checked here against patterns that cannot end a GAQL string.
+ */
+export async function searchGoogleLocations(
+  input: AdsConnectedAccount & { customerId: string } & (
+      | { q: string }
+      | { ids: string[] }
+    ),
+): Promise<GoogleLocation[]> {
+  const { customerId, connectedAccountId, executorUserId } = input;
+  let filter: string;
+  if ("q" in input) {
+    if (!GOOGLE_LOCATION_QUERY_PATTERN.test(input.q)) {
+      throw unprocessableEntity("Invalid location search");
+    }
+    filter = `AND geo_target_constant.name LIKE '%${input.q}%' ORDER BY geo_target_constant.name`;
+  } else {
+    if (!input.ids.every((id) => GOOGLE_ID_PATTERN.test(id))) {
+      throw unprocessableEntity("Invalid location id");
+    }
+    filter = `AND geo_target_constant.id IN (${input.ids.join(", ")})`;
+  }
+  const query = `${LOCATIONS_QUERY} ${filter} LIMIT ${MAX_LOCATIONS}`;
+  const payload = await withAdsToolSession(
+    {
+      connectedAccountId,
+      executorUserId,
+      toolkit: PROJECT_AD_PROVIDERS.google_ads,
+      toolSlugs: [SEARCH_STREAM_GAQL],
+    },
+    (execute) =>
+      execute(SEARCH_STREAM_GAQL, { customer_id: customerId, query }),
+  );
+  return parseToolRows(
+    requireToolRows(payload, "results", "search Google Ads locations"),
+    locationRowSchema,
+    "search Google Ads locations",
+  ).map(({ geoTargetConstant: row }) => ({
+    id: row.id,
+    name: row.name,
+    canonicalName: row.canonicalName,
+    targetType: row.targetType ?? null,
+    countryCode: row.countryCode ?? null,
+  }));
+}
+
+/** Languages a Google campaign can target, sorted by name. */
+export async function listGoogleLanguages(
+  input: AdsConnectedAccount & { customerId: string },
+): Promise<GoogleLanguage[]> {
+  const { customerId, ...connected } = input;
+  const payload = await withAdsToolSession(
+    {
+      ...connected,
+      toolkit: PROJECT_AD_PROVIDERS.google_ads,
+      toolSlugs: [SEARCH_STREAM_GAQL],
+    },
+    (execute) =>
+      execute(SEARCH_STREAM_GAQL, {
+        customer_id: customerId,
+        query: LANGUAGES_QUERY,
+      }),
+  );
+  return parseToolRows(
+    requireToolRows(payload, "results", "list Google Ads languages"),
+    languageRowSchema,
+    "list Google Ads languages",
+  )
+    .map(({ languageConstant }) => languageConstant)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }

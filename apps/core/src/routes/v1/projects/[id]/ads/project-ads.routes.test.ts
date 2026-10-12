@@ -21,6 +21,8 @@ import mountUpdateCampaign from "./accounts/[accountId]/campaigns/[campaignId]/p
 import mountListCampaigns from "./accounts/[accountId]/campaigns/get.js";
 import mountCreateCampaign from "./accounts/[accountId]/campaigns/post.js";
 import mountDeleteAccount from "./accounts/[accountId]/delete.js";
+import mountListLanguages from "./accounts/[accountId]/targeting/languages/get.js";
+import mountSearchLocations from "./accounts/[accountId]/targeting/locations/get.js";
 import mountListAccounts from "./accounts/get.js";
 import mountAttachAccounts from "./accounts/post.js";
 import mountDiscardConnection from "./connections/[adConnectionId]/delete.js";
@@ -38,6 +40,8 @@ const m = vi.hoisted(() => ({
   campaigns: vi.fn(),
   updateCampaign: vi.fn(),
   createCampaign: vi.fn(),
+  locations: vi.fn(),
+  languages: vi.fn(),
 }));
 
 vi.mock("@/helpers/social-beta-access", () => ({
@@ -53,6 +57,8 @@ vi.mock("@/services/project-ad-accounts.service", () => ({
   listProjectAdCampaigns: m.campaigns,
   updateProjectAdCampaign: m.updateCampaign,
   createProjectAdCampaign: m.createCampaign,
+  searchProjectAdLocations: m.locations,
+  listProjectAdLanguages: m.languages,
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
@@ -132,6 +138,8 @@ function createApp(
   mountListCampaigns(app);
   mountUpdateCampaign(app);
   mountCreateCampaign(app);
+  mountSearchLocations(app);
+  mountListLanguages(app);
   return app;
 }
 
@@ -721,6 +729,157 @@ describe("Project ads routes", () => {
       const response = await createPost({ name: "Spring", dailyBudget: 5 });
       expect(response.status).toBe(403);
       expect(m.createCampaign).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("targeting lookups", () => {
+    const targetingUrl = (what: "locations" | "languages", query = "") =>
+      `http://localhost/${PROJECT_ID}/ads/accounts/${ACCOUNT_UUID}/targeting/${what}${query}`;
+    const locationsResult = {
+      locations: [
+        {
+          id: "2276",
+          name: "Germany",
+          canonicalName: "Germany",
+          targetType: "Country",
+          countryCode: "DE",
+        },
+        {
+          id: "1003854",
+          name: "Berlin",
+          canonicalName: "Berlin,Berlin,Germany",
+          targetType: null,
+          countryCode: null,
+        },
+      ],
+    };
+    const scope = {
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      accountId: ACCOUNT_UUID,
+    };
+
+    beforeEach(() => {
+      m.locations.mockResolvedValue(locationsResult);
+      m.languages.mockResolvedValue({
+        languages: [{ id: "1001", code: "de", name: "German" }],
+      });
+    });
+
+    it("searches locations by text", async () => {
+      const response = await createApp().request(
+        targetingUrl("locations", "?q=%20Berlin%20(DE)%20"),
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ data: locationsResult });
+      expect(m.locations).toHaveBeenCalledWith({ ...scope, q: "Berlin (DE)" });
+    });
+
+    it("looks locations up by comma-separated ids", async () => {
+      const response = await createApp().request(
+        targetingUrl("locations", "?ids=2276,2840"),
+      );
+      expect(response.status).toBe(200);
+      expect(m.locations).toHaveBeenCalledWith({
+        ...scope,
+        ids: ["2276", "2840"],
+      });
+    });
+
+    it("accepts letters of any script and the allowed punctuation", async () => {
+      const q = encodeURIComponent("Zürich, 東京-都 (St.)");
+      const response = await createApp().request(
+        targetingUrl("locations", `?q=${q}`),
+      );
+      expect(response.status).toBe(200);
+    });
+
+    it.each([
+      ["no input", ""],
+      ["both q and ids", "?q=Berlin&ids=2276"],
+      ["a one-character q", "?q=B"],
+      ["an empty q", "?q="],
+      ["a 61-character q", `?q=${"a".repeat(61)}`],
+      ["a quote", `?q=${encodeURIComponent("O'Brien")}`],
+      ["a double quote", `?q=${encodeURIComponent('a"b')}`],
+      ["a percent sign", `?q=${encodeURIComponent("100%")}`],
+      ["a backslash", `?q=${encodeURIComponent("a\\b")}`],
+      ["an underscore", `?q=${encodeURIComponent("a_b")}`],
+      ["an empty ids", "?ids="],
+      ["a non-digit id", "?ids=2276,abc"],
+      ["an empty id between commas", "?ids=2276,,2840"],
+      ["a trailing comma", "?ids=2276,"],
+      ["an injected id", `?ids=${encodeURIComponent("1) OR (1=1")}`],
+      [
+        "26 ids",
+        `?ids=${Array.from({ length: 26 }, (_, i) => i + 1).join(",")}`,
+      ],
+    ])("rejects %s with 422", async (_name, query) => {
+      const response = await createApp().request(
+        targetingUrl("locations", query),
+      );
+      expect(response.status).toBe(422);
+      expect(m.locations).not.toHaveBeenCalled();
+    });
+
+    it("accepts 25 ids", async () => {
+      const ids = Array.from({ length: 25 }, (_, i) => i + 1);
+      const response = await createApp().request(
+        targetingUrl("locations", `?ids=${ids.join(",")}`),
+      );
+      expect(response.status).toBe(200);
+      expect(m.locations).toHaveBeenCalledWith({
+        ...scope,
+        ids: ids.map(String),
+      });
+    });
+
+    it("lists languages", async () => {
+      const response = await createApp().request(targetingUrl("languages"));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        data: { languages: [{ id: "1001", code: "de", name: "German" }] },
+      });
+      expect(m.languages).toHaveBeenCalledWith(scope);
+    });
+
+    it.each([
+      ["locations", "?q=Berlin", () => m.locations],
+      ["languages", "", () => m.languages],
+    ] as const)("maps service errors for %s", async (what, query, service) => {
+      for (const [error, status] of [
+        [notFound("Targeting is only available for Google Ads accounts"), 404],
+        [conflict("Ad connection is not active"), 409],
+        [new ComposioToolError({ message: "secret detail" }), 502],
+        [new ComposioConfigError("nope"), 503],
+      ] as const) {
+        service().mockRejectedValue(error);
+        const response = await createApp().request(targetingUrl(what, query));
+        expect(response.status).toBe(status);
+        expect(await response.text()).not.toContain("secret detail");
+      }
+    });
+
+    it("denies users outside the beta before any work", async () => {
+      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
+      const app = createApp();
+      const responses = await Promise.all([
+        app.request(targetingUrl("locations", "?q=Berlin")),
+        app.request(targetingUrl("languages")),
+      ]);
+      expect(responses.map((r) => r.status)).toEqual([403, 403]);
+      expect(m.locations).not.toHaveBeenCalled();
+      expect(m.languages).not.toHaveBeenCalled();
+    });
+
+    it("rejects a user API key", async () => {
+      const app = createApp({
+        ...SESSION_AUTH,
+        authenticationMethod: "api_key",
+      });
+      const response = await app.request(targetingUrl("languages"));
+      expect(response.status).toBe(403);
+      expect(m.languages).not.toHaveBeenCalled();
     });
   });
 

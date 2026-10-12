@@ -37,8 +37,12 @@ import {
 import type { AvailableAdAccount } from "@/lib/ads/composio-tools";
 import {
   createGoogleCampaign,
+  type GoogleLanguage,
+  type GoogleLocation,
   listGoogleAdAccounts,
   listGoogleCampaigns,
+  listGoogleLanguages,
+  searchGoogleLocations,
   updateGoogleCampaign,
 } from "@/lib/ads/google-ads";
 import {
@@ -404,6 +408,48 @@ export async function listProjectAdCampaigns(
           currency: account.currency,
         });
   return { campaigns, range: input.range, currency: account.currency };
+}
+
+/** The Google customer of an attached ad account; targeting does not exist for Meta. */
+async function requireGoogleTargetingAccount(
+  input: ProjectScope & { accountId: string },
+) {
+  const account = await requireActiveAdAccount(input);
+  if (account.provider !== "google_ads") {
+    throw notFound("Targeting is only available for Google Ads accounts");
+  }
+  return {
+    ...account.connected,
+    customerId: account.externalAccountId,
+  };
+}
+
+/** Up to 20 Google locations of a name search (`q`) or of geo target constant `ids`. */
+export async function searchProjectAdLocations(
+  input: ProjectScope & { accountId: string } & (
+      | { q: string }
+      | { ids: string[] }
+    ),
+): Promise<{ locations: GoogleLocation[] }> {
+  const customer = await requireGoogleTargetingAccount(input);
+  return {
+    locations: await searchGoogleLocations(
+      "q" in input
+        ? { ...customer, q: input.q }
+        : { ...customer, ids: input.ids },
+    ),
+  };
+}
+
+/** The languages a Google campaign of the ad account can target. */
+export async function listProjectAdLanguages(
+  input: ProjectScope & { accountId: string },
+): Promise<{ languages: GoogleLanguage[] }> {
+  return {
+    languages: await listGoogleLanguages(
+      await requireGoogleTargetingAccount(input),
+    ),
+  };
 }
 
 /** A budget with more decimals than the currency has cannot be charged exactly. */

@@ -21,6 +21,8 @@ const m = vi.hoisted(() => {
     metaUpdate: vi.fn(),
     googleCreate: vi.fn(),
     metaCreate: vi.fn(),
+    googleLocations: vi.fn(),
+    googleLanguages: vi.fn(),
     requireScopedProject: vi.fn(),
     requireLockedOpenProject: vi.fn(),
     intentFindUnique: vi.fn(),
@@ -83,6 +85,8 @@ vi.mock("@/lib/ads/google-ads", () => ({
   listGoogleCampaigns: m.googleCampaigns,
   updateGoogleCampaign: m.googleUpdate,
   createGoogleCampaign: m.googleCreate,
+  searchGoogleLocations: m.googleLocations,
+  listGoogleLanguages: m.googleLanguages,
 }));
 vi.mock("@/lib/ads/meta-ads", () => ({
   listMetaAdAccounts: m.listMeta,
@@ -112,7 +116,9 @@ import {
   getPendingProjectAdRevocation,
   initiateProjectAdConnection,
   listProjectAdCampaigns,
+  listProjectAdLanguages,
   revokeProjectAdConnectionForClose,
+  searchProjectAdLocations,
   updateProjectAdCampaign,
 } from "./project-ad-accounts.service";
 
@@ -576,6 +582,96 @@ describe("project ad accounts service", () => {
       await expect(list()).rejects.toMatchObject({ status: 404 });
       expect(m.accountFindFirst).not.toHaveBeenCalled();
     });
+  });
+
+  describe("targeting lookups", () => {
+    const connected = {
+      connectedAccountId: "ca_1",
+      executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+    };
+    const lookups = {
+      locations: () =>
+        searchProjectAdLocations({
+          ...scope,
+          accountId: ACCOUNT_UUID,
+          q: "Berlin",
+        }),
+      languages: () =>
+        listProjectAdLanguages({ ...scope, accountId: ACCOUNT_UUID }),
+    };
+
+    it("searches locations inside the attached customer", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      m.googleLocations.mockResolvedValue([{ id: "1" }]);
+      await expect(lookups.locations()).resolves.toEqual({
+        locations: [{ id: "1" }],
+      });
+      expect(m.googleLocations).toHaveBeenCalledWith({
+        ...connected,
+        customerId: "111",
+        q: "Berlin",
+      });
+    });
+
+    it("looks locations up by id", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      m.googleLocations.mockResolvedValue([]);
+      await searchProjectAdLocations({
+        ...scope,
+        accountId: ACCOUNT_UUID,
+        ids: ["2276"],
+      });
+      expect(m.googleLocations).toHaveBeenCalledWith({
+        ...connected,
+        customerId: "111",
+        ids: ["2276"],
+      });
+    });
+
+    it("lists languages inside the attached customer", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      m.googleLanguages.mockResolvedValue([{ id: "1000" }]);
+      await expect(lookups.languages()).resolves.toEqual({
+        languages: [{ id: "1000" }],
+      });
+      expect(m.googleLanguages).toHaveBeenCalledWith({
+        ...connected,
+        customerId: "111",
+      });
+    });
+
+    it.each(Object.entries(lookups))(
+      "returns 404 for a Meta account (%s)",
+      async (_name, lookup) => {
+        m.accountFindFirst.mockResolvedValue(accountRow("meta_ads", "act_9"));
+        await expect(lookup()).rejects.toMatchObject({
+          status: 404,
+          message: expect.stringContaining("Google Ads"),
+        });
+        expect(m.googleLocations).not.toHaveBeenCalled();
+        expect(m.googleLanguages).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(Object.entries(lookups))(
+      "returns 404 for an account of another Project (%s)",
+      async (_name, lookup) => {
+        m.accountFindFirst.mockResolvedValue(null);
+        await expect(lookup()).rejects.toMatchObject({ status: 404 });
+      },
+    );
+
+    it.each(Object.entries(lookups))(
+      "returns 409 when the connection is not active (%s)",
+      async (_name, lookup) => {
+        m.accountFindFirst.mockResolvedValue(
+          accountRow("google_ads", "111", "disconnected"),
+        );
+        await expect(lookup()).rejects.toMatchObject({ status: 409 });
+        expect(m.googleLocations).not.toHaveBeenCalled();
+        expect(m.googleLanguages).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe("update campaign", () => {

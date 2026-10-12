@@ -10,6 +10,7 @@ import {
   AD_CAMPAIGN_STATUSES,
   AD_RANGES,
   GOOGLE_KEYWORD_MATCH_TYPES,
+  GOOGLE_LOCATION_QUERY_PATTERN,
   META_CAMPAIGN_OBJECTIVES,
 } from "@/lib/ads/campaigns";
 import { projectSocialConnectionProjectParamsSchema } from "@/schemas/project-social-connection.schema";
@@ -308,3 +309,73 @@ export const createAdCampaignResponseSchema = z
     id: z.string().openapi({ description: "Provider campaign id" }),
   })
   .openapi("CreateAdCampaignResponse");
+
+export const searchGoogleLocationsQuerySchema = z
+  .object({
+    q: z
+      .string()
+      .trim()
+      .regex(GOOGLE_LOCATION_QUERY_PATTERN, {
+        message: "2-60 characters: letters, digits, spaces and . , - ( ) only",
+      })
+      .optional()
+      .openapi({
+        param: { name: "q", in: "query" },
+        description:
+          "Text the location name contains (2-60 letters, digits, spaces and `.,-()`); send either `q` or `ids`",
+        example: "Berlin",
+      }),
+    ids: z
+      .string()
+      .regex(/^\d{1,20}(,\d{1,20}){0,24}$/, {
+        message: "1-25 comma-separated ids, digits only",
+      })
+      .optional()
+      .openapi({
+        param: { name: "ids", in: "query" },
+        description:
+          "Comma-separated geo target constant ids (1-25); send either `q` or `ids`",
+        example: "2276,2840",
+      }),
+  })
+  .refine(({ q, ids }) => (q === undefined) !== (ids === undefined), {
+    message: "Send either q or ids",
+  });
+
+export const googleLocationSchema = z
+  .object({
+    id: z.string().openapi({
+      description: "Geo target constant id; pass it in `google.locationIds`",
+      example: "2276",
+    }),
+    name: z.string().openapi({ example: "Germany" }),
+    canonicalName: z.string().openapi({ example: "Berlin,Berlin,Germany" }),
+    targetType: z.string().nullable().openapi({
+      description: "Null when Google omits it",
+      example: "City",
+    }),
+    countryCode: z.string().nullable().openapi({
+      description: "Null when Google omits it",
+      example: "DE",
+    }),
+  })
+  .openapi("GoogleLocation");
+
+export const listGoogleLocationsResponseSchema = z
+  .object({ locations: z.array(googleLocationSchema).max(20) })
+  .openapi("ListGoogleLocationsResponse");
+
+export const googleLanguageSchema = z
+  .object({
+    id: z.string().openapi({
+      description: "Language constant id; pass it in `google.languageIds`",
+      example: "1001",
+    }),
+    code: z.string().openapi({ example: "de" }),
+    name: z.string().openapi({ example: "German" }),
+  })
+  .openapi("GoogleLanguage");
+
+export const listGoogleLanguagesResponseSchema = z
+  .object({ languages: z.array(googleLanguageSchema) })
+  .openapi("ListGoogleLanguagesResponse");
