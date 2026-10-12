@@ -66,4 +66,20 @@ struct LoadedMessagesTests {
     #expect(loaded.room.timeline.messages.first { $0.id == root.id }?.deletedAt != nil)
     #expect(loaded.thread.parent?.deletedAt != nil)
   }
+
+  /// Core's answer to a tap reaches every loaded copy, and no tap stays pending once it answered.
+  @Test func aReactionReachesEveryCopy() async throws {
+    let (loaded, root) = try await loaded()
+    let body = testCreatedMessageBody(id: root.id, content: "Parent", clientMessageId: "turn").replacingOccurrences(
+      of: "\"reactions\":[]",
+      with: #""reactions":[{"emoji":"👍","count":1,"reactedByCurrentUser":true,"reactors":[{"id":"me","name":"Me"}]}]"#
+    )
+    let transport = TestTransport([(200, body)])
+    let reacted = try await loaded.toggleReaction(root, emoji: "👍", client: makeTestClient(transport), organizationSlug: nil)
+    #expect(reacted)
+    #expect(loaded.room.timeline.messages.first { $0.id == root.id }?.reactions.first?.reactedByCurrentUser == true)
+    #expect(loaded.thread.parent?.reactions.first?.reactedByCurrentUser == true)
+    #expect(loaded.thread.parent?.content == "Snapshot")
+    #expect(loaded.pendingReactions.intents.isEmpty)
+  }
 }
