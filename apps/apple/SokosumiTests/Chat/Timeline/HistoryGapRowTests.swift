@@ -106,7 +106,7 @@
         #expect(window.attachedSheet == nil, "The jump alert is not presented for a gap failure.")
         #expect(NSApp.windows.count == windowsBefore + 1, "No alert panel opened beside the fixture window.")
 
-        try tryAgain(in: window, host: host, state: state, auth: fixture.auth)
+        try tryAgain(in: window, host: host, state: state)
         _ = try await waitForView(in: host, timeoutMessage: "Try again did not start a load; status \(state.room.timeline.boundaryLoads.status(of: "fixture-70"))") {
           state.room.timeline.boundaryLoads.status(of: "fixture-70") != .failed ? scroll : nil
         }
@@ -121,7 +121,7 @@
 
       /// Reads the failed row back and clicks Try again where Vision finds it; where Vision cannot run
       /// (the virtualized CI runner) the closure the button runs is called directly.
-      private func tryAgain(in window: NSWindow, host: NSView, state: WorkspaceState, auth _: AuthState) throws {
+      private func tryAgain(in window: NSWindow, host: NSView, state: WorkspaceState) throws {
         let bitmap = try renderedBitmap(host)
         guard let lines = try recognizedText(in: bitmap) else {
           state.loadHistoryGap(before: "fixture-70")

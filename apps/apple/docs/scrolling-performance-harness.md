@@ -393,7 +393,7 @@ import Synchronization
       guard let scroll, (scroll.documentView?.frame.height ?? 0) > 1000 else { fatalError("Transcript not ready") }
       await pause(1500)
       if env["M6_ONLY"] == "updates" {
-        await validateUpdates(state, auth: auth, host: host, fixture: fixture, thread: thread)
+        await validateUpdates(state, host: host, fixture: fixture, thread: thread)
         window.close()
         continue
       }
@@ -421,7 +421,7 @@ import Synchronization
       await pause(300)
     } }
   }
-  func validateUpdates(_ state: WorkspaceState, auth: AuthState, host: NSView,
+  func validateUpdates(_ state: WorkspaceState, host: NSView,
                        fixture: [Components.Schemas.ChatRoomMessage], thread: Bool) async {
     let timeline = thread ? state.thread.transcript.timeline : state.room.timeline
     let target = fixture.last!.id

@@ -13,7 +13,7 @@
     /// SOK-1201: the View menu's Unreads commands (⌘⇧U and Mark all as read) read and call the same state the
     /// sidebar's rows do. The menu wiring itself is SwiftUI and stays untested, as ever; these drive what the
     /// commands are built from: the Toggle's `setUnreadsFilter`, Mark all's enablement `showsMarkAll`, and its
-    /// action `markAllUnreadRead(auth:)`.
+    /// action `markAllUnreadRead()`.
     @MainActor struct UnreadsMenuCommandsTests {
       private static let fixedDate = Date(timeIntervalSince1970: 1_790_000_000)
 
