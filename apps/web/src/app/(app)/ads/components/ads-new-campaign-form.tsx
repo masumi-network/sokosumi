@@ -456,26 +456,17 @@ export function GoogleCampaignForm({
     descriptionTooLong: t("errors.descriptionTooLong", {
       max: GOOGLE_SEARCH_LIMITS.descriptions.length,
     }),
+    tooLong: (max: number) => t("errors.tooLong", { max }),
     endBeforeStart: t("errors.endBeforeStart"),
   };
   const searchSchema = z.intersection(
     z.object(shape),
     googleSearchFormSchema({
       ...common,
-      pathTooLong: t("errors.pathTooLong", { max: GOOGLE_SEARCH_LIMITS.path }),
       pathNeedsFirst: t("errors.pathNeedsFirst"),
       sitelinkTextRequired: t("errors.sitelinkTextRequired"),
-      sitelinkTextTooLong: t("errors.sitelinkTextTooLong", {
-        max: GOOGLE_SEARCH_LIMITS.sitelinks.text,
-      }),
-      sitelinkDescriptionTooLong: t("errors.sitelinkDescriptionTooLong", {
-        max: GOOGLE_SEARCH_LIMITS.sitelinks.description,
-      }),
       sitelinkDescriptionsPair: t("errors.sitelinkDescriptionsPair"),
       sitelinkDuplicate: t("errors.sitelinkDuplicate"),
-      calloutTooLong: t("errors.calloutTooLong", {
-        max: GOOGLE_SEARCH_LIMITS.callouts.length,
-      }),
       calloutDuplicate: t("errors.calloutDuplicate"),
       keywordsRequired: t("keywords.errors.required"),
       keywordsTooMany: t("keywords.errors.tooMany", {
@@ -496,13 +487,7 @@ export function GoogleCampaignForm({
     googleDisplayFormSchema({
       ...common,
       businessNameRequired: t("errors.businessNameRequired"),
-      businessNameTooLong: t("errors.businessNameTooLong", {
-        max: GOOGLE_DISPLAY_LIMITS.businessName,
-      }),
       longHeadlineRequired: t("errors.longHeadlineRequired"),
-      longHeadlineTooLong: t("errors.longHeadlineTooLong", {
-        max: GOOGLE_DISPLAY_LIMITS.longHeadline,
-      }),
       imagesMissing: (missing) => t(`ad.images.missing.${missing}`),
     }),
   );

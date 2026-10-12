@@ -241,6 +241,23 @@ describe("googleSearchFormSchema", () => {
       );
       expect(firstIssue(result, "callouts.1")?.message).toBe("dup");
     });
+
+    it("says every too-long text with the one message and its own limit", () => {
+      const over = (max: number) => "x".repeat(max + 1);
+      const result = googleSearchFormSchema({
+        tooLong: (max) => `max ${max}`,
+      }).safeParse({
+        ...form,
+        path1: over(15),
+        sitelinks: [{ ...sitelink, text: over(25), description1: over(35) }],
+        callouts: [over(25)],
+      });
+      const message = (path: string) => firstIssue(result, path)?.message;
+      expect(message("path1")).toBe("max 15");
+      expect(message("sitelinks.0.text")).toBe("max 25");
+      expect(message("sitelinks.0.description1")).toBe("max 35");
+      expect(message("callouts.0")).toBe("max 25");
+    });
   });
 
   it("accepts the same dates and a path pair", () => {

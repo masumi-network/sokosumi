@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useId } from "react";
 import { useFormContext } from "react-hook-form";
 
 import {
@@ -10,7 +11,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import {
   GOOGLE_DISPLAY_LIMITS,
   type GoogleDisplayFormValues,
@@ -19,7 +19,7 @@ import {
 import { AdsDisplayImages } from "./ads-display-images";
 import { AdsFormSection } from "./ads-form-section";
 import { AdsFinalUrlField } from "./ads-google-search-fields";
-import { AdsCharCount, AdsTextList } from "./ads-text-list";
+import { AdsCharCount, AdsCountedInput, AdsTextList } from "./ads-text-list";
 
 type TextFieldName = "businessName" | "longHeadline";
 
@@ -27,6 +27,7 @@ function TextField({ max, name }: { max: number; name: TextFieldName }) {
   const t = useTranslations("App.Ads.newCampaign.ad");
   const form = useFormContext<GoogleDisplayFormValues>();
   const value = form.watch(name);
+  const counterId = useId();
 
   return (
     <FormField
@@ -37,11 +38,13 @@ function TextField({ max, name }: { max: number; name: TextFieldName }) {
           <FormLabel>{t(name)}</FormLabel>
           <div className="flex items-center gap-2">
             <FormControl>
-              <Input autoComplete="off" {...field} />
+              <AdsCountedInput
+                autoComplete="off"
+                counterId={counterId}
+                {...field}
+              />
             </FormControl>
-            <span className="w-12 shrink-0 text-right">
-              <AdsCharCount length={value.length} max={max} />
-            </span>
+            <AdsCharCount id={counterId} max={max} text={value} />
           </div>
           <FormMessage />
         </FormItem>

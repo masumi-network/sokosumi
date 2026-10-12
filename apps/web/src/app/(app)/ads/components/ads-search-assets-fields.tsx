@@ -1,16 +1,11 @@
 "use client";
 
-import { ChevronRight, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId, useRef, useState } from "react";
+import { type ComponentProps, useId, useRef } from "react";
 import { useFormContext } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   FormControl,
   FormField,
@@ -18,60 +13,20 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import {
+  EMPTY_SITELINK,
   filledCallouts,
   filledSitelinks,
   GOOGLE_SEARCH_LIMITS,
   type GoogleSearchFormValues,
+  SITELINK_LIMITS,
+  type SitelinkFormValues,
 } from "@/lib/ads/google-search";
 
-import { AdsCharCount, AdsTextList } from "./ads-text-list";
+import { AdsOptionalSection } from "./ads-optional-section";
+import { AdsCharCount, AdsCountedInput, AdsTextList } from "./ads-text-list";
 
-const SITELINKS = GOOGLE_SEARCH_LIMITS.sitelinks;
-const EMPTY_SITELINK = {
-  text: "",
-  finalUrl: "",
-  description1: "",
-  description2: "",
-};
-
-interface OptionalSectionProps {
-  title: string;
-  /** Said next to the title once something is filled in. */
-  summary: string | null;
-  /** Opens the section regardless, so a refusal inside it is seen. */
-  invalid: boolean;
-  children: ReactNode;
-}
-
-/** An optional part of the ad: closed until the reader wants it. */
-function OptionalSection({
-  title,
-  summary,
-  invalid,
-  children,
-}: OptionalSectionProps) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Collapsible open={open || invalid} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="group focus-visible:ring-ring-halo -m-1 flex items-center gap-2 rounded-md p-1 text-left text-sm font-medium outline-none focus-visible:ring-[3px]">
-        <ChevronRight
-          aria-hidden="true"
-          className="text-muted-foreground size-4 shrink-0 group-data-[state=open]:rotate-90 motion-safe:transition-transform"
-        />
-        {title}
-        {summary ? (
-          <span className="text-muted-foreground font-normal">{summary}</span>
-        ) : null}
-      </CollapsibleTrigger>
-      <CollapsibleContent className="pt-4">{children}</CollapsibleContent>
-    </Collapsible>
-  );
-}
-
-/** Up to eight extra links under the ad, each with its own text and address. */
+/** Extra links under the ad, up to the schema's limit, each with its own text and address. */
 export function AdsSitelinksSection() {
   const t = useTranslations("App.Ads.newCampaign.ad.sitelinks");
   const form = useFormContext<GoogleSearchFormValues>();
@@ -103,24 +58,23 @@ export function AdsSitelinksSection() {
   }
 
   return (
-    <OptionalSection
+    <AdsOptionalSection
       invalid={!!form.formState.errors.sitelinks}
       summary={count > 0 ? t("summary", { count }) : null}
       title={t("title")}
     >
       <div className="grid gap-6">
         <p className="text-muted-foreground text-sm">
-          {t("help", { max: SITELINKS.max })}
+          {t("help", { max: SITELINK_LIMITS.max })}
         </p>
-        {rows.map((row, index) => (
+        {rows.map((_, index) => (
           <SitelinkRow
             index={index}
             key={index}
             onRemove={() => handleRemove(index)}
-            row={row}
           />
         ))}
-        {rows.length < SITELINKS.max ? (
+        {rows.length < SITELINK_LIMITS.max ? (
           <Button
             className="self-start"
             onClick={handleAdd}
@@ -133,25 +87,31 @@ export function AdsSitelinksSection() {
           </Button>
         ) : null}
       </div>
-    </OptionalSection>
+    </AdsOptionalSection>
   );
 }
 
 interface SitelinkRowProps {
   index: number;
-  row: GoogleSearchFormValues["sitelinks"][number];
   onRemove: () => void;
 }
 
-const SITELINK_FIELDS = [
-  { name: "text", max: SITELINKS.text },
-  { name: "finalUrl" },
-  { name: "description1", max: SITELINKS.description },
-  { name: "description2", max: SITELINKS.description },
-] as const;
+interface SitelinkFieldSpec {
+  name: keyof SitelinkFormValues;
+  /** Fields with a limit worth watching show a counter. */
+  max?: number;
+  input?: ComponentProps<"input">;
+}
+
+const SITELINK_FIELDS: readonly SitelinkFieldSpec[] = [
+  { name: "text", max: SITELINK_LIMITS.text },
+  { name: "finalUrl", input: { autoCapitalize: "off", inputMode: "url" } },
+  { name: "description1", max: SITELINK_LIMITS.description },
+  { name: "description2", max: SITELINK_LIMITS.description },
+];
 
 /** One sitelink: link text, address and two optional description lines. */
-function SitelinkRow({ index, row, onRemove }: SitelinkRowProps) {
+function SitelinkRow({ index, onRemove }: SitelinkRowProps) {
   const t = useTranslations("App.Ads.newCampaign.ad.sitelinks");
   const form = useFormContext<GoogleSearchFormValues>();
   const titleId = useId();
@@ -173,51 +133,56 @@ function SitelinkRow({ index, row, onRemove }: SitelinkRowProps) {
         </Button>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        {SITELINK_FIELDS.map((item) => (
-          <FormField
-            control={form.control}
-            key={item.name}
-            name={`sitelinks.${index}.${item.name}`}
-            render={({ field }) => (
-              <FormItem>
-                <div className="flex items-baseline justify-between gap-3">
-                  <FormLabel className="text-muted-foreground font-normal">
-                    {t(item.name)}
-                  </FormLabel>
-                  {"max" in item ? (
-                    <AdsCharCount
-                      length={row[item.name].length}
-                      max={item.max}
+        {SITELINK_FIELDS.map(({ name, max, input }) => {
+          const counter =
+            max === undefined ? undefined : { id: `${titleId}-${name}`, max };
+
+          return (
+            <FormField
+              control={form.control}
+              key={name}
+              name={`sitelinks.${index}.${name}`}
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <FormLabel className="text-muted-foreground font-normal">
+                      {t(name)}
+                    </FormLabel>
+                    {counter ? (
+                      <AdsCharCount
+                        id={counter.id}
+                        max={counter.max}
+                        text={field.value}
+                      />
+                    ) : null}
+                  </div>
+                  <FormControl>
+                    <AdsCountedInput
+                      autoComplete="off"
+                      counterId={counter?.id}
+                      {...input}
+                      {...field}
                     />
-                  ) : null}
-                </div>
-                <FormControl>
-                  <Input
-                    autoComplete="off"
-                    {...(item.name === "finalUrl"
-                      ? { autoCapitalize: "off", inputMode: "url" as const }
-                      : {})}
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        ))}
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          );
+        })}
       </div>
     </div>
   );
 }
 
-/** Up to ten short highlights, such as "Free shipping". */
+/** Short highlights, up to the schema's limit, such as "Free shipping". */
 export function AdsCalloutsSection() {
   const t = useTranslations("App.Ads.newCampaign.ad.callouts");
   const form = useFormContext<GoogleSearchFormValues>();
   const count = filledCallouts(form.watch("callouts")).length;
 
   return (
-    <OptionalSection
+    <AdsOptionalSection
       invalid={!!form.formState.errors.callouts}
       summary={count > 0 ? t("summary", { count }) : null}
       title={t("title")}
@@ -227,6 +192,6 @@ export function AdsCalloutsSection() {
         limits={GOOGLE_SEARCH_LIMITS.callouts}
         name="callouts"
       />
-    </OptionalSection>
+    </AdsOptionalSection>
   );
 }

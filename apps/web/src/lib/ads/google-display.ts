@@ -44,14 +44,14 @@ export const GOOGLE_DISPLAY_LIMITS = {
 export interface GoogleDisplayMessages {
   finalUrl: string;
   businessNameRequired: string;
-  businessNameTooLong: string;
   headlineRequired: string;
   headlineTooLong: string;
   headlineDuplicate: string;
   longHeadlineRequired: string;
-  longHeadlineTooLong: string;
   descriptionRequired: string;
   descriptionTooLong: string;
+  /** Said for the business name and the long headline over their limits. */
+  tooLong: (max: number) => string;
   endBeforeStart: string;
   imagesMissing: (missing: "both" | "landscape" | "square") => string;
 }
@@ -68,7 +68,7 @@ const businessName = (m: OptionalMessages) =>
   text(
     GOOGLE_DISPLAY_LIMITS.businessName,
     m.businessNameRequired,
-    m.businessNameTooLong,
+    m.tooLong?.(GOOGLE_DISPLAY_LIMITS.businessName),
   );
 const headline = (m: OptionalMessages) =>
   text(HEADLINES.length, m.headlineRequired, m.headlineTooLong);
@@ -76,7 +76,7 @@ const longHeadline = (m: OptionalMessages) =>
   text(
     GOOGLE_DISPLAY_LIMITS.longHeadline,
     m.longHeadlineRequired,
-    m.longHeadlineTooLong,
+    m.tooLong?.(GOOGLE_DISPLAY_LIMITS.longHeadline),
   );
 const description = (m: OptionalMessages) =>
   text(DESCRIPTIONS.length, m.descriptionRequired, m.descriptionTooLong);
