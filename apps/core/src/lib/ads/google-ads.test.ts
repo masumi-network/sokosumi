@@ -832,42 +832,46 @@ describe("createGoogleCampaign", () => {
   );
 
   describe("Google failures", () => {
-    // What Google answers to a rejected mutate, as the tool error carries it.
+    // What Google answers to a rejected mutate, as Composio wraps it
+    // (seen live 2026-10-12): a prefix and the pretty-printed JSON body.
     const failure = (errorCode: Record<string, string>, message: string) =>
-      JSON.stringify({
-        error: {
-          code: 400,
-          message: "Request contains an invalid argument.",
-          status: "INVALID_ARGUMENT",
-          details: [
-            {
-              "@type":
-                "type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure",
-              errors: [
-                {
-                  errorCode,
-                  message,
-                  trigger: { stringValue: "A headline that is far too long" },
-                  location: {
-                    fieldPathElements: [
-                      { fieldName: "mutate_operations", index: 8 },
-                    ],
+      `API Error (400): ${JSON.stringify(
+        {
+          error: {
+            code: 400,
+            message: "Request contains an invalid argument.",
+            status: "INVALID_ARGUMENT",
+            details: [
+              {
+                "@type":
+                  "type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure",
+                errors: [
+                  {
+                    errorCode,
+                    message,
+                    trigger: { stringValue: "A headline that is far too long" },
+                    location: {
+                      fieldPathElements: [
+                        { fieldName: "mutate_operations", index: 8 },
+                      ],
+                    },
                   },
-                },
-                { errorCode: { mutateError: "x" }, message: "Second error." },
-              ],
-              requestId: "abc",
-            },
-          ],
+                  { errorCode: { mutateError: "x" }, message: "Second error." },
+                ],
+                requestId: "Yk3KzjQ-rjBMi4jqZH36zg",
+              },
+            ],
+          },
         },
-      });
+        null,
+        2,
+      )}`;
     const rejected = (providerMessage: string) =>
       executeToolMock.mockRejectedValue(
         new ComposioToolError({ message: "refused", providerMessage }),
       );
 
     it("raises 422 with Google's first error message", async () => {
-      // Longer than the 300 characters a tool error keeps, so the JSON is cut.
       rejected(failure({ stringLengthError: "TOO_LONG" }, "Too long."));
       await expect(createGoogleCampaign(create)).rejects.toMatchObject({
         status: 422,

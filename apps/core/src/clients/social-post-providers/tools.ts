@@ -10,7 +10,9 @@ import {
 } from "@/clients/composio.client";
 import type { SocialPostMediaBytes } from "@/clients/social-post-providers/types";
 
-const TOOL_ERROR_MESSAGE_LIMIT = 300;
+// Long enough for a Google Ads failure, whose per-error message comes after
+// several hundred characters of envelope. User-facing texts cut it shorter.
+const TOOL_ERROR_MESSAGE_LIMIT = 2000;
 
 /** Redacts credentials and identifiers before a provider message is stored. */
 function sanitizeProviderMessage(value: string): string {

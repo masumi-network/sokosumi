@@ -63,7 +63,7 @@ function isYouTubeQuotaError(error: unknown): boolean {
 
 function statisticsFailureMessage(error: unknown, fallback: string): string {
   if (error instanceof ComposioToolError && error.providerMessage) {
-    return `${fallback} ${error.providerMessage}`;
+    return `${fallback} ${error.providerMessage.slice(0, 300)}`;
   }
   if (error instanceof ComposioApiError) {
     return `${fallback} Connector request failed (HTTP ${error.httpStatus}).`;
