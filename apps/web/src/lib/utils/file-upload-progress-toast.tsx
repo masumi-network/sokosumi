@@ -131,7 +131,7 @@ function FileUploadProgressToastContent({
                 {Math.round(item.percentage).toString()}%
               </span>
             </div>
-            <div className="text-muted-foreground text-[0.6875rem]">
+            <div className="text-muted-foreground text-2xs">
               {formatBytes(item.loaded)} / {formatBytes(item.total)}
             </div>
           </div>

@@ -123,7 +123,8 @@ public extension WorkspaceState {
   }
 
   @discardableResult
-  func sendThreadReply(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
+  func sendThreadReply(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil,
+                       skills: [Components.Schemas.ChatRoomMessageSkill] = [], auth: AuthState) -> Bool {
     guard let client = resolveClient(auth: auth), thread.parent?.roomId == transcriptRoomId else { return false }
     if directStream.roomId == transcriptRoomId, let parentId = thread.parent?.id {
       let generation = timeline.generation
@@ -137,7 +138,8 @@ public extension WorkspaceState {
                                })
     }
     return thread.send(content, client: client, organizationSlug: selection?.workspace.organizationSlug, sender: outboundSender,
-                       mentions: ComposerMention.selected(in: content, catalog: composerMentions), quote: quote) { [weak self, weak auth] result in
+                       mentions: ComposerMention.selected(in: content, catalog: composerMentions), quote: quote,
+                       skills: skills) { [weak self, weak auth] result in
       guard let self, let auth else { return }
       switch result {
       case let .success(reply):

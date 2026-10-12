@@ -15,22 +15,18 @@ export function participantName(participant: ChatRoomUserParticipant): string {
 export function ParticipantAvatar({
   participant,
   className,
-  textClassName,
+  monogram = false,
 }: {
   participant: ChatRoomUserParticipant;
   className?: string;
-  textClassName?: string;
+  /** One initial instead of two, for faces too small to fit both. */
+  monogram?: boolean;
 }) {
   return (
     <Avatar className={className}>
       <AvatarImage src={participant.image ?? undefined} alt="" />
-      <AvatarFallback
-        className={cn(
-          "bg-muted text-muted-foreground text-[0.625rem]",
-          textClassName,
-        )}
-      >
-        {getInitials(participantName(participant))}
+      <AvatarFallback className="bg-muted text-muted-foreground text-2xs">
+        {getInitials(participantName(participant)).slice(0, monogram ? 1 : 2)}
       </AvatarFallback>
     </Avatar>
   );
@@ -38,8 +34,9 @@ export function ParticipantAvatar({
 
 /** The header stack, and the smaller faces under a message. */
 const FACE = {
-  md: { size: "size-6", overlap: "-space-x-2" },
-  sm: { size: "size-4", overlap: "-space-x-1" },
+  md: { size: "size-6", count: "h-6 min-w-6", overlap: "-space-x-2" },
+  // The `+N` grows into a pill past one digit: two at `text-2xs` overflow 16px.
+  sm: { size: "size-4", count: "h-4 min-w-4 px-0.5", overlap: "-space-x-1" },
 } as const;
 
 /**
@@ -113,7 +110,7 @@ export function ReadReceiptFaces({
           <ParticipantAvatar
             participant={participant}
             className={cn("size-full shadow-xs", TONE[tone])}
-            textClassName={size === "sm" ? "text-[0.5rem]" : undefined}
+            monogram={size === "sm"}
           />
         </span>
       ))}
@@ -121,8 +118,8 @@ export function ReadReceiptFaces({
         <span
           className={cn(
             "bg-muted text-muted-foreground relative inline-flex shrink-0 items-center justify-center rounded-full font-medium shadow-xs",
-            FACE[size].size,
-            size === "sm" ? "text-[0.5rem]" : "text-[0.625rem]",
+            FACE[size].count,
+            "text-2xs",
             TONE[tone],
           )}
           style={{ zIndex: 0 }}

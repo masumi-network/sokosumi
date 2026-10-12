@@ -24,8 +24,8 @@ vi.mock("@/lib/clients/core.client", () => ({
     toCoreApiActionErrorMock(...args),
 }));
 
-vi.mock("@/lib/services/admin-coworker.service", () => ({
-  adminCoworkerService: {
+vi.mock("@/lib/services/coworker-display.service", () => ({
+  coworkerDisplayService: {
     updateDisplay: (...args: unknown[]) => updateDisplayMock(...args),
   },
 }));

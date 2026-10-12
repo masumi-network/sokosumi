@@ -103,8 +103,8 @@ export function InvoiceDetail({ invoice: initialInvoice }: InvoiceDetailProps) {
 
       <div className="flex flex-wrap gap-2">
         {!isPaid ? (
-          <Button onClick={handleMarkPaid} disabled={isMarkingPaid}>
-            {isMarkingPaid ? t("Result.marking") : t("Result.markPaid")}
+          <Button onClick={handleMarkPaid} loading={isMarkingPaid}>
+            {t("Result.markPaid")}
           </Button>
         ) : null}
         <InvoiceDeleteButton

@@ -3,26 +3,18 @@
  * Replaces Radix ScrollArea so the scrollbar tracks the same node as list scroll.
  * The bottom edge meets the composer box directly and cuts content there.
  *
- * Bottom-anchored (`flex-col-reverse`): `scrollTop` is 0 at the newest
- * message and negative above it, so a row above the viewport that turns out
- * taller than its estimate never moves what is on screen and no scroll write
- * has to put it back. iOS cannot take that write during a touch scroll.
+ * Normal scroll coordinates: TanStack owns prepend and streaming anchoring.
+ * Disable browser anchoring so it does not apply a second correction.
  */
 export const CHAT_MESSAGE_LIST_SCROLLER_CLASS =
-  "app-scrollbar flex min-h-0 min-w-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]";
+  "app-scrollbar flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto [overflow-anchor:none]";
 
 /**
  * The scroller's one child, without its padding. `shrink-0`, or the flex
  * column clamps it to the scroller's height and the list cannot scroll up.
  * `min-h-full justify-end` sits a short transcript on the composer.
  *
- * `overflow-y-clip`, so the scroller's `scrollHeight` is this box and nothing
- * else. WebKit adds whatever hangs past the end of a reversed scroller to it,
- * and the transcript reads its offset from the top out of `scrollHeight`. The
- * Seen by touch target on the newest row hangs 2px past the bottom padding on
- * a phone: the offset moved by that much whenever the row mounted or
- * unmounted, and the virtualizer took the row back and dropped it again until
- * React gave up (SOKOSUMI-SF).
+ * Clip row overhang so touch targets do not change the scrollable height.
  */
 export const CHAT_MESSAGE_LIST_CONTENT_CLASS =
   "flex min-h-full min-w-0 w-full shrink-0 flex-col justify-end overflow-y-clip";

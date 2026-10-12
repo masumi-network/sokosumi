@@ -6,19 +6,23 @@ export async function fetchPersonalWorkspaceAccess(
   signal?: AbortSignal,
 ): Promise<boolean> {
   const { data } = parseApiResponse<unknown>(
-    await client.get("/v1/users/me/workspace-access", signal),
+    await client.get("/v1/users/me/workspaces", signal),
   );
   if (
     !data ||
     typeof data !== "object" ||
-    !("hasPersonalWorkspace" in data) ||
-    typeof data.hasPersonalWorkspace !== "boolean"
+    !("workspaces" in data) ||
+    !Array.isArray(data.workspaces)
   ) {
-    throw new Error(
-      "Invalid personal Workspace response: expected hasPersonalWorkspace boolean",
-    );
+    throw new Error("Invalid Workspaces response: expected a workspaces array");
   }
-  return data.hasPersonalWorkspace;
+  return data.workspaces.some(
+    (workspace: unknown) =>
+      !!workspace &&
+      typeof workspace === "object" &&
+      "kind" in workspace &&
+      workspace.kind === "personal",
+  );
 }
 
 export async function ensurePersonalWorkspace(
@@ -28,14 +32,18 @@ export async function ensurePersonalWorkspace(
   if (await fetchPersonalWorkspaceAccess(client, signal)) return;
   try {
     const { data } = parseApiResponse<unknown>(
-      await client.post("/v1/users/me/personal-workspace", {}, signal),
+      await client.post(
+        "/v1/users/me/workspaces",
+        { kind: "personal" },
+        signal,
+      ),
     );
     if (
       !data ||
       typeof data !== "object" ||
-      !("workspaceId" in data) ||
-      typeof data.workspaceId !== "string" ||
-      !data.workspaceId.trim()
+      !("id" in data) ||
+      typeof data.id !== "string" ||
+      !data.id.trim()
     ) {
       throw new Error(
         "Personal Workspace creation returned no ID. Inspect your account before retrying.",

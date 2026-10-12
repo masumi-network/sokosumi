@@ -14,7 +14,7 @@ import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 
 import { unprocessableEntity } from "@/helpers/error.js";
 
-export function assertMinEnterpriseCreditsPerMonth(credits: number): void {
+function assertMinEnterpriseCreditsPerMonth(credits: number): void {
   try {
     validateMinEnterpriseCreditsPerMonth(credits);
   } catch (error) {
@@ -64,9 +64,7 @@ export function optionalOneTimeCreditsToCents(
   return convertCreditsToCents(oneTimeCredits);
 }
 
-export function mapEnterpriseContractPeriodForApi(
-  period: EnterpriseContractPeriod,
-) {
+function mapEnterpriseContractPeriodForApi(period: EnterpriseContractPeriod) {
   return {
     id: period.id,
     createdAt: period.createdAt,

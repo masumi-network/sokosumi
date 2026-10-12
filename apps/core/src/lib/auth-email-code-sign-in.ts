@@ -231,8 +231,7 @@ export function emailCodeSignIn(emailCode: ReturnType<typeof emailOTP>) {
           handler: createAuthMiddleware(async (ctx) => {
             const newSession = ctx.context.newSession;
             const returned = ctx.context.returned;
-            // An earlier after hook may have refused the sign-in, e.g. Core's
-            // terms check.
+            // The endpoint or an earlier after hook refused the sign-in.
             if (
               !newSession ||
               returned instanceof APIError ||

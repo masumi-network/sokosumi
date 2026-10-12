@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ComponentProps, useState } from "react";
 
@@ -63,14 +62,8 @@ export default function VerifyEmailButton({
           "inline-flex items-center justify-center gap-1.5",
           className,
         )}
-        disabled={isSending}
+        loading={isSending}
       >
-        {isSending ? (
-          <Loader2
-            className="size-4 animate-spin motion-reduce:animate-pulse"
-            aria-hidden
-          />
-        ) : null}
         {label}
       </Button>
     </>

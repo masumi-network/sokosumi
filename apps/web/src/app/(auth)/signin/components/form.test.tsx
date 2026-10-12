@@ -60,10 +60,6 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock("@/lib/actions/errors/error-codes/auth", () => ({
-  AuthErrorCode: { TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED" },
-}));
-
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     getSession: (...args: unknown[]) => mockGetSession(...args),
@@ -813,20 +809,6 @@ describe("SignInForm", () => {
         expect(toast.error).toHaveBeenLastCalledWith("errorDescription"),
       );
       expect(mockLocationReplace).not.toHaveBeenCalled();
-    });
-
-    it("says why when the updated terms are not accepted", async () => {
-      mockSignInEmail.mockResolvedValue({
-        data: null,
-        error: { code: "TERMS_NOT_ACCEPTED", message: "Terms" },
-      });
-      renderForm();
-
-      await submitPassword();
-
-      await waitFor(() =>
-        expect(toast.error).toHaveBeenLastCalledWith("termsNotAccepted"),
-      );
     });
 
     it("shows translated captcha errors from Core and releases the form", async () => {

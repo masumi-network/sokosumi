@@ -246,6 +246,12 @@ public struct UnreadThreadsAttention: Equatable, Sendable {
     self.mentionCount = mentionCount
   }
 
+  /// Web's `hasCount`: the row's label is full strength and bold only while a Thread is unread, and muted like
+  /// a read row otherwise. A mention changes only which number the row draws.
+  public var isUnread: Bool {
+    threadCount > 0
+  }
+
   /// Web's spoken form (`UnreadNav.mentions`, `unreadThreads`, `unreadThreadsCapped`); empty at zero.
   public var accessibilityLabel: String {
     guard threadCount > 0 else { return "" }

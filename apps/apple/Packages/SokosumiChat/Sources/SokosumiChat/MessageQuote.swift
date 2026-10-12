@@ -5,7 +5,7 @@ import Foundation
 public func messageQuote(from message: Components.Schemas.ChatRoomMessage) -> Components.Schemas.ChatRoomMessageQuote? {
   guard canQuoteMessage(message) else { return nil }
   func paragraphs(_ blocks: [MessageMarkdownBlock]) -> [[MessageAttachmentSegment]] {
-    blocks.flatMap { [MessageAttachmentSegment.split($0.text)] + paragraphs($0.children) }
+    blocks.flatMap { [MessageAttachmentSegment.split($0.text, linksAreAttachments: true)] + paragraphs($0.children) }
   }
   let content = message.content.replacingOccurrences(of: #"```[\s\S]*?```"#, with: " ", options: .regularExpression)
   let parts = paragraphs(MessageMarkdown(content).blocks)

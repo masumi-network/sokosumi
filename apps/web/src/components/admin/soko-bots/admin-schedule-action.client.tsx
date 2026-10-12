@@ -126,10 +126,11 @@ export function AdminScheduleAction({
               variant={
                 action === "DISABLE_SCHEDULE" ? "destructive" : "default"
               }
-              disabled={reason.trim().length < 3 || isPending}
+              loading={isPending}
+              disabled={reason.trim().length < 3}
               onClick={handleConfirm}
             >
-              {isPending ? t("working") : label}
+              {label}
             </Button>
           </DialogFooter>
         </DialogContent>

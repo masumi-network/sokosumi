@@ -36,6 +36,7 @@
   "dependencies": {
     "decimal.js": "10.6.0",
     "namefully": "2.2.0",
+    "slugify": "1.6.9",
     "zod": "4.6.5"
   },
   "devDependencies": {

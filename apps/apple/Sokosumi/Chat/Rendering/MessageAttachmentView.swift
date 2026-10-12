@@ -256,7 +256,7 @@ private struct AttachmentMediaView: View {
   var body: some View {
     Group {
       if let player {
-        VideoPlayer(player: player)
+        InlineMediaPlayer(player: player)
       } else {
         Button {
           let created = AVPlayer(url: url)

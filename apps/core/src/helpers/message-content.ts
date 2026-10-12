@@ -283,7 +283,7 @@ export function extractUiMessageParts(
     .filter((part): part is PersistedConversationContentPart => part !== null);
 }
 
-export function readPersistedUiPartsFromMetadata(
+function readPersistedUiPartsFromMetadata(
   metadata: unknown,
 ): PersistedChatUiPart[] {
   const meta = metadata as ConversationMessageMetadataShape | null;

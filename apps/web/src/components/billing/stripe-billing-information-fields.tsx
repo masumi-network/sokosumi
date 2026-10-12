@@ -83,7 +83,7 @@ export function StripeBillingInformationFields({
             copiedFeedback
             presentation="inline-code"
             value={stripeCustomerId}
-            buttonClassName="size-7"
+            buttonClassName="hit-area size-7"
             codeClassName="text-sm"
           />
         ) : (
