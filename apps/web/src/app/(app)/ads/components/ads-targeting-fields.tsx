@@ -4,6 +4,7 @@ import type { GoogleLocation } from "@sokosumi/core-client";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
+import { flushSync } from "react-dom";
 import { useFormContext } from "react-hook-form";
 
 import {
@@ -11,7 +12,6 @@ import {
   buildComboboxLabels,
 } from "@/components/admin/async-search-combobox";
 import { Button } from "@/components/ui/button";
-import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import {
   Command,
   CommandEmpty,
@@ -34,16 +34,20 @@ import {
 import {
   GOOGLE_LOCATION_QUERY_MAX_LENGTH,
   type GoogleTarget,
+  hasTarget,
+  toGoogleTarget,
 } from "@/lib/ads/targeting";
 import { cn } from "@/lib/utils";
+
+import { AdsChipList } from "./ads-chip-list";
 
 const LIMIT = GOOGLE_SEARCH_LIMITS.targetIds;
 
 interface AdsGoogleTargetingFieldsProps {
   accountId: string;
   projectId: string;
-  /** Google's languages; null when they could not be loaded. */
-  languages: GoogleTarget[] | null;
+  /** Google's languages to pick from; null when they could not be loaded. */
+  languageOptions: GoogleTarget[] | null;
 }
 
 /**
@@ -53,62 +57,49 @@ interface AdsGoogleTargetingFieldsProps {
 export function AdsGoogleTargetingFields({
   accountId,
   projectId,
-  languages,
+  languageOptions,
 }: AdsGoogleTargetingFieldsProps) {
   return (
     <>
       <LocationsField accountId={accountId} projectId={projectId} />
-      <LanguagesField languages={languages} />
+      <LanguagesField languageOptions={languageOptions} />
     </>
   );
 }
 
-interface TargetChipsProps {
-  items: GoogleTarget[];
-  /** Said when nothing is chosen. */
-  none: string;
-  removeLabel: (name: string) => string;
-  onRemove: (id: string) => void;
-}
+/**
+ * One chosen list of the form, with the one way to change it. Removing a chip
+ * moves focus to the field's picker once React has re-rendered it: at the
+ * limit the picker is disabled until the chip is gone, so focus cannot move
+ * before then.
+ */
+function useTargets(name: "locations" | "languages", pickerId: string) {
+  const form = useFormContext<GoogleSearchFormValues>();
+  const selected = form.watch(name);
 
-/** The chosen items, or what "none" means. */
-function TargetChips({ items, none, removeLabel, onRemove }: TargetChipsProps) {
-  if (items.length === 0) {
-    return <p className="text-muted-foreground text-sm">{none}</p>;
+  function set(next: GoogleTarget[]): void {
+    form.setValue(name, next, { shouldDirty: true });
   }
-  return (
-    <ul className="flex flex-wrap gap-2">
-      {items.map(({ id, name, detail }) => (
-        <li
-          key={id}
-          title={detail}
-          className="bg-muted text-foreground inline-flex items-center rounded-full pl-3 text-sm"
-        >
-          {name}
-          <ChipRemoveButton
-            aria-label={removeLabel(name)}
-            onClick={() => onRemove(id)}
-          />
-        </li>
-      ))}
-    </ul>
-  );
-}
 
-/** Moves focus back to a picker once the chip that had it is gone. */
-function focusPicker(id: string): void {
-  document.getElementById(id)?.focus();
+  function handleRemove(id: string): void {
+    flushSync(() => set(selected.filter((chosen) => chosen.id !== id)));
+    document.getElementById(pickerId)?.focus();
+  }
+
+  return { selected, set, handleRemove, full: selected.length >= LIMIT };
 }
 
 function LocationsField({
   accountId,
   projectId,
-}: Omit<AdsGoogleTargetingFieldsProps, "languages">) {
+}: Omit<AdsGoogleTargetingFieldsProps, "languageOptions">) {
   const t = useTranslations("App.Ads.newCampaign.targeting.locations");
-  const form = useFormContext<GoogleSearchFormValues>();
   const pickerId = useId();
-  const selected = form.watch("locations");
-  const full = selected.length >= LIMIT;
+  const helpId = useId();
+  const { selected, set, handleRemove, full } = useTargets(
+    "locations",
+    pickerId,
+  );
 
   async function search(query: string): Promise<GoogleLocation[]> {
     const result = await searchAdLocations({
@@ -117,45 +108,22 @@ function LocationsField({
       q: query.slice(0, GOOGLE_LOCATION_QUERY_MAX_LENGTH),
     });
     if (!result.ok) throw new Error("Location search failed");
-    return result.value.filter(
-      ({ id }) => !selected.some((chosen) => chosen.id === id),
-    );
+    return result.value.filter(({ id }) => !hasTarget(selected, id));
   }
 
   function handleAdd(location: GoogleLocation | null): void {
-    if (!location || full || selected.some(({ id }) => id === location.id)) {
-      return;
-    }
-    form.setValue(
-      "locations",
-      [
-        ...selected,
-        {
-          id: location.id,
-          name: location.name,
-          detail: location.canonicalName,
-        },
-      ],
-      { shouldDirty: true },
-    );
-  }
-
-  function handleRemove(id: string): void {
-    form.setValue(
-      "locations",
-      selected.filter((chosen) => chosen.id !== id),
-      { shouldDirty: true },
-    );
-    focusPicker(pickerId);
+    if (!location || full || hasTarget(selected, location.id)) return;
+    set([...selected, toGoogleTarget(location)]);
   }
 
   return (
     <div className="grid gap-2">
       <Label htmlFor={pickerId}>{t("label")}</Label>
-      <p className="text-muted-foreground text-sm">
+      <p className="text-muted-foreground text-sm" id={helpId}>
         {full ? t("full", { max: LIMIT }) : t("help", { max: LIMIT })}
       </p>
       <AsyncSearchCombobox<GoogleLocation>
+        aria-describedby={helpId}
         disabled={full}
         getKey={({ id }) => id}
         getTriggerLabel={({ name }) => name}
@@ -166,9 +134,9 @@ function LocationsField({
         value={null}
         onChange={handleAdd}
       />
-      <TargetChips
+      <AdsChipList
+        emptyLabel={t("all")}
         items={selected}
-        none={t("all")}
         removeLabel={(name) => t("remove", { name })}
         onRemove={handleRemove}
       />
@@ -188,44 +156,36 @@ function LocationOption({ name, canonicalName, targetType }: GoogleLocation) {
 }
 
 function LanguagesField({
-  languages,
-}: Pick<AdsGoogleTargetingFieldsProps, "languages">) {
+  languageOptions,
+}: Pick<AdsGoogleTargetingFieldsProps, "languageOptions">) {
   const t = useTranslations("App.Ads.newCampaign.targeting.languages");
-  const form = useFormContext<GoogleSearchFormValues>();
   const pickerId = useId();
+  const helpId = useId();
   const [open, setOpen] = useState(false);
-  const selected = form.watch("languages");
-  const full = selected.length >= LIMIT;
+  const { selected, set, handleRemove, full } = useTargets(
+    "languages",
+    pickerId,
+  );
 
   function handleToggle(language: GoogleTarget): void {
-    const chosen = selected.some(({ id }) => id === language.id);
-    if (!chosen && full) return;
-    form.setValue(
-      "languages",
-      chosen
-        ? selected.filter(({ id }) => id !== language.id)
-        : [...selected, language],
-      { shouldDirty: true },
-    );
-  }
-
-  function handleRemove(id: string): void {
-    form.setValue(
-      "languages",
-      selected.filter((chosen) => chosen.id !== id),
-      { shouldDirty: true },
-    );
-    focusPicker(pickerId);
+    if (hasTarget(selected, language.id)) {
+      set(selected.filter(({ id }) => id !== language.id));
+    } else if (!full) {
+      set([...selected, language]);
+    }
   }
 
   return (
     <div className="grid gap-2">
       <Label htmlFor={pickerId}>{t("label")}</Label>
-      <p className="text-muted-foreground text-sm">{t("help")}</p>
-      {languages ? (
+      <p className="text-muted-foreground text-sm" id={helpId}>
+        {t("help")}
+      </p>
+      {languageOptions ? (
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button
+              aria-describedby={helpId}
               aria-expanded={open}
               className="text-muted-foreground w-full min-w-0 justify-between gap-2 overflow-hidden font-normal"
               id={pickerId}
@@ -246,10 +206,8 @@ function LanguagesField({
               <CommandList>
                 <CommandEmpty>{t("empty")}</CommandEmpty>
                 <CommandGroup>
-                  {languages.map((language) => {
-                    const chosen = selected.some(
-                      ({ id }) => id === language.id,
-                    );
+                  {languageOptions.map((language) => {
+                    const chosen = hasTarget(selected, language.id);
                     return (
                       <CommandItem
                         disabled={full && !chosen}
@@ -272,9 +230,9 @@ function LanguagesField({
       ) : (
         <p className="text-muted-foreground text-sm">{t("unavailable")}</p>
       )}
-      <TargetChips
+      <AdsChipList
+        emptyLabel={t("all")}
         items={selected}
-        none={t("all")}
         removeLabel={(name) => t("remove", { name })}
         onRemove={handleRemove}
       />

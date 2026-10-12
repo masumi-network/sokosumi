@@ -45,7 +45,7 @@ import {
   googleSearchFormSchema,
   toGoogleSearchSpec,
 } from "@/lib/ads/google-search";
-import type { GoogleTarget, GoogleTargeting } from "@/lib/ads/targeting";
+import type { GoogleTargeting } from "@/lib/ads/targeting";
 import { useAdsBudget } from "./ads-budget";
 import { AdsFormSection } from "./ads-form-section";
 import {
@@ -354,8 +354,6 @@ const EMPTY_GOOGLE_VALUES = {
   dailyBudget: "",
   startDate: "",
   endDate: "",
-  locations: [] as GoogleTarget[],
-  languages: [] as GoogleTarget[],
   keywords: "",
   finalUrl: "",
   path1: "",
@@ -447,7 +445,7 @@ export function GoogleSearchCampaignForm({
         <AdsGoogleSearchFields
           accountId={props.accountId}
           hasMarketProfile={hasMarketProfile}
-          languages={targeting.languages}
+          languageOptions={targeting.languageOptions}
           projectId={props.projectId}
         />
       </CampaignFormFrame>

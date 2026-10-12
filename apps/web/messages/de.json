@@ -3213,7 +3213,7 @@
             "loading": "Suche läuft…",
             "idle": "Tippen Sie, um einen Ort zu finden.",
             "empty": "Keine Standorte gefunden.",
-            "error": "Die Standortsuche ist fehlgeschlagen. Versuchen Sie es erneut.",
+            "error": "Standorte konnten nicht gesucht werden.",
             "all": "Alle Länder",
             "remove": "{name} entfernen"
           },

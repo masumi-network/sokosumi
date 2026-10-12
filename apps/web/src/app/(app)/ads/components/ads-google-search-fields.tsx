@@ -35,8 +35,8 @@ import { AdsGoogleTargetingFields } from "./ads-targeting-fields";
 interface AdsGoogleSearchFieldsProps {
   accountId: string;
   projectId: string;
-  /** Google's languages; null when they could not be loaded. */
-  languages: GoogleTarget[] | null;
+  /** Google's languages to pick from; null when they could not be loaded. */
+  languageOptions: GoogleTarget[] | null;
   /** Whether "Add from Market" has keywords to draw on. */
   hasMarketProfile: boolean;
 }
@@ -47,7 +47,7 @@ interface AdsGoogleSearchFieldsProps {
  */
 export function AdsGoogleSearchFields({
   accountId,
-  languages,
+  languageOptions,
   projectId,
   hasMarketProfile,
 }: AdsGoogleSearchFieldsProps) {
@@ -61,7 +61,7 @@ export function AdsGoogleSearchFields({
       >
         <AdsGoogleTargetingFields
           accountId={accountId}
-          languages={languages}
+          languageOptions={languageOptions}
           projectId={projectId}
         />
       </AdsFormSection>

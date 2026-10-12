@@ -15,7 +15,7 @@ const {
     getMarketProfile: vi.fn(),
     listMarketKeywords: vi.fn(),
     listLanguages: vi.fn(),
-    listLocationsByIds: vi.fn(),
+    getLocationById: vi.fn(),
   },
   formMock: vi.fn(),
   hasSocialBetaAccessMock: vi.fn(),
@@ -91,7 +91,7 @@ describe("NewAdsCampaignPage", () => {
         { id: "1001", code: "de", name: "German" },
       ],
     });
-    adsServiceMock.listLocationsByIds.mockResolvedValue({
+    adsServiceMock.getLocationById.mockResolvedValue({
       locations: [
         {
           id: "2276",
@@ -198,13 +198,13 @@ describe("NewAdsCampaignPage", () => {
         "project-1",
         "a1",
       );
-      expect(adsServiceMock.listLocationsByIds).toHaveBeenCalledWith(
+      expect(adsServiceMock.getLocationById).toHaveBeenCalledWith(
         "project-1",
         "a1",
-        ["2276"],
+        "2276",
       );
       expect(targeting()).toEqual({
-        languages: [
+        languageOptions: [
           { id: "1000", name: "English" },
           { id: "1001", name: "German" },
         ],
@@ -213,16 +213,34 @@ describe("NewAdsCampaignPage", () => {
       });
     });
 
+    it("looks up the location while the languages are still loading", async () => {
+      let finishLanguages: (value: unknown) => void = () => undefined;
+      adsServiceMock.listLanguages.mockReturnValue(
+        new Promise((resolve) => {
+          finishLanguages = resolve;
+        }),
+      );
+
+      const page = visit({ projectId: "project-1", accountId: "a1" });
+
+      await vi.waitFor(() =>
+        expect(adsServiceMock.getLocationById).toHaveBeenCalled(),
+      );
+      finishLanguages({ languages: [] });
+      render(await page);
+      expect(targeting().defaultLocations).toHaveLength(1);
+    });
+
     it("suggests nothing without a Market profile, looking up no location", async () => {
       adsServiceMock.getMarketProfile.mockResolvedValue({ profile: null });
       render(await visit({ projectId: "project-1", accountId: "a1" }));
 
-      expect(adsServiceMock.listLocationsByIds).not.toHaveBeenCalled();
+      expect(adsServiceMock.getLocationById).not.toHaveBeenCalled();
       expect(targeting()).toMatchObject({
         defaultLocations: [],
         defaultLanguages: [],
       });
-      expect(targeting().languages).toHaveLength(2);
+      expect(targeting().languageOptions).toHaveLength(2);
     });
 
     it("leaves the language empty when Google has none for the profile's", async () => {
@@ -239,7 +257,7 @@ describe("NewAdsCampaignPage", () => {
       adsServiceMock.listLanguages.mockRejectedValue(
         new CoreApiRequestError("down", { status: 502 }),
       );
-      adsServiceMock.listLocationsByIds.mockRejectedValue(
+      adsServiceMock.getLocationById.mockRejectedValue(
         new CoreApiRequestError("down", { status: 502 }),
       );
       render(await visit({ projectId: "project-1", accountId: "a1" }));
@@ -247,7 +265,7 @@ describe("NewAdsCampaignPage", () => {
       expect(screen.getByTestId("form")).toBeVisible();
       expect(reached()).toMatchObject({ hasMarketProfile: true });
       expect(targeting()).toEqual({
-        languages: null,
+        languageOptions: null,
         defaultLocations: [],
         defaultLanguages: [],
       });

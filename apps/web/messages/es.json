@@ -3213,7 +3213,7 @@
             "loading": "Buscando…",
             "idle": "Escribe para encontrar un lugar.",
             "empty": "No se encontraron ubicaciones.",
-            "error": "No se pudo buscar ubicaciones. Inténtalo de nuevo.",
+            "error": "No se pudieron buscar las ubicaciones.",
             "all": "Todos los países",
             "remove": "Quitar {name}"
           },

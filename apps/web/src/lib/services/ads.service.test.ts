@@ -36,6 +36,8 @@ const ACCOUNT = {
   createdAt: new Date("2026-10-01T10:00:00.000Z"),
 };
 
+type AdsService = typeof import("./ads.service").adsService;
+
 describe("adsService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -293,7 +295,7 @@ describe("adsService", () => {
     await expect(adsService.listMarketAds("project-1")).resolves.toBe(ads);
   });
 
-  it("searches Google locations by name and looks them up by id", async () => {
+  it("searches Google locations by name and gets one by id", async () => {
     const locations = {
       locations: [
         {
@@ -321,13 +323,10 @@ describe("adsService", () => {
       { q: "Ger" },
     );
 
-    await adsService.listLocationsByIds("project-1", "account-1", [
-      "2372",
-      "2840",
-    ]);
+    await adsService.getLocationById("project-1", "account-1", "2372");
     expect(lookup).toHaveBeenLastCalledWith(
       { id: "project-1", accountId: "account-1" },
-      { ids: "2372,2840" },
+      { ids: "2372" },
     );
   });
 
@@ -348,4 +347,33 @@ describe("adsService", () => {
       coreClientMock.getProjectsByIdAdsAccountsByAccountIdTargetingLanguages,
     ).toHaveBeenCalledWith({ id: "project-1", accountId: "account-1" });
   });
+
+  it.each([
+    [
+      "searchLocations",
+      (service: AdsService) =>
+        service.searchLocations("project-1", "account-1", "Ger"),
+      "getProjectsByIdAdsAccountsByAccountIdTargetingLocations",
+    ],
+    [
+      "getLocationById",
+      (service: AdsService) =>
+        service.getLocationById("project-1", "account-1", "2276"),
+      "getProjectsByIdAdsAccountsByAccountIdTargetingLocations",
+    ],
+    [
+      "listLanguages",
+      (service: AdsService) => service.listLanguages("project-1", "account-1"),
+      "getProjectsByIdAdsAccountsByAccountIdTargetingLanguages",
+    ],
+  ] as const)(
+    "lets a Core failure through from %s",
+    async (_name, call, operation) => {
+      coreClientMock[operation].mockRejectedValue(new Error("boom"));
+
+      const { adsService } = await import("./ads.service");
+
+      await expect(call(adsService)).rejects.toThrow("boom");
+    },
+  );
 });

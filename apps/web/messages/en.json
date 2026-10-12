@@ -3213,7 +3213,7 @@
             "loading": "Searching…",
             "idle": "Type to find a place.",
             "empty": "No locations found.",
-            "error": "Couldn't search locations. Try again.",
+            "error": "Failed to search locations.",
             "all": "All countries",
             "remove": "Remove {name}"
           },
@@ -3223,7 +3223,7 @@
             "placeholder": "Choose languages",
             "search": "Search languages",
             "empty": "No languages found.",
-            "unavailable": "Couldn't load languages. The campaign will target all languages.",
+            "unavailable": "Failed to load languages. The campaign will target all languages.",
             "all": "All languages",
             "remove": "Remove {name}"
           }

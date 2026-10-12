@@ -59,7 +59,7 @@ const LANGUAGES = [
 ];
 
 const NO_DEFAULTS: GoogleTargeting = {
-  languages: LANGUAGES,
+  languageOptions: LANGUAGES,
   defaultLocations: [],
   defaultLanguages: [],
 };
@@ -425,7 +425,11 @@ describe("AdsNewCampaignForm", () => {
         await pickLocation(user, "mun", "Munich");
         await toggleLanguage(user, "German");
 
-        await user.click(screen.getByRole("button", { name: "Remove Munich" }));
+        await user.click(
+          screen.getByRole("button", {
+            name: "Remove Munich, Bavaria, Germany",
+          }),
+        );
         await user.click(screen.getByRole("button", { name: "Remove German" }));
 
         expect(screen.getByText("All countries")).toBeVisible();
@@ -474,6 +478,80 @@ describe("AdsNewCampaignForm", () => {
         expect(screen.getAllByRole("listitem")).toHaveLength(25);
       });
 
+      it("moves focus to the location picker when removing a chip at the limit", async () => {
+        const locations = Array.from({ length: 25 }, (_, i) => ({
+          id: `${i + 1}`,
+          name: `Place ${i + 1}`,
+        }));
+        const user = await renderForm({
+          targeting: { ...NO_DEFAULTS, defaultLocations: locations },
+        });
+        expect(locationsPicker()).toBeDisabled();
+
+        await user.click(
+          screen.getByRole("button", { name: "Remove Place 3" }),
+        );
+
+        expect(locationsPicker()).toBeEnabled();
+        expect(locationsPicker()).toHaveFocus();
+      });
+
+      it("moves focus to the languages picker when removing a language", async () => {
+        const user = await renderForm();
+        await toggleLanguage(user, "German");
+        await user.keyboard("{Escape}");
+
+        await user.click(screen.getByRole("button", { name: "Remove German" }));
+
+        expect(languagesPicker()).toHaveFocus();
+      });
+
+      it("describes each picker by its help text", async () => {
+        await renderForm();
+
+        expect(locationsPicker()).toHaveAccessibleDescription(
+          "Where your ads can show. Up to 25.",
+        );
+        expect(languagesPicker()).toHaveAccessibleDescription(
+          "Show ads to people who use these languages.",
+        );
+      });
+
+      it("describes the location picker by the limit once it is reached", async () => {
+        const locations = Array.from({ length: 25 }, (_, i) => ({
+          id: `${i + 1}`,
+          name: `Place ${i + 1}`,
+        }));
+        await renderForm({
+          targeting: { ...NO_DEFAULTS, defaultLocations: locations },
+        });
+
+        expect(locationsPicker()).toHaveAccessibleDescription(
+          "Location limit reached (25).",
+        );
+      });
+
+      it("labels a chip's remove button with the location's full name", async () => {
+        await renderForm({
+          targeting: {
+            ...NO_DEFAULTS,
+            defaultLocations: [
+              {
+                id: "1026339",
+                name: "Paris",
+                detail: "Paris, Texas, United States",
+              },
+            ],
+          },
+        });
+
+        expect(
+          screen.getByRole("button", {
+            name: "Remove Paris, Texas, United States",
+          }),
+        ).toBeVisible();
+      });
+
       it("starts from the Market profile's location and language, which can be removed", async () => {
         createMock.mockResolvedValue({ ok: true, value: { id: "42" } });
         const user = await renderForm({
@@ -517,9 +595,7 @@ describe("AdsNewCampaignForm", () => {
 
         // The popover animates in; wait until the message is shown.
         await waitFor(() =>
-          expect(
-            screen.getByText("Couldn't search locations. Try again."),
-          ).toBeVisible(),
+          expect(screen.getByText("Failed to search locations.")).toBeVisible(),
         );
         await user.keyboard("{Escape}");
         await user.click(submit());
@@ -528,11 +604,13 @@ describe("AdsNewCampaignForm", () => {
       });
 
       it("explains it when the languages could not be loaded", async () => {
-        await renderForm({ targeting: { ...NO_DEFAULTS, languages: null } });
+        await renderForm({
+          targeting: { ...NO_DEFAULTS, languageOptions: null },
+        });
 
         expect(
           screen.getByText(
-            "Couldn't load languages. The campaign will target all languages.",
+            "Failed to load languages. The campaign will target all languages.",
           ),
         ).toBeVisible();
         expect(

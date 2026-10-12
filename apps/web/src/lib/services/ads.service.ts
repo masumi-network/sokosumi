@@ -165,16 +165,16 @@ export const adsService = (() => {
     return result.data;
   }
 
-  /** The locations with these Google ids (1 to 25), in no promised order. */
-  async function listLocationsByIds(
+  /** The location with this Google id, as Core lists it. */
+  async function getLocationById(
     projectId: string,
     accountId: string,
-    ids: string[],
+    locationId: string,
   ): Promise<ListGoogleLocationsResponse> {
     const result =
       await coreClient.getProjectsByIdAdsAccountsByAccountIdTargetingLocations(
         { id: projectId, accountId },
-        { ids: ids.join(",") },
+        { ids: locationId },
       );
     return result.data;
   }
@@ -206,7 +206,7 @@ export const adsService = (() => {
     listMarketKeywords,
     listMarketAds,
     searchLocations,
-    listLocationsByIds,
+    getLocationById,
     listLanguages,
   };
 })();

@@ -76,6 +76,37 @@ describe("googleSearchFormSchema", () => {
     expect(firstIssue(result, path)).toBeDefined();
   });
 
+  const targets = (count: number) =>
+    Array.from({ length: count }, (_, i) => ({
+      id: `${i + 1}`,
+      name: `T${i}`,
+    }));
+
+  it("takes up to 25 locations and 25 languages, and refuses a 26th", () => {
+    const max = GOOGLE_SEARCH_LIMITS.targetIds;
+
+    expect(max).toBe(25);
+    expect(
+      schema.safeParse({
+        ...form,
+        locations: targets(max),
+        languages: targets(max),
+      }).success,
+    ).toBe(true);
+    expect(
+      firstIssue(
+        schema.safeParse({ ...form, locations: targets(max + 1) }),
+        "locations",
+      ),
+    ).toBeDefined();
+    expect(
+      firstIssue(
+        schema.safeParse({ ...form, languages: targets(max + 1) }),
+        "languages",
+      ),
+    ).toBeDefined();
+  });
+
   it("refuses more keywords than Core allows", () => {
     const keywords = Array.from({ length: 51 }, (_, i) => `kw ${i}`).join("\n");
     expect(
@@ -129,6 +160,14 @@ describe("googleSearchSpecSchema", () => {
       { startDate: "2026-11-02", endDate: "2026-11-01" },
     ],
     ["a non-numeric location", { locationIds: ["Germany"] }],
+    [
+      "26 locations",
+      { locationIds: Array.from({ length: 26 }, (_, i) => `${i + 1}`) },
+    ],
+    [
+      "26 languages",
+      { languageIds: Array.from({ length: 26 }, (_, i) => `${i + 1}`) },
+    ],
     ["a non-http URL", { finalUrl: "javascript:alert(1)" }],
     ["another type", { type: "DISPLAY" }],
   ])("refuses %s", (_name, change) => {

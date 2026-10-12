@@ -14,7 +14,7 @@ import {
   MetaCampaignForm,
 } from "@/app/ads/components/ads-new-campaign-form";
 import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
-import { type GoogleTargeting, matchGoogleLanguage } from "@/lib/ads/targeting";
+import { toGoogleTargeting } from "@/lib/ads/targeting";
 import { adsService } from "@/lib/services/ads.service";
 import { projectService } from "@/lib/services/project.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
@@ -41,34 +41,34 @@ export async function generateMetadata(): Promise<Metadata> {
  * button, the language picker, a prefilled chip), never the form.
  */
 async function loadGoogleSetup(projectId: string, accountId: string) {
-  const [profileLoad, languagesLoad] = await Promise.all([
-    settleAdsLoad(adsService.getMarketProfile(projectId)),
-    settleAdsLoad(adsService.listLanguages(projectId, accountId)),
+  const profileLoad = settleAdsLoad(adsService.getMarketProfile(projectId));
+  const languagesLoad = settleAdsLoad(
+    adsService.listLanguages(projectId, accountId),
+  );
+  // The location needs only the profile, so it does not wait for the languages.
+  const locationLoad = profileLoad.then(({ data }) => {
+    const locationId = data?.profile?.locationId;
+    return locationId
+      ? settleAdsLoad(
+          adsService.getLocationById(projectId, accountId, locationId),
+        )
+      : null;
+  });
+
+  const [profileResult, languagesResult, locationResult] = await Promise.all([
+    profileLoad,
+    languagesLoad,
+    locationLoad,
   ]);
-  const profile = profileLoad.error ? null : profileLoad.data.profile;
-  const languages = languagesLoad.error ? null : languagesLoad.data.languages;
-
-  const locationId = profile?.locationId ?? null;
-  const locationLoad = locationId
-    ? await settleAdsLoad(
-        adsService.listLocationsByIds(projectId, accountId, [locationId]),
-      )
-    : null;
-  const language =
-    profile && languages
-      ? matchGoogleLanguage(profile.languageCode, languages)
-      : undefined;
-
-  const targeting: GoogleTargeting = {
-    languages: languages?.map(({ id, name }) => ({ id, name })) ?? null,
-    defaultLocations: (locationLoad?.data?.locations ?? []).map(
-      ({ id, name, canonicalName }) => ({ id, name, detail: canonicalName }),
-    ),
-    defaultLanguages: language
-      ? [{ id: language.id, name: language.name }]
-      : [],
+  const profile = profileResult.data?.profile ?? null;
+  return {
+    hasMarketProfile: !!profile,
+    targeting: toGoogleTargeting({
+      profile,
+      languages: languagesResult.data?.languages ?? null,
+      locations: locationResult?.data?.locations ?? [],
+    }),
   };
-  return { hasMarketProfile: !!profile, targeting };
 }
 
 /**
