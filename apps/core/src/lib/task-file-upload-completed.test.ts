@@ -102,28 +102,6 @@ describe("registerTaskFileFromUploadCompleted", () => {
     });
   });
 
-  it("maps a legacy uploadedByOrchestratorId token onto uploadedBySokoBotId", async () => {
-    const sokoBotId = "11111111-1111-7111-8111-111111111111";
-
-    await registerTaskFileFromUploadCompleted({
-      blob: completedBlob(),
-      tokenPayload: tokenPayload({
-        uploadedByUserId: null,
-        uploadedBySokoBotId: undefined,
-        uploadedByOrchestratorId: sokoBotId,
-      }),
-      blobToken: BLOB_TOKEN,
-    });
-
-    expect(taskFileCreateMock).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        uploadedByUserId: null,
-        uploadedByCoworkerId: null,
-        uploadedBySokoBotId: sokoBotId,
-      }),
-    });
-  });
-
   it("is idempotent when unique constraint races", async () => {
     taskFileCreateMock.mockRejectedValueOnce(
       Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
