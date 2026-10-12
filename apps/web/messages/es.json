@@ -3188,7 +3188,6 @@
         "sections": {
           "basics": "Datos básicos",
           "targeting": "Segmentación",
-          "keywords": "Palabras clave",
           "ad": "Anuncio"
         },
         "name": "Nombre",
@@ -3211,6 +3210,8 @@
           "placeholder": "zapatillas running\n\"zapatillas trail running\"\n[comprar zapatillas running]",
           "count": "{count, plural, one {# palabra clave} other {# palabras clave}}",
           "addFromMarket": "Añadir desde Mercado",
+          "marketNone": "No hay palabras clave nuevas del Mercado para añadir",
+          "marketFailed": "No se pudieron cargar las palabras clave del Mercado",
           "errors": {
             "required": "Añade al menos una palabra clave.",
             "tooMany": "Usa como máximo {max} palabras clave.",
@@ -3247,7 +3248,7 @@
         "success": "Campaña creada (en pausa)",
         "errors": {
           "nameRequired": "Introduce un nombre.",
-          "nameTooLong": "Usa como máximo 255 caracteres.",
+          "nameTooLong": "Usa como máximo {max} caracteres.",
           "objectiveRequired": "Elige un objetivo.",
           "finalUrl": "Introduce una dirección completa que empiece por http:// o https://.",
           "headlineRequired": "Introduce un título o quita este.",
@@ -3258,7 +3259,6 @@
           "pathTooLong": "Usa como máximo {max} caracteres.",
           "pathNeedsFirst": "Rellena primero la ruta 1.",
           "endBeforeStart": "La fecha de finalización no puede ser anterior a la de inicio.",
-          "refusedTitle": "No se creó la campaña",
           "failed": "No se pudo crear la campaña"
         }
       },

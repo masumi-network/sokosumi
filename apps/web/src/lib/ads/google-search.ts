@@ -5,6 +5,7 @@ import * as z from "zod";
 import {
   GOOGLE_KEYWORD_LIMIT,
   GOOGLE_KEYWORD_MAX_LENGTH,
+  GOOGLE_KEYWORD_MAX_WORDS,
   GOOGLE_MATCH_TYPES,
   type GoogleKeywordIssue,
   parseGoogleKeywords,
@@ -45,35 +46,35 @@ export interface GoogleSearchMessages {
   keywordsInvalid: (line: number, issue: GoogleKeywordIssue) => string;
 }
 
-type Messages = Partial<GoogleSearchMessages>;
+type OptionalMessages = Partial<GoogleSearchMessages>;
 
 const HEADLINE_LIMITS = GOOGLE_SEARCH_LIMITS.headlines;
 const DESCRIPTION_LIMITS = GOOGLE_SEARCH_LIMITS.descriptions;
 
-const finalUrl = (m: Messages) =>
+const finalUrl = (messages: OptionalMessages) =>
   z
     .string()
     .trim()
-    .max(GOOGLE_SEARCH_LIMITS.finalUrl, m.finalUrl)
-    .pipe(z.url({ protocol: /^https?$/, error: m.finalUrl }));
+    .max(GOOGLE_SEARCH_LIMITS.finalUrl, messages.finalUrl)
+    .pipe(z.url({ protocol: /^https?$/, error: messages.finalUrl }));
 
-const headline = (m: Messages) =>
+const headline = (messages: OptionalMessages) =>
   z
     .string()
     .trim()
-    .min(1, m.headlineRequired)
-    .max(HEADLINE_LIMITS.length, m.headlineTooLong);
+    .min(1, messages.headlineRequired)
+    .max(HEADLINE_LIMITS.length, messages.headlineTooLong);
 
-const description = (m: Messages) =>
+const description = (messages: OptionalMessages) =>
   z
     .string()
     .trim()
-    .min(1, m.descriptionRequired)
-    .max(DESCRIPTION_LIMITS.length, m.descriptionTooLong);
+    .min(1, messages.descriptionRequired)
+    .max(DESCRIPTION_LIMITS.length, messages.descriptionTooLong);
 
 /** The optional display path: empty or up to Core's length. */
-const path = (m: Messages) =>
-  z.string().trim().max(GOOGLE_SEARCH_LIMITS.path, m.pathTooLong);
+const path = (messages: OptionalMessages) =>
+  z.string().trim().max(GOOGLE_SEARCH_LIMITS.path, messages.pathTooLong);
 
 /** Rules that span fields; absent values may be undefined or empty. */
 function refineAcrossFields(
@@ -85,20 +86,20 @@ function refineAcrossFields(
     headlines: readonly string[];
   },
   ctx: z.RefinementCtx,
-  m: Messages,
+  messages: OptionalMessages,
 ): void {
   if (value.startDate && value.endDate && value.endDate < value.startDate) {
     ctx.addIssue({
       code: "custom",
       path: ["endDate"],
-      message: m.endBeforeStart ?? "End date is before the start date",
+      message: messages.endBeforeStart ?? "End date is before the start date",
     });
   }
   if (value.path2?.trim() && !value.path1?.trim()) {
     ctx.addIssue({
       code: "custom",
       path: ["path2"],
-      message: m.pathNeedsFirst ?? "Path 2 needs path 1",
+      message: messages.pathNeedsFirst ?? "Path 2 needs path 1",
     });
   }
   const seen = new Set<string>();
@@ -108,11 +109,17 @@ function refineAcrossFields(
       ctx.addIssue({
         code: "custom",
         path: ["headlines", index],
-        message: m.headlineDuplicate ?? "Headlines must be different",
+        message: messages.headlineDuplicate ?? "Headlines must be different",
       });
     }
     seen.add(key);
   });
+}
+
+/** Whether `YYYY-MM-DD` is a real day: 2026-02-31 is not. */
+function isCalendarDate(value: string): boolean {
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
 }
 
 /**
@@ -120,9 +127,12 @@ function refineAcrossFields(
  * the form still meets Core's limits. Google stays the authority on width
  * and policy.
  */
-export function googleSearchSpecSchema(m: Messages = {}) {
+export function googleSearchSpecSchema(messages: OptionalMessages = {}) {
   const id = z.string().regex(/^\d{1,20}$/);
-  const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+  const date = z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine(isCalendarDate);
   return z
     .object({
       type: z.literal("SEARCH"),
@@ -130,28 +140,35 @@ export function googleSearchSpecSchema(m: Messages = {}) {
       endDate: date.optional(),
       locationIds: z.array(id).max(GOOGLE_SEARCH_LIMITS.targetIds),
       languageIds: z.array(id).max(GOOGLE_SEARCH_LIMITS.targetIds),
-      finalUrl: finalUrl(m),
+      finalUrl: finalUrl(messages),
       keywords: z
         .array(
           z.object({
-            text: z.string().trim().min(1).max(GOOGLE_KEYWORD_MAX_LENGTH),
+            text: z
+              .string()
+              .trim()
+              .min(1)
+              .max(GOOGLE_KEYWORD_MAX_LENGTH)
+              .refine(
+                (text) => text.split(/\s+/).length <= GOOGLE_KEYWORD_MAX_WORDS,
+              ),
             matchType: z.enum(GOOGLE_MATCH_TYPES),
           }),
         )
-        .min(1, m.keywordsRequired)
-        .max(GOOGLE_KEYWORD_LIMIT, m.keywordsTooMany),
+        .min(1, messages.keywordsRequired)
+        .max(GOOGLE_KEYWORD_LIMIT, messages.keywordsTooMany),
       headlines: z
-        .array(headline(m))
+        .array(headline(messages))
         .min(HEADLINE_LIMITS.min)
         .max(HEADLINE_LIMITS.max),
       descriptions: z
-        .array(description(m))
+        .array(description(messages))
         .min(DESCRIPTION_LIMITS.min)
         .max(DESCRIPTION_LIMITS.max),
-      path1: path(m).min(1).optional(),
-      path2: path(m).min(1).optional(),
+      path1: path(messages).min(1).optional(),
+      path2: path(messages).min(1).optional(),
     })
-    .superRefine((value, ctx) => refineAcrossFields(value, ctx, m));
+    .superRefine((value, ctx) => refineAcrossFields(value, ctx, messages));
 }
 
 /** What the Search part of the create page holds: text, as typed. */
@@ -167,7 +184,7 @@ export interface GoogleSearchFormValues {
 }
 
 /** The same limits for the form's fields, in the reader's words. */
-export function googleSearchFormSchema(m: Messages = {}) {
+export function googleSearchFormSchema(messages: OptionalMessages = {}) {
   return z
     .object({
       startDate: z.string(),
@@ -179,22 +196,22 @@ export function googleSearchFormSchema(m: Messages = {}) {
           ctx.addIssue({
             code: "custom",
             message:
-              m.keywordsInvalid?.(first.line, first.issue) ??
+              messages.keywordsInvalid?.(first.line, first.issue) ??
               `Line ${first.line} is not a valid keyword`,
           });
         } else if (keywords.length === 0) {
-          ctx.addIssue({ code: "custom", message: m.keywordsRequired });
+          ctx.addIssue({ code: "custom", message: messages.keywordsRequired });
         } else if (keywords.length > GOOGLE_KEYWORD_LIMIT) {
-          ctx.addIssue({ code: "custom", message: m.keywordsTooMany });
+          ctx.addIssue({ code: "custom", message: messages.keywordsTooMany });
         }
       }),
-      finalUrl: finalUrl(m),
-      path1: path(m),
-      path2: path(m),
-      headlines: z.array(headline(m)),
-      descriptions: z.array(description(m)),
+      finalUrl: finalUrl(messages),
+      path1: path(messages),
+      path2: path(messages),
+      headlines: z.array(headline(messages)),
+      descriptions: z.array(description(messages)),
     })
-    .superRefine((value, ctx) => refineAcrossFields(value, ctx, m));
+    .superRefine((value, ctx) => refineAcrossFields(value, ctx, messages));
 }
 
 /**

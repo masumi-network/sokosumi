@@ -21,6 +21,7 @@ const adsServiceMock = {
   discardConnection: vi.fn(),
   updateCampaign: vi.fn(),
   createCampaign: vi.fn(),
+  listMarketKeywords: vi.fn(),
   saveMarketProfile: vi.fn(),
 };
 
@@ -494,6 +495,28 @@ describe("ads actions", () => {
       ],
       ["a name over 255 characters", { name: "a".repeat(256) }],
       ["a zero budget", { dailyBudget: 0 }],
+      [
+        "a keyword of 11 words",
+        {
+          google: {
+            ...google,
+            keywords: [
+              {
+                text: "one two three four five six seven eight nine ten eleven",
+                matchType: "BROAD" as const,
+              },
+            ],
+          },
+        },
+      ],
+      [
+        "a start date that is not on the calendar",
+        { google: { ...google, startDate: "2026-02-31" } },
+      ],
+      [
+        "an end date that is not on the calendar",
+        { google: { ...google, endDate: "2026-13-01" } },
+      ],
     ])("rejects %s, calling nothing", async (_name, changes) => {
       const { createAdCampaign } = await import("./action");
       const { revalidatePath } = await import("next/cache");
@@ -529,6 +552,44 @@ describe("ads actions", () => {
 
       expect(result).toMatchObject({ ok: false, error: { status } });
       expect(revalidatePath).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("listAdMarketKeywords", () => {
+    it("returns the names of the trending keywords", async () => {
+      adsServiceMock.listMarketKeywords.mockResolvedValue({
+        keywords: [{ keyword: "running shoes" }, { keyword: "trail shoes" }],
+      });
+
+      const { listAdMarketKeywords } = await import("./action");
+      const result = await listAdMarketKeywords({ projectId: " project-1 " });
+
+      expect(adsServiceMock.listMarketKeywords).toHaveBeenCalledWith(
+        "project-1",
+      );
+      expect(result).toEqual({
+        ok: true,
+        value: ["running shoes", "trail shoes"],
+      });
+    });
+
+    it("reports a Core failure", async () => {
+      adsServiceMock.listMarketKeywords.mockRejectedValue(
+        await coreError("down", 502),
+      );
+
+      const { listAdMarketKeywords } = await import("./action");
+      const result = await listAdMarketKeywords({ projectId: "project-1" });
+
+      expect(result).toMatchObject({ ok: false, error: { status: 502 } });
+    });
+
+    it("rejects a blank project, calling nothing", async () => {
+      const { listAdMarketKeywords } = await import("./action");
+      const result = await listAdMarketKeywords({ projectId: " " });
+
+      expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+      expect(adsServiceMock.listMarketKeywords).not.toHaveBeenCalled();
     });
   });
 

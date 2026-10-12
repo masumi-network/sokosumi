@@ -3188,7 +3188,6 @@
         "sections": {
           "basics": "Basics",
           "targeting": "Targeting",
-          "keywords": "Keywords",
           "ad": "Ad"
         },
         "name": "Name",
@@ -3211,6 +3210,8 @@
           "placeholder": "running shoes\n\"trail running shoes\"\n[buy running shoes]",
           "count": "{count, plural, one {# keyword} other {# keywords}}",
           "addFromMarket": "Add from Market",
+          "marketNone": "No new Market keywords to add",
+          "marketFailed": "Failed to load Market keywords",
           "errors": {
             "required": "Add at least one keyword.",
             "tooMany": "Use at most {max} keywords.",
@@ -3247,7 +3248,7 @@
         "success": "Campaign created (paused)",
         "errors": {
           "nameRequired": "Enter a name.",
-          "nameTooLong": "Use at most 255 characters.",
+          "nameTooLong": "Use at most {max} characters.",
           "objectiveRequired": "Choose an objective.",
           "finalUrl": "Enter a full address starting with http:// or https://.",
           "headlineRequired": "Enter a headline or remove this one.",
@@ -3258,7 +3259,6 @@
           "pathTooLong": "Use at most {max} characters.",
           "pathNeedsFirst": "Fill in path 1 first.",
           "endBeforeStart": "The end date can't be before the start date.",
-          "refusedTitle": "The campaign wasn't created",
           "failed": "Failed to create campaign"
         }
       },

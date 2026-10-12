@@ -33,6 +33,11 @@ export function selectAccount(
   return accounts.find(({ id }) => id === accountId) ?? accounts[0];
 }
 
+/** The Campaigns tab of one account, where the create page leads back to. */
+export function campaignsHref(projectId: string, accountId: string): string {
+  return `/ads?${new URLSearchParams({ projectId, tab: "campaigns", account: accountId })}`;
+}
+
 /** The create page's URL state: the project and the account to create in. */
 export const loadNewCampaignSearchParams = createLoader({
   projectId: parseAsString,

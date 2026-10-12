@@ -37,9 +37,13 @@ vi.mock("@/lib/services/project.service", () => ({
 vi.mock("@/lib/social-beta-access.server", () => ({
   hasCurrentUserSocialBetaAccess: hasSocialBetaAccessMock,
 }));
-vi.mock("../../components/ads-new-campaign-form", () => ({
-  AdsNewCampaignForm: (props: Record<string, unknown>) => {
-    formMock(props);
+vi.mock("@/app/ads/components/ads-new-campaign-form", () => ({
+  GoogleSearchCampaignForm: (props: Record<string, unknown>) => {
+    formMock({ ...props, form: "google" });
+    return <div data-testid="form" />;
+  },
+  MetaCampaignForm: (props: Record<string, unknown>) => {
+    formMock({ ...props, form: "meta" });
     return <div data-testid="form" />;
   },
 }));
@@ -131,48 +135,41 @@ describe("NewAdsCampaignPage", () => {
     expect(reached()).toMatchObject({
       accountId: "a1",
       currency: "EUR",
+      form: "google",
       projectId: "project-1",
-      provider: "google_ads",
     });
   });
 
-  it("hands a Google account the project's Market keywords", async () => {
+  it("hands a Google account whether the project has a Market profile, reading no keywords", async () => {
     render(await visit({ projectId: "project-1", accountId: "a1" }));
 
-    await expect(reached().marketKeywords).resolves.toEqual([
-      "running shoes",
-      "trail shoes",
-    ]);
-  });
-
-  it("offers no Market keywords without a market profile, asking for none", async () => {
-    adsServiceMock.getMarketProfile.mockResolvedValue({ profile: null });
-    render(await visit({ projectId: "project-1", accountId: "a1" }));
-
-    await expect(reached().marketKeywords).resolves.toEqual([]);
+    expect(reached()).toMatchObject({ form: "google", hasMarketProfile: true });
     expect(adsServiceMock.listMarketKeywords).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["the profile", "getMarketProfile"],
-    ["the keywords", "listMarketKeywords"],
-  ])("still renders when loading %s fails", async (_name, method) => {
-    adsServiceMock[method as "getMarketProfile"].mockRejectedValue(
+  it("says there is no Market profile when the project has none", async () => {
+    adsServiceMock.getMarketProfile.mockResolvedValue({ profile: null });
+    render(await visit({ projectId: "project-1", accountId: "a1" }));
+
+    expect(reached()).toMatchObject({ hasMarketProfile: false });
+  });
+
+  it("still renders, without the button, when loading the profile fails", async () => {
+    adsServiceMock.getMarketProfile.mockRejectedValue(
       new CoreApiRequestError("down", { status: 502 }),
     );
     render(await visit({ projectId: "project-1", accountId: "a1" }));
 
     expect(screen.getByTestId("form")).toBeVisible();
-    await expect(reached().marketKeywords).resolves.toEqual([]);
+    expect(reached()).toMatchObject({ hasMarketProfile: false });
   });
 
-  it("gives a Meta account no Market keywords and reads none", async () => {
+  it("gives a Meta account the Meta form and reads no Market data", async () => {
     render(await visit({ projectId: "project-1", accountId: "a2" }));
 
-    expect(reached()).toMatchObject({
-      marketKeywords: null,
-      provider: "meta_ads",
-    });
+    expect(reached()).toMatchObject({ form: "meta", currency: "USD" });
+    expect(reached()).not.toHaveProperty("hasMarketProfile");
     expect(adsServiceMock.getMarketProfile).not.toHaveBeenCalled();
+    expect(adsServiceMock.listMarketKeywords).not.toHaveBeenCalled();
   });
 });

@@ -15,7 +15,10 @@ import {
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import { AD_CAMPAIGN_OBJECTIVES } from "@/lib/ads/campaign";
+import {
+  AD_CAMPAIGN_NAME_MAX_LENGTH,
+  AD_CAMPAIGN_OBJECTIVES,
+} from "@/lib/ads/campaign";
 import { googleSearchSpecSchema } from "@/lib/ads/google-search";
 import { createMarketProfileSchema } from "@/lib/ads/market";
 import {
@@ -160,7 +163,7 @@ export const createAdCampaign = adsAction(
   z.object({
     projectId: trimmedId,
     accountId: trimmedId,
-    name: z.string().trim().min(1).max(255),
+    name: z.string().trim().min(1).max(AD_CAMPAIGN_NAME_MAX_LENGTH),
     dailyBudget: z.number().positive(),
     objective: z.enum(AD_CAMPAIGN_OBJECTIVES).optional(),
     google: googleSearchSpecSchema().optional(),
@@ -174,6 +177,20 @@ export const createAdCampaign = adsAction(
     });
     revalidatePath("/ads");
     return campaign;
+  },
+);
+
+/**
+ * The names of the project's trending Market keywords, for "Add from Market".
+ * Core serves them from its 24-hour cache and asks the data provider (which
+ * is paid) only when that has run out, so this is called on a click, never on
+ * page load.
+ */
+export const listAdMarketKeywords = adsAction(
+  z.object({ projectId: trimmedId }),
+  async ({ projectId }): Promise<string[]> => {
+    const { keywords } = await adsService.listMarketKeywords(projectId);
+    return keywords.map(({ keyword }) => keyword);
   },
 );
 

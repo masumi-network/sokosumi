@@ -2,6 +2,7 @@ import type { ProjectAdAccount } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
 import {
+  campaignsHref,
   loadAdsSearchParams,
   loadNewCampaignSearchParams,
   selectAccount,
@@ -62,5 +63,13 @@ describe("loadNewCampaignSearchParams", () => {
       projectId: null,
       accountId: null,
     });
+  });
+});
+
+describe("campaignsHref", () => {
+  it("opens the Campaigns tab of the account", () => {
+    expect(campaignsHref("p1", "a2")).toBe(
+      "/ads?projectId=p1&tab=campaigns&account=a2",
+    );
   });
 });

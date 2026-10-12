@@ -4,16 +4,20 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
-
+import {
+  campaignsHref,
+  loadNewCampaignSearchParams,
+} from "@/app/ads/ads-query";
+import { settleAdsLoad } from "@/app/ads/components/ads-load-error";
+import {
+  GoogleSearchCampaignForm,
+  MetaCampaignForm,
+} from "@/app/ads/components/ads-new-campaign-form";
 import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
 import { adsService } from "@/lib/services/ads.service";
 import { projectService } from "@/lib/services/project.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 import { cn } from "@/lib/utils";
-
-import { loadNewCampaignSearchParams } from "../../ads-query";
-import { settleAdsLoad } from "../../components/ads-load-error";
-import { AdsNewCampaignForm } from "../../components/ads-new-campaign-form";
 
 // Wait for the current session and project access before rendering.
 export const instant = false;
@@ -28,25 +32,14 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The project's trending Market keywords, for "Add from Market". Core serves
- * them from its 24-hour cache and asks the data provider only when that has
- * run out, which is what the Market tab does when it opens too. With no
- * market profile there is nothing to read, and the button does not appear. A
- * failed lookup does the same: this is an extra, not a reason to lose the form.
+ * Whether the project has a Market profile, which is what "Add from Market"
+ * needs. Only the profile is read here: the keywords come from the data
+ * provider (paid) when Core's 24-hour cache has run out, so they load on the
+ * button's click. A failed lookup hides the button, not the form.
  */
-async function loadMarketKeywords(projectId: string): Promise<string[]> {
-  try {
-    const profile = await settleAdsLoad(adsService.getMarketProfile(projectId));
-    if (profile.error || !profile.data.profile) return [];
-    const keywords = await settleAdsLoad(
-      adsService.listMarketKeywords(projectId),
-    );
-    return keywords.error
-      ? []
-      : keywords.data.keywords.map(({ keyword }) => keyword);
-  } catch {
-    return [];
-  }
+async function hasMarketProfile(projectId: string): Promise<boolean> {
+  const profile = await settleAdsLoad(adsService.getMarketProfile(projectId));
+  return !profile.error && !!profile.data.profile;
 }
 
 /**
@@ -80,11 +73,6 @@ export default async function NewAdsCampaignPage({
 
   const t = await getTranslations("App.Ads.newCampaign");
   const tProviders = await getTranslations("App.Ads.accounts.providers");
-  const campaignsParams = new URLSearchParams({
-    projectId: project.id,
-    tab: "campaigns",
-    account: account.id,
-  });
 
   return (
     <div className={cn(PROJECTS_WORKSPACE_SHELL_CLASS, "pt-2 md:pt-3")}>
@@ -92,7 +80,7 @@ export default async function NewAdsCampaignPage({
         <header className="flex flex-col gap-3">
           <Link
             className="text-muted-foreground hover:text-foreground self-start text-sm underline-offset-4 hover:underline"
-            href={`/ads?${campaignsParams.toString()}`}
+            href={campaignsHref(project.id, account.id)}
           >
             {t("back")}
           </Link>
@@ -109,17 +97,20 @@ export default async function NewAdsCampaignPage({
             </p>
           </div>
         </header>
-        <AdsNewCampaignForm
-          accountId={account.id}
-          currency={account.currency}
-          marketKeywords={
-            account.provider === "google_ads"
-              ? loadMarketKeywords(project.id)
-              : null
-          }
-          projectId={project.id}
-          provider={account.provider}
-        />
+        {account.provider === "google_ads" ? (
+          <GoogleSearchCampaignForm
+            accountId={account.id}
+            currency={account.currency}
+            hasMarketProfile={await hasMarketProfile(project.id)}
+            projectId={project.id}
+          />
+        ) : (
+          <MetaCampaignForm
+            accountId={account.id}
+            currency={account.currency}
+            projectId={project.id}
+          />
+        )}
       </div>
     </div>
   );

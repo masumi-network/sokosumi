@@ -1,25 +1,39 @@
 import type { ProjectAdProvider } from "@sokosumi/core-client";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAdCampaign } from "@/lib/actions/ads/action";
+import {
+  createAdCampaign,
+  listAdMarketKeywords,
+} from "@/lib/actions/ads/action";
 import messages from "../../../../../messages/en.json";
-import { AdsNewCampaignForm } from "./ads-new-campaign-form";
+import {
+  GoogleSearchCampaignForm,
+  MetaCampaignForm,
+} from "./ads-new-campaign-form";
 
-const { pushMock, toastSuccessMock } = vi.hoisted(() => ({
+const { pushMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
   pushMock: vi.fn(),
+  toastErrorMock: vi.fn(),
   toastSuccessMock: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({
-  toast: { success: (...args: unknown[]) => toastSuccessMock(...args) },
+  toast: {
+    error: (...args: unknown[]) => toastErrorMock(...args),
+    success: (...args: unknown[]) => toastSuccessMock(...args),
+  },
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: pushMock }) }));
-vi.mock("@/lib/actions/ads/action", () => ({ createAdCampaign: vi.fn() }));
+vi.mock("@/lib/actions/ads/action", () => ({
+  createAdCampaign: vi.fn(),
+  listAdMarketKeywords: vi.fn(),
+}));
 
 const createMock = vi.mocked(createAdCampaign);
+const listMock = vi.mocked(listAdMarketKeywords);
 
 type CreateResult = Awaited<ReturnType<typeof createAdCampaign>>;
 
@@ -33,32 +47,29 @@ function refused(status?: number, message = "Core text"): CreateResult {
 
 interface RenderOptions {
   currency?: string;
-  marketKeywords?: string[] | null;
+  hasMarketProfile?: boolean;
   provider?: ProjectAdProvider;
 }
 
-/** Rendered inside `act`, so the Market keywords promise has settled. */
 async function renderForm({
   currency = "USD",
-  marketKeywords = null,
+  hasMarketProfile = false,
   provider = "google_ads",
 }: RenderOptions = {}) {
   const user = userEvent.setup();
-  await act(async () => {
-    render(
-      <NextIntlClientProvider locale="en" messages={messages}>
-        <AdsNewCampaignForm
-          accountId="account-1"
-          currency={currency}
-          marketKeywords={
-            marketKeywords === null ? null : Promise.resolve(marketKeywords)
-          }
-          projectId="project-1"
-          provider={provider}
+  const props = { accountId: "account-1", currency, projectId: "project-1" };
+  render(
+    <NextIntlClientProvider locale="en" messages={messages}>
+      {provider === "google_ads" ? (
+        <GoogleSearchCampaignForm
+          {...props}
+          hasMarketProfile={hasMarketProfile}
         />
-      </NextIntlClientProvider>,
-    );
-  });
+      ) : (
+        <MetaCampaignForm {...props} />
+      )}
+    </NextIntlClientProvider>,
+  );
   return user;
 }
 
@@ -220,45 +231,75 @@ describe("AdsNewCampaignForm", () => {
 
     describe("Add from Market", () => {
       it("appends the keywords not there yet as broad lines", async () => {
-        const user = await renderForm({
-          marketKeywords: ["Running Shoes", "trail shoes", "new one"],
+        listMock.mockResolvedValue({
+          ok: true,
+          value: ["Running Shoes", "trail shoes", "new one"],
         });
+        const user = await renderForm({ hasMarketProfile: true });
         await pasteKeywords(user, '"running shoes"');
 
         await user.click(
-          await screen.findByRole("button", { name: "Add from Market" }),
+          screen.getByRole("button", { name: "Add from Market" }),
         );
 
-        expect(keywordsInput()).toHaveValue(
-          '"running shoes"\ntrail shoes\nnew one\n',
+        await waitFor(() =>
+          expect(keywordsInput()).toHaveValue(
+            '"running shoes"\ntrail shoes\nnew one\n',
+          ),
         );
+        expect(listMock).toHaveBeenCalledWith({ projectId: "project-1" });
         expect(screen.getByText("3 keywords")).toBeVisible();
       });
 
       it("stops at 50 keywords", async () => {
-        const user = await renderForm({
-          marketKeywords: Array.from({ length: 60 }, (_, i) => `market ${i}`),
+        listMock.mockResolvedValue({
+          ok: true,
+          value: Array.from({ length: 60 }, (_, i) => `market ${i}`),
         });
+        const user = await renderForm({ hasMarketProfile: true });
 
         await user.click(
-          await screen.findByRole("button", { name: "Add from Market" }),
+          screen.getByRole("button", { name: "Add from Market" }),
         );
 
-        expect(screen.getByText("50 keywords")).toBeVisible();
+        expect(await screen.findByText("50 keywords")).toBeVisible();
       });
 
-      it.each([
-        ["has no Market keywords", []],
-        ["is not given any", null],
-      ])("is hidden when the project %s", async (_name, marketKeywords) => {
-        await renderForm({ marketKeywords });
+      it("loads nothing until clicked", async () => {
+        await renderForm({ hasMarketProfile: true });
 
-        // The button would resolve after the promise; give it the chance.
-        await waitFor(() => {
-          expect(
-            screen.queryByRole("button", { name: "Add from Market" }),
-          ).toBeNull();
+        expect(
+          screen.getByRole("button", { name: "Add from Market" }),
+        ).toBeVisible();
+        expect(listMock).not.toHaveBeenCalled();
+      });
+
+      it("leaves the textarea alone when the lookup fails", async () => {
+        listMock.mockResolvedValue({
+          ok: false,
+          error: { code: "INTERNAL_SERVER_ERROR", message: "down" },
         });
+        const user = await renderForm({ hasMarketProfile: true });
+        await pasteKeywords(user, "mine");
+
+        await user.click(
+          screen.getByRole("button", { name: "Add from Market" }),
+        );
+
+        await waitFor(() =>
+          expect(toastErrorMock).toHaveBeenCalledWith(
+            "Failed to load Market keywords",
+          ),
+        );
+        expect(keywordsInput()).toHaveValue("mine");
+      });
+
+      it("is hidden when the project has no Market profile", async () => {
+        await renderForm({ hasMarketProfile: false });
+
+        expect(
+          screen.queryByRole("button", { name: "Add from Market" }),
+        ).toBeNull();
       });
     });
 
@@ -431,7 +472,7 @@ describe("AdsNewCampaignForm", () => {
         await user.click(submit());
 
         const alert = await screen.findByRole("alert");
-        expect(alert).toHaveTextContent("The campaign wasn't created");
+        expect(alert).toHaveTextContent("Failed to create campaign");
         expect(alert).toHaveTextContent("Destination not working.");
         expect(alert).toHaveFocus();
         expect(nameInput()).toHaveValue("  Spring sale ");
@@ -440,6 +481,19 @@ describe("AdsNewCampaignForm", () => {
         );
         expect(pushMock).not.toHaveBeenCalled();
         expect(submit()).not.toHaveAttribute("aria-busy");
+      });
+
+      it("focuses the alert once, not again while the reader edits", async () => {
+        createMock.mockResolvedValue(refused(422, "Destination not working."));
+        const user = await renderForm();
+        await fillGoogle(user);
+        await user.click(submit());
+        expect(await screen.findByRole("alert")).toHaveFocus();
+
+        await user.click(nameInput());
+        await user.type(nameInput(), "!");
+
+        expect(nameInput()).toHaveFocus();
       });
 
       it("asks to reconnect on 409, with a link to Accounts", async () => {

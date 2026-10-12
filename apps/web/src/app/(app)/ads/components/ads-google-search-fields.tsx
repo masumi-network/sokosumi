@@ -2,7 +2,6 @@
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Suspense } from "react";
 import { useFormContext } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -29,35 +28,36 @@ import {
 import { cn } from "@/lib/utils";
 
 import { AdsAddMarketKeywords } from "./ads-add-market-keywords";
+import { AdsFormSection } from "./ads-form-section";
 
 interface AdsGoogleSearchFieldsProps {
-  marketKeywords: Promise<string[]> | null;
+  projectId: string;
+  /** Whether "Add from Market" has keywords to draw on. */
+  hasMarketProfile: boolean;
 }
-
-const SECTION_CLASS = "flex flex-col gap-6";
-const HEADING_CLASS = "text-lg font-semibold";
 
 /**
  * The Search campaign's own sections, inside the create form: the targeting
  * line, keywords and the ad. They read and write the form around them.
  */
 export function AdsGoogleSearchFields({
-  marketKeywords,
+  projectId,
+  hasMarketProfile,
 }: AdsGoogleSearchFieldsProps) {
   const t = useTranslations("App.Ads.newCampaign");
 
   return (
     <>
-      <section
-        aria-labelledby="new-campaign-targeting"
-        className={SECTION_CLASS}
+      <AdsFormSection
+        id="new-campaign-targeting"
+        title={t("sections.targeting")}
       >
-        <h2 className={HEADING_CLASS} id="new-campaign-targeting">
-          {t("sections.targeting")}
-        </h2>
         <p className="text-muted-foreground text-sm">{t("targeting")}</p>
-      </section>
-      <KeywordsSection marketKeywords={marketKeywords} />
+      </AdsFormSection>
+      <KeywordsSection
+        hasMarketProfile={hasMarketProfile}
+        projectId={projectId}
+      />
       <AdSection />
     </>
   );
@@ -93,26 +93,32 @@ export function AdsGoogleDateFields() {
   );
 }
 
-function KeywordsSection({ marketKeywords }: AdsGoogleSearchFieldsProps) {
+function KeywordsSection({
+  projectId,
+  hasMarketProfile,
+}: AdsGoogleSearchFieldsProps) {
   const t = useTranslations("App.Ads.newCampaign.keywords");
   const form = useFormContext<GoogleSearchFormValues>();
   const { keywords } = parseGoogleKeywords(form.watch("keywords"));
   const over = keywords.length > GOOGLE_KEYWORD_LIMIT;
 
-  function handleAdd(names: string[]): void {
-    const { text } = appendBroadKeywords(form.getValues("keywords"), names);
-    form.setValue("keywords", text, {
-      shouldDirty: true,
-      shouldValidate:
-        form.formState.isSubmitted || !!form.formState.touchedFields.keywords,
-    });
+  function handleAdd(names: string[]): number {
+    const { text, added } = appendBroadKeywords(
+      form.getValues("keywords"),
+      names,
+    );
+    if (added > 0) {
+      form.setValue("keywords", text, {
+        shouldDirty: true,
+        shouldValidate:
+          form.formState.isSubmitted || !!form.formState.touchedFields.keywords,
+      });
+    }
+    return added;
   }
 
   return (
-    <section aria-labelledby="new-campaign-keywords" className={SECTION_CLASS}>
-      <h2 className={HEADING_CLASS} id="new-campaign-keywords">
-        {t("label")}
-      </h2>
+    <AdsFormSection id="new-campaign-keywords" title={t("label")}>
       <FormField
         control={form.control}
         name="keywords"
@@ -140,20 +146,15 @@ function KeywordsSection({ marketKeywords }: AdsGoogleSearchFieldsProps) {
               >
                 {t("count", { count: keywords.length })}
               </p>
-              {marketKeywords ? (
-                <Suspense fallback={null}>
-                  <AdsAddMarketKeywords
-                    keywords={marketKeywords}
-                    onAdd={handleAdd}
-                  />
-                </Suspense>
+              {hasMarketProfile ? (
+                <AdsAddMarketKeywords onAdd={handleAdd} projectId={projectId} />
               ) : null}
             </div>
             <FormMessage />
           </FormItem>
         )}
       />
-    </section>
+    </AdsFormSection>
   );
 }
 
@@ -164,10 +165,7 @@ function AdSection() {
   const [finalUrl, path1, path2] = form.watch(["finalUrl", "path1", "path2"]);
 
   return (
-    <section aria-labelledby="new-campaign-ad" className={SECTION_CLASS}>
-      <h2 className={HEADING_CLASS} id="new-campaign-ad">
-        {tSection("ad")}
-      </h2>
+    <AdsFormSection id="new-campaign-ad" title={tSection("ad")}>
       <FormField
         control={form.control}
         name="finalUrl"
@@ -222,7 +220,7 @@ function AdSection() {
         limits={GOOGLE_SEARCH_LIMITS.descriptions}
         name="descriptions"
       />
-    </section>
+    </AdsFormSection>
   );
 }
 

@@ -3188,7 +3188,6 @@
         "sections": {
           "basics": "Grundlagen",
           "targeting": "Targeting",
-          "keywords": "Keywords",
           "ad": "Anzeige"
         },
         "name": "Name",
@@ -3211,6 +3210,8 @@
           "placeholder": "laufschuhe\n\"trailrunning schuhe\"\n[laufschuhe kaufen]",
           "count": "{count, plural, one {# Keyword} other {# Keywords}}",
           "addFromMarket": "Aus Markt hinzufügen",
+          "marketNone": "Keine neuen Markt-Keywords zum Hinzufügen",
+          "marketFailed": "Markt-Keywords konnten nicht geladen werden",
           "errors": {
             "required": "Füge mindestens ein Keyword hinzu.",
             "tooMany": "Verwende höchstens {max} Keywords.",
@@ -3247,7 +3248,7 @@
         "success": "Kampagne erstellt (pausiert)",
         "errors": {
           "nameRequired": "Gib einen Namen ein.",
-          "nameTooLong": "Verwende höchstens 255 Zeichen.",
+          "nameTooLong": "Verwende höchstens {max} Zeichen.",
           "objectiveRequired": "Wähle ein Ziel.",
           "finalUrl": "Gib eine vollständige Adresse ein, die mit http:// oder https:// beginnt.",
           "headlineRequired": "Gib eine Überschrift ein oder entferne diese.",
@@ -3258,7 +3259,6 @@
           "pathTooLong": "Verwende höchstens {max} Zeichen.",
           "pathNeedsFirst": "Fülle zuerst Pfad 1 aus.",
           "endBeforeStart": "Das Enddatum darf nicht vor dem Startdatum liegen.",
-          "refusedTitle": "Die Kampagne wurde nicht erstellt",
           "failed": "Kampagne konnte nicht erstellt werden"
         }
       },

@@ -1,15 +1,16 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { ProjectAdProvider } from "@sokosumi/core-client";
+import type { GoogleSearchCampaignSpec } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
-import { type Resolver, useForm } from "react-hook-form";
+import { type ReactNode, useRef, useState } from "react";
+import { useForm, useFormContext } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
+import { campaignsHref } from "@/app/ads/ads-query";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,8 +29,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { createAdCampaign } from "@/lib/actions/ads/action";
-import { AD_CAMPAIGN_OBJECTIVES } from "@/lib/ads/campaign";
+import {
+  AD_CAMPAIGN_NAME_MAX_LENGTH,
+  AD_CAMPAIGN_OBJECTIVES,
+} from "@/lib/ads/campaign";
 import {
   GOOGLE_KEYWORD_LIMIT,
   GOOGLE_KEYWORD_MAX_LENGTH,
@@ -37,40 +42,313 @@ import {
 } from "@/lib/ads/google-keywords";
 import {
   GOOGLE_SEARCH_LIMITS,
-  type GoogleSearchFormValues,
   googleSearchFormSchema,
   toGoogleSearchSpec,
 } from "@/lib/ads/google-search";
 import { useAdsBudget } from "./ads-budget";
+import { AdsFormSection } from "./ads-form-section";
 import {
   AdsGoogleDateFields,
   AdsGoogleSearchFields,
 } from "./ads-google-search-fields";
 
-interface AdsNewCampaignFormProps {
+interface CampaignFormProps {
   accountId: string;
   currency: string;
-  /** The project's Market keywords for "Add from Market"; null for Meta. */
-  marketKeywords: Promise<string[]> | null;
   projectId: string;
-  provider: ProjectAdProvider;
 }
 
-interface NewCampaignValues extends GoogleSearchFormValues {
+interface GoogleSearchCampaignFormProps extends CampaignFormProps {
+  /** Whether the project has a Market profile, which "Add from Market" reads. */
+  hasMarketProfile: boolean;
+}
+
+/** What a campaign is created with; the project and account come separately. */
+interface CampaignDetails {
   name: string;
-  dailyBudget: string;
-  objective: string;
+  dailyBudget: number;
+  objective?: (typeof AD_CAMPAIGN_OBJECTIVES)[number];
+  google?: GoogleSearchCampaignSpec;
 }
 
 /** Why the last attempt failed, and which attempt it was (to re-focus). */
-type Refusal =
-  | { attempt: number; kind: "reconnect" | "failed" }
-  | { attempt: number; kind: "refused"; message: string };
+interface Refusal {
+  attempt: number;
+  kind: "reconnect" | "failed" | "refused";
+  /** Core's text, for a `refused` attempt. */
+  message?: string;
+}
 
-const EMPTY_VALUES: NewCampaignValues = {
+interface BasicsValues {
+  name: string;
+  dailyBudget: string;
+}
+
+/**
+ * Creates the campaign and follows the outcome. Core creates it paused and
+ * the action revalidates the list, so nothing updates optimistically.
+ */
+function useCreateCampaign({ accountId, projectId }: CampaignFormProps) {
+  const t = useTranslations("App.Ads.newCampaign");
+  const router = useRouter();
+  const [refusal, setRefusal] = useState<Refusal | null>(null);
+  const [created, setCreated] = useState(false);
+
+  async function create(details: CampaignDetails): Promise<void> {
+    setRefusal(null);
+    const attempt = (refusal?.attempt ?? 0) + 1;
+    try {
+      const result = await createAdCampaign({
+        projectId,
+        accountId,
+        ...details,
+      });
+      if (result.ok) {
+        toast.success(t("success"));
+        setCreated(true);
+        router.push(campaignsHref(projectId, accountId));
+      } else if (result.error.status === 422 && result.error.message) {
+        setRefusal({ attempt, kind: "refused", message: result.error.message });
+      } else {
+        setRefusal({
+          attempt,
+          kind: result.error.status === 409 ? "reconnect" : "failed",
+        });
+      }
+    } catch {
+      setRefusal({ attempt, kind: "failed" });
+    }
+  }
+
+  return { refusal, created, create };
+}
+
+/** Pulls focus (and the view) up from the submit button far below. */
+function RefusalAlert({
+  projectId,
+  refusal,
+}: {
+  projectId: string;
+  refusal: Refusal;
+}) {
+  const t = useTranslations("App.Ads.newCampaign");
+  const tCampaigns = useTranslations("App.Ads.campaigns");
+  const ref = useRef<HTMLDivElement>(null);
+  useMountEffect(() => ref.current?.focus());
+
+  const { title, description } = {
+    failed: { title: t("errors.failed"), description: null },
+    refused: {
+      title: t("errors.failed"),
+      description: <p>{refusal.message}</p>,
+    },
+    reconnect: {
+      title: tCampaigns("errors.notActive.title"),
+      description: (
+        <Link
+          className="underline"
+          href={`/ads?${new URLSearchParams({ projectId, tab: "accounts" })}`}
+        >
+          {tCampaigns("errors.notActive.action")}
+        </Link>
+      ),
+    },
+  }[refusal.kind];
+
+  return (
+    <Alert ref={ref} tabIndex={-1} variant="destructive">
+      <AlertTitle>{title}</AlertTitle>
+      <AlertDescription>{description}</AlertDescription>
+    </Alert>
+  );
+}
+
+interface CampaignFormFrameProps extends CampaignFormProps {
+  children: ReactNode;
+  creation: ReturnType<typeof useCreateCampaign>;
+  onSubmit: () => Promise<void>;
+  submitting: boolean;
+}
+
+/** The form element around a provider's fields: the failure above, actions below. */
+function CampaignFormFrame({
+  accountId,
+  children,
+  creation,
+  onSubmit,
+  projectId,
+  submitting,
+}: CampaignFormFrameProps) {
+  const t = useTranslations("App.Ads.newCampaign");
+  const tCampaigns = useTranslations("App.Ads.campaigns");
+
+  return (
+    <form
+      className="flex flex-col gap-10"
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        void onSubmit();
+      }}
+    >
+      {creation.refusal ? (
+        // A new key per attempt re-mounts the alert, which focuses it again.
+        <RefusalAlert
+          key={creation.refusal.attempt}
+          projectId={projectId}
+          refusal={creation.refusal}
+        />
+      ) : null}
+      {children}
+      <div className="flex items-center justify-end gap-3">
+        <Button asChild variant="ghost">
+          <Link href={campaignsHref(projectId, accountId)}>
+            {tCampaigns("cancel")}
+          </Link>
+        </Button>
+        <Button loading={submitting || creation.created} type="submit">
+          {t("submit")}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/** The name and daily budget, which every campaign has. */
+function useBasics(currency: string) {
+  const t = useTranslations("App.Ads.newCampaign");
+  const budget = useAdsBudget(currency);
+  const shape = {
+    name: z
+      .string()
+      .trim()
+      .min(1, t("errors.nameRequired"))
+      .max(
+        AD_CAMPAIGN_NAME_MAX_LENGTH,
+        t("errors.nameTooLong", { max: AD_CAMPAIGN_NAME_MAX_LENGTH }),
+      ),
+    dailyBudget: budget.schema,
+  };
+  return { budget, shape };
+}
+
+function NameAndBudgetFields({
+  budget,
+}: {
+  budget: ReturnType<typeof useAdsBudget>;
+}) {
+  const t = useTranslations("App.Ads.newCampaign");
+  const form = useFormContext<BasicsValues>();
+
+  return (
+    <>
+      <FormField
+        control={form.control}
+        name="name"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t("name")}</FormLabel>
+            <FormControl>
+              <Input
+                autoComplete="off"
+                maxLength={AD_CAMPAIGN_NAME_MAX_LENGTH}
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="dailyBudget"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{budget.label}</FormLabel>
+            <FormControl>
+              <Input
+                inputMode="decimal"
+                min={0}
+                step={budget.step}
+                type="number"
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </>
+  );
+}
+
+/** A Meta campaign: a name, a budget and one objective. */
+export function MetaCampaignForm(props: CampaignFormProps) {
+  const t = useTranslations("App.Ads.newCampaign");
+  const creation = useCreateCampaign(props);
+  const { budget, shape } = useBasics(props.currency);
+  const form = useForm({
+    resolver: zodResolver(
+      z.object({
+        ...shape,
+        objective: z.string().min(1, t("errors.objectiveRequired")),
+      }),
+    ),
+    mode: "onTouched",
+    defaultValues: { name: "", dailyBudget: "", objective: "" },
+  });
+
+  return (
+    <Form {...form}>
+      <CampaignFormFrame
+        {...props}
+        creation={creation}
+        onSubmit={form.handleSubmit(({ name, dailyBudget, objective }) =>
+          creation.create({
+            name,
+            dailyBudget: Number(dailyBudget),
+            objective: AD_CAMPAIGN_OBJECTIVES.find(
+              (candidate) => candidate === objective,
+            ),
+          }),
+        )}
+        submitting={form.formState.isSubmitting}
+      >
+        <AdsFormSection id="new-campaign-basics" title={t("sections.basics")}>
+          <NameAndBudgetFields budget={budget} />
+          <FormField
+            control={form.control}
+            name="objective"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("objective")}</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={t("objectivePlaceholder")} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {AD_CAMPAIGN_OBJECTIVES.map((candidate) => (
+                      <SelectItem key={candidate} value={candidate}>
+                        {t(`objectives.${candidate}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </AdsFormSection>
+      </CampaignFormFrame>
+    </Form>
+  );
+}
+
+const EMPTY_GOOGLE_VALUES = {
   name: "",
   dailyBudget: "",
-  objective: "",
   startDate: "",
   endDate: "",
   keywords: "",
@@ -88,42 +366,20 @@ const EMPTY_VALUES: NewCampaignValues = {
 };
 
 /**
- * The create page's form. The rules are Core's: a name of 1 to 255
- * characters, a budget above 0 within the currency's precision and, for
- * Meta, one objective; for Google, a Search campaign with dates, keywords and
- * a responsive search ad. Core creates the campaign paused; the action
- * revalidates the list, so nothing updates optimistically.
+ * A Google Search campaign: Core's rules are dates, keywords and a responsive
+ * search ad on top of the name and budget.
  */
-export function AdsNewCampaignForm({
-  accountId,
-  currency,
-  marketKeywords,
-  projectId,
-  provider,
-}: AdsNewCampaignFormProps) {
+export function GoogleSearchCampaignForm({
+  hasMarketProfile,
+  ...props
+}: GoogleSearchCampaignFormProps) {
   const t = useTranslations("App.Ads.newCampaign");
-  const tCampaigns = useTranslations("App.Ads.campaigns");
-  const router = useRouter();
-  const budget = useAdsBudget(currency);
-  const isGoogle = provider === "google_ads";
-  const campaignsHref = `/ads?${new URLSearchParams({ projectId, tab: "campaigns", account: accountId })}`;
-  const [refusal, setRefusal] = useState<Refusal | null>(null);
-  const [created, setCreated] = useState(false);
-
-  const base = z.object({
-    name: z
-      .string()
-      .trim()
-      .min(1, t("errors.nameRequired"))
-      .max(255, t("errors.nameTooLong")),
-    dailyBudget: budget.schema,
-    objective: isGoogle
-      ? z.string()
-      : z.string().min(1, t("errors.objectiveRequired")),
-  });
-  const schema = isGoogle
-    ? z.intersection(
-        base,
+  const creation = useCreateCampaign(props);
+  const { budget, shape } = useBasics(props.currency);
+  const form = useForm({
+    resolver: zodResolver(
+      z.intersection(
+        z.object(shape),
         googleSearchFormSchema({
           finalUrl: t("errors.finalUrl"),
           headlineRequired: t("errors.headlineRequired"),
@@ -153,179 +409,35 @@ export function AdsNewCampaignForm({
                   : GOOGLE_KEYWORD_MAX_WORDS,
             }),
         }),
-      )
-    : base;
-
-  const form = useForm<NewCampaignValues>({
-    // Meta's schema leaves the Search fields alone, so the resolver's output
-    // is narrower than the form's values.
-    resolver: zodResolver(schema) as unknown as Resolver<NewCampaignValues>,
+      ),
+    ),
     mode: "onTouched",
-    defaultValues: EMPTY_VALUES,
+    defaultValues: EMPTY_GOOGLE_VALUES,
   });
-
-  async function handleSubmit(values: NewCampaignValues): Promise<void> {
-    setRefusal(null);
-    const campaign = {
-      projectId,
-      accountId,
-      name: values.name,
-      dailyBudget: Number(values.dailyBudget),
-    };
-    const attempt = (refusal?.attempt ?? 0) + 1;
-    try {
-      const result = await createAdCampaign(
-        isGoogle
-          ? { ...campaign, google: toGoogleSearchSpec(values) }
-          : {
-              ...campaign,
-              objective: AD_CAMPAIGN_OBJECTIVES.find(
-                (candidate) => candidate === values.objective,
-              ),
-            },
-      );
-      if (result.ok) {
-        toast.success(t("success"));
-        setCreated(true);
-        router.push(campaignsHref);
-      } else if (result.error.status === 422 && result.error.message) {
-        setRefusal({ attempt, kind: "refused", message: result.error.message });
-      } else {
-        setRefusal({
-          attempt,
-          kind: result.error.status === 409 ? "reconnect" : "failed",
-        });
-      }
-    } catch {
-      setRefusal({ attempt, kind: "failed" });
-    }
-  }
-
-  const accountsParams = new URLSearchParams({ projectId, tab: "accounts" });
 
   return (
     <Form {...form}>
-      <form
-        className="flex flex-col gap-10"
-        noValidate
-        onSubmit={(event) => void form.handleSubmit(handleSubmit)(event)}
+      <CampaignFormFrame
+        {...props}
+        creation={creation}
+        onSubmit={form.handleSubmit((values) =>
+          creation.create({
+            name: values.name,
+            dailyBudget: Number(values.dailyBudget),
+            google: toGoogleSearchSpec(values),
+          }),
+        )}
+        submitting={form.formState.isSubmitting}
       >
-        {refusal ? (
-          // A new key per attempt re-mounts the alert, which pulls focus (and
-          // the view) up to it from the submit button far below.
-          <Alert
-            key={refusal.attempt}
-            ref={(node: HTMLDivElement | null) => node?.focus()}
-            tabIndex={-1}
-            variant="destructive"
-          >
-            <AlertTitle>
-              {refusal.kind === "refused"
-                ? t("errors.refusedTitle")
-                : refusal.kind === "reconnect"
-                  ? tCampaigns("errors.notActive.title")
-                  : t("errors.failed")}
-            </AlertTitle>
-            <AlertDescription>
-              {refusal.kind === "refused" ? (
-                <p>{refusal.message}</p>
-              ) : refusal.kind === "reconnect" ? (
-                <Link
-                  className="underline"
-                  href={`/ads?${accountsParams.toString()}`}
-                >
-                  {tCampaigns("errors.notActive.action")}
-                </Link>
-              ) : null}
-            </AlertDescription>
-          </Alert>
-        ) : null}
-
-        <section
-          aria-labelledby="new-campaign-basics"
-          className="flex flex-col gap-6"
-        >
-          <h2 className="text-lg font-semibold" id="new-campaign-basics">
-            {t("sections.basics")}
-          </h2>
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("name")}</FormLabel>
-                <FormControl>
-                  <Input autoComplete="off" maxLength={255} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="dailyBudget"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{budget.label}</FormLabel>
-                <FormControl>
-                  <Input
-                    inputMode="decimal"
-                    min={0}
-                    step={budget.step}
-                    type="number"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          {isGoogle ? (
-            <AdsGoogleDateFields />
-          ) : (
-            <FormField
-              control={form.control}
-              name="objective"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("objective")}</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder={t("objectivePlaceholder")} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {AD_CAMPAIGN_OBJECTIVES.map((candidate) => (
-                        <SelectItem key={candidate} value={candidate}>
-                          {t(`objectives.${candidate}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
-        </section>
-
-        {isGoogle ? (
-          <AdsGoogleSearchFields marketKeywords={marketKeywords} />
-        ) : null}
-
-        <div className="flex items-center justify-end gap-3">
-          <Button asChild variant="ghost">
-            <Link href={campaignsHref}>{tCampaigns("cancel")}</Link>
-          </Button>
-          <Button
-            loading={form.formState.isSubmitting || created}
-            type="submit"
-          >
-            {t("submit")}
-          </Button>
-        </div>
-      </form>
+        <AdsFormSection id="new-campaign-basics" title={t("sections.basics")}>
+          <NameAndBudgetFields budget={budget} />
+          <AdsGoogleDateFields />
+        </AdsFormSection>
+        <AdsGoogleSearchFields
+          hasMarketProfile={hasMarketProfile}
+          projectId={props.projectId}
+        />
+      </CampaignFormFrame>
     </Form>
   );
 }
