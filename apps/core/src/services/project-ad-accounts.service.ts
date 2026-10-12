@@ -32,9 +32,13 @@ import {
   type AdRange,
   currencyFractionDigits,
   type GoogleCampaignSpec,
+  type GoogleLocationLookup,
   type MetaCampaignObjective,
 } from "@/lib/ads/campaigns";
-import type { AvailableAdAccount } from "@/lib/ads/composio-tools";
+import type {
+  AdsConnectedAccount,
+  AvailableAdAccount,
+} from "@/lib/ads/composio-tools";
 import {
   createGoogleCampaign,
   type GoogleLanguage,
@@ -413,7 +417,7 @@ export async function listProjectAdCampaigns(
 /** The Google customer of an attached ad account; targeting does not exist for Meta. */
 async function requireGoogleTargetingAccount(
   input: ProjectScope & { accountId: string },
-) {
+): Promise<AdsConnectedAccount & { customerId: string }> {
   const account = await requireActiveAdAccount(input);
   if (account.provider !== "google_ads") {
     throw notFound("Targeting is only available for Google Ads accounts");
@@ -424,19 +428,16 @@ async function requireGoogleTargetingAccount(
   };
 }
 
-/** Up to 20 Google locations of a name search (`q`) or of geo target constant `ids`. */
+/** Google locations of a name search (`q`) or of geo target constant `ids`. */
 export async function searchProjectAdLocations(
-  input: ProjectScope & { accountId: string } & (
-      | { q: string }
-      | { ids: string[] }
-    ),
+  input: ProjectScope & { accountId: string } & GoogleLocationLookup,
 ): Promise<{ locations: GoogleLocation[] }> {
-  const customer = await requireGoogleTargetingAccount(input);
+  const account = await requireGoogleTargetingAccount(input);
   return {
     locations: await searchGoogleLocations(
       "q" in input
-        ? { ...customer, q: input.q }
-        : { ...customer, ids: input.ids },
+        ? { ...account, q: input.q }
+        : { ...account, ids: input.ids },
     ),
   };
 }

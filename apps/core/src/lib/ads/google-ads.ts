@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { z } from "@hono/zod-openapi";
 
+import {
+  projectComposioFetch,
+  projectComposioResponse,
+} from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { PROJECT_AD_PROVIDERS } from "@/config/ads-providers";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
@@ -11,16 +15,18 @@ import {
   type AdCampaignUpdate,
   type AdRange,
   buildAdCampaign,
-  GOOGLE_ID_PATTERN,
-  GOOGLE_LOCATION_QUERY_PATTERN,
+  GOOGLE_MAX_IDS,
+  GOOGLE_MAX_LOCATION_SUGGESTIONS,
   type GoogleCampaignCreate,
   type GoogleKeyword,
+  type GoogleLocationLookup,
   noAdMetrics,
   sumAdMetrics,
 } from "@/lib/ads/campaigns";
 import {
   type AdsConnectedAccount,
   type AvailableAdAccount,
+  parseToolRow,
   parseToolRows,
   requireToolRows,
   toolRows,
@@ -552,20 +558,10 @@ export interface GoogleLanguage {
   name: string;
 }
 
-const MAX_LOCATIONS = 20;
-const LOCATIONS_QUERY = `SELECT geo_target_constant.id, geo_target_constant.name, geo_target_constant.canonical_name, geo_target_constant.target_type, geo_target_constant.country_code FROM geo_target_constant WHERE geo_target_constant.status = 'ENABLED'`;
 const LANGUAGES_QUERY =
   "SELECT language_constant.id, language_constant.code, language_constant.name FROM language_constant WHERE language_constant.targetable = TRUE";
-
-const locationRowSchema = z.object({
-  geoTargetConstant: z.object({
-    id: z.coerce.string().min(1),
-    name: z.string(),
-    canonicalName: z.string(),
-    targetType: z.string().nullish(),
-    countryCode: z.string().nullish(),
-  }),
-});
+const GEO_TARGET_SUGGEST_ENDPOINT =
+  "https://googleads.googleapis.com/v23/geoTargetConstants:suggest";
 
 const languageRowSchema = z.object({
   languageConstant: z.object({
@@ -575,52 +571,110 @@ const languageRowSchema = z.object({
   }),
 });
 
+const proxyResponseSchema = z.object({ status: z.number(), data: z.unknown() });
+const googleErrorSchema = z.object({
+  error: z.object({ message: z.string() }),
+});
+
 /**
- * Up to 20 enabled Google locations, found by a name containing `q` (ordered
- * by name) or by geo target constant `ids`. Both go into the GAQL text, so
- * they are checked here against patterns that cannot end a GAQL string.
+ * Calls a Google Ads REST endpoint through the Composio proxy with the
+ * connected account's credentials. A status outside 2xx is a provider error.
+ */
+async function callGoogleAds(
+  connectedAccountId: string,
+  endpoint: string,
+  body: Record<string, unknown>,
+  context: string,
+): Promise<unknown> {
+  const response = await projectComposioFetch("/api/v3/tools/execute/proxy", {
+    method: "POST",
+    jsonBody: {
+      connected_account_id: connectedAccountId,
+      endpoint,
+      method: "POST",
+      body,
+    },
+  });
+  const { status, data } = parseToolRow(
+    await projectComposioResponse<unknown>(response, context),
+    proxyResponseSchema,
+    context,
+  );
+  if (status < 200 || status >= 300) {
+    throw new ComposioToolError({
+      message: "Google Ads refused the request",
+      providerStatus: status,
+      providerMessage: googleErrorSchema.safeParse(data).data?.error.message,
+    });
+  }
+  return data;
+}
+
+// Google omits empty lists and fields. Suggestions that are not ENABLED are
+// dropped (null) by the caller.
+const locationSuggestionSchema = z
+  .object({
+    geoTargetConstant: z.object({
+      id: z.coerce.string().min(1),
+      status: z.string().nullish(),
+      name: z.string(),
+      canonicalName: z.string(),
+      targetType: z.string().nullable().default(null),
+      countryCode: z.string().nullable().default(null),
+    }),
+  })
+  .transform(({ geoTargetConstant: { status, ...location } }) =>
+    status === "ENABLED" ? location : null,
+  );
+
+const locationSuggestionsSchema = z.object({
+  geoTargetConstantSuggestions: z.array(locationSuggestionSchema).default([]),
+});
+
+/**
+ * Enabled Google locations from Google's `geoTargetConstants:suggest`: for a
+ * name `q`, a page of suggestions (case-insensitive, ranked by Google), or
+ * for 1-25 geo target constant `ids`, all of them that exist. It is not
+ * scoped to a customer, so any connected Google login can ask.
  */
 export async function searchGoogleLocations(
-  input: AdsConnectedAccount & { customerId: string } & (
-      | { q: string }
-      | { ids: string[] }
-    ),
+  input: AdsConnectedAccount & GoogleLocationLookup,
 ): Promise<GoogleLocation[]> {
-  const { customerId, connectedAccountId, executorUserId } = input;
-  let filter: string;
-  if ("q" in input) {
-    if (!GOOGLE_LOCATION_QUERY_PATTERN.test(input.q)) {
-      throw unprocessableEntity("Invalid location search");
-    }
-    filter = `AND geo_target_constant.name LIKE '%${input.q}%' ORDER BY geo_target_constant.name`;
-  } else {
-    if (!input.ids.every((id) => GOOGLE_ID_PATTERN.test(id))) {
-      throw unprocessableEntity("Invalid location id");
-    }
-    filter = `AND geo_target_constant.id IN (${input.ids.join(", ")})`;
+  if (
+    "ids" in input &&
+    !(input.ids.length >= 1 && input.ids.length <= GOOGLE_MAX_IDS)
+  ) {
+    throw unprocessableEntity(`Send 1-${GOOGLE_MAX_IDS} location ids`);
   }
-  const query = `${LOCATIONS_QUERY} ${filter} LIMIT ${MAX_LOCATIONS}`;
-  const payload = await withAdsToolSession(
+  const context = "suggest Google Ads locations";
+  const data = await callGoogleAds(
+    input.connectedAccountId,
+    GEO_TARGET_SUGGEST_ENDPOINT,
     {
-      connectedAccountId,
-      executorUserId,
-      toolkit: PROJECT_AD_PROVIDERS.google_ads,
-      toolSlugs: [SEARCH_STREAM_GAQL],
+      locale: "en",
+      ...("q" in input
+        ? { locationNames: { names: [input.q] } }
+        : {
+            geoTargets: {
+              geoTargetConstants: input.ids.map(
+                (id) => `geoTargetConstants/${id}`,
+              ),
+            },
+          }),
     },
-    (execute) =>
-      execute(SEARCH_STREAM_GAQL, { customer_id: customerId, query }),
+    context,
   );
-  return parseToolRows(
-    requireToolRows(payload, "results", "search Google Ads locations"),
-    locationRowSchema,
-    "search Google Ads locations",
-  ).map(({ geoTargetConstant: row }) => ({
-    id: row.id,
-    name: row.name,
-    canonicalName: row.canonicalName,
-    targetType: row.targetType ?? null,
-    countryCode: row.countryCode ?? null,
-  }));
+  const locations = parseToolRow(
+    data,
+    locationSuggestionsSchema,
+    context,
+  ).geoTargetConstantSuggestions.filter((location) => location !== null);
+  const unique = locations.filter(
+    (location, i) => locations.findIndex((l) => l.id === location.id) === i,
+  );
+  return "q" in input
+    ? unique.slice(0, GOOGLE_MAX_LOCATION_SUGGESTIONS)
+    : unique;
 }
 
 /** Languages a Google campaign can target, sorted by name. */

@@ -786,30 +786,37 @@ describe("Project ads routes", () => {
       });
     });
 
-    it("accepts letters of any script and the allowed punctuation", async () => {
-      const q = encodeURIComponent("Zürich, 東京-都 (St.)");
+    it.each([
+      "O'Brien",
+      'a"b',
+      "100%",
+      "a\\b",
+      "a_b",
+      "a' OR 1=1",
+      "Zürich, 東京-都 (St.)",
+      "B",
+      "a".repeat(80),
+    ])("accepts the search text %j", async (q) => {
       const response = await createApp().request(
-        targetingUrl("locations", `?q=${q}`),
+        targetingUrl("locations", `?q=${encodeURIComponent(q)}`),
       );
       expect(response.status).toBe(200);
+      expect(m.locations).toHaveBeenCalledWith({ ...scope, q });
     });
 
     it.each([
       ["no input", ""],
       ["both q and ids", "?q=Berlin&ids=2276"],
-      ["a one-character q", "?q=B"],
       ["an empty q", "?q="],
-      ["a 61-character q", `?q=${"a".repeat(61)}`],
-      ["a quote", `?q=${encodeURIComponent("O'Brien")}`],
-      ["a double quote", `?q=${encodeURIComponent('a"b')}`],
-      ["a percent sign", `?q=${encodeURIComponent("100%")}`],
-      ["a backslash", `?q=${encodeURIComponent("a\\b")}`],
-      ["an underscore", `?q=${encodeURIComponent("a_b")}`],
+      ["a blank q", "?q=%20%20"],
+      ["an 81-character q", `?q=${"a".repeat(81)}`],
       ["an empty ids", "?ids="],
       ["a non-digit id", "?ids=2276,abc"],
       ["an empty id between commas", "?ids=2276,,2840"],
       ["a trailing comma", "?ids=2276,"],
+      ["a leading comma", "?ids=,2276"],
       ["an injected id", `?ids=${encodeURIComponent("1) OR (1=1")}`],
+      ["a 21-digit id", `?ids=${"1".repeat(21)}`],
       [
         "26 ids",
         `?ids=${Array.from({ length: 26 }, (_, i) => i + 1).join(",")}`,
@@ -832,6 +839,23 @@ describe("Project ads routes", () => {
         ...scope,
         ids: ids.map(String),
       });
+    });
+
+    it("returns 25 locations for 25 ids", async () => {
+      m.locations.mockResolvedValue({
+        locations: Array.from({ length: 25 }, (_, i) => ({
+          id: String(i + 1),
+          name: `Place ${i + 1}`,
+          canonicalName: `Place ${i + 1}`,
+          targetType: null,
+          countryCode: null,
+        })),
+      });
+      const response = await createApp().request(
+        targetingUrl("locations", "?ids=1"),
+      );
+      expect(response.status).toBe(200);
+      expect((await response.json()).data.locations).toHaveLength(25);
     });
 
     it("lists languages", async () => {

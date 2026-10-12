@@ -44116,7 +44116,7 @@ export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData = {
     };
     query?: {
         /**
-         * Text the location name contains (2-60 letters, digits, spaces and `.,-()`); send either `q` or `ids`
+         * Place name to find, in any case (1-80 characters); send either `q` or `ids`
          */
         q?: string;
         /**

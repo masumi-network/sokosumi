@@ -23,7 +23,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/ads/accounts/{accountId}/targeting/locations",
     description:
-      "Search the Google locations of an ad account's Google Ads customer by name (`q`) or look them up by geo target constant id (`ids`); send exactly one. Returns at most 20 enabled locations; `q` is ordered by name. Google Ads accounts only: a Meta account is 404. Requires an interactive user session in the Project's Workspace.",
+      "Search the Google locations of an ad account's Google Ads customer by name (`q`) or look them up by geo target constant id (`ids`); send exactly one. Returns the enabled locations Google suggests: for `q`, a page of suggestions ranked by Google, matched in any case. Google Ads accounts only: a Meta account is 404. Requires an interactive user session in the Project's Workspace.",
     tags: ["Projects"],
     request: {
       params: projectAdAccountParamsSchema,
@@ -53,7 +53,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     await requireSocialBetaAccess(userContext.userId, prisma);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, accountId } = c.req.valid("param");
-    const { q, ids } = c.req.valid("query");
+    const lookup = c.req.valid("query");
     const scope = {
       projectId,
       workspaceId: workspaceContext.workspaceId,
@@ -61,11 +61,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     };
 
     try {
-      const result = await searchProjectAdLocations(
-        q === undefined
-          ? { ...scope, ids: (ids ?? "").split(",") }
-          : { ...scope, q },
-      );
+      const result = await searchProjectAdLocations({ ...scope, ...lookup });
       return ok(c, listGoogleLocationsResponseSchema.parse(result));
     } catch (error) {
       return mapAdsServiceError(error);

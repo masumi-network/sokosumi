@@ -10,7 +10,8 @@ import {
   AD_CAMPAIGN_STATUSES,
   AD_RANGES,
   GOOGLE_KEYWORD_MATCH_TYPES,
-  GOOGLE_LOCATION_QUERY_PATTERN,
+  GOOGLE_MAX_IDS,
+  type GoogleLocationLookup,
   META_CAMPAIGN_OBJECTIVES,
 } from "@/lib/ads/campaigns";
 import { projectSocialConnectionProjectParamsSchema } from "@/schemas/project-social-connection.schema";
@@ -195,10 +196,13 @@ export const updateAdCampaignRequestSchema = z
   )
   .openapi("UpdateAdCampaignRequest");
 
+/** A Google criterion id (geo target or language constant): digits only. */
+const googleIdSchema = z.string().regex(/^\d{1,20}$/);
+
 const googleIdsSchema = (what: string) =>
   z
-    .array(z.string().regex(/^\d+$/).max(20))
-    .max(25)
+    .array(googleIdSchema)
+    .max(GOOGLE_MAX_IDS)
     .openapi({ description: `${what}; none targets all`, example: ["2276"] });
 
 const googleKeywordSchema = z
@@ -315,31 +319,35 @@ export const searchGoogleLocationsQuerySchema = z
     q: z
       .string()
       .trim()
-      .regex(GOOGLE_LOCATION_QUERY_PATTERN, {
-        message: "2-60 characters: letters, digits, spaces and . , - ( ) only",
-      })
+      .min(1)
+      .max(80)
       .optional()
       .openapi({
         param: { name: "q", in: "query" },
         description:
-          "Text the location name contains (2-60 letters, digits, spaces and `.,-()`); send either `q` or `ids`",
+          "Place name to find, in any case (1-80 characters); send either `q` or `ids`",
         example: "Berlin",
       }),
     ids: z
       .string()
-      .regex(/^\d{1,20}(,\d{1,20}){0,24}$/, {
-        message: "1-25 comma-separated ids, digits only",
-      })
+      .transform((list) => list.split(","))
+      .pipe(z.array(googleIdSchema).min(1).max(GOOGLE_MAX_IDS))
       .optional()
       .openapi({
         param: { name: "ids", in: "query" },
-        description:
-          "Comma-separated geo target constant ids (1-25); send either `q` or `ids`",
+        description: `Comma-separated geo target constant ids (1-${GOOGLE_MAX_IDS}); send either \`q\` or \`ids\``,
         example: "2276,2840",
       }),
   })
-  .refine(({ q, ids }) => (q === undefined) !== (ids === undefined), {
-    message: "Send either q or ids",
+  .transform((query, ctx): GoogleLocationLookup => {
+    if (query.q !== undefined && query.ids === undefined) {
+      return { q: query.q };
+    }
+    if (query.ids !== undefined && query.q === undefined) {
+      return { ids: query.ids };
+    }
+    ctx.addIssue({ code: "custom", message: "Send either q or ids" });
+    return z.NEVER;
   });
 
 export const googleLocationSchema = z
@@ -348,7 +356,7 @@ export const googleLocationSchema = z
       description: "Geo target constant id; pass it in `google.locationIds`",
       example: "2276",
     }),
-    name: z.string().openapi({ example: "Germany" }),
+    name: z.string().openapi({ example: "Berlin" }),
     canonicalName: z.string().openapi({ example: "Berlin,Berlin,Germany" }),
     targetType: z.string().nullable().openapi({
       description: "Null when Google omits it",
@@ -362,7 +370,7 @@ export const googleLocationSchema = z
   .openapi("GoogleLocation");
 
 export const listGoogleLocationsResponseSchema = z
-  .object({ locations: z.array(googleLocationSchema).max(20) })
+  .object({ locations: z.array(googleLocationSchema).max(GOOGLE_MAX_IDS) })
   .openapi("ListGoogleLocationsResponse");
 
 export const googleLanguageSchema = z

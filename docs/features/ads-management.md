@@ -58,7 +58,7 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | GET | `/ads/accounts/{accountId}/campaigns?range=LAST_7_DAYS\|LAST_30_DAYS` | Campaigns + spend, impressions, clicks, CTR, CPC, conversions |
 | PATCH | `/ads/accounts/{accountId}/campaigns/{campaignId}` `{status?: ACTIVE\|PAUSED, dailyBudget?}` | Pause/resume, budget |
 | POST | `/ads/accounts/{accountId}/campaigns` `{name, dailyBudget, objective? (Meta, required), google? (Google, required)}` | Create, always PAUSED → 201 `{id}`. Google: `google` spec, `objective` is 422; Meta: `google` is 422. See [Google campaign builder](#google-campaign-builder) |
-| GET | `/ads/accounts/{accountId}/targeting/locations?q=<2-60>` or `?ids=2276,2840` | Google only (Meta is 404): `{locations: {id, name, canonicalName, targetType, countryCode}[]}`, at most 20 enabled Google locations. Send exactly one of `q` (letters, digits, spaces and `.,-()`) or `ids` (1-25 digit ids), else 422. See [Targeting lookups](#targeting-lookups) |
+| GET | `/ads/accounts/{accountId}/targeting/locations?q=<1-80>` or `?ids=2276,2840` | Google only (Meta is 404): `{locations: {id, name, canonicalName, targetType, countryCode}[]}`, enabled Google locations. Send exactly one of `q` (a place name, any characters) or `ids` (1-25 digit ids), else 422. See [Targeting lookups](#targeting-lookups) |
 | GET | `/ads/accounts/{accountId}/targeting/languages` | Google only (Meta is 404): `{languages: {id, code, name}[]}`, targetable languages sorted by name |
 | GET / PUT | `/ads/market` | Market profile |
 | GET | `/ads/market/keywords` | Trending keywords (volume, 12-month trend, competition, CPC range) |
@@ -145,14 +145,13 @@ The campaign id is the id in the campaign result's resource name (`mutate_operat
 
 ### Targeting lookups
 
-The ids for `locationIds` and `languageIds` come from two read-only GAQL queries (`GOOGLEADS_SEARCH_STREAM_GAQL`, run in the account's customer):
+The ids for `locationIds` and `languageIds` come from two lookups:
 
-- Locations: `geo_target_constant` with `status = 'ENABLED'`, `LIMIT 20`. `q` adds `name LIKE '%<q>%'` and `ORDER BY name`; `ids` adds `id IN (…)`.
-- Languages: `language_constant WHERE targetable = TRUE`, sorted by name in code.
+- Locations: Google's `POST https://googleads.googleapis.com/v23/geoTargetConstants:suggest`, called through the Composio proxy (`/api/v3/tools/execute/proxy`) with the ad account's connected account. Body `{locale: "en", locationNames: {names: [q]}}` for `q`, or `{locale: "en", geoTargets: {geoTargetConstants: ["geoTargetConstants/<id>", …]}}` for `ids`. Verified live: matching is case-insensitive ("müNCHEN" finds Munich) and Google ranks the suggestions (Core keeps that order). It is not customer-scoped (no customer id, no `login-customer-id`), so it works for any connected Google login. The proxy answers `{data, status, headers}`; a `status` outside 2xx is a provider error (502).
+- Core keeps `status = ENABLED` suggestions, drops repeats of an id and caps a `q` search at one page of suggestions (`GOOGLE_MAX_LOCATION_SUGGESTIONS`). An `ids` lookup returns every id found.
+- Languages: GAQL `language_constant WHERE targetable = TRUE` (`GOOGLEADS_SEARCH_STREAM_GAQL`, in the account's customer), sorted by name in code.
 
-`q` is interpolated into the GAQL string. That is safe only because the input is restricted to letters (any script), marks, digits, spaces and `.,-()`: no quote, `%`, `_` or backslash. Core checks this in the route schema and again before building the query; ids must be digits only. Keep the pattern tight.
-
-Check live on the preview: whether GAQL `LIKE` is case-sensitive here (does "berlin" find "Berlin"?). The tests only pin the query text, and the result decides whether the query needs a case-insensitive form.
+The suggest body is JSON, so `q` needs no character whitelist.
 
 ### Errors
 

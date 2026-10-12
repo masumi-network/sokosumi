@@ -21074,8 +21074,7 @@ export const GoogleSearchCampaignSpecSchema = {
             type: 'array',
             items: {
                 type: 'string',
-                maxLength: 20,
-                pattern: '^\\d+$'
+                pattern: '^\\d{1,20}$'
             },
             maxItems: 25,
             description: 'Geo target constant ids (0-25); none targets all',
@@ -21087,8 +21086,7 @@ export const GoogleSearchCampaignSpecSchema = {
             type: 'array',
             items: {
                 type: 'string',
-                maxLength: 20,
-                pattern: '^\\d+$'
+                pattern: '^\\d{1,20}$'
             },
             maxItems: 25,
             description: 'Language constant ids (0-25); none targets all',
@@ -21187,7 +21185,7 @@ export const ListGoogleLocationsResponseSchema = {
             items: {
                 $ref: '#/components/schemas/GoogleLocation'
             },
-            maxItems: 20
+            maxItems: 25
         }
     },
     required: [
@@ -21205,7 +21203,7 @@ export const GoogleLocationSchema = {
         },
         name: {
             type: 'string',
-            example: 'Germany'
+            example: 'Berlin'
         },
         canonicalName: {
             type: 'string',

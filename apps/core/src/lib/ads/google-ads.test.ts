@@ -3,17 +3,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioApiError } from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 
-const { createSessionMock, executeToolMock, deleteSessionMock } = vi.hoisted(
-  () => ({
-    createSessionMock: vi.fn(),
-    executeToolMock: vi.fn(),
-    deleteSessionMock: vi.fn(),
-  }),
-);
+const {
+  createSessionMock,
+  executeToolMock,
+  deleteSessionMock,
+  proxyFetchMock,
+} = vi.hoisted(() => ({
+  createSessionMock: vi.fn(),
+  executeToolMock: vi.fn(),
+  deleteSessionMock: vi.fn(),
+  proxyFetchMock: vi.fn(),
+}));
 
 vi.mock("@/clients/composio.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/clients/composio.client")>()),
   deleteComposioToolSession: deleteSessionMock,
+  projectComposioFetch: proxyFetchMock,
 }));
 vi.mock("@/clients/social-post-providers/tools", async (importOriginal) => ({
   ...(await importOriginal<
@@ -943,8 +948,6 @@ describe("createGoogleCampaign", () => {
 
 describe("Google targeting lookups", () => {
   const lookup = { ...input, customerId: "111" };
-  const LOCATION_SELECT =
-    "SELECT geo_target_constant.id, geo_target_constant.name, geo_target_constant.canonical_name, geo_target_constant.target_type, geo_target_constant.country_code FROM geo_target_constant WHERE geo_target_constant.status = 'ENABLED'";
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -952,90 +955,91 @@ describe("Google targeting lookups", () => {
   });
 
   describe("searchGoogleLocations", () => {
-    it("searches enabled locations by name, ordered by name, at most 20", async () => {
-      executeToolMock.mockResolvedValue({ results: [] });
-      await searchGoogleLocations({ ...lookup, q: "São Paulo (BR)" });
-      expect(executeToolMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          toolSlug: "GOOGLEADS_SEARCH_STREAM_GAQL",
-          arguments: {
-            customer_id: "111",
-            query: `${LOCATION_SELECT} AND geo_target_constant.name LIKE '%São Paulo (BR)%' ORDER BY geo_target_constant.name LIMIT 20`,
-          },
-        }),
-      );
-      expect(createSessionMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          toolkitSlug: "googleads",
-          connectedAccountId: "ca_google",
-          toolSlugs: ["GOOGLEADS_SEARCH_STREAM_GAQL"],
-        }),
-      );
-      expect(deleteSessionMock).toHaveBeenCalledWith(
-        "sess_1",
-        expect.any(String),
-      );
-    });
+    const SUGGEST =
+      "https://googleads.googleapis.com/v23/geoTargetConstants:suggest";
+    const connected = {
+      connectedAccountId: "ca_google",
+      executorUserId: "sokosumi:project-executor:project_1",
+    };
 
-    it("looks enabled locations up by id", async () => {
-      executeToolMock.mockResolvedValue({ results: [] });
-      await searchGoogleLocations({ ...lookup, ids: ["2372", "2840"] });
-      expect(executeToolMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          arguments: {
-            customer_id: "111",
-            query: `${LOCATION_SELECT} AND geo_target_constant.id IN (2372, 2840) LIMIT 20`,
-          },
-        }),
-      );
-    });
+    function suggestion(
+      id: string | number,
+      name: string,
+      extra: Record<string, unknown> = {},
+    ) {
+      return {
+        geoTargetConstant: {
+          resourceName: `geoTargetConstants/${id}`,
+          status: "ENABLED",
+          id,
+          name,
+          canonicalName: name,
+          ...extra,
+        },
+        locale: "en",
+        reach: "100",
+      };
+    }
 
-    it.each([
-      "O'Brien",
-      "100%",
-      "back\\slash",
-      "a' OR 1=1",
-      "x",
-      "x".repeat(61),
-    ])("refuses the search text %j before calling Google", async (q) => {
-      await expect(
-        searchGoogleLocations({ ...lookup, q }),
-      ).rejects.toMatchObject({ status: 422 });
+    /** Composio's proxy wraps Google's body as `data`. */
+    function proxied(data: unknown, status = 200) {
+      proxyFetchMock.mockImplementation(
+        async () => new Response(JSON.stringify({ data, status, headers: {} })),
+      );
+    }
+    const suggestions = (list: unknown[]) =>
+      proxied({ geoTargetConstantSuggestions: list });
+
+    it("suggests locations by name through the proxy, without a session", async () => {
+      suggestions([]);
+      await searchGoogleLocations({ ...connected, q: "müNCHEN" });
+      expect(proxyFetchMock).toHaveBeenCalledTimes(1);
+      expect(proxyFetchMock).toHaveBeenCalledWith(
+        "/api/v3/tools/execute/proxy",
+        {
+          method: "POST",
+          jsonBody: {
+            connected_account_id: "ca_google",
+            endpoint: SUGGEST,
+            method: "POST",
+            body: { locale: "en", locationNames: { names: ["müNCHEN"] } },
+          },
+        },
+      );
       expect(createSessionMock).not.toHaveBeenCalled();
     });
 
-    it.each([["12) OR (1=1"], ["abc"], [""]])(
-      "refuses the id %j before calling Google",
-      async (id) => {
-        await expect(
-          searchGoogleLocations({ ...lookup, ids: [id] }),
-        ).rejects.toMatchObject({ status: 422 });
-        expect(createSessionMock).not.toHaveBeenCalled();
-      },
-    );
-
-    it("parses rows, coercing numeric ids and keeping missing fields null", async () => {
-      executeToolMock.mockResolvedValue({
-        results: [
-          {
-            geoTargetConstant: {
-              id: "2276",
-              name: "Germany",
-              canonicalName: "Germany",
-              targetType: "Country",
-              countryCode: "DE",
-            },
+    it("looks locations up by id", async () => {
+      suggestions([]);
+      await searchGoogleLocations({ ...connected, ids: ["2372", "2840"] });
+      expect(proxyFetchMock.mock.calls[0]?.[1].jsonBody).toEqual({
+        connected_account_id: "ca_google",
+        endpoint: SUGGEST,
+        method: "POST",
+        body: {
+          locale: "en",
+          geoTargets: {
+            geoTargetConstants: [
+              "geoTargetConstants/2372",
+              "geoTargetConstants/2840",
+            ],
           },
-          {
-            geoTargetConstant: {
-              id: 1003854,
-              name: "Berlin",
-              canonicalName: "Berlin,Berlin,Germany",
-            },
-          },
-        ],
+        },
       });
-      expect(await searchGoogleLocations({ ...lookup, q: "Ger" })).toEqual([
+    });
+
+    it("maps suggestions in Google's order, coercing ids and keeping missing fields null", async () => {
+      suggestions([
+        suggestion("2276", "Germany", {
+          canonicalName: "Germany",
+          targetType: "Country",
+          countryCode: "DE",
+        }),
+        suggestion(1003854, "Berlin", {
+          canonicalName: "Berlin,Berlin,Germany",
+        }),
+      ]);
+      expect(await searchGoogleLocations({ ...connected, q: "Ger" })).toEqual([
         {
           id: "2276",
           name: "Germany",
@@ -1053,23 +1057,100 @@ describe("Google targeting lookups", () => {
       ]);
     });
 
-    it("returns no locations for an empty result", async () => {
-      executeToolMock.mockResolvedValue({ results: [] });
-      expect(await searchGoogleLocations({ ...lookup, q: "Nowhere" })).toEqual(
-        [],
+    it("drops suggestions that are not enabled", async () => {
+      suggestions([
+        suggestion("1", "Gone", { status: "REMOVAL_PLANNED" }),
+        suggestion("2", "Unknown", { status: undefined }),
+        suggestion("3", "Kept"),
+      ]);
+      const found = await searchGoogleLocations({ ...connected, q: "x" });
+      expect(found.map(({ id }) => id)).toEqual(["3"]);
+    });
+
+    it("keeps the first of a repeated id", async () => {
+      suggestions([
+        suggestion("1", "One"),
+        suggestion("2", "Two"),
+        suggestion("1", "One again"),
+      ]);
+      const found = await searchGoogleLocations({ ...connected, q: "x" });
+      expect(found.map(({ name }) => name)).toEqual(["One", "Two"]);
+    });
+
+    it("caps a name search at 20 but returns every requested id", async () => {
+      const list = Array.from({ length: 25 }, (_, i) =>
+        suggestion(i + 1, `Place ${i + 1}`),
+      );
+      suggestions(list);
+      expect(
+        await searchGoogleLocations({ ...connected, q: "place" }),
+      ).toHaveLength(20);
+      const ids = list.map((_, i) => String(i + 1));
+      expect(await searchGoogleLocations({ ...connected, ids })).toHaveLength(
+        25,
       );
     });
 
-    it("raises a payload without a results list and a row of the wrong shape", async () => {
-      executeToolMock.mockResolvedValue({ unexpected: true });
+    it("returns no locations when Google omits the suggestions", async () => {
+      proxied({});
+      expect(
+        await searchGoogleLocations({ ...connected, q: "Nowhere" }),
+      ).toEqual([]);
+    });
+
+    it.each([
+      ["no ids", []],
+      ["26 ids", Array.from({ length: 26 }, (_, i) => String(i + 1))],
+    ])("refuses %s before calling Google", async (_name, ids) => {
       await expect(
-        searchGoogleLocations({ ...lookup, q: "Berlin" }),
-      ).rejects.toBeInstanceOf(ComposioApiError);
-      executeToolMock.mockResolvedValue({
-        results: [{ geoTargetConstant: { name: "no id" } }],
+        searchGoogleLocations({ ...connected, ids }),
+      ).rejects.toMatchObject({ status: 422 });
+      expect(proxyFetchMock).not.toHaveBeenCalled();
+    });
+
+    it("raises a provider error for a proxied status outside 2xx", async () => {
+      proxied(
+        { error: { code: 403, message: "The caller is not allowed." } },
+        403,
+      );
+      await expect(
+        searchGoogleLocations({ ...connected, q: "Berlin" }),
+      ).rejects.toMatchObject({
+        name: "ComposioToolError",
+        providerStatus: 403,
+        providerMessage: "The caller is not allowed.",
       });
+      proxied("<html>bad gateway</html>", 502);
       await expect(
-        searchGoogleLocations({ ...lookup, q: "Berlin" }),
+        searchGoogleLocations({ ...connected, q: "Berlin" }),
+      ).rejects.toMatchObject({ providerStatus: 502, providerMessage: null });
+    });
+
+    it("raises an HTTP failure of the proxy itself", async () => {
+      proxyFetchMock.mockResolvedValue(new Response("nope", { status: 500 }));
+      await expect(
+        searchGoogleLocations({ ...connected, q: "Berlin" }),
+      ).rejects.toBeInstanceOf(ComposioApiError);
+    });
+
+    it.each([
+      ["a body without data and status", { unexpected: true }],
+      ["a data that is not an object", { status: 200, data: "text" }],
+      [
+        "a suggestion without an id",
+        {
+          status: 200,
+          data: {
+            geoTargetConstantSuggestions: [
+              { geoTargetConstant: { name: "no id", status: "ENABLED" } },
+            ],
+          },
+        },
+      ],
+    ])("raises %s as an invalid response", async (_name, body) => {
+      proxyFetchMock.mockResolvedValue(new Response(JSON.stringify(body)));
+      await expect(
+        searchGoogleLocations({ ...connected, q: "Berlin" }),
       ).rejects.toThrow(/invalid response/);
     });
   });
