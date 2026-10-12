@@ -676,6 +676,15 @@ describe("project ad accounts service", () => {
   });
 
   describe("create campaign", () => {
+    const google = {
+      type: "SEARCH" as const,
+      locationIds: ["2276"],
+      languageIds: ["1001"],
+      finalUrl: "https://example.com",
+      keywords: [{ text: "shoes", matchType: "BROAD" as const }],
+      headlines: ["One", "Two", "Three"],
+      descriptions: ["First description", "Second description"],
+    };
     const create = (
       changes: Partial<Parameters<typeof createProjectAdCampaign>[0]> = {},
     ) =>
@@ -691,17 +700,47 @@ describe("project ad accounts service", () => {
       executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
     };
 
-    it("creates a Google campaign inside the attached customer, ignoring any objective", async () => {
+    it("creates a Google campaign inside the attached customer", async () => {
       m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
       m.googleCreate.mockResolvedValue("42");
-      await expect(create({ objective: "OUTCOME_SALES" })).resolves.toEqual({
-        id: "42",
-      });
+      await expect(create({ google })).resolves.toEqual({ id: "42" });
       expect(m.googleCreate).toHaveBeenCalledWith({
         ...connected,
         customerId: "111",
         name: "Spring sale",
         dailyBudget: 12.5,
+        google,
+      });
+      expect(m.metaCreate).not.toHaveBeenCalled();
+    });
+
+    it("rejects a Google campaign without a google spec before calling Google", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      await expect(create()).rejects.toMatchObject({
+        status: 422,
+        message: expect.stringContaining("google"),
+      });
+      expect(m.googleCreate).not.toHaveBeenCalled();
+    });
+
+    it("rejects a Google campaign with an objective before calling Google", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      await expect(
+        create({ google, objective: "OUTCOME_SALES" }),
+      ).rejects.toMatchObject({
+        status: 422,
+        message: expect.stringContaining("objective"),
+      });
+      expect(m.googleCreate).not.toHaveBeenCalled();
+    });
+
+    it("rejects a Meta campaign with a google spec before calling Meta", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("meta_ads", "act_9"));
+      await expect(
+        create({ google, objective: "OUTCOME_LEADS" }),
+      ).rejects.toMatchObject({
+        status: 422,
+        message: expect.stringContaining("google"),
       });
       expect(m.metaCreate).not.toHaveBeenCalled();
     });
@@ -740,7 +779,7 @@ describe("project ad accounts service", () => {
         m.accountFindFirst.mockResolvedValue(
           accountRow("google_ads", "111", "active", currency),
         );
-        await expect(create({ dailyBudget })).rejects.toMatchObject({
+        await expect(create({ dailyBudget, google })).rejects.toMatchObject({
           status: 422,
           message: expect.stringContaining(currency),
         });

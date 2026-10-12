@@ -9,6 +9,7 @@ import {
   AD_CAMPAIGN_SETTABLE_STATUSES,
   AD_CAMPAIGN_STATUSES,
   AD_RANGES,
+  GOOGLE_KEYWORD_MATCH_TYPES,
   META_CAMPAIGN_OBJECTIVES,
 } from "@/lib/ads/campaigns";
 import { projectSocialConnectionProjectParamsSchema } from "@/schemas/project-social-connection.schema";
@@ -193,6 +194,106 @@ export const updateAdCampaignRequestSchema = z
   )
   .openapi("UpdateAdCampaignRequest");
 
+const googleIdsSchema = (what: string) =>
+  z
+    .array(z.string().regex(/^\d+$/).max(20))
+    .max(25)
+    .openapi({ description: `${what}; none targets all`, example: ["2276"] });
+
+const googleKeywordSchema = z
+  .object({
+    text: z
+      .string()
+      .trim()
+      .min(1)
+      .max(80)
+      .refine((text) => text.split(/\s+/).length <= 10, {
+        message: "A keyword has at most 10 words",
+      })
+      .openapi({
+        description: "Plain text, without quotes or brackets",
+        example: "running shoes",
+      }),
+    matchType: z.enum(GOOGLE_KEYWORD_MATCH_TYPES),
+  })
+  .openapi("GoogleKeyword");
+
+const googleAdTextsSchema = (
+  min: number,
+  max: number,
+  length: number,
+  unique: boolean,
+) =>
+  z
+    .array(z.string().trim().min(1).max(length))
+    .min(min)
+    .max(max)
+    .refine(
+      (texts) =>
+        !unique ||
+        new Set(texts.map((text) => text.toLowerCase())).size === texts.length,
+      { message: "Texts must be unique (ignoring case)" },
+    );
+
+// Not z.iso.date(): that is `format: date` in the OpenAPI document, which the
+// generated client reads as a Date and would send as a timestamp.
+const googleDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((date) => z.iso.date().safeParse(date).success, {
+    message: "Not a calendar date",
+  })
+  .openapi({ example: "2026-11-01" });
+
+// Fields every campaign type has. Add a type by adding a member to
+// googleCampaignSpecSchema.
+const googleCampaignSpecShape = {
+  startDate: googleDate.optional().openapi({
+    description:
+      "Campaign starts at 00:00:00 of this day in the account's time zone",
+  }),
+  endDate: googleDate.optional().openapi({
+    description:
+      "Campaign ends at 23:59:59 of this day in the account's time zone; not before startDate",
+  }),
+  locationIds: googleIdsSchema("Geo target constant ids (0-25)"),
+  languageIds: googleIdsSchema("Language constant ids (0-25)"),
+  finalUrl: z
+    .url({ protocol: /^https?$/ })
+    .max(2048)
+    .openapi({ example: "https://example.com/spring" }),
+};
+
+const googleSearchCampaignSpecSchema = z
+  .object({
+    type: z.literal("SEARCH"),
+    ...googleCampaignSpecShape,
+    keywords: z.array(googleKeywordSchema).min(1).max(50).openapi({
+      description:
+        "Repeats of a keyword with the same match type (ignoring case) are dropped",
+    }),
+    headlines: googleAdTextsSchema(3, 15, 30, true),
+    descriptions: googleAdTextsSchema(2, 4, 90, false),
+    path1: z.string().trim().min(1).max(15).optional(),
+    path2: z.string().trim().min(1).max(15).optional().openapi({
+      description: "Requires path1",
+    }),
+  })
+  .refine((spec) => spec.path1 !== undefined || spec.path2 === undefined, {
+    message: "path2 needs path1",
+    path: ["path2"],
+  })
+  .openapi("GoogleSearchCampaignSpec");
+
+export const googleCampaignSpecSchema = z
+  .discriminatedUnion("type", [googleSearchCampaignSpecSchema])
+  .refine(
+    ({ startDate, endDate }) =>
+      startDate === undefined || endDate === undefined || endDate >= startDate,
+    { message: "endDate must not be before startDate", path: ["endDate"] },
+  )
+  .openapi("GoogleCampaignSpec");
+
 export const createAdCampaignRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(255).openapi({ example: "Spring sale" }),
@@ -202,8 +303,10 @@ export const createAdCampaignRequestSchema = z
       example: 25.5,
     }),
     objective: z.enum(META_CAMPAIGN_OBJECTIVES).optional().openapi({
-      description:
-        "Required for Meta ad accounts; ignored for Google (campaigns are Search campaigns)",
+      description: "Required for Meta ad accounts; 422 for Google",
+    }),
+    google: googleCampaignSpecSchema.optional().openapi({
+      description: "Required for Google ad accounts; 422 for Meta",
     }),
   })
   .openapi("CreateAdCampaignRequest", {

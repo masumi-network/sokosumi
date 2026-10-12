@@ -6095,9 +6095,55 @@ export type CreateAdCampaignRequest = {
      */
     dailyBudget: number;
     /**
-     * Required for Meta ad accounts; ignored for Google (campaigns are Search campaigns)
+     * Required for Meta ad accounts; 422 for Google
      */
     objective?: 'OUTCOME_TRAFFIC' | 'OUTCOME_AWARENESS' | 'OUTCOME_ENGAGEMENT' | 'OUTCOME_LEADS' | 'OUTCOME_SALES';
+    google?: GoogleCampaignSpec;
+};
+
+/**
+ * Required for Google ad accounts; 422 for Meta
+ */
+export type GoogleCampaignSpec = GoogleSearchCampaignSpec;
+
+export type GoogleSearchCampaignSpec = {
+    type: 'SEARCH';
+    /**
+     * Campaign starts at 00:00:00 of this day in the account's time zone
+     */
+    startDate?: string;
+    /**
+     * Campaign ends at 23:59:59 of this day in the account's time zone; not before startDate
+     */
+    endDate?: string;
+    /**
+     * Geo target constant ids (0-25); none targets all
+     */
+    locationIds: Array<string>;
+    /**
+     * Language constant ids (0-25); none targets all
+     */
+    languageIds: Array<string>;
+    finalUrl: string;
+    /**
+     * Repeats of a keyword with the same match type (ignoring case) are dropped
+     */
+    keywords: Array<GoogleKeyword>;
+    headlines: Array<string>;
+    descriptions: Array<string>;
+    path1?: string;
+    /**
+     * Requires path1
+     */
+    path2?: string;
+};
+
+export type GoogleKeyword = {
+    /**
+     * Plain text, without quotes or brackets
+     */
+    text: string;
+    matchType: 'BROAD' | 'PHRASE' | 'EXACT';
 };
 
 export type GetAdMarketProfileResponse = {

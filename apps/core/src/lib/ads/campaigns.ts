@@ -19,7 +19,7 @@ export interface AdCampaignUpdate {
   dailyBudget?: number;
 }
 
-/** Objectives a new Meta campaign may have. Google Search campaigns have none. */
+/** Objectives a new Meta campaign may have. Google campaigns have none. */
 export const META_CAMPAIGN_OBJECTIVES = [
   "OUTCOME_TRAFFIC",
   "OUTCOME_AWARENESS",
@@ -34,6 +34,56 @@ export interface AdCampaignCreate {
   name: string;
   /** Decimal in the account currency. */
   dailyBudget: number;
+}
+
+export const GOOGLE_KEYWORD_MATCH_TYPES = ["BROAD", "PHRASE", "EXACT"] as const;
+export type GoogleKeywordMatchType =
+  (typeof GOOGLE_KEYWORD_MATCH_TYPES)[number];
+
+export interface GoogleKeyword {
+  text: string;
+  matchType: GoogleKeywordMatchType;
+}
+
+interface GoogleCampaignSpecBase {
+  /** `YYYY-MM-DD`, the account's time zone. */
+  startDate?: string;
+  /** `YYYY-MM-DD`, not before startDate. */
+  endDate?: string;
+  /** Geo target constant ids; none targets all countries. */
+  locationIds: string[];
+  /** Language constant ids; none targets all languages. */
+  languageIds: string[];
+  finalUrl: string;
+}
+
+export interface GoogleSearchCampaignSpec extends GoogleCampaignSpecBase {
+  type: "SEARCH";
+  keywords: GoogleKeyword[];
+  headlines: string[];
+  descriptions: string[];
+  path1?: string;
+  path2?: string;
+}
+
+/** What a new Google campaign contains beyond its name and budget; one member per campaign type. */
+export type GoogleCampaignSpec = GoogleSearchCampaignSpec;
+
+export interface GoogleCampaignCreate extends AdCampaignCreate {
+  google: GoogleCampaignSpec;
+}
+
+/** Drops keywords that repeat another with the same match type, ignoring case. */
+export function dedupeGoogleKeywords(
+  keywords: readonly GoogleKeyword[],
+): GoogleKeyword[] {
+  const seen = new Set<string>();
+  return keywords.filter(({ text, matchType }) => {
+    const key = `${matchType}:${text.toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export interface AdCampaignMetrics {

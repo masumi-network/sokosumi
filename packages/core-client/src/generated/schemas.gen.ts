@@ -21021,7 +21021,10 @@ export const CreateAdCampaignRequestSchema = {
                 'OUTCOME_LEADS',
                 'OUTCOME_SALES'
             ],
-            description: 'Required for Meta ad accounts; ignored for Google (campaigns are Search campaigns)'
+            description: 'Required for Meta ad accounts; 422 for Google'
+        },
+        google: {
+            $ref: '#/components/schemas/GoogleCampaignSpec'
         }
     },
     required: [
@@ -21029,6 +21032,151 @@ export const CreateAdCampaignRequestSchema = {
         'dailyBudget'
     ],
     description: 'There is no status: a new campaign is always created paused'
+} as const;
+
+export const GoogleCampaignSpecSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/GoogleSearchCampaignSpec'
+        }
+    ],
+    discriminator: {
+        propertyName: 'type',
+        mapping: {
+            SEARCH: '#/components/schemas/GoogleSearchCampaignSpec'
+        }
+    },
+    description: 'Required for Google ad accounts; 422 for Meta'
+} as const;
+
+export const GoogleSearchCampaignSpecSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'SEARCH'
+            ]
+        },
+        startDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign starts at 00:00:00 of this day in the account\'s time zone'
+        },
+        endDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign ends at 23:59:59 of this day in the account\'s time zone; not before startDate'
+        },
+        locationIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 20,
+                pattern: '^\\d+$'
+            },
+            maxItems: 25,
+            description: 'Geo target constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        languageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 20,
+                pattern: '^\\d+$'
+            },
+            maxItems: 25,
+            description: 'Language constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        finalUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri',
+            example: 'https://example.com/spring'
+        },
+        keywords: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleKeyword'
+            },
+            minItems: 1,
+            maxItems: 50,
+            description: 'Repeats of a keyword with the same match type (ignoring case) are dropped'
+        },
+        headlines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 30
+            },
+            minItems: 3,
+            maxItems: 15
+        },
+        descriptions: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 90
+            },
+            minItems: 2,
+            maxItems: 4
+        },
+        path1: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 15
+        },
+        path2: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 15,
+            description: 'Requires path1'
+        }
+    },
+    required: [
+        'type',
+        'locationIds',
+        'languageIds',
+        'finalUrl',
+        'keywords',
+        'headlines',
+        'descriptions'
+    ]
+} as const;
+
+export const GoogleKeywordSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80,
+            description: 'Plain text, without quotes or brackets',
+            example: 'running shoes'
+        },
+        matchType: {
+            type: 'string',
+            enum: [
+                'BROAD',
+                'PHRASE',
+                'EXACT'
+            ]
+        }
+    },
+    required: [
+        'text',
+        'matchType'
+    ]
 } as const;
 
 export const GetAdMarketProfileResponseSchema = {

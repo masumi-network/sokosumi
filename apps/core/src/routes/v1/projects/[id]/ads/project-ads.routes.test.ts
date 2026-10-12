@@ -480,18 +480,40 @@ describe("Project ads routes", () => {
         body: JSON.stringify(body),
       });
 
+    const googleSpec = {
+      type: "SEARCH",
+      locationIds: ["2276"],
+      languageIds: ["1001"],
+      finalUrl: "https://example.com/spring",
+      keywords: [{ text: "running shoes", matchType: "BROAD" }],
+      headlines: ["One", "Two", "Three"],
+      descriptions: ["First description", "Second description"],
+    };
+    const withGoogle = (changes: Record<string, unknown>) => ({
+      name: "Spring",
+      dailyBudget: 5,
+      google: { ...googleSpec, ...changes },
+    });
+
     beforeEach(() => {
       m.createCampaign.mockResolvedValue({ id: "42" });
     });
 
     it.each([
-      ["without objective", { name: "Spring", dailyBudget: 12.5 }],
       [
-        "with objective",
+        "a Meta objective",
         { name: "Spring", dailyBudget: 12.5, objective: "OUTCOME_TRAFFIC" },
       ],
+      [
+        "a Google spec",
+        { name: "Spring", dailyBudget: 12.5, google: googleSpec },
+      ],
+      [
+        "neither (the service refuses it)",
+        { name: "Spring", dailyBudget: 12.5 },
+      ],
     ])(
-      "creates a campaign %s and returns 201 with its id",
+      "creates a campaign with %s and returns 201 with its id",
       async (_name, body) => {
         const response = await createPost(body);
         expect(response.status).toBe(201);
@@ -505,7 +527,20 @@ describe("Project ads routes", () => {
       },
     );
 
-    it("trims the name", async () => {
+    it("trims the name, keywords, headlines and descriptions", async () => {
+      await createPost(
+        withGoogle({
+          keywords: [{ text: "  shoes ", matchType: "EXACT" }],
+          headlines: [" One ", "Two", "Three"],
+          descriptions: [" First ", "Second"],
+        }),
+      );
+      expect(m.createCampaign.mock.calls[0]?.[0].google).toMatchObject({
+        keywords: [{ text: "shoes", matchType: "EXACT" }],
+        headlines: ["One", "Two", "Three"],
+        descriptions: ["First", "Second"],
+      });
+      m.createCampaign.mockClear();
       await createPost({ name: "  Spring  ", dailyBudget: 5 });
       expect(m.createCampaign).toHaveBeenCalledWith(
         expect.objectContaining({ name: "Spring" }),
@@ -542,6 +577,124 @@ describe("Project ads routes", () => {
     });
 
     it.each([
+      [
+        "a duplicate keyword",
+        {
+          keywords: [
+            { text: "Shoes", matchType: "BROAD" },
+            { text: "shoes", matchType: "BROAD" },
+          ],
+        },
+      ],
+      [
+        "the same keyword with another match type",
+        {
+          keywords: [
+            { text: "Shoes", matchType: "BROAD" },
+            { text: "shoes", matchType: "EXACT" },
+          ],
+        },
+      ],
+    ])("accepts %s (the provider drops repeats)", async (_name, changes) => {
+      expect((await createPost(withGoogle(changes))).status).toBe(201);
+    });
+
+    it.each([
+      ["an unknown type", { type: "VIDEO" }],
+      ["no type", { type: undefined }],
+      ["a missing final URL", { finalUrl: undefined }],
+      ["a non-http final URL", { finalUrl: "javascript:alert(1)" }],
+      [
+        "a too long final URL",
+        { finalUrl: `https://example.com/${"a".repeat(2048)}` },
+      ],
+      ["no keywords", { keywords: [] }],
+      [
+        "51 keywords",
+        {
+          keywords: Array.from({ length: 51 }, (_, i) => ({
+            text: `kw ${i}`,
+            matchType: "BROAD",
+          })),
+        },
+      ],
+      ["an empty keyword", { keywords: [{ text: "  ", matchType: "BROAD" }] }],
+      [
+        "a keyword over 80 characters",
+        { keywords: [{ text: "a".repeat(81), matchType: "BROAD" }] },
+      ],
+      [
+        "a keyword of 11 words",
+        { keywords: [{ text: "a b c d e f g h i j k", matchType: "BROAD" }] },
+      ],
+      [
+        "an unknown match type",
+        { keywords: [{ text: "shoes", matchType: "NEGATIVE" }] },
+      ],
+      ["2 headlines", { headlines: ["One", "Two"] }],
+      [
+        "16 headlines",
+        { headlines: Array.from({ length: 16 }, (_, i) => `H${i}`) },
+      ],
+      [
+        "a headline over 30 characters",
+        { headlines: ["a".repeat(31), "Two", "Three"] },
+      ],
+      [
+        "a duplicate headline ignoring case",
+        { headlines: ["One", "one", "Three"] },
+      ],
+      ["1 description", { descriptions: ["Only one"] }],
+      ["5 descriptions", { descriptions: ["1", "2", "3", "4", "5"] }],
+      [
+        "a description over 90 characters",
+        { descriptions: ["a".repeat(91), "Two"] },
+      ],
+      ["a path over 15 characters", { path1: "a".repeat(16) }],
+      ["path2 without path1", { path2: "spring" }],
+      [
+        "26 locations",
+        { locationIds: Array.from({ length: 26 }, (_, i) => `${i}`) },
+      ],
+      ["a non-numeric location", { locationIds: ["Berlin"] }],
+      ["a non-numeric language", { languageIds: ["en"] }],
+      ["a malformed date", { startDate: "01.11.2026" }],
+      ["an impossible date", { startDate: "2026-02-30" }],
+      [
+        "an end date before the start date",
+        { startDate: "2026-11-02", endDate: "2026-11-01" },
+      ],
+    ])("rejects a Google spec with %s", async (_name, changes) => {
+      const response = await createPost(withGoogle(changes));
+      expect(response.status).toBe(422);
+      expect(m.createCampaign).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["no locations or languages", { locationIds: [], languageIds: [] }],
+      [
+        "25 locations",
+        { locationIds: Array.from({ length: 25 }, (_, i) => `${i}`) },
+      ],
+      ["both paths", { path1: "shoes", path2: "spring" }],
+      [
+        "an end date equal to the start date",
+        { startDate: "2026-11-01", endDate: "2026-11-01" },
+      ],
+      ["only an end date", { endDate: "2026-11-01" }],
+      [
+        "15 headlines and 4 descriptions",
+        {
+          headlines: Array.from({ length: 15 }, (_, i) => `H${i}`),
+          descriptions: ["1", "2", "3", "4"],
+        },
+      ],
+    ])("accepts a Google spec with %s", async (_name, changes) => {
+      const response = await createPost(withGoogle(changes));
+      expect(response.status).toBe(201);
+    });
+
+    it.each([
       ["foreign account", notFound("Ad account not found"), 404],
       ["disconnected connection", conflict("Ad connection is not active"), 409],
       [
@@ -549,6 +702,7 @@ describe("Project ads routes", () => {
         unprocessableEntity("Objective required"),
         422,
       ],
+      ["a Google validation failure", unprocessableEntity("Too long."), 422],
       [
         "Composio tool error",
         new ComposioToolError({ message: "secret detail" }),

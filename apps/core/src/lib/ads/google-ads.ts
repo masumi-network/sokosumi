@@ -4,32 +4,32 @@ import { z } from "@hono/zod-openapi";
 
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { PROJECT_AD_PROVIDERS } from "@/config/ads-providers";
-import { conflict, notFound } from "@/helpers/error";
+import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import {
   type AdCampaign,
-  type AdCampaignCreate,
   type AdCampaignStatus,
   type AdCampaignUpdate,
   type AdRange,
   buildAdCampaign,
+  dedupeGoogleKeywords,
+  type GoogleCampaignCreate,
   noAdMetrics,
   sumAdMetrics,
 } from "@/lib/ads/campaigns";
 import {
   type AdsConnectedAccount,
   type AvailableAdAccount,
-  parseToolRow,
   parseToolRows,
   requireToolRows,
   toolRows,
   withAdsToolSession,
 } from "@/lib/ads/composio-tools";
-import { tryUseLogger } from "@/lib/evlog";
 
 const LIST_ACCESSIBLE_CUSTOMERS = "GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS";
 const SEARCH_STREAM_GAQL = "GOOGLEADS_SEARCH_STREAM_GAQL";
 const MUTATE_CAMPAIGNS = "GOOGLEADS_MUTATE_CAMPAIGNS";
 const MUTATE_CAMPAIGN_BUDGETS = "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS";
+const BATCH_MUTATE = "GOOGLEADS_BATCH_MUTATE";
 const MAX_CUSTOMERS = 50;
 const MICROS = 1_000_000;
 
@@ -315,118 +315,200 @@ export async function updateGoogleCampaign(
   );
 }
 
-const mutateResultRowSchema = z.object({ resource_name: z.string().min(1) });
-const budgetResourceNameSchema = z
-  .string()
-  .regex(/^customers\/\d+\/campaignBudgets\/\d+$/);
-const campaignResourceNameSchema = z
-  .string()
-  .regex(/^customers\/\d+\/campaigns\/\d+$/);
+const campaignResultSchema = z.object({
+  campaign_result: z.object({
+    resource_name: z.string().regex(/^customers\/\d+\/campaigns\/\d+$/),
+  }),
+});
 const MAX_BUDGET_NAME_LENGTH = 255;
 const BUDGET_NAME_SUFFIX_LENGTH = " budget ".length + 8;
 
-/** Resource name of the first result of a mutation that was applied. */
-function mutatedResourceName(
-  payload: Record<string, unknown> | null,
-  context: string,
-): string {
-  requireMutated(payload, context);
-  return parseToolRow(
-    toolRows(payload, "results")[0],
-    mutateResultRowSchema,
-    context,
-  ).resource_name;
+// Temporary ids link the resources created in one BATCH_MUTATE call.
+const BUDGET_TEMP_ID = -1;
+const CAMPAIGN_TEMP_ID = -2;
+const AD_GROUP_TEMP_ID = -3;
+
+/**
+ * The operations of a paused Search campaign: budget, campaign (Maximize
+ * clicks, Google Search network only), location and language criteria, one
+ * ad group with its keywords and one responsive search ad. Each item has
+ * exactly one operation key, as the tool requires.
+ */
+function searchCampaignOperations(
+  customerId: string,
+  { name, dailyBudget, google }: GoogleCampaignCreate,
+): Record<string, unknown>[] {
+  const budget = `customers/${customerId}/campaignBudgets/${BUDGET_TEMP_ID}`;
+  const campaign = `customers/${customerId}/campaigns/${CAMPAIGN_TEMP_ID}`;
+  const adGroup = `customers/${customerId}/adGroups/${AD_GROUP_TEMP_ID}`;
+  // Budget names are unique per customer; the suffix avoids clashes with
+  // earlier campaigns of the same name.
+  const budgetName = `${name.slice(0, MAX_BUDGET_NAME_LENGTH - BUDGET_NAME_SUFFIX_LENGTH)} budget ${randomUUID().slice(0, 8)}`;
+  const criterion = (target: Record<string, unknown>) => ({
+    campaign_criterion_operation: { create: { campaign, ...target } },
+  });
+
+  return [
+    {
+      campaign_budget_operation: {
+        create: {
+          resource_name: budget,
+          name: budgetName,
+          amount_micros: Math.round(dailyBudget * MICROS),
+          delivery_method: "STANDARD",
+          explicitly_shared: false,
+        },
+      },
+    },
+    {
+      campaign_operation: {
+        create: {
+          resource_name: campaign,
+          name,
+          status: "PAUSED",
+          advertising_channel_type: "SEARCH",
+          campaign_budget: budget,
+          target_spend: {},
+          network_settings: {
+            target_google_search: true,
+            target_search_network: false,
+            target_content_network: false,
+          },
+          contains_eu_political_advertising:
+            "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
+          ...(google.startDate && {
+            start_date_time: `${google.startDate} 00:00:00`,
+          }),
+          ...(google.endDate && {
+            end_date_time: `${google.endDate} 23:59:59`,
+          }),
+        },
+      },
+    },
+    ...[...new Set(google.locationIds)].map((id) =>
+      criterion({
+        location: { geo_target_constant: `geoTargetConstants/${id}` },
+      }),
+    ),
+    ...[...new Set(google.languageIds)].map((id) =>
+      criterion({ language: { language_constant: `languageConstants/${id}` } }),
+    ),
+    {
+      ad_group_operation: {
+        create: {
+          resource_name: adGroup,
+          campaign,
+          name: "Ad group 1",
+          status: "ENABLED",
+          type: "SEARCH_STANDARD",
+        },
+      },
+    },
+    ...dedupeGoogleKeywords(google.keywords).map(({ text, matchType }) => ({
+      ad_group_criterion_operation: {
+        create: {
+          ad_group: adGroup,
+          status: "ENABLED",
+          keyword: { text, match_type: matchType },
+        },
+      },
+    })),
+    {
+      ad_group_ad_operation: {
+        create: {
+          ad_group: adGroup,
+          status: "ENABLED",
+          ad: {
+            final_urls: [google.finalUrl],
+            responsive_search_ad: {
+              headlines: google.headlines.map((text) => ({ text })),
+              descriptions: google.descriptions.map((text) => ({ text })),
+              ...(google.path1 && { path1: google.path1 }),
+              ...(google.path2 && { path2: google.path2 }),
+            },
+          },
+        },
+      },
+    },
+  ];
+}
+
+// Errors that are not about the request's content stay provider failures.
+const NON_VALIDATION_ERROR_CODES = new Set([
+  "authenticationerror",
+  "authorizationerror",
+  "quotaerror",
+  "internalerror",
+]);
+// The first entry of `GoogleAdsFailure.errors`. Matched on the text because
+// the tool error message is cut at a fixed length, so the JSON may be incomplete.
+const GOOGLE_FAILURE_PATTERN =
+  /"errors"\s*:\s*\[\s*\{\s*"error_?[cC]ode"\s*:\s*\{\s*"(\w+)"[^}]*\}\s*,\s*"message"\s*:\s*"((?:[^"\\]|\\.)+)"/;
+
+/**
+ * Google's first validation or policy message when the tool error carries a
+ * `GoogleAdsFailure` ("Too long.", "Destination not working"); null for
+ * anything else, including authentication, permission and quota failures.
+ */
+function googleValidationMessage(error: unknown): string | null {
+  if (!(error instanceof ComposioToolError) || !error.providerMessage) {
+    return null;
+  }
+  const [, code, message] =
+    GOOGLE_FAILURE_PATTERN.exec(error.providerMessage) ?? [];
+  if (!code || !message) return null;
+  if (NON_VALIDATION_ERROR_CODES.has(code.replaceAll("_", "").toLowerCase())) {
+    return null;
+  }
+  try {
+    return JSON.parse(`"${message}"`) as string;
+  } catch {
+    return message;
+  }
 }
 
 /**
- * Creates a paused Search campaign with its own (not shared) daily budget and
- * returns the campaign id. The budget goes first because the campaign needs
- * its resource name. When the campaign is not created, the budget is removed
- * again (best effort) and the campaign error is raised.
- *
- * The create schema has no Maximize clicks field, only `manual_cpc` (empty:
- * no bid strategy) or a portfolio strategy, so the campaign uses manual CPC.
+ * Creates a paused Search campaign with its own (not shared) daily budget in
+ * ONE atomic `GOOGLEADS_BATCH_MUTATE` call (`partial_failure: false`): either
+ * the whole tree exists afterwards or nothing does. Returns the campaign id.
+ * A Google validation or policy failure is raised as 422 with Google's
+ * message; other failures are raised unchanged.
  */
 export async function createGoogleCampaign(
-  input: AdsConnectedAccount & AdCampaignCreate & { customerId: string },
+  input: AdsConnectedAccount & GoogleCampaignCreate & { customerId: string },
 ): Promise<string> {
-  const { customerId, name, dailyBudget, ...connected } = input;
+  const { customerId, connectedAccountId, executorUserId } = input;
 
-  return withAdsToolSession(
+  const payload = await withAdsToolSession(
     {
-      ...connected,
+      connectedAccountId,
+      executorUserId,
       toolkit: PROJECT_AD_PROVIDERS.google_ads,
-      toolSlugs: [MUTATE_CAMPAIGNS, MUTATE_CAMPAIGN_BUDGETS],
+      toolSlugs: [BATCH_MUTATE],
     },
     async (execute) => {
-      // Budget names are unique per customer; the suffix avoids clashes with
-      // earlier campaigns of the same name.
-      const budgetName = `${name.slice(0, MAX_BUDGET_NAME_LENGTH - BUDGET_NAME_SUFFIX_LENGTH)} budget ${randomUUID().slice(0, 8)}`;
-      const budgetResult = await execute(MUTATE_CAMPAIGN_BUDGETS, {
-        customer_id: customerId,
-        operations: [
-          {
-            create: {
-              name: budgetName,
-              amount_micros: Math.round(dailyBudget * MICROS),
-              delivery_method: "STANDARD",
-              explicitly_shared: false,
-            },
-          },
-        ],
-      });
-      const budget = parseToolRow(
-        mutatedResourceName(budgetResult, "create Google Ads campaign budget"),
-        budgetResourceNameSchema,
-        "create Google Ads campaign budget",
-      );
-
-      let campaignResourceName: string;
       try {
-        campaignResourceName = mutatedResourceName(
-          await execute(MUTATE_CAMPAIGNS, {
-            customer_id: customerId,
-            operations: [
-              {
-                operation_type: "create",
-                create: {
-                  name,
-                  status: "paused",
-                  advertising_channel_type: "search",
-                  campaign_budget: budget,
-                  manual_cpc: {},
-                  network_settings: {
-                    target_google_search: true,
-                    target_search_network: false,
-                    target_content_network: false,
-                  },
-                  contains_eu_political_advertising:
-                    "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
-                },
-              },
-            ],
-          }),
-          "create Google Ads campaign",
-        );
+        return await execute(BATCH_MUTATE, {
+          customer_id: customerId,
+          partial_failure: false,
+          mutate_operations: searchCampaignOperations(customerId, input),
+        });
       } catch (error) {
-        try {
-          await execute(MUTATE_CAMPAIGN_BUDGETS, {
-            customer_id: customerId,
-            operations: [{ remove: budget }],
-          });
-        } catch (removeError) {
-          tryUseLogger()?.warn("could not remove unused Google Ads budget", {
-            ads: { customerId, budget, error: String(removeError) },
-          });
-        }
-        throw error;
+        const message = googleValidationMessage(error);
+        throw message ? unprocessableEntity(message) : error;
       }
-      const resourceName = parseToolRow(
-        campaignResourceName,
-        campaignResourceNameSchema,
-        "create Google Ads campaign",
-      );
-      return resourceName.slice(resourceName.lastIndexOf("/") + 1);
     },
   );
+  const campaignName = toolRows(payload, "mutate_operation_responses").flatMap(
+    (response) => {
+      const parsed = campaignResultSchema.safeParse(response);
+      return parsed.success ? [parsed.data.campaign_result.resource_name] : [];
+    },
+  )[0];
+  if (payload?.partial_failure_error || !campaignName) {
+    throw new ComposioToolError({
+      message: "create Google Ads campaign was not applied",
+    });
+  }
+  return campaignName.slice(campaignName.lastIndexOf("/") + 1);
 }

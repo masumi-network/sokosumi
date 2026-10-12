@@ -31,6 +31,7 @@ import {
   type AdCampaignUpdate,
   type AdRange,
   currencyFractionDigits,
+  type GoogleCampaignSpec,
   type MetaCampaignObjective,
 } from "@/lib/ads/campaigns";
 import type { AvailableAdAccount } from "@/lib/ads/composio-tools";
@@ -450,12 +451,16 @@ export async function updateProjectAdCampaign(
 
 /**
  * Creates a paused campaign in an attached ad account and returns its id. Meta
- * needs an objective; Google creates Search campaigns and ignores it. All
- * refusals happen before the provider is called.
+ * needs an objective and takes no `google` spec; Google needs the spec and
+ * takes no objective. All refusals happen before the provider is called.
  */
 export async function createProjectAdCampaign(
   input: ProjectScope &
-    AdCampaignCreate & { accountId: string; objective?: MetaCampaignObjective },
+    AdCampaignCreate & {
+      accountId: string;
+      objective?: MetaCampaignObjective;
+      google?: GoogleCampaignSpec;
+    },
 ): Promise<{ id: string }> {
   const account = await requireActiveAdAccount(input);
   requireBudgetPrecision(input.dailyBudget, account.currency);
@@ -465,12 +470,22 @@ export async function createProjectAdCampaign(
     dailyBudget: input.dailyBudget,
   };
   if (account.provider === "google_ads") {
+    if (input.objective) {
+      throw unprocessableEntity("Google campaigns do not take an objective");
+    }
+    if (!input.google) {
+      throw unprocessableEntity("Google campaigns need a google spec");
+    }
     return {
       id: await createGoogleCampaign({
         ...campaign,
         customerId: account.externalAccountId,
+        google: input.google,
       }),
     };
+  }
+  if (input.google) {
+    throw unprocessableEntity("Meta campaigns do not take a google spec");
   }
   if (!input.objective) {
     throw unprocessableEntity("Meta campaigns need an objective");

@@ -1,6 +1,6 @@
 # Ads Management
 
-Last updated: 2026-09-30
+Last updated: 2026-10-12
 
 ## Goal
 
@@ -21,7 +21,7 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | Google Ads accounts | `GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS`, GAQL on `customer` / `customer_client` | Per-user OAuth; Composio auth config holds our Google Ads developer token |
 | Google campaigns + metrics | `GOOGLEADS_SEARCH_STREAM_GAQL` | same |
 | Google status / budget | `GOOGLEADS_MUTATE_CAMPAIGNS`, `GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS` | same |
-| Google create | `GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS` then `GOOGLEADS_MUTATE_CAMPAIGNS` (Search, manual CPC (the tool has no Maximize clicks field), PAUSED, `contains_eu_political_advertising = DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING`) | same |
+| Google create | `GOOGLEADS_BATCH_MUTATE` (`partial_failure: false`): budget, PAUSED campaign, criteria, ad group, keywords and ad in one atomic call. See [Google campaign builder](#google-campaign-builder) | same |
 | Meta ad accounts | `METAADS_GET_AD_ACCOUNTS` | Per-user OAuth; our own Meta app (no Composio-managed OAuth) |
 | Meta campaigns + metrics | `METAADS_LIST_CAMPAIGNS`, `METAADS_GET_INSIGHTS` (level=campaign) | same |
 | Meta status / budget | `METAADS_UPDATE_CAMPAIGN` (one budget field per call) | same |
@@ -57,7 +57,7 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | DELETE | `/ads/accounts/{accountId}` | Detach; revoke the Composio account when its last ad account goes |
 | GET | `/ads/accounts/{accountId}/campaigns?range=LAST_7_DAYS\|LAST_30_DAYS` | Campaigns + spend, impressions, clicks, CTR, CPC, conversions |
 | PATCH | `/ads/accounts/{accountId}/campaigns/{campaignId}` `{status?: ACTIVE\|PAUSED, dailyBudget?}` | Pause/resume, budget |
-| POST | `/ads/accounts/{accountId}/campaigns` `{name, dailyBudget, objective? (Meta, required)}` | Create, always PAUSED → 201 `{id}`; no start date |
+| POST | `/ads/accounts/{accountId}/campaigns` `{name, dailyBudget, objective? (Meta, required), google? (Google, required)}` | Create, always PAUSED → 201 `{id}`. Google: `google` spec, `objective` is 422; Meta: `google` is 422. See [Google campaign builder](#google-campaign-builder) |
 | GET / PUT | `/ads/market` | Market profile |
 | GET | `/ads/market/keywords` | Trending keywords (volume, 12-month trend, competition, CPC range) |
 | GET | `/ads/market/ads` | `{status: ready\|gathering\|failed, ads, fetchedAt}`: search competitors for the profile keywords → their recent ads with `preview_image`, format, first/last shown. Clients poll every ~20s while `gathering` |
@@ -80,6 +80,73 @@ The ads endpoint drives a job; there is no cron. Each call moves it one step:
 
 Errors map through the existing Composio error classes (`ComposioConfigError` → 503 "not configured", `ComposioApiError`/`ComposioToolError` → 502 with a safe message).
 
+## Google campaign builder
+
+Goal: "New campaign" for Google produces a campaign that can run. Still always created **PAUSED**. Search ships first; Display, sitelinks and callouts follow in the stack below.
+
+### Gap map (Google Ads UI walk, 2026-10-12)
+
+| Google Ads UI step | Decision |
+|---|---|
+| Objective | Not an API field; not needed |
+| Campaign type | Search + Display. PMax, Demand Gen, Video, Shopping later |
+| Bidding | Maximize clicks (`target_spend: {}`); the old Manual CPC came from Composio's `MUTATE_CAMPAIGNS` having no such field |
+| Networks | Search: Google Search only. Display: Display Network |
+| Locations, languages | Geo target constant / language constant ids; empty = all. Web prefills them from the Market profile (DataForSEO `location_code` is the geo target constant id) |
+| EU political ads | Unchanged: does not contain |
+| Start / end dates | Optional |
+| Ad group + keywords | One ad group "Ad group 1"; keywords with BROAD / PHRASE / EXACT |
+| Responsive search ad | Final URL, 2 display paths, 3-15 headlines, 2-4 descriptions |
+| Sitelinks, callouts | Yes (later PR) |
+| Responsive display ad | Yes (later PR), images from Drive |
+| Budget | Daily, unchanged |
+| Audiences, ad schedule, AI Max, page feeds, promotions, prices, calls, lead forms | Out of scope |
+
+### Contract
+
+```ts
+{
+  name: string;                // 1-255
+  dailyBudget: number;         // > 0, currency precision
+  objective?: MetaObjective;   // Meta: required. Google: 422 if sent
+  google?: GoogleCampaignSpec; // Google: required. Meta: 422 if sent
+}
+
+type GoogleCampaignSpec = {            // discriminated on `type`
+  type: "SEARCH";                      // "DISPLAY" is added by its PR
+  startDate?: "YYYY-MM-DD";            // sent as `${d} 00:00:00`
+  endDate?: "YYYY-MM-DD";              // not before startDate; sent as `${d} 23:59:59`
+  locationIds: string[];               // 0-25 digit ids; [] = all countries
+  languageIds: string[];               // 0-25 digit ids; [] = all languages
+  finalUrl: string;                    // http(s), <= 2048
+  keywords: { text: string /* 1-80, <= 10 words */; matchType: "BROAD" | "PHRASE" | "EXACT" }[]; // 1-50
+  headlines: string[];                 // 3-15, each 1-30, unique ignoring case (else 422)
+  descriptions: string[];              // 2-4, each 1-90
+  path1?: string; path2?: string;      // <= 15; path2 needs path1
+};
+```
+
+Keywords repeating another with the same match type (ignoring case) are dropped, not rejected. Zod covers the documented limits; Google stays the authority for width rules and policy.
+
+### One atomic call
+
+`GOOGLEADS_BATCH_MUTATE` with `partial_failure: false` (Google's `GoogleAdsService.Mutate`): every operation is applied or none is, so there is no rollback code. Negative temporary ids link the resources: budget `-1`, campaign `-2`, ad group `-3`. Each `mutate_operations` item has exactly one key:
+
+1. `campaign_budget_operation`: unique name (`<name> budget <8 hex>`), STANDARD, not shared.
+2. `campaign_operation`: PAUSED, `advertising_channel_type: SEARCH`, `target_spend: {}`, Google Search network only, `contains_eu_political_advertising`, `start_date_time` / `end_date_time` (`YYYY-MM-DD HH:MM:SS`, account time zone).
+3. `campaign_criterion_operation` per location (`geoTargetConstants/<id>`) and language (`languageConstants/<id>`).
+4. `ad_group_operation`: `Ad group 1`, ENABLED, `SEARCH_STANDARD`.
+5. `ad_group_criterion_operation` per keyword, ENABLED.
+6. `ad_group_ad_operation`: ENABLED, `final_urls`, `responsive_search_ad`.
+
+The campaign id is the id in the campaign result's resource name (`mutate_operation_responses[].campaign_result`). A `partial_failure_error` or a missing campaign result means nothing was applied (502). Only the campaign is PAUSED; enabling it later makes everything serve.
+
+### Errors
+
+- A Google validation or policy failure (the Composio tool error carries a `GoogleAdsFailure`, e.g. "Too long.", "Destination not working") is **422 with Google's first error message**. The message is read from the tool error text, which Composio keeps to 300 characters, so it is matched on the text rather than parsed as JSON.
+- Authentication, authorization, quota and internal Google errors, and transport errors, keep the usual mapping (502, 503 for missing configuration). Other routes are unchanged.
+- Account rules (422): Google account without `google`, Google account with `objective`, Meta account with `google`, Meta account without `objective`.
+
 ## Web (`apps/web/src/app/(app)/ads`)
 
 - Sidebar item "Ads" (lucide `Megaphone`) in `menu-items.tsx`, gated like Social, project-scoped via `project-scope-href.ts`.
@@ -94,7 +161,9 @@ Errors map through the existing Composio error classes (`ComposioConfigError` �
 ## Out of scope / follow-ups
 
 - Meta Ad Library (direct Graph API `ads_archive`, EU markets).
-- Ad set / ad / creative management.
+- Ad set / ad / creative management (Meta), and editing ad groups or ads after create (Google).
+- PMax, Demand Gen, Video, Shopping campaigns.
+- Conversion-based bidding, audiences, ad schedule, campaign-total budgets.
 - Apple app.
 
 ## Stack
@@ -116,5 +185,14 @@ Plain branches, each based on the one below. Draft PRs. Before every PR: `code-r
 | 11 | `ads/11-web-campaign-create` | Web | New campaign sheet |
 | 12 | `ads/12-web-market` | Web | Market profile, trending keywords, ads gallery |
 | 13 | `ads/13-core-market-ads-async` | Core | Market ads as a queued DataForSEO job polled by the page |
+| 14 | `ads/14-web-market-gathering` | Web | Market ads gathering, refreshing and failed states |
+| 15 | `ads/15-core-google-search-create` | Core | Atomic BATCH_MUTATE create: Search type, keywords, RSA, location / language ids, Maximize clicks, dates, 422 mapping. Deletes the two-step create |
+| 16 | `ads/16-core-google-targeting` | Core | Location search / by ids, language list (Google accounts) |
+| 17 | `ads/17-core-google-search-assets` | Core | Sitelinks + callouts in the Search tree |
+| 18 | `ads/18-core-google-display` | Core | Display type: Drive image refs → image assets → responsive display ad. Drive-ref helper shared with social posts |
+| 19 | `ads/19-web-create-page` | Web | Create page (replaces the sheet): basics, dates, keywords (+ from Market), responsive search ad; Meta path |
+| 20 | `ads/20-web-targeting` | Web | Location + language pickers, Market defaults |
+| 21 | `ads/21-web-search-assets` | Web | Sitelinks + callouts editors |
+| 22 | `ads/22-web-display` | Web | Type picker, Display ad editor, image upload / pick |
 
 Ops (no PR): Google Ads developer token + Composio `googleads` auth config; Meta app (ads_read, ads_management, App Review, Business Verification) + Composio `metaads` auth config; DataForSEO account + Composio platform connection.

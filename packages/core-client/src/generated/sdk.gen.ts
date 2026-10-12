@@ -3270,7 +3270,7 @@ export const getProjectsByIdAdsAccountsByAccountIdCampaigns = <ThrowOnError exte
 });
 
 /**
- * Create a campaign in an attached ad account. The campaign is always created paused and has no start date. dailyBudget is a decimal in the account currency. Meta accounts require an objective (422 without); Google creates a Search campaign and ignores it. Requires an interactive user session in the Project's Workspace.
+ * Create a campaign in an attached ad account. The campaign is always created paused. dailyBudget is a decimal in the account currency. Meta accounts require an objective and take no google spec (422 otherwise); Google accounts require a google spec (a Search campaign with locations, languages, keywords and a responsive search ad, created in one atomic call) and take no objective (422 otherwise). A Google validation or policy failure is returned as 422 with Google's message. Requires an interactive user session in the Project's Workspace.
  */
 export const postProjectsByIdAdsAccountsByAccountIdCampaigns = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdAdsAccountsByAccountIdCampaignsData, ThrowOnError>): RequestResult<PostProjectsByIdAdsAccountsByAccountIdCampaignsResponses, PostProjectsByIdAdsAccountsByAccountIdCampaignsErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdAdsAccountsByAccountIdCampaignsResponses, PostProjectsByIdAdsAccountsByAccountIdCampaignsErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdAdsAccountsByAccountIdCampaignsResponseTransformer,

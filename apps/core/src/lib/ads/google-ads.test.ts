@@ -577,187 +577,348 @@ describe("updateGoogleCampaign", () => {
 });
 
 describe("createGoogleCampaign", () => {
+  const google = {
+    type: "SEARCH" as const,
+    locationIds: ["2276", "2840"],
+    languageIds: ["1001"],
+    finalUrl: "https://example.com/spring",
+    keywords: [
+      { text: "running shoes", matchType: "BROAD" as const },
+      { text: "Running Shoes", matchType: "BROAD" as const },
+      { text: "running shoes", matchType: "EXACT" as const },
+    ],
+    headlines: ["Run faster", "Light shoes", "Free returns"],
+    descriptions: ["Shoes for every runner.", "Order today."],
+  };
   const create = {
     ...input,
     customerId: "111",
     name: "Spring sale",
     dailyBudget: 12.34,
+    google,
   };
-  const budgetResult = {
-    results: [{ resource_name: "customers/111/campaignBudgets/7" }],
-  };
-  const campaignResult = {
-    results: [{ resource_name: "customers/111/campaigns/42" }],
-    successful_count: 1,
-    total_operations_count: 1,
+  const batchResult = {
+    mutate_operation_responses: [
+      {
+        campaign_budget_result: {
+          resource_name: "customers/111/campaignBudgets/7",
+        },
+      },
+      { campaign_result: { resource_name: "customers/111/campaigns/42" } },
+      { ad_group_result: { resource_name: "customers/111/adGroups/9" } },
+    ],
   };
   const calls = () => executeToolMock.mock.calls.map(([call]) => call);
+  const operations = () =>
+    calls()[0]?.arguments.mutate_operations as Record<
+      string,
+      Record<string, Record<string, unknown>>
+    >[];
+  const operationsOf = (key: string) =>
+    operations()
+      .filter((operation) => key in operation)
+      .map((operation) => operation[key]?.create);
 
   beforeEach(() => {
     vi.resetAllMocks();
     createSessionMock.mockResolvedValue("sess_1");
-    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
-      call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS"
-        ? budgetResult
-        : campaignResult,
-    );
+    executeToolMock.mockResolvedValue(batchResult);
   });
 
-  it("creates a private budget, then a paused Search campaign on it, and returns the campaign id", async () => {
+  it("creates the whole tree in one atomic BATCH_MUTATE call and returns the campaign id", async () => {
     await expect(createGoogleCampaign(create)).resolves.toBe("42");
-    const [budgetCall, campaignCall] = calls();
-    expect(budgetCall).toMatchObject({
-      toolSlug: "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS",
-      arguments: {
-        customer_id: "111",
-        operations: [
-          {
-            create: {
-              name: expect.stringMatching(/^Spring sale budget [0-9a-f]{8}$/),
-              amount_micros: 12340000,
-              delivery_method: "STANDARD",
-              explicitly_shared: false,
-            },
-          },
-        ],
-      },
+    expect(calls()).toHaveLength(1);
+    expect(calls()[0]).toMatchObject({
+      toolSlug: "GOOGLEADS_BATCH_MUTATE",
+      arguments: { customer_id: "111", partial_failure: false },
     });
-    // The budget tool takes no operation_type.
-    expect(budgetCall.arguments.operations[0]).not.toHaveProperty(
-      "operation_type",
-    );
-    expect(campaignCall).toMatchObject({
-      toolSlug: "GOOGLEADS_MUTATE_CAMPAIGNS",
-      arguments: {
-        customer_id: "111",
-        operations: [
-          {
-            operation_type: "create",
-            create: {
-              name: "Spring sale",
-              status: "paused",
-              advertising_channel_type: "search",
-              campaign_budget: "customers/111/campaignBudgets/7",
-              manual_cpc: {},
-              network_settings: {
-                target_google_search: true,
-                target_search_network: false,
-                target_content_network: false,
-              },
-              contains_eu_political_advertising:
-                "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
-            },
-          },
-        ],
-      },
-    });
-    expect(calls()).toHaveLength(2);
     expect(createSessionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         toolkitSlug: "googleads",
-        toolSlugs: [
-          "GOOGLEADS_MUTATE_CAMPAIGNS",
-          "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS",
-        ],
+        toolSlugs: ["GOOGLEADS_BATCH_MUTATE"],
       }),
     );
     expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it("sends one operation family per item, linked by temporary ids", async () => {
+    await createGoogleCampaign(create);
+    const ops = operations();
+    for (const operation of ops) expect(Object.keys(operation)).toHaveLength(1);
+    expect(ops.map((operation) => Object.keys(operation)[0])).toEqual([
+      "campaign_budget_operation",
+      "campaign_operation",
+      "campaign_criterion_operation",
+      "campaign_criterion_operation",
+      "campaign_criterion_operation",
+      "ad_group_operation",
+      "ad_group_criterion_operation",
+      "ad_group_criterion_operation",
+      "ad_group_ad_operation",
+    ]);
+    expect(ops[0]).toEqual({
+      campaign_budget_operation: {
+        create: {
+          resource_name: "customers/111/campaignBudgets/-1",
+          name: expect.stringMatching(/^Spring sale budget [0-9a-f]{8}$/),
+          amount_micros: 12340000,
+          delivery_method: "STANDARD",
+          explicitly_shared: false,
+        },
+      },
+    });
+    expect(ops[1]).toEqual({
+      campaign_operation: {
+        create: {
+          resource_name: "customers/111/campaigns/-2",
+          name: "Spring sale",
+          status: "PAUSED",
+          advertising_channel_type: "SEARCH",
+          campaign_budget: "customers/111/campaignBudgets/-1",
+          target_spend: {},
+          network_settings: {
+            target_google_search: true,
+            target_search_network: false,
+            target_content_network: false,
+          },
+          contains_eu_political_advertising:
+            "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
+        },
+      },
+    });
+    expect(operationsOf("campaign_criterion_operation")).toEqual([
+      {
+        campaign: "customers/111/campaigns/-2",
+        location: { geo_target_constant: "geoTargetConstants/2276" },
+      },
+      {
+        campaign: "customers/111/campaigns/-2",
+        location: { geo_target_constant: "geoTargetConstants/2840" },
+      },
+      {
+        campaign: "customers/111/campaigns/-2",
+        language: { language_constant: "languageConstants/1001" },
+      },
+    ]);
+    expect(operationsOf("ad_group_operation")).toEqual([
+      {
+        resource_name: "customers/111/adGroups/-3",
+        campaign: "customers/111/campaigns/-2",
+        name: "Ad group 1",
+        status: "ENABLED",
+        type: "SEARCH_STANDARD",
+      },
+    ]);
+    expect(operationsOf("ad_group_criterion_operation")).toEqual([
+      {
+        ad_group: "customers/111/adGroups/-3",
+        status: "ENABLED",
+        keyword: { text: "running shoes", match_type: "BROAD" },
+      },
+      {
+        ad_group: "customers/111/adGroups/-3",
+        status: "ENABLED",
+        keyword: { text: "running shoes", match_type: "EXACT" },
+      },
+    ]);
+    expect(operationsOf("ad_group_ad_operation")).toEqual([
+      {
+        ad_group: "customers/111/adGroups/-3",
+        status: "ENABLED",
+        ad: {
+          final_urls: ["https://example.com/spring"],
+          responsive_search_ad: {
+            headlines: [
+              { text: "Run faster" },
+              { text: "Light shoes" },
+              { text: "Free returns" },
+            ],
+            descriptions: [
+              { text: "Shoes for every runner." },
+              { text: "Order today." },
+            ],
+          },
+        },
+      },
+    ]);
+  });
+
+  it("sends dates, display paths and no criteria when they are given or empty", async () => {
+    await createGoogleCampaign({
+      ...create,
+      google: {
+        ...google,
+        startDate: "2026-11-01",
+        endDate: "2026-11-30",
+        locationIds: [],
+        languageIds: [],
+        path1: "shoes",
+        path2: "spring",
+      },
+    });
+    expect(operationsOf("campaign_operation")[0]).toMatchObject({
+      start_date_time: "2026-11-01 00:00:00",
+      end_date_time: "2026-11-30 23:59:59",
+    });
+    expect(operationsOf("campaign_criterion_operation")).toEqual([]);
+    expect(operationsOf("ad_group_ad_operation")[0]?.ad).toMatchObject({
+      responsive_search_ad: { path1: "shoes", path2: "spring" },
+    });
+  });
+
+  it("omits dates and paths that are not set", async () => {
+    await createGoogleCampaign(create);
+    const campaign = operationsOf("campaign_operation")[0];
+    expect(campaign).not.toHaveProperty("start_date_time");
+    expect(campaign).not.toHaveProperty("end_date_time");
+    const ad = operationsOf("ad_group_ad_operation")[0]?.ad as {
+      responsive_search_ad: object;
+    };
+    expect(ad.responsive_search_ad).not.toHaveProperty("path1");
+    expect(ad.responsive_search_ad).not.toHaveProperty("path2");
+  });
+
+  it("sends a repeated location or language once", async () => {
+    await createGoogleCampaign({
+      ...create,
+      google: { ...google, locationIds: ["2276", "2276"], languageIds: [] },
+    });
+    expect(operationsOf("campaign_criterion_operation")).toHaveLength(1);
   });
 
   it("gives each budget its own name and keeps it within Google's length limit", async () => {
     const longName = "x".repeat(255);
     await createGoogleCampaign({ ...create, name: longName });
     await createGoogleCampaign({ ...create, name: longName });
-    const names = calls()
-      .filter((call) => call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS")
-      .map((call) => call.arguments.operations[0].create.name as string);
+    const names = calls().map(
+      (call) =>
+        call.arguments.mutate_operations[0].campaign_budget_operation.create
+          .name as string,
+    );
     expect(new Set(names).size).toBe(2);
     for (const name of names) expect(name.length).toBeLessThanOrEqual(255);
   });
 
-  it("removes the budget and rethrows when the campaign is not created", async () => {
-    executeToolMock.mockImplementation(async (call: { toolSlug: string }) => {
-      if (call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS")
-        return budgetResult;
-      throw new ComposioToolError({ message: "refused" });
-    });
-    // The budget tool answers both the create and the remove.
-    await expect(createGoogleCampaign(create)).rejects.toBeInstanceOf(
-      ComposioToolError,
-    );
-    const budgetCalls = calls().filter(
-      (call) => call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS",
-    );
-    expect(budgetCalls).toHaveLength(2);
-    expect(budgetCalls[1]?.arguments).toEqual({
-      customer_id: "111",
-      operations: [{ remove: "customers/111/campaignBudgets/7" }],
-    });
-    expect(deleteSessionMock).toHaveBeenCalled();
-  });
+  it.each([
+    [
+      "a partial failure",
+      { ...batchResult, partial_failure_error: { code: 3 } },
+    ],
+    [
+      "no campaign result",
+      {
+        mutate_operation_responses: [batchResult.mutate_operation_responses[0]],
+      },
+    ],
+    ["no results", { mutate_operation_responses: [] }],
+    ["an empty payload", null],
+    [
+      "a malformed campaign resource name",
+      {
+        mutate_operation_responses: [
+          { campaign_result: { resource_name: "customers/111/campaigns/abc" } },
+        ],
+      },
+    ],
+  ])(
+    "raises a tool error and still deletes the session for %s",
+    async (_name, payload) => {
+      executeToolMock.mockResolvedValue(payload);
+      await expect(createGoogleCampaign(create)).rejects.toBeInstanceOf(
+        ComposioToolError,
+      );
+      expect(deleteSessionMock).toHaveBeenCalled();
+    },
+  );
 
-  it("removes the budget when the campaign create reports a partial failure", async () => {
-    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
-      call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS"
-        ? budgetResult
-        : { results: [], partial_failure_error: { code: 3 } },
-    );
-    await expect(createGoogleCampaign(create)).rejects.toBeInstanceOf(
-      ComposioToolError,
-    );
-    expect(
-      calls().filter(
-        (call) => call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS",
-      ),
-    ).toHaveLength(2);
-  });
+  describe("Google failures", () => {
+    // What Google answers to a rejected mutate, as the tool error carries it.
+    const failure = (errorCode: Record<string, string>, message: string) =>
+      JSON.stringify({
+        error: {
+          code: 400,
+          message: "Request contains an invalid argument.",
+          status: "INVALID_ARGUMENT",
+          details: [
+            {
+              "@type":
+                "type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure",
+              errors: [
+                {
+                  errorCode,
+                  message,
+                  trigger: { stringValue: "A headline that is far too long" },
+                  location: {
+                    fieldPathElements: [
+                      { fieldName: "mutate_operations", index: 8 },
+                    ],
+                  },
+                },
+                { errorCode: { mutateError: "x" }, message: "Second error." },
+              ],
+              requestId: "abc",
+            },
+          ],
+        },
+      });
+    const rejected = (providerMessage: string) =>
+      executeToolMock.mockRejectedValue(
+        new ComposioToolError({ message: "refused", providerMessage }),
+      );
 
-  it("raises the campaign error even when removing the budget fails too", async () => {
-    executeToolMock.mockImplementation(
-      async (call: {
-        toolSlug: string;
-        arguments: { operations: object[] };
-      }) => {
-        if (call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGNS")
-          throw new ComposioToolError({ message: "campaign refused" });
-        if (call.arguments.operations[0]?.hasOwnProperty("remove"))
-          throw new ComposioToolError({ message: "remove refused" });
-        return budgetResult;
+    it("raises 422 with Google's first error message", async () => {
+      // Longer than the 300 characters a tool error keeps, so the JSON is cut.
+      rejected(failure({ stringLengthError: "TOO_LONG" }, "Too long."));
+      await expect(createGoogleCampaign(create)).rejects.toMatchObject({
+        status: 422,
+        message: "Too long.",
+      });
+      expect(deleteSessionMock).toHaveBeenCalled();
+    });
+
+    it("reads a snake_case failure and unescapes the message", async () => {
+      rejected(
+        `{"details":[{"errors":[{"error_code":{"policy_violation_error":"POLICY_ERROR"},"message":"Destination \\"not\\" working"}]}]}`,
+      );
+      await expect(createGoogleCampaign(create)).rejects.toMatchObject({
+        status: 422,
+        message: 'Destination "not" working',
+      });
+    });
+
+    it.each([
+      ["authentication", { authenticationError: "OAUTH_TOKEN_EXPIRED" }],
+      ["authorization", { authorizationError: "USER_PERMISSION_DENIED" }],
+      ["quota", { quotaError: "RESOURCE_EXHAUSTED" }],
+      ["internal", { internalError: "INTERNAL_ERROR" }],
+    ])("keeps a %s failure a provider error", async (_name, errorCode) => {
+      const error = new ComposioToolError({
+        message: "refused",
+        providerMessage: failure(errorCode, "Not for the user."),
+      });
+      executeToolMock.mockRejectedValue(error);
+      await expect(createGoogleCampaign(create)).rejects.toBe(error);
+    });
+
+    it.each([
+      ["a message without a Google failure", "Request failed with status 500"],
+      ["no message", null],
+    ])(
+      "keeps a tool error with %s unchanged",
+      async (_name, providerMessage) => {
+        const error = new ComposioToolError({
+          message: "refused",
+          providerMessage,
+        });
+        executeToolMock.mockRejectedValue(error);
+        await expect(createGoogleCampaign(create)).rejects.toBe(error);
       },
     );
-    await expect(createGoogleCampaign(create)).rejects.toThrow(
-      /campaign refused/,
-    );
-  });
 
-  it("creates no campaign and removes nothing when the budget is not created", async () => {
-    executeToolMock.mockResolvedValue({ results: [] });
-    await expect(createGoogleCampaign(create)).rejects.toBeInstanceOf(
-      ComposioToolError,
-    );
-    expect(calls()).toHaveLength(1);
-    expect(deleteSessionMock).toHaveBeenCalled();
-  });
-
-  it("creates no campaign when the budget resource name is malformed", async () => {
-    executeToolMock.mockResolvedValue({
-      results: [{ resource_name: "customers/111/campaignBudgets/abc" }],
+    it("keeps transport errors unchanged", async () => {
+      const error = new ComposioApiError(502, undefined, "gateway");
+      executeToolMock.mockRejectedValue(error);
+      await expect(createGoogleCampaign(create)).rejects.toBe(error);
     });
-    await expect(createGoogleCampaign(create)).rejects.toThrow(
-      /invalid response/,
-    );
-    expect(calls()).toHaveLength(1);
-  });
-
-  it("keeps the budget when the created campaign has no usable id", async () => {
-    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
-      call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS"
-        ? budgetResult
-        : { results: [{ resource_name: "customers/111/campaigns/abc" }] },
-    );
-    await expect(createGoogleCampaign(create)).rejects.toThrow(
-      /invalid response/,
-    );
-    expect(calls()).toHaveLength(2);
   });
 });
