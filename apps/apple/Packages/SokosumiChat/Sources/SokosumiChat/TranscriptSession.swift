@@ -367,6 +367,12 @@ public final class TranscriptSession: ObservableObject {
     outbox.reconcile(result.shells, confirmed: message)
   }
 
+  /// Applies `transform` to this Transcript's loaded copy of a message; a message that is not loaded stays absent.
+  public func update(_ id: String, _ transform: (Message) -> Message) {
+    guard let index = timeline.messages.firstIndex(where: { $0.id == id }) else { return }
+    timeline.messages[index] = transform(timeline.messages[index])
+  }
+
   public func apply(_ patch: RealtimeMessagePatch) {
     guard let roomId = timeline.roomId, patch.roomId == roomId else { return }
     timeline.messages = applyRealtimePatch(patch, messages: timeline.messages, parentMessageId: timeline.parentMessageId)

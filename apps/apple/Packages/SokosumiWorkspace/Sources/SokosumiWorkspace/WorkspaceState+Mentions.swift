@@ -32,17 +32,17 @@ public extension WorkspaceState {
     }
     pendingMentionRetries.insert(request)
     defer { pendingMentionRetries.remove(request) }
-    replaceLoadedMessage(MentionThoughtShell.retrying(shell, startedAt: now))
+    replaceLoaded(MentionThoughtShell.retrying(shell, startedAt: now))
     do {
       let source = try await ChatService().retryMention(
         client: client, roomId: shell.roomId, messageId: sourceMessageId, mentionId: mentionId,
         organizationSlug: selection?.workspace.organizationSlug
       )
       guard request.generation == room.timeline.generation, !Task.isCancelled else { return }
-      replaceLoadedMessage(source)
+      replaceLoaded(source)
     } catch {
       guard request.generation == room.timeline.generation, !Task.isCancelled else { return }
-      replaceLoadedMessage(shell)
+      replaceLoaded(shell)
       if let error = error as? ChatServiceError {
         signOutIfUnauthorized(error, auth: auth)
       }
@@ -53,18 +53,11 @@ public extension WorkspaceState {
 
 private extension WorkspaceState {
   var mentionRetrySources: [Components.Schemas.ChatRoomMessage] {
-    transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.transcript.timeline.messages
+    loaded.all
   }
 
   /// Update-only: a row that is not loaded stays absent, unlike a realtime create.
-  func replaceLoadedMessage(_ message: Components.Schemas.ChatRoomMessage) {
-    if message.parentMessageId == nil {
-      transcriptMessages = transcriptMessages.map { $0.id == message.id ? message : $0 }
-      if thread.parent?.id == message.id {
-        thread.apply(eventType: .update, message: message)
-      }
-    } else if thread.parent?.id == message.parentMessageId {
-      thread.transcript.timeline.messages = thread.transcript.timeline.messages.map { $0.id == message.id ? message : $0 }
-    }
+  func replaceLoaded(_ message: Components.Schemas.ChatRoomMessage) {
+    loaded.update(message.id) { _ in message }
   }
 }

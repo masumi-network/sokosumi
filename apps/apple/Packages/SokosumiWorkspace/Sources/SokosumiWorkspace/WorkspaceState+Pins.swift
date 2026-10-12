@@ -46,15 +46,8 @@ public extension WorkspaceState {
       guard revision == pins.revision else { pins.invalidate()
         return
       }
-      room.timeline.applyPin(roomId: roomId, messageId: messageId, isPinned: pinned)
-      if let index = rooms.firstIndex(where: { $0.id == roomId }) {
-        rooms[index].pinnedMessageCount = response.pinnedMessageCount
-      }
-      if pinned {
-        pins.invalidate()
-      } else {
-        pins.remove(messageId: messageId)
-      }
+      // The same change a live pin event makes (one reducer for both).
+      applyPin(roomId: roomId, messageId: messageId, isPinned: pinned, count: response.pinnedMessageCount)
     } catch {
       guard generation == pins.roomGeneration, !Task.isCancelled else { return }
       if let error = error as? ChatServiceError {

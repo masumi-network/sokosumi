@@ -14,8 +14,7 @@ public extension WorkspaceState {
     do {
       guard let message = try await messageEditing.save(client: client, organizationSlug: selection?.workspace.organizationSlug),
             generation == room.timeline.generation, message.roomId == transcriptRoomId else { return }
-      thread.apply(eventType: .update, message: message)
-      room.timeline.messages = applyRealtimeFullEvent(messages: room.timeline.messages, shells: [], eventType: .update, message: message).messages
+      loaded.apply(eventType: .update, message: message)
     } catch {
       if let error = error as? ChatServiceError {
         signOutIfUnauthorized(error, auth: auth)

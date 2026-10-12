@@ -136,8 +136,8 @@ public extension WorkspaceState {
       case let .success(reply):
         // Web updates the room row. The open thread's parent is a snapshot, so assigning it would put back
         // an unread count a Look already cleared, before the unread read has answered.
-        if let parentId = thread.parent?.id, let index = transcriptMessages.firstIndex(where: { $0.id == parentId }) {
-          transcriptMessages[index] = applyingReplyToParentThreadPreview(transcriptMessages[index], reply: reply)
+        if let parentId = thread.parent?.id {
+          room.update(parentId) { applyingReplyToParentThreadPreview($0, reply: reply) }
         }
       case let .failure(error):
         if let error = error as? ChatServiceError {
