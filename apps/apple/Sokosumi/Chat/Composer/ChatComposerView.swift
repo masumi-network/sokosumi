@@ -71,7 +71,7 @@ import UniformTypeIdentifiers
       parentMessageId == nil
     }
 
-    /// One gap to the pane's left, right and bottom edges. The room's matches web's `px-5` and
+    /// One gap to the pane's left, right and bottom edges. The room's inset
     /// leaves the Typing line room under the card; the narrower Thread pane has no line.
     private var edgeInset: CGFloat {
       announcesTyping ? 20 : 8

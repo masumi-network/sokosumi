@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import type { CliEnvironment } from "../auth/config.js";
 
-export interface CliPreferences {
+interface CliPreferences {
   apiUrl?: string;
   authUrl?: string;
   webUrl?: string;
@@ -13,7 +13,7 @@ export interface CliPreferences {
   preprodOAuthClientId?: string;
 }
 
-export interface CliConfigLoadOptions {
+interface CliConfigLoadOptions {
   environment?: CliEnvironment;
   cwd?: string;
   homeDir?: string;

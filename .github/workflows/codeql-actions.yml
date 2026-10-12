@@ -9,6 +9,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - ".github/workflows/**"
       - ".github/actions/**"
@@ -23,6 +24,9 @@ concurrency:
 jobs:
   analyze:
     name: Analyze (actions)
+    # Draft PRs skip this; ready_for_review re-runs it. Push to main and the
+    # weekly schedule always run. Not a required check.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

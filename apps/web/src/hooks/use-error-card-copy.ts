@@ -9,7 +9,7 @@ import { CORE_AUTH_UNAVAILABLE_ERROR_DIGEST } from "@/lib/auth/errors";
  * digest, so the digest is the only thing a boundary can read to tell one
  * failure apart from another. A Core stall carries
  * `CORE_AUTH_UNAVAILABLE_ERROR_DIGEST` and gets copy that says so; everything
- * else keeps the generic "something went wrong" card.
+ * else keeps the generic card.
  *
  * The buttons do not change. "Try again" is already the right action for a
  * stall, and it was only the sentence above it that was wrong.
