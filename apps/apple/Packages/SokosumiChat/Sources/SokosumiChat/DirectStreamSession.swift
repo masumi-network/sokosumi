@@ -79,7 +79,7 @@ public final class DirectStreamSession: ObservableObject {
     var messages = userMessage.map { [$0] } ?? []
     if hasResponse, let roomId, let coworker {
       messages.append(.init(
-        id: "stream:" + (response.id ?? "resume-pending"), roomId: roomId,
+        id: directStreamIdPrefix + (response.id ?? "resume-pending"), roomId: roomId,
         parentMessageId: parentMessageId, content: response.text, createdAt: responseDate,
         deletedAt: nil, editedAt: nil,
         sender: .case2(.init(_type: .coworker, coworker: coworker)),
@@ -131,7 +131,7 @@ public final class DirectStreamSession: ObservableObject {
     var message = chatRoomMessage(from: .init(
       clientTurnId: id, roomId: roomId, content: draft.text, quote: quote, createdAt: now(), sender: sender
     ))
-    message.id = "stream:" + id
+    message.id = directStreamIdPrefix + id
     message.metadata = nil
     message.parentMessageId = parentMessageId
     userMessage = message
