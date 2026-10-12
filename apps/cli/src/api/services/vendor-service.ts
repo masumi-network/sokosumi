@@ -2,7 +2,7 @@ import type { CoreHttpClient } from "../http-client.js";
 import { parseApiResponse } from "../models/api-response.js";
 import { parseVendor, type Vendor } from "../models/vendor.js";
 
-export interface CreateVendorInput {
+interface CreateVendorInput {
   name: string;
   slug: string;
 }
