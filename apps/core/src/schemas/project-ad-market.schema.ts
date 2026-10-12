@@ -40,6 +40,11 @@ export const adMarketProfileSchema = z
   .object({
     keywords: z.array(z.string()),
     countryCode: adMarketCountryCodeSchema,
+    locationId: z.string().openapi({
+      description:
+        "Google geo target constant id of the country, for campaign targeting",
+      example: "2840",
+    }),
     languageCode: adMarketLanguageCodeSchema,
     updatedAt: dateTimeSchema,
   })

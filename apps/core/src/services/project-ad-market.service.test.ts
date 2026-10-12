@@ -150,6 +150,7 @@ describe("project ad market service", () => {
       expect(await getProjectAdMarketProfile(scope)).toEqual({
         keywords: ["Running Shoes", "trail"],
         countryCode: "DE",
+        locationId: "2276",
         languageCode: "de",
         updatedAt: storedProfile.updatedAt,
       });
