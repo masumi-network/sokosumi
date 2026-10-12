@@ -6,7 +6,7 @@ import SwiftUI
 
 #if os(macOS)
   private func threadPreparationScope(_ workspaces: WorkspaceState) -> [String] {
-    [workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "",
+    [workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.room.timeline.roomId ?? "",
      workspaces.thread.parent?.id ?? "", String(workspaces.thread.transcript.timeline.generation)]
   }
 
@@ -17,7 +17,7 @@ import SwiftUI
     @State private var preparedHasMore = false
 
     private var preparationInput: PreparedTranscript.Input {
-      let room = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
+      let room = workspaces.rooms.first { $0.id == workspaces.room.timeline.roomId }
       return .init(scope: threadPreparationScope(workspaces),
                    messages: (workspaces.displayedThreadParent.map { [$0] } ?? []) + workspaces.displayedThreadReplies,
                    mentions: room.map(MessageMentions.init), channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
@@ -28,8 +28,8 @@ import SwiftUI
       let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
       ReplyThreadContent(messages: prepared?.overlaying(input.messages) ?? [], preparedTranscript: prepared,
                          preparationScope: input.scope, preparedHasMore: preparedHasMore)
-        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: workspaces.transcriptRoomId ?? "", parentMessageId: workspaces.thread.parent?.id))
-        .id([workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "", workspaces.thread.parent?.id ?? ""])
+        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: workspaces.room.timeline.roomId ?? "", parentMessageId: workspaces.thread.parent?.id))
+        .id([workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.room.timeline.roomId ?? "", workspaces.thread.parent?.id ?? ""])
         .onChange(of: workspaces.thread.transcript.timeline.hasMore) { _, hasMore in
           if preparedTranscript?.input == input {
             preparedHasMore = hasMore
@@ -74,7 +74,7 @@ import SwiftUI
     }
 
     private var room: Components.Schemas.ChatRoom? {
-      workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
+      workspaces.rooms.first { $0.id == workspaces.room.timeline.roomId }
     }
 
     private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {

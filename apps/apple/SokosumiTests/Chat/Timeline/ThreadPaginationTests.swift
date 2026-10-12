@@ -86,10 +86,10 @@
         let session = TranscriptPageProtocol.session()
         let client = try Client.core(baseURL: #require(URL(string: "https://\(TranscriptPageProtocol.host)/v1")), session: session)
         let state = WorkspaceState(clientProvider: { _ in client })
-        state.timeline.reset(roomId: "room")
-        state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
+        state.room.timeline.reset(roomId: "room")
+        state.room.timeline.failInitialLoad(message: "", generation: state.room.timeline.generation)
         let parent = message(0, parent: nil)
-        state.timeline.messages = [parent]
+        state.room.timeline.messages = [parent]
         state.thread.open(parent)
         // The thread view also reads its mute (row 24b); only reply pages are counted and scripted.
         try TranscriptPageProtocol.serve([

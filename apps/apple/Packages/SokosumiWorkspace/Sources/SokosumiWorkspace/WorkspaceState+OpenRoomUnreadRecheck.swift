@@ -23,7 +23,7 @@ extension WorkspaceState {
   /// Web asks the open room's one scheduler, whose read also takes an open Thread's latest page
   /// (`refreshFocusedRoomMessages`); Apple keeps the two in separate schedulers and asks both, as lost continuity does.
   private func recheckOpenRoom() {
-    transcriptRecovery.requestRefresh()
+    room.recovery.requestRefresh()
     thread.transcript.recovery.requestRefresh()
   }
 }

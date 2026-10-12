@@ -127,7 +127,7 @@ public extension WorkspaceState {
                        skills: [Components.Schemas.ChatRoomMessageSkill] = [], auth: AuthState) -> Bool {
     guard let client = resolveClient(auth: auth), thread.parent?.roomId == transcriptRoomId else { return false }
     if directStream.roomId == transcriptRoomId, let parentId = thread.parent?.id {
-      let generation = timeline.generation
+      let generation = room.timeline.generation
       return directStream.send(content, client: client, organizationSlug: selection?.workspace.organizationSlug,
                                attachments: attachments, parentMessageId: parentId, quote: quote, settled: { [weak self, weak auth] in
                                  guard let self, let auth else { return false }

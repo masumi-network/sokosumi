@@ -11,22 +11,22 @@ extension WorkspaceState {
   /// in view and idle, it loads itself once.
   public func setHistoryGapVisible(before messageId: String, _ isVisible: Bool, auth: AuthState) {
     guard transcriptRoomId != nil else { return }
-    timeline.boundaryLoads.setVisible(messageId, isVisible)
+    room.timeline.boundaryLoads.setVisible(messageId, isVisible)
     loadNextVisibleHistoryGap(auth: auth)
   }
 
   /// A tap on the row, or Try again after a failure. The outcome stays on the row.
   public func loadHistoryGap(before messageId: String, auth: AuthState) {
-    guard transcriptRoomId != nil, timeline.historyGapMessageIds.contains(messageId),
-          let client = resolveClient(auth: auth), timeline.boundaryLoads.begin(messageId) else { return }
+    guard transcriptRoomId != nil, room.timeline.historyGapMessageIds.contains(messageId),
+          let client = resolveClient(auth: auth), room.timeline.boundaryLoads.begin(messageId) else { return }
     startHistoryGapLoad(messageId, client: client, auth: auth)
   }
 
   private func loadNextVisibleHistoryGap(auth: AuthState) {
-    guard let client = resolveClient(auth: auth), timeline.boundaryLoads.loadingCursorMessageId == nil,
-          let messageId = timeline.boundaryLoads.nextAutomaticLoad() else { return }
-    guard timeline.historyGapMessageIds.contains(messageId) else {
-      timeline.boundaryLoads.release(messageId)
+    guard let client = resolveClient(auth: auth), room.timeline.boundaryLoads.loadingCursorMessageId == nil,
+          let messageId = room.timeline.boundaryLoads.nextAutomaticLoad() else { return }
+    guard room.timeline.historyGapMessageIds.contains(messageId) else {
+      room.timeline.boundaryLoads.release(messageId)
       return
     }
     startHistoryGapLoad(messageId, client: client, auth: auth)
@@ -36,7 +36,7 @@ extension WorkspaceState {
   /// timeline admits one page at a time) and behind each other, so a tap on a
   /// second gap is not refused. When one settles, the next visible idle gap follows.
   private func startHistoryGapLoad(_ messageId: String, client: Client, auth: AuthState) {
-    let generation = timeline.generation
+    let generation = room.timeline.generation
     historyGapRequest += 1
     let request = historyGapRequest
     historyGapTask = Task { [previous = historyGapTask] in
@@ -46,27 +46,27 @@ extension WorkspaceState {
           historyGapTask = nil
         }
       }
-      while generation == timeline.generation,
+      while generation == room.timeline.generation,
             let task = transcriptLoadTask ?? olderPageTask ?? transcriptRefreshTask {
         await task.value
       }
-      guard generation == timeline.generation, !Task.isCancelled else { return }
+      guard generation == room.timeline.generation, !Task.isCancelled else { return }
       do {
-        let applied = try await timeline.loadPage(
+        let applied = try await room.timeline.loadPage(
           .boundary(messageId), client: client,
           organizationSlug: selection?.workspace.organizationSlug, generation: generation
         )
-        if !applied, generation == timeline.generation {
+        if !applied, generation == room.timeline.generation {
           // Refused by an untracked page (a jump in flight): the row goes
           // back to Load missing messages for a tap.
-          timeline.boundaryLoads.release(messageId)
+          room.timeline.boundaryLoads.release(messageId)
         }
       } catch {
         if let error = error as? ChatServiceError {
           signOutIfUnauthorized(error, auth: auth)
         }
       }
-      guard generation == timeline.generation, !Task.isCancelled else { return }
+      guard generation == room.timeline.generation, !Task.isCancelled else { return }
       loadNextVisibleHistoryGap(auth: auth)
     }
   }

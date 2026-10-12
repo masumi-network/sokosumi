@@ -92,7 +92,7 @@ import UniformTypeIdentifiers
         && !attachmentIngress.isReceiving
         && (uploads.attachments.isEmpty || workspaces.canAttachFiles(roomId: roomId))
         && !workspaces.directStream.isBusy
-        && workspaces.transcriptRoomId == roomId
+        && workspaces.room.timeline.roomId == roomId
         && (parentMessageId == nil || workspaces.thread.parent?.id == parentMessageId)
     }
 
@@ -199,7 +199,7 @@ import UniformTypeIdentifiers
       guard pendingQuote == nil else { return }
       Task { @MainActor in
         guard let quote = await workspaces.messageLinkQuote(pasted: paste.text, roomId: roomId, webBaseURL: CoreSettings.webBaseURL, auth: auth),
-              generation == pasteGeneration, pendingQuote == nil, workspaces.transcriptRoomId == roomId,
+              generation == pasteGeneration, pendingQuote == nil, workspaces.room.timeline.roomId == roomId,
               // Nothing to swap once the link was edited away.
               paste.remove() else { return }
         pendingQuote = quote

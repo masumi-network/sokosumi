@@ -19,7 +19,7 @@ import SwiftUI
 
     private var preparationInput: PreparedTranscript.Input {
       let room = workspaces.rooms.first { $0.id == roomId }
-      return .init(scope: [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.timeline.generation)],
+      return .init(scope: [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.room.timeline.generation)],
                    messages: workspaces.displayedTranscript, mentions: room.map(MessageMentions.init),
                    channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
     }
@@ -203,7 +203,7 @@ import SwiftUI
         })) {
           Button("OK", role: .cancel) {}
         } message: { Text(jumpError ?? "") }
-        .onChange(of: workspaces.timeline.historicalAnchor) { old, new in
+        .onChange(of: workspaces.room.timeline.historicalAnchor) { old, new in
           if old != nil, new == nil {
             scrollIntent.followLatest()
             jumpMark = nil
@@ -230,11 +230,11 @@ import SwiftUI
 
     @ViewBuilder
     private var transcriptBody: some View {
-      if workspaces.transcriptRoomId != roomId || (workspaces.transcriptLoading && !hasLiveMessages) {
+      if workspaces.room.timeline.roomId != roomId || (workspaces.room.timeline.isLoading && !hasLiveMessages) {
         ProgressView("Loading messages…")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else if !hasLiveMessages {
-        if let error = workspaces.transcriptError {
+        if let error = workspaces.room.timeline.errorMessage {
           transcriptError(error, retryOlder: false)
         } else if room?.isSelfDirect == true {
           // Web's private-notes empty state (`rooms-client.tsx`:3219-3230).
@@ -271,14 +271,14 @@ import SwiftUI
       return ScrollViewReader { proxy in
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
-            if workspaces.transcriptHasMore || olderPageWaits {
-              PageBoundaryRow(copy: .transcript(isGap: false), status: olderPageWaits ? .loading : workspaces.timeline.oldestBoundaryStatus) {
+            if workspaces.room.timeline.hasMore || olderPageWaits {
+              PageBoundaryRow(copy: .transcript(isGap: false), status: olderPageWaits ? .loading : workspaces.room.timeline.oldestBoundaryStatus) {
                 scrollIntent.readOlder()
                 workspaces.loadOlderMessages(auth: auth)
               }
             }
             // An older page's failure is on its row; the banner is for the latest page.
-            if let error = workspaces.transcriptError, workspaces.timeline.failedPage != .older {
+            if let error = workspaces.room.timeline.errorMessage, workspaces.room.timeline.failedPage != .older {
               inlineError(error)
                 .padding(.horizontal, 12)
             }
@@ -287,10 +287,10 @@ import SwiftUI
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
             }
-            let gaps = workspaces.timeline.historyGapMessageIds
+            let gaps = workspaces.room.timeline.historyGapMessageIds
             let rowContext = TranscriptContext(
               room: transcriptRoom, viewerId: workspaces.currentUserId, allowsPins: workspaces.canUsePins, allowsThreads: true,
-              outbound: workspaces.outboundShells, editingMessageId: workspaces.messageEditing.source?.id
+              outbound: workspaces.room.outbox.shells, editingMessageId: workspaces.messageEditing.source?.id
             )
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
               let previous = index > 0 ? messages[index - 1] : nil
@@ -301,7 +301,7 @@ import SwiftUI
                 if hasGap {
                   // Web's `useLoadWhenVisible`: the row loads itself once it scrolls into
                   // view; a failure stays on it with Try again, never in the jump alert.
-                  PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.timeline.boundaryLoads.status(of: message.id)) {
+                  PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.room.timeline.boundaryLoads.status(of: message.id)) {
                     workspaces.loadHistoryGap(before: message.id, auth: auth)
                   }
                   .onScrollVisibilityChange(threshold: 0.01) { visible in
@@ -318,12 +318,12 @@ import SwiftUI
                     .padding(.horizontal, 12)
                     .jumpSpotlightRow(messageId: message.id)
                 } else {
-                  let outbound = workspaces.outboundShells.first { $0.id == message.id }
+                  let outbound = workspaces.room.outbox.shells.first { $0.id == message.id }
                   MessageRowView(channels: channels, room: transcriptRoom, preparedDocument: preparedTranscript?.document(for: message),
                                  message: message,
                                  row: MessageRow(message, in: rowContext, previous: hasGap ? nil : previous, isNewest: message.id == newestMessageId),
                                  outbound: outbound,
-                                 sentAt: workspaces.outbox.sentAt[message.id],
+                                 sentAt: workspaces.room.outbox.sentAt[message.id],
                                  onRetry: outbound.map { shell in
                                    { workspaces.retryOutbound(clientTurnId: shell.clientTurnId) }
                                  },
@@ -396,7 +396,7 @@ import SwiftUI
         .task {
           // Position after the lazy list mounts. A default initial bottom
           // anchor can leave the viewport unrealized on macOS 27.
-          guard workspaces.timeline.historicalAnchor == nil, quoteTarget == nil else { return }
+          guard workspaces.room.timeline.historicalAnchor == nil, quoteTarget == nil else { return }
           proxy.scrollTo("timeline-bottom", anchor: .bottom)
         }
         .scrollPosition($scrollPosition)
@@ -422,8 +422,8 @@ import SwiftUI
           scrollIntent.readOlder()
           scrollPosition.scrollTo(id: target, anchor: .center)
         }
-        .task(id: pendingBottomAlignment && !userIsScrolling && scrollIntent.followsLatest && workspaces.timeline.historicalAnchor == nil) {
-          guard pendingBottomAlignment, !userIsScrolling, scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil else { return }
+        .task(id: pendingBottomAlignment && !userIsScrolling && scrollIntent.followsLatest && workspaces.room.timeline.historicalAnchor == nil) {
+          guard pendingBottomAlignment, !userIsScrolling, scrollIntent.followsLatest, workspaces.room.timeline.historicalAnchor == nil else { return }
           pendingBottomAlignment = false
           proxy.scrollTo("timeline-bottom", anchor: .bottom)
         }
@@ -447,12 +447,12 @@ import SwiftUI
           }
         }
         .onChange(of: messages.last?.id) { _, _ in
-          if scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil {
+          if scrollIntent.followsLatest, workspaces.room.timeline.historicalAnchor == nil {
             proxy.scrollTo("timeline-bottom", anchor: .bottom)
           }
         }
         .overlay(alignment: .bottom) {
-          if !scrollIntent.followsLatest || workspaces.timeline.historicalAnchor != nil {
+          if !scrollIntent.followsLatest || workspaces.room.timeline.historicalAnchor != nil {
             JumpToLatestButton {
               Task { @MainActor in
                 do {
@@ -478,7 +478,7 @@ import SwiftUI
         .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
           firstRows.viewport = (edges.topInset, edges.viewportHeight)
           firstRows.offset = edges.offsetY
-          if workspaces.timeline.historicalAnchor == nil,
+          if workspaces.room.timeline.historicalAnchor == nil,
              oldEdges.offsetY != edges.offsetY,
              userIsScrolling || oldEdges.nearBottom != edges.nearBottom {
             if scrollIntent.followsLatest != edges.nearBottom {
@@ -487,7 +487,7 @@ import SwiftUI
                 pendingBottomAlignment = false
               }
             }
-          } else if !oldEdges.hasSameSize(as: edges), scrollIntent.followsLatest, edges.needsBottomAlignment, workspaces.timeline.historicalAnchor == nil {
+          } else if !oldEdges.hasSameSize(as: edges), scrollIntent.followsLatest, edges.needsBottomAlignment, workspaces.room.timeline.historicalAnchor == nil {
             if !pendingBottomAlignment {
               pendingBottomAlignment = true
             }
@@ -500,12 +500,12 @@ import SwiftUI
             return
           }
           var nextIntent = scrollIntent
-          guard transcriptWasAwayFromTop, workspaces.transcriptError == nil,
+          guard transcriptWasAwayFromTop, workspaces.room.timeline.errorMessage == nil,
                 nextIntent.beginAutomaticOlderPage(
                   userIsScrolling: userIsScrolling,
                   isNearTop: isNearTop,
-                  hasMore: workspaces.transcriptHasMore,
-                  isLoading: workspaces.transcriptLoading || workspaces.transcriptLoadingOlder || olderPageWaits
+                  hasMore: workspaces.room.timeline.hasMore,
+                  isLoading: workspaces.room.timeline.isLoading || workspaces.room.timeline.isLoadingOlder || olderPageWaits
                 ) else { return }
           if nextIntent != scrollIntent {
             scrollIntent = nextIntent
@@ -561,7 +561,7 @@ import SwiftUI
       let expectedRoom = roomId
       scrollIntent.readOlder()
       let result = try await workspaces.openMessage(id, auth: auth)
-      guard result == .opened, workspaces.transcriptRoomId == expectedRoom else {
+      guard result == .opened, workspaces.room.timeline.roomId == expectedRoom else {
         return result == .opened ? .superseded : result
       }
       jumpCompletion?.resume(returning: false)

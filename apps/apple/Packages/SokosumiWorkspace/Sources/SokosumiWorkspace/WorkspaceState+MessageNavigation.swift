@@ -26,7 +26,7 @@ public extension WorkspaceState {
     selectRoom(roomId, auth: auth)
     let request = UUID()
     messageNavigationRequest = request
-    let generation = timeline.generation
+    let generation = room.timeline.generation
     await transcriptLoadTask?.value
     guard isCurrent(NavigationGuard(request: request, generation: generation)), transcriptRoomId == roomId else { return .superseded }
     guard let messageId else { thread.close()
@@ -44,7 +44,7 @@ public extension WorkspaceState {
     let request = UUID()
     messageNavigationRequest = request
     let initialThreadGeneration = thread.transcript.timeline.generation
-    let generation = timeline.generation
+    let generation = room.timeline.generation
     let slug = selection?.workspace.organizationSlug
     let navigation = NavigationGuard(request: request, generation: generation)
     do {
@@ -112,7 +112,7 @@ public extension WorkspaceState {
       throw ChatServiceError.unauthorized("Log in to view this reply.")
     }
     let initialThreadGeneration = thread.transcript.timeline.generation
-    let generation = timeline.generation
+    let generation = room.timeline.generation
     let slug = selection?.workspace.organizationSlug
     let navigation = NavigationGuard(request: request, generation: generation)
     do {
@@ -187,7 +187,7 @@ public extension WorkspaceState {
   }
 
   private func isCurrent(_ navigation: NavigationGuard, threadGeneration: Int? = nil) -> Bool {
-    guard messageNavigationRequest == navigation.request, navigation.generation == timeline.generation, !Task.isCancelled else { return false }
+    guard messageNavigationRequest == navigation.request, navigation.generation == room.timeline.generation, !Task.isCancelled else { return false }
     if let threadGeneration {
       return threadGeneration == thread.transcript.timeline.generation
     }

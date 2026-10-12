@@ -9,7 +9,7 @@ public extension WorkspaceState {
 
   func isPinned(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
     guard message.deletedAt == nil else { return false }
-    return timeline.pinOverrides[message.id] ?? (message.pinnedAt != nil)
+    return room.timeline.pinOverrides[message.id] ?? (message.pinnedAt != nil)
   }
 
   func isUpdatingPin(_ messageId: String) -> Bool {
@@ -46,7 +46,7 @@ public extension WorkspaceState {
       guard revision == pins.revision else { pins.invalidate()
         return
       }
-      timeline.applyPin(roomId: roomId, messageId: messageId, isPinned: pinned)
+      room.timeline.applyPin(roomId: roomId, messageId: messageId, isPinned: pinned)
       if let index = rooms.firstIndex(where: { $0.id == roomId }) {
         rooms[index].pinnedMessageCount = response.pinnedMessageCount
       }
@@ -71,16 +71,16 @@ public extension WorkspaceState {
     guard let client = resolveClient(auth: auth) else {
       throw ChatServiceError.unauthorized("Log in to view this message.")
     }
-    return try await timeline.loadPage(.around(messageId), client: client,
-                                       organizationSlug: selection?.workspace.organizationSlug, generation: timeline.generation)
+    return try await room.timeline.loadPage(.around(messageId), client: client,
+                                            organizationSlug: selection?.workspace.organizationSlug, generation: room.timeline.generation)
   }
 
   func returnToLatest(auth: AuthState) async throws -> Bool {
-    guard timeline.historicalAnchor != nil else { return true }
+    guard room.timeline.historicalAnchor != nil else { return true }
     guard let client = resolveClient(auth: auth) else {
       throw ChatServiceError.unauthorized("Log in to load messages.")
     }
-    return try await timeline.loadPage(.returnToLatest, client: client,
-                                       organizationSlug: selection?.workspace.organizationSlug, generation: timeline.generation)
+    return try await room.timeline.loadPage(.returnToLatest, client: client,
+                                            organizationSlug: selection?.workspace.organizationSlug, generation: room.timeline.generation)
   }
 }

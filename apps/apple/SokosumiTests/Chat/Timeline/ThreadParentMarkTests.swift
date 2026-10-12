@@ -45,11 +45,11 @@
       /// (`openMessageReply`, which loads nothing here). Returns once the Thread has landed on the reply and the
       /// room has marked the parent behind it.
       private static func jumpToReply(_ state: WorkspaceState, host: NSView) async throws {
-        let parent = try #require(state.timeline.messages.first { $0.id == Self.parentId })
+        let parent = try #require(state.room.timeline.messages.first { $0.id == Self.parentId })
         state.thread.open(parent)
         state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
         state.thread.transcript.timeline.messages = (0 ..< 30).map { index in
-          var reply = state.timeline.messages[index + 50]
+          var reply = state.room.timeline.messages[index + 50]
           reply.id = "reply-\(index)"
           reply.parentMessageId = parent.id
           return reply
@@ -161,9 +161,9 @@
         let (state, host) = (room.state, room.host)
         defer { room.window.orderOut(nil) }
         try await Self.jumpToReply(state, host: host)
-        let parent = try #require(state.timeline.messages.first { $0.id == Self.parentId })
-        let loaded = state.timeline.messages
-        state.timeline.messages = loaded.filter { $0.id != Self.parentId }
+        let parent = try #require(state.room.timeline.messages.first { $0.id == Self.parentId })
+        let loaded = state.room.timeline.messages
+        state.room.timeline.messages = loaded.filter { $0.id != Self.parentId }
         state.thread.close()
 
         let scroll = try await loadedTranscriptScrollView(in: host)
@@ -171,8 +171,8 @@
         try await JumpMarkViewTests.poll(host) { Date() >= settled }
         #expect(TranscriptScrollingTests.distanceFromBottom(scroll) < 40, "Nothing to land on: the room stays at its newest message.")
 
-        state.timeline.messages = loaded
-        let other = try #require(state.timeline.messages.first { $0.id == "fixture-60" })
+        state.room.timeline.messages = loaded
+        let other = try #require(state.room.timeline.messages.first { $0.id == "fixture-60" })
         state.thread.open(other)
         state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
         settled = Date().addingTimeInterval(0.5)

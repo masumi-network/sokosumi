@@ -13,14 +13,14 @@ public extension WorkspaceState {
     guard canAttachFiles(roomId: roomId), let client = resolveClient(auth: auth) else {
       throw ChatServiceError.unexpectedResponse("Attachments are not available in this conversation.")
     }
-    let generation = timeline.generation
+    let generation = room.timeline.generation
     do {
       let items = try await ChatService().driveItems(client: client, organizationId: selection?.workspace.organizationId, folder: folder, query: query)
       try Task.checkCancellation()
-      guard generation == timeline.generation else { throw CancellationError() }
+      guard generation == room.timeline.generation else { throw CancellationError() }
       return items
     } catch let error as ChatServiceError {
-      if !Task.isCancelled, generation == timeline.generation {
+      if !Task.isCancelled, generation == room.timeline.generation {
         _ = signOutIfUnauthorized(error, auth: auth)
       }
       throw error
@@ -31,7 +31,7 @@ public extension WorkspaceState {
     guard canAttachFiles(roomId: roomId), let client = resolveClient(auth: auth) else {
       throw ChatServiceError.unexpectedResponse("Attachments are not available in this conversation.")
     }
-    let generation = timeline.generation
+    let generation = room.timeline.generation
     let slug = selection?.workspace.organizationSlug
     let scoped = file.startAccessingSecurityScopedResource()
     defer {
@@ -46,10 +46,10 @@ public extension WorkspaceState {
     do {
       let grant = try await ChatService().attachmentGrant(client: client, roomId: roomId, file: .init(filename: file.lastPathComponent, contentType: contentType, size: size), organizationSlug: slug)
       try Task.checkCancellation()
-      guard generation == timeline.generation else { throw CancellationError() }
+      guard generation == room.timeline.generation else { throw CancellationError() }
       return try await AttachmentUpload.put(file: file, filename: file.lastPathComponent, contentType: contentType, size: size, grant: grant)
     } catch let error as ChatServiceError {
-      if !Task.isCancelled, generation == timeline.generation {
+      if !Task.isCancelled, generation == room.timeline.generation {
         _ = signOutIfUnauthorized(error, auth: auth)
       }
       throw error

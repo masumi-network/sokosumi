@@ -7,7 +7,7 @@ public extension WorkspaceState {
 
   func updateThreadOverview(_ action: ThreadOverviewAction, roomId: String, auth: AuthState) async {
     guard roomId == transcriptRoomId, let client = resolveClient(auth: auth) else { return }
-    let generation = timeline.generation
+    let generation = room.timeline.generation
     let slug = selection?.workspace.organizationSlug
     do {
       switch action {
@@ -31,7 +31,7 @@ public extension WorkspaceState {
         }
       }
     } catch {
-      guard generation == timeline.generation, !Task.isCancelled else { return }
+      guard generation == room.timeline.generation, !Task.isCancelled else { return }
       if let error = error as? ChatServiceError {
         signOutIfUnauthorized(error, auth: auth)
       }

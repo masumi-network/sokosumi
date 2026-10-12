@@ -25,7 +25,7 @@ public extension WorkspaceState {
   func retryMention(_ shell: Components.Schemas.ChatRoomMessage, auth: AuthState, now: Date) async throws {
     guard shell.roomId == transcriptRoomId,
           case let .failed(mentionId, sourceMessageId?) = MentionThoughtShell(message: shell) else { return }
-    let request = MentionRetryRequest(generation: timeline.generation, shellId: shell.id)
+    let request = MentionRetryRequest(generation: room.timeline.generation, shellId: shell.id)
     guard !pendingMentionRetries.contains(request) else { return }
     guard let client = resolveClient(auth: auth) else {
       throw ChatServiceError.unauthorized("Log in to retry mentions.")
@@ -38,10 +38,10 @@ public extension WorkspaceState {
         client: client, roomId: shell.roomId, messageId: sourceMessageId, mentionId: mentionId,
         organizationSlug: selection?.workspace.organizationSlug
       )
-      guard request.generation == timeline.generation, !Task.isCancelled else { return }
+      guard request.generation == room.timeline.generation, !Task.isCancelled else { return }
       replaceLoadedMessage(source)
     } catch {
-      guard request.generation == timeline.generation, !Task.isCancelled else { return }
+      guard request.generation == room.timeline.generation, !Task.isCancelled else { return }
       replaceLoadedMessage(shell)
       if let error = error as? ChatServiceError {
         signOutIfUnauthorized(error, auth: auth)

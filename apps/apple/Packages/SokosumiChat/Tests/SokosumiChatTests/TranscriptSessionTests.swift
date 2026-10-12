@@ -211,6 +211,16 @@ struct TranscriptSessionTests {
     #expect(session.timeline.messages.map(\.id) == ["reply"])
   }
 
+  /// Opening a scope resets the timeline once, so a load captures the only new generation.
+  @Test func openingResetsTheTimelineOnce() {
+    let session = TranscriptSession()
+    session.open(roomId: testRoomId)
+    let opened = session.timeline.generation
+    session.open(roomId: "other-room")
+    #expect(session.timeline.generation == opened + 1)
+    #expect(session.timeline.roomId == "other-room")
+  }
+
   /// A room Transcript sends without a parent and keeps Thread replies out of its history.
   @Test func aRoomTranscriptKeepsRepliesOut() async throws {
     let transport = TestTransport([(201, testCreatedMessageBody(id: "sent", content: "Hello", clientMessageId: "turn-room"))])

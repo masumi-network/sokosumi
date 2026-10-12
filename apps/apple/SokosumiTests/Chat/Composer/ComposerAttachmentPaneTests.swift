@@ -13,8 +13,8 @@
     @MainActor struct ComposerAttachmentPaneTests {
       @Test func busyProviderKeepsEditorFileAndImagePasteOutOfDraft() async throws {
         let workspaces = WorkspaceState()
-        workspaces.timeline.reset(roomId: "room")
-        workspaces.timeline.failInitialLoad(message: "Fixture has no server", generation: workspaces.timeline.generation)
+        workspaces.room.timeline.reset(roomId: "room")
+        workspaces.room.timeline.failInitialLoad(message: "Fixture has no server", generation: workspaces.room.timeline.generation)
         let userId = UUID().uuidString
         let saved = SavedComposeDraft(userId: userId, organizationId: nil, roomId: "room")
         defer { saved.save("") }

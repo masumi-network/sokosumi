@@ -70,9 +70,9 @@
         let appearances = try await Self.lightAndDark(named: "copy-empty-transcript") { dark in
           let state = WorkspaceState(clientProvider: { _ in Client.core(baseURL: URL(string: "https://example.com")!) })
           state.rooms = [Self.channel()]
-          state.timeline.reset(roomId: Self.roomId)
-          state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-          state.transcriptError = nil
+          state.room.timeline.reset(roomId: Self.roomId)
+          state.room.timeline.failInitialLoad(message: "", generation: state.room.timeline.generation)
+          state.room.timeline.errorMessage = nil
           return try await Self.render(RoomTimelineView(roomId: Self.roomId).environmentObject(state).environmentObject(AuthState()),
                                        size: NSSize(width: 640, height: 300), dark: dark)
         }
@@ -163,8 +163,8 @@
           saved.save(draft)
           let state = WorkspaceState()
           state.rooms = [Self.channel()]
-          state.timeline.reset(roomId: Self.roomId)
-          state.timeline.failInitialLoad(message: "Fixture has no server", generation: state.timeline.generation)
+          state.room.timeline.reset(roomId: Self.roomId)
+          state.room.timeline.failInitialLoad(message: "Fixture has no server", generation: state.room.timeline.generation)
           return try await Self.render(ChatComposerView(userId: userId, organizationId: nil, roomId: Self.roomId)
             .environmentObject(state).environmentObject(AuthState())
             .environmentObject(ComposeUploads(savedDraft: saved)).environmentObject(ComposerAttachmentIngress()),

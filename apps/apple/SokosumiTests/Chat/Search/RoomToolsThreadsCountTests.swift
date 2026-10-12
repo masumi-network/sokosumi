@@ -21,7 +21,7 @@
         let transport = ThreadsCountTransport(counts: [3, 1])
         let client = try Client.core(baseURL: #require(URL(string: "https://threads-count.invalid/v1")), transport: transport)
         let state = WorkspaceState(clientProvider: { _ in client })
-        state.timeline.reset(roomId: "room")
+        state.room.timeline.reset(roomId: "room")
         let auth = AuthState()
         let renders = RenderCount()
         let content = NavigationStack {

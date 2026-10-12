@@ -11,9 +11,9 @@ public extension WorkspaceState {
       search.fail(ChatServiceError.unauthorized("Log in to search messages."), query: query)
       return
     }
-    let generation = timeline.generation
+    let generation = room.timeline.generation
     await search.search(query: query, roomId: roomId, client: client, organizationSlug: selection?.workspace.organizationSlug)
-    guard generation == timeline.generation else { return }
+    guard generation == room.timeline.generation else { return }
     if let error = search.failure as? ChatServiceError {
       signOutIfUnauthorized(error, auth: auth)
     }
