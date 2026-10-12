@@ -55,6 +55,7 @@ const WORKSPACE_CONTEXT: WorkspaceContext = {
 const profile = {
   keywords: ["running shoes"],
   countryCode: "DE",
+  locationId: "2276",
   languageCode: "de",
   updatedAt: new Date("2026-10-01T10:00:00.000Z"),
 };
@@ -171,6 +172,7 @@ describe("Project ads market routes", () => {
           profile: {
             keywords: ["running shoes"],
             countryCode: "DE",
+            locationId: "2276",
             languageCode: "de",
             updatedAt: "2026-10-01T10:00:00.000Z",
           },
