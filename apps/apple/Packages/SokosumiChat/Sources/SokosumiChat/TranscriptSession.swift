@@ -28,7 +28,8 @@ public final class TranscriptSession: ObservableObject {
     public var access: () -> (client: Client, organizationSlug: String?)?
     /// Returns whether the failure ended the session, so its banner gives way to sign-in.
     public var failed: (Error) -> Bool
-    /// Runs after a page applied, inside the load, before the next page may start.
+    /// Runs after a page applied, inside the load, before the next page may start. A latest refresh a gap page held
+    /// back lands inside that gap's load.
     public var pageLanded: (RoomTimeline.Page) async -> Void
 
     public init(
@@ -297,8 +298,10 @@ public final class TranscriptSession: ObservableObject {
       await whenIdle()
       guard generation == timeline.generation, !Task.isCancelled, let access = hooks.access() else { return }
       do {
+        // A latest refresh the gap held back lands like any latest page.
         let applied = try await timeline.loadPage(
-          .boundary(messageId), client: access.client, organizationSlug: access.organizationSlug, generation: generation
+          .boundary(messageId), client: access.client, organizationSlug: access.organizationSlug, generation: generation,
+          heldRefreshLanded: { await hooks.pageLanded(.latest) }
         )
         if !applied, generation == timeline.generation {
           // Refused by an untracked page (a jump in flight): the row goes back to Load missing messages for a tap.
