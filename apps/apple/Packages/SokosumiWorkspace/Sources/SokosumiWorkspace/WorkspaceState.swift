@@ -144,12 +144,6 @@ public final class WorkspaceState: ObservableObject {
   public let room: TranscriptSession
   public let pins = PinnedMessages()
   @Published var pendingPins: Set<String> = []
-  private(set) var transcriptLoadTask: Task<Void, Never>?
-  private(set) var olderPageTask: Task<Void, Never>?
-  private(set) var transcriptRefreshTask: Task<Void, Never>?
-  /// The chained gap-page loads (row 04a); `historyGapRequest` tells the last one to clear it.
-  var historyGapTask: Task<Void, Never>?
-  var historyGapRequest = 0
 
   /// Room the transcript pane shows. Nil clears the pane.
   var transcriptRoomId: String? {
@@ -644,10 +638,6 @@ public final class WorkspaceState: ObservableObject {
     pins.reset()
     pendingPins = []
     room.close()
-    transcriptLoadTask = nil
-    olderPageTask = nil
-    transcriptRefreshTask = nil
-    historyGapTask = nil
     watchRoom(nil)
   }
 
@@ -671,12 +661,10 @@ public final class WorkspaceState: ObservableObject {
     pins.reset(roomId: room.id)
     pendingPins = []
     self.room.open(roomId: room.id)
-    olderPageTask = nil
-    transcriptRefreshTask = nil
-    historyGapTask = nil
+    connectRoomTranscript(auth: auth)
     let generation = transcriptGeneration
     watchRoom(room.id)
-    transcriptLoadTask = Task { await loadTranscript(auth: auth, room: room, generation: generation) }
+    self.room.load(.initial)
     if directStream.roomId != nil, let client = resolveClient(auth: auth) {
       directStream.resume(client: client, organizationSlug: selection?.workspace.organizationSlug, settled: { [weak self, weak auth] in
         guard let self, let auth else { return false }
@@ -714,15 +702,46 @@ public final class WorkspaceState: ObservableObject {
   /// The scheduler decides whether a read may start while no chat window is
   /// active (row 07d); read attention keeps its own visibility gate.
   private func recoverTranscript(auth: AuthState, generation: Int) async {
-    while generation == transcriptGeneration,
-          let task = transcriptLoadTask ?? olderPageTask ?? transcriptRefreshTask {
-      await task.value
-    }
+    await room.whenIdle()
     guard generation == transcriptGeneration else { return }
     refreshTranscript(auth: auth)
-    while generation == transcriptGeneration, let task = transcriptRefreshTask {
-      await task.value
+    await room.whenIdle()
+  }
+
+  /// Every entry point that loads the room hands the room's Transcript this account's hooks first, so a load reads
+  /// with the client the caller's sign-in resolves.
+  func connectRoomTranscript(auth: AuthState) {
+    room.hooks = transcriptHooks(auth: auth) { [weak self, weak auth] page in
+      guard let self, let auth else { return }
+      switch page {
+      case .initial:
+        await syncReadAttention(auth: auth)
+      case .latest:
+        // The room's fresh copy of an open Thread's parent is the newer one.
+        if let parent = transcriptMessages.first(where: { $0.id == thread.parent?.id }) {
+          thread.apply(eventType: .update, message: parent)
+        }
+        await syncReadAttention(auth: auth)
+      default:
+        break
+      }
     }
+  }
+
+  /// What a Transcript asks the workspace for: this account's client and slug, sign-out when Core rejects the
+  /// session, and `pageLanded` once a page applied.
+  func transcriptHooks(auth: AuthState, pageLanded: @escaping (RoomTimeline.Page) async -> Void) -> TranscriptSession.Hooks {
+    .init(access: { [weak self, weak auth] in
+      guard let self, let auth, let client = resolveClient(auth: auth) else { return nil }
+      return (client, selection?.workspace.organizationSlug)
+    }, failed: { [weak self, weak auth] error in
+      guard let self, let auth else { return false }
+      guard let error = error as? ChatServiceError else {
+        logger.error("Sokosumi transcript load failed: \(String(describing: error), privacy: .public)")
+        return false
+      }
+      return signOutIfUnauthorized(error, auth: auth)
+    }, pageLanded: pageLanded)
   }
 
   public var composerChannels: [ComposerChannel] {
@@ -965,56 +984,15 @@ public final class WorkspaceState: ObservableObject {
   public func refreshTranscript(auth: AuthState) {
     guard transcriptRoomId != nil else { return }
     guard !directStream.isBusy || thread.parent != nil else { return }
-    // A gap page in flight does not drop the refresh: the timeline holds it
-    // and runs it once the gap settles (`RoomTimeline.pendingLatestRefresh`).
-    if transcriptLoading || transcriptLoadingOlder || (transcriptRefreshing && !room.timeline.isFillingGap)
-      || transcriptLoadTask != nil || olderPageTask != nil || transcriptRefreshTask != nil {
-      return
-    }
-    let generation = transcriptGeneration
-    transcriptRefreshTask = Task { _ = await refresh(auth: auth, generation: generation) }
-  }
-
-  @discardableResult
-  func refresh(auth: AuthState, generation: Int) async -> Bool {
-    defer {
-      if generation == transcriptGeneration {
-        transcriptRefreshTask = nil
-      }
-    }
-    guard let client = resolveClient(auth: auth) else {
-      if generation == transcriptGeneration {
-        transcriptError = "Sign-in is not configured."
-      }
-      return false
-    }
-    do {
-      let applied = try await room.timeline.loadPage(.latest, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation)
-      guard applied else { return false }
-      if let parent = transcriptMessages.first(where: { $0.id == thread.parent?.id }) {
-        thread.apply(eventType: .update, message: parent)
-      }
-      await syncReadAttention(auth: auth)
-      return generation == transcriptGeneration && !Task.isCancelled
-    } catch let error as ChatServiceError {
-      guard generation == transcriptGeneration else { return false }
-      transcriptError = transcriptFailureMessage(error, auth: auth)
-      return false
-    } catch {
-      guard generation == transcriptGeneration else { return false }
-      logger.error("Sokosumi transcript refresh failed: \(String(describing: error), privacy: .public)")
-      transcriptError = friendlyMessage(for: error)
-      return false
-    }
+    connectRoomTranscript(auth: auth)
+    room.load(.latest)
   }
 
   func settleDirectStream(auth: AuthState, generation: Int) async -> Bool {
-    while generation == transcriptGeneration,
-          let task = transcriptLoadTask ?? olderPageTask ?? transcriptRefreshTask {
-      await task.value
-    }
+    await room.whenIdle()
     guard generation == transcriptGeneration, !Task.isCancelled else { return false }
-    guard await refresh(auth: auth, generation: generation) else { return false }
+    connectRoomTranscript(auth: auth)
+    guard let refreshed = room.load(.latest), await refreshed.value else { return false }
     var openedGeneration: Int?
     if let parent = streamingThreadToOpen {
       openThread(parent, auth: auth)
@@ -1023,7 +1001,7 @@ public final class WorkspaceState: ObservableObject {
     guard let parentId = directStream.parentMessageId, thread.parent?.id == parentId else {
       return true
     }
-    await thread.transcript.loadTask?.value
+    _ = await thread.transcript.loadTask?.value
     guard generation == transcriptGeneration else { return false }
     guard thread.parent?.id == parentId else { return true }
     // A thread opened after the room refresh already fetched the completed turn.
@@ -1031,7 +1009,7 @@ public final class WorkspaceState: ObservableObject {
       return true
     }
     loadThreadPage(thread.transcript.timeline.hasLoadedHistory ? .latest : .initial, auth: auth)
-    await thread.transcript.loadTask?.value
+    _ = await thread.transcript.loadTask?.value
     guard generation == transcriptGeneration else { return false }
     guard thread.parent?.id == parentId else { return true }
     return thread.transcript.timeline.errorMessage == nil
@@ -1069,35 +1047,6 @@ public final class WorkspaceState: ObservableObject {
       image: currentUserImageURL,
       presence: .online
     )
-  }
-
-  func loadTranscript(
-    auth: AuthState,
-    room _: Components.Schemas.ChatRoom,
-    generation: Int
-  ) async {
-    defer {
-      if generation == transcriptGeneration {
-        transcriptLoadTask = nil
-      }
-    }
-    guard let client = resolveClient(auth: auth) else {
-      if generation == transcriptGeneration {
-        room.timeline.failInitialLoad(message: "Sign-in is not configured.", generation: generation)
-      }
-      return
-    }
-    do {
-      guard try await room.timeline.loadPage(.initial, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation) else { return }
-      await syncReadAttention(auth: auth)
-    } catch let error as ChatServiceError {
-      guard generation == transcriptGeneration else { return }
-      transcriptError = transcriptFailureMessage(error, auth: auth)
-    } catch {
-      guard generation == transcriptGeneration else { return }
-      logger.error("Sokosumi transcript load failed: \(String(describing: error), privacy: .public)")
-      transcriptError = friendlyMessage(for: error)
-    }
   }
 
   public var readContent: RoomReadAttention.Content {
@@ -1169,49 +1118,9 @@ public final class WorkspaceState: ObservableObject {
   /// Older history page for scroll-up. Merges by message ID; never marks read and never
   /// clears resolved history on failure.
   public func loadOlderMessages(auth: AuthState) {
-    guard transcriptRoomId != nil, room.timeline.hasMore,
-          !directStream.isBusy,
-          !transcriptLoading, !transcriptLoadingOlder, !transcriptRefreshing,
-          olderPageTask == nil, transcriptRefreshTask == nil,
-          transcriptCursor != nil
-    else { return }
-    let generation = transcriptGeneration
-    olderPageTask = Task {
-      await loadOlder(auth: auth, generation: generation)
-    }
-  }
-
-  func loadOlder(auth: AuthState, generation: Int) async {
-    defer {
-      if generation == transcriptGeneration {
-        olderPageTask = nil
-      }
-    }
-    guard let client = resolveClient(auth: auth) else {
-      if generation == transcriptGeneration {
-        transcriptError = "Sign-in is not configured."
-      }
-      return
-    }
-    do {
-      _ = try await room.timeline.loadPage(.older, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation)
-    } catch let error as ChatServiceError {
-      guard generation == transcriptGeneration else { return }
-      transcriptError = transcriptFailureMessage(error, auth: auth)
-    } catch {
-      guard generation == transcriptGeneration else { return }
-      logger.error("Sokosumi older messages load failed: \(String(describing: error), privacy: .public)")
-      transcriptError = friendlyMessage(for: error)
-    }
-  }
-
-  /// Maps a transcript failure to UI text. A 401 signs out (nil message —
-  /// the auth card takes over); everything else becomes window-safe text.
-  private func transcriptFailureMessage(_ error: ChatServiceError, auth: AuthState) -> String? {
-    if signOutIfUnauthorized(error, auth: auth) {
-      return nil
-    }
-    return friendlyMessage(for: error)
+    guard !directStream.isBusy else { return }
+    connectRoomTranscript(auth: auth)
+    room.load(.older)
   }
 
   /// Signs out when Core rejects the session. Returns whether it did, so

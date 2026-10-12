@@ -19,12 +19,10 @@ public extension WorkspaceState {
     let generation = thread.transcript.timeline.generation
     thread.transcript.recovery.start(foreground: readAttention.isVisible, healthy: transcriptRealtimeHealthy) { [weak self, weak auth] in
       guard let self, let auth else { return }
-      while let task = thread.transcript.loadTask, generation == thread.transcript.timeline.generation {
-        await task.value
-      }
+      await thread.transcript.whenIdle()
       guard generation == thread.transcript.timeline.generation else { return }
       loadThreadPage(thread.transcript.timeline.hasLoadedHistory ? .latest : .initial, auth: auth)
-      await thread.transcript.loadTask?.value
+      await thread.transcript.whenIdle()
     }
   }
 
@@ -35,22 +33,15 @@ public extension WorkspaceState {
 
   func loadThreadPage(_ page: RoomTimeline.Page, auth: AuthState) {
     guard page != .older || !directStream.isBusy else { return }
-    guard let client = resolveClient(auth: auth) else {
-      thread.transcript.timeline.failInitialLoad(message: "Sign-in is not configured.", generation: thread.transcript.timeline.generation)
-      return
+    // The first page's Look comes before its request; later pages read the room after they land.
+    thread.transcript.hooks = transcriptHooks(auth: auth) { [weak self, weak auth] page in
+      guard let self, let auth, page != .initial else { return }
+      await syncReadAttention(auth: auth)
     }
-    thread.transcript.loadPage(page, client: client, organizationSlug: selection?.workspace.organizationSlug,
-                               syncAttention: { [weak self, weak auth] in
-                                 guard let self, let auth else { return }
-                                 if page == .initial {
-                                   await syncThreadAttention(auth: auth)
-                                 } else {
-                                   await syncReadAttention(auth: auth)
-                                 }
-                               }, failed: { [weak self, weak auth] error in
-                                 guard let self, let auth, let error = error as? ChatServiceError else { return }
-                                 signOutIfUnauthorized(error, auth: auth)
-                               })
+    thread.transcript.load(page, before: page == .initial ? { [weak self, weak auth] in
+      guard let self, let auth else { return }
+      await syncThreadAttention(auth: auth)
+    } : nil)
   }
 
   internal func syncThreadAttention(auth: AuthState) async {

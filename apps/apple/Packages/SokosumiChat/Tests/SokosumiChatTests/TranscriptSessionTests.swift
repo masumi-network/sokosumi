@@ -129,27 +129,64 @@ struct TranscriptSessionTests {
     ])
     let client = try makeTestClient(transport)
     session.open(roomId: root.roomId, parentMessageId: root.id)
-    var requestCounts: [Int] = []
-    let attention = { requestCounts.append(transport.requests.count) }
-    let failed: (Error) -> Void = { Issue.record("Unexpected page failure: \($0)") }
-    session.loadPage(.initial, client: client, organizationSlug: nil,
-                     syncAttention: attention, failed: failed)
-    await session.loadTask?.value
-    session.loadPage(.latest, client: client, organizationSlug: nil,
-                     syncAttention: attention, failed: failed)
-    await session.loadTask?.value
-    #expect(requestCounts == [0, 2])
+    var events: [String] = []
+    session.hooks = .init(access: { (client, nil) }, failed: { Issue.record("Unexpected page failure: \($0)")
+      return false
+    }, pageLanded: { events.append("landed \($0) after \(transport.requests.count)") })
+    session.load(.initial, before: { events.append("before after \(transport.requests.count)") })
+    _ = await session.loadTask?.value
+    session.load(.latest)
+    _ = await session.loadTask?.value
+    #expect(events == ["before after 0", "landed initial after 1", "landed latest after 2"])
     #expect(session.timeline.hasLoadedHistory)
     #expect(session.loadTask == nil)
 
     session.open(roomId: root.roomId, parentMessageId: root.id)
-    session.loadPage(.initial, client: client, organizationSlug: nil,
-                     syncAttention: { session.close() }, failed: failed)
+    session.load(.initial, before: { session.close() })
     let pending = session.loadTask
-    await pending?.value
+    _ = await pending?.value
     #expect(session.timeline.roomId == nil)
     #expect(transport.requests.count == 2)
     #expect(session.loadTask == nil)
+  }
+
+  /// One page at a time: a refresh or older page asked for meanwhile is dropped, not queued.
+  @Test func aRefreshOrOlderPageWhileAnotherLoadsIsDropped() async throws {
+    let transport = TestTransport([(200, testMessagesPageBody(messages: [], nextCursor: "older"))])
+    let client = try makeTestClient(transport)
+    let session = TranscriptSession()
+    session.open(roomId: testRoomId)
+    session.hooks = .init(access: { (client, nil) }, failed: { _ in false }, pageLanded: { _ in })
+    let initial = try #require(session.load(.initial))
+    #expect(session.load(.latest) == nil)
+    #expect(session.load(.older) == nil)
+    #expect(await initial.value)
+    #expect(transport.requests.count == 1)
+  }
+
+  /// Without a client the first page settles as a sign-in failure; a failure that ended the session leaves no banner.
+  @Test func failuresGiveWayToSignIn() async throws {
+    let session = TranscriptSession()
+    session.open(roomId: testRoomId)
+    session.load(.initial)
+    _ = await session.loadTask?.value
+    #expect(session.timeline.failedPage == .initial)
+    #expect(session.timeline.errorMessage == "Sign-in is not configured.")
+
+    let transport = TestTransport([(401, """
+    {"error":"Unauthorized","message":"Session expired","meta":{"timestamp":"\(testTimestamp)","requestId":"test","path":"/messages","method":"GET"}}
+    """)])
+    let client = try makeTestClient(transport)
+    var failures = 0
+    session.open(roomId: testRoomId)
+    session.hooks = .init(access: { (client, nil) }, failed: { _ in
+      failures += 1
+      return true
+    }, pageLanded: { _ in Issue.record("A failed page cannot land") })
+    session.load(.initial)
+    _ = await session.loadTask?.value
+    #expect(failures == 1)
+    #expect(session.timeline.errorMessage == nil)
   }
 
   @Test func sendUsesInjectedTurnIdAndNow() async throws {
