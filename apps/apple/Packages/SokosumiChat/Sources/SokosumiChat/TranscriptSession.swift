@@ -42,17 +42,23 @@ public final class TranscriptSession: ObservableObject {
   }
 
   public func open(roomId: String, parentMessageId: String? = nil) {
-    close()
+    stop()
     timeline.reset(roomId: roomId, parentMessageId: parentMessageId)
   }
 
   public func close() {
+    stop()
+    timeline.reset()
+  }
+
+  /// Drops what the previous scope left running: its jump, page load, recovery and Send queue. The timeline resets
+  /// once, in `open` or `close`, so it never publishes an empty scope between two rooms.
+  private func stop() {
     jumpTarget = nil
     loadTask?.cancel()
     loadTask = nil
     recovery.stop()
     outbox.reset()
-    timeline.reset()
   }
 
   public func requestJump(to messageId: String) {
