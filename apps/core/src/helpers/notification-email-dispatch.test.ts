@@ -479,7 +479,11 @@ describe("dispatchNotificationEmail", () => {
 
   it("cancels an accepted scheduled email if its transaction cannot commit", async () => {
     hasAppInFrontMock.mockResolvedValue(true);
-    transactionCommitMock.mockRejectedValueOnce(new Error("commit failed"));
+    // Gate txn commits; persist txn (after Resend) is the one that must not
+    // leave a scheduled email with no row to cancel it by.
+    transactionCommitMock
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("commit failed"));
     await dispatch(
       finished({
         workspaceId: "workspace_1",
@@ -487,6 +491,22 @@ describe("dispatchNotificationEmail", () => {
       }),
     );
     expect(sendEmailMock).toHaveBeenCalledOnce();
+    expect(cancelEmailMock).toHaveBeenCalledWith("email_1");
+  });
+
+  it("cancels a scheduled workspace email if access is gone after Resend accepts it", async () => {
+    hasAppInFrontMock.mockResolvedValue(true);
+    hasCalendarWorkspaceAccessMock
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+    await dispatch(
+      finished({
+        workspaceId: "workspace_1",
+        messageKey: "Notifications.Task.failed",
+      }),
+    );
+    expect(sendEmailMock).toHaveBeenCalledOnce();
+    expect(notificationUpdateManyMock).not.toHaveBeenCalled();
     expect(cancelEmailMock).toHaveBeenCalledWith("email_1");
   });
 

@@ -405,9 +405,9 @@ export async function dispatchNotificationEmail(
     // sees the first's email on its row rather than both passing the check
     // before either has sent. Two instances can still both send; the row's
     // idempotency key does not cover that, since the rows differ.
-    const sendForCurrentRecipient = async (
+    const liveUnreadRecipient = async (
       client: Prisma.TransactionClient | typeof prisma,
-    ) => {
+    ): Promise<boolean> => {
       // Read again at this row's turn rather than before it. A room of
       // thirty waits half a second a row, and in that time the reader can
       // read the notification, or the request it is about can be resolved,
@@ -419,7 +419,7 @@ export async function dispatchNotificationEmail(
       });
 
       if (!live || live.isRead) {
-        return null;
+        return false;
       }
 
       if (
@@ -430,13 +430,61 @@ export async function dispatchNotificationEmail(
           notification.userId,
         ))
       ) {
+        return false;
+      }
+
+      return true;
+    };
+
+    const persistSentEmail = async (
+      client: Prisma.TransactionClient | typeof prisma,
+      emailId: string,
+    ) => {
+      if (
+        notification.workspaceId &&
+        !(await hasCalendarWorkspaceAccess(
+          client,
+          notification.workspaceId,
+          notification.userId,
+        ))
+      ) {
+        return { emailId, count: 0 };
+      }
+
+      // Written only onto a row that is still unread. A row read while the
+      // email was being handed over has nothing to cancel it by, so it is
+      // cancelled below instead; an email already on its way is left alone.
+      const { count } = await client.notification.updateMany({
+        where: { id: notification.id, isRead: false },
+        data: { emailId, emailScheduledAt: scheduledAt },
+      });
+
+      return { emailId, count };
+    };
+
+    const withWorkspaceMembershipFence = async <T>(
+      workspaceId: string,
+      work: (tx: Prisma.TransactionClient) => Promise<T>,
+    ): Promise<T> =>
+      prisma.$transaction(async (tx) => {
+        await lockCalendarWorkspaceMembership(tx, workspaceId);
+        return work(tx);
+      });
+
+    const sent = await withResendGap(async () => {
+      const workspaceId = notification.workspaceId;
+      const allowed = workspaceId
+        ? await withWorkspaceMembershipFence(workspaceId, liveUnreadRecipient)
+        : await liveUnreadRecipient(prisma);
+
+      if (!allowed || (await alreadyEmailed(notification, category))) {
         return null;
       }
 
-      if (await alreadyEmailed(notification, category)) {
-        return null;
-      }
-
+      // Resend is HTTP with no short timeout. Holding the membership fence
+      // across that call expires Prisma's default 5s interactive transaction
+      // (SOKOSUMI-CORE-4C). The fence still serializes the access check and
+      // the email-id write with membership removal.
       const { id: emailId } = await sendEmail({
         ...email,
         ...(scheduledAt !== null
@@ -457,24 +505,12 @@ export async function dispatchNotificationEmail(
 
       if (scheduledAt !== null) unpersistedScheduledEmailId = emailId;
 
-      // Written only onto a row that is still unread. A row read while the
-      // email was being handed over has nothing to cancel it by, so it is
-      // cancelled below instead; an email already on its way is left alone.
-      const { count } = await client.notification.updateMany({
-        where: { id: notification.id, isRead: false },
-        data: { emailId, emailScheduledAt: scheduledAt },
-      });
-
-      return { emailId, count };
-    };
-    const sent = await withResendGap(() => {
-      const workspaceId = notification.workspaceId;
-      if (!workspaceId) return sendForCurrentRecipient(prisma);
       // Membership removal must see the provider ID before deleting the row.
-      return prisma.$transaction(async (tx) => {
-        await lockCalendarWorkspaceMembership(tx, workspaceId);
-        return sendForCurrentRecipient(tx);
-      });
+      return workspaceId
+        ? withWorkspaceMembershipFence(workspaceId, (tx) =>
+            persistSentEmail(tx, emailId),
+          )
+        : persistSentEmail(prisma, emailId);
     });
 
     if (sent !== null && sent.count === 0 && scheduledAt !== null) {
