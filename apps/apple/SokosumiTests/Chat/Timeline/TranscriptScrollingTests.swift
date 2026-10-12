@@ -148,7 +148,7 @@
       /// `clock`, when given, is the Thread's clock; the view under test needs it as its `jumpMarkClock` too.
       static func fixtureState(thread: Bool, media: Bool, clock: ManualJumpMarkClock? = nil) throws -> WorkspaceState {
         let state = WorkspaceState(
-          clientProvider: { _ in Client.connecting(to: URL(string: "https://example.com")!) },
+          clientProvider: { _ in Client.core(baseURL: URL(string: "https://example.com")!) },
           threadNow: clock.map { clock in { MainActor.assumeIsolated { clock.now } } } ?? Date.init
         )
         state.timeline.reset(roomId: "fixture")

@@ -222,7 +222,7 @@
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [GapPageProtocol.self]
         let session = URLSession(configuration: configuration)
-        let client = try Client.connecting(to: #require(URL(string: "https://gap-fixture.invalid/v1")), session: session)
+        let client = try Client.core(baseURL: #require(URL(string: "https://gap-fixture.invalid/v1")), session: session)
         try GapPageProtocol.reset(GapScript(
           latest: page((70 ..< 100).map(message), cursor: "c70"),
           window: page((5 ..< 35).map(message), cursor: "c5"),

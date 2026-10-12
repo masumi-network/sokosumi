@@ -19,7 +19,7 @@
     @MainActor struct RoomToolsThreadsCountTests {
       @Test func anAttentionBumpRefetchesTheTriggerCountOnce() async throws {
         let transport = ThreadsCountTransport(counts: [3, 1])
-        let client = try Client.connecting(to: #require(URL(string: "https://threads-count.invalid/v1")), transport: transport)
+        let client = try Client.core(baseURL: #require(URL(string: "https://threads-count.invalid/v1")), transport: transport)
         let state = WorkspaceState(clientProvider: { _ in client })
         state.timeline.reset(roomId: "room")
         let auth = AuthState()

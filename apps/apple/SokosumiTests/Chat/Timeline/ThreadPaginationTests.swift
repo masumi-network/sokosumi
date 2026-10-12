@@ -84,7 +84,7 @@
 
       private func fixture() async throws -> (WorkspaceState, URLSession) {
         let session = TranscriptPageProtocol.session()
-        let client = try Client.connecting(to: #require(URL(string: "https://\(TranscriptPageProtocol.host)/v1")), session: session)
+        let client = try Client.core(baseURL: #require(URL(string: "https://\(TranscriptPageProtocol.host)/v1")), session: session)
         let state = WorkspaceState(clientProvider: { _ in client })
         state.timeline.reset(roomId: "room")
         state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
