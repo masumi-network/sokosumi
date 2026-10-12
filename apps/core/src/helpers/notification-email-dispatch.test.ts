@@ -421,10 +421,18 @@ describe("dispatchNotificationEmail", () => {
       data: { emailId: "email_1", emailScheduledAt: null },
     });
     expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(lockCalendarWorkspaceMembershipMock).toHaveBeenCalledTimes(2);
     expect(lockCalendarWorkspaceMembershipMock).toHaveBeenCalledWith(
       expect.anything(),
       "workspace_1",
     );
+    const sendOrder = sendEmailMock.mock.invocationCallOrder[0];
+    const writeOrder = notificationUpdateManyMock.mock.invocationCallOrder[0];
+    const [lockBeforeSend, lockBeforeWrite] =
+      lockCalendarWorkspaceMembershipMock.mock.invocationCallOrder;
+    expect(lockBeforeSend).toBeLessThan(sendOrder as number);
+    expect(sendOrder).toBeLessThan(lockBeforeWrite as number);
+    expect(lockBeforeWrite).toBeLessThan(writeOrder as number);
   });
 
   it("emails successful closure even when the failure email remains unread", async () => {

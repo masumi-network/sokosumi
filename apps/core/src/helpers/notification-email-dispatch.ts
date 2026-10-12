@@ -505,7 +505,10 @@ export async function dispatchNotificationEmail(
 
       if (scheduledAt !== null) unpersistedScheduledEmailId = emailId;
 
-      // Membership removal must see the provider ID before deleting the row.
+      // Persist re-takes the fence so the email-id write serializes with
+      // membership removal. The lock was released for Resend, so removal
+      // can delete the row while emailId is still null. Persist then sees
+      // no access and returns count 0; scheduled mail is cancelled below.
       return workspaceId
         ? withWorkspaceMembershipFence(workspaceId, (tx) =>
             persistSentEmail(tx, emailId),
