@@ -47,19 +47,14 @@ public extension WorkspaceState {
   }
 
   func updateCrossRoomThreads(_ action: CrossRoomThreadsAction) async {
-    guard let client = resolveClient() else { return }
     let rooms = rooms
     if action == .unread, !CrossRoomThreads.shouldLoadUnread(rooms: rooms, roomsLive: roomsLive) {
       return
     }
     let list: CrossRoomThreadList = action == .unread || action == .olderUnread ? .unread : .earlier
-    do {
+    _ = try? await request { _, client, slug in
       try await crossRoomThreads.load(list, older: action == .olderUnread || action == .olderEarlier, rooms: rooms,
-                                      scope: selectionId, client: client, organizationSlug: selection?.workspace.organizationSlug)
-    } catch {
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
+                                      scope: selectionId, client: client, organizationSlug: slug)
     }
   }
 }

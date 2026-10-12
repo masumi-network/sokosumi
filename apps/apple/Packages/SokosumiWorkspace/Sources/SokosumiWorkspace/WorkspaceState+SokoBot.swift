@@ -21,21 +21,17 @@ public extension WorkspaceState {
   /// like every other chat request. Rethrows so a row could still tell.
   func sendSokoBotFeedback(turnId: String, useful: Bool) async throws {
     guard !turnId.isEmpty, sokoBotFeedback[turnId] == nil, !pendingSokoBotFeedback.contains(turnId) else { return }
-    guard let client = resolveClient() else {
-      throw ChatServiceError.unauthorized("Log in to rate replies.")
-    }
     let context = compositionContext
     pendingSokoBotFeedback.insert(turnId)
     defer { pendingSokoBotFeedback.remove(turnId) }
     do {
-      let stored = try await ChatService().sendSokoBotTurnFeedback(client: client, turnId: turnId, useful: useful)
+      let stored = try await request(signIn: "Log in to rate replies.") { service, client, _ in
+        try await service.sendSokoBotTurnFeedback(client: client, turnId: turnId, useful: useful)
+      }
       guard context == compositionContext, !Task.isCancelled else { return }
       sokoBotFeedback[turnId] = stored
     } catch {
       guard context == compositionContext, !Task.isCancelled else { return }
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
       throw error
     }
   }

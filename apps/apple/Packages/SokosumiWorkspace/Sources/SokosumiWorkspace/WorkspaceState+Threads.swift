@@ -33,11 +33,7 @@ public extension WorkspaceState {
 
   func loadThreadPage(_ page: RoomTimeline.Page) {
     guard page != .older || !directStream.isBusy else { return }
-    // The first page's Look comes before its request; later pages read the room after they land.
-    thread.transcript.hooks = transcriptHooks { [weak self] page in
-      guard let self, page != .initial else { return }
-      await syncReadAttention()
-    }
+    // The first page's Look comes before its request; later pages read the room after they land (`connectTranscripts`).
     thread.transcript.load(page, before: page == .initial ? { [weak self] in
       guard let self else { return }
       await syncThreadAttention()
@@ -45,18 +41,12 @@ public extension WorkspaceState {
   }
 
   internal func syncThreadAttention() async {
-    guard readAttention.isVisible, !sidebar.showsThreadsView, roomHistoryReadable,
-          let client = resolveClient() else { return }
+    guard readAttention.isVisible, !sidebar.showsThreadsView, roomHistoryReadable else { return }
     let parentId = thread.parent?.id
-    do {
-      guard try await thread.markLooked(client: client, organizationSlug: selection?.workspace.organizationSlug),
-            readAttention.isVisible else { return }
+    _ = try? await request { _, client, slug in
+      guard try await thread.markLooked(client: client, organizationSlug: slug), readAttention.isVisible else { return }
       clearThreadUnreadReplies { $0 == parentId }
       try await syncRoomAttentionAfterThreadChange(client: client)
-    } catch {
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
     }
   }
 
@@ -88,28 +78,16 @@ public extension WorkspaceState {
   /// row has no overview behind it. Runs only while the state is unknown; the view calls it again when the
   /// reply count changes, so a parent's first reply brings the control.
   func readThreadMuteIfNeeded() async {
-    guard thread.mute?.needsRead == true, thread.parent?.roomId == transcriptRoomId,
-          let client = resolveClient() else { return }
-    do {
-      try await thread.readMute(client: client, organizationSlug: selection?.workspace.organizationSlug)
-    } catch {
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
-    }
+    guard thread.mute?.needsRead == true, thread.parent?.roomId == transcriptRoomId else { return }
+    _ = try? await request { _, client, slug in try await thread.readMute(client: client, organizationSlug: slug) }
   }
 
   func toggleThreadMute() async {
-    guard thread.parent?.roomId == transcriptRoomId, let client = resolveClient() else { return }
+    guard thread.parent?.roomId == transcriptRoomId else { return }
     let roomId = transcriptRoomId
-    do {
-      guard try await thread.toggleMute(client: client, organizationSlug: selection?.workspace.organizationSlug),
-            roomId == transcriptRoomId else { return }
+    _ = try? await request { _, client, slug in
+      guard try await thread.toggleMute(client: client, organizationSlug: slug), roomId == transcriptRoomId else { return }
       try await syncRoomAttentionAfterThreadChange(client: client)
-    } catch {
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
     }
   }
 

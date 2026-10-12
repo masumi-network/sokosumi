@@ -6,17 +6,16 @@ public extension WorkspaceState {
   enum ThreadOverviewAction { case load, older, count, markAllRead }
 
   func updateThreadOverview(_ action: ThreadOverviewAction, roomId: String) async {
-    guard roomId == transcriptRoomId, let client = resolveClient() else { return }
-    let generation = room.timeline.generation
-    let slug = selection?.workspace.organizationSlug
-    do {
+    guard roomId == transcriptRoomId else { return }
+    let mentions = rooms.first(where: { $0.id == roomId }).map(MessageMentions.init)
+    _ = try? await request { _, client, slug in
       switch action {
       case .load, .older:
-        try await threadOverview.load(client: client, roomId: roomId, organizationSlug: slug, older: action == .older, mentions: rooms.first(where: { $0.id == roomId }).map(MessageMentions.init))
+        try await threadOverview.load(client: client, roomId: roomId, organizationSlug: slug, older: action == .older, mentions: mentions)
       case .count:
         try await threadOverview.refreshCount(client: client, roomId: roomId, organizationSlug: slug)
       case .markAllRead:
-        try await threadOverview.markAllRead(client: client, roomId: roomId, organizationSlug: slug, mentions: rooms.first(where: { $0.id == roomId }).map(MessageMentions.init)) {
+        try await threadOverview.markAllRead(client: client, roomId: roomId, organizationSlug: slug, mentions: mentions) {
           // Web's `onAllThreadsLooked` voids its room read: a failed one never fails Mark all.
           guard roomId == transcriptRoomId else { return }
           let stillUnread = threadOverview.mutedUnreadParentIds
@@ -29,11 +28,6 @@ public extension WorkspaceState {
             }
           }
         }
-      }
-    } catch {
-      guard generation == room.timeline.generation, !Task.isCancelled else { return }
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
       }
     }
   }
