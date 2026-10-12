@@ -16,17 +16,17 @@ public extension WorkspaceState {
     pendingPins.contains(messageId)
   }
 
-  func loadPins(auth: AuthState, older: Bool = false) async throws {
+  func loadPins(older: Bool = false) async throws {
     guard canUsePins else { return }
-    guard let client = resolveClient(auth: auth) else {
+    guard let client = resolveClient() else {
       throw ChatServiceError.unauthorized("Log in to view pinned messages.")
     }
     try await pins.load(client: client, organizationSlug: selection?.workspace.organizationSlug, older: older)
   }
 
-  func setPinned(_ pinned: Bool, messageId: String, auth: AuthState) async throws {
+  func setPinned(_ pinned: Bool, messageId: String) async throws {
     guard canUsePins, let roomId = transcriptRoomId, !pendingPins.contains(messageId) else { return }
-    guard let client = resolveClient(auth: auth) else {
+    guard let client = resolveClient() else {
       throw ChatServiceError.unauthorized("Log in to update pinned messages.")
     }
     let generation = pins.roomGeneration
@@ -51,29 +51,29 @@ public extension WorkspaceState {
     } catch {
       guard generation == pins.roomGeneration, !Task.isCancelled else { return }
       if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
+        signOutIfUnauthorized(error)
       }
       throw error
     }
   }
 
-  func jumpToMessage(_ messageId: String, auth: AuthState) async throws -> Bool {
+  func jumpToMessage(_ messageId: String) async throws -> Bool {
     if displayedTranscript.contains(where: { $0.id == messageId }) {
       return true
     }
-    guard resolveClient(auth: auth) != nil else {
+    guard resolveClient() != nil else {
       throw ChatServiceError.unauthorized("Log in to view this message.")
     }
-    connectRoomTranscript(auth: auth)
+    connectRoomTranscript()
     return try await room.loadAround(messageId)
   }
 
-  func returnToLatest(auth: AuthState) async throws -> Bool {
+  func returnToLatest() async throws -> Bool {
     guard room.timeline.historicalAnchor != nil else { return true }
-    guard resolveClient(auth: auth) != nil else {
+    guard resolveClient() != nil else {
       throw ChatServiceError.unauthorized("Log in to load messages.")
     }
-    connectRoomTranscript(auth: auth)
+    connectRoomTranscript()
     return try await room.returnToLatest()
   }
 }

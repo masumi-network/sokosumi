@@ -8,7 +8,6 @@
   /// The room or reply pane owns one upload queue; every ingress reaches its composer.
   struct ComposerAttachmentPane: ViewModifier {
     @EnvironmentObject private var workspaces: WorkspaceState
-    @EnvironmentObject private var auth: AuthState
     @StateObject private var uploads: ComposeUploads
     @StateObject private var ingress = ComposerAttachmentIngress()
     let roomId: String
@@ -42,10 +41,10 @@
           try? FileManager.default.removeItem(at: scratch)
           return
         }
-        uploads.upload(files, cleanupDirectory: scratch) { file in try await workspaces.uploadAttachment(file, roomId: roomId, auth: auth) }
+        uploads.upload(files, cleanupDirectory: scratch) { file in try await workspaces.uploadAttachment(file, roomId: roomId) }
       }, image: { data in
         guard enabled else { return }
-        uploads.upload(data, filename: "image.png", using: { file in try await workspaces.uploadAttachment(file, roomId: roomId, auth: auth) })
+        uploads.upload(data, filename: "image.png", using: { file in try await workspaces.uploadAttachment(file, roomId: roomId) })
       }, failure: uploads.report)
     }
   }

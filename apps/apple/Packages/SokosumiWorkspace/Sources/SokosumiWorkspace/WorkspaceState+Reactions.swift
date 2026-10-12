@@ -6,16 +6,16 @@ public extension WorkspaceState {
   /// Shows the tap at once and tells Core the end state (ADR 0032); see `LoadedMessages.toggleReaction`. Returns
   /// whether this call's requests ended with the viewer's reaction on the message.
   @discardableResult
-  func toggleReaction(_ source: Components.Schemas.ChatRoomMessage, emoji: String, auth: AuthState) async throws -> Bool {
+  func toggleReaction(_ source: Components.Schemas.ChatRoomMessage, emoji: String) async throws -> Bool {
     guard source.roomId == transcriptRoomId, canReactToMessage(source) else { return false }
-    guard let client = resolveClient(auth: auth) else {
+    guard let client = resolveClient() else {
       throw ChatServiceError.unauthorized("Log in to react to messages.")
     }
     do {
       return try await loaded.toggleReaction(source, emoji: emoji, client: client, organizationSlug: selection?.workspace.organizationSlug)
     } catch {
       if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
+        signOutIfUnauthorized(error)
       }
       throw error
     }

@@ -12,7 +12,7 @@ public extension WorkspaceState {
     archivedChannels.canDelete
   }
 
-  func addChannelMembers(_ recipients: Set<DirectRecipient>, roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+  func addChannelMembers(_ recipients: Set<DirectRecipient>, roomId: String, context: UUID) async throws -> Bool {
     guard !recipients.isEmpty, canStartMutation(context: context) else { return false }
     updatingRoom = true
     defer {
@@ -20,7 +20,7 @@ public extension WorkspaceState {
         updatingRoom = false
       }
     }
-    let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
+    let room = try await channelOperation(context: context) { client, _, slug in
       try await ChatService().addChannelMembers(client: client, roomId: roomId, recipients: recipients, organizationSlug: slug)
     }
     // A list read already in flight predates this roster edit.
@@ -34,7 +34,7 @@ public extension WorkspaceState {
   /// A person's removal answers without the room, so the person and the Soko Bots that leave with them drop locally;
   /// a Coworker or Soko Bot removal returns Core's room.
   @discardableResult
-  func removeChannelMember(_ member: DirectRecipient, roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+  func removeChannelMember(_ member: DirectRecipient, roomId: String, context: UUID) async throws -> Bool {
     guard canStartMutation(context: context) else { return false }
     updatingRoom = true
     defer {
@@ -42,7 +42,7 @@ public extension WorkspaceState {
         updatingRoom = false
       }
     }
-    let updated: Components.Schemas.ChatRoom? = try await channelOperation(context: context, auth: auth) { client, _, slug in
+    let updated: Components.Schemas.ChatRoom? = try await channelOperation(context: context) { client, _, slug in
       switch member {
       case let .human(userId):
         try await ChatService().removeMember(client: client, roomId: roomId, userId: userId, organizationSlug: slug)

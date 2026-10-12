@@ -56,7 +56,7 @@
           return reply
         }
         let hit = try #require(state.thread.transcript.timeline.messages.first { $0.id == Self.replyId })
-        #expect(try await state.openMessageReply(hit, auth: AuthState()) == .opened)
+        #expect(try await state.openMessageReply(hit) == .opened)
         try await JumpMarkViewTests.poll(host) { state.thread.transcript.jumpTarget?.mark != nil && state.messageJump == nil }
         #expect(state.thread.transcript.jumpTarget?.mark?.messageId == Self.replyId, "The Thread landed on the reply.")
         #expect(state.messageJump == nil, "The room took the parent's jump.")
@@ -119,7 +119,7 @@
         #expect(try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) == 0, "On the jump's clock: gone 4.6 s after the jump.")
 
         // Centred where a room jump to the parent centres it: that jump barely moves the room.
-        #expect(try await state.openMessage(Self.parentId, auth: AuthState()) == .opened)
+        #expect(try await state.openMessage(Self.parentId) == .opened)
         try await Self.advanceUntilMarked(clock, host: host, scroll: scroll)
         let centred = try await Self.settledOffset(of: scroll, host: host)
         #expect(abs(centred - landed) < 40, "Already centred on the parent: a jump to it moved the room from \(landed) to \(centred).")
@@ -145,7 +145,7 @@
         let diagnosis = JumpDiagnosis(state: state, host: host, scroll: scroll)
         diagnosis.snap("closed")
 
-        #expect(try await state.openMessage(Self.parentId, auth: AuthState()) == .opened)
+        #expect(try await state.openMessage(Self.parentId) == .opened)
         try await Self.advanceUntilMarked(clock, host: host, scroll: scroll)
         let centred = try await Self.settledOffset(of: scroll, host: host)
         #expect(abs(centred - closed) < 40, "Already on the parent: a jump to it moved the room from \(closed) to \(centred).")

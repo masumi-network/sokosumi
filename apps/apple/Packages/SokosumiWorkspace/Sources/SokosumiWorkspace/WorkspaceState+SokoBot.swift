@@ -19,9 +19,9 @@ public extension WorkspaceState {
   /// while the request is in flight, or after a rating stuck, sends nothing.
   /// Web ignores a rejected rating (the thumbs simply return); a 401 signs out
   /// like every other chat request. Rethrows so a row could still tell.
-  func sendSokoBotFeedback(turnId: String, useful: Bool, auth: AuthState) async throws {
+  func sendSokoBotFeedback(turnId: String, useful: Bool) async throws {
     guard !turnId.isEmpty, sokoBotFeedback[turnId] == nil, !pendingSokoBotFeedback.contains(turnId) else { return }
-    guard let client = resolveClient(auth: auth) else {
+    guard let client = resolveClient() else {
       throw ChatServiceError.unauthorized("Log in to rate replies.")
     }
     let context = compositionContext
@@ -34,7 +34,7 @@ public extension WorkspaceState {
     } catch {
       guard context == compositionContext, !Task.isCancelled else { return }
       if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
+        signOutIfUnauthorized(error)
       }
       throw error
     }

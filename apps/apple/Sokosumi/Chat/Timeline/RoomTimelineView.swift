@@ -59,7 +59,6 @@ import SwiftUI
 
   private struct RoomTranscriptContent: View {
     @EnvironmentObject private var workspaces: WorkspaceState
-    @EnvironmentObject private var auth: AuthState
     @Environment(\.jumpMarkClock) private var jumpMarkClock
     /// Eager first layout can report near-top before the bottom anchor
     /// lands. Require a trip away from the top before auto-loading.
@@ -109,49 +108,49 @@ import SwiftUI
 
     private func unfurlAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
       guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
-      return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
+      return { url in try await workspaces.removeUnfurl(message, url: url) }
     }
 
     private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
       guard canReactToMessage(message), roomTakesNewMessages(room) else { return nil }
-      return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
+      return { emoji in try await workspaces.toggleReaction(message, emoji: emoji) }
     }
 
     /// The turn's thumbs send through the coordinator, which keeps the rating for the session (row 38b).
     private func sokoBotFeedbackAction(for message: Components.Schemas.ChatRoomMessage) -> ((Bool) async throws -> Void)? {
       guard let turnId = SokoBotFeedback.turnId(for: message) else { return nil }
-      return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful, auth: auth) }
+      return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful) }
     }
 
     /// Row 38e1: a settled row with result descriptors reads its cards through the coordinator.
     private func resultPreviewsAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> [Components.Schemas.ChatResultPreview])? {
       guard !MessageResultPreviews.descriptorIds(of: message).isEmpty else { return nil }
-      return { try await workspaces.messageResultPreviews(message, auth: auth) }
+      return { try await workspaces.messageResultPreviews(message) }
     }
 
     /// Row 38h1: picking a project on the row's question card replies to the bot that asked.
     private func selectProjectAction(for message: Components.Schemas.ChatRoomMessage) -> (String, String) async throws -> Void {
-      { previewId, projectId in try await workspaces.selectProject(projectId, preview: previewId, question: message, auth: auth) }
+      { previewId, projectId in try await workspaces.selectProject(projectId, preview: previewId, question: message) }
     }
 
     /// Row 38h2: Approve or Reject on a decision card resolves the owner's decision.
     private var resolveDecisionAction: (String, SokoBotDecision.Resolution) async throws -> Void {
-      { decisionId, resolution in try await workspaces.resolveSokoBotDecision(decisionId, resolution, auth: auth) }
+      { decisionId, resolution in try await workspaces.resolveSokoBotDecision(decisionId, resolution) }
     }
 
     private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
       guard workspaces.canSendToSelf(message) else { return nil }
-      return { try await workspaces.sendMessageToSelf(message, auth: auth) }
+      return { try await workspaces.sendMessageToSelf(message) }
     }
 
     private func deletionAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
-      return { try await workspaces.deleteMessage(message, auth: auth) }
+      return { try await workspaces.deleteMessage(message) }
     }
 
     private func mentionRetryAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard workspaces.canRetryMention(message) else { return nil }
-      return { try await workspaces.retryMention(message, auth: auth, now: Date()) }
+      return { try await workspaces.retryMention(message, now: Date()) }
     }
 
     var body: some View {
@@ -191,7 +190,7 @@ import SwiftUI
         }
         .task(id: roomId) {
           if room?.kind == .channel {
-            try? await workspaces.loadPins(auth: auth)
+            try? await workspaces.loadPins()
           }
         }
         .alert("Couldn’t load message", isPresented: Binding(get: { jumpError != nil }, set: {
@@ -273,7 +272,7 @@ import SwiftUI
             if workspaces.room.timeline.hasMore || olderPageWaits {
               PageBoundaryRow(copy: .transcript(isGap: false), status: olderPageWaits ? .loading : workspaces.room.timeline.oldestBoundaryStatus) {
                 scrollIntent.readOlder()
-                workspaces.loadOlderMessages(auth: auth)
+                workspaces.loadOlderMessages()
               }
             }
             // An older page's failure is on its row; the banner is for the latest page.
@@ -301,11 +300,11 @@ import SwiftUI
                   // Web's `useLoadWhenVisible`: the row loads itself once it scrolls into
                   // view; a failure stays on it with Try again, never in the jump alert.
                   PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.room.timeline.boundaryLoads.status(of: message.id)) {
-                    workspaces.loadHistoryGap(before: message.id, auth: auth)
+                    workspaces.loadHistoryGap(before: message.id)
                   }
                   .onScrollVisibilityChange(threshold: 0.01) { visible in
                     Task { @MainActor in
-                      workspaces.setHistoryGapVisible(before: message.id, visible, auth: auth)
+                      workspaces.setHistoryGapVisible(before: message.id, visible)
                     }
                   }
                 }
@@ -330,7 +329,7 @@ import SwiftUI
                                    { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                                  },
                                  onRetryMention: mentionRetryAction(for: message),
-                                 onReply: { workspaces.openThread(message, auth: auth) },
+                                 onReply: { workspaces.openThread(message) },
                                  onQuote: {
                                    pendingQuote = messageQuote(from: message)
                                    quoteFocusRequest = UUID().uuidString
@@ -347,7 +346,7 @@ import SwiftUI
                                  onQuoteJump: { id in Task {
                                    do {
                                      // Same-room quote: no Thread parent marked (row 25c).
-                                     if try await workspaces.openMessage(id, auth: auth, marksThreadParent: false) == .unavailable {
+                                     if try await workspaces.openMessage(id, marksThreadParent: false) == .unavailable {
                                        jumpError = "This message is no longer available."
                                      }
                                    } catch { jumpError = friendlyMessage(for: error) }
@@ -450,7 +449,7 @@ import SwiftUI
             JumpToLatestButton {
               Task { @MainActor in
                 do {
-                  if try await workspaces.returnToLatest(auth: auth) {
+                  if try await workspaces.returnToLatest() {
                     scrollPosition = ScrollPosition(idType: String.self)
                     scrollIntent.followLatest()
                     workspaces.room.clearJump()
@@ -505,7 +504,7 @@ import SwiftUI
             scrollIntent = nextIntent
           }
           Task { @MainActor in
-            workspaces.loadOlderMessages(auth: auth)
+            workspaces.loadOlderMessages()
           }
         }
       }
@@ -513,7 +512,7 @@ import SwiftUI
 
     private func pinAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard workspaces.canUsePins, message.parentMessageId == nil, canReactToMessage(message) else { return nil }
-      return { try await workspaces.setPinned(!workspaces.isPinned(message), messageId: message.id, auth: auth) }
+      return { try await workspaces.setPinned(!workspaces.isPinned(message), messageId: message.id) }
     }
 
     /// Lands the waiting older page and puts the rows that were first back where they sat in the viewport (row 04). The
@@ -547,7 +546,7 @@ import SwiftUI
     private func jumpToMessage(_ id: String) async throws -> MessageNavigationResult {
       let expectedRoom = roomId
       scrollIntent.readOlder()
-      let result = try await workspaces.openMessage(id, auth: auth)
+      let result = try await workspaces.openMessage(id)
       guard result == .opened, workspaces.room.timeline.roomId == expectedRoom else {
         return result == .opened ? .superseded : result
       }
@@ -557,9 +556,9 @@ import SwiftUI
     private func transcriptError(_ error: String, retryOlder: Bool) -> some View {
       errorBanner(error) {
         if retryOlder {
-          workspaces.loadOlderMessages(auth: auth)
+          workspaces.loadOlderMessages()
         } else if let room {
-          workspaces.openRoom(room, auth: auth)
+          workspaces.openRoom(room)
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -569,7 +568,7 @@ import SwiftUI
     /// is illegal inside the scroll view.
     private func inlineError(_ error: String) -> some View {
       errorBanner(error) {
-        workspaces.refreshTranscript(auth: auth)
+        workspaces.refreshTranscript()
       }
       .frame(maxWidth: .infinity)
     }

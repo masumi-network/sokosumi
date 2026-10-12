@@ -43,8 +43,8 @@ struct SettingsView: View {
         isAvailable: auth.isSignedIn && workspaces.notificationPreferences.isLoaded,
         bannersBlocked: workspaces.notificationPreferences.wantsBanner && notificationAuthorization == .denied,
         error: notificationError,
-        onPreset: { preset in saveNotifications { try await workspaces.setNotificationPreset(preset, auth: auth) } },
-        onReach: { kind, reach in saveNotifications { try await workspaces.setNotificationReach([kind: reach], auth: auth) } }
+        onPreset: { preset in saveNotifications { try await workspaces.setNotificationPreset(preset) } },
+        onReach: { kind, reach in saveNotifications { try await workspaces.setNotificationReach([kind: reach]) } }
       )
       Section("Core") {
         LabeledContent("Base URL") {
@@ -67,7 +67,7 @@ struct SettingsView: View {
       saveError = nil
       notificationError = nil
       guard auth.isSignedIn else { return }
-      if await !workspaces.refreshUserPreferences(auth: auth), !workspaces.notificationPreferences.isLoaded {
+      if await !workspaces.refreshUserPreferences(), !workspaces.notificationPreferences.isLoaded {
         notificationError = "Your notification settings did not load. Reopen Settings to try again."
       }
       await ChatNotificationCenter.shared.refreshAuthorization()
@@ -106,7 +106,7 @@ struct SettingsView: View {
         defer { pendingRoomUnreadCount = nil }
         saveError = nil
         do {
-          try await workspaces.setShowsRoomUnreadCount(enabled, auth: auth)
+          try await workspaces.setShowsRoomUnreadCount(enabled)
         } catch {
           saveError = "Could not save that change. Check your connection and try again."
         }

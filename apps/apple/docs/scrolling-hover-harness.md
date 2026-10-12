@@ -278,7 +278,7 @@ import SwiftUI
     defer { ProcessInfo.processInfo.endActivity(activity) }
     URLProtocol.registerClass(ScrollMediaProtocol.self)
     let count = Int(env["HITCH_COUNT"] ?? "600") ?? 600
-    let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
+    let state = WorkspaceState(auth: AuthState(store: InMemoryTokenStore()), clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
     state.room.timeline.reset(roomId: "fixture")
     state.room.timeline.failInitialLoad(message: "", generation: state.room.timeline.generation)
     state.room.timeline.messages = Self.fixture(count)
@@ -370,7 +370,7 @@ import SwiftUI
 
   init() {
     URLProtocol.registerClass(ScrollMediaProtocol.self)
-    state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
+    state = WorkspaceState(auth: AuthState(store: InMemoryTokenStore()), clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
     state.room.timeline.reset(roomId: "fixture")
     state.room.timeline.failInitialLoad(message: "", generation: state.room.timeline.generation)
     state.room.timeline.messages = (0 ..< 80).map { index in
@@ -749,7 +749,7 @@ struct MinimalList: View {
     let passes = Int(env["HITCH_BENCH"] ?? "40") ?? 40
     let messages = Self.fixture(rows)
     let documents = messages.map { MessageMarkdown($0.content, diagrams: true) }
-    let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
+    let state = WorkspaceState(auth: AuthState(store: InMemoryTokenStore()), clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
     let auth = AuthState(store: InMemoryTokenStore())
     let window = NSWindow(contentRect: NSRect(x: 200, y: 100, width: 1100, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
     window.level = .floating
@@ -802,7 +802,7 @@ struct MinimalList: View {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [PagedCoreProtocol.self]
     let client = Client.connecting(to: URL(string: "https://paging-fixture.invalid/v1")!, session: URLSession(configuration: configuration))
-    let state = WorkspaceState(clientProvider: { _ in client })
+    let state = WorkspaceState(auth: AuthState(store: InMemoryTokenStore()), clientProvider: { _ in client })
     state.room.timeline.reset(roomId: "fixture")
     _ = try? await state.room.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.room.timeline.generation)
     let touchEvery = Double(env["HITCH_TOUCH_MS"] ?? "0") ?? 0

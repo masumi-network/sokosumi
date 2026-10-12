@@ -17,7 +17,6 @@ import SwiftUI
     let roomId: String
     let jump: (String) async throws -> MessageNavigationResult
     @EnvironmentObject private var workspaces: WorkspaceState
-    @EnvironmentObject private var auth: AuthState
     @Environment(RoomEditSheets.self) private var roomEditSheets: RoomEditSheets?
     @StateObject private var search = RoomSearch()
     @State private var destination: RoomToolsInspectorDestination?
@@ -62,14 +61,14 @@ import SwiftUI
         }
         .task(id: scope + [String(destination == .threads), workspaces.thread.parent?.id ?? ""]) {
           guard destination == .threads, workspaces.thread.parent == nil else { return }
-          await workspaces.updateThreadOverview(.load, roomId: roomId, auth: auth)
+          await workspaces.updateThreadOverview(.load, roomId: roomId)
         }
         .task(id: scope + [String(workspaces.threadAttentionRevision), String(destination == .threads), workspaces.thread.parent?.id ?? ""]) {
           do { try await Task.sleep(for: Self.threadsCountDebounce) } catch { return }
-          await workspaces.updateThreadOverview(.count, roomId: roomId, auth: auth)
+          await workspaces.updateThreadOverview(.count, roomId: roomId)
         }
         .task(id: scope + [String(destination == .threads)]) {
-          await workspaces.refreshChatDisplayPreferences(auth: auth)
+          await workspaces.refreshChatDisplayPreferences()
         }
         // The sidebar's "N more unread threads" (row 24g2): the room's thread overview takes the inspector.
         // A task, so it runs after a room switch has reset the destination.
@@ -86,7 +85,7 @@ import SwiftUI
           guard destination == .search else { search.reset()
             return
           }
-          await workspaces.searchMessages(query, roomId: roomId, search: search, auth: auth)
+          await workspaces.searchMessages(query, roomId: roomId, search: search)
         }
         .onChange(of: scope) { _, _ in
           cancelJump()
@@ -106,7 +105,7 @@ import SwiftUI
           }
         case .threads:
           RoomThreadOverviewView(overview: workspaces.threadOverview, open: {
-            workspaces.openThread($0, auth: auth)
+            workspaces.openThread($0)
           }, older: { updateThreads(.older) }, markAllRead: { updateThreads(.markAllRead) },
           retry: { updateThreads(.load) }, close: { destination = nil })
         case .search:
@@ -195,7 +194,7 @@ import SwiftUI
     }
 
     private func updateThreads(_ action: WorkspaceState.ThreadOverviewAction) {
-      Task { await workspaces.updateThreadOverview(action, roomId: roomId, auth: auth) }
+      Task { await workspaces.updateThreadOverview(action, roomId: roomId) }
     }
 
     private func cancelJump() {
@@ -255,7 +254,7 @@ import SwiftUI
         }
         do {
           let result = if hit.parentMessageId != nil {
-            try await workspaces.openMessageReply(hit, auth: auth)
+            try await workspaces.openMessageReply(hit)
           } else {
             try await jump(hit.id)
           }

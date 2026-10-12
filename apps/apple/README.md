@@ -110,7 +110,7 @@ Views render package state and dispatch user actions through `WorkspaceState`. H
 
 `SokosumiApp` currently shares one auth and workspace coordinator across windows. Each root view reports its own visibility identity. Preserve this ownership during refactors: creating a coordinator per child view would change selection, task lifetime and realtime behavior.
 
-`WorkspaceState` lives in `Packages/SokosumiWorkspace`, with integration tests in that package. The app injects an authenticated Core client provider and the realtime connection factory. Endpoint configuration and browser presentation stay in the app; the coordinator has no dependency on the app target, SwiftUI or AppKit. Its cancellation and generation guards remain alongside the operations they protect.
+`WorkspaceState` lives in `Packages/SokosumiWorkspace`, with integration tests in that package. The app injects its one `AuthState` (workspace methods read it instead of taking an `auth` argument), an authenticated Core client provider and the realtime connection factory. Endpoint configuration and browser presentation stay in the app; the coordinator has no dependency on the app target, SwiftUI or AppKit. Its cancellation and generation guards remain alongside the operations they protect.
 
 ## Making changes
 
