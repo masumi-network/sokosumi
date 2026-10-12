@@ -73,19 +73,6 @@ export interface GoogleCampaignCreate extends AdCampaignCreate {
   google: GoogleCampaignSpec;
 }
 
-/** Drops keywords that repeat another with the same match type, ignoring case. */
-export function dedupeGoogleKeywords(
-  keywords: readonly GoogleKeyword[],
-): GoogleKeyword[] {
-  const seen = new Set<string>();
-  return keywords.filter(({ text, matchType }) => {
-    const key = `${matchType}:${text.toLowerCase()}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
 export interface AdCampaignMetrics {
   spend: number;
   impressions: number;

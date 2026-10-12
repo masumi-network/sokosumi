@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  buildAdCampaign,
-  dedupeGoogleKeywords,
-  fromMinorUnits,
-  sumAdMetrics,
-} from "./campaigns";
+import { buildAdCampaign, fromMinorUnits, sumAdMetrics } from "./campaigns";
 
 describe("fromMinorUnits", () => {
   it.each([
@@ -54,22 +49,5 @@ describe("buildAdCampaign", () => {
         { spend: 2.349, impressions: 0, clicks: 0, conversions: null },
       ),
     ).toMatchObject({ dailyBudget: 1.13, spend: 2.35, ctr: null, cpc: null });
-  });
-});
-
-describe("dedupeGoogleKeywords", () => {
-  it("drops repeats with the same match type, ignoring case, and keeps the first", () => {
-    expect(
-      dedupeGoogleKeywords([
-        { text: "Shoes", matchType: "BROAD" },
-        { text: "shoes", matchType: "BROAD" },
-        { text: "shoes", matchType: "EXACT" },
-        { text: "boots", matchType: "BROAD" },
-      ]),
-    ).toEqual([
-      { text: "Shoes", matchType: "BROAD" },
-      { text: "shoes", matchType: "EXACT" },
-      { text: "boots", matchType: "BROAD" },
-    ]);
   });
 });

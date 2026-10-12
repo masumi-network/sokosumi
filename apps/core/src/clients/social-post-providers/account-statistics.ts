@@ -61,9 +61,12 @@ function isYouTubeQuotaError(error: unknown): boolean {
   );
 }
 
+/** Tool errors keep more than a user should read. */
+const PROVIDER_MESSAGE_SHOWN_LIMIT = 300;
+
 function statisticsFailureMessage(error: unknown, fallback: string): string {
   if (error instanceof ComposioToolError && error.providerMessage) {
-    return `${fallback} ${error.providerMessage.slice(0, 300)}`;
+    return `${fallback} ${error.providerMessage.slice(0, PROVIDER_MESSAGE_SHOWN_LIMIT)}`;
   }
   if (error instanceof ComposioApiError) {
     return `${fallback} Connector request failed (HTTP ${error.httpStatus}).`;

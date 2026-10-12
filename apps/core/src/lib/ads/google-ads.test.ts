@@ -799,6 +799,14 @@ describe("createGoogleCampaign", () => {
     for (const name of names) expect(name.length).toBeLessThanOrEqual(255);
   });
 
+  it("treats an empty partial failure error as none", async () => {
+    executeToolMock.mockResolvedValue({
+      ...batchResult,
+      partial_failure_error: {},
+    });
+    await expect(createGoogleCampaign(create)).resolves.toMatch(/^\d+$/);
+  });
+
   it.each([
     [
       "a partial failure",
@@ -895,6 +903,10 @@ describe("createGoogleCampaign", () => {
       ["authorization", { authorizationError: "USER_PERMISSION_DENIED" }],
       ["quota", { quotaError: "RESOURCE_EXHAUSTED" }],
       ["internal", { internalError: "INTERNAL_ERROR" }],
+      [
+        "concurrent modification",
+        { concurrentModificationError: "CONCURRENT_MODIFICATION" },
+      ],
     ])("keeps a %s failure a provider error", async (_name, errorCode) => {
       const error = new ComposioToolError({
         message: "refused",

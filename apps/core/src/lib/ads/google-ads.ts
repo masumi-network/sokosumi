@@ -11,8 +11,8 @@ import {
   type AdCampaignUpdate,
   type AdRange,
   buildAdCampaign,
-  dedupeGoogleKeywords,
   type GoogleCampaignCreate,
+  type GoogleKeyword,
   noAdMetrics,
   sumAdMetrics,
 } from "@/lib/ads/campaigns";
@@ -214,15 +214,21 @@ const campaignLookupRowSchema = z.object({
   campaignBudget: z.object({ explicitlyShared: z.boolean().nullish() }),
 });
 
+/** A partial failure error that is set and not empty; tools may send `{}` for none. */
+function hasPartialFailure(payload: Record<string, unknown> | null): boolean {
+  const failure = payload?.partial_failure_error;
+  return (
+    failure != null &&
+    (typeof failure !== "object" || Object.keys(failure).length > 0)
+  );
+}
+
 /** A mutation that reports no result for its operation, or a partial failure, did not apply. */
 function requireMutated(
   payload: Record<string, unknown> | null,
   context: string,
 ): void {
-  if (
-    toolRows(payload, "results").length === 0 ||
-    payload?.partial_failure_error
-  ) {
+  if (toolRows(payload, "results").length === 0 || hasPartialFailure(payload)) {
     throw new ComposioToolError({ message: `${context} was not applied` });
   }
 }
@@ -327,6 +333,19 @@ const BUDGET_NAME_SUFFIX_LENGTH = " budget ".length + 8;
 const BUDGET_TEMP_ID = -1;
 const CAMPAIGN_TEMP_ID = -2;
 const AD_GROUP_TEMP_ID = -3;
+
+/** Drops keywords that repeat another with the same match type, ignoring case. */
+function dedupeGoogleKeywords(
+  keywords: readonly GoogleKeyword[],
+): GoogleKeyword[] {
+  const seen = new Set<string>();
+  return keywords.filter(({ text, matchType }) => {
+    const key = `${matchType}:${text.toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 /**
  * The operations of a paused Search campaign: budget, campaign (Maximize
@@ -439,6 +458,9 @@ const NON_VALIDATION_ERROR_CODES = new Set([
   "authorizationerror",
   "quotaerror",
   "internalerror",
+  // Transient: a retry may succeed.
+  "concurrentmodificationerror",
+  "databaseerror",
 ]);
 // The first entry of `GoogleAdsFailure.errors`. Matched on the text because
 // the tool error message is cut at a fixed length, so the JSON may be incomplete.
@@ -461,7 +483,7 @@ function googleValidationMessage(error: unknown): string | null {
     return null;
   }
   try {
-    return JSON.parse(`"${message}"`) as string;
+    return z.string().parse(JSON.parse(`"${message}"`));
   } catch {
     return message;
   }
@@ -499,16 +521,17 @@ export async function createGoogleCampaign(
       }
     },
   );
-  const campaignName = toolRows(payload, "mutate_operation_responses").flatMap(
-    (response) => {
-      const parsed = campaignResultSchema.safeParse(response);
-      return parsed.success ? [parsed.data.campaign_result.resource_name] : [];
-    },
-  )[0];
-  if (payload?.partial_failure_error || !campaignName) {
+  const campaignResourceName = toolRows(
+    payload,
+    "mutate_operation_responses",
+  ).flatMap((response) => {
+    const parsed = campaignResultSchema.safeParse(response);
+    return parsed.success ? [parsed.data.campaign_result.resource_name] : [];
+  })[0];
+  if (hasPartialFailure(payload) || !campaignResourceName) {
     throw new ComposioToolError({
       message: "create Google Ads campaign was not applied",
     });
   }
-  return campaignName.slice(campaignName.lastIndexOf("/") + 1);
+  return campaignResourceName.slice(campaignResourceName.lastIndexOf("/") + 1);
 }

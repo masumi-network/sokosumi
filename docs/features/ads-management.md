@@ -143,7 +143,7 @@ The campaign id is the id in the campaign result's resource name (`mutate_operat
 
 ### Errors
 
-- A Google validation or policy failure (the Composio tool error carries a `GoogleAdsFailure`, e.g. "Too long.", "Destination not working") is **422 with Google's first error message**. The message is read from the tool error text, which Composio keeps to 300 characters, so it is matched on the text rather than parsed as JSON.
+- A Google validation or policy failure (the Composio tool error carries a `GoogleAdsFailure`, e.g. "Too long.", "Destination not working") is **422 with Google's first error message**. The message is read from the tool error text (Core keeps its first 2000 characters, enough for Google's envelope), matched on the text because a long failure can still be cut. Authentication, authorization, quota, internal and transient (concurrent modification, database) failures stay provider errors (502).
 - Authentication, authorization, quota and internal Google errors, and transport errors, keep the usual mapping (502, 503 for missing configuration). Other routes are unchanged.
 - Account rules (422): Google account without `google`, Google account with `objective`, Meta account with `google`, Meta account without `objective`.
 

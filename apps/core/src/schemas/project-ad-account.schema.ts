@@ -218,22 +218,8 @@ const googleKeywordSchema = z
   })
   .openapi("GoogleKeyword");
 
-const googleAdTextsSchema = (
-  min: number,
-  max: number,
-  length: number,
-  unique: boolean,
-) =>
-  z
-    .array(z.string().trim().min(1).max(length))
-    .min(min)
-    .max(max)
-    .refine(
-      (texts) =>
-        !unique ||
-        new Set(texts.map((text) => text.toLowerCase())).size === texts.length,
-      { message: "Texts must be unique (ignoring case)" },
-    );
+const googleAdTextsSchema = (min: number, max: number, length: number) =>
+  z.array(z.string().trim().min(1).max(length)).min(min).max(max);
 
 // Not z.iso.date(): that is `format: date` in the OpenAPI document, which the
 // generated client reads as a Date and would send as a timestamp.
@@ -272,8 +258,12 @@ const googleSearchCampaignSpecSchema = z
       description:
         "Repeats of a keyword with the same match type (ignoring case) are dropped",
     }),
-    headlines: googleAdTextsSchema(3, 15, 30, true),
-    descriptions: googleAdTextsSchema(2, 4, 90, false),
+    headlines: googleAdTextsSchema(3, 15, 30).refine(
+      (texts) =>
+        new Set(texts.map((text) => text.toLowerCase())).size === texts.length,
+      { message: "Headlines must be unique (ignoring case)" },
+    ),
+    descriptions: googleAdTextsSchema(2, 4, 90),
     path1: z.string().trim().min(1).max(15).optional(),
     path2: z.string().trim().min(1).max(15).optional().openapi({
       description: "Requires path1",
