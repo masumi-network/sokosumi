@@ -48,6 +48,11 @@ local-env:
 cloud-agent-db:
   - "{scripts/cloud-agent-db/**,package.json}"
 
+# The brand guides the `Lint DESIGN.md` job checks, and the files that
+# define the job.
+design-md:
+  - "{apps/*/DESIGN.md,.github/workflows/ci.yml,.github/js-paths-filter.yml}"
+
 # The doc-script check reads every Markdown file and package.json; the
 # turbo and Vercel contract tests read the workflows, turbo.json, the
 # workspace file, every app vercel.json, .vercelignore, and the web build

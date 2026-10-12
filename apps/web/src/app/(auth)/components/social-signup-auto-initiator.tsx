@@ -16,16 +16,21 @@ import {
 } from "@/lib/auth/auth.utils";
 import type { SocialProviderId } from "@/lib/schemas/auth";
 
+/** Each provider's messages under `Auth.Pages.SignUp`. */
+const MESSAGE_KEYS = {
+  google: "Google",
+  microsoft: "Microsoft",
+} as const satisfies Record<SocialProviderId, string>;
+
 interface SocialSignupAutoInitiatorProps {
   provider: SocialProviderId;
-  providerName: string;
 }
 
 export default function SocialSignupAutoInitiator({
   provider,
-  providerName,
 }: SocialSignupAutoInitiatorProps) {
   const t = useTranslations("Auth.Pages.SignUp");
+  const messageKey = MESSAGE_KEYS[provider];
   const searchParams = useSearchParams();
   const effectiveReturnUrl = readAuthReturnUrl(searchParams);
   const [error, setError] = useState<string | null>(null);
@@ -52,13 +57,13 @@ export default function SocialSignupAutoInitiator({
           window.location.replace(providerUrl);
         } else {
           const errorMessage =
-            result.error?.message ?? t(`${providerName}.error`);
+            result.error?.message ?? t(`${messageKey}.error`);
           setError(errorMessage);
           toast.error(errorMessage);
           setIsInitiating(false);
         }
       } catch {
-        const errorMessage = t(`${providerName}.error`);
+        const errorMessage = t(`${messageKey}.error`);
         setError(errorMessage);
         toast.error(errorMessage);
         setIsInitiating(false);
@@ -66,7 +71,7 @@ export default function SocialSignupAutoInitiator({
     };
 
     initiateOAuth();
-  }, [provider, providerName, effectiveReturnUrl, t]);
+  }, [provider, messageKey, effectiveReturnUrl, t]);
 
   // A page restored from the back/forward cache does not run the effect
   // again; offer the retry instead of a spinner with nothing behind it.
@@ -84,37 +89,13 @@ export default function SocialSignupAutoInitiator({
     window.location.reload();
   };
 
-  const retryButton = (
-    <Button onClick={handleRetry} variant="primary" className="w-full">
-      {t(`${providerName}.retry`)}
-    </Button>
-  );
-
-  if (error) {
-    return (
-      <div className="flex min-h-dvh flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md space-y-6 text-center">
-          <div className="space-y-2">
-            <h1 className="text-2xl font-semibold">
-              {t(`${providerName}.title`)}
-            </h1>
-            <p className="text-muted-foreground">{error}</p>
-          </div>
-          {retryButton}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6 text-center">
         <div className="space-y-2">
-          <h1 className="text-2xl font-semibold">
-            {t(`${providerName}.title`)}
-          </h1>
+          <h1 className="text-2xl font-semibold">{t(`${messageKey}.title`)}</h1>
           <p className="text-muted-foreground">
-            {t(`${providerName}.description`)}
+            {error ?? t(`${messageKey}.description`)}
           </p>
         </div>
         {isInitiating ? (
@@ -122,7 +103,9 @@ export default function SocialSignupAutoInitiator({
             <div className="border-primary size-8 animate-spin motion-reduce:animate-pulse rounded-full border-4 border-t-transparent" />
           </div>
         ) : (
-          retryButton
+          <Button onClick={handleRetry} variant="primary" className="w-full">
+            {t(`${messageKey}.retry`)}
+          </Button>
         )}
       </div>
     </div>

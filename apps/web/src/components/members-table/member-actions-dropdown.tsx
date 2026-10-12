@@ -43,6 +43,7 @@ export default function MemberActionsDropdown({
     tryBeginSeatAssign,
     cancelSeatAssign,
   } = useSeatManagementContext();
+  const isSelf = member.id === me.id;
 
   const handleChangeToOwner = () => {
     openActionModal(member, MemberAction.CHANGE_TO_OWNER);
@@ -110,12 +111,21 @@ export default function MemberActionsDropdown({
         checkPermission(me, member),
       canUnassignSeat:
         showSeatManagement && hasSeat && checkPermission(me, member),
-      hasPermission: checkPermission(me, member),
-      canChangeToOwner: checkCanChangeToOwner(me, member),
-      canChangeToAdmin: checkCanChangeToAdmin(me, member),
-      canChangeToMember: checkCanChangeToMember(me, member),
+      // On their own row a caller only manages their seat: no role
+      // change and no self-removal.
+      hasPermission: !isSelf && checkPermission(me, member),
+      canChangeToOwner: !isSelf && checkCanChangeToOwner(me, member),
+      canChangeToAdmin: !isSelf && checkCanChangeToAdmin(me, member),
+      canChangeToMember: !isSelf && checkCanChangeToMember(me, member),
     };
-  }, [isMemberSeatAssigned, me, member, showSeatManagement, unusedSeats]);
+  }, [
+    isMemberSeatAssigned,
+    isSelf,
+    me,
+    member,
+    showSeatManagement,
+    unusedSeats,
+  ]);
 
   const hasAnyAction =
     canAssignSeat ||
@@ -125,10 +135,19 @@ export default function MemberActionsDropdown({
     canChangeToMember ||
     hasPermission;
 
+  if (isSelf && !hasAnyAction) {
+    return null;
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={!hasAnyAction}>
-        <Button variant="outline" size="icon" className={cn("p-2!", className)}>
+        <Button
+          variant="outline"
+          size="icon"
+          className={cn("p-2!", className)}
+          aria-label={t("open")}
+        >
           <Ellipsis />
         </Button>
       </DropdownMenuTrigger>

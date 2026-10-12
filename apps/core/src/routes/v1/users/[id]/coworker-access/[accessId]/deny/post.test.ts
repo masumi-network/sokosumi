@@ -5,8 +5,8 @@ import { notFound } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
+  applyUserRouteMiddleware,
   type UserRouteVariables,
-  usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -79,7 +79,7 @@ function createApp(authContext: AuthenticationContext = SESSION_USER) {
   });
 
   const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
-  userByIdApp.use("*", usersPathUserContextMiddleware);
+  applyUserRouteMiddleware(userByIdApp);
   mountDenyUserCoworkerAccess(userByIdApp);
   app.route("/:id", userByIdApp);
   return app;

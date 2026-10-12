@@ -211,7 +211,6 @@ export function UnreadThreadsList({
               onLoad={() => void query.fetchNextPage()}
               labels={{
                 load: t("loadMore"),
-                loading: tGroups("loading"),
                 error: t("loadError"),
                 retry: t("retry"),
               }}

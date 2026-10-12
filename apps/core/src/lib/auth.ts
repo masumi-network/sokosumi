@@ -55,7 +55,7 @@ import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import prisma from "@/lib/db/prisma";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
-import { resolveActiveOrganizationIdForSession } from "@/services/preferred-organization.service";
+import { resolveActiveOrganizationIdForSession } from "@/services/preferred-workspace.service";
 import { reconcileActiveStripeBackedSubscription } from "@/services/stripe-backed-subscription.service";
 import {
   handleUserUpdateStripeEmailSync,
@@ -82,6 +82,7 @@ import {
   OAUTH_REFRESH_TOKEN_PREFIX,
 } from "./auth-oauth-token-prefixes";
 import { createAuthOrganizationPlugin } from "./auth-organization";
+import { recordSignUpContext } from "./auth-sign-up-context";
 import {
   oauthSignUpOptions,
   recordSignUpConversion,
@@ -299,6 +300,8 @@ export const auth = betterAuth({
               extra: { userId: user.id },
             });
           });
+          // Awaited: it reads this request's OAuth state.
+          await recordSignUpContext(user.id);
           waitUntil(grantSignupBonusForCreatedUser(user.id));
           waitUntil(
             stripeClient
@@ -367,7 +370,12 @@ export const auth = betterAuth({
       "https://app.sokosumi.com",
       "https://preprod.sokosumi.com",
       webAppBaseUrl,
-      "https://*.preview.sokosumi.com", // Vercel preview deployment suffix
+      // Branch previews of Web call their own Core preview. Production keeps
+      // them out: they share its `sokosumi.com` cookies, so a trusted preview
+      // could act for anyone signed in to production.
+      ...(env.VERCEL_ENV === "preview"
+        ? ["https://*.preview.sokosumi.com"]
+        : []),
       ...(env.NODE_ENV === "development"
         ? [
             "http://localhost:*",
@@ -388,15 +396,6 @@ export const auth = betterAuth({
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
-      if (ctx.path.startsWith("/sign-in")) {
-        const user = ctx.context.newSession?.user;
-        if (user && !user.termsAccepted) {
-          throw new APIError("BAD_REQUEST", {
-            code: "TERMS_NOT_ACCEPTED",
-          });
-        }
-      }
-
       if (ctx.path === "/organization/leave") {
         const organizationId = ctx.body?.organizationId;
         if (typeof organizationId === "string") {

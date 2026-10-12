@@ -113,11 +113,7 @@ function SeenByDetail({
             className="flex h-7 items-center gap-2 px-2"
             data-testid={`room-seen-by-reader-${participant.id}`}
           >
-            <ParticipantAvatar
-              participant={participant}
-              className="size-5"
-              textClassName="text-[0.5rem]"
-            />
+            <ParticipantAvatar participant={participant} className="size-5" />
             <span className="min-w-0 flex-1 truncate text-xs">
               {participantName(participant)}
             </span>
@@ -164,7 +160,6 @@ function SeenByPending({
           <ParticipantAvatar
             participant={participant}
             className="size-5 opacity-60 grayscale"
-            textClassName="text-[0.5rem]"
           />
           <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">
             {participantName(participant)}

@@ -5,7 +5,6 @@ import {
   Bell,
   BellOff,
   Ellipsis,
-  Loader2,
   LogOut,
   MessageSquare,
   Pencil,
@@ -684,7 +683,7 @@ export function ChatRoomSidebarRow({
                     className={cn(
                       // The box stays 32px so the `…` keeps its column under the section's
                       // `+`; the pseudo-element carries the touch target out to 44px.
-                      "text-muted-foreground relative size-8 opacity-100 after:absolute after:-inset-1.5 md:size-7 md:after:hidden motion-safe:transition-opacity motion-safe:duration-150 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+                      "text-muted-foreground relative size-8 opacity-100 after:absolute after:-inset-1.5 md:size-7 md:after:-inset-0.5 motion-safe:transition-opacity motion-safe:duration-150 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
                     )}
                     aria-label={tActions("roomMenu", { name: label })}
                   >
@@ -814,18 +813,12 @@ export function ChatRoomSidebarRow({
               {tActions("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={isLeaving}
+              loading={isLeaving}
               onClick={(event) => {
                 event.preventDefault();
                 void handleConfirmLeave();
               }}
             >
-              {isLeaving ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : null}
               {tActions("leaveConfirm")}
             </AlertDialogAction>
           </AlertDialogFooter>

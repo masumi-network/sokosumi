@@ -39,7 +39,7 @@ public final class DirectStreamSession: ObservableObject {
     phase != .idle
   }
 
-  public static func supports(_ room: Components.Schemas.ChatRoom) -> Bool {
+  public nonisolated static func supports(_ room: Components.Schemas.ChatRoom) -> Bool {
     room.kind == .direct && room.coworkerMembers.count == 1
       && room.userMembers.count == 1 && room.sokoBotMembers.isEmpty
   }

@@ -298,6 +298,16 @@ struct UnreadThreadsAttentionTests {
     #expect(resolveUnreadThreadsAttention([]) == .init(threadCount: 0, mentionCount: 0))
   }
 
+  /// Web's `hasCount` (`ChatUnreadNavRows`): the row reads unread only while an unmuted room holds an unread
+  /// Thread; at zero it rests muted, a muted room's Threads count for nothing, and a mention changes only the number.
+  @Test func theThreadsEntryReadsUnreadOnlyWhileAThreadIsUnread() {
+    #expect(!resolveUnreadThreadsAttention([]).isUnread)
+    #expect(!resolveUnreadThreadsAttention([room(alphaRoomId, name: "general")]).isUnread)
+    #expect(!resolveUnreadThreadsAttention([room(mutedRoomId, name: "noise", unreadThreads: 4, threadMentions: 1, muted: true)]).isUnread)
+    #expect(resolveUnreadThreadsAttention([room(alphaRoomId, name: "general", unreadThreads: 1, threadMentions: 0)]).isUnread)
+    #expect(resolveUnreadThreadsAttention([room(alphaRoomId, name: "general", unreadThreads: 1, threadMentions: 1)]).isUnread)
+  }
+
   /// The lists read Core again exactly when a Thread is read, muted or gains a reply; Earlier also when a
   /// room's activity moves. A muted room changes neither.
   @Test func theListsReReadWhenTheRoomsThreadsMove() {

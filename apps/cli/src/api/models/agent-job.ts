@@ -14,7 +14,7 @@ export function parseAgentJob(input: unknown): AgentJob {
   const record = asRecord(input);
   return {
     id: nullableString(record.id),
-    agentId: nullableString(record.agentId ?? record.agent_id),
+    agentId: nullableString(record.agentId),
     status: nullableString(record.status),
     name: nullableString(record.name),
     result: nullableString(record.result),

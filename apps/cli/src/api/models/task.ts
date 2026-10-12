@@ -1,5 +1,5 @@
 import { type AgentJob, parseAgentJob } from "./agent-job.js";
-import { asRecord } from "./parse-helpers.js";
+import { asRecord, nullableNumber, nullableString } from "./parse-helpers.js";
 
 export interface Task {
   id: string | null;
@@ -17,41 +17,28 @@ export interface Task {
   events: unknown[];
 }
 
+function assigneeCoworkerName(assignee: unknown): string | null {
+  const value = asRecord(assignee);
+  if (value.type !== "coworker") return null;
+  return nullableString(asRecord(value.coworker).name);
+}
+
 export function parseTask(input: unknown): Task {
   const value = asRecord(input);
-  const coworker = asRecord(value.coworker);
   const jobs = Array.isArray(value.jobs) ? value.jobs : [];
   return {
-    id: typeof value.id === "string" ? value.id : null,
-    createdAt: typeof value.createdAt === "string" ? value.createdAt : null,
-    updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : null,
-    userId: typeof value.userId === "string" ? value.userId : null,
-    organizationId:
-      typeof value.organizationId === "string" ? value.organizationId : null,
-    name: typeof value.name === "string" ? value.name : null,
-    description:
-      typeof value.description === "string" ? value.description : null,
-    status: typeof value.status === "string" ? value.status : null,
-    coworkerId:
-      typeof value.coworkerId === "string"
-        ? value.coworkerId
-        : typeof value.assigneeId === "string"
-          ? value.assigneeId
-          : null,
-    coworkerName:
-      typeof value.coworkerName === "string"
-        ? value.coworkerName
-        : typeof coworker.name === "string"
-          ? coworker.name
-          : null,
+    id: nullableString(value.id),
+    createdAt: nullableString(value.createdAt),
+    updatedAt: nullableString(value.updatedAt),
+    userId: nullableString(value.ownerId),
+    organizationId: nullableString(value.organizationId),
+    name: nullableString(value.name),
+    description: nullableString(value.description),
+    status: nullableString(value.status),
+    coworkerId: nullableString(value.assigneeId),
+    coworkerName: assigneeCoworkerName(value.assignee),
     jobs: jobs.map(parseAgentJob),
-    totalCredits:
-      typeof value.totalCredits === "number" &&
-      Number.isFinite(value.totalCredits)
-        ? value.totalCredits
-        : typeof value.credits === "number" && Number.isFinite(value.credits)
-          ? value.credits
-          : null,
+    totalCredits: nullableNumber(value.credits),
     events: Array.isArray(value.events) ? value.events : [],
   };
 }

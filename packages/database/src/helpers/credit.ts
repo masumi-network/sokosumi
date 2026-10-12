@@ -23,7 +23,7 @@ export function creditBucketActivatesAtOrBeforeSql(now: Date): Prisma.Sql {
 export const ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX = "member:";
 export const USER_CREDIT_REFERENCE_PREFIX = "user:";
 export const ORGANIZATION_CREDIT_REFERENCE_PREFIX = "org:";
-export const FREE_CREDIT_REFERENCE_SEGMENT = "free";
+const FREE_CREDIT_REFERENCE_SEGMENT = "free";
 
 export function getCreditExpiryDate(baseDate: Date, days: number): Date {
   if (!Number.isFinite(days) || !Number.isInteger(days) || days < 0) {
@@ -31,22 +31,6 @@ export function getCreditExpiryDate(baseDate: Date, days: number): Date {
   }
 
   return new Date(baseDate.getTime() + days * MILLISECONDS_PER_DAY);
-}
-
-export function getOrganizationMemberSubscriptionReferencePrefix(
-  userId: string,
-): string {
-  return `${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}${userId}:`;
-}
-
-export function buildOrganizationMemberSubscriptionReferenceId(
-  userId: string,
-  referenceSuffix: string,
-): string {
-  validateReferenceSegment(userId, "userId");
-  validateReferenceSegment(referenceSuffix, "referenceSuffix");
-
-  return `${getOrganizationMemberSubscriptionReferencePrefix(userId)}${referenceSuffix}`;
 }
 
 function validateReferenceSegment(segment: string, name: string): void {

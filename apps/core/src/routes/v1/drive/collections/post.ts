@@ -6,7 +6,10 @@ import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   createFileCollectionRequestSchema,
@@ -18,28 +21,30 @@ const bodySchema = createFileCollectionRequestSchema.extend({
   organizationId: z.string().optional(),
 });
 
-const route = createRoute({
-  method: "post",
-  path: "/",
-  description: [
-    "Save the current filters and sort as a collection.",
-    "Private by default. Sharing shares the definition only: every reader",
-    "still sees their own authorized results.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    body: {
-      required: true,
-      content: { "application/json": { schema: bodySchema } },
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/",
+    description: [
+      "Save the current filters and sort as a collection.",
+      "Private by default. Sharing shares the definition only: every reader",
+      "still sees their own authorized results.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      body: {
+        required: true,
+        content: { "application/json": { schema: bodySchema } },
+      },
     },
-  },
-  responses: {
-    201: jsonSuccessResponse(fileCollectionSchema, "Collection created"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    409: jsonErrorResponse("Conflict"),
-  },
-});
+    responses: {
+      201: jsonSuccessResponse(fileCollectionSchema, "Collection created"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      409: jsonErrorResponse("Conflict"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

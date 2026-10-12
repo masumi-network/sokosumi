@@ -72,9 +72,9 @@ export function SokoBotKillSwitch({
             })}
           </p>
         </div>
-        <Button size="sm" disabled={pending} onClick={() => toggle(false)}>
+        <Button size="sm" loading={pending} onClick={() => toggle(false)}>
           <Power aria-hidden className="size-4" />
-          {pending ? t("working") : t("enable")}
+          {t("enable")}
         </Button>
       </div>
     );
@@ -126,11 +126,11 @@ export function SokoBotKillSwitch({
             </Button>
             <Button
               variant="destructive"
-              disabled={pending}
+              loading={pending}
               onClick={() => toggle(true)}
             >
               <PowerOff aria-hidden className="size-4" />
-              {pending ? t("working") : t("disable")}
+              {t("disable")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -39,13 +39,11 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@/lib/actions/organization/action", () => ({
   updatePreferredOrganization: vi.fn(),
-  generateOrganizationSlug: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     organization: {
-      create: vi.fn(),
       update: vi.fn(),
     },
   },

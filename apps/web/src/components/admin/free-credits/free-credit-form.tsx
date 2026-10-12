@@ -213,8 +213,8 @@ export function FreeCreditForm() {
 
       <Separator />
 
-      <Button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? t("Form.submitting") : t("Form.submit")}
+      <Button type="submit" loading={isSubmitting}>
+        {t("Form.submit")}
       </Button>
     </form>
   );

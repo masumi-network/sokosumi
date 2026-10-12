@@ -11,6 +11,8 @@ export interface HTTPExceptionMetadata {
   extensions?: Record<string, unknown>;
   /** Seconds clients should wait before retrying; sent as `Retry-After`. */
   retryAfterSeconds?: number;
+  /** Bearer challenge sent as `WWW-Authenticate` (RFC 6750 §3). */
+  wwwAuthenticate?: string;
 }
 
 /**
@@ -205,6 +207,17 @@ export const badGateway = (
   metadata?: HTTPExceptionMetadata,
 ): HTTPException => {
   return createHTTPException(502, message, metadata);
+};
+
+/**
+ * 426 Upgrade Required
+ * The client build is older than the server still serves
+ */
+export const upgradeRequired = (
+  message: string = "Upgrade Required",
+  metadata?: HTTPExceptionMetadata,
+): HTTPException => {
+  return createHTTPException(426, message, metadata);
 };
 
 /**

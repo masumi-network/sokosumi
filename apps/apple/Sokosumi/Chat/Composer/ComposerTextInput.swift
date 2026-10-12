@@ -1,3 +1,4 @@
+import CoreAPI
 import SokosumiChat
 import SwiftUI
 
@@ -8,7 +9,6 @@ import SwiftUI
     @Binding var text: String
     @State private var emojiPickerRequest = 0
     @StateObject private var commands = MacComposerCommands()
-    @State private var toolbarVisible = ComposerPreferences().toolbarVisible
     let submit: () -> Bool
     var focusRequest: String?
     var cancelEdit: (() -> Void)?
@@ -27,6 +27,8 @@ import SwiftUI
     var onPaste: ((ComposerTextPaste) -> Void)?
     var insertion: ComposerInsertion?
     var onEdit: ((String) -> Void)?
+    /// Skills for the next message (row 42); nil where the send cannot carry them.
+    var skills: ComposerSkills?
 
     var body: some View {
       ComposerLayout {
@@ -37,7 +39,14 @@ import SwiftUI
           }
         }
       } formatting: {
-        if toolbarVisible {
+        // Web's `aboveEditor`: the attached skills first, then the formatting bar.
+        if let skills, !skills.selected.isEmpty {
+          ComposerSkillChips(skills: skills.selected) { skill in
+            skills.change(skills.selected.filter { $0.id != skill.id })
+            commands.focus()
+          }
+        }
+        if commands.toolbar.isVisible {
           ComposerFormatToolbar(commands: commands)
         }
       } actions: {
@@ -56,14 +65,16 @@ import SwiftUI
           .help("Attach files")
           .accessibilityLabel("Attach files")
         }
-        ComposerToolbarButton(title: toolbarVisible ? "Hide formatting" : "Show formatting", symbol: "textformat", selected: toolbarVisible) {
-          toolbarVisible.toggle()
-          ComposerPreferences().toolbarVisible = toolbarVisible
+        ComposerToolbarButton(title: commands.toolbar.isVisible ? "Hide formatting" : "Show formatting", symbol: "textformat", selected: commands.toolbar.isVisible) {
+          commands.toolbar.toggle()
         }
         ComposerToolbarButton(title: "Emoji & Symbols", symbol: "face.smiling") {
           emojiPickerRequest += 1
         }
         .accessibilityIdentifier("composer.emojiPicker")
+        if let skills {
+          ComposerSkillButton(skills: skills, focusEditor: commands.focus)
+        }
         if !mentions.isEmpty {
           ComposerToolbarButton(title: "Mention", symbol: "at") {
             commands.openMentionPicker()

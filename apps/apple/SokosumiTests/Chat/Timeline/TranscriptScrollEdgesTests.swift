@@ -18,6 +18,20 @@
       #expect(!edges(offset: 1539).needsBottomAlignment)
     }
 
+    @MainActor @Test func olderPagesRequireIdleEvenWithoutAUserGesture() {
+      let activity = TranscriptScrollActivity()
+      activity.update(for: .animating)
+      #expect(!activity.isScrolling)
+      #expect(!activity.isAtRest)
+      activity.update(for: .idle)
+      #expect(activity.isAtRest)
+      for phase: ScrollPhase in [.tracking, .interacting, .decelerating] {
+        activity.update(for: phase)
+        #expect(activity.isScrolling)
+        #expect(!activity.isAtRest)
+      }
+    }
+
     private func edges(offset: CGFloat) -> TranscriptScrollEdges {
       TranscriptScrollEdges(ScrollGeometry(contentOffset: CGPoint(x: 0, y: offset),
                                            contentSize: CGSize(width: 900, height: 2000),

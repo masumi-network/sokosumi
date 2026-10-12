@@ -33,5 +33,5 @@ export default function JobDetailRedirect({
     router.push(`/agents/${agentId}/jobs/${jobId}`);
   }, [agentId, jobId, router, twoPaneFits]);
 
-  return <DefaultLoading className="h-full w-full flex-1 p-8" />;
+  return <DefaultLoading className="size-full flex-1 p-8" />;
 }

@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { signInRedirectPath } from "@/lib/auth/auth.server";
-import { normalizeAuthReturnUrl } from "@/lib/auth/auth.utils";
+import { sanitizeAuthRedirectPath } from "@/lib/auth/auth.utils";
 import { readRouteSession } from "@/lib/auth/route-session";
 import { coreClient } from "@/lib/clients/core.client";
 import { getPendingOrganizationJoinToken } from "@/lib/pending-organization-join-cookie";
@@ -62,7 +62,7 @@ export default async function WorkspaceGatePage({
   try {
     const workspaceAccess = await userService.getWorkspaceAccess();
     if (!workspaceAccess) {
-      // Session exists but workspace-access payload missing — treat as
+      // Session exists but Core's workspaces list is missing — treat as
       // temporary failure, not identity onboarding (user must understand why
       // they cannot enter).
       workspaceAccessLoadFailed = true;
@@ -103,7 +103,7 @@ export default async function WorkspaceGatePage({
   const t = await getTranslations("WorkspaceGate");
   // Same-origin paths only: an absolute or protocol-relative `next` ends at `/`.
   const { next } = await loadWorkspaceGateSearchParams(searchParams);
-  const returnUrl = normalizeAuthReturnUrl(next ?? undefined);
+  const returnUrl = sanitizeAuthRedirectPath(next ?? undefined);
 
   const titleKey =
     surface === "unavailable"

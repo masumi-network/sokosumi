@@ -29,6 +29,7 @@ const {
   initiateComposioConnectionMock,
   listProjectSocialConnectionsMock,
   requireSocialBetaAccessMock,
+  scheduleSocialAccountRefreshMock,
 } = vi.hoisted(() => ({
   requireAuthorizedUserContextMock: vi.fn(),
   requireCoworkerCapabilityMock: vi.fn(),
@@ -37,6 +38,7 @@ const {
   initiateComposioConnectionMock: vi.fn(),
   listProjectSocialConnectionsMock: vi.fn(),
   requireSocialBetaAccessMock: vi.fn(),
+  scheduleSocialAccountRefreshMock: vi.fn(),
 }));
 
 vi.mock("@/services/project-social-connections.service", () => ({
@@ -44,6 +46,10 @@ vi.mock("@/services/project-social-connections.service", () => ({
   finalizeProjectSocialConnection: finalizeProjectSocialConnectionMock,
   initiateProjectSocialConnection: initiateComposioConnectionMock,
   listProjectSocialConnections: listProjectSocialConnectionsMock,
+}));
+
+vi.mock("@/services/social-account-sync", () => ({
+  scheduleSocialAccountRefresh: scheduleSocialAccountRefreshMock,
 }));
 
 vi.mock("@/helpers/social-beta-access", () => ({
@@ -153,6 +159,10 @@ describe("Project social connection routes", () => {
       redirectUrl: "https://connect.composio.dev/link-token",
     });
     finalizeProjectSocialConnectionMock.mockResolvedValue(connection);
+    scheduleSocialAccountRefreshMock.mockResolvedValue({
+      isErr: () => false,
+      isOk: () => true,
+    });
     disconnectProjectSocialConnectionMock.mockResolvedValue({
       connection: { ...connection, status: "disconnected" },
       providerRevocation: "revoked",
@@ -351,6 +361,12 @@ describe("Project social connection routes", () => {
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
       connectionId: CONNECTION_ID,
+    });
+    expect(scheduleSocialAccountRefreshMock).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      connectionId: SOCIAL_CONNECTION_ID,
+      trigger: "connect",
     });
   });
 
