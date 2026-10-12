@@ -159,7 +159,7 @@ describe("AdsCampaigns", () => {
     expect(within(first).getByText("Spring sale")).toBeInTheDocument();
     expect(within(first).getByText("Active")).toBeInTheDocument();
     expect(
-      within(first).getByText("Spend $1,234.50 · Clicks 340"),
+      within(first).getByText("Spend $1,234.50 · clicks 340"),
     ).toBeInTheDocument();
     expect(
       within(first).getByRole("button", { name: "menu Spring sale" }),

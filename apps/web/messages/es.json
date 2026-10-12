@@ -3120,7 +3120,7 @@
           "ENDED": "Finalizada",
           "OTHER": "Otro"
         },
-        "spendAndClicks": "Gasto {spend} · Clics {clicks}",
+        "spendAndClicks": "Gasto {spend} · clics {clicks}",
         "actions": {
           "label": "Acciones para {name}",
           "pause": "Pausar",
