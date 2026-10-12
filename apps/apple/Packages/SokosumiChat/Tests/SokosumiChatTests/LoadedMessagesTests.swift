@@ -5,7 +5,7 @@ import Testing
 
 @MainActor
 struct LoadedMessagesTests {
-  /// The room shows the parent and a later message; the open Thread holds the parent and one reply.
+  /// The room shows the parent and a later message; the open Thread holds its own snapshot of the parent and one reply.
   private func loaded() async throws -> (LoadedMessages, root: Components.Schemas.ChatRoomMessage) {
     let rows = try await fetchTestMessages([
       testMessageJSON(id: "root", content: "Parent", sender: testUserSender(name: "Ada", email: "ada@example.com")),
@@ -19,7 +19,9 @@ struct LoadedMessagesTests {
     room.open(roomId: root.roomId)
     room.timeline.messages = rows
     let thread = ThreadSession()
-    #expect(thread.open(root))
+    var snapshot = root
+    snapshot.content = "Snapshot"
+    #expect(thread.open(snapshot))
     thread.transcript.timeline.messages = [reply]
     return (LoadedMessages(room: room, thread: thread), root)
   }
@@ -40,7 +42,8 @@ struct LoadedMessagesTests {
       return edited
     }
     #expect(loaded.room.timeline.messages.map(\.content) == ["Parent (edited)", "Later"])
-    #expect(loaded.thread.parent?.content == "Parent (edited)")
+    // The Thread's parent is transformed from its own snapshot, not replaced by the room's copy.
+    #expect(loaded.thread.parent?.content == "Snapshot (edited)")
     #expect(loaded.thread.transcript.timeline.messages.map(\.content) == ["Parent"])
 
     loaded.update("reply") { message in

@@ -214,7 +214,8 @@ public extension WorkspaceState {
   }
 
   private func messageParent(_ id: String, roomId: String, client: Client, organizationSlug: String?) async throws -> Components.Schemas.ChatRoomMessage {
-    if let parent = loaded.message(id) {
+    // A parent is a top-level row: the room's history or the open Thread's parent, never a reply.
+    if let parent = room.timeline.messages.first(where: { $0.id == id }) ?? thread.parent.flatMap({ $0.id == id ? $0 : nil }) {
       return parent
     }
     return try await ChatService().getThread(client: client, roomId: roomId, parentMessageId: id, organizationSlug: organizationSlug).parentMessage
