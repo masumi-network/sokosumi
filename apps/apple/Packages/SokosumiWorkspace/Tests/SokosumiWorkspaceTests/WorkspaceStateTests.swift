@@ -1015,12 +1015,12 @@ struct WorkspaceStateTests {
     let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     state.clientResolver = nil
     #expect(state.resolveClient(auth: auth) == nil)
-    state.thread.timeline.reset(roomId: "room", parentMessageId: "parent")
-    #expect(state.thread.timeline.isLoading)
+    state.thread.transcript.timeline.reset(roomId: "room", parentMessageId: "parent")
+    #expect(state.thread.transcript.timeline.isLoading)
     state.loadThreadPage(.initial, auth: auth)
-    #expect(!state.thread.timeline.isLoading)
-    #expect(state.thread.timeline.failedPage == .initial)
-    #expect(state.thread.timeline.errorMessage == "Sign-in is not configured.")
+    #expect(!state.thread.transcript.timeline.isLoading)
+    #expect(state.thread.transcript.timeline.failedPage == .initial)
+    #expect(state.thread.transcript.timeline.errorMessage == "Sign-in is not configured.")
   }
 
   @Test(arguments: ["Me", ""]) func outboundSenderUsesEmailForEmptyName(name: String) async throws {
@@ -1062,19 +1062,19 @@ struct WorkspaceStateTests {
       #expect(state.timeline.failedPage == .older)
     }
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.loadTask?.value
+    await state.thread.transcript.loadTask?.value
     if initialFailure {
-      #expect(state.thread.timeline.failedPage == .initial)
-      state.thread.recovery.requestRefresh()
-      while state.thread.recovery.isRefreshing {
+      #expect(state.thread.transcript.timeline.failedPage == .initial)
+      state.thread.transcript.recovery.requestRefresh()
+      while state.thread.transcript.recovery.isRefreshing {
         await Task.yield()
       }
     }
-    #expect(state.thread.timeline.hasLoadedHistory)
-    #expect(state.thread.timeline.cursor == "older-replies")
-    #expect(state.thread.timeline.hasMore)
+    #expect(state.thread.transcript.timeline.hasLoadedHistory)
+    #expect(state.thread.transcript.timeline.cursor == "older-replies")
+    #expect(state.thread.transcript.timeline.hasMore)
     #expect(state.thread.parent?.id == rootID)
-    #expect(state.thread.displayedReplies.map(\.content) == ["Reply"])
+    #expect(state.thread.transcript.displayedMessages.map(\.content) == ["Reply"])
     #expect(state.transcriptMessages.map(\.content) == ["Parent"])
     #expect(state.rooms.first?.unreadCount == 2)
     #expect(transport.operationIDs.suffix(3) == [
@@ -1110,15 +1110,15 @@ struct WorkspaceStateTests {
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.loadTask?.value
-    #expect(state.thread.displayedReplies.map(\.content) == ["Reply"])
+    await state.thread.transcript.loadTask?.value
+    #expect(state.thread.transcript.displayedMessages.map(\.content) == ["Reply"])
     let writes = transport.operationIDs.filter { $0.hasPrefix("post/") }.count
 
     state.setWindowVisible(false, window: window)
-    state.thread.recovery.requestRefresh()
-    await waitWhile { state.thread.recovery.isRefreshing }
+    state.thread.transcript.recovery.requestRefresh()
+    await waitWhile { state.thread.transcript.recovery.isRefreshing }
     #expect(transport.threadGets == 2)
-    #expect(state.thread.displayedReplies.map(\.content) == ["Reply", "Later"])
+    #expect(state.thread.transcript.displayedMessages.map(\.content) == ["Reply", "Later"])
     #expect(transport.operationIDs.filter { $0.hasPrefix("post/") }.count == writes)
     state.thread.close()
   }
@@ -1234,8 +1234,8 @@ struct WorkspaceStateTests {
     let fixture = try historyConfirmationFixture(threadReply: threadReply)
     let (state, shell) = (fixture.state, fixture.shell)
     let persisted = fixture.persisted
-    let timeline = threadReply ? state.thread.timeline : state.timeline
-    let outbox = threadReply ? state.thread.outbox : state.outbox
+    let timeline = threadReply ? state.thread.transcript.timeline : state.timeline
+    let outbox = threadReply ? state.thread.transcript.outbox : state.outbox
     var gate: CheckedContinuation<Void, Never>?
     var failures = 0
     var retainedByJob: NSObject? = NSObject()
@@ -1270,7 +1270,7 @@ struct WorkspaceStateTests {
     #expect(try await timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: timeline.generation))
     #expect(outbox.shells.isEmpty)
     #expect((jobLifetime == nil) == failedFirst)
-    let displayed = threadReply ? state.thread.displayedReplies : state.displayedTranscript
+    let displayed = threadReply ? state.thread.transcript.displayedMessages : state.displayedTranscript
     #expect(displayed.map(\.id) == [persisted.id])
     if !failedFirst {
       #expect(outbox.isSending)
@@ -1623,7 +1623,7 @@ struct WorkspaceStateTests {
     #expect(try state.thread.open(#require(state.transcriptMessages.first)))
     #expect(state.sendThreadReply("Thread turn", auth: auth))
     #expect(!state.sendMessage("Room turn", auth: auth))
-    #expect(state.thread.outbox.shells.isEmpty)
+    #expect(state.thread.transcript.outbox.shells.isEmpty)
     #expect(state.displayedTranscript.map(\.id) == ["root"])
     #expect(state.displayedThreadReplies.first?.content == "Thread turn")
     if closeThread {
@@ -1920,7 +1920,7 @@ extension WorkspaceStateTests {
       state.timeline.messages = [parent]
       state.thread.open(parent)
       source.parentMessageId = parent.id
-      state.thread.timeline.messages = [source]
+      state.thread.transcript.timeline.messages = [source]
     } else {
       state.timeline.messages = [source]
       state.thread.open(source)
@@ -1930,13 +1930,13 @@ extension WorkspaceStateTests {
     await state.saveMessageEdit(auth: auth)
     #expect(state.messageEditing.source == nil)
     if reply {
-      #expect(state.thread.timeline.messages.first?.content == "Changed")
+      #expect(state.thread.transcript.timeline.messages.first?.content == "Changed")
       #expect(state.timeline.messages.first?.content == "Original")
     } else {
       #expect(state.timeline.messages.first?.content == "Changed")
       #expect(state.thread.parent?.content == "Changed")
     }
-    #expect((reply ? state.thread.timeline.messages.first : state.timeline.messages.first)?.editedAt != nil)
+    #expect((reply ? state.thread.transcript.timeline.messages.first : state.timeline.messages.first)?.editedAt != nil)
   }
 }
 
@@ -1993,7 +1993,7 @@ extension WorkspaceStateTests {
       state.timeline.messages = [parent]
       state.thread.open(parent)
       source.parentMessageId = parent.id
-      state.thread.timeline.messages = [source]
+      state.thread.transcript.timeline.messages = [source]
     } else {
       state.timeline.messages = [source]
       state.thread.open(source)
@@ -2003,7 +2003,7 @@ extension WorkspaceStateTests {
     #expect(state.messageEditing.source == nil)
     #expect(state.thread.parent != nil)
     if reply {
-      #expect(state.thread.timeline.messages.first?.deletedAt != nil)
+      #expect(state.thread.transcript.timeline.messages.first?.deletedAt != nil)
       #expect(state.displayedThreadReplies.isEmpty)
       #expect(state.displayedTranscript.map(\.id) == ["parent"])
       #expect(state.timeline.messages.first?.content == "Original")
@@ -2054,7 +2054,7 @@ extension WorkspaceStateTests {
     state.timeline.reset(roomId: "room")
     state.timeline.messages = [parent]
     state.thread.open(parent)
-    state.thread.timeline.messages = [reply]
+    state.thread.transcript.timeline.messages = [reply]
     transport.pauseDELETE = true
     let deletion = Task { try await state.deleteMessage(reply, auth: auth) }
     while transport.operationIDs.isEmpty {
@@ -2076,7 +2076,7 @@ extension WorkspaceStateTests {
     } else {
       #expect(state.timeline.messages.first?.threadReplyCount == 1)
       #expect(state.thread.parent?.threadReplyCount == 1)
-      #expect(state.thread.timeline.messages.first?.deletedAt != nil)
+      #expect(state.thread.transcript.timeline.messages.first?.deletedAt != nil)
     }
   }
 }
@@ -2117,7 +2117,7 @@ extension WorkspaceStateTests {
       state.timeline.messages = [parent]
       state.thread.open(parent)
       source.parentMessageId = parent.id
-      state.thread.timeline.messages = [source]
+      state.thread.transcript.timeline.messages = [source]
     } else {
       state.timeline.messages = [source]
       state.thread.open(source)
@@ -2129,14 +2129,14 @@ extension WorkspaceStateTests {
     #expect(shown?.reactions.first?.count == 1)
     #expect(shown?.reactions.first?.reactedByCurrentUser == true)
     // Confirmed rows stay untouched until Core answers.
-    #expect((reply ? state.thread.timeline.messages.first : state.timeline.messages.first)?.reactions.isEmpty == true)
+    #expect((reply ? state.thread.transcript.timeline.messages.first : state.timeline.messages.first)?.reactions.isEmpty == true)
     if !reply {
       #expect(state.displayedThreadParent?.reactions.first?.reactedByCurrentUser == true)
     }
     transport.releasePausedRequest()
     #expect(try await toggle.value)
     #expect(transport.operationIDs == ["put/chats/rooms/{id}/messages/{messageId}/reactions/{emoji}"])
-    let updated = reply ? state.thread.timeline.messages.first : state.timeline.messages.first
+    let updated = reply ? state.thread.transcript.timeline.messages.first : state.timeline.messages.first
     #expect(updated?.content == "New content")
     #expect(updated?.reactions.first?.count == 1)
     #expect(updated?.reactions.first?.reactedByCurrentUser == true)
@@ -2474,9 +2474,9 @@ extension WorkspaceStateTests {
     hit.parentMessageId = "parent"
     #expect(try await state.openMessageReply(hit, auth: auth) == .opened)
     #expect(state.thread.parent?.id == "parent")
-    #expect(state.thread.jumpTarget?.messageId == "old")
-    #expect(Set(state.thread.timeline.messages.map(\.id)) == ["old", "recent"])
-    #expect(state.thread.timeline.historyGapMessageIds == ["recent"])
+    #expect(state.thread.transcript.jumpTarget?.messageId == "old")
+    #expect(Set(state.thread.transcript.timeline.messages.map(\.id)) == ["old", "recent"])
+    #expect(state.thread.transcript.timeline.historyGapMessageIds == ["recent"])
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/threads/{parentMessageId}/messages" }.count == 2)
   }
 
@@ -2498,9 +2498,9 @@ extension WorkspaceStateTests {
     hit.content = "Old"
     hit.parentMessageId = "parent"
     #expect(try await state.openMessageReply(hit, auth: auth) == .unavailable)
-    let loaded = try #require(state.thread.timeline.messages.first { $0.id == "old" })
+    let loaded = try #require(state.thread.transcript.timeline.messages.first { $0.id == "old" })
     #expect(!shouldKeepPersistedMessage(loaded))
-    #expect(state.thread.jumpTarget == nil)
+    #expect(state.thread.transcript.jumpTarget == nil)
     #expect(state.displayedThreadReplies.isEmpty)
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/threads/{parentMessageId}/messages" }.count == 1)
   }
@@ -2529,7 +2529,7 @@ extension WorkspaceStateTests {
     transport.releasePausedRequest()
     #expect(try await request.value == .superseded)
     #expect(state.thread.parent == nil)
-    #expect(state.thread.jumpTarget == nil)
+    #expect(state.thread.transcript.jumpTarget == nil)
     #expect(state.messageJump == nil, "A jump the room switch superseded marks no parent.")
   }
 
@@ -2620,7 +2620,7 @@ extension WorkspaceStateTests {
     #expect(try await state.jumpToMessage("parent", auth: auth))
     #expect(try await state.openMessage("reply", auth: auth) == .opened)
     #expect(state.thread.parent?.id == "parent")
-    #expect(state.thread.jumpTarget?.messageId == "reply")
+    #expect(state.thread.transcript.jumpTarget?.messageId == "reply")
   }
 
   /// Row 25c (web `performRoomSearchJump`): after the reply's branch, the room is sent to the Thread's parent,
@@ -2639,7 +2639,7 @@ extension WorkspaceStateTests {
     hit.id = "reply"
     hit.parentMessageId = "parent"
     #expect(try await state.openMessageReply(hit, auth: auth) == .opened)
-    #expect(state.thread.jumpTarget?.messageId == "reply")
+    #expect(state.thread.transcript.jumpTarget?.messageId == "reply")
     let jump = try #require(state.messageJump, "The room is sent to the parent.")
     #expect(jump.roomId == "room")
     #expect(jump.messageId == "parent")
@@ -2665,7 +2665,7 @@ extension WorkspaceStateTests {
     hit.parentMessageId = "parent"
     await #expect(throws: (any Error).self) { try await state.openMessageReply(hit, auth: auth) }
     #expect(state.thread.parent?.id == "parent")
-    #expect(state.thread.jumpTarget == nil, "The reply was not reached.")
+    #expect(state.thread.transcript.jumpTarget == nil, "The reply was not reached.")
     #expect(state.messageJump?.messageId == "parent")
     #expect(state.messageJump?.isThreadParent == true)
   }
@@ -2684,9 +2684,9 @@ extension WorkspaceStateTests {
     #expect(try await state.jumpToMessage("parent", auth: auth))
     // The quote's lookup answers from loaded rows: the reply is in the open Thread.
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.loadTask?.value
+    await state.thread.transcript.loadTask?.value
     #expect(try await state.openMessage("reply", auth: auth, marksThreadParent: false) == .opened)
-    #expect(state.thread.jumpTarget?.messageId == "reply", "The quote still opens the Thread on the reply.")
+    #expect(state.thread.transcript.jumpTarget?.messageId == "reply", "The quote still opens the Thread on the reply.")
     #expect(state.messageJump == nil)
   }
 
@@ -2740,7 +2740,7 @@ extension WorkspaceStateTests {
     hit.id = "reply"
     hit.parentMessageId = "parent"
     #expect(try await state.openMessageReply(hit, auth: auth) == .opened)
-    #expect(state.thread.jumpTarget?.messageId == "reply", "The reply is reached.")
+    #expect(state.thread.transcript.jumpTarget?.messageId == "reply", "The reply is reached.")
     #expect(state.messageJump == nil)
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 1)
   }
@@ -3290,7 +3290,7 @@ extension WorkspaceStateTests {
     }
     state.thread.open(parent)
     if reply {
-      state.thread.timeline.messages = [source]
+      state.thread.transcript.timeline.messages = [source]
     }
     #expect(state.canRetryMention(shell))
     state.thread.close()
@@ -3306,7 +3306,7 @@ extension WorkspaceStateTests {
       // A shell under a thread parent: the parent is the mention source.
       state.thread.open(source)
       shell.parentMessageId = source.id
-      state.thread.timeline.messages = [shell]
+      state.thread.transcript.timeline.messages = [shell]
     }
     #expect(state.canRetryMention(shell))
     #expect(MentionThoughtShell(message: shell) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
@@ -3317,7 +3317,7 @@ extension WorkspaceStateTests {
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
-    let inFlight = reply ? state.thread.timeline.messages.first : state.timeline.messages.last
+    let inFlight = reply ? state.thread.transcript.timeline.messages.first : state.timeline.messages.last
     #expect(try MentionThoughtShell(message: #require(inFlight)) == .thinking(startedAt: now))
     #expect(try !canQuoteMessage(#require(inFlight)))
     #expect(state.pendingMentionRetries.count == 1)
@@ -3332,7 +3332,7 @@ extension WorkspaceStateTests {
     #expect(state.timeline.messages.first?.mentions.first?.status == .pending)
     if reply {
       #expect(state.thread.parent?.mentions.first?.status == .pending)
-      #expect(try MentionThoughtShell(message: #require(state.thread.timeline.messages.first))?.isThinking == true)
+      #expect(try MentionThoughtShell(message: #require(state.thread.transcript.timeline.messages.first))?.isThinking == true)
     } else {
       #expect(try MentionThoughtShell(message: #require(state.timeline.messages.last))?.isThinking == true)
     }
@@ -3912,7 +3912,7 @@ extension WorkspaceStateTests {
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.loadTask?.value
+    await state.thread.transcript.loadTask?.value
     return (state, auth, transport)
   }
 
@@ -4115,7 +4115,7 @@ extension WorkspaceStateTests {
     #expect(try await state.openRoomLink(roomId: second, messageId: replyId, auth: auth) == .opened)
     #expect(!state.sidebar.showsThreadsView, "The room takes the detail column again.")
     #expect(state.selectedRoomId == second && state.thread.parent?.id == parentId)
-    #expect(state.thread.jumpTarget?.messageId == replyId)
+    #expect(state.thread.transcript.jumpTarget?.messageId == replyId)
     #expect(transport.operationIDs == [
       "get/chats/rooms/{id}/messages", "get/chats/rooms/{id}/messages/{messageId}",
       "get/chats/rooms/{id}/threads/{parentMessageId}/messages"
@@ -4235,7 +4235,7 @@ extension WorkspaceStateTests {
     let (state, auth, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.otherRootId]))
     #expect(Self.insetThreads(state) == [Self.muteRootId, Self.otherRootId], "The room read lists both Threads.")
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.loadTask?.value
+    await state.thread.transcript.loadTask?.value
     #expect(Self.insetThreads(state) == [Self.otherRootId], "The Look's room read drops the Thread just read.")
     #expect(transport.remainingStubs == 0)
     state.thread.close()
@@ -4247,7 +4247,7 @@ extension WorkspaceStateTests {
       (200, roomReadBody(id: Self.muteRoomId, unread: 1, split: (channel: 0, threads: 1), threads: [Self.otherRootId]))
     ])
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.loadTask?.value
+    await state.thread.transcript.loadTask?.value
     #expect(Self.insetThreads(state) == [Self.muteRootId, Self.otherRootId])
     await state.readThreadMuteIfNeeded(auth: auth)
     await state.toggleThreadMute(auth: auth)
@@ -4294,7 +4294,7 @@ extension WorkspaceStateTests {
   @Test func theOverflowRowOpensTheRoomsThreadOverview() async throws {
     let (state, auth, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.muteRootId, Self.otherRootId]))
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.loadTask?.value
+    await state.thread.transcript.loadTask?.value
     let written = transport.operationIDs.count
     await state.openThreadOverview(roomId: Self.muteRoomId, auth: auth)
     #expect(state.thread.parent == nil, "The open thread steps aside for the list.")
@@ -4478,7 +4478,7 @@ extension WorkspaceStateTests {
     await state.updateThreadOverview(.count, roomId: Self.muteRoomId, auth: auth)
     let revision = state.threadAttentionRevision
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.loadTask?.value
+    await state.thread.transcript.loadTask?.value
     #expect(transport.operationIDs.contains("post/chats/rooms/{id}/threads/{parentMessageId}/read"))
     #expect(state.threadOverview.unreadReplyCounts == [Self.otherRootId: 1], "The looked Thread leaves the trigger at once.")
     #expect(shownUnread(state) == [0, 1], "Its bar untints without waiting for the re-count.")
@@ -4534,7 +4534,7 @@ extension WorkspaceStateTests {
     state.clearThreadUnreadReplies { $0 == Self.muteRootId }
     #expect(state.transcriptMessages.first { $0.id == Self.muteRootId }?.threadUnreadReplyCount == 0)
     #expect(state.sendThreadReply("On it", auth: auth))
-    for _ in 0 ..< 1000 where state.thread.outbox.isSending {
+    for _ in 0 ..< 1000 where state.thread.transcript.outbox.isSending {
       await Task.yield()
     }
     let shown = try #require(state.transcriptMessages.first { $0.id == Self.muteRootId })
@@ -4649,7 +4649,7 @@ extension WorkspaceStateTests {
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
     try state.openThread(#require(state.transcriptMessages.first), auth: auth)
-    await state.thread.loadTask?.value
+    await state.thread.transcript.loadTask?.value
     await waitWhile { clock.pending == 0 }
     #expect(clock.intervals == [.seconds(4)])
     #expect(Self.roomGets(transport) == 1 && transport.threadGets == 1)
@@ -4657,7 +4657,7 @@ extension WorkspaceStateTests {
     clock.fireAll()
     await waitWhile { Self.roomGets(transport) < 2 || transport.threadGets < 2 }
     await waitForTranscriptIdle(state)
-    await state.thread.loadTask?.value
+    await state.thread.transcript.loadTask?.value
     #expect(Self.roomGets(transport) == 2 && transport.threadGets == 2)
     #expect(!transport.operationIDs.contains { $0.hasPrefix("post/") })
     #expect(transport.remainingStubs == 0)

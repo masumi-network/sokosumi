@@ -12,45 +12,45 @@ public extension WorkspaceState {
 
   func openThread(_ parent: Components.Schemas.ChatRoomMessage, auth: AuthState) {
     guard parent.roomId == transcriptRoomId else { return }
-    let previousGeneration = thread.timeline.generation
+    let previousGeneration = thread.transcript.timeline.generation
     guard thread.open(parent) else { return }
-    guard thread.timeline.generation != previousGeneration else { return }
+    guard thread.transcript.timeline.generation != previousGeneration else { return }
     loadThreadPage(.initial, auth: auth)
-    let generation = thread.timeline.generation
-    thread.recovery.start(foreground: readAttention.isVisible, healthy: transcriptRealtimeHealthy) { [weak self, weak auth] in
+    let generation = thread.transcript.timeline.generation
+    thread.transcript.recovery.start(foreground: readAttention.isVisible, healthy: transcriptRealtimeHealthy) { [weak self, weak auth] in
       guard let self, let auth else { return }
-      while let task = thread.loadTask, generation == thread.timeline.generation {
+      while let task = thread.transcript.loadTask, generation == thread.transcript.timeline.generation {
         await task.value
       }
-      guard generation == thread.timeline.generation else { return }
-      loadThreadPage(thread.timeline.hasLoadedHistory ? .latest : .initial, auth: auth)
-      await thread.loadTask?.value
+      guard generation == thread.transcript.timeline.generation else { return }
+      loadThreadPage(thread.transcript.timeline.hasLoadedHistory ? .latest : .initial, auth: auth)
+      await thread.transcript.loadTask?.value
     }
   }
 
   var displayedThreadReplies: [Components.Schemas.ChatRoomMessage] {
-    let replies = directStream.displayedMessages(persisted: thread.displayedReplies, parentMessageId: thread.parent?.id)
+    let replies = directStream.displayedMessages(persisted: thread.transcript.displayedMessages, parentMessageId: thread.parent?.id)
     return pendingReactions.overlaying(replies, viewer: reactionViewer)
   }
 
   func loadThreadPage(_ page: RoomTimeline.Page, auth: AuthState) {
     guard page != .older || !directStream.isBusy else { return }
     guard let client = resolveClient(auth: auth) else {
-      thread.timeline.failInitialLoad(message: "Sign-in is not configured.", generation: thread.timeline.generation)
+      thread.transcript.timeline.failInitialLoad(message: "Sign-in is not configured.", generation: thread.transcript.timeline.generation)
       return
     }
-    thread.loadPage(page, client: client, organizationSlug: selection?.workspace.organizationSlug,
-                    syncAttention: { [weak self, weak auth] in
-                      guard let self, let auth else { return }
-                      if page == .initial {
-                        await syncThreadAttention(auth: auth)
-                      } else {
-                        await syncReadAttention(auth: auth)
-                      }
-                    }, failed: { [weak self, weak auth] error in
-                      guard let self, let auth, let error = error as? ChatServiceError else { return }
-                      signOutIfUnauthorized(error, auth: auth)
-                    })
+    thread.transcript.loadPage(page, client: client, organizationSlug: selection?.workspace.organizationSlug,
+                               syncAttention: { [weak self, weak auth] in
+                                 guard let self, let auth else { return }
+                                 if page == .initial {
+                                   await syncThreadAttention(auth: auth)
+                                 } else {
+                                   await syncReadAttention(auth: auth)
+                                 }
+                               }, failed: { [weak self, weak auth] error in
+                                 guard let self, let auth, let error = error as? ChatServiceError else { return }
+                                 signOutIfUnauthorized(error, auth: auth)
+                               })
   }
 
   internal func syncThreadAttention(auth: AuthState) async {
