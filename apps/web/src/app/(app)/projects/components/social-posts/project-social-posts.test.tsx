@@ -82,6 +82,8 @@ const {
 
 const MESSAGES: Record<string, string> = {
   title: "Social posts",
+  accountsFailed: "Couldn't load accounts.",
+  accountsRetry: "Try again",
   loadMore: "Load more",
   loading: "Loading…",
   description: "Draft text posts for X and schedule them from this Project.",
@@ -745,6 +747,30 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.queryByTestId("social-reconnect-prompt"),
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps Accounts open with a retry when the list failed", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        accountsFailed
+        calendar={<p>Calendar panel</p>}
+        connections={[]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("social-connect-prompt"),
+    ).not.toBeInTheDocument();
+    await openTab(user, "Accounts");
+    const failed = screen.getByTestId("social-accounts-load-error");
+    expect(within(failed).getByText("Couldn't load accounts.")).toBeVisible();
+    expect(screen.queryByText("Accounts panel")).not.toBeInTheDocument();
+    await user.click(within(failed).getByRole("button", { name: "Try again" }));
+    expect(refreshMock).toHaveBeenCalledOnce();
   });
 
   it("opens the tab the URL names", () => {

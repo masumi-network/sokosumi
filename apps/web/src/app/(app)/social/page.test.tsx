@@ -74,12 +74,14 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
     calendar?: React.ReactNode;
     posts: { id: string }[];
     connections: { id: string }[];
+    accountsFailed?: boolean;
     projectId: string;
     selectedPostId?: string;
   }) => (
     <div
       data-testid="social-posts"
       data-account-count={String(props.accountCount ?? "")}
+      data-accounts-failed={props.accountsFailed ? "true" : "false"}
       data-connections={props.connections.map((c) => c.id).join(",")}
       data-order={props.posts.map((post) => post.id).join(",")}
       data-project={props.projectId}
@@ -355,9 +357,29 @@ describe("SocialPage", () => {
       "data-project",
       "project-1",
     );
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-accounts-failed",
+      "false",
+    );
     // One read per list: drafts and needs attention. Scheduled, published
     // and canceled posts are left to the calendar tab.
     expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps Social up when accounts fail to load", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialConnections.mockRejectedValue(
+      new Error("core down"),
+    );
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-accounts-failed",
+      "true",
+    );
+    expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
+    expect(projectServiceMock.listSocialPosts).toHaveBeenCalled();
   });
 
   /**

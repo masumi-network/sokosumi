@@ -2419,6 +2419,8 @@
         "emptyHint": "Connect one to post."
       },
       "SocialPosts": {
+        "accountsFailed": "Couldn't load accounts.",
+        "accountsRetry": "Try again",
         "loadMore": "Load more",
         "loading": "Loading…",
         "title": "Social posts",

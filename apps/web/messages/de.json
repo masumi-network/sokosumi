@@ -2419,6 +2419,8 @@
         "emptyHint": "Verbinde eines, um zu posten."
       },
       "SocialPosts": {
+        "accountsFailed": "Konten konnten nicht geladen werden.",
+        "accountsRetry": "Erneut versuchen",
         "loadMore": "Mehr laden",
         "loading": "Wird geladen…",
         "title": "Social-Media-Beiträge",

@@ -94,6 +94,8 @@ interface ProjectSocialPostsProps {
    * Defaults to `connections.length` when the page only loaded actives.
    */
   accountCount?: number;
+  /** The Accounts first page failed, so do not pretend there are none. */
+  accountsFailed?: boolean;
   posts: SocialPost[];
   nextCursors?: Partial<Record<SectionKey, string | null>>;
   projectId: string;
@@ -192,6 +194,7 @@ function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
 export function ProjectSocialPosts({
   accounts,
   accountCount,
+  accountsFailed = false,
   actions,
   calendar,
   connections,
@@ -272,7 +275,7 @@ export function ProjectSocialPosts({
     tabParam && tabs.includes(tabParam) ? tabParam : tabs[0];
   const listedAccountCount = accountCount ?? connections.length;
   const accountPrompt =
-    accounts === undefined || tab === "accounts"
+    accounts === undefined || tab === "accounts" || accountsFailed
       ? null
       : listedAccountCount === 0
         ? "connect"
@@ -824,7 +827,28 @@ export function ProjectSocialPosts({
               data-testid="social-posts-section-accounts"
               value="accounts"
             >
-              {accounts}
+              {accountsFailed ? (
+                <div
+                  className="space-y-3"
+                  data-testid="social-accounts-load-error"
+                  role="alert"
+                >
+                  <p className="text-sm">{t("accountsFailed")}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-11 md:h-8"
+                    onClick={() => {
+                      router.refresh();
+                    }}
+                  >
+                    {t("accountsRetry")}
+                  </Button>
+                </div>
+              ) : (
+                accounts
+              )}
             </TabsContent>
           ) : null}
         </Tabs>

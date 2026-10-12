@@ -99,7 +99,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     );
   }
 
-  const [pages, connections, selectedPost, calendar, sokoBot] =
+  const [pages, connectionsResult, selectedPost, calendar, sokoBot] =
     await Promise.all([
       Promise.all(
         SECTION_ORDER.map((section) =>
@@ -108,7 +108,10 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
           }),
         ),
       ),
-      projectService.listSocialConnections(project.id),
+      projectService
+        .listSocialConnections(project.id)
+        .then((connections) => ({ failed: false as const, connections }))
+        .catch(() => ({ failed: true as const, connections: [] })),
       query.postId
         ? projectService.getSocialPost(project.id, query.postId)
         : Promise.resolve(null),
@@ -118,6 +121,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
       }),
       sokoBotService.getMine().catch(() => null),
     ]);
+  const { connections, failed: accountsFailed } = connectionsResult;
   const activeConnections = connections.filter(
     (socialConnection) => socialConnection.status === "active",
   );
@@ -157,6 +161,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
               />
             }
             accountCount={managedAccountCount}
+            accountsFailed={accountsFailed}
             connections={activeConnections}
             nextCursors={Object.fromEntries(
               SECTION_ORDER.map((section, index) => [
