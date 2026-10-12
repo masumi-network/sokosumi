@@ -6253,6 +6253,10 @@ export type GetAdMarketProfileResponse = {
 export type AdMarketProfile = {
     keywords: Array<string>;
     countryCode: AdMarketCountryCode;
+    /**
+     * Google geo target constant id of the country, for campaign targeting
+     */
+    locationId: string;
     languageCode: AdMarketLanguageCode;
     updatedAt: Date;
 };

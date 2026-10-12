@@ -21515,6 +21515,11 @@ export const AdMarketProfileSchema = {
         countryCode: {
             $ref: '#/components/schemas/AdMarketCountryCode'
         },
+        locationId: {
+            type: 'string',
+            description: 'Google geo target constant id of the country, for campaign targeting',
+            example: '2840'
+        },
         languageCode: {
             $ref: '#/components/schemas/AdMarketLanguageCode'
         },
@@ -21527,6 +21532,7 @@ export const AdMarketProfileSchema = {
     required: [
         'keywords',
         'countryCode',
+        'locationId',
         'languageCode',
         'updatedAt'
     ]
