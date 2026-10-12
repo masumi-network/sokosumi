@@ -1,5 +1,9 @@
 # SwiftUI prepend reproduction
 
+**Release handoff:** performance investigation is paused for the first release.
+Start with [HANDOFF.md](HANDOFF.md) for the findings, preserved experiments, and
+one next investigation. This directory stays outside the shipping app.
+
 Diagnostic app with two builds, sharing one `ScrollView`, one `LazyVStack`, stable
 integer row IDs, and the same measurement loop. The bare build is dependency-free
 text. The rich build reuses production message rendering in a disposable workspace.
