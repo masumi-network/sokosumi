@@ -30,6 +30,10 @@ struct RoomOutboxTests {
       await Task.yield()
     }
     #expect(outbox.sentAt[confirmed.id] != nil)
+    // The feedback task is queued after confirm; it has not entered sleep yet.
+    for _ in 0 ..< 1000 where !clock.intervals.contains(.milliseconds(1600)) {
+      await Task.yield()
+    }
     #expect(clock.intervals.contains(.milliseconds(1600)))
     clock.fireAll()
     for _ in 0 ..< 1000 where !outbox.sentAt.isEmpty {
