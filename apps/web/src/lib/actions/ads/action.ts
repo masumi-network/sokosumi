@@ -2,6 +2,7 @@
 
 import {
   type FinalizeProjectAdConnectionResponse,
+  type GoogleLocation,
   type InitiateProjectSocialConnectionResponse,
   type ProjectAdAccount,
   ProjectAdProvider,
@@ -21,6 +22,7 @@ import {
 } from "@/lib/ads/campaign";
 import { googleSearchSpecSchema } from "@/lib/ads/google-search";
 import { createMarketProfileSchema } from "@/lib/ads/market";
+import { GOOGLE_LOCATION_QUERY_MAX_LENGTH } from "@/lib/ads/targeting";
 import {
   CoreApiRequestError,
   toCoreApiActionError,
@@ -191,6 +193,26 @@ export const listAdMarketKeywords = adsAction(
   async ({ projectId }): Promise<string[]> => {
     const { keywords } = await adsService.listMarketKeywords(projectId);
     return keywords.map(({ keyword }) => keyword);
+  },
+);
+
+/**
+ * Google locations matching what the reader typed, for the location picker.
+ * Core refuses an account that is not a Google one with 404.
+ */
+export const searchAdLocations = adsAction(
+  z.object({
+    projectId: trimmedId,
+    accountId: trimmedId,
+    q: z.string().trim().min(1).max(GOOGLE_LOCATION_QUERY_MAX_LENGTH),
+  }),
+  async ({ projectId, accountId, q }): Promise<GoogleLocation[]> => {
+    const { locations } = await adsService.searchLocations(
+      projectId,
+      accountId,
+      q,
+    );
+    return locations;
   },
 );
 

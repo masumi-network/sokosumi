@@ -12,6 +12,8 @@ import {
 const form: GoogleSearchFormValues = {
   startDate: "",
   endDate: "",
+  locations: [],
+  languages: [],
   keywords: 'running shoes\n"trail shoes"',
   finalUrl: "https://example.com/shoes",
   path1: "",
@@ -153,6 +155,22 @@ describe("toGoogleSearchSpec", () => {
       ],
       headlines: ["One", "Two", "Three"],
       descriptions: ["First description", "Second description"],
+    });
+  });
+
+  it("sends the ids of the chosen locations and languages", () => {
+    expect(
+      toGoogleSearchSpec({
+        ...form,
+        locations: [
+          { id: "2276", name: "Germany" },
+          { id: "1003854", name: "Munich", detail: "Munich,Bavaria,Germany" },
+        ],
+        languages: [{ id: "1001", name: "German" }],
+      }),
+    ).toMatchObject({
+      locationIds: ["2276", "1003854"],
+      languageIds: ["1001"],
     });
   });
 

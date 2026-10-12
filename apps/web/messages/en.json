@@ -3203,7 +3203,31 @@
         "startDate": "Start date",
         "endDate": "End date",
         "datesHelp": "Optional. Uses the ad account's time zone.",
-        "targeting": "All countries · All languages",
+        "targeting": {
+          "locations": {
+            "label": "Locations",
+            "help": "Where your ads can show. Up to {max}.",
+            "full": "Location limit reached ({max}).",
+            "placeholder": "Search for a country, region or city",
+            "search": "Search locations",
+            "loading": "Searching…",
+            "idle": "Type to find a place.",
+            "empty": "No locations found.",
+            "error": "Couldn't search locations. Try again.",
+            "all": "All countries",
+            "remove": "Remove {name}"
+          },
+          "languages": {
+            "label": "Languages",
+            "help": "Show ads to people who use these languages.",
+            "placeholder": "Choose languages",
+            "search": "Search languages",
+            "empty": "No languages found.",
+            "unavailable": "Couldn't load languages. The campaign will target all languages.",
+            "all": "All languages",
+            "remove": "Remove {name}"
+          }
+        },
         "keywords": {
           "label": "Keywords",
           "help": "One keyword per line. Use \"quotes\" for phrase match and [brackets] for exact match.",

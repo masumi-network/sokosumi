@@ -22,6 +22,7 @@ const adsServiceMock = {
   updateCampaign: vi.fn(),
   createCampaign: vi.fn(),
   listMarketKeywords: vi.fn(),
+  searchLocations: vi.fn(),
   saveMarketProfile: vi.fn(),
 };
 
@@ -590,6 +591,64 @@ describe("ads actions", () => {
 
       expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
       expect(adsServiceMock.listMarketKeywords).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("searchAdLocations", () => {
+    const munich = {
+      id: "1003854",
+      name: "Munich",
+      canonicalName: "Munich,Bavaria,Germany",
+      targetType: "City",
+      countryCode: "DE",
+    };
+
+    it("returns the matching locations for the trimmed text", async () => {
+      adsServiceMock.searchLocations.mockResolvedValue({ locations: [munich] });
+
+      const { searchAdLocations } = await import("./action");
+      const result = await searchAdLocations({
+        projectId: "project-1",
+        accountId: "account-1",
+        q: " Mun ",
+      });
+
+      expect(adsServiceMock.searchLocations).toHaveBeenCalledWith(
+        "project-1",
+        "account-1",
+        "Mun",
+      );
+      expect(result).toEqual({ ok: true, value: [munich] });
+    });
+
+    it("reports a Core failure with its status", async () => {
+      adsServiceMock.searchLocations.mockRejectedValue(
+        await coreError("down", 502),
+      );
+
+      const { searchAdLocations } = await import("./action");
+      const result = await searchAdLocations({
+        projectId: "project-1",
+        accountId: "account-1",
+        q: "Mun",
+      });
+
+      expect(result).toMatchObject({ ok: false, error: { status: 502 } });
+    });
+
+    it.each([
+      ["blank text", " "],
+      ["text over 80 characters", "x".repeat(81)],
+    ])("rejects %s, calling nothing", async (_name, q) => {
+      const { searchAdLocations } = await import("./action");
+      const result = await searchAdLocations({
+        projectId: "project-1",
+        accountId: "account-1",
+        q,
+      });
+
+      expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+      expect(adsServiceMock.searchLocations).not.toHaveBeenCalled();
     });
   });
 

@@ -52,6 +52,8 @@ import type {
   GetJobsData,
   GetNotificationsData,
   GetProjectsByIdAdsAccountsByAccountIdCampaignsData,
+  GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesData,
+  GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData,
   GetProjectsByIdCalendarData,
   GetProjectsByIdImageStudioData,
   GetProjectsByIdSocialConnectionsStatisticsData,
@@ -286,6 +288,8 @@ import {
   getProjectsById as coreGetProjectsById,
   getProjectsByIdAdsAccounts as coreGetProjectsByIdAdsAccounts,
   getProjectsByIdAdsAccountsByAccountIdCampaigns as coreGetProjectsByIdAdsAccountsByAccountIdCampaigns,
+  getProjectsByIdAdsAccountsByAccountIdTargetingLanguages as coreGetProjectsByIdAdsAccountsByAccountIdTargetingLanguages,
+  getProjectsByIdAdsAccountsByAccountIdTargetingLocations as coreGetProjectsByIdAdsAccountsByAccountIdTargetingLocations,
   getProjectsByIdAdsMarket as coreGetProjectsByIdAdsMarket,
   getProjectsByIdAdsMarketAds as coreGetProjectsByIdAdsMarketAds,
   getProjectsByIdAdsMarketKeywords as coreGetProjectsByIdAdsMarketKeywords,
@@ -3690,6 +3694,38 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdAdsAccountsByAccountIdTargetingLocations(
+    path: GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData["path"],
+    query: GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccountsByAccountIdTargetingLocations({
+          client,
+          path,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to look up ad locations",
+    );
+  }
+
+  async function getProjectsByIdAdsAccountsByAccountIdTargetingLanguages(
+    path: GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesData["path"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccountsByAccountIdTargetingLanguages({
+          client,
+          path,
+          cache: "no-store",
+        }),
+      "Failed to fetch ad languages",
+    );
+  }
+
   async function patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId(
     path: PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["path"],
     body: PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["body"],
@@ -6421,6 +6457,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdNeedsAttention,
     getProjectsByIdAdsAccounts,
     getProjectsByIdAdsAccountsByAccountIdCampaigns,
+    getProjectsByIdAdsAccountsByAccountIdTargetingLocations,
+    getProjectsByIdAdsAccountsByAccountIdTargetingLanguages,
     getProjectsByIdAdsMarket,
     putProjectsByIdAdsMarket,
     getProjectsByIdAdsMarketKeywords,

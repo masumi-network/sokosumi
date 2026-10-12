@@ -45,6 +45,7 @@ import {
   googleSearchFormSchema,
   toGoogleSearchSpec,
 } from "@/lib/ads/google-search";
+import type { GoogleTarget, GoogleTargeting } from "@/lib/ads/targeting";
 import { useAdsBudget } from "./ads-budget";
 import { AdsFormSection } from "./ads-form-section";
 import {
@@ -61,6 +62,8 @@ interface CampaignFormProps {
 interface GoogleSearchCampaignFormProps extends CampaignFormProps {
   /** Whether the project has a Market profile, which "Add from Market" reads. */
   hasMarketProfile: boolean;
+  /** The languages to pick from and the Market profile's suggestions. */
+  targeting: GoogleTargeting;
 }
 
 /** What a campaign is created with; the project and account come separately. */
@@ -351,6 +354,8 @@ const EMPTY_GOOGLE_VALUES = {
   dailyBudget: "",
   startDate: "",
   endDate: "",
+  locations: [] as GoogleTarget[],
+  languages: [] as GoogleTarget[],
   keywords: "",
   finalUrl: "",
   path1: "",
@@ -371,6 +376,7 @@ const EMPTY_GOOGLE_VALUES = {
  */
 export function GoogleSearchCampaignForm({
   hasMarketProfile,
+  targeting,
   ...props
 }: GoogleSearchCampaignFormProps) {
   const t = useTranslations("App.Ads.newCampaign");
@@ -412,7 +418,12 @@ export function GoogleSearchCampaignForm({
       ),
     ),
     mode: "onTouched",
-    defaultValues: EMPTY_GOOGLE_VALUES,
+    // The Market profile's suggestions start the pickers; the reader may remove them.
+    defaultValues: {
+      ...EMPTY_GOOGLE_VALUES,
+      locations: targeting.defaultLocations,
+      languages: targeting.defaultLanguages,
+    },
   });
 
   return (
@@ -434,7 +445,9 @@ export function GoogleSearchCampaignForm({
           <AdsGoogleDateFields />
         </AdsFormSection>
         <AdsGoogleSearchFields
+          accountId={props.accountId}
           hasMarketProfile={hasMarketProfile}
+          languages={targeting.languages}
           projectId={props.projectId}
         />
       </CampaignFormFrame>

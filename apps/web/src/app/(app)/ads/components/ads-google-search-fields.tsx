@@ -25,13 +25,18 @@ import {
   GOOGLE_SEARCH_LIMITS,
   type GoogleSearchFormValues,
 } from "@/lib/ads/google-search";
+import type { GoogleTarget } from "@/lib/ads/targeting";
 import { cn } from "@/lib/utils";
 
 import { AdsAddMarketKeywords } from "./ads-add-market-keywords";
 import { AdsFormSection } from "./ads-form-section";
+import { AdsGoogleTargetingFields } from "./ads-targeting-fields";
 
 interface AdsGoogleSearchFieldsProps {
+  accountId: string;
   projectId: string;
+  /** Google's languages; null when they could not be loaded. */
+  languages: GoogleTarget[] | null;
   /** Whether "Add from Market" has keywords to draw on. */
   hasMarketProfile: boolean;
 }
@@ -41,6 +46,8 @@ interface AdsGoogleSearchFieldsProps {
  * line, keywords and the ad. They read and write the form around them.
  */
 export function AdsGoogleSearchFields({
+  accountId,
+  languages,
   projectId,
   hasMarketProfile,
 }: AdsGoogleSearchFieldsProps) {
@@ -52,7 +59,11 @@ export function AdsGoogleSearchFields({
         id="new-campaign-targeting"
         title={t("sections.targeting")}
       >
-        <p className="text-muted-foreground text-sm">{t("targeting")}</p>
+        <AdsGoogleTargetingFields
+          accountId={accountId}
+          languages={languages}
+          projectId={projectId}
+        />
       </AdsFormSection>
       <KeywordsSection
         hasMarketProfile={hasMarketProfile}
@@ -96,7 +107,7 @@ export function AdsGoogleDateFields() {
 function KeywordsSection({
   projectId,
   hasMarketProfile,
-}: AdsGoogleSearchFieldsProps) {
+}: Pick<AdsGoogleSearchFieldsProps, "projectId" | "hasMarketProfile">) {
   const t = useTranslations("App.Ads.newCampaign.keywords");
   const form = useFormContext<GoogleSearchFormValues>();
   const { keywords } = parseGoogleKeywords(form.watch("keywords"));

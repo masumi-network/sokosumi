@@ -7,6 +7,8 @@ const coreClientMock = {
   deleteProjectsByIdAdsConnectionsByAdConnectionId: vi.fn(),
   getProjectsByIdAdsAccounts: vi.fn(),
   getProjectsByIdAdsAccountsByAccountIdCampaigns: vi.fn(),
+  getProjectsByIdAdsAccountsByAccountIdTargetingLanguages: vi.fn(),
+  getProjectsByIdAdsAccountsByAccountIdTargetingLocations: vi.fn(),
   getProjectsByIdAdsMarket: vi.fn(),
   getProjectsByIdAdsMarketAds: vi.fn(),
   getProjectsByIdAdsMarketKeywords: vi.fn(),
@@ -289,5 +291,61 @@ describe("adsService", () => {
       keywords,
     );
     await expect(adsService.listMarketAds("project-1")).resolves.toBe(ads);
+  });
+
+  it("searches Google locations by name and looks them up by id", async () => {
+    const locations = {
+      locations: [
+        {
+          id: "2276",
+          name: "Germany",
+          canonicalName: "Germany",
+          targetType: "Country",
+          countryCode: "DE",
+        },
+      ],
+    };
+    coreClientMock.getProjectsByIdAdsAccountsByAccountIdTargetingLocations.mockResolvedValue(
+      { data: locations },
+    );
+
+    const { adsService } = await import("./ads.service");
+    const lookup =
+      coreClientMock.getProjectsByIdAdsAccountsByAccountIdTargetingLocations;
+
+    await expect(
+      adsService.searchLocations("project-1", "account-1", "Ger"),
+    ).resolves.toBe(locations);
+    expect(lookup).toHaveBeenLastCalledWith(
+      { id: "project-1", accountId: "account-1" },
+      { q: "Ger" },
+    );
+
+    await adsService.listLocationsByIds("project-1", "account-1", [
+      "2372",
+      "2840",
+    ]);
+    expect(lookup).toHaveBeenLastCalledWith(
+      { id: "project-1", accountId: "account-1" },
+      { ids: "2372,2840" },
+    );
+  });
+
+  it("lists Google's languages", async () => {
+    const languages = {
+      languages: [{ id: "1001", code: "de", name: "German" }],
+    };
+    coreClientMock.getProjectsByIdAdsAccountsByAccountIdTargetingLanguages.mockResolvedValue(
+      { data: languages },
+    );
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.listLanguages("project-1", "account-1"),
+    ).resolves.toBe(languages);
+    expect(
+      coreClientMock.getProjectsByIdAdsAccountsByAccountIdTargetingLanguages,
+    ).toHaveBeenCalledWith({ id: "project-1", accountId: "account-1" });
   });
 });

@@ -3203,7 +3203,31 @@
         "startDate": "Startdatum",
         "endDate": "Enddatum",
         "datesHelp": "Optional. Es gilt die Zeitzone des Anzeigenkontos.",
-        "targeting": "Alle Länder · Alle Sprachen",
+        "targeting": {
+          "locations": {
+            "label": "Standorte",
+            "help": "Wo Ihre Anzeigen erscheinen können. Bis zu {max}.",
+            "full": "Standortlimit erreicht ({max}).",
+            "placeholder": "Nach Land, Region oder Stadt suchen",
+            "search": "Standorte suchen",
+            "loading": "Suche läuft…",
+            "idle": "Tippen Sie, um einen Ort zu finden.",
+            "empty": "Keine Standorte gefunden.",
+            "error": "Die Standortsuche ist fehlgeschlagen. Versuchen Sie es erneut.",
+            "all": "Alle Länder",
+            "remove": "{name} entfernen"
+          },
+          "languages": {
+            "label": "Sprachen",
+            "help": "Zeigen Sie Anzeigen für Personen, die diese Sprachen verwenden.",
+            "placeholder": "Sprachen auswählen",
+            "search": "Sprachen suchen",
+            "empty": "Keine Sprachen gefunden.",
+            "unavailable": "Die Sprachen konnten nicht geladen werden. Die Kampagne richtet sich an alle Sprachen.",
+            "all": "Alle Sprachen",
+            "remove": "{name} entfernen"
+          }
+        },
         "keywords": {
           "label": "Keywords",
           "help": "Ein Keyword pro Zeile. Mit \"Anführungszeichen\" für passende Wortgruppe und [eckigen Klammern] für genau passend.",

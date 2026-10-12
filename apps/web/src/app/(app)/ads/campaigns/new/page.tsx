@@ -14,6 +14,11 @@ import {
   MetaCampaignForm,
 } from "@/app/ads/components/ads-new-campaign-form";
 import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
+import {
+  type GoogleTargeting,
+  MARKET_LOCATION_IDS,
+  matchGoogleLanguage,
+} from "@/lib/ads/targeting";
 import { adsService } from "@/lib/services/ads.service";
 import { projectService } from "@/lib/services/project.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
@@ -32,14 +37,42 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Whether the project has a Market profile, which is what "Add from Market"
- * needs. Only the profile is read here: the keywords come from the data
- * provider (paid) when Core's 24-hour cache has run out, so they load on the
- * button's click. A failed lookup hides the button, not the form.
+ * What the Google form needs from Core before it shows: whether the project
+ * has a Market profile (which "Add from Market" needs; only the profile is
+ * read here, since keywords can cost a data-provider request and load on the
+ * button's click), Google's languages, and the profile's country and language
+ * as the form's starting targeting. A failed lookup hides its part (the
+ * button, the language picker, a prefilled chip), never the form.
  */
-async function hasMarketProfile(projectId: string): Promise<boolean> {
-  const profile = await settleAdsLoad(adsService.getMarketProfile(projectId));
-  return !profile.error && !!profile.data.profile;
+async function loadGoogleSetup(projectId: string, accountId: string) {
+  const [profileLoad, languagesLoad] = await Promise.all([
+    settleAdsLoad(adsService.getMarketProfile(projectId)),
+    settleAdsLoad(adsService.listLanguages(projectId, accountId)),
+  ]);
+  const profile = profileLoad.error ? null : profileLoad.data.profile;
+  const languages = languagesLoad.error ? null : languagesLoad.data.languages;
+
+  const locationId = profile ? MARKET_LOCATION_IDS[profile.countryCode] : null;
+  const locationLoad = locationId
+    ? await settleAdsLoad(
+        adsService.listLocationsByIds(projectId, accountId, [locationId]),
+      )
+    : null;
+  const language =
+    profile && languages
+      ? matchGoogleLanguage(profile.languageCode, languages)
+      : undefined;
+
+  const targeting: GoogleTargeting = {
+    languages: languages?.map(({ id, name }) => ({ id, name })) ?? null,
+    defaultLocations: (locationLoad?.data?.locations ?? []).map(
+      ({ id, name, canonicalName }) => ({ id, name, detail: canonicalName }),
+    ),
+    defaultLanguages: language
+      ? [{ id: language.id, name: language.name }]
+      : [],
+  };
+  return { hasMarketProfile: !!profile, targeting };
 }
 
 /**
@@ -71,6 +104,10 @@ export default async function NewAdsCampaignPage({
     notFound();
   }
 
+  const google =
+    account.provider === "google_ads"
+      ? await loadGoogleSetup(project.id, account.id)
+      : null;
   const t = await getTranslations("App.Ads.newCampaign");
   const tProviders = await getTranslations("App.Ads.accounts.providers");
 
@@ -97,12 +134,13 @@ export default async function NewAdsCampaignPage({
             </p>
           </div>
         </header>
-        {account.provider === "google_ads" ? (
+        {google ? (
           <GoogleSearchCampaignForm
             accountId={account.id}
             currency={account.currency}
-            hasMarketProfile={await hasMarketProfile(project.id)}
+            hasMarketProfile={google.hasMarketProfile}
             projectId={project.id}
+            targeting={google.targeting}
           />
         ) : (
           <MetaCampaignForm

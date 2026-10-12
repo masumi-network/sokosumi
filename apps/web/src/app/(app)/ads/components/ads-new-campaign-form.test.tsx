@@ -7,7 +7,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createAdCampaign,
   listAdMarketKeywords,
+  searchAdLocations,
 } from "@/lib/actions/ads/action";
+import type { GoogleTargeting } from "@/lib/ads/targeting";
 import messages from "../../../../../messages/en.json";
 import {
   GoogleSearchCampaignForm,
@@ -30,10 +32,15 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: pushMock }) }));
 vi.mock("@/lib/actions/ads/action", () => ({
   createAdCampaign: vi.fn(),
   listAdMarketKeywords: vi.fn(),
+  searchAdLocations: vi.fn(),
+}));
+vi.mock("@/config/env.public", () => ({
+  getEnvPublicConfig: () => ({ NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: 0 }),
 }));
 
 const createMock = vi.mocked(createAdCampaign);
 const listMock = vi.mocked(listAdMarketKeywords);
+const searchMock = vi.mocked(searchAdLocations);
 
 type CreateResult = Awaited<ReturnType<typeof createAdCampaign>>;
 
@@ -45,16 +52,30 @@ function refused(status?: number, message = "Core text"): CreateResult {
   };
 }
 
+const LANGUAGES = [
+  { id: "1000", name: "English" },
+  { id: "1001", name: "German" },
+  { id: "1003", name: "Spanish" },
+];
+
+const NO_DEFAULTS: GoogleTargeting = {
+  languages: LANGUAGES,
+  defaultLocations: [],
+  defaultLanguages: [],
+};
+
 interface RenderOptions {
   currency?: string;
   hasMarketProfile?: boolean;
   provider?: ProjectAdProvider;
+  targeting?: GoogleTargeting;
 }
 
 async function renderForm({
   currency = "USD",
   hasMarketProfile = false,
   provider = "google_ads",
+  targeting = NO_DEFAULTS,
 }: RenderOptions = {}) {
   const user = userEvent.setup();
   const props = { accountId: "account-1", currency, projectId: "project-1" };
@@ -64,6 +85,7 @@ async function renderForm({
         <GoogleSearchCampaignForm
           {...props}
           hasMarketProfile={hasMarketProfile}
+          targeting={targeting}
         />
       ) : (
         <MetaCampaignForm {...props} />
@@ -84,6 +106,39 @@ const submit = () => screen.getByRole("button", { name: "Create campaign" });
 async function pasteKeywords(user: User, text: string) {
   await user.click(keywordsInput());
   await user.paste(text);
+}
+
+const MUNICH = {
+  id: "1003854",
+  name: "Munich",
+  canonicalName: "Munich,Bavaria,Germany",
+  targetType: "City",
+  countryCode: "DE",
+};
+const BERLIN = {
+  id: "1003869",
+  name: "Berlin",
+  canonicalName: "Berlin,Berlin,Germany",
+  targetType: "State",
+  countryCode: "DE",
+};
+
+const locationsPicker = () =>
+  screen.getByRole("combobox", { name: "Locations" });
+const languagesPicker = () =>
+  screen.getByRole("combobox", { name: "Languages" });
+
+/** Types into the open location search and picks a result by name. */
+async function pickLocation(user: User, query: string, name: string) {
+  await user.click(locationsPicker());
+  await user.type(screen.getByPlaceholderText("Search locations"), query);
+  await user.click(await screen.findByText(name));
+}
+
+/** Opens the languages and toggles one by name. */
+async function toggleLanguage(user: User, name: string) {
+  await user.click(languagesPicker());
+  await user.click(await screen.findByRole("option", { name }));
 }
 
 /** Everything a Google campaign needs, with Core's minimum ad. */
@@ -112,7 +167,8 @@ describe("AdsNewCampaignForm", () => {
       for (const heading of ["Basics", "Targeting", "Keywords", "Ad"]) {
         expect(screen.getByRole("heading", { name: heading })).toBeVisible();
       }
-      expect(screen.getByText("All countries · All languages")).toBeVisible();
+      expect(screen.getByText("All countries")).toBeVisible();
+      expect(screen.getByText("All languages")).toBeVisible();
       expect(screen.getAllByLabelText(/^Headline \d+$/)).toHaveLength(3);
       expect(screen.getAllByLabelText(/^Description \d+$/)).toHaveLength(2);
       expect(screen.getByLabelText("Start date")).toBeVisible();
@@ -300,6 +356,186 @@ describe("AdsNewCampaignForm", () => {
         expect(
           screen.queryByRole("button", { name: "Add from Market" }),
         ).toBeNull();
+      });
+    });
+
+    describe("targeting", () => {
+      const sentSpec = () => createMock.mock.calls[0]?.[0].google;
+
+      it("sends the ids of a searched location and a chosen language", async () => {
+        searchMock.mockResolvedValue({ ok: true, value: [MUNICH, BERLIN] });
+        createMock.mockResolvedValue({ ok: true, value: { id: "42" } });
+        const user = await renderForm();
+        await fillGoogle(user);
+
+        await pickLocation(user, " Mun ", "Munich");
+        await toggleLanguage(user, "German");
+
+        expect(searchMock).toHaveBeenCalledWith({
+          projectId: "project-1",
+          accountId: "account-1",
+          q: "Mun",
+        });
+        const chips = screen.getAllByRole("listitem");
+        expect(chips.map((chip) => chip.textContent)).toEqual([
+          "Munich",
+          "German",
+        ]);
+        expect(screen.queryByText("All countries")).toBeNull();
+        expect(screen.queryByText("All languages")).toBeNull();
+
+        await user.click(submit());
+
+        await waitFor(() => expect(createMock).toHaveBeenCalled());
+        expect(sentSpec()).toMatchObject({
+          locationIds: ["1003854"],
+          languageIds: ["1001"],
+        });
+      });
+
+      it("shows each result's full name and type", async () => {
+        searchMock.mockResolvedValue({ ok: true, value: [MUNICH] });
+        const user = await renderForm();
+
+        await user.click(locationsPicker());
+        await user.type(screen.getByPlaceholderText("Search locations"), "mun");
+
+        expect(
+          await screen.findByText("Munich,Bavaria,Germany · City"),
+        ).toBeVisible();
+      });
+
+      it("does not offer a location that is already chosen", async () => {
+        searchMock.mockResolvedValue({ ok: true, value: [MUNICH, BERLIN] });
+        const user = await renderForm();
+        await pickLocation(user, "ger", "Munich");
+
+        await user.click(locationsPicker());
+        await user.type(screen.getByPlaceholderText("Search locations"), "ger");
+
+        expect(await screen.findByText("Berlin")).toBeVisible();
+        expect(screen.getAllByText("Munich")).toHaveLength(1);
+      });
+
+      it("removes a chip and goes back to all countries and languages", async () => {
+        searchMock.mockResolvedValue({ ok: true, value: [MUNICH] });
+        createMock.mockResolvedValue({ ok: true, value: { id: "42" } });
+        const user = await renderForm();
+        await fillGoogle(user);
+        await pickLocation(user, "mun", "Munich");
+        await toggleLanguage(user, "German");
+
+        await user.click(screen.getByRole("button", { name: "Remove Munich" }));
+        await user.click(screen.getByRole("button", { name: "Remove German" }));
+
+        expect(screen.getByText("All countries")).toBeVisible();
+        expect(screen.getByText("All languages")).toBeVisible();
+        await user.click(submit());
+        await waitFor(() => expect(createMock).toHaveBeenCalled());
+        expect(sentSpec()).toMatchObject({ locationIds: [], languageIds: [] });
+      });
+
+      it("picks several languages and unpicks one in the list", async () => {
+        const user = await renderForm();
+
+        await toggleLanguage(user, "German");
+        await user.click(screen.getByRole("option", { name: "Spanish" }));
+        await user.click(screen.getByRole("option", { name: "German" }));
+
+        expect(
+          screen.getAllByRole("listitem").map((chip) => chip.textContent),
+        ).toEqual(["Spanish"]);
+      });
+
+      it("filters the languages by what is typed", async () => {
+        const user = await renderForm();
+        await user.click(languagesPicker());
+
+        await user.type(
+          screen.getByPlaceholderText("Search languages"),
+          "span",
+        );
+
+        expect(screen.getByRole("option", { name: "Spanish" })).toBeVisible();
+        expect(screen.queryByRole("option", { name: "German" })).toBeNull();
+      });
+
+      it("stops at 25 locations", async () => {
+        const locations = Array.from({ length: 25 }, (_, i) => ({
+          id: `${i + 1}`,
+          name: `Place ${i + 1}`,
+        }));
+        await renderForm({
+          targeting: { ...NO_DEFAULTS, defaultLocations: locations },
+        });
+
+        expect(locationsPicker()).toBeDisabled();
+        expect(screen.getByText("Location limit reached (25).")).toBeVisible();
+        expect(screen.getAllByRole("listitem")).toHaveLength(25);
+      });
+
+      it("starts from the Market profile's location and language, which can be removed", async () => {
+        createMock.mockResolvedValue({ ok: true, value: { id: "42" } });
+        const user = await renderForm({
+          hasMarketProfile: true,
+          targeting: {
+            ...NO_DEFAULTS,
+            defaultLocations: [
+              { id: "2276", name: "Germany", detail: "Germany" },
+            ],
+            defaultLanguages: [{ id: "1001", name: "German" }],
+          },
+        });
+        await fillGoogle(user);
+
+        expect(
+          screen.getAllByRole("listitem").map((chip) => chip.textContent),
+        ).toEqual(["Germany", "German"]);
+        expect(searchMock).not.toHaveBeenCalled();
+
+        await user.click(screen.getByRole("button", { name: "Remove German" }));
+        await user.click(submit());
+
+        await waitFor(() => expect(createMock).toHaveBeenCalled());
+        expect(sentSpec()).toMatchObject({
+          locationIds: ["2276"],
+          languageIds: [],
+        });
+      });
+
+      it("says so in the picker when the search fails, and the form still submits", async () => {
+        searchMock.mockResolvedValue({
+          ok: false,
+          error: { code: "INTERNAL_SERVER_ERROR", message: "down" },
+        });
+        createMock.mockResolvedValue({ ok: true, value: { id: "42" } });
+        const user = await renderForm();
+        await fillGoogle(user);
+
+        await user.click(locationsPicker());
+        await user.type(screen.getByPlaceholderText("Search locations"), "mun");
+
+        expect(
+          await screen.findByText("Couldn't search locations. Try again."),
+        ).toBeVisible();
+        await user.keyboard("{Escape}");
+        await user.click(submit());
+        await waitFor(() => expect(createMock).toHaveBeenCalled());
+        expect(sentSpec()).toMatchObject({ locationIds: [], languageIds: [] });
+      });
+
+      it("explains it when the languages could not be loaded", async () => {
+        await renderForm({ targeting: { ...NO_DEFAULTS, languages: null } });
+
+        expect(
+          screen.getByText(
+            "Couldn't load languages. The campaign will target all languages.",
+          ),
+        ).toBeVisible();
+        expect(
+          screen.queryByRole("combobox", { name: "Languages" }),
+        ).toBeNull();
+        expect(screen.getByText("All languages")).toBeVisible();
       });
     });
 

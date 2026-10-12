@@ -10,6 +10,8 @@ import type {
   ListAdCampaignsResponse,
   ListAdMarketAdsResponse,
   ListAdMarketKeywordsResponse,
+  ListGoogleLanguagesResponse,
+  ListGoogleLocationsResponse,
   ProjectAdAccount,
   ProjectAdProvider,
   PutAdMarketProfileRequest,
@@ -150,6 +152,45 @@ export const adsService = (() => {
     return result.data;
   }
 
+  async function searchLocations(
+    projectId: string,
+    accountId: string,
+    q: string,
+  ): Promise<ListGoogleLocationsResponse> {
+    const result =
+      await coreClient.getProjectsByIdAdsAccountsByAccountIdTargetingLocations(
+        { id: projectId, accountId },
+        { q },
+      );
+    return result.data;
+  }
+
+  /** The locations with these Google ids (1 to 25), in no promised order. */
+  async function listLocationsByIds(
+    projectId: string,
+    accountId: string,
+    ids: string[],
+  ): Promise<ListGoogleLocationsResponse> {
+    const result =
+      await coreClient.getProjectsByIdAdsAccountsByAccountIdTargetingLocations(
+        { id: projectId, accountId },
+        { ids: ids.join(",") },
+      );
+    return result.data;
+  }
+
+  async function listLanguages(
+    projectId: string,
+    accountId: string,
+  ): Promise<ListGoogleLanguagesResponse> {
+    const result =
+      await coreClient.getProjectsByIdAdsAccountsByAccountIdTargetingLanguages({
+        id: projectId,
+        accountId,
+      });
+    return result.data;
+  }
+
   return {
     listAccounts,
     initiateConnection,
@@ -164,5 +205,8 @@ export const adsService = (() => {
     saveMarketProfile,
     listMarketKeywords,
     listMarketAds,
+    searchLocations,
+    listLocationsByIds,
+    listLanguages,
   };
 })();

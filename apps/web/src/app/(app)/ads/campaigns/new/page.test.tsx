@@ -14,6 +14,8 @@ const {
     listAccounts: vi.fn(),
     getMarketProfile: vi.fn(),
     listMarketKeywords: vi.fn(),
+    listLanguages: vi.fn(),
+    listLocationsByIds: vi.fn(),
   },
   formMock: vi.fn(),
   hasSocialBetaAccessMock: vi.fn(),
@@ -76,7 +78,24 @@ describe("NewAdsCampaignPage", () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     adsServiceMock.listAccounts.mockResolvedValue([GOOGLE, META]);
     adsServiceMock.getMarketProfile.mockResolvedValue({
-      profile: { keywords: ["shoes"] },
+      profile: { keywords: ["shoes"], countryCode: "DE", languageCode: "de" },
+    });
+    adsServiceMock.listLanguages.mockResolvedValue({
+      languages: [
+        { id: "1000", code: "en", name: "English" },
+        { id: "1001", code: "de", name: "German" },
+      ],
+    });
+    adsServiceMock.listLocationsByIds.mockResolvedValue({
+      locations: [
+        {
+          id: "2276",
+          name: "Germany",
+          canonicalName: "Germany",
+          targetType: "Country",
+          countryCode: "DE",
+        },
+      ],
     });
     adsServiceMock.listMarketKeywords.mockResolvedValue({
       keywords: [{ keyword: "running shoes" }, { keyword: "trail shoes" }],
@@ -164,6 +183,72 @@ describe("NewAdsCampaignPage", () => {
     expect(reached()).toMatchObject({ hasMarketProfile: false });
   });
 
+  describe("targeting", () => {
+    const targeting = () => reached().targeting;
+
+    it("hands the form Google's languages and the Market profile's country and language", async () => {
+      render(await visit({ projectId: "project-1", accountId: "a1" }));
+
+      expect(adsServiceMock.listLanguages).toHaveBeenCalledWith(
+        "project-1",
+        "a1",
+      );
+      expect(adsServiceMock.listLocationsByIds).toHaveBeenCalledWith(
+        "project-1",
+        "a1",
+        ["2276"],
+      );
+      expect(targeting()).toEqual({
+        languages: [
+          { id: "1000", name: "English" },
+          { id: "1001", name: "German" },
+        ],
+        defaultLocations: [{ id: "2276", name: "Germany", detail: "Germany" }],
+        defaultLanguages: [{ id: "1001", name: "German" }],
+      });
+    });
+
+    it("suggests nothing without a Market profile, looking up no location", async () => {
+      adsServiceMock.getMarketProfile.mockResolvedValue({ profile: null });
+      render(await visit({ projectId: "project-1", accountId: "a1" }));
+
+      expect(adsServiceMock.listLocationsByIds).not.toHaveBeenCalled();
+      expect(targeting()).toMatchObject({
+        defaultLocations: [],
+        defaultLanguages: [],
+      });
+      expect(targeting().languages).toHaveLength(2);
+    });
+
+    it("leaves the language empty when Google has none for the profile's", async () => {
+      adsServiceMock.getMarketProfile.mockResolvedValue({
+        profile: { countryCode: "JP", languageCode: "ja" },
+      });
+      render(await visit({ projectId: "project-1", accountId: "a1" }));
+
+      expect(targeting().defaultLanguages).toEqual([]);
+      expect(targeting().defaultLocations).toHaveLength(1);
+    });
+
+    it("renders without the picks that failed to load", async () => {
+      adsServiceMock.listLanguages.mockRejectedValue(
+        new CoreApiRequestError("down", { status: 502 }),
+      );
+      adsServiceMock.listLocationsByIds.mockRejectedValue(
+        new CoreApiRequestError("down", { status: 502 }),
+      );
+      render(await visit({ projectId: "project-1", accountId: "a1" }));
+
+      expect(screen.getByTestId("form")).toBeVisible();
+      expect(reached()).toMatchObject({ hasMarketProfile: true });
+      expect(targeting()).toEqual({
+        languages: null,
+        defaultLocations: [],
+        defaultLanguages: [],
+      });
+    });
+  });
+
   it("gives a Meta account the Meta form and reads no Market data", async () => {
     render(await visit({ projectId: "project-1", accountId: "a2" }));
 
@@ -171,5 +256,7 @@ describe("NewAdsCampaignPage", () => {
     expect(reached()).not.toHaveProperty("hasMarketProfile");
     expect(adsServiceMock.getMarketProfile).not.toHaveBeenCalled();
     expect(adsServiceMock.listMarketKeywords).not.toHaveBeenCalled();
+    expect(adsServiceMock.listLanguages).not.toHaveBeenCalled();
+    expect(reached()).not.toHaveProperty("targeting");
   });
 });

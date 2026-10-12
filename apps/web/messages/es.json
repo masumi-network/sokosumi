@@ -3203,7 +3203,31 @@
         "startDate": "Fecha de inicio",
         "endDate": "Fecha de finalización",
         "datesHelp": "Opcional. Se usa la zona horaria de la cuenta publicitaria.",
-        "targeting": "Todos los países · Todos los idiomas",
+        "targeting": {
+          "locations": {
+            "label": "Ubicaciones",
+            "help": "Dónde pueden mostrarse tus anuncios. Hasta {max}.",
+            "full": "Límite de ubicaciones alcanzado ({max}).",
+            "placeholder": "Busca un país, región o ciudad",
+            "search": "Buscar ubicaciones",
+            "loading": "Buscando…",
+            "idle": "Escribe para encontrar un lugar.",
+            "empty": "No se encontraron ubicaciones.",
+            "error": "No se pudo buscar ubicaciones. Inténtalo de nuevo.",
+            "all": "Todos los países",
+            "remove": "Quitar {name}"
+          },
+          "languages": {
+            "label": "Idiomas",
+            "help": "Muestra los anuncios a personas que usan estos idiomas.",
+            "placeholder": "Elige idiomas",
+            "search": "Buscar idiomas",
+            "empty": "No se encontraron idiomas.",
+            "unavailable": "No se pudieron cargar los idiomas. La campaña se dirigirá a todos los idiomas.",
+            "all": "Todos los idiomas",
+            "remove": "Quitar {name}"
+          }
+        },
         "keywords": {
           "label": "Palabras clave",
           "help": "Una palabra clave por línea. Usa \"comillas\" para concordancia de frase y [corchetes] para concordancia exacta.",

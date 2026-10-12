@@ -10,6 +10,7 @@ import {
   type GoogleKeywordIssue,
   parseGoogleKeywords,
 } from "./google-keywords";
+import type { GoogleTarget } from "./targeting";
 
 const spec = GoogleSearchCampaignSpecSchema.properties;
 
@@ -175,6 +176,8 @@ export function googleSearchSpecSchema(messages: OptionalMessages = {}) {
 export interface GoogleSearchFormValues {
   startDate: string;
   endDate: string;
+  locations: GoogleTarget[];
+  languages: GoogleTarget[];
   keywords: string;
   finalUrl: string;
   path1: string;
@@ -185,10 +188,21 @@ export interface GoogleSearchFormValues {
 
 /** The same limits for the form's fields, in the reader's words. */
 export function googleSearchFormSchema(messages: OptionalMessages = {}) {
+  const targets = z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        detail: z.string().optional(),
+      }),
+    )
+    .max(GOOGLE_SEARCH_LIMITS.targetIds);
   return z
     .object({
       startDate: z.string(),
       endDate: z.string(),
+      locations: targets,
+      languages: targets,
       keywords: z.string().superRefine((value, ctx) => {
         const { keywords, invalid } = parseGoogleKeywords(value);
         const first = invalid[0];
@@ -215,8 +229,8 @@ export function googleSearchFormSchema(messages: OptionalMessages = {}) {
 }
 
 /**
- * The Search spec for what the form holds. Targeting is empty until the
- * pickers exist, which Core reads as all countries and languages.
+ * The Search spec for what the form holds. No locations or languages is all of
+ * them, which is how Core reads empty lists.
  */
 export function toGoogleSearchSpec(
   values: GoogleSearchFormValues,
@@ -227,8 +241,8 @@ export function toGoogleSearchSpec(
     type: "SEARCH",
     ...(values.startDate ? { startDate: values.startDate } : {}),
     ...(values.endDate ? { endDate: values.endDate } : {}),
-    locationIds: [],
-    languageIds: [],
+    locationIds: values.locations.map(({ id }) => id),
+    languageIds: values.languages.map(({ id }) => id),
     finalUrl: values.finalUrl.trim(),
     keywords: parseGoogleKeywords(values.keywords).keywords,
     headlines: values.headlines.map((text) => text.trim()),
