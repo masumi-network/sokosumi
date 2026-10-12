@@ -129,6 +129,30 @@ struct TranscriptSessionTests {
     #expect(session.jumpTarget == nil)
   }
 
+  /// RoomTools waits in `jump(to:)` while the room view requests that same row again. The wait keeps its target and
+  /// hears the landing; a different row still replaces it. A second wait on the same row takes the answer.
+  @Test func aRepeatedRequestKeepsTheJumpACallerIsWaitingOn() async throws {
+    let session = TranscriptSession()
+    let message = try await parent()
+    var other = message
+    other.id = "other"
+    session.timeline.messages = [message, other]
+
+    async let first = session.jump(to: message.id)
+    await Task.yield()
+    let waiting = try #require(session.jumpTarget)
+    session.requestJump(to: message.id)
+    #expect(session.jumpTarget?.requestId == waiting.requestId)
+    async let second = session.jump(to: message.id)
+    await Task.yield()
+    #expect(await first == false)
+    #expect(session.jumpTarget?.requestId == waiting.requestId)
+    session.requestJump(to: other.id)
+    #expect(await second == false)
+    #expect(session.jumpTarget?.messageId == other.id)
+    #expect(session.jumpTarget?.requestId != waiting.requestId)
+  }
+
   /// A caller waiting on `jump(to:)` hears true when the list lands and false when another jump replaces it.
   @Test func aJumpAnswersWhetherTheListLanded() async throws {
     let session = TranscriptSession()

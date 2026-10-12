@@ -101,6 +101,11 @@ public final class TranscriptSession: ObservableObject {
 
   public func requestJump(to messageId: String) {
     guard timeline.messages.contains(where: { $0.id == messageId }) else { return }
+    // RoomTools is already waiting in `jump(to:)` when the room view's messageJump task requests this same row.
+    // Replacing that request would answer false before the list lands.
+    if let current = jumpTarget, landing != nil, current.messageId == messageId, !current.hasLanded, !current.isCovered {
+      return
+    }
     replaceJump(with: JumpTarget(messageId: messageId))
   }
 
@@ -115,6 +120,8 @@ public final class TranscriptSession: ObservableObject {
   public func jump(to messageId: String) async -> Bool {
     requestJump(to: messageId)
     guard let target = jumpTarget, target.messageId == messageId, !target.hasLanded else { return false }
+    // A second wait on this same row takes the answer; the request above kept the target.
+    finishLanding(false)
     return await withCheckedContinuation { landing = $0 }
   }
 
