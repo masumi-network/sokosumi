@@ -1,9 +1,6 @@
 "use client";
 
-export interface ImageSize {
-  width: number;
-  height: number;
-}
+import type { ImageSize } from "@/hooks/use-remembered-image-size";
 
 /** The picture's own size in pixels, read by loading it in the browser. */
 export function readImageSize(src: string): Promise<ImageSize> {

@@ -130,6 +130,30 @@ describe("googleDisplayFormSchema", () => {
     ).toBe("missing square");
   });
 
+  it("says too many images, too many logos and a repeated file in the reader's words", () => {
+    const words = googleDisplayFormSchema({
+      imagesTooMany: (max) => `at most ${max} images`,
+      logosTooMany: (max) => `at most ${max} logos`,
+      imageRepeated: "each file once",
+    });
+    const messages = (images: GoogleDisplayImage[]) =>
+      words
+        .safeParse({ ...form, images })
+        .error?.issues.filter(({ path }) => path.join(".") === "images")
+        .map(({ message }) => message);
+    const seven = [
+      ...[1, 2, 3, 4].map((n) => image("LANDSCAPE", `w${n}.png`)),
+      ...[1, 2, 3].map((n) => image("SQUARE", `s${n}.png`)),
+    ];
+    const logos = ["a", "b", "c"].map((n) => image("LOGO", `${n}.png`));
+
+    expect(messages(seven)).toEqual(["at most 6 images"]);
+    expect(messages([...IMAGES, ...logos])).toEqual(["at most 2 logos"]);
+    expect(messages([...IMAGES, image("LOGO", "LANDSCAPE.png")])).toEqual([
+      "each file once",
+    ]);
+  });
+
   it("does not count a logo as a landscape or a square image", () => {
     const result = schema.safeParse({
       ...form,

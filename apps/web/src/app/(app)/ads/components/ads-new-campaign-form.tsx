@@ -38,7 +38,6 @@ import {
 } from "@/lib/ads/campaign";
 import {
   GOOGLE_DISPLAY_LIMITS,
-  type GoogleDisplayFormValues,
   googleDisplayFormSchema,
   toGoogleDisplaySpec,
 } from "@/lib/ads/google-display";
@@ -49,12 +48,12 @@ import {
 } from "@/lib/ads/google-keywords";
 import {
   GOOGLE_SEARCH_LIMITS,
-  type GoogleSearchFormValues,
   googleSearchFormSchema,
   toGoogleSearchSpec,
 } from "@/lib/ads/google-search";
 import type { GoogleTargeting } from "@/lib/ads/targeting";
 import { useAdsBudget } from "./ads-budget";
+import { ImageUploadContext } from "./ads-display-images";
 import { AdsFormSection } from "./ads-form-section";
 import { AdsGoogleDisplayFields } from "./ads-google-display-fields";
 import {
@@ -181,6 +180,8 @@ interface CampaignFormFrameProps extends CampaignFormProps {
   creation: ReturnType<typeof useCreateCampaign>;
   onSubmit: () => Promise<void>;
   submitting: boolean;
+  /** Pictures are still going in; the campaign waits for them. */
+  uploading?: boolean;
 }
 
 /** The form element around a provider's fields: the failure above, actions below. */
@@ -191,6 +192,7 @@ function CampaignFormFrame({
   onSubmit,
   projectId,
   submitting,
+  uploading = false,
 }: CampaignFormFrameProps) {
   const t = useTranslations("App.Ads.newCampaign");
   const tCampaigns = useTranslations("App.Ads.campaigns");
@@ -214,12 +216,20 @@ function CampaignFormFrame({
       ) : null}
       {children}
       <div className="flex items-center justify-end gap-3">
+        {/* Always there, so the wait is announced when it starts. */}
+        <span className="text-muted-foreground mr-auto text-sm" role="status">
+          {uploading ? t("uploadingImages") : null}
+        </span>
         <Button asChild variant="ghost">
           <Link href={campaignsHref(projectId, accountId)}>
             {tCampaigns("cancel")}
           </Link>
         </Button>
-        <Button loading={submitting || creation.created} type="submit">
+        <Button
+          disabled={uploading}
+          loading={submitting || creation.created}
+          type="submit"
+        >
           {t("submit")}
         </Button>
       </div>
@@ -362,16 +372,9 @@ export function MetaCampaignForm(props: CampaignFormProps) {
 const GOOGLE_TYPES = ["SEARCH", "DISPLAY"] as const;
 type GoogleType = (typeof GOOGLE_TYPES)[number];
 
-/** Everything a Google campaign form holds: the fields of both types, one shown. */
-interface GoogleCampaignFormValues
-  extends BasicsValues,
-    GoogleSearchFormValues,
-    GoogleDisplayFormValues {
-  type: GoogleType;
+function blankTexts(count: number): string[] {
+  return Array.from({ length: count }, () => "");
 }
-
-const blankTexts = (count: number): string[] =>
-  Array.from({ length: count }, () => "");
 
 /** What a Google form starts with: the fields of both types, one shown. */
 const EMPTY_GOOGLE_VALUES = {
@@ -402,31 +405,33 @@ function GoogleTypePicker() {
 
   return (
     <AdsFormSection id="new-campaign-type" title={t("sections.type")}>
-      <ToggleGroup
-        aria-label={t("sections.type")}
-        className="w-full sm:w-72"
-        onValueChange={(value) => {
-          // Clicking the chosen type again would clear it; keep it.
-          const type = GOOGLE_TYPES.find((candidate) => candidate === value);
-          if (type) {
-            form.setValue("type", type);
-            // The other type's refusals are not this form's.
-            form.clearErrors();
-          }
-        }}
-        type="single"
-        value={form.watch("type")}
-        variant="outline"
-      >
-        {GOOGLE_TYPES.map((type) => (
-          <ToggleGroupItem key={type} value={type}>
-            {t(`types.${type}`)}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
-      <p className="text-muted-foreground -mt-3 text-sm">
-        {t(`typeHelp.${form.watch("type")}`)}
-      </p>
+      <div className="grid gap-2">
+        <ToggleGroup
+          aria-label={t("sections.type")}
+          className="w-full sm:w-72"
+          onValueChange={(value) => {
+            // Clicking the chosen type again would clear it; keep it.
+            const type = GOOGLE_TYPES.find((candidate) => candidate === value);
+            if (type) {
+              form.setValue("type", type);
+              // The other type's refusals are not this form's.
+              form.clearErrors();
+            }
+          }}
+          type="single"
+          value={form.watch("type")}
+          variant="outline"
+        >
+          {GOOGLE_TYPES.map((type) => (
+            <ToggleGroupItem key={type} value={type}>
+              {t(`types.${type}`)}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        <p className="text-muted-foreground text-sm">
+          {t(`typeHelp.${form.watch("type")}`)}
+        </p>
+      </div>
     </AdsFormSection>
   );
 }
@@ -448,21 +453,27 @@ export function GoogleCampaignForm({
   const common = {
     finalUrl: t("errors.finalUrl"),
     headlineRequired: t("errors.headlineRequired"),
-    headlineTooLong: t("errors.headlineTooLong", {
-      max: GOOGLE_SEARCH_LIMITS.headlines.length,
-    }),
     headlineDuplicate: t("errors.headlineDuplicate"),
     descriptionRequired: t("errors.descriptionRequired"),
-    descriptionTooLong: t("errors.descriptionTooLong", {
-      max: GOOGLE_SEARCH_LIMITS.descriptions.length,
-    }),
     tooLong: (max: number) => t("errors.tooLong", { max }),
     endBeforeStart: t("errors.endBeforeStart"),
   };
-  const searchSchema = z.intersection(
-    z.object(shape),
+  const tooLongOf = (limits: {
+    headlines: { length: number };
+    descriptions: { length: number };
+  }) => ({
+    headlineTooLong: t("errors.headlineTooLong", {
+      max: limits.headlines.length,
+    }),
+    descriptionTooLong: t("errors.descriptionTooLong", {
+      max: limits.descriptions.length,
+    }),
+  });
+  // The form holds the fields of both types; only the chosen type is judged.
+  const schema = z.discriminatedUnion("type", [
     googleSearchFormSchema({
       ...common,
+      ...tooLongOf(GOOGLE_SEARCH_LIMITS),
       pathNeedsFirst: t("errors.pathNeedsFirst"),
       sitelinkTextRequired: t("errors.sitelinkTextRequired"),
       sitelinkDescriptionsPair: t("errors.sitelinkDescriptionsPair"),
@@ -480,29 +491,20 @@ export function GoogleCampaignForm({
               ? GOOGLE_KEYWORD_MAX_LENGTH
               : GOOGLE_KEYWORD_MAX_WORDS,
         }),
-    }),
-  );
-  const displaySchema = z.intersection(
-    z.object(shape),
+    }).safeExtend({ ...shape, type: z.literal("SEARCH") }),
     googleDisplayFormSchema({
       ...common,
+      ...tooLongOf(GOOGLE_DISPLAY_LIMITS),
       businessNameRequired: t("errors.businessNameRequired"),
       longHeadlineRequired: t("errors.longHeadlineRequired"),
       imagesMissing: (missing) => t(`ad.images.missing.${missing}`),
-    }),
-  );
+      imagesTooMany: (max) => t("ad.images.errors.full", { maxImages: max }),
+      logosTooMany: (max) => t("ad.images.errors.fullLogo", { maxLogos: max }),
+      imageRepeated: t("ad.images.errors.repeated"),
+    }).safeExtend({ ...shape, type: z.literal("DISPLAY") }),
+  ]);
   const form = useForm({
-    // The form holds the fields of both types; only the shown type is judged.
-    resolver: zodResolver(
-      z.custom<GoogleCampaignFormValues>().superRefine((values, ctx) => {
-        const checked = (
-          values.type === "SEARCH" ? searchSchema : displaySchema
-        ).safeParse(values);
-        for (const { path, message } of checked.error?.issues ?? []) {
-          ctx.addIssue({ code: "custom", path, message });
-        }
-      }),
-    ),
+    resolver: zodResolver(schema),
     mode: "onTouched",
     // The Market profile's suggestions start the pickers; the reader may remove them.
     defaultValues: {
@@ -511,49 +513,53 @@ export function GoogleCampaignForm({
       languages: targeting.defaultLanguages,
     },
   });
+  const [uploading, setUploading] = useState(false);
   const type = form.watch("type");
 
   return (
     <Form {...form}>
-      <CampaignFormFrame
-        {...props}
-        creation={creation}
-        onSubmit={form.handleSubmit((values) =>
-          creation.create({
-            name: values.name.trim(),
-            dailyBudget: Number(values.dailyBudget),
-            google:
-              values.type === "SEARCH"
-                ? toGoogleSearchSpec(values)
-                : toGoogleDisplaySpec(values),
-          }),
-        )}
-        submitting={form.formState.isSubmitting}
-      >
-        <GoogleTypePicker />
-        <AdsFormSection id="new-campaign-basics" title={t("sections.basics")}>
-          <NameAndBudgetFields budget={budget} />
-          <AdsGoogleDateFields />
-        </AdsFormSection>
-        <AdsFormSection
-          id="new-campaign-targeting"
-          title={t("sections.targeting")}
+      <ImageUploadContext value={{ uploading, setUploading }}>
+        <CampaignFormFrame
+          {...props}
+          creation={creation}
+          onSubmit={form.handleSubmit((values) =>
+            creation.create({
+              name: values.name.trim(),
+              dailyBudget: Number(values.dailyBudget),
+              google:
+                values.type === "SEARCH"
+                  ? toGoogleSearchSpec(values)
+                  : toGoogleDisplaySpec(values),
+            }),
+          )}
+          submitting={form.formState.isSubmitting}
+          uploading={uploading}
         >
-          <AdsGoogleTargetingFields
-            accountId={props.accountId}
-            languageOptions={targeting.languageOptions}
-            projectId={props.projectId}
-          />
-        </AdsFormSection>
-        {type === "SEARCH" ? (
-          <AdsGoogleSearchFields
-            hasMarketProfile={hasMarketProfile}
-            projectId={props.projectId}
-          />
-        ) : (
-          <AdsGoogleDisplayFields />
-        )}
-      </CampaignFormFrame>
+          <GoogleTypePicker />
+          <AdsFormSection id="new-campaign-basics" title={t("sections.basics")}>
+            <NameAndBudgetFields budget={budget} />
+            <AdsGoogleDateFields />
+          </AdsFormSection>
+          <AdsFormSection
+            id="new-campaign-targeting"
+            title={t("sections.targeting")}
+          >
+            <AdsGoogleTargetingFields
+              accountId={props.accountId}
+              languageOptions={targeting.languageOptions}
+              projectId={props.projectId}
+            />
+          </AdsFormSection>
+          {type === "SEARCH" ? (
+            <AdsGoogleSearchFields
+              hasMarketProfile={hasMarketProfile}
+              projectId={props.projectId}
+            />
+          ) : (
+            <AdsGoogleDisplayFields />
+          )}
+        </CampaignFormFrame>
+      </ImageUploadContext>
     </Form>
   );
 }

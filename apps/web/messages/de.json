@@ -3318,13 +3318,9 @@
             },
             "slots": {
               "images": {
-                "upload": "Bilder hochladen",
-                "choose": "Bilder aus Drive wählen",
                 "files": "Bilddateien"
               },
               "logo": {
-                "upload": "Logo hochladen",
-                "choose": "Logo aus Drive wählen",
                 "files": "Logodateien"
               }
             },
@@ -3344,11 +3340,13 @@
               "landscapeTooSmall": "{name}: Bilder im Querformat brauchen mindestens {landscape} px.",
               "squareTooSmall": "{name}: Quadratische Bilder brauchen mindestens {square} px.",
               "logoRatio": "{name}: Logos müssen quadratisch sein (1:1).",
-              "logoTooSmall": "{name}: Logos brauchen mindestens {logo} px."
+              "logoTooSmall": "{name}: Logos brauchen mindestens {logo} px.",
+              "repeated": "Verwende jede Bilddatei nur einmal."
             }
           }
         },
         "submit": "Kampagne erstellen",
+        "uploadingImages": "Bilder werden hochgeladen …",
         "success": "Kampagne erstellt (pausiert)",
         "errors": {
           "nameRequired": "Gib einen Namen ein.",

@@ -3318,13 +3318,9 @@
             },
             "slots": {
               "images": {
-                "upload": "Subir imágenes",
-                "choose": "Elegir imágenes de Drive",
                 "files": "Archivos de imagen"
               },
               "logo": {
-                "upload": "Subir logotipo",
-                "choose": "Elegir logotipo de Drive",
                 "files": "Archivos de logotipo"
               }
             },
@@ -3344,11 +3340,13 @@
               "landscapeTooSmall": "{name}: las imágenes horizontales necesitan al menos {landscape} px.",
               "squareTooSmall": "{name}: las imágenes cuadradas necesitan al menos {square} px.",
               "logoRatio": "{name}: los logotipos deben ser cuadrados (1:1).",
-              "logoTooSmall": "{name}: los logotipos necesitan al menos {logo} px."
+              "logoTooSmall": "{name}: los logotipos necesitan al menos {logo} px.",
+              "repeated": "Usa cada archivo de imagen una sola vez."
             }
           }
         },
         "submit": "Crear campaña",
+        "uploadingImages": "Subiendo imágenes…",
         "success": "Campaña creada (en pausa)",
         "errors": {
           "nameRequired": "Introduce un nombre.",

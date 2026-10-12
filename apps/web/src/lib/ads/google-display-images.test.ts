@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDisplayImage,
   checkDisplayImageFile,
+  checkDisplayImageFileByName,
   DISPLAY_IMAGE_MAX_BYTES,
   DISPLAY_IMAGE_RULES,
   displayImageCounts,
@@ -36,12 +37,12 @@ describe("imageRoleForSize", () => {
   it.each([
     ["the exact landscape minimum", 600, 314, "LANDSCAPE"],
     ["a large 1.91:1", 1200, 628, "LANDSCAPE"],
-    ["just inside 2% under 1.91", 1000, 534, "LANDSCAPE"], // 1.873
-    ["just inside 2% over 1.91", 1000, 514, "LANDSCAPE"], // 1.945
+    ["just inside 1% under 1.91", 1000, 528, "LANDSCAPE"], // 1.894
+    ["just inside 1% over 1.91", 1000, 519, "LANDSCAPE"], // 1.927
     ["a square", 1200, 1200, "SQUARE"],
     ["the exact square minimum", 300, 300, "SQUARE"],
-    ["a square plus 2%", 510, 500, "SQUARE"],
-    ["a square less 2%", 490, 500, "SQUARE"], // 0.98
+    ["a square plus 1%", 505, 500, "SQUARE"],
+    ["a square less 1%", 495, 500, "SQUARE"], // 0.99
   ] as const)("takes %s as %s", (_name, width, height, role) => {
     expect(imageRoleForSize(width, height, "images")).toEqual({
       ok: true,
@@ -50,9 +51,11 @@ describe("imageRoleForSize", () => {
   });
 
   it.each([
-    ["just outside 2% under 1.91", 1000, 535], // 1.869
-    ["just outside 2% over 1.91", 1000, 513], // 1.949
-    ["just over 2% from square", 515, 500],
+    ["just outside 1% under 1.91", 1000, 529], // 1.890
+    ["just outside 1% over 1.91", 1000, 518], // 1.931
+    ["just over 1% above square", 506, 500],
+    ["just over 1% below square", 494, 500],
+    ["a former 2% near-square", 510, 500],
     ["a 4:3 photo", 1200, 900],
     ["a portrait", 600, 900],
     ["a wide banner", 1600, 400],
@@ -88,7 +91,7 @@ describe("imageRoleForSize", () => {
         ok: true,
         role: "LOGO",
       });
-      expect(imageRoleForSize(510, 500, "logo")).toEqual({
+      expect(imageRoleForSize(505, 500, "logo")).toEqual({
         ok: true,
         role: "LOGO",
       });
@@ -99,7 +102,7 @@ describe("imageRoleForSize", () => {
         ok: false,
         reason: "logoRatio",
       });
-      expect(imageRoleForSize(515, 500, "logo")).toEqual({
+      expect(imageRoleForSize(506, 500, "logo")).toEqual({
         ok: false,
         reason: "logoRatio",
       });
@@ -115,47 +118,72 @@ describe("imageRoleForSize", () => {
 });
 
 describe("checkDisplayImageFile", () => {
-  it.each([
-    ["a.jpg", "image/jpeg", "image/jpeg"],
-    ["a.png", "image/png", "image/png"],
-    ["a.gif", "image/gif", "image/gif"],
-    // A Drive file has no type: its extension tells.
-    ["photo.JPEG", "", "image/jpeg"],
-    ["photo.png", "", "image/png"],
-  ])("takes %s (%s)", (name, type, mimeType) => {
-    expect(checkDisplayImageFile({ name, type, size: 1000 })).toEqual({
-      ok: true,
-      mimeType,
-    });
-  });
+  it.each([["image/jpeg"], ["image/png"], ["image/gif"]])(
+    "takes the browser's type %s",
+    (type) => {
+      expect(checkDisplayImageFile({ type, size: 1000 })).toEqual({
+        ok: true,
+        mimeType: type,
+      });
+    },
+  );
 
-  it.each([
-    ["a.webp", "image/webp"],
-    ["a.svg", "image/svg+xml"],
-    ["a.pdf", ""],
-    ["noextension", ""],
-  ])("refuses %s (%s) by its type", (name, type) => {
-    expect(checkDisplayImageFile({ name, type, size: 1000 })).toEqual({
-      ok: false,
-      reason: "type",
-    });
-  });
+  it.each([["image/webp"], ["image/svg+xml"], ["application/pdf"], [""]])(
+    "refuses %j by its type",
+    (type) => {
+      expect(checkDisplayImageFile({ type, size: 1000 })).toEqual({
+        ok: false,
+        reason: "type",
+      });
+    },
+  );
 
   it("refuses a file over 5120 KB and takes one of exactly 5120 KB", () => {
     expect(
       checkDisplayImageFile({
-        name: "a.png",
         type: "image/png",
         size: DISPLAY_IMAGE_MAX_BYTES + 1,
       }),
     ).toEqual({ ok: false, reason: "tooLarge" });
     expect(
       checkDisplayImageFile({
-        name: "a.png",
         type: "image/png",
         size: DISPLAY_IMAGE_MAX_BYTES,
       }).ok,
     ).toBe(true);
+  });
+});
+
+describe("checkDisplayImageFileByName", () => {
+  it.each([
+    ["photo.JPEG", "image/jpeg"],
+    ["a.jpg", "image/jpeg"],
+    ["photo.png", "image/png"],
+    ["a.gif", "image/gif"],
+  ])("reads %s as %s from its extension", (name, mimeType) => {
+    expect(checkDisplayImageFileByName({ name, size: 1000 })).toEqual({
+      ok: true,
+      mimeType,
+    });
+  });
+
+  it.each([["a.webp"], ["a.svg"], ["a.pdf"], ["noextension"]])(
+    "refuses %s by its extension",
+    (name) => {
+      expect(checkDisplayImageFileByName({ name, size: 1000 })).toEqual({
+        ok: false,
+        reason: "type",
+      });
+    },
+  );
+
+  it("refuses a file over 5120 KB", () => {
+    expect(
+      checkDisplayImageFileByName({
+        name: "a.png",
+        size: DISPLAY_IMAGE_MAX_BYTES + 1,
+      }),
+    ).toEqual({ ok: false, reason: "tooLarge" });
   });
 });
 

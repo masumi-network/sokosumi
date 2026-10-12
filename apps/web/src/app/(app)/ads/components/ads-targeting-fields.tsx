@@ -28,9 +28,9 @@ import {
 } from "@/components/ui/popover";
 import { searchAdLocations } from "@/lib/actions/ads/action";
 import {
-  GOOGLE_SEARCH_LIMITS,
+  GOOGLE_CAMPAIGN_LIMITS,
   type GoogleSharedFormValues,
-} from "@/lib/ads/google-search";
+} from "@/lib/ads/google-campaign";
 import {
   GOOGLE_LOCATION_QUERY_MAX_LENGTH,
   type GoogleTarget,
@@ -41,7 +41,7 @@ import { cn } from "@/lib/utils";
 
 import { AdsChipList } from "./ads-chip-list";
 
-const LIMIT = GOOGLE_SEARCH_LIMITS.targetIds;
+const LIMIT = GOOGLE_CAMPAIGN_LIMITS.targetIds;
 
 interface AdsGoogleTargetingFieldsProps {
   accountId: string;

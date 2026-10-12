@@ -7,7 +7,17 @@ import {
   GoogleSitelinkSchema,
 } from "@sokosumi/core-client/schemas";
 import * as z from "zod";
-
+import {
+  forEachDuplicate,
+  type GoogleCampaignMessages,
+  type GoogleSharedFormValues,
+  googleSharedFormShape,
+  googleSpecShape,
+  httpUrl,
+  limitedText,
+  refineGoogleCampaign,
+  toGoogleSharedSpec,
+} from "./google-campaign";
 import {
   GOOGLE_KEYWORD_LIMIT,
   GOOGLE_KEYWORD_MAX_LENGTH,
@@ -16,7 +26,6 @@ import {
   type GoogleKeywordIssue,
   parseGoogleKeywords,
 } from "./google-keywords";
-import type { GoogleTarget } from "./targeting";
 
 const spec = GoogleSearchCampaignSpecSchema.properties;
 const sitelink = GoogleSitelinkSchema.properties;
@@ -34,8 +43,6 @@ export const GOOGLE_SEARCH_LIMITS = {
     length: spec.descriptions.items.maxLength,
   },
   path: spec.path1.maxLength,
-  finalUrl: spec.finalUrl.maxLength,
-  targetIds: spec.locationIds.maxItems,
   sitelinks: {
     max: spec.sitelinks.maxItems,
     text: sitelink.text.maxLength,
@@ -50,17 +57,14 @@ export const GOOGLE_SEARCH_LIMITS = {
 } as const;
 
 /** What a refusal says. Without them (the server action) zod's defaults do. */
-export interface GoogleSearchMessages {
-  finalUrl: string;
+export interface GoogleSearchMessages extends GoogleCampaignMessages {
   headlineRequired: string;
   headlineTooLong: string;
-  headlineDuplicate: string;
   descriptionRequired: string;
   descriptionTooLong: string;
   /** Said for any text over its limit (path, sitelinks, callouts). */
   tooLong: (max: number) => string;
   pathNeedsFirst: string;
-  endBeforeStart: string;
   keywordsRequired: string;
   keywordsTooMany: string;
   keywordsInvalid: (line: number, issue: GoogleKeywordIssue) => string;
@@ -78,32 +82,25 @@ const DESCRIPTION_LIMITS = GOOGLE_SEARCH_LIMITS.descriptions;
 export const SITELINK_LIMITS = GOOGLE_SEARCH_LIMITS.sitelinks;
 const CALLOUT_LIMITS = GOOGLE_SEARCH_LIMITS.callouts;
 
-const httpUrl = (max: number, message?: string) =>
-  z
-    .string()
-    .trim()
-    .max(max, message)
-    .pipe(z.url({ protocol: /^https?$/, error: message }));
+function headline(messages: OptionalMessages) {
+  return limitedText(
+    HEADLINE_LIMITS.length,
+    messages.headlineRequired,
+    messages.headlineTooLong,
+  );
+}
 
-export const googleFinalUrl = (messages: { finalUrl?: string }) =>
-  httpUrl(GOOGLE_SEARCH_LIMITS.finalUrl, messages.finalUrl);
+function description(messages: OptionalMessages) {
+  return limitedText(
+    DESCRIPTION_LIMITS.length,
+    messages.descriptionRequired,
+    messages.descriptionTooLong,
+  );
+}
 
-const headline = (messages: OptionalMessages) =>
-  z
-    .string()
-    .trim()
-    .min(1, messages.headlineRequired)
-    .max(HEADLINE_LIMITS.length, messages.headlineTooLong);
-
-const description = (messages: OptionalMessages) =>
-  z
-    .string()
-    .trim()
-    .min(1, messages.descriptionRequired)
-    .max(DESCRIPTION_LIMITS.length, messages.descriptionTooLong);
-
-const tooLong = (messages: OptionalMessages, max: number) =>
-  messages.tooLong?.(max);
+function tooLong(messages: OptionalMessages, max: number) {
+  return messages.tooLong?.(max);
+}
 
 const sitelinkDescription = (messages: OptionalMessages) =>
   z
@@ -171,13 +168,12 @@ function refineAcrossFields(
   ctx: z.RefinementCtx,
   messages: OptionalMessages,
 ): void {
-  if (value.startDate && value.endDate && value.endDate < value.startDate) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["endDate"],
-      message: messages.endBeforeStart ?? "End date is before the start date",
-    });
-  }
+  refineGoogleCampaign(
+    value,
+    { path: "headlines", texts: value.headlines },
+    ctx,
+    messages,
+  );
   if (value.path2?.trim() && !value.path1?.trim()) {
     ctx.addIssue({
       code: "custom",
@@ -185,13 +181,6 @@ function refineAcrossFields(
       message: messages.pathNeedsFirst ?? "Path 2 needs path 1",
     });
   }
-  forEachDuplicate(value.headlines, (index) =>
-    ctx.addIssue({
-      code: "custom",
-      path: ["headlines", index],
-      message: messages.headlineDuplicate ?? "Headlines must be different",
-    }),
-  );
   forEachDuplicate(
     (value.sitelinks ?? []).map(({ text }) => text),
     (index) =>
@@ -210,44 +199,16 @@ function refineAcrossFields(
   );
 }
 
-/** Calls `report` with the index of each text that repeats an earlier one, ignoring case. */
-export function forEachDuplicate(
-  texts: readonly string[],
-  report: (index: number) => void,
-): void {
-  const seen = new Set<string>();
-  texts.forEach((text, index) => {
-    const key = text.trim().toLowerCase();
-    if (key !== "" && seen.has(key)) report(index);
-    seen.add(key);
-  });
-}
-
-/** Whether `YYYY-MM-DD` is a real day: 2026-02-31 is not. */
-export function isCalendarDate(value: string): boolean {
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
-}
-
 /**
  * Core's Search spec as the server action receives it, so a call that skips
  * the form still meets Core's limits. Google stays the authority on width
  * and policy.
  */
 export function googleSearchSpecSchema(messages: OptionalMessages = {}) {
-  const id = z.string().regex(/^\d{1,20}$/);
-  const date = z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .refine(isCalendarDate);
   return z
     .object({
       type: z.literal("SEARCH"),
-      startDate: date.optional(),
-      endDate: date.optional(),
-      locationIds: z.array(id).max(GOOGLE_SEARCH_LIMITS.targetIds),
-      languageIds: z.array(id).max(GOOGLE_SEARCH_LIMITS.targetIds),
-      finalUrl: googleFinalUrl(messages),
+      ...googleSpecShape(messages),
       keywords: z
         .array(
           z.object({
@@ -286,15 +247,6 @@ export function googleSearchSpecSchema(messages: OptionalMessages = {}) {
     .superRefine((value, ctx) => refineAcrossFields(value, ctx, messages));
 }
 
-/** What every Google campaign's part of the create page holds, as typed. */
-export interface GoogleSharedFormValues {
-  startDate: string;
-  endDate: string;
-  locations: GoogleTarget[];
-  languages: GoogleTarget[];
-  finalUrl: string;
-}
-
 /** What the Search part of the create page holds: text, as typed. */
 export interface GoogleSearchFormValues extends GoogleSharedFormValues {
   keywords: string;
@@ -324,15 +276,22 @@ export const EMPTY_SITELINK: SitelinkFormValues = {
   description2: "",
 };
 
-const isBlankSitelink = (row: SitelinkFormValues): boolean =>
-  Object.values(row).every((text) => text.trim() === "");
+function isBlankSitelink(row: SitelinkFormValues): boolean {
+  return Object.values(row).every((text) => text.trim() === "");
+}
 
-const toSitelink = (row: SitelinkFormValues): GoogleSitelink => ({
-  text: row.text.trim(),
-  finalUrl: row.finalUrl.trim(),
-  ...(row.description1.trim() ? { description1: row.description1.trim() } : {}),
-  ...(row.description2.trim() ? { description2: row.description2.trim() } : {}),
-});
+function toSitelink(row: SitelinkFormValues): GoogleSitelink {
+  return {
+    text: row.text.trim(),
+    finalUrl: row.finalUrl.trim(),
+    ...(row.description1.trim()
+      ? { description1: row.description1.trim() }
+      : {}),
+    ...(row.description2.trim()
+      ? { description2: row.description2.trim() }
+      : {}),
+  };
+}
 
 /** The sitelinks the form would send: the rows with something in them. */
 export function filledSitelinks(
@@ -344,26 +303,6 @@ export function filledSitelinks(
 /** The callouts the form would send: the texts with something in them. */
 export function filledCallouts(texts: readonly string[]): string[] {
   return texts.map((text) => text.trim()).filter(Boolean);
-}
-
-/** The form's fields every Google campaign has, whatever its type. */
-export function googleSharedFormShape(messages: { finalUrl?: string } = {}) {
-  const targets = z
-    .array(
-      z.object({
-        id: z.string(),
-        name: z.string(),
-        detail: z.string().optional(),
-      }),
-    )
-    .max(GOOGLE_SEARCH_LIMITS.targetIds);
-  return {
-    startDate: z.string(),
-    endDate: z.string(),
-    locations: targets,
-    languages: targets,
-    finalUrl: googleFinalUrl(messages),
-  };
 }
 
 /** The same limits for the form's fields, in the reader's words. */
@@ -409,10 +348,7 @@ export function googleSearchFormSchema(messages: OptionalMessages = {}) {
     .superRefine((value, ctx) => refineAcrossFields(value, ctx, messages));
 }
 
-/**
- * The Search spec for what the form holds. No locations or languages is all of
- * them, which is how Core reads empty lists.
- */
+/** The Search spec for what the form holds. */
 export function toGoogleSearchSpec(
   values: GoogleSearchFormValues,
 ): GoogleSearchCampaignSpec {
@@ -422,11 +358,7 @@ export function toGoogleSearchSpec(
   const callouts = filledCallouts(values.callouts);
   return {
     type: "SEARCH",
-    ...(values.startDate ? { startDate: values.startDate } : {}),
-    ...(values.endDate ? { endDate: values.endDate } : {}),
-    locationIds: values.locations.map(({ id }) => id),
-    languageIds: values.languages.map(({ id }) => id),
-    finalUrl: values.finalUrl.trim(),
+    ...toGoogleSharedSpec(values),
     keywords: parseGoogleKeywords(values.keywords).keywords,
     headlines: values.headlines.map((text) => text.trim()),
     descriptions: values.descriptions.map((text) => text.trim()),

@@ -17,13 +17,18 @@ import {
 } from "@/lib/ads/google-display";
 
 import { AdsDisplayImages } from "./ads-display-images";
+import { AdsFinalUrlField } from "./ads-final-url-field";
 import { AdsFormSection } from "./ads-form-section";
-import { AdsFinalUrlField } from "./ads-google-search-fields";
 import { AdsCharCount, AdsCountedInput, AdsTextList } from "./ads-text-list";
 
 type TextFieldName = "businessName" | "longHeadline";
 
-function TextField({ max, name }: { max: number; name: TextFieldName }) {
+interface TextFieldProps {
+  max: number;
+  name: TextFieldName;
+}
+
+function TextField({ max, name }: TextFieldProps) {
   const t = useTranslations("App.Ads.newCampaign.ad");
   const form = useFormContext<GoogleDisplayFormValues>();
   const value = form.watch(name);

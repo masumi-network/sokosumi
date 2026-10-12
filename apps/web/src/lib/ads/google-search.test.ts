@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { GOOGLE_CAMPAIGN_LIMITS } from "./google-campaign";
 import {
   adDisplayUrl,
   GOOGLE_SEARCH_LIMITS,
@@ -97,7 +98,7 @@ describe("googleSearchFormSchema", () => {
     }));
 
   it("takes up to 25 locations and 25 languages, and refuses a 26th", () => {
-    const max = GOOGLE_SEARCH_LIMITS.targetIds;
+    const max = GOOGLE_CAMPAIGN_LIMITS.targetIds;
 
     expect(max).toBe(25);
     expect(

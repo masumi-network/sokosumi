@@ -4,14 +4,22 @@ import { GoogleDisplayImageSchema } from "@sokosumi/core-client/schemas";
 const image = GoogleDisplayImageSchema.properties;
 
 export type DisplayImageRole = GoogleDisplayImage["role"];
-export type DisplayImageMimeType = GoogleDisplayImage["mimeType"];
+type DisplayImageMimeType = GoogleDisplayImage["mimeType"];
 
 /** Where an image is added: the marketing images, or the logos. */
 export type DisplayImageSlot = "images" | "logo";
 
 /** Core's limits for one image, from its API schema. */
+export const DISPLAY_IMAGE_ROLES = image.role.enum;
 export const DISPLAY_IMAGE_MIME_TYPES = image.mimeType.enum;
 export const DISPLAY_IMAGE_MAX_BYTES = image.size.maximum;
+export const DISPLAY_IMAGE_MAX_MB = DISPLAY_IMAGE_MAX_BYTES / 1024 / 1024;
+
+/** The smallest a picture may be, in pixels. */
+export interface MinSize {
+  minWidth: number;
+  minHeight: number;
+}
 
 /**
  * What a Display ad's images must be. Core's schema states these only in
@@ -23,13 +31,30 @@ export const DISPLAY_IMAGE_RULES = {
   square: { ratio: 1, minWidth: 300, minHeight: 300 },
   logo: { ratio: 1, minWidth: 128, minHeight: 128 },
   /** How far from the exact ratio a picture may be, as a share of it. */
-  ratioTolerance: 0.02,
+  ratioTolerance: 0.01,
   /** LANDSCAPE and SQUARE together. */
   maxMarketing: 6,
   maxLogos: 2,
 } as const;
 
-export const DISPLAY_IMAGE_MAX_KB = DISPLAY_IMAGE_MAX_BYTES / 1024;
+/** Which slot holds each role, and how many a slot takes. */
+const SLOT_OF_ROLE: Record<DisplayImageRole, DisplayImageSlot> = {
+  LANDSCAPE: "images",
+  SQUARE: "images",
+  LOGO: "logo",
+};
+const SLOT_MAX: Record<DisplayImageSlot, number> = {
+  images: DISPLAY_IMAGE_RULES.maxMarketing,
+  logo: DISPLAY_IMAGE_RULES.maxLogos,
+};
+
+/** The images that sit in this slot. */
+export function imagesInSlot(
+  images: readonly GoogleDisplayImage[],
+  slot: DisplayImageSlot,
+): GoogleDisplayImage[] {
+  return images.filter(({ role }) => SLOT_OF_ROLE[role] === slot);
+}
 
 const EXTENSION_MIME_TYPES: Record<string, DisplayImageMimeType> = {
   jpg: "image/jpeg",
@@ -38,34 +63,46 @@ const EXTENSION_MIME_TYPES: Record<string, DisplayImageMimeType> = {
   gif: "image/gif",
 };
 
-const isMimeType = (type: string): type is DisplayImageMimeType =>
-  DISPLAY_IMAGE_MIME_TYPES.some((allowed) => allowed === type);
+function isMimeType(type: string): type is DisplayImageMimeType {
+  return DISPLAY_IMAGE_MIME_TYPES.some((allowed) => allowed === type);
+}
 
 /** Why a file cannot be an ad image, found without reading its pixels. */
-export type DisplayImageFileIssue = "type" | "tooLarge";
+type DisplayImageFileIssue = "type" | "tooLarge";
 
-/**
- * The type and size checks, which need no pixels. A file without a type (a
- * Drive file) is read by its extension.
- */
-export function checkDisplayImageFile(file: {
-  name: string;
-  type: string;
-  size: number;
-}):
+type DisplayImageFileCheck =
   | { ok: true; mimeType: DisplayImageMimeType }
-  | { ok: false; reason: DisplayImageFileIssue } {
-  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-  const mimeType = file.type
-    ? isMimeType(file.type)
-      ? file.type
-      : undefined
-    : EXTENSION_MIME_TYPES[extension];
+  | { ok: false; reason: DisplayImageFileIssue };
+
+function checkMimeTypeAndSize(
+  mimeType: DisplayImageMimeType | undefined,
+  size: number,
+): DisplayImageFileCheck {
   if (!mimeType) return { ok: false, reason: "type" };
-  if (file.size > DISPLAY_IMAGE_MAX_BYTES) {
+  if (size > DISPLAY_IMAGE_MAX_BYTES) {
     return { ok: false, reason: "tooLarge" };
   }
   return { ok: true, mimeType };
+}
+
+/** The type and size checks for a file the browser has typed, which need no pixels. */
+export function checkDisplayImageFile(file: {
+  type: string;
+  size: number;
+}): DisplayImageFileCheck {
+  return checkMimeTypeAndSize(
+    isMimeType(file.type) ? file.type : undefined,
+    file.size,
+  );
+}
+
+/** The same checks for a Drive file, which has no type: its extension tells. */
+export function checkDisplayImageFileByName(file: {
+  name: string;
+  size: number;
+}): DisplayImageFileCheck {
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return checkMimeTypeAndSize(EXTENSION_MIME_TYPES[extension], file.size);
 }
 
 /** Why a picture of this size cannot be used where it was added. */
@@ -76,13 +113,16 @@ export type DisplayImageSizeIssue =
   | "logoRatio"
   | "logoTooSmall";
 
-const isNear = (value: number, target: number): boolean =>
-  // The epsilon keeps an exact 2% (1.02 against 1) from failing on rounding.
-  Math.abs(value / target - 1) <= DISPLAY_IMAGE_RULES.ratioTolerance + 1e-9;
+function isNear(value: number, target: number): boolean {
+  // The epsilon keeps an exact 1% (1.01 against 1) from failing on rounding.
+  return (
+    Math.abs(value / target - 1) <= DISPLAY_IMAGE_RULES.ratioTolerance + 1e-9
+  );
+}
 
 /**
- * The role a picture of this size takes: in the images slot a ratio within 2%
- * of 1.91:1 is LANDSCAPE and within 2% of 1:1 is SQUARE; in the logo slot a
+ * The role a picture of this size takes: in the images slot a ratio within 1%
+ * of 1.91:1 is LANDSCAPE and within 1% of 1:1 is SQUARE; in the logo slot a
  * square is a LOGO. Anything else, or anything under the minimum size, is
  * refused with the reason.
  */
@@ -95,8 +135,9 @@ export function imageRoleForSize(
   | { ok: false; reason: DisplayImageSizeIssue } {
   const ratio = width / height;
   const { landscape, square, logo } = DISPLAY_IMAGE_RULES;
-  const big = (min: { minWidth: number; minHeight: number }) =>
-    width >= min.minWidth && height >= min.minHeight;
+  function big(min: MinSize): boolean {
+    return width >= min.minWidth && height >= min.minHeight;
+  }
 
   if (slot === "logo") {
     if (!isNear(ratio, logo.ratio)) return { ok: false, reason: "logoRatio" };
@@ -119,8 +160,9 @@ export function imageRoleForSize(
 
 /** How many images hold each role. */
 export function displayImageCounts(images: readonly GoogleDisplayImage[]) {
-  const count = (role: DisplayImageRole) =>
-    images.filter((candidate) => candidate.role === role).length;
+  function count(role: DisplayImageRole): number {
+    return images.filter((candidate) => candidate.role === role).length;
+  }
   const landscape = count("LANDSCAPE");
   const square = count("SQUARE");
   return {
@@ -147,14 +189,12 @@ export function hasRoomForDisplayImage(
   images: readonly GoogleDisplayImage[],
   role: DisplayImageRole,
 ): boolean {
-  const { marketing, logo } = displayImageCounts(images);
-  return role === "LOGO"
-    ? logo < DISPLAY_IMAGE_RULES.maxLogos
-    : marketing < DISPLAY_IMAGE_RULES.maxMarketing;
+  const slot = SLOT_OF_ROLE[role];
+  return imagesInSlot(images, slot).length < SLOT_MAX[slot];
 }
 
 /** Why an image cannot join the others. */
-export type DisplayImageAddIssue = "duplicate" | "full";
+type DisplayImageAddIssue = "duplicate" | "full";
 
 /** The images with this one added, or why it cannot be. */
 export function addDisplayImage(

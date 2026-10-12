@@ -3,19 +3,27 @@
 import type { DriveFile } from "@sokosumi/core-client";
 import { ImagePlus, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { toast } from "sonner";
 
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
-import { FormField, FormItem, FormMessage } from "@/components/ui/form";
+import {
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
+import type { ImageSize } from "@/hooks/use-remembered-image-size";
 import type { GoogleDisplayFormValues } from "@/lib/ads/google-display";
 import {
   addDisplayImage,
   checkDisplayImageFile,
-  DISPLAY_IMAGE_MAX_KB,
+  checkDisplayImageFileByName,
+  DISPLAY_IMAGE_MAX_MB,
   DISPLAY_IMAGE_MIME_TYPES,
   DISPLAY_IMAGE_RULES,
   type DisplayImageRole,
@@ -24,13 +32,11 @@ import {
   displayImageCounts,
   hasRoomForDisplayImage,
   imageRoleForSize,
+  imagesInSlot,
+  type MinSize,
   missingDisplayImages,
 } from "@/lib/ads/google-display-images";
-import {
-  type ImageSize,
-  readFileImageSize,
-  readImageSize,
-} from "@/lib/ads/image-size.client";
+import { readFileImageSize, readImageSize } from "@/lib/ads/image-size.client";
 import { useSession } from "@/lib/auth/auth.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import {
@@ -38,20 +44,39 @@ import {
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
 
-const SIZE_TEXT = (min: { minWidth: number; minHeight: number }) =>
-  `${min.minWidth} × ${min.minHeight}`;
+function sizeText(min: MinSize): string {
+  return `${min.minWidth} × ${min.minHeight}`;
+}
 
 /** What the refusal texts quote: the rules, not copies of them. */
 const RULE_PARAMS = {
-  landscape: SIZE_TEXT(DISPLAY_IMAGE_RULES.landscape),
-  square: SIZE_TEXT(DISPLAY_IMAGE_RULES.square),
-  logo: SIZE_TEXT(DISPLAY_IMAGE_RULES.logo),
-  maxMb: DISPLAY_IMAGE_MAX_KB / 1024,
+  landscape: sizeText(DISPLAY_IMAGE_RULES.landscape),
+  square: sizeText(DISPLAY_IMAGE_RULES.square),
+  logo: sizeText(DISPLAY_IMAGE_RULES.logo),
+  maxMb: DISPLAY_IMAGE_MAX_MB,
   maxImages: DISPLAY_IMAGE_RULES.maxMarketing,
   maxLogos: DISPLAY_IMAGE_RULES.maxLogos,
 };
 
 type Problem = "unreadable" | "type" | "tooLarge" | "duplicate" | "full";
+
+/** The text a slot says when it is full. */
+const FULL_PROBLEM = { images: "full", logo: "fullLogo" } as const;
+
+interface ImageUploadState {
+  /** A picture is being read or uploaded, in either slot. */
+  uploading: boolean;
+  setUploading: (uploading: boolean) => void;
+}
+
+/**
+ * Shared by both slots and the form around them: only one picture is added at
+ * a time, and the form cannot be submitted until it is in.
+ */
+export const ImageUploadContext = createContext<ImageUploadState>({
+  uploading: false,
+  setUploading: () => undefined,
+});
 
 interface ImageSlotProps {
   slot: DisplayImageSlot;
@@ -70,21 +95,18 @@ function ImageSlot({ slot }: ImageSlotProps) {
     session?.session.activeOrganizationId ?? null,
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const busyRef = useRef(false);
-  const [busy, setBusy] = useState(false);
+  const { uploading, setUploading } = useContext(ImageUploadContext);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [problems, setProblems] = useState<string[]>([]);
 
-  const images = form
-    .watch("images")
-    .filter((image) => (image.role === "LOGO") === (slot === "logo"));
+  const images = imagesInSlot(form.watch("images"), slot);
 
   function refuse(
     reason: Problem | DisplayImageSizeIssue,
     name: string,
     problemsOut: string[],
   ): void {
-    const key = reason === "full" && slot === "logo" ? "fullLogo" : reason;
+    const key = reason === "full" ? FULL_PROBLEM[slot] : reason;
     problemsOut.push(t(`errors.${key}`, { name, ...RULE_PARAMS }));
   }
 
@@ -160,7 +182,7 @@ function ImageSlot({ slot }: ImageSlotProps) {
   }
 
   async function addDriveFile(file: DriveFile, out: string[]): Promise<void> {
-    const checked = checkDisplayImageFile({ ...file, type: "" });
+    const checked = checkDisplayImageFileByName(file);
     if (!checked.ok) {
       refuse(checked.reason, file.name, out);
       return;
@@ -182,15 +204,13 @@ function ImageSlot({ slot }: ImageSlotProps) {
 
   /** One at a time: a second choice while one is being read waits for the next click. */
   async function run(add: (out: string[]) => Promise<void>): Promise<void> {
-    if (busyRef.current) return;
-    busyRef.current = true;
-    setBusy(true);
+    if (uploading) return;
+    setUploading(true);
     const out: string[] = [];
     try {
       await add(out);
     } finally {
-      busyRef.current = false;
-      setBusy(false);
+      setUploading(false);
       setProblems(out);
     }
   }
@@ -229,26 +249,23 @@ function ImageSlot({ slot }: ImageSlotProps) {
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <Button
-          aria-label={t(`slots.${slot}.upload`)}
-          disabled={busy}
-          loading={busy}
+          disabled={uploading}
           onClick={() => fileInputRef.current?.click()}
           size="sm"
           type="button"
           variant="outline"
         >
-          <Upload aria-hidden className="size-4" />
+          <Upload />
           {t("upload")}
         </Button>
         <Button
-          aria-label={t(`slots.${slot}.choose`)}
-          disabled={busy}
+          disabled={uploading}
           onClick={() => setPickerOpen(true)}
           size="sm"
           type="button"
           variant="outline"
         >
-          <ImagePlus aria-hidden className="size-4" />
+          <ImagePlus />
           {t("choose")}
         </Button>
         <input
@@ -267,13 +284,16 @@ function ImageSlot({ slot }: ImageSlotProps) {
           type="file"
         />
       </div>
-      {problems.length > 0 ? (
-        <ul aria-live="polite" className="text-destructive grid gap-1 text-sm">
-          {problems.map((problem) => (
-            <li key={problem}>{problem}</li>
-          ))}
-        </ul>
-      ) : null}
+      {/* Always there, so the first refusal is announced too. */}
+      <div role="status">
+        {problems.length > 0 ? (
+          <ul className="text-destructive grid gap-1 text-sm">
+            {problems.map((problem) => (
+              <li key={problem}>{problem}</li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
       <DriveFilePicker
         onOpenChange={setPickerOpen}
         onSelect={(file) => void run((out) => addDriveFile(file, out))}
@@ -301,29 +321,30 @@ export function AdsDisplayImages() {
         name="images"
         render={() => (
           <FormItem>
-            <fieldset className="grid gap-3">
-              <legend className="text-sm font-medium">{t("label")}</legend>
-              <p className="text-muted-foreground text-sm">
-                {t("help", RULE_PARAMS)}
-              </p>
-              <ImageSlot slot="images" />
-              <p className="text-muted-foreground text-sm" aria-live="polite">
-                {t("counts", {
-                  landscape: counts.landscape,
-                  square: counts.square,
-                  total: counts.marketing,
-                  max: DISPLAY_IMAGE_RULES.maxMarketing,
-                })}
-              </p>
-              {/* The reason a refused submit gives replaces the hint. */}
-              {form.formState.errors.images ? (
-                <FormMessage />
-              ) : missing ? (
-                <p className="text-muted-foreground text-sm">
-                  {t(`missing.${missing}`)}
+            {/* The group carries the refusal: its id, invalid state and description. */}
+            <FormControl>
+              <fieldset className="grid gap-3">
+                <legend className="text-sm font-medium">{t("label")}</legend>
+                <FormDescription>{t("help", RULE_PARAMS)}</FormDescription>
+                <ImageSlot slot="images" />
+                <p className="text-muted-foreground text-sm" aria-live="polite">
+                  {t("counts", {
+                    landscape: counts.landscape,
+                    square: counts.square,
+                    total: counts.marketing,
+                    max: DISPLAY_IMAGE_RULES.maxMarketing,
+                  })}
                 </p>
-              ) : null}
-            </fieldset>
+                {/* The reason a refused submit gives replaces the hint. */}
+                {form.formState.errors.images ? (
+                  <FormMessage />
+                ) : missing ? (
+                  <p className="text-muted-foreground text-sm">
+                    {t(`missing.${missing}`)}
+                  </p>
+                ) : null}
+              </fieldset>
+            </FormControl>
           </FormItem>
         )}
       />

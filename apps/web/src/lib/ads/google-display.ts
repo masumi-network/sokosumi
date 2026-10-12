@@ -4,22 +4,23 @@ import type {
 } from "@sokosumi/core-client";
 import { GoogleDisplayCampaignSpecSchema } from "@sokosumi/core-client/schemas";
 import * as z from "zod";
-
+import {
+  type GoogleCampaignMessages,
+  type GoogleSharedFormValues,
+  googleSharedFormShape,
+  googleSpecShape,
+  limitedText,
+  refineGoogleCampaign,
+  toGoogleSharedSpec,
+} from "./google-campaign";
 import {
   DISPLAY_IMAGE_MAX_BYTES,
   DISPLAY_IMAGE_MIME_TYPES,
+  DISPLAY_IMAGE_ROLES,
   DISPLAY_IMAGE_RULES,
   displayImageCounts,
   missingDisplayImages,
 } from "./google-display-images";
-import {
-  forEachDuplicate,
-  GOOGLE_SEARCH_LIMITS,
-  type GoogleSharedFormValues,
-  googleFinalUrl,
-  googleSharedFormShape,
-  isCalendarDate,
-} from "./google-search";
 
 const spec = GoogleDisplayCampaignSpecSchema.properties;
 
@@ -41,19 +42,19 @@ export const GOOGLE_DISPLAY_LIMITS = {
 } as const;
 
 /** What a refusal says. Without them (the server action) zod's defaults do. */
-export interface GoogleDisplayMessages {
-  finalUrl: string;
+export interface GoogleDisplayMessages extends GoogleCampaignMessages {
   businessNameRequired: string;
   headlineRequired: string;
   headlineTooLong: string;
-  headlineDuplicate: string;
   longHeadlineRequired: string;
   descriptionRequired: string;
   descriptionTooLong: string;
   /** Said for the business name and the long headline over their limits. */
   tooLong: (max: number) => string;
-  endBeforeStart: string;
   imagesMissing: (missing: "both" | "landscape" | "square") => string;
+  imagesTooMany: (max: number) => string;
+  logosTooMany: (max: number) => string;
+  imageRepeated: string;
 }
 
 type OptionalMessages = Partial<GoogleDisplayMessages>;
@@ -61,25 +62,37 @@ type OptionalMessages = Partial<GoogleDisplayMessages>;
 const HEADLINES = GOOGLE_DISPLAY_LIMITS.headlines;
 const DESCRIPTIONS = GOOGLE_DISPLAY_LIMITS.descriptions;
 
-const text = (max: number, required?: string, tooLong?: string) =>
-  z.string().trim().min(1, required).max(max, tooLong);
-
-const businessName = (m: OptionalMessages) =>
-  text(
+function businessName(messages: OptionalMessages) {
+  return limitedText(
     GOOGLE_DISPLAY_LIMITS.businessName,
-    m.businessNameRequired,
-    m.tooLong?.(GOOGLE_DISPLAY_LIMITS.businessName),
+    messages.businessNameRequired,
+    messages.tooLong?.(GOOGLE_DISPLAY_LIMITS.businessName),
   );
-const headline = (m: OptionalMessages) =>
-  text(HEADLINES.length, m.headlineRequired, m.headlineTooLong);
-const longHeadline = (m: OptionalMessages) =>
-  text(
+}
+
+function headline(messages: OptionalMessages) {
+  return limitedText(
+    HEADLINES.length,
+    messages.headlineRequired,
+    messages.headlineTooLong,
+  );
+}
+
+function longHeadline(messages: OptionalMessages) {
+  return limitedText(
     GOOGLE_DISPLAY_LIMITS.longHeadline,
-    m.longHeadlineRequired,
-    m.tooLong?.(GOOGLE_DISPLAY_LIMITS.longHeadline),
+    messages.longHeadlineRequired,
+    messages.tooLong?.(GOOGLE_DISPLAY_LIMITS.longHeadline),
   );
-const description = (m: OptionalMessages) =>
-  text(DESCRIPTIONS.length, m.descriptionRequired, m.descriptionTooLong);
+}
+
+function description(messages: OptionalMessages) {
+  return limitedText(
+    DESCRIPTIONS.length,
+    messages.descriptionRequired,
+    messages.descriptionTooLong,
+  );
+}
 
 const imageSchema = z.object({
   pathname: z.string().min(1),
@@ -87,7 +100,7 @@ const imageSchema = z.object({
   name: z.string().min(1),
   size: z.int().min(1).max(DISPLAY_IMAGE_MAX_BYTES),
   mimeType: z.enum(DISPLAY_IMAGE_MIME_TYPES),
-  role: z.enum(["LANDSCAPE", "SQUARE", "LOGO"]),
+  role: z.enum(DISPLAY_IMAGE_ROLES),
 });
 
 /** Rules that span fields, as Core states them. */
@@ -101,20 +114,7 @@ function refineAcrossFields(
   ctx: z.RefinementCtx,
   messages: OptionalMessages,
 ): void {
-  if (value.startDate && value.endDate && value.endDate < value.startDate) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["endDate"],
-      message: messages.endBeforeStart ?? "End date is before the start date",
-    });
-  }
-  forEachDuplicate(headlines.texts, (index) =>
-    ctx.addIssue({
-      code: "custom",
-      path: [headlines.path, index],
-      message: messages.headlineDuplicate ?? "Headlines must be different",
-    }),
-  );
+  refineGoogleCampaign(value, headlines, ctx, messages);
 
   const { marketing, logo } = displayImageCounts(value.images);
   const issue = (message: string) =>
@@ -127,13 +127,21 @@ function refineAcrossFields(
     );
   }
   if (marketing > DISPLAY_IMAGE_RULES.maxMarketing) {
-    issue(`Use at most ${DISPLAY_IMAGE_RULES.maxMarketing} images`);
+    issue(
+      messages.imagesTooMany?.(DISPLAY_IMAGE_RULES.maxMarketing) ??
+        `Use at most ${DISPLAY_IMAGE_RULES.maxMarketing} images`,
+    );
   }
   if (logo > DISPLAY_IMAGE_RULES.maxLogos) {
-    issue(`Use at most ${DISPLAY_IMAGE_RULES.maxLogos} logos`);
+    issue(
+      messages.logosTooMany?.(DISPLAY_IMAGE_RULES.maxLogos) ??
+        `Use at most ${DISPLAY_IMAGE_RULES.maxLogos} logos`,
+    );
   }
   const paths = value.images.map(({ pathname }) => pathname);
-  if (new Set(paths).size < paths.length) issue("Use each image file once");
+  if (new Set(paths).size < paths.length) {
+    issue(messages.imageRepeated ?? "Use each image file once");
+  }
 }
 
 /**
@@ -142,19 +150,10 @@ function refineAcrossFields(
  * dimensions and policy.
  */
 export function googleDisplaySpecSchema(messages: OptionalMessages = {}) {
-  const id = z.string().regex(/^\d{1,20}$/);
-  const date = z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .refine(isCalendarDate);
   return z
     .object({
       type: z.literal("DISPLAY"),
-      startDate: date.optional(),
-      endDate: date.optional(),
-      locationIds: z.array(id).max(GOOGLE_SEARCH_LIMITS.targetIds),
-      languageIds: z.array(id).max(GOOGLE_SEARCH_LIMITS.targetIds),
-      finalUrl: googleFinalUrl(messages),
+      ...googleSpecShape(messages),
       businessName: businessName(messages),
       headlines: z
         .array(headline(messages))
@@ -217,11 +216,7 @@ export function toGoogleDisplaySpec(
 ): GoogleDisplayCampaignSpec {
   return {
     type: "DISPLAY",
-    ...(values.startDate ? { startDate: values.startDate } : {}),
-    ...(values.endDate ? { endDate: values.endDate } : {}),
-    locationIds: values.locations.map(({ id }) => id),
-    languageIds: values.languages.map(({ id }) => id),
-    finalUrl: values.finalUrl.trim(),
+    ...toGoogleSharedSpec(values),
     businessName: values.businessName.trim(),
     headlines: values.displayHeadlines.map((value) => value.trim()),
     longHeadline: values.longHeadline.trim(),

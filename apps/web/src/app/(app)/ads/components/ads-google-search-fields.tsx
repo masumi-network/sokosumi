@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import type { GoogleSharedFormValues } from "@/lib/ads/google-campaign";
 import {
   appendBroadKeywords,
   GOOGLE_KEYWORD_LIMIT,
@@ -22,11 +23,11 @@ import {
   adDisplayUrl,
   GOOGLE_SEARCH_LIMITS,
   type GoogleSearchFormValues,
-  type GoogleSharedFormValues,
 } from "@/lib/ads/google-search";
 import { cn } from "@/lib/utils";
 
 import { AdsAddMarketKeywords } from "./ads-add-market-keywords";
+import { AdsFinalUrlField } from "./ads-final-url-field";
 import { AdsFormSection } from "./ads-form-section";
 import {
   AdsCalloutsSection,
@@ -151,37 +152,6 @@ function KeywordsSection({
         )}
       />
     </AdsFormSection>
-  );
-}
-
-/** Where the ad leads: the same field for a Search and a Display ad. */
-export function AdsFinalUrlField() {
-  const t = useTranslations("App.Ads.newCampaign.ad");
-  const form = useFormContext<GoogleSharedFormValues>();
-
-  return (
-    <FormField
-      control={form.control}
-      name="finalUrl"
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>{t("finalUrl")}</FormLabel>
-          <FormDescription>{t("finalUrlHelp")}</FormDescription>
-          <FormControl>
-            <Input
-              autoCapitalize="off"
-              autoComplete="off"
-              inputMode="url"
-              placeholder={t("finalUrlPlaceholder")}
-              spellCheck={false}
-              type="url"
-              {...field}
-            />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
   );
 }
 

@@ -3318,13 +3318,9 @@
             },
             "slots": {
               "images": {
-                "upload": "Upload images",
-                "choose": "Choose images from Drive",
                 "files": "Image files"
               },
               "logo": {
-                "upload": "Upload logo",
-                "choose": "Choose logo from Drive",
                 "files": "Logo files"
               }
             },
@@ -3344,11 +3340,13 @@
               "landscapeTooSmall": "{name}: landscape images need at least {landscape} px.",
               "squareTooSmall": "{name}: square images need at least {square} px.",
               "logoRatio": "{name}: logos must be square (1:1).",
-              "logoTooSmall": "{name}: logos need at least {logo} px."
+              "logoTooSmall": "{name}: logos need at least {logo} px.",
+              "repeated": "Use each image file once."
             }
           }
         },
         "submit": "Create campaign",
+        "uploadingImages": "Uploading images…",
         "success": "Campaign created (paused)",
         "errors": {
           "nameRequired": "Enter a name.",
