@@ -29,6 +29,7 @@ const {
   notificationFindManyMock,
   notificationUpdateManyMock,
   userFindUniqueMock,
+  transactionState,
 } = vi.hoisted(() => ({
   transactionCommitMock: vi.fn(),
   lockCalendarWorkspaceMembershipMock: vi.fn(),
@@ -42,6 +43,10 @@ const {
   notificationFindManyMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
+  transactionState: {
+    open: false,
+    sendEmailWhileOpen: false,
+  },
 }));
 
 vi.mock("@/helpers/calendar-membership-fence", () => ({
@@ -76,9 +81,24 @@ vi.mock("@/lib/db/prisma", () => {
     default: {
       ...client,
       $transaction: async (fn: (tx: typeof client) => unknown) => {
-        const result = await fn(client);
-        await transactionCommitMock();
-        return result;
+        const started = Date.now();
+        transactionState.open = true;
+        try {
+          const result = await fn(client);
+          const elapsed = Date.now() - started;
+          if (elapsed > 5_000) {
+            throw Object.assign(
+              new Error(
+                `Transaction API error: A commit cannot be executed on an expired transaction. The timeout for this transaction was 5000 ms, however ${elapsed} ms passed since the start of the transaction. Consider increasing the interactive transaction timeout or doing less work in the transaction.`,
+              ),
+              { name: "PrismaClientKnownRequestError" },
+            );
+          }
+          await transactionCommitMock();
+          return result;
+        } finally {
+          transactionState.open = false;
+        }
       },
     },
   };
@@ -355,12 +375,56 @@ describe("dispatchNotificationEmail", () => {
       name: "Grace",
     });
     hasAppInFrontMock.mockResolvedValue(false);
-    sendEmailMock.mockResolvedValue({ id: "email_1" });
+    sendEmailMock.mockImplementation(async () => {
+      if (transactionState.open) {
+        transactionState.sendEmailWhileOpen = true;
+      }
+      return { id: "email_1" };
+    });
     cancelEmailMock.mockResolvedValue(undefined);
+    transactionState.open = false;
+    transactionState.sendEmailWhileOpen = false;
   });
 
   afterEach(() => {
     restoreTimers();
+  });
+
+  /**
+   * SOKOSUMI-CORE-4C: a workspace-scoped Task.completed email called Resend
+   * inside prisma.$transaction (default 5s). Slow Resend expired the txn
+   * on commit. The membership fence still serializes the DB checks/writes;
+   * the HTTP call must not hold that interactive transaction.
+   */
+  it("sends a workspace-scoped task email when Resend takes longer than the interactive transaction timeout", async () => {
+    sendEmailMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          if (transactionState.open) {
+            transactionState.sendEmailWhileOpen = true;
+          }
+          setTimeout(() => resolve({ id: "email_1" }), 5_249);
+        }),
+    );
+
+    await dispatch(
+      finished({
+        workspaceId: "workspace_1",
+        messageKey: TASK_COMPLETED_MESSAGE_KEY,
+      }),
+    );
+
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+    expect(transactionState.sendEmailWhileOpen).toBe(false);
+    expect(notificationUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: "notification_2", isRead: false },
+      data: { emailId: "email_1", emailScheduledAt: null },
+    });
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(lockCalendarWorkspaceMembershipMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "workspace_1",
+    );
   });
 
   it("emails successful closure even when the failure email remains unread", async () => {
