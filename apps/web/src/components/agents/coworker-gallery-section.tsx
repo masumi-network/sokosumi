@@ -588,7 +588,7 @@ function CoworkerGallerySectionInner({
           ) : null}
           <h2 className={GALLERY_HERO_HEADLINE_CLASS}>{t("heroHeadline")}</h2>
           {/* Brand gradient ring + soft glow; intensifies on focus. */}
-          <div className="from-primary-tertiary to-chart-1-quinary focus-within:from-primary focus-within:to-chart-1 shadow-primary-quaternary focus-within:shadow-primary-tertiary relative w-full max-w-xl rounded-full bg-gradient-to-r p-0.5 shadow-lg transition-all duration-300 focus-within:shadow-xl">
+          <div className="from-primary-tertiary to-chart-1-quinary focus-within:from-primary focus-within:to-chart-1 shadow-primary-quaternary focus-within:shadow-primary-tertiary relative w-full max-w-xl rounded-full bg-gradient-to-r p-0.5 shadow-md transition-[--tw-gradient-from,--tw-gradient-to,box-shadow] duration-300 focus-within:shadow-lg">
             <div className="relative rounded-full">
               <Search
                 aria-hidden

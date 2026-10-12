@@ -42,7 +42,7 @@ export async function ChatLandingMobile({
   const stats = buildActivityStats(summary, isOrganizationWorkspace, t);
 
   return (
-    <section className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch pt-4 pb-3 text-center">
+    <section className="flex size-full min-h-0 min-w-0 flex-1 flex-col items-stretch pt-4 pb-3 text-center">
       <div className="app-scrollbar flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch overflow-y-auto py-4">
         <div className="my-auto flex w-full min-w-0 flex-col items-stretch">
           <h1 className="text-foreground shrink-0 px-4 text-2xl font-light text-balance tracking-tight">

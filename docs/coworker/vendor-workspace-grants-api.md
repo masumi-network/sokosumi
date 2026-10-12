@@ -120,6 +120,51 @@ user-scoped act-as-user. Handlers pick a shared helper — do not branch on
 See `apps/core/AGENTS.md` (Handler actor menu) and
 `apps/core/src/helpers/coworker-user-context-binding.ts`.
 
+Without `X-Context-Organization-Id`, the context is the user's personal
+workspace. A user who has only organization workspaces has none, so
+user-scoped routes answer **400** `context_organization_required`: send the
+organization header.
+
+### User routes (`/v1/users/{id}/*`)
+
+Coworkers (with `X-Context-User-Id`) may call only these `GET` routes, for
+their context user (`me` or the matching id). Every other method and subpath
+answers **403** (`agentUserRouteAllowlistMiddleware`).
+
+| Route | Returns |
+| --- | --- |
+| `GET /v1/users/{id}` | Profile |
+| `GET /v1/users/{id}/credits` | Credits for the context workspace |
+| `GET /v1/users/{id}/organizations` | The user's organizations whose workspace the vendor may act in |
+| `GET /v1/users/{id}/organizations/{organizationId}/credits` | Credits in one of those organizations; any other answers **403** |
+| `GET /v1/users/{id}/workspaces` | The user's workspaces the vendor may act in (see below) |
+| `GET /v1/users/{id}/workspaces/preferred` | The user's preferred workspace, when the vendor may act in it (see below) |
+
+"May act in" is the binding rule above: never on a **DENIED** or **REVOKED**
+grant, always on **GRANTED**, otherwise when a baseline task exists in that
+workspace. Binding to one workspace does not reveal the user's other
+organizations.
+
+**Finding the organization to send.** `GET /v1/users/{id}/workspaces` is how a
+coworker learns which workspace to act in, so it needs no organization header
+and skips the context binding: a user with no personal workspace still gets a
+list. It shows only the workspaces the vendor may act in, marks none preferred
+when the preferred one is hidden, and reports `pendingInvitationCount` as 0.
+With none to show it answers **403**. Pick a workspace from the list and send
+its `organizationId` as `X-Context-Organization-Id` on later calls (none for
+the personal workspace).
+
+**The workspace to charge.** `GET /v1/users/{id}/workspaces/preferred` returns
+the one workspace a new session of the user opens, under the same rules as the
+list: no organization header, no context binding. When the vendor may not act in
+it, the answer is **404** with `kind: "no_preferred_workspace"`; list the
+workspaces to pick another. With no workspace to act in at all it answers
+**403**.
+
+The same list, unfiltered, is available to the user's own OAuth access token
+with `sokosumi:api` (`GET /v1/users/me/workspaces`); see
+[`../oauth-clients.md`](../oauth-clients.md).
+
 **Grant admin routes** (`/v1/organizations/{id}/vendor-grants/*`,
 `/v1/users/{id}/vendor-grants/*`) return **403** for coworker auth (bare or
 with context headers). Session users or Soko Bot with workspace

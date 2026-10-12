@@ -58,7 +58,9 @@ describe("signed-out page", () => {
         for (let attempt = 0; attempt < 2; attempt++) {
           await act(async () => button.click());
           expect(action).toHaveBeenCalledTimes(attempt + 1);
-          expect(button.disabled).toBe(true);
+          // The running button keeps focus: aria-disabled, not disabled.
+          expect(button.disabled).toBe(false);
+          expect(button.getAttribute("aria-disabled")).toBe("true");
           expect(button.getAttribute("aria-busy")).toBe("true");
           expect(button.textContent).toBe(label);
           expect(button.querySelector("[aria-hidden='true']")).not.toBeNull();

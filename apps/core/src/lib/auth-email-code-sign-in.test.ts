@@ -12,18 +12,16 @@ import { emailCodeSignIn } from "./auth-email-code-sign-in.js";
 
 type Row = Record<string, unknown>;
 
-function userRow(
-  id: string,
-  email: string,
-  emailVerified: boolean,
-  termsAccepted = true,
-): Row {
+/** An address the stand-in after hook refuses once its code is accepted. */
+const REFUSED_EMAIL = "refused@example.com";
+
+function userRow(id: string, email: string, emailVerified: boolean): Row {
   return {
     id,
     email,
     name: "",
     emailVerified,
-    termsAccepted,
+    termsAccepted: true,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -113,11 +111,11 @@ async function createTestAuth(
       },
     ],
     hooks: {
-      // Core's terms check, which runs before plugin after hooks.
+      // Stands in for any after hook that refuses a sign-in the code already
+      // accepted; global after hooks run before plugin after hooks.
       after: createAuthMiddleware(async (ctx) => {
-        const user = ctx.context.newSession?.user;
-        if (user && !user.termsAccepted) {
-          throw new APIError("BAD_REQUEST", { code: "TERMS_NOT_ACCEPTED" });
+        if (ctx.context.newSession?.user.email === REFUSED_EMAIL) {
+          throw new APIError("FORBIDDEN", { code: "SIGN_IN_REFUSED" });
         }
       }),
     },
@@ -424,16 +422,16 @@ describe("code sign-in to an account whose address is unproven", () => {
 describe("code sign-in refused after the code was accepted", () => {
   it("stays refused, without the removal notice", async () => {
     const auth = await createTestAuth({
-      user: [userRow("user-1", "ada@example.com", false, false)],
+      user: [userRow("user-1", REFUSED_EMAIL, false)],
       account: [passwordAccountRow("user-1", "correct horse battery")],
     });
-    const otp = await auth.sendCode("ada@example.com");
+    const otp = await auth.sendCode(REFUSED_EMAIL);
 
-    const signIn = await auth.signInWithCode({ email: "ada@example.com", otp });
+    const signIn = await auth.signInWithCode({ email: REFUSED_EMAIL, otp });
 
-    expect(signIn.status).toBe(400);
+    expect(signIn.status).toBe(403);
     const body = await signIn.json();
-    expect(body).toMatchObject({ code: "TERMS_NOT_ACCEPTED" });
+    expect(body).toMatchObject({ code: "SIGN_IN_REFUSED" });
     expect(body).not.toHaveProperty(EMAIL_CODE_SIGN_IN_METHODS_REMOVED);
   });
 });

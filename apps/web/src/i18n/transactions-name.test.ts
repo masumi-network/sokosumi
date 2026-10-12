@@ -5,7 +5,7 @@ import en from "../../messages/en.json";
 import es from "../../messages/es.json";
 
 const NAMES = {
-  en: "Credit History",
+  en: "Credit history",
   de: "Kreditverlauf",
   es: "Historial de créditos",
 };

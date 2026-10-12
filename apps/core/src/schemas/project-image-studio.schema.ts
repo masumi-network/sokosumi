@@ -68,6 +68,9 @@ export const imageStudioSettingsSchema = z
 export const imageStudioAssetSchema = z
   .object({
     id: z.string().uuid(),
+    projectId: z.string().uuid(),
+    /** The owning project's name, so a workspace-wide gallery can label it. */
+    projectName: z.string(),
     rootId: z.string().uuid(),
     parentId: z.string().uuid().nullable(),
     version: z.number().int().min(1),
@@ -96,6 +99,7 @@ export const imageStudioAssetSchema = z
 export const imageStudioJobSchema = z
   .object({
     id: z.string().uuid(),
+    projectId: z.string().uuid(),
     status: z.enum(IMAGE_JOB_STATUSES),
     kind: z.enum(["GENERATE", "EDIT"]),
     model: z.string(),
@@ -303,6 +307,14 @@ export const imageStudioListSchema = z
       .nullable(),
   })
   .openapi("ProjectImageStudioState");
+
+/**
+ * The studio across every project in the workspace. The project state without
+ * `sessions`: conversations are bound to one project and mean nothing here.
+ */
+export const imageStudioWorkspaceStateSchema = imageStudioListSchema
+  .omit({ sessions: true })
+  .openapi("ImageStudioWorkspaceState");
 
 export function assetContentPath(projectId: string, assetId: string): string {
   return `/v1/projects/${projectId}/image-studio/assets/${assetId}/content`;

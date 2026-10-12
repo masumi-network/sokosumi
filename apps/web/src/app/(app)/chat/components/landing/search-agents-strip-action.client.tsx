@@ -20,7 +20,7 @@ const SEARCH_AGENTS_STRIP_SCALE = {
     featuredInitial: "text-xl",
     otherInitial: "text-xs",
     name: "text-xs",
-    title: "text-[0.625rem]",
+    title: "text-2xs",
   },
   default: {
     featured: "size-28 xl:size-32",

@@ -147,6 +147,23 @@ struct RoomTimelineTests {
     #expect(timeline.cursor == nil)
   }
 
+  /// M6: every older page inserted above the reader costs the transcript a frame, so a page brings 100 rows (the
+  /// latest page's size) and the reader meets a third as many insertions as with 30.
+  @Test func olderPageAsksForAHundredRows() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [row("b", content: "Newer")], nextCursor: "older")),
+      (200, testMessagesPageBody(messages: [row("a", content: "Earlier", date: "2025-12-31T23:59:00.000Z")], nextCursor: nil))
+    ])
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId)
+    try await timeline.loadPage(.initial, client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    try await timeline.loadPage(.older, client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    let path = try #require(transport.requests[1].request.path)
+    let query = try #require(URLComponents(string: path)?.queryItems)
+    #expect(query.first { $0.name == "cursor" }?.value == "older")
+    #expect(query.first { $0.name == "limit" }?.value == "100")
+  }
+
   @Test func failedOlderPageRetainsMessagesAndRetryCursor() async throws {
     let transport = TestTransport([
       (200, testMessagesPageBody(messages: [row("b", content: "Retained")], nextCursor: "older")),

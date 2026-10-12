@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { err, ok, type Result } from "neverthrow";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -302,10 +301,8 @@ export function PendingInvitesQueue({
                   void handleAcceptItem(item);
                 }}
                 data-testid={`workspace-gate-accept-${item.kind}-${key}`}
+                loading={itemBusy}
               >
-                {itemBusy ? (
-                  <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                ) : null}
                 {item.kind === "join" ? t("join") : t("accept")}
               </Button>
             </li>
@@ -320,10 +317,8 @@ export function PendingInvitesQueue({
             void handleRetryActivation();
           }}
           data-testid="workspace-gate-retry-activation"
+          loading={busyKey === "retry-activation"}
         >
-          {busyKey === "retry-activation" ? (
-            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {t("activateRetry")}
         </Button>
       ) : null}
@@ -337,10 +332,8 @@ export function PendingInvitesQueue({
                 void handleAcceptBatch("all");
               }}
               data-testid="workspace-gate-accept-all"
+              loading={busyKey === "accept-all"}
             >
-              {busyKey === "accept-all" ? (
-                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-              ) : null}
               {t("acceptAll")}
             </Button>
             <Button
@@ -351,10 +344,8 @@ export function PendingInvitesQueue({
                 void handleAcceptBatch("selected");
               }}
               data-testid="workspace-gate-accept-selected"
+              loading={busyKey === "accept-selected"}
             >
-              {busyKey === "accept-selected" ? (
-                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-              ) : null}
               {t("acceptSelected")}
             </Button>
           </>
@@ -368,10 +359,8 @@ export function PendingInvitesQueue({
             void handleRejectAll();
           }}
           data-testid="workspace-gate-reject-all"
+          loading={busyKey === "reject-all"}
         >
-          {busyKey === "reject-all" ? (
-            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {t("rejectAll")}
         </Button>
       </div>

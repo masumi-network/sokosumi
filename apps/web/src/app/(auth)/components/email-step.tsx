@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
@@ -44,29 +43,32 @@ interface EmailStepAccount {
   captchaPass: string;
 }
 
-/** A notice that turns Continue into a link to the other page. */
+/**
+ * Log in's detour: an address without an account turns Continue into a link
+ * to Register.
+ */
 interface EmailStepNoticeDetour {
-  /** Sign-up stops at an address that has an account, sign-in at one without. */
-  when: "exists" | "missing";
   title: string;
   description: string;
   label: string;
   href: string;
   /**
-   * Work that takes the person there, e.g. emailing a code first. The link
-   * spins until it has navigated. A click for another tab just opens `href`.
+   * Takes the person there, e.g. emailing a code first. The link loads until
+   * it has navigated. A click for another tab just opens `href`.
    */
-  follow?: (
+  follow: (
     email: string,
     signal: AbortSignal,
     account: EmailStepAccount,
   ) => Promise<void>;
 }
 
-/** Continue itself takes the person to the other page, without a notice. */
+/**
+ * Register's detour: Continue on an address with an account takes the person
+ * to Log in, without a notice.
+ */
 interface EmailStepHandOver {
-  when: "exists" | "missing";
-  /** Navigates away; Continue spins until the page has gone. */
+  /** Navigates away; Continue loads until the page has gone. */
   handOver: (
     email: string,
     signal: AbortSignal,
@@ -74,7 +76,7 @@ interface EmailStepHandOver {
   ) => Promise<void>;
 }
 
-/** Where the step sends a person instead of continuing, and when. */
+/** Where the step sends a person on the wrong page instead of continuing. */
 type EmailStepDetour = EmailStepNoticeDetour | EmailStepHandOver;
 
 interface EmailStepProps {
@@ -92,7 +94,7 @@ interface EmailStepProps {
   onFormStart: () => void;
   /** The address as typed, for links outside the step that carry it. */
   onEmailChange?: ((email: string) => void) | undefined;
-  /** Runs while the button still spins, e.g. to email a code. */
+  /** Runs while the button still loads, e.g. to email a code. */
   onContinue: (
     email: string,
     signal: AbortSignal,
@@ -140,7 +142,7 @@ export function EmailStep({
     "preparing" | "navigating" | null
   >(null);
   const isFollowing = followingState !== null;
-  // Set at once, so a second click before the spinner renders is ignored.
+  // Set at once, so a second click before the loading state renders is ignored.
   const isFollowingRef = useRef(false);
   const detouredSince = useRef(0);
   // What Core said about the address the notice is about.
@@ -205,7 +207,7 @@ export function EmailStep({
 
   async function followDetour(
     email: string,
-    follow: NonNullable<EmailStepNoticeDetour["follow"]>,
+    follow: EmailStepNoticeDetour["follow"],
     account: EmailStepAccount,
   ) {
     const controller = new AbortController();
@@ -214,7 +216,7 @@ export function EmailStep({
     changeFollowing("preparing");
     await follow(email, controller.signal, account);
     if (pending.current !== controller) return;
-    // Done, the page is leaving; keep spinning until it has.
+    // Done, the page is leaving; keep loading until it has.
     if (!controller.signal.aborted) {
       if (mounted.current) changeFollowing("navigating");
       return;
@@ -265,11 +267,15 @@ export function EmailStep({
           hasPassword: result.data.hasPassword,
           captchaPass: result.data.captchaPass,
         };
-        if (result.data.exists === (detour.when === "exists")) {
+        // Register stops at an address that has an account, Log in at one
+        // without.
+        const isWrongPage =
+          "handOver" in detour ? result.data.exists : !result.data.exists;
+        if (isWrongPage) {
           if ("handOver" in detour) {
             await detour.handOver(email, controller.signal, account);
             if (!isCurrent()) return;
-            // The page is leaving; keep spinning until it has.
+            // The page is leaving; keep loading until it has.
             handedOver = true;
             isFollowingRef.current = true;
             changeFollowing("navigating");
@@ -342,13 +348,12 @@ export function EmailStep({
           {captcha}
           {/* Both controls share one cell. The submit button stays underneath
               and the link fades in over it, so the fill never dips. The
-              submit button is positioned (for its spinner), so the link must
-              be too, or it would paint below. */}
+              submit button is positioned while it loads (for its bar), so the
+              link must be too, or it would paint below. */}
           <div className="grid">
             <SubmitButton
-              // A hand-over has no link to spin; Continue does until it leaves.
+              // A hand-over has no link to load; Continue does until it leaves.
               isSubmitting={isSubmitting || (isFollowing && !notice)}
-              spinnerPosition="start"
               label={t("continueWithEmail")}
               className="col-start-1 row-start-1 w-full"
               inert={isDetoured}
@@ -356,7 +361,7 @@ export function EmailStep({
             {lastUsedLabel && !isDetoured ? (
               <span
                 aria-hidden="true"
-                className="bg-background text-foreground border-border pointer-events-none relative z-10 col-start-1 row-start-1 mr-2 self-center justify-self-end rounded-full border px-2 py-0.5 text-[0.625rem] font-medium"
+                className="bg-background text-foreground border-border pointer-events-none relative z-10 col-start-1 row-start-1 mr-2 self-center justify-self-end rounded-full border px-2 py-0.5 text-2xs font-medium"
               >
                 {lastUsedLabel}
               </span>
@@ -365,8 +370,9 @@ export function EmailStep({
               <Button
                 asChild
                 variant="primary"
+                loading={isFollowing}
                 className={cn(
-                  "relative col-start-1 row-start-1 w-full transition-[opacity,color,background-color,border-color,box-shadow,transform] motion-reduce:transition-none",
+                  "relative col-start-1 row-start-1 w-full transition-[opacity,color,background-color,border-color,transform] motion-reduce:transition-none",
                   !isDetoured && "opacity-0",
                 )}
               >
@@ -375,8 +381,6 @@ export function EmailStep({
                   href={notice.href}
                   inert={!isDetoured || disabled}
                   aria-describedby={isDetoured ? noticeId : undefined}
-                  aria-busy={isFollowing || undefined}
-                  aria-disabled={isFollowing || undefined}
                   onAuxClick={() => takeAuthEmailHint()}
                   onClick={(event) => {
                     const shownFor = performance.now() - detouredSince.current;
@@ -386,12 +390,7 @@ export function EmailStep({
                     }
                     const email = emailLocked ? "" : form.getValues("email");
                     const account = detourAccount.current;
-                    if (
-                      notice.follow &&
-                      email &&
-                      account &&
-                      isSameTabClick(event)
-                    ) {
+                    if (email && account && isSameTabClick(event)) {
                       event.preventDefault();
                       void followDetour(email, notice.follow, account);
                       return;
@@ -403,12 +402,6 @@ export function EmailStep({
                     }
                   }}
                 >
-                  {isFollowing ? (
-                    <Loader2
-                      aria-hidden="true"
-                      className="absolute top-1/2 left-4 size-4 -translate-y-1/2 animate-spin motion-reduce:animate-pulse"
-                    />
-                  ) : null}
                   {notice.label}
                 </Link>
               </Button>

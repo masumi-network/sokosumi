@@ -193,11 +193,13 @@ describe("DisconnectModal", () => {
       .setup()
       .click(screen.getByRole("button", { name: "confirm" }));
 
-    // Without this the spinner clears in silence and the viewer cannot tell
+    // Without this the loading bar clears in silence and the viewer cannot tell
     // whether the account is still connected.
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalledWith("error");
     });
-    expect(screen.getByRole("button", { name: "confirm" })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "confirm" })).not.toHaveAttribute(
+      "aria-busy",
+    );
   });
 });

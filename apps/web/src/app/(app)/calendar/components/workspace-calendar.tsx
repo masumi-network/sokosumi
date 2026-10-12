@@ -8,6 +8,8 @@ import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
 import {
+  SocialPostStatus,
+  type SocialPostStatus as SocialPostStatusValue,
   TaskStatus,
   type TaskStatus as TaskStatusValue,
   type WorkspaceCalendarEntry,
@@ -111,9 +113,20 @@ type CalendarView = (typeof CALENDAR_VIEWS)[number];
 // already shows what is coming up, so its calendar has no agenda list.
 const SOCIAL_CALENDAR_VIEWS = ["month", "week"] as const;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
+const SOCIAL_POST_STATUSES = Object.values(SocialPostStatus).filter(
+  (status) => status !== SocialPostStatus.DRAFT,
+);
 
 function isCalendarStatus(value: string | null): value is TaskStatusValue {
   return value !== null && CALENDAR_STATUSES.some((status) => status === value);
+}
+
+function isSocialPostStatus(
+  value: string | null,
+): value is Exclude<SocialPostStatusValue, "DRAFT"> {
+  return (
+    value !== null && SOCIAL_POST_STATUSES.some((status) => status === value)
+  );
 }
 
 export interface CalendarCoworker {
@@ -191,6 +204,10 @@ const calendarParsers = {
   scope: parseAsStringLiteral(["owned", "workspace"]).withDefault("workspace"),
   socialOnly: parseAsBoolean.withDefault(false),
   status: parseAsStringEnum<TaskStatusValue>(CALENDAR_STATUSES),
+  postStatus:
+    parseAsStringEnum<Exclude<SocialPostStatusValue, "DRAFT">>(
+      SOCIAL_POST_STATUSES,
+    ),
   timezone: parseAsString,
   view: parseAsStringLiteral(CALENDAR_VIEWS),
 };
@@ -245,6 +262,26 @@ function getRangeLabel(
   }
 
   return formatDate(date, { month: "long", year: "numeric" });
+}
+
+function calendarTodayKey(timeZone: string): string {
+  return Temporal.Now.plainDateISO(timeZone).toString();
+}
+
+function isShowingToday(
+  date: Date,
+  view: CalendarView,
+  timeZone: string,
+): boolean {
+  const today = calendarTodayKey(timeZone);
+  if (view === "week") {
+    return (
+      today >= format(startOfWeek(date), "yyyy-MM-dd") &&
+      today <= format(endOfWeek(date), "yyyy-MM-dd")
+    );
+  }
+
+  return format(date, "yyyy-MM") === today.slice(0, 7);
 }
 
 /** A moved Run is planned at a time other than the rule's. */
@@ -692,11 +729,14 @@ function CalendarView({
             const start = eventInfo.event.start;
             if (item.kind === "socialPost")
               return (
-                <SocialPostCalendarEvent
-                  item={item}
-                  timeZone={timeZone}
-                  variant={socialPostVariant}
-                />
+                <div className="w-full max-w-full min-w-0 overflow-hidden">
+                  <SocialPostCalendarEvent
+                    item={item}
+                    showThumb={socialOnly && view === "week"}
+                    timeZone={timeZone}
+                    variant={socialPostVariant}
+                  />
+                </div>
               );
             return (
               <CalendarEvent
@@ -738,6 +778,7 @@ export function WorkspaceCalendar({
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
+  const tPostStatus = useTranslations("App.Projects.SocialPosts.status");
   const formatDate = useFormatter().dateTime;
   const router = useRouter();
   const { handleOpenWithDefaults } = useCreateTaskModal();
@@ -886,6 +927,7 @@ export function WorkspaceCalendar({
           state.assigneeId === null &&
           state.assigneeUserId === null &&
           state.status === null &&
+          (state.postStatus === null || item.status === state.postStatus) &&
           (selectedSourceId === null || item.sourceId === selectedSourceId)
         );
       return (
@@ -923,6 +965,10 @@ export function WorkspaceCalendar({
 
     const nextDate = getNavigatedDate(direction);
     void setState({ date: format(nextDate, "yyyy-MM-dd") }, { shallow: false });
+  }
+
+  function handleToday() {
+    void setState({ date: calendarTodayKey(timeZone) }, { shallow: false });
   }
 
   function handleViewChange(view: CalendarView) {
@@ -1182,8 +1228,33 @@ export function WorkspaceCalendar({
         ]
       : []),
     // A coworker, human or task status chosen while Social-only is on would
-    // empty the calendar: a Social post has none of the three.
+    // empty the calendar: a Social post has none of the three. Posts have
+    // their own status filter instead.
     ...(socialOnly ? [] : runFilterSections()),
+    ...(socialOnly
+      ? [
+          {
+            id: "postStatus",
+            label: tFilters("statusLabel"),
+            icon: CircleDashed,
+            value: state.postStatus,
+            allLabel: tFilters("all"),
+            options: SOCIAL_POST_STATUSES.map((status) => ({
+              value: status,
+              label: tPostStatus(status),
+            })),
+            onChange: (postStatus: string | null) =>
+              void setState(
+                {
+                  postStatus: isSocialPostStatus(postStatus)
+                    ? postStatus
+                    : null,
+                },
+                { shallow: false },
+              ),
+          },
+        ]
+      : []),
     {
       id: "timezone",
       label: t("timezone.label"),
@@ -1247,6 +1318,14 @@ export function WorkspaceCalendar({
               onClick={() => handleNavigate(1)}
             >
               <ChevronRight aria-hidden />
+            </Button>
+            <Button
+              disabled={isShowingToday(date, view, timeZone)}
+              type="button"
+              variant="outline"
+              onClick={handleToday}
+            >
+              {t("today")}
             </Button>
           </div>
         ) : null}
@@ -1314,6 +1393,7 @@ export function WorkspaceCalendar({
                     assigneeId: null,
                     assigneeUserId: null,
                     status: null,
+                    postStatus: state.socialOnly ? null : state.postStatus,
                   },
                   { shallow: false },
                 )
@@ -1348,6 +1428,7 @@ export function WorkspaceCalendar({
                   (state.assigneeId !== null ||
                     state.assigneeUserId !== null ||
                     state.status !== null)) ||
+                (socialOnly && state.postStatus !== null) ||
                 selectedSourceId !== null
               }
             />
@@ -1376,7 +1457,9 @@ export function WorkspaceCalendar({
           onDateClick={handleDateClick}
           runHandlers={runHandlers}
           socialOnly={socialOnly}
-          socialPostVariant={socialPostsOnly ? "preview" : "compact"}
+          socialPostVariant={
+            socialPostsOnly && view !== "week" ? "preview" : "compact"
+          }
           sources={sources}
           timeZone={timeZone}
           view={view}

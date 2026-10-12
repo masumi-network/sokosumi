@@ -12,6 +12,7 @@ import { matchedRouteTemplate } from "@/lib/route-template";
 import {
   type ErrorResponse,
   getErrorName,
+  type HTTPExceptionMetadata,
   shouldReportHttpException,
 } from "./error.js";
 
@@ -133,11 +134,7 @@ export const errorHandler: ErrorHandler = (error, c) => {
 
     const cause =
       typeof error.cause === "object" && error.cause !== null
-        ? (error.cause as {
-            extensions?: Record<string, unknown>;
-            kind?: string;
-            retryAfterSeconds?: number;
-          })
+        ? (error.cause as HTTPExceptionMetadata)
         : undefined;
 
     const extensions = mergeHttpExceptionExtensions(cause?.extensions);
@@ -169,11 +166,12 @@ export const errorHandler: ErrorHandler = (error, c) => {
       meta,
     };
 
-    return c.json(
-      errorResponse,
-      status,
-      isThrottled ? { "Retry-After": String(retryAfterSeconds) } : undefined,
-    );
+    return c.json(errorResponse, status, {
+      ...(isThrottled ? { "Retry-After": String(retryAfterSeconds) } : {}),
+      ...(typeof cause?.wwwAuthenticate === "string"
+        ? { "WWW-Authenticate": cause.wwwAuthenticate }
+        : {}),
+    });
   }
 
   // Better Auth throws plain APIError (not HTTPException). A rejected

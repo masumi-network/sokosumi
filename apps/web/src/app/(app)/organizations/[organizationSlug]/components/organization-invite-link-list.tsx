@@ -6,7 +6,7 @@ import {
   evaluateInviteLinkStatus,
   type InviteLinkPresentStatus,
 } from "@sokosumi/utils";
-import { Check, Copy, Loader2 } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -244,16 +244,13 @@ function InviteLinkRow({
                       {t("revokeDialog.cancel")}
                     </AlertDialogCancel>
                     <AlertDialogAction
-                      disabled={revoking}
+                      loading={revoking}
                       className={buttonVariants({ variant: "destructive" })}
                       onClick={(event) => {
                         event.preventDefault();
                         void handleConfirmRevoke();
                       }}
                     >
-                      {revoking ? (
-                        <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                      ) : null}
                       {t("revokeDialog.confirm")}
                     </AlertDialogAction>
                   </AlertDialogFooter>

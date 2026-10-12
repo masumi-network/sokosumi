@@ -127,7 +127,7 @@ export function FileChip(props: FileChipProps) {
   const [isDocumentViewerOpen, setIsDocumentViewerOpen] = useState(false);
 
   const chipClassName = cn(
-    "hover:bg-accent focus-visible:ring-ring inline-flex w-full max-w-full items-center gap-3 rounded-md border p-2 transition outline-none",
+    "hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 inline-flex w-full max-w-full items-center gap-3 rounded-md border p-2 transition-[color,background-color,border-color,transform] outline-none",
     className,
   );
 

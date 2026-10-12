@@ -14,12 +14,14 @@ function Field({
   onComplete = vi.fn(),
   initialCode = "",
   error,
+  unsent,
   disabled,
   inputRef,
 }: {
   onComplete?: (code: string) => void;
   initialCode?: string;
   error?: string;
+  unsent?: boolean;
   disabled?: boolean;
   inputRef?: Ref<HTMLInputElement>;
 }) {
@@ -31,6 +33,7 @@ function Field({
       onComplete={onComplete}
       email="ada@example.com"
       error={error}
+      unsent={unsent}
       sentAt={0}
       onResend={vi.fn()}
       isResending={false}
@@ -216,6 +219,18 @@ describe("EmailCodeField", () => {
 
     expect(codeField()).toHaveAttribute("aria-invalid", "true");
     expect(codeField()).toHaveAccessibleDescription("sent That code is wrong.");
+  });
+
+  it("says no code went out without calling the empty field invalid", () => {
+    const { rerender } = render(<Field unsent />);
+
+    expect(codeField()).toHaveAccessibleDescription("notSent");
+    expect(codeField()).not.toHaveAttribute("aria-invalid");
+
+    rerender(<Field unsent error="That code is wrong." />);
+
+    expect(codeField()).toHaveAttribute("aria-invalid", "true");
+    expect(codeField()).toHaveAccessibleDescription("That code is wrong.");
   });
 
   it("still tells a screen reader a code was sent when the page shows no address", () => {

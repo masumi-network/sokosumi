@@ -9,6 +9,9 @@ const {
   fetchInboxMock,
   proactiveGateMock,
   startTurnMock,
+  checkMailImportanceMock,
+  logSetMock,
+  logEmitMock,
 } = vi.hoisted(() => ({
   botFindManyMock: vi.fn(),
   scheduleFindFirstMock: vi.fn(),
@@ -18,6 +21,9 @@ const {
   fetchInboxMock: vi.fn(),
   proactiveGateMock: vi.fn(),
   startTurnMock: vi.fn(),
+  checkMailImportanceMock: vi.fn(),
+  logSetMock: vi.fn(),
+  logEmitMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -38,6 +44,9 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
 }));
 vi.mock("@/services/soko-bot-proactive.service", () => ({
   proactiveGate: proactiveGateMock,
+}));
+vi.mock("@/lib/soko-bot/mail-importance", () => ({
+  checkMailImportance: checkMailImportanceMock,
 }));
 
 import { SokoBotIngestSyncService } from "./soko-bot-ingest.service";
@@ -86,6 +95,11 @@ describe("soko-bot ingest when the daily limit is spent", () => {
       },
     ]);
     startTurnMock.mockResolvedValue({ turnId: "t", status: "COMPLETED" });
+    const log = { set: logSetMock, emit: logEmitMock };
+    checkMailImportanceMock.mockImplementation(async ({ mail }) => ({
+      important: mail,
+      log,
+    }));
   });
 
   it("keeps the mail unseen for the next open slot", async () => {
@@ -109,6 +123,11 @@ describe("soko-bot ingest when the daily limit is spent", () => {
   it("moves the cursor past mail the bot was shown", async () => {
     proactiveGateMock.mockResolvedValue({ ok: true, usedToday: 3, limit: 20 });
     expect((await run()).deltas).toBe(1);
+    expect(logSetMock).toHaveBeenCalledWith({
+      outcome: "woke",
+      turn: { id: "t" },
+    });
+    expect(logEmitMock).toHaveBeenCalledOnce();
     expect(integrationUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -118,5 +137,55 @@ describe("soko-bot ingest when the daily limit is spent", () => {
         }),
       }),
     );
+  });
+
+  it.each([
+    ["no mail is important", []],
+    ["the importance check failed", null],
+  ])(
+    "does not wake the bot when %s, and moves past the mail",
+    async (_, important) => {
+      proactiveGateMock.mockResolvedValue({
+        ok: true,
+        usedToday: 3,
+        limit: 20,
+      });
+      checkMailImportanceMock.mockResolvedValue({
+        important,
+        log: { set: logSetMock, emit: logEmitMock },
+      });
+      expect((await run()).skipped).toBe(1);
+      expect(startTurnMock).not.toHaveBeenCalled();
+      expect(logSetMock).toHaveBeenCalledWith({ outcome: "quiet" });
+      expect(logEmitMock).toHaveBeenCalledOnce();
+      expect(integrationUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            cursor: expect.objectContaining({
+              newestSeenAt: "2026-09-30T12:00:00.000Z",
+            }),
+          }),
+        }),
+      );
+    },
+  );
+
+  it("reads the last 24 hours for the morning briefing, without the importance check", async () => {
+    vi.useFakeTimers({ now: new Date("2026-09-30T13:00:00.000Z") });
+    scheduleFindFirstMock.mockResolvedValue(null);
+    proactiveGateMock.mockResolvedValue({ ok: true, usedToday: 3, limit: 20 });
+    try {
+      expect((await run()).briefings).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(fetchInboxMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        since: new Date("2026-09-29T13:00:00.000Z"),
+      }),
+    );
+    expect(checkMailImportanceMock).not.toHaveBeenCalled();
+    expect(startTurnMock.mock.calls[0][0].message).toContain("Invoice");
   });
 });

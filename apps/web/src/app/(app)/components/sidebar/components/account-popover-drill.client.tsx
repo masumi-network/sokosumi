@@ -123,9 +123,9 @@ export function AccountPopoverDrill({
         <Button
           type="button"
           variant="ghost"
-          size="sm"
+          size="icon"
           onClick={() => onNavigatePanel(backPanel)}
-          className="text-muted-foreground hover:text-foreground size-8 shrink-0 p-0"
+          className="text-muted-foreground hover:text-foreground shrink-0 md:size-8"
           aria-label={tMenu("back")}
         >
           <ChevronLeft className="size-4" aria-hidden />

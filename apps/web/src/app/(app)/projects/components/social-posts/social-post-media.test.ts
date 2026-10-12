@@ -19,10 +19,15 @@ const driveFile: DriveFile = {
 describe("buildSocialPostMediaRef", () => {
   it.each([
     ["photo.jpg", "image/jpeg", "image"],
+    ["photo.JPG", "image/jpeg", "image"],
+    ["photo.JPEG", "image/jpeg", "image"],
     ["photo.png", "image/png", "image"],
     ["photo.webp", "image/webp", "image"],
+    ["photo.WEBP", "image/webp", "image"],
     ["loop.gif", "image/gif", "gif"],
+    ["loop.GIF", "image/gif", "gif"],
     ["clip.mp4", "video/mp4", "video"],
+    ["clip.MP4", "video/mp4", "video"],
   ])("maps %s to %s (%s)", (name, mimeType, kind) => {
     expect(
       buildSocialPostMediaRef({

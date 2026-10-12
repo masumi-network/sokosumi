@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { NotificationNeedsYouRequests } from "@/app/components/notification-needs-you-requests";
@@ -46,18 +45,11 @@ export function NotificationPanelContent({
             variant="outline"
             size="sm"
             onClick={handleMarkAllRead}
-            disabled={isMarkingAllRead}
-            aria-busy={isMarkingAllRead}
+            loading={isMarkingAllRead}
           >
             {/* The label stays put while the request runs, the same as the
                 page's button: "Loading..." took away the only words that
                 said what this button does. */}
-            {isMarkingAllRead ? (
-              <Loader2
-                className="size-4 animate-spin motion-reduce:animate-none"
-                aria-hidden
-              />
-            ) : null}
             {t("markAllRead")}
           </Button>
         ) : null}

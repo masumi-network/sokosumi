@@ -208,7 +208,7 @@ function AgentCarousel({
                 aria-label={`Go to slide ${index + 1}`}
                 onClick={() => api?.scrollTo(index)}
                 className={cn(
-                  "size-2 rounded-full transition-all",
+                  "size-2 rounded-full transition-colors",
                   current === index ? "bg-primary" : "bg-quaternary",
                 )}
               />

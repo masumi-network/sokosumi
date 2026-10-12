@@ -11,7 +11,6 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
-import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { cn } from "@/lib/utils";
 
 import { ResendCodeButton } from "./resend-code-button";
@@ -44,12 +43,11 @@ export interface EmailCodeError {
 
 /**
  * Says why Better Auth refused a code, in the page's language. Codes from
- * Better Auth's `EMAIL_OTP_ERROR_CODES`, and Core's terms check on every
- * `/sign-in*`. Their messages are English, so none is shown.
+ * Better Auth's `EMAIL_OTP_ERROR_CODES`; their messages are English, so none
+ * is shown.
  */
 function useDescribeEmailCodeError() {
   const t = useTranslations("Components.EmailCodeForm");
-  const authErrorsT = useTranslations("Components.AuthErrors");
 
   return (answer: EmailCodeError): string => {
     // Better Auth's rate limit (ten tries a minute per IP) can answer before the
@@ -64,8 +62,6 @@ function useDescribeEmailCodeError() {
         return t("expired");
       case "TOO_MANY_ATTEMPTS":
         return t("tooManyAttempts");
-      case AuthErrorCode.TERMS_NOT_ACCEPTED:
-        return authErrorsT("termsNotAccepted");
       default:
         return t("generic");
     }
@@ -136,7 +132,10 @@ interface EmailCodeFieldProps {
   error?: string | undefined;
   /** Why the field opened, shown above it and read with it. */
   notice?: string | undefined;
-  /** No code went out, so the field does not say one did. */
+  /**
+   * No code went out: the field says so instead of saying one did, until
+   * `error` gives another reason.
+   */
   unsent?: boolean | undefined;
   sentAt: number;
   onResend: () => void;
@@ -177,6 +176,7 @@ export function EmailCodeField({
   const fieldId = useId();
   const hintId = useId();
   const errorId = useId();
+  const shownError = error ?? (unsent ? t("notSent") : undefined);
   const noticeId = useId();
   const localCompletedCode = useRef(
     value.length === EMAIL_CODE_LENGTH ? value : "",
@@ -236,12 +236,13 @@ export function EmailCodeField({
           }
         }}
         onBlur={onBlur}
+        // A code that never went out is no fault of the empty field.
         aria-invalid={error ? true : undefined}
         aria-describedby={
           [
             notice ? noticeId : null,
             unsent ? null : hintId,
-            error ? errorId : null,
+            shownError ? errorId : null,
           ]
             .filter(Boolean)
             .join(" ") || undefined
@@ -265,9 +266,9 @@ export function EmailCodeField({
           {email ? t("sent", { email }) : t("sentNoAddress")}
         </p>
       )}
-      {error ? (
+      {shownError ? (
         <p id={errorId} className="text-destructive text-sm">
-          {error}
+          {shownError}
         </p>
       ) : null}
     </div>

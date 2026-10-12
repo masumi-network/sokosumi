@@ -1,4 +1,8 @@
-import { suggestTaskTags as coreSuggestTaskTags } from "@sokosumi/core-client";
+import {
+  getChatRoomMessageResults as coreGetChatRoomMessageResults,
+  getMySokoBotTurnResults as coreGetMySokoBotTurnResults,
+  suggestTaskTags as coreSuggestTaskTags,
+} from "@sokosumi/core-client";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 
 /** Pause, resume, and end each have their own Task Schedule route. */
@@ -19,6 +23,7 @@ import type {
   CreateSokoBotScheduleRequest,
   CreateTaskScheduleRequest,
   CreateTaskScheduleRunRequest,
+  CreateUserWorkspace,
   DeleteJobsByIdShareError,
   DeleteProjectsByIdAdsAccountsByAccountIdData,
   DeleteProjectsByIdAdsConnectionsByAdConnectionIdData,
@@ -43,12 +48,15 @@ import type {
   GetCoworkersData,
   GetEnterpriseContractsData,
   GetHistoryData,
+  GetImageStudioStateData,
   GetJobsData,
   GetNotificationsData,
   GetProjectsByIdAdsAccountsByAccountIdCampaignsData,
   GetProjectsByIdCalendarData,
   GetProjectsByIdImageStudioData,
+  GetProjectsByIdSocialConnectionsStatisticsData,
   GetProjectsByIdSocialPostsData,
+  GetProjectsByIdSocialPostsStatisticsData,
   GetProjectsData,
   GetProjectsStatsData,
   GetShareByTokenError,
@@ -99,6 +107,7 @@ import type {
   PostProjectsByIdCloseRetryData,
   PostProjectsByIdImageStudioJobsData,
   PostProjectsByIdJobsData,
+  PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData,
   PostProjectsByIdSocialConnectionsFinalizeData,
   PostProjectsByIdSocialConnectionsInitiateData,
   PostProjectsByIdSocialPostsByPostIdCancelData,
@@ -193,7 +202,7 @@ import {
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
   deleteTasksSchedulesById as coreDeleteTasksSchedulesById,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
-  deleteUsersByIdPersonalWorkspace as coreDeleteUsersByIdPersonalWorkspace,
+  deleteUsersByIdWorkspacesByWorkspaceId as coreDeleteUsersByIdWorkspacesByWorkspaceId,
   disconnectMySokoBotIntegration as coreDisconnectMySokoBotIntegration,
   endAdminBadgeCampaign as coreEndAdminBadgeCampaign,
   finalizeMySokoBotIntegration as coreFinalizeMySokoBotIntegration,
@@ -244,6 +253,7 @@ import {
   getEnterpriseContractsByIdPeriodsPreview as coreGetEnterpriseContractsByIdPeriodsPreview,
   getHistory as coreGetHistory,
   getImageStudioCatalog as coreGetImageStudioCatalog,
+  getImageStudioState as coreGetImageStudioState,
   getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
@@ -280,8 +290,10 @@ import {
   getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
+  getProjectsByIdSocialConnectionsStatistics as coreGetProjectsByIdSocialConnectionsStatistics,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
   getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
+  getProjectsByIdSocialPostsStatistics as coreGetProjectsByIdSocialPostsStatistics,
   getProjectsStarred as coreGetProjectsStarred,
   getProjectsStats as coreGetProjectsStats,
   getShareByToken as coreGetShareByToken,
@@ -301,6 +313,7 @@ import {
   getTransactions as coreGetTransactions,
   getTransactionsDaily as coreGetTransactionsDaily,
   getUserBadgeCampaigns as coreGetUserBadgeCampaigns,
+  getUsersById as coreGetUsersById,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
   getUsersByIdCoworkerAccess as coreGetUsersByIdCoworkerAccess,
   getUsersByIdCredits as coreGetUsersByIdCredits,
@@ -311,10 +324,11 @@ import {
   getUsersByIdOrganizationsByOrganizationIdCredits as coreGetUsersByIdOrganizationsByOrganizationIdCredits,
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdPendingOrganizationInvitations as coreGetUsersByIdPendingOrganizationInvitations,
+  getUsersByIdSignUp as coreGetUsersByIdSignUp,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
   getUsersByIdVendorGrants as coreGetUsersByIdVendorGrants,
-  getUsersByIdWorkspaceAccess as coreGetUsersByIdWorkspaceAccess,
+  getUsersByIdWorkspaces as coreGetUsersByIdWorkspaces,
   getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesCalendar as coreGetWorkspacesCalendar,
   getWorkspacesCalendarSources as coreGetWorkspacesCalendarSources,
@@ -425,12 +439,14 @@ import {
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
+  postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh as corePostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
   postProjectsByIdSocialConnectionsFinalize as corePostProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
   postProjectsByIdSocialPosts as corePostProjectsByIdSocialPosts,
   postProjectsByIdSocialPostsByPostIdCancel as corePostProjectsByIdSocialPostsByPostIdCancel,
   postProjectsByIdSocialPostsByPostIdPublish as corePostProjectsByIdSocialPostsByPostIdPublish,
   postProjectsByIdSocialPostsByPostIdSchedule as corePostProjectsByIdSocialPostsByPostIdSchedule,
+  postProjectsByIdSocialPostsByPostIdStatisticsRefresh as corePostProjectsByIdSocialPostsByPostIdStatisticsRefresh,
   postProjectsByIdStar as corePostProjectsByIdStar,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postTasks as corePostTasks,
@@ -448,12 +464,12 @@ import {
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
   postUsersByIdFiles as corePostUsersByIdFiles,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
-  postUsersByIdPersonalWorkspace as corePostUsersByIdPersonalWorkspace,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdVendorGrants as corePostUsersByIdVendorGrants,
   postUsersByIdVendorGrantsByGrantIdApprove as corePostUsersByIdVendorGrantsByGrantIdApprove,
   postUsersByIdVendorGrantsByGrantIdDeny as corePostUsersByIdVendorGrantsByGrantIdDeny,
   postUsersByIdVendorGrantsByGrantIdRevoke as corePostUsersByIdVendorGrantsByGrantIdRevoke,
+  postUsersByIdWorkspaces as corePostUsersByIdWorkspaces,
   postVendorsByIdFiles as corePostVendorsByIdFiles,
   postVendorsByIdFilesCleanup as corePostVendorsByIdFilesCleanup,
   postWorkspacesDesignMdAdhoc as corePostWorkspacesDesignMdAdhoc,
@@ -469,7 +485,7 @@ import {
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
-  putUsersByIdPreferredOrganization as corePutUsersByIdPreferredOrganization,
+  putUsersByIdWorkspacesPreferred as corePutUsersByIdWorkspacesPreferred,
   refundAdminTaskX402Payment as coreRefundAdminTaskX402Payment,
   removeAdminMatchedChannelParticipant as coreRemoveAdminMatchedChannelParticipant,
   removeAdminOrganizationMember as coreRemoveAdminOrganizationMember,
@@ -606,6 +622,12 @@ function transformTaskResponseEnvelope(data: any) {
   data.meta.timestamp = toDate(data.meta.timestamp);
 
   return data;
+}
+
+/** A `.catch` handler: Core's 404 becomes null; any other error propagates. */
+function nullWhenNotFound(error: unknown): null {
+  if (error instanceof CoreApiRequestError && error.status === 404) return null;
+  throw error;
 }
 
 export function createCoreClient(getClient: GetCoreClient) {
@@ -1199,6 +1221,30 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getChatRoomMessageResults(id: string, messageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatRoomMessageResults({
+          client,
+          path: { id, messageId },
+          cache: "no-store",
+        }),
+      "Failed to fetch message results",
+    );
+  }
+  async function getMySokoBotTurnResults(turnId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetMySokoBotTurnResults({
+          client,
+          path: { turnId },
+          cache: "no-store",
+        }),
+      "Failed to fetch turn results",
+    );
+  }
   async function getChatRoomMessage(id: string, messageId: string) {
     return executeCoreOperation(
       getClient,
@@ -1797,6 +1843,39 @@ export function createCoreClient(getClient: GetCoreClient) {
         }),
       "Failed to list users",
     );
+  }
+
+  /**
+   * Fetches a user by id (admins may read any user), returning null when no
+   * user matches (Core responds 404).
+   */
+  async function getUserById(userId: string) {
+    const result = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetUsersById({ client, path: { id: userId }, cache: "no-store" }),
+      "Failed to fetch user",
+    ).catch(nullWhenNotFound);
+    return result ? result.data : null;
+  }
+
+  /**
+   * Fetches how the user signed up (sign-up origin and context), returning
+   * null when Core has no record for the user (Core responds 404: accounts
+   * created before sign-ups were recorded).
+   */
+  async function getUserSignUp(userId: string) {
+    const result = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdSignUp({
+          client,
+          path: { id: userId },
+          cache: "no-store",
+        }),
+      "Failed to fetch user sign-up",
+    ).catch(nullWhenNotFound);
+    return result ? result.data : null;
   }
 
   async function startAdminImpersonation(body: {
@@ -3020,33 +3099,36 @@ export function createCoreClient(getClient: GetCoreClient) {
   }
 
   /**
-   * Create-once personal workspace for the current user. Core returns 409 when
-   * a personal workspace already exists.
+   * Creates a workspace for the current user and makes it preferred
+   * (ADR 0051). A personal workspace is created once (409 when it exists);
+   * an organization takes a name and website (403 at the organization limit).
    */
-  async function createMyPersonalWorkspace() {
+  async function createMyWorkspace(body: CreateUserWorkspace) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePostUsersByIdPersonalWorkspace({
+        corePostUsersByIdWorkspaces({
           client,
           path: { id: CURRENT_USER_PATH_ID },
+          body,
           cache: "no-store",
         }),
-      "Failed to create personal workspace",
+      "Failed to create workspace",
     );
   }
 
   /**
-   * Delete the current user's personal workspace. Core returns 409 when it is
-   * the last workspace, or when jobs/tasks still reference it.
+   * Deletes the current user's personal workspace, by workspace id from
+   * {@link getMyWorkspaces}. Core returns 409 for an organization workspace,
+   * the last workspace, or one that jobs or tasks still reference.
    */
-  async function deleteMyPersonalWorkspace() {
+  async function deleteMyWorkspace(workspaceId: string) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreDeleteUsersByIdPersonalWorkspace({
+        coreDeleteUsersByIdWorkspacesByWorkspaceId({
           client,
-          path: { id: CURRENT_USER_PATH_ID },
+          path: { id: CURRENT_USER_PATH_ID, workspaceId },
           cache: "no-store",
         }),
       "Failed to delete personal workspace",
@@ -3200,6 +3282,20 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  /** The studio across every project in the session's workspace. */
+  async function getImageStudioState(query?: GetImageStudioStateData["query"]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetImageStudioState({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch the workspace image studio",
+    );
+  }
+
   async function getProjectsByIdImageStudio(
     id: string,
     query?: GetProjectsByIdImageStudioData["query"],
@@ -3262,6 +3358,74 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch Project social posts",
+    );
+  }
+
+  async function getProjectsByIdSocialConnectionsStatistics(
+    id: string,
+    query?: GetProjectsByIdSocialConnectionsStatisticsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsStatistics({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch social account statistics",
+    );
+  }
+
+  async function postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh(
+    id: string,
+    connectionId: string,
+    body: NonNullable<
+      PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData["body"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh({
+          client,
+          path: { id, connectionId },
+          body,
+        }),
+      "Failed to refresh social account statistics",
+    );
+  }
+
+  async function getProjectsByIdSocialPostsStatistics(
+    id: string,
+    query?: GetProjectsByIdSocialPostsStatisticsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialPostsStatistics({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Project Social statistics",
+    );
+  }
+
+  async function postProjectsByIdSocialPostsByPostIdStatisticsRefresh(
+    id: string,
+    postId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdStatisticsRefresh({
+          client,
+          path: { id, postId },
+        }),
+      "Failed to refresh Project Social statistics",
     );
   }
 
@@ -4628,19 +4792,19 @@ export function createCoreClient(getClient: GetCoreClient) {
   }
 
   /**
-   * Current-user workspace access from Core.
+   * The current user's workspaces and pending invitation count (ADR 0051).
    * Sole source of truth for the workspace gate (not `onboardingCompleted`).
    */
-  async function getMyWorkspaceAccess() {
+  async function getMyWorkspaces() {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreGetUsersByIdWorkspaceAccess({
+        coreGetUsersByIdWorkspaces({
           client,
           path: { id: CURRENT_USER_PATH_ID },
           cache: "no-store",
         }),
-      "Failed to fetch workspace access",
+      "Failed to fetch workspaces",
     );
   }
 
@@ -4666,23 +4830,16 @@ export function createCoreClient(getClient: GetCoreClient) {
    * the user is not a member (Core responds 404 in that case).
    */
   async function getMyMemberInOrganization(organizationId: string) {
-    try {
-      return await executeCoreOperation(
-        getClient,
-        (client) =>
-          coreGetUsersByIdOrganizationsByOrganizationIdMember({
-            client,
-            path: { id: CURRENT_USER_PATH_ID, organizationId },
-            cache: "no-store",
-          }),
-        "Failed to fetch organization membership",
-      );
-    } catch (error) {
-      if (error instanceof CoreApiRequestError && error.status === 404) {
-        return null;
-      }
-      throw error;
-    }
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdOrganizationsByOrganizationIdMember({
+          client,
+          path: { id: CURRENT_USER_PATH_ID, organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization membership",
+    ).catch(nullWhenNotFound);
   }
 
   /**
@@ -4780,22 +4937,20 @@ export function createCoreClient(getClient: GetCoreClient) {
   }
 
   /**
-   * Sets the current user's preferred organization workspace (null for the
-   * personal workspace). Core verifies membership and persists the write in
-   * one transaction; a 403 with kind `organization_membership_required` means
-   * the user is not a member of the organization.
+   * Sets which of the current user's workspaces a new session opens, by
+   * workspace id from {@link getMyWorkspaces} (404 when it is not theirs).
    */
-  async function setMyPreferredOrganization(organizationId: string | null) {
+  async function setMyPreferredWorkspace(workspaceId: string) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePutUsersByIdPreferredOrganization({
+        corePutUsersByIdWorkspacesPreferred({
           client,
           path: { id: CURRENT_USER_PATH_ID },
-          body: { organizationId },
+          body: { workspaceId },
           cache: "no-store",
         }),
-      "Failed to set preferred organization",
+      "Failed to set preferred workspace",
     );
   }
 
@@ -4935,23 +5090,16 @@ export function createCoreClient(getClient: GetCoreClient) {
    * (Core responds 404).
    */
   async function getOrganizationById(organizationId: string) {
-    try {
-      return await executeCoreOperation(
-        getClient,
-        (client) =>
-          coreGetOrganizationsById({
-            client,
-            path: { id: organizationId },
-            cache: "no-store",
-          }),
-        "Failed to fetch organization",
-      );
-    } catch (error) {
-      if (error instanceof CoreApiRequestError && error.status === 404) {
-        return null;
-      }
-      throw error;
-    }
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsById({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization",
+    ).catch(nullWhenNotFound);
   }
 
   /**
@@ -4960,23 +5108,16 @@ export function createCoreClient(getClient: GetCoreClient) {
    * A 403 (the caller is not a member) propagates as CoreApiRequestError.
    */
   async function getOrganizationBySlug(slug: string) {
-    try {
-      return await executeCoreOperation(
-        getClient,
-        (client) =>
-          coreGetOrganizationBySlug({
-            client,
-            path: { slug },
-            cache: "no-store",
-          }),
-        "Failed to fetch organization",
-      );
-    } catch (error) {
-      if (error instanceof CoreApiRequestError && error.status === 404) {
-        return null;
-      }
-      throw error;
-    }
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationBySlug({
+          client,
+          path: { slug },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization",
+    ).catch(nullWhenNotFound);
   }
 
   async function getMySokoBot() {
@@ -6002,6 +6143,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomInvitations,
     getChatRoomMessages,
     getChatRoomMessage,
+    getChatRoomMessageResults,
+    getMySokoBotTurnResults,
     getChatRoomThread,
     getChatRoomThreadMessages,
     getChatRoomThreads,
@@ -6061,6 +6204,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteCoworkerImage,
     searchAdminUsers,
     listAdminUsers,
+    getUserById,
+    getUserSignUp,
     startAdminImpersonation,
     stopAdminImpersonation,
     listAdminAgents,
@@ -6115,13 +6260,13 @@ export function createCoreClient(getClient: GetCoreClient) {
     getMyDeletion,
     getMyMemberInOrganization,
     getMyMembersWithOrganizations,
-    getMyWorkspaceAccess,
+    getMyWorkspaces,
     getMyPendingOrganizationInvitations,
     getMyOrganizationCredits,
     getMyOrganizations,
     createMyStripeCustomer,
-    createMyPersonalWorkspace,
-    deleteMyPersonalWorkspace,
+    createMyWorkspace,
+    deleteMyWorkspace,
     createOrganizationStripeCustomer,
     getMyBillingDetails,
     getUserBillingDetails,
@@ -6180,7 +6325,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getWorkspaceCalendarSources,
     getWorkspaceOrganizationId,
     setMyDesignMd,
-    setMyPreferredOrganization,
+    setMyPreferredWorkspace,
     setOrganizationDesignMd,
     storeAdHocDesignMd,
     createOrganizationInviteLink,
@@ -6205,10 +6350,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdAdsAccountsByAccountIdCampaigns,
     getProjectsByIdSocialConnections,
     getImageStudioCatalog,
+    getImageStudioState,
     getProjectsByIdImageStudio,
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,
     getProjectsByIdSocialPosts,
+    getProjectsByIdSocialPostsStatistics,
+    getProjectsByIdSocialConnectionsStatistics,
+    postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
+    postProjectsByIdSocialPostsByPostIdStatisticsRefresh,
     getProjectsByIdSocialPostsByPostId,
     patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
     patchProjectsByIdSocialPostsByPostId,

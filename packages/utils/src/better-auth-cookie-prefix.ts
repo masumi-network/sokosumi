@@ -57,26 +57,14 @@ export function resolveBetterAuthCookiePrefix(
       }
       return `${PREVIEW_COOKIE_PREFIX}-${network}`;
     }
-    case "development":
-      return `${LOCALHOST_COOKIE_PREFIX}-${network}`;
     default:
       return `${LOCALHOST_COOKIE_PREFIX}-${network}`;
   }
-}
-
-function getBetterAuthCookieName(
-  cookiePrefix: string,
-  cookieName: string,
-): string {
-  return `${cookiePrefix}.${cookieName}`;
 }
 
 export function resolveBetterAuthCookieName(
   params: ResolveBetterAuthCookiePrefixParams,
   cookieName: string,
 ): string {
-  return getBetterAuthCookieName(
-    resolveBetterAuthCookiePrefix(params),
-    cookieName,
-  );
+  return `${resolveBetterAuthCookiePrefix(params)}.${cookieName}`;
 }

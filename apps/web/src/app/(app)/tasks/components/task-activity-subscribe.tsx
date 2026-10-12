@@ -155,7 +155,7 @@ export function TaskActivitySubscribeControl({
                 {remainingCount > 0 ? (
                   <span
                     data-testid="task-subscribe-face-remainder"
-                    className="bg-muted text-muted-foreground ring-background relative inline-flex size-5 items-center justify-center rounded-full text-[0.625rem] font-medium tabular-nums ring-2"
+                    className="bg-muted text-muted-foreground ring-background relative inline-flex size-5 items-center justify-center rounded-full text-2xs font-medium tabular-nums ring-2"
                     style={{ zIndex: 0 }}
                     aria-hidden
                   >

@@ -4,8 +4,8 @@ import {
   CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
   MAX_LISTED_CHAT_REACTION_REACTORS,
 } from "@sokosumi/utils";
-
 import { dateTimeSchema } from "@/helpers/datetime";
+import { chatResultDescriptorSchema } from "@/schemas/chat-result-descriptor.schema";
 
 /**
  * Roster writes fan out to one row per id, so an unbounded array turns a
@@ -707,6 +707,7 @@ export const chatRoomMessageSchema = z
     roomId: z.string().uuid(),
     parentMessageId: z.string().uuid().nullable(),
     content: z.string(),
+    resultPreviews: z.array(chatResultDescriptorSchema).max(6).optional(),
     createdAt: dateTimeSchema,
     deletedAt: dateTimeSchema.nullable(),
     editedAt: dateTimeSchema.nullable(),

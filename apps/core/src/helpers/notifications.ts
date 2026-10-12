@@ -338,7 +338,7 @@ export async function publishNotificationRow(
  * The membership lock is shared with deletion, so a revoke cannot commit
  * between the access check and the user-channel publish.
  */
-export async function publishScopedNotificationRow(
+async function publishScopedNotificationRow(
   notificationId: string,
   workspaceId: string,
   userId: string,
