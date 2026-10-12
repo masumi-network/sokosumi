@@ -14,7 +14,7 @@ public struct MessageRow: Equatable, Sendable {
   public let actions: MessageActions
   /// The hop badge on a message one assistant wrote to another; web shows it in the hover pill.
   public let sokoBotChain: SokoBotChainMetadata?
-  /// Web's hover pill and fill: a live row with anything to offer. A thinking shell has no actions (web `showActions`).
+  /// Web's hover pill and fill: a row not deleted with anything to offer. A thinking shell has no actions (web `showActions`).
   public let showsActionBar: Bool
   /// The inline edit composer stands in for this row's body.
   public let isEditing: Bool
@@ -39,7 +39,7 @@ public struct MessageRow: Equatable, Sendable {
     let kind = MessageKind(message, outbound: outbound)
     let mentionShell = MentionThoughtShell(message: message)
     let isThinking = mentionShell?.isThinking == true
-    let live = message.deletedAt == nil
+    let isDeleted = message.deletedAt != nil
     let isEditing = context.editingMessageId == message.id
     let ownsMessage = canModifyOwnMessage(message, userId: context.viewerId)
     // Web hides the Thread button on stream overlays and mention shells (`shouldShowChatRoomThreadButton`).
@@ -50,7 +50,7 @@ public struct MessageRow: Equatable, Sendable {
       canEdit: ownsMessage,
       // Quoting fills the composer, which a Read-only Direct lacks.
       canQuote: canQuoteMessage(message) && context.takesNewMessages,
-      canReply: opensThread && live,
+      canReply: opensThread && !isDeleted,
       canPin: context.allowsPins && message.parentMessageId == nil && canReactToMessage(message),
       // Web `isDurableRoomMessage`: no link while the shell is still thinking.
       canCopyLink: kind == .confirmed && !isThinking,
@@ -59,11 +59,11 @@ public struct MessageRow: Equatable, Sendable {
     )
     let sokoBotChain = SokoBotChainMetadata(message: message)
     let showsBodyExtras = !kind.isOutbound && mentionShell == nil
-    let showsReactions = live && !kind.isOutbound && !message.reactions.isEmpty
+    let showsReactions = !isDeleted && !kind.isOutbound && !message.reactions.isEmpty
     let unfurls = showsBodyExtras ? message.unfurls ?? [] : []
     let footer = SokoBotTurnMetadata(message: message).flatMap { showsBodyExtras && $0.hasFooter ? $0 : nil }
     let resultPreviewIds = showsBodyExtras ? MessageResultPreviews.descriptorIds(of: message) : []
-    let skills = live && mentionShell == nil && !isEditing ? message.skills ?? [] : []
+    let skills = !isDeleted && mentionShell == nil && !isEditing ? message.skills ?? [] : []
     let threadReplyBar = opensThread ? ThreadReplyBar(message: message) : nil
 
     self.kind = kind
@@ -71,7 +71,7 @@ public struct MessageRow: Equatable, Sendable {
     isContinuation = isMessageContinuation(previous: previous, current: message)
     self.actions = actions
     self.sokoBotChain = sokoBotChain
-    showsActionBar = live && !isThinking && (!actions.isEmpty || sokoBotChain != nil)
+    showsActionBar = !isDeleted && !isThinking && (!actions.isEmpty || sokoBotChain != nil)
     self.isEditing = isEditing
     self.showsReactions = showsReactions
     self.unfurls = unfurls
@@ -79,7 +79,7 @@ public struct MessageRow: Equatable, Sendable {
     self.resultPreviewIds = resultPreviewIds
     self.skills = skills
     self.threadReplyBar = threadReplyBar
-    keepsSeenByCornerClear = isNewest && MessageMarkdown.endsWithAttachmentRun(message.content) && live
+    keepsSeenByCornerClear = isNewest && MessageMarkdown.endsWithAttachmentRun(message.content) && !isDeleted
       && mentionShell == nil && !isEditing && !showsReactions && threadReplyBar == nil && skills.isEmpty
       && unfurls.isEmpty && resultPreviewIds.isEmpty && footer == nil && kind != .failed
   }

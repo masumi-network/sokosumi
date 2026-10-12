@@ -318,21 +318,29 @@
 
       /// Two of the viewer's messages, the second a continuation directly under the first, settled at their size.
       private static func twoRows(first: Calls, second: Calls) async throws -> MessageMenuFixture {
-        func row(_ id: String, _ text: String, continuation: Bool, calls: Calls) -> MessageRowView {
+        func message(_ id: String, _ text: String) -> Components.Schemas.ChatRoomMessage {
           var message = chatRoomMessage(from: .init(clientTurnId: id, roomId: "room_1", content: text,
                                                     createdAt: Date(),
                                                     sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
           message.id = id
           message.metadata = nil
-          return MessageRowView(message: message, row: transcriptRow(message, viewerId: "user", previous: continuation ? message : nil),
-                                outbound: nil, onRetry: nil, onRemove: nil,
-                                onReply: {}, onQuote: { calls.quotes += 1 }, onEdit: {}, onDelete: {},
-                                onToggleReaction: { _ in true }, onSendToSelf: { message })
+          return message
         }
+        func row(_ message: Components.Schemas.ChatRoomMessage, below previous: Components.Schemas.ChatRoomMessage?,
+                 calls: Calls) -> MessageRowView {
+          MessageRowView(message: message, row: transcriptRow(message, viewerId: "user", previous: previous),
+                         outbound: nil, onRetry: nil, onRemove: nil,
+                         onReply: {}, onQuote: { calls.quotes += 1 }, onEdit: {}, onDelete: {},
+                         onToggleReaction: { _ in true }, onSendToSelf: { message })
+        }
+        let above = message("first", "The first message, above.")
+        let below = message("second", "The second message, whose pill overlaps the first.")
+        // The second row continues the first, as the transcript decides from the row above it.
+        try #require(transcriptRow(below, previous: above).isContinuation)
         let workspaces = WorkspaceState()
         let hosted = VStack(alignment: .leading, spacing: 0) {
-          row("first", "The first message, above.", continuation: false, calls: first)
-          row("second", "The second message, whose pill overlaps the first.", continuation: true, calls: second)
+          row(above, below: nil, calls: first)
+          row(below, below: above, calls: second)
         }
         .padding(16)
         .frame(width: 520, alignment: .topLeading)
