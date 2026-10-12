@@ -656,6 +656,10 @@ export async function updateSocialPost(
           lastError: null,
           attemptCount: 0,
           nextAttemptAt: null,
+          // Past-due + attemptCount 0 is marked MISSED. Keep the slot due now.
+          ...(post.scheduledAt && post.scheduledAt.getTime() < Date.now()
+            ? { scheduledAt: new Date() }
+            : {}),
         }
       : {};
   const currentProvider = requireProvider(post.provider);
