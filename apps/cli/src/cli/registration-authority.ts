@@ -1,7 +1,7 @@
 import type { OrganizationWorkspace } from "../api/models/organization-workspace.js";
 import type { Vendor } from "../api/models/vendor.js";
 
-export const WEB_DEVELOPER_DEFAULT_ROUTE = "/developer/oauth-clients";
+const WEB_DEVELOPER_DEFAULT_ROUTE = "/developer/oauth-clients";
 
 function trimWebBase(webUrl: string | undefined): string {
   return String(webUrl ?? "")

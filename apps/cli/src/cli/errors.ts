@@ -1,8 +1,4 @@
-// Stable, machine-readable error taxonomy for agents driving the headless CLI.
-// Human text still goes to stderr; `--json` adds `code` (and `status` for API
-// errors), and the process exit code reflects the class.
-
-export type ErrorCode =
+type ErrorCode =
   | "VALIDATION"
   | "AUTH_REQUIRED"
   | "PERMISSION_DENIED"
@@ -22,8 +18,6 @@ export const EXIT_CODES: Record<ErrorCode | "OK", number> = {
   API_ERROR: 7,
 };
 
-// A CLI-level error carrying an explicit code. Throw this from local checks
-// (bad usage, missing authentication) so the class survives to the exit code.
 export class CliError extends Error {
   readonly code: ErrorCode;
   constructor(code: ErrorCode, message: string) {
@@ -51,7 +45,7 @@ function isNetworkError(error: unknown): boolean {
   );
 }
 
-export interface ClassifiedError {
+interface ClassifiedError {
   code: ErrorCode;
   exitCode: number;
   status?: number;
@@ -72,13 +66,12 @@ export function classifyError(error: unknown): ClassifiedError {
   return { code: "UNKNOWN", exitCode: EXIT_CODES.UNKNOWN };
 }
 
-export interface JsonErrorPayload {
+interface JsonErrorPayload {
   error: string;
   code: ErrorCode;
   status?: number;
 }
 
-// Build the `--json` error envelope. `message` is already redacted by the caller.
 export function buildJsonError(
   message: string,
   error: unknown,
