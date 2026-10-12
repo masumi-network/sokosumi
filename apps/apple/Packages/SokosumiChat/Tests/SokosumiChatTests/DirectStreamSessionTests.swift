@@ -70,7 +70,7 @@ struct DirectStreamSessionTests {
       }
       return nil
     }), length: .unknown, iterationBehavior: .single)
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: ResumeTransport(body: body))
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: ResumeTransport(body: body))
     session.resume(client: client, organizationSlug: nil, settled: { true }, failed: { _ in })
     await session.task?.value
     // Closing without events is a truncated stream; successful reconciliation removes its shell.

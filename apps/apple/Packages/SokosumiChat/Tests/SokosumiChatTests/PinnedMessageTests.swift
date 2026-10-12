@@ -33,7 +33,7 @@ private actor PausedPinTransport: ClientTransport {
 @MainActor struct PinnedMessageTests {
   @Test func openingPanelDuringCancelledPrefetchStillLoadsPins() async throws {
     let transport = PausedPinTransport()
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let pins = PinnedMessages()
     pins.reset(roomId: testRoomId)
     let prefetch = Task { try await pins.load(client: client, organizationSlug: nil) }

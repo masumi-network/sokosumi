@@ -25,7 +25,7 @@
       )
 
       private static func render(dark: Bool) async throws -> NSBitmapImageRep {
-        let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://example.com")!) })
+        let state = WorkspaceState(clientProvider: { _ in Client.core(baseURL: URL(string: "https://example.com")!) })
         state.rooms = [selfDirect]
         state.timeline.reset(roomId: roomId)
         state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)

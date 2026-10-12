@@ -265,7 +265,7 @@ struct ThreadSessionMuteTests {
 
   @Test func noRequestWhileUnknownOrPending() async throws {
     let held = HeldThreadTransport(body: threadBody(mutedAt: mutedAt))
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: held)
     let session = try await openSession()
     #expect(try await !session.toggleMute(client: client, organizationSlug: nil), "Nothing to toggle while unknown.")
     let reader = TestTransport([(200, threadBody(mutedAt: nil))])
@@ -285,7 +285,7 @@ struct ThreadSessionMuteTests {
   @Test(arguments: [true, false])
   func aLateAnswerDoesNotTouchTheNextThread(succeeds: Bool) async throws {
     let held = HeldThreadTransport(body: succeeds ? threadBody(mutedAt: mutedAt) : errorBody(500, "boom"), status: succeeds ? 200 : 500)
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: held)
     let session = try await openSession()
     try await session.readMute(client: makeTestClient(TestTransport([(200, threadBody(mutedAt: nil))])), organizationSlug: nil)
     let write = Task { try await session.toggleMute(client: client, organizationSlug: nil) }
@@ -305,7 +305,7 @@ struct ThreadSessionMuteTests {
 
   @Test func aLateReadDoesNotTouchTheNextThread() async throws {
     let held = HeldThreadTransport(body: threadBody(mutedAt: mutedAt))
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: held)
     let session = try await openSession()
     let read = Task { try await session.readMute(client: client, organizationSlug: nil) }
     await held.waitForRequest()

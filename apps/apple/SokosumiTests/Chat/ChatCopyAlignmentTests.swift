@@ -68,7 +68,7 @@
       /// Web `Empty.noMessagesTitle` over `Empty.noMessagesDescription` (`rooms-client.tsx`).
       @Test func anEmptyChannelInvitesTheFirstMessage() async throws {
         let appearances = try await Self.lightAndDark(named: "copy-empty-transcript") { dark in
-          let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://example.com")!) })
+          let state = WorkspaceState(clientProvider: { _ in Client.core(baseURL: URL(string: "https://example.com")!) })
           state.rooms = [Self.channel()]
           state.timeline.reset(roomId: Self.roomId)
           state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
@@ -288,7 +288,7 @@
         }
         let rows = try #require(String(bytes: encoder.encode(messages), encoding: .utf8))
         let body = "{\"data\":\(rows),\"meta\":{\"timestamp\":\"2026-10-05T12:00:00.000Z\",\"requestId\":\"fixture\",\"pagination\":{\"cursor\":null,\"limit\":50,\"total\":\(messages.count),\"nextCursor\":null}}}"
-        return try Client.connecting(to: #require(URL(string: "https://example.com")), transport: FixedBodyTransport(body: body))
+        return try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: FixedBodyTransport(body: body))
       }
     }
   }

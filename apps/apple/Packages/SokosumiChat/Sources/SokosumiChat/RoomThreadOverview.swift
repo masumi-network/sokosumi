@@ -185,7 +185,7 @@ public final class RoomThreadOverview: ObservableObject {
 
   /// Web shows Core's message when Core sent one (`actionErrorMessage`) and its own copy otherwise.
   private static func message(for error: any Error, fallback: String) -> String {
-    if case let .unprocessable(_, message) = error as? ChatServiceError, !message.isEmpty {
+    if case let .unprocessable(_, message, _) = error as? ChatServiceError, !message.isEmpty {
       return message
     }
     return fallback

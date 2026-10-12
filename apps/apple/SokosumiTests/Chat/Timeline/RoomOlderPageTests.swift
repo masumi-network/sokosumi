@@ -154,7 +154,7 @@
       /// Room `room`: the latest page (rows 40–69) is loaded; Core holds two older pages, 10–39 and 0–9.
       private func fixture() async throws -> (WorkspaceState, URLSession) {
         let session = TranscriptPageProtocol.session()
-        let client = try Client.connecting(to: #require(URL(string: "https://\(TranscriptPageProtocol.host)/v1")), session: session)
+        let client = try Client.core(baseURL: #require(URL(string: "https://\(TranscriptPageProtocol.host)/v1")), session: session)
         let state = WorkspaceState(clientProvider: { _ in client })
         try TranscriptPageProtocol.serve([
           TranscriptPageProtocol.page((40 ..< 70).map(message), cursor: "c40"),

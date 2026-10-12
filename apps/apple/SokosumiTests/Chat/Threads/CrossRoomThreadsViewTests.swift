@@ -157,7 +157,7 @@
       /// The lists as Core answered them. `unread: nil` leaves the Unread list unread, as the rooms answer.
       private static func loaded(rooms: [Components.Schemas.ChatRoom], unread: [String]?, earlier: [String]) async throws -> CrossRoomThreads {
         let transport = ThreadsFixtureTransport(unread: page(unread ?? []), earlier: page(earlier))
-        let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+        let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport)
         let threads = CrossRoomThreads()
         if unread != nil {
           try await threads.load(.unread, rooms: rooms, scope: "fixture", client: client, organizationSlug: nil)

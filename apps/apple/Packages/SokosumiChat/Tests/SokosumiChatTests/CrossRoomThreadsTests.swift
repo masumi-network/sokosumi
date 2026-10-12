@@ -189,7 +189,7 @@ struct CrossRoomThreadsTests {
       (200, testMessagesPageBody(messages: [unreadJSON("u1", room: alphaRoomId)], nextCursor: nil))
     ])), organizationSlug: nil)
     let held = PausedThreadsTransport(body: testMessagesPageBody(messages: [unreadJSON("u2", room: betaRoomId)], nextCursor: nil))
-    let heldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let heldClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: held)
     let reread = Task { try await threads.load(.unread, rooms: rooms, scope: "w", client: heldClient, organizationSlug: nil) }
     await held.waitForRequest()
     #expect(threads.unreadRows(rooms: rooms).map(\.parentMessageId) == ["u1"])
@@ -257,7 +257,7 @@ struct CrossRoomThreadsTests {
     try await threads.load(.unread, rooms: rooms, scope: "first", client: client, organizationSlug: nil)
     try await threads.load(.earlier, rooms: rooms, scope: "first", client: client, organizationSlug: nil)
     let held = PausedThreadsTransport(body: testMessagesPageBody(messages: [], nextCursor: nil))
-    let heldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let heldClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: held)
     let next = Task { try await threads.load(.unread, rooms: rooms, scope: "second", client: heldClient, organizationSlug: "other") }
     await held.waitForRequest()
     #expect(threads.unreadRows(rooms: rooms).isEmpty && threads.unread.nextCursor == nil)
@@ -271,7 +271,7 @@ struct CrossRoomThreadsTests {
   @Test func resetDropsALatePage() async throws {
     let threads = CrossRoomThreads()
     let held = PausedThreadsTransport(body: testMessagesPageBody(messages: [unreadJSON("late", room: alphaRoomId)], nextCursor: nil))
-    let heldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let heldClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: held)
     let late = Task { try await threads.load(.unread, rooms: rooms, scope: "w", client: heldClient, organizationSlug: nil) }
     await held.waitForRequest()
     threads.reset()

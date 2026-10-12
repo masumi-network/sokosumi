@@ -223,7 +223,7 @@ private func ephemeralState(
 ) throws -> (WorkspaceState, AuthState, ScriptedTransport, UserDefaults) { // swiftlint:disable:this large_tuple
   let transport = ScriptedTransport(responses)
   // The app registers this middleware too; without it the create-link body cannot carry `expiresInDays`.
-  let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport, middlewares: [GuestInviteLinkExpiryMiddleware()])
+  let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport, middlewares: [GuestInviteLinkExpiryMiddleware()])
   let suite = "sokosumi-workspace-state-tests.\(UUID().uuidString)"
   let defaults = UserDefaults(suiteName: suite)!
   defaults.removePersistentDomain(forName: suite)
@@ -572,7 +572,7 @@ struct WorkspaceStateTests {
 
   @Test func clientProviderReceivesCurrentAuthOnEveryResolution() throws {
     let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: ScriptedTransport([]))
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: ScriptedTransport([]))
     var available = true
     var calls = 0
     let state = WorkspaceState(clientProvider: { currentAuth in
@@ -4167,7 +4167,7 @@ extension WorkspaceStateTests {
     defer { state.reset() }
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: ScriptedTransport([(200, page), (200, page)]))
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: ScriptedTransport([(200, page), (200, page)]))
     var room = state.rooms[0]
     room.unreadThreadCount = 1
     state.rooms = [room]

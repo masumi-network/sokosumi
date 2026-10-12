@@ -74,7 +74,7 @@ private actor HeldPageTransport: ClientTransport {
 @MainActor
 struct RoomTimelineTests {
   private func client(_ transport: some ClientTransport) -> Client {
-    Client.connecting(to: URL(string: "https://core.example/v1")!, transport: transport)
+    Client.core(baseURL: URL(string: "https://core.example/v1")!, transport: transport)
   }
 
   private func row(_ id: String, content: String, date: String = testTimestamp) -> String {

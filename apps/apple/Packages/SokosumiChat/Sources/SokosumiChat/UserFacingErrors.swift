@@ -40,7 +40,7 @@ public let updateMessage = "This version of Sokosumi is out of date. Download th
 
 private func chatServiceMessage(_ error: ChatServiceError, mode: UserFacingErrorMode) -> String {
   switch error {
-  case let .unprocessable(statusCode, message):
+  case let .unprocessable(statusCode, message, _):
     unprocessableMessage(statusCode: statusCode, message: message, mode: mode)
   case let .unexpectedResponse(message):
     message
