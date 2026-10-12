@@ -121,10 +121,10 @@
 
       /// Reads the failed row back and clicks Try again where Vision finds it; where Vision cannot run
       /// (the virtualized CI runner) the closure the button runs is called directly.
-      private func tryAgain(in window: NSWindow, host: NSView, state: WorkspaceState, auth: AuthState) throws {
+      private func tryAgain(in window: NSWindow, host: NSView, state: WorkspaceState, auth _: AuthState) throws {
         let bitmap = try renderedBitmap(host)
         guard let lines = try recognizedText(in: bitmap) else {
-          state.loadHistoryGap(before: "fixture-70", auth: auth)
+          state.loadHistoryGap(before: "fixture-70")
           note("Try again driven through the row's action; OCR unavailable")
           return
         }
@@ -234,7 +234,7 @@
         let auth = AuthState()
         state.room.timeline.reset(roomId: "room")
         _ = try await state.room.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.room.timeline.generation)
-        #expect(try await state.openMessage("fixture-20", auth: auth) == .opened)
+        #expect(try await state.openMessage("fixture-20") == .opened)
         #expect(state.room.timeline.historyGapMessageIds == ["fixture-70"])
         #expect(state.room.timeline.messages.count == 60)
         return GapFixture(state: state, auth: auth, session: session)

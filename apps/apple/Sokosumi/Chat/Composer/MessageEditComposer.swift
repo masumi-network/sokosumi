@@ -11,7 +11,6 @@
   /// under the field, compact controls sit beside it (`MessageEditControls`).
   struct MessageEditComposer: View {
     @EnvironmentObject private var workspaces: WorkspaceState
-    @EnvironmentObject private var auth: AuthState
     @ObservedObject var editing: MessageEditing
 
     var body: some View {
@@ -48,7 +47,7 @@
 
     private func commit() -> Bool {
       switch editing.commitAction {
-      case .save: Task { await workspaces.saveMessageEdit(auth: auth) }
+      case .save: Task { await workspaces.saveMessageEdit() }
       case .cancel: editing.cancel()
       case .keepEditing: break
       }

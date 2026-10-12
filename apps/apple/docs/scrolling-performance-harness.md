@@ -414,7 +414,7 @@ import Synchronization
       let payload = try! JSONSerialization.data(withJSONObject: ["data": object, "meta": ["timestamp": "2026-09-21T12:00:00.000Z", "requestId": "m6"]])
       M6ReactionProtocol.response.withLock { $0 = payload }
       let started = ProcessInfo.processInfo.systemUptime
-      do { _ = try await state.toggleReaction(fixture[count/2], emoji: "🎉", auth: auth) } catch { fatalError("Reaction fixture failed: \(error)") }
+      do { _ = try await state.toggleReaction(fixture[count/2], emoji: "🎉") } catch { fatalError("Reaction fixture failed: \(error)") }
       await pause(500)
       M6Probe.emit(["phase": "reaction", "count": count, "mix": mix, "wall_ms": (ProcessInfo.processInfo.systemUptime-started)*1000, "prepare": M6Preparation.take(), "bodies": M6Probe.totalBodies, "room_bodies": M6Probe.roomBodies])
       window.orderOut(nil); window.contentView = nil; window.close()
@@ -456,7 +456,7 @@ import Synchronization
     }
     var reactionFinished = false
     let reaction = Task {
-      do { _ = try await state.toggleReaction(confirmed, emoji: "🎉", auth: auth) }
+      do { _ = try await state.toggleReaction(confirmed, emoji: "🎉") }
       catch { fatalError("M6 reaction failed: \(error)") }
       reactionFinished = true
     }
@@ -467,7 +467,7 @@ import Synchronization
     M6ReactionProtocol.status.withLock { $0 = 500 }
     var rollbackFinished = false
     let rollback = Task {
-      do { _ = try await state.toggleReaction(confirmed, emoji: "🎉", auth: auth); fatalError("Expected reaction failure") }
+      do { _ = try await state.toggleReaction(confirmed, emoji: "🎉"); fatalError("Expected reaction failure") }
       catch { rollbackFinished = true }
     }
     await check("optimistic reaction removal") { !reacted() }

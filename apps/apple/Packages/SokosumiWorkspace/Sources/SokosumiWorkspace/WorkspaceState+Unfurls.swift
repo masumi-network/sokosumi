@@ -3,9 +3,9 @@ import SokosumiAuth
 import SokosumiChat
 
 public extension WorkspaceState {
-  func removeUnfurl(_ source: Components.Schemas.ChatRoomMessage, url: String, auth: AuthState) async throws {
+  func removeUnfurl(_ source: Components.Schemas.ChatRoomMessage, url: String) async throws {
     guard source.roomId == transcriptRoomId, canModifyOwnMessage(source, userId: currentUserId) else { return }
-    guard let client = resolveClient(auth: auth) else {
+    guard let client = resolveClient() else {
       throw ChatServiceError.unauthorized("Log in to remove link previews.")
     }
     let generation = room.timeline.generation
@@ -24,7 +24,7 @@ public extension WorkspaceState {
     } catch {
       guard generation == room.timeline.generation, !Task.isCancelled else { return }
       if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
+        signOutIfUnauthorized(error)
       }
       throw error
     }

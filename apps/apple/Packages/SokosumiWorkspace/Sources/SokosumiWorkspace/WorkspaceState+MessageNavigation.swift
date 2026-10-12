@@ -19,11 +19,11 @@ public extension WorkspaceState {
   /// Navigate to a `ChatLink.room` within the current workspace. Membership-visible rooms remain the authority;
   /// invitation and guest-join links are presented by the app instead.
   @discardableResult
-  func openRoomLink(roomId: String, messageId: String?, auth: AuthState) async throws -> MessageNavigationResult {
+  func openRoomLink(roomId: String, messageId: String?) async throws -> MessageNavigationResult {
     guard rooms.contains(where: { $0.id == roomId }) else { return .unavailable }
     // A link, a notification or a Threads row shows its room in place of the Threads view (row 24f1).
     sidebar.showsThreadsView = false
-    selectRoom(roomId, auth: auth)
+    selectRoom(roomId)
     let request = UUID()
     messageNavigationRequest = request
     let generation = room.timeline.generation
@@ -35,15 +35,15 @@ public extension WorkspaceState {
     guard let messageId else { thread.close()
       return .opened
     }
-    return try await openMessage(messageId, auth: auth)
+    return try await openMessage(messageId)
   }
 
   /// Quotes and links resolve replies before choosing the existing context loader. A quote from the same room
   /// passes `marksThreadParent: false`: web's same-room quote only scrolls, while a link (a cross-room quote
   /// included) takes web's search jump, which also marks a reply's parent in the room (row 25c).
   @discardableResult
-  func openMessage(_ messageId: String, auth: AuthState, marksThreadParent: Bool = true) async throws -> MessageNavigationResult {
-    guard let roomId = transcriptRoomId, let client = resolveClient(auth: auth) else { return .unavailable }
+  func openMessage(_ messageId: String, marksThreadParent: Bool = true) async throws -> MessageNavigationResult {
+    guard let roomId = transcriptRoomId, let client = resolveClient() else { return .unavailable }
     let request = UUID()
     messageNavigationRequest = request
     let initialThreadGeneration = thread.transcript.timeline.generation
@@ -57,16 +57,16 @@ public extension WorkspaceState {
         // A row the transcript drops (a deleted message) can never be landed on.
         guard message.roomId == roomId, shouldKeepPersistedMessage(message) else { return .unavailable }
         if message.parentMessageId != nil {
-          return try await navigateReply(message, request: request, marksParent: marksThreadParent, auth: auth)
+          return try await navigateReply(message, request: request, marksParent: marksThreadParent)
         }
       }
-      guard try await jumpToMessage(messageId, auth: auth),
+      guard try await jumpToMessage(messageId),
             isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
       thread.close()
       messageJump = MessageJump(roomId: roomId, messageId: messageId)
       return .opened
     } catch {
-      return try currentNavigationFailure(error, navigation: navigation, auth: auth)
+      return try currentNavigationFailure(error, navigation: navigation)
     }
   }
 
@@ -92,10 +92,10 @@ public extension WorkspaceState {
   /// Open the parent first, reuse its normal initial load, then fetch a context
   /// window only if the result is outside loaded replies. Every suspension is
   /// guarded against room/thread changes.
-  func openMessageReply(_ hit: Components.Schemas.ChatRoomMessage, auth: AuthState) async throws -> MessageNavigationResult {
+  func openMessageReply(_ hit: Components.Schemas.ChatRoomMessage) async throws -> MessageNavigationResult {
     let request = UUID()
     messageNavigationRequest = request
-    return try await navigateReply(hit, request: request, marksParent: true, auth: auth)
+    return try await navigateReply(hit, request: request, marksParent: true)
   }
 
   func consumeMessageJump(_ requestId: UUID) {
@@ -107,11 +107,10 @@ public extension WorkspaceState {
   private func navigateReply(
     _ hit: Components.Schemas.ChatRoomMessage,
     request: UUID,
-    marksParent: Bool,
-    auth: AuthState
+    marksParent: Bool
   ) async throws -> MessageNavigationResult {
     guard hit.roomId == transcriptRoomId, let parentId = hit.parentMessageId else { return .unavailable }
-    guard let client = resolveClient(auth: auth) else {
+    guard let client = resolveClient() else {
       throw ChatServiceError.unauthorized("Log in to view this reply.")
     }
     let initialThreadGeneration = thread.transcript.timeline.generation
@@ -122,7 +121,7 @@ public extension WorkspaceState {
       let parent = try await messageParent(parentId, roomId: hit.roomId, client: client, organizationSlug: slug)
       guard isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
       guard parent.id == parentId, parent.roomId == hit.roomId, parent.parentMessageId == nil else { return .unavailable }
-      openThread(parent, auth: auth)
+      openThread(parent)
       let threadGeneration = thread.transcript.timeline.generation
       _ = await thread.transcript.loadTask?.value
       guard isCurrent(navigation, threadGeneration: threadGeneration),
@@ -144,7 +143,7 @@ public extension WorkspaceState {
         throw failure
       }
     } catch {
-      return try currentNavigationFailure(error, navigation: navigation, auth: auth, mapRefusal: false)
+      return try currentNavigationFailure(error, navigation: navigation, mapRefusal: false)
     }
   }
 
@@ -200,12 +199,11 @@ public extension WorkspaceState {
   private func currentNavigationFailure(
     _ error: Error,
     navigation: NavigationGuard,
-    auth: AuthState,
     mapRefusal: Bool = true
   ) throws -> MessageNavigationResult {
     guard isCurrent(navigation) else { return .superseded }
     if let failure = error as? ChatServiceError {
-      signOutIfUnauthorized(failure, auth: auth)
+      signOutIfUnauthorized(failure)
       if mapRefusal, case let .unprocessable(status, _, _) = failure, status == 403 || status == 404 {
         return .unavailable
       }

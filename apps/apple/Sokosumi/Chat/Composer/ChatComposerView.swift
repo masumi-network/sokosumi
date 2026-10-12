@@ -10,7 +10,6 @@ import UniformTypeIdentifiers
   /// gives each account/workspace/room a distinct identity before loading its draft.
   struct ChatComposerView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
-    @EnvironmentObject private var auth: AuthState
     @Binding var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     @State private var draft: String
     @State private var filePickerPresented = false
@@ -124,7 +123,7 @@ import UniformTypeIdentifiers
       }
       .sheet(isPresented: $drivePickerPresented) {
         DriveFilePickerView(load: { folder, query in
-          try await workspaces.driveItems(folder: folder, query: query, roomId: roomId, auth: auth)
+          try await workspaces.driveItems(folder: folder, query: query, roomId: roomId)
         }, select: { attachment in
           guard canAttachFiles else { return }
           uploads.add(attachment)
@@ -184,7 +183,7 @@ import UniformTypeIdentifiers
       }
       if allowsSkills {
         input.skills = ComposerSkills(selected: skills, search: { query in
-          try await workspaces.searchSkills(query, auth: auth)
+          try await workspaces.searchSkills(query)
         }, change: { skills = $0 })
       }
       return input
@@ -198,7 +197,7 @@ import UniformTypeIdentifiers
       // One quote per message: never swap a quote the sender already chose.
       guard pendingQuote == nil else { return }
       Task { @MainActor in
-        guard let quote = await workspaces.messageLinkQuote(pasted: paste.text, roomId: roomId, webBaseURL: CoreSettings.webBaseURL, auth: auth),
+        guard let quote = await workspaces.messageLinkQuote(pasted: paste.text, roomId: roomId, webBaseURL: CoreSettings.webBaseURL),
               generation == pasteGeneration, pendingQuote == nil, workspaces.room.timeline.roomId == roomId,
               // Nothing to swap once the link was edited away.
               paste.remove() else { return }
@@ -218,7 +217,7 @@ import UniformTypeIdentifiers
     private func attachFiles(_ files: [URL]) {
       guard canAttachFiles else { return }
       uploads.upload(files) { file in
-        try await workspaces.uploadAttachment(file, roomId: roomId, auth: auth)
+        try await workspaces.uploadAttachment(file, roomId: roomId)
       }
     }
 
@@ -240,7 +239,7 @@ import UniformTypeIdentifiers
     private func attachTemporary(_ data: Data, filename: String, completed: (() -> Void)? = nil) {
       guard canAttachFiles else { return }
       uploads.upload(data, filename: filename, using: { file in
-        try await workspaces.uploadAttachment(file, roomId: roomId, auth: auth)
+        try await workspaces.uploadAttachment(file, roomId: roomId)
       }, completed: completed)
     }
 
@@ -250,8 +249,8 @@ import UniformTypeIdentifiers
       let content = preparedContent.text
       let attached = allowsSkills ? skills : []
       let accepted = parentMessageId == nil
-        ? workspaces.sendMessage(content, attachments: uploads.attachments, quote: pendingQuote, skills: attached, auth: auth)
-        : workspaces.sendThreadReply(content, attachments: uploads.attachments, quote: pendingQuote, skills: attached, auth: auth)
+        ? workspaces.sendMessage(content, attachments: uploads.attachments, quote: pendingQuote, skills: attached)
+        : workspaces.sendThreadReply(content, attachments: uploads.attachments, quote: pendingQuote, skills: attached)
       guard accepted else { return false }
       pasteGeneration += 1
       quotedLink = nil

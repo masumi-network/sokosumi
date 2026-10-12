@@ -8,8 +8,8 @@ public extension WorkspaceState {
     messageEditing.start(message, userId: currentUserId)
   }
 
-  func saveMessageEdit(auth: AuthState) async {
-    guard let client = resolveClient(auth: auth) else { return }
+  func saveMessageEdit() async {
+    guard let client = resolveClient() else { return }
     let generation = room.timeline.generation
     do {
       guard let message = try await messageEditing.save(client: client, organizationSlug: selection?.workspace.organizationSlug),
@@ -17,7 +17,7 @@ public extension WorkspaceState {
       loaded.apply(eventType: .update, message: message)
     } catch {
       if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
+        signOutIfUnauthorized(error)
       }
     }
   }

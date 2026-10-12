@@ -53,7 +53,7 @@
         state.sidebar.setUnreadsFilter(true)
         #expect(state.offersMarkAllUnreadRead(isSignedIn: true))
 
-        let marking = Task { await state.markAllUnreadRead(auth: AuthState()) }
+        let marking = Task { await state.markAllUnreadRead() }
         while await transport.operationIDs.isEmpty {
           await Task.yield()
         }
@@ -71,7 +71,7 @@
         state.sidebar.readAttention.setVisible(true, window: UUID())
         state.sidebar.setUnreadsFilter(true)
 
-        await state.markAllUnreadRead(auth: AuthState())
+        await state.markAllUnreadRead()
 
         // The state is not `phase == .ready`, so the rooms re-read that follows
         // a Mark all stays away and the transport sees the read alone.

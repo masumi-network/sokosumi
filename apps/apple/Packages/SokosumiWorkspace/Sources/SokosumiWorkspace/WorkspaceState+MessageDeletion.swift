@@ -3,9 +3,9 @@ import SokosumiAuth
 import SokosumiChat
 
 public extension WorkspaceState {
-  func deleteMessage(_ source: Components.Schemas.ChatRoomMessage, auth: AuthState) async throws {
+  func deleteMessage(_ source: Components.Schemas.ChatRoomMessage) async throws {
     guard source.roomId == transcriptRoomId, source.deletedAt == nil else { return }
-    guard let client = resolveClient(auth: auth) else {
+    guard let client = resolveClient() else {
       throw ChatServiceError.unauthorized("Log in to delete messages.")
     }
     let generation = room.timeline.generation
@@ -27,7 +27,7 @@ public extension WorkspaceState {
     } catch {
       guard generation == room.timeline.generation else { return }
       if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
+        signOutIfUnauthorized(error)
       }
       throw error
     }

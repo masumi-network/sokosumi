@@ -46,7 +46,6 @@ import SwiftUI
 
   struct ReplyThreadContent: View {
     @EnvironmentObject private var workspaces: WorkspaceState
-    @EnvironmentObject private var auth: AuthState
     @Environment(\.jumpMarkClock) private var jumpMarkClock
     let messages: [Components.Schemas.ChatRoomMessage]
     let preparedTranscript: PreparedTranscript?
@@ -70,7 +69,7 @@ import SwiftUI
 
     private func unfurlAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
       guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
-      return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
+      return { url in try await workspaces.removeUnfurl(message, url: url) }
     }
 
     private var room: Components.Schemas.ChatRoom? {
@@ -79,44 +78,44 @@ import SwiftUI
 
     private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
       guard canReactToMessage(message), roomTakesNewMessages(room) else { return nil }
-      return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
+      return { emoji in try await workspaces.toggleReaction(message, emoji: emoji) }
     }
 
     /// The turn's thumbs send through the coordinator, which keeps the rating for the session (row 38b).
     private func sokoBotFeedbackAction(for message: Components.Schemas.ChatRoomMessage) -> ((Bool) async throws -> Void)? {
       guard let turnId = SokoBotFeedback.turnId(for: message) else { return nil }
-      return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful, auth: auth) }
+      return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful) }
     }
 
     /// Row 38e1: the Thread's rows read their result cards as the room's do.
     private func resultPreviewsAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> [Components.Schemas.ChatResultPreview])? {
       guard !MessageResultPreviews.descriptorIds(of: message).isEmpty else { return nil }
-      return { try await workspaces.messageResultPreviews(message, auth: auth) }
+      return { try await workspaces.messageResultPreviews(message) }
     }
 
     /// Row 38h1: a question asked in the Thread is answered in the Thread.
     private func selectProjectAction(for message: Components.Schemas.ChatRoomMessage) -> (String, String) async throws -> Void {
-      { previewId, projectId in try await workspaces.selectProject(projectId, preview: previewId, question: message, auth: auth) }
+      { previewId, projectId in try await workspaces.selectProject(projectId, preview: previewId, question: message) }
     }
 
     /// Row 38h2: a decision card in the Thread resolves like the room's.
     private var resolveDecisionAction: (String, SokoBotDecision.Resolution) async throws -> Void {
-      { decisionId, resolution in try await workspaces.resolveSokoBotDecision(decisionId, resolution, auth: auth) }
+      { decisionId, resolution in try await workspaces.resolveSokoBotDecision(decisionId, resolution) }
     }
 
     private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
       guard workspaces.canSendToSelf(message) else { return nil }
-      return { try await workspaces.sendMessageToSelf(message, auth: auth) }
+      return { try await workspaces.sendMessageToSelf(message) }
     }
 
     private func deletionAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
-      return { try await workspaces.deleteMessage(message, auth: auth) }
+      return { try await workspaces.deleteMessage(message) }
     }
 
     private func mentionRetryAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard workspaces.canRetryMention(message) else { return nil }
-      return { try await workspaces.retryMention(message, auth: auth, now: Date()) }
+      return { try await workspaces.retryMention(message, now: Date()) }
     }
 
     private func quoteAction(for message: Components.Schemas.ChatRoomMessage) -> (() -> Void)? {
@@ -188,7 +187,7 @@ import SwiftUI
                 if preparedHasMore {
                   Button("Load older replies") {
                     scrollIntent.readOlder()
-                    workspaces.loadThreadPage(.older, auth: auth)
+                    workspaces.loadThreadPage(.older)
                   }
                   .buttonStyle(.link)
                   .controlSize(.small)
@@ -266,7 +265,7 @@ import SwiftUI
               JumpToLatestButton {
                 workspaces.thread.transcript.clearJump()
                 if workspaces.thread.transcript.timeline.historicalAnchor != nil {
-                  workspaces.loadThreadPage(.returnToLatest, auth: auth)
+                  workspaces.loadThreadPage(.returnToLatest)
                 }
                 scrollIntent.followLatest()
                 proxy.scrollTo("thread-bottom", anchor: .bottom)
@@ -296,7 +295,7 @@ import SwiftUI
           if let mute = workspaces.thread.mute, let isMuted = mute.isMuted {
             ToolbarItem {
               ThreadMuteToggle(isMuted: isMuted, isPending: mute.isPending) {
-                Task { await workspaces.toggleThreadMute(auth: auth) }
+                Task { await workspaces.toggleThreadMute() }
               }
             }
           }
@@ -304,7 +303,7 @@ import SwiftUI
         // Stored replies only. A pending shell reads too early (404) and the stored row that replaces it
         // does not change the displayed count, so the bell would never appear.
         .task(id: [parent.id, String(liveThreadReplyCount(messages))]) {
-          await workspaces.readThreadMuteIfNeeded(auth: auth)
+          await workspaces.readThreadMuteIfNeeded()
         }
         .onChange(of: parent.id) { _, _ in pendingQuote = nil
           jumpError = nil
@@ -318,7 +317,7 @@ import SwiftUI
       Task { @MainActor in
         do {
           // A quote in this room marks no Thread parent in the room, as web's same-room quote (row 25c).
-          if try await workspaces.openMessage(id, auth: auth, marksThreadParent: false) == .unavailable {
+          if try await workspaces.openMessage(id, marksThreadParent: false) == .unavailable {
             jumpError = "This message is no longer available."
           }
         } catch { jumpError = friendlyMessage(for: error) }
@@ -338,7 +337,7 @@ import SwiftUI
       let generation = timeline.generation
       Task { @MainActor in
         guard timeline.generation == generation, workspaces.thread.transcript.loadTask == nil else { return }
-        workspaces.loadThreadPage(.older, auth: auth)
+        workspaces.loadThreadPage(.older)
       }
     }
 
@@ -350,7 +349,7 @@ import SwiftUI
       } else {
         if let error = timeline.errorMessage {
           Text(error).foregroundStyle(.secondary)
-          Button("Retry") { workspaces.loadThreadPage(timeline.failedPage ?? .initial, auth: auth) }
+          Button("Retry") { workspaces.loadThreadPage(timeline.failedPage ?? .initial) }
         }
         if workspaces.directStream.parentMessageId == workspaces.thread.parent?.id,
            let error = workspaces.directStream.errorMessage {
@@ -382,7 +381,7 @@ import SwiftUI
             // Web's thread panel has no gap row (a reply jump is Apple's), so this stays a
             // tap; the row and its failure follow the room's gap row.
             PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.thread.transcript.timeline.boundaryLoads.status(of: message.id)) {
-              workspaces.loadThreadPage(.boundary(message.id), auth: auth)
+              workspaces.loadThreadPage(.boundary(message.id))
             }
           }
           if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt, now: Date()) {

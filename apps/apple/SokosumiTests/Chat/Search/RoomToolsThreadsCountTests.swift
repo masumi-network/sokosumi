@@ -48,7 +48,7 @@
 
         // Mark all, as the overview's button runs it: Core accepts, the room bumps the revision.
         let revision = state.threadAttentionRevision
-        await state.updateThreadOverview(.markAllRead, roomId: "room", auth: auth)
+        await state.updateThreadOverview(.markAllRead, roomId: "room")
         try #require(state.threadAttentionRevision == revision + 1, "Mark all bumps the Threads attention revision.")
 
         try await waitUntil("the re-count after the bump; \(Self.describe(transport, state))", in: host) {

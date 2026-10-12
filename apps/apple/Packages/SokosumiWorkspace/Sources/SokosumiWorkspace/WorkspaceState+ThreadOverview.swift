@@ -5,8 +5,8 @@ import SokosumiChat
 public extension WorkspaceState {
   enum ThreadOverviewAction { case load, older, count, markAllRead }
 
-  func updateThreadOverview(_ action: ThreadOverviewAction, roomId: String, auth: AuthState) async {
-    guard roomId == transcriptRoomId, let client = resolveClient(auth: auth) else { return }
+  func updateThreadOverview(_ action: ThreadOverviewAction, roomId: String) async {
+    guard roomId == transcriptRoomId, let client = resolveClient() else { return }
     let generation = room.timeline.generation
     let slug = selection?.workspace.organizationSlug
     do {
@@ -25,7 +25,7 @@ public extension WorkspaceState {
             try await syncRoomAttentionAfterThreadChange(client: client)
           } catch {
             if let error = error as? ChatServiceError {
-              signOutIfUnauthorized(error, auth: auth)
+              signOutIfUnauthorized(error)
             }
           }
         }
@@ -33,7 +33,7 @@ public extension WorkspaceState {
     } catch {
       guard generation == room.timeline.generation, !Task.isCancelled else { return }
       if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
+        signOutIfUnauthorized(error)
       }
     }
   }
