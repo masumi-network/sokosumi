@@ -90,6 +90,8 @@ const MESSAGES: Record<string, string> = {
   noAccount: "No account",
   needsReconnect: "Account needs reconnecting",
   needsReconnectLink: "Reconnect the account",
+  "needsMedia.media_required": "{provider} needs an image or video.",
+  "needsMedia.video_required": "{provider} needs a video.",
   viewPost: "View post",
   publishedAt: "Published {date}",
   failedAt: "Failed {date}",
@@ -583,6 +585,9 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(draftRow).getByTestId("social-post-status-DRAFT"),
     ).toHaveTextContent("Draft");
+    expect(
+      within(draftRow).queryByTestId("social-post-needs-media"),
+    ).not.toBeInTheDocument();
 
     expect(
       screen.queryByTestId("social-post-post-scheduled"),
@@ -591,6 +596,30 @@ describe("ProjectSocialPosts", () => {
       screen.queryByTestId("social-post-post-published"),
     ).not.toBeInTheDocument();
     expect(screen.getAllByRole("list")).toHaveLength(1);
+  });
+
+  it.each([
+    ["tiktok", "TikTok needs a video."],
+    ["youtube", "YouTube needs a video."],
+    ["instagram", "Instagram needs an image or video."],
+  ] as const)("tells a %s draft it still needs media", (provider, hint) => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection({ provider })]}
+        posts={[
+          buildPost({
+            provider,
+            text: "Caption only",
+            media: [],
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(screen.getByTestId("social-post-needs-media")).toHaveTextContent(
+      hint,
+    );
   });
 
   it("opens Social on its calendar, with Accounts as the last tab", async () => {

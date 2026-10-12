@@ -2571,6 +2571,10 @@
         },
         "needsReconnect": "Konto muss neu verbunden werden",
         "needsReconnectLink": "Konto erneut verbinden",
+        "needsMedia": {
+          "media_required": "{provider} braucht ein Bild oder Video.",
+          "video_required": "{provider} braucht ein Video."
+        },
         "viewPost": "Beitrag ansehen",
         "publishedAt": "Veröffentlicht {date}",
         "failedAt": "Fehlgeschlagen {date}",

@@ -6,7 +6,7 @@ import type {
   SocialPostMediaRef,
   SocialPostStatus,
 } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, socialPostProviderLabel } from "@sokosumi/utils";
 import {
   AlertTriangle,
   ExternalLink,
@@ -76,6 +76,7 @@ import {
   SOCIAL_TABS_LIST_CLASS_NAME,
   type SocialTab,
 } from "./constants";
+import { socialPostComposerIssue } from "./social-post-composer-rules";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
 import { SocialPostStatistics } from "./social-post-statistics";
@@ -524,6 +525,14 @@ export function ProjectSocialPosts({
       post.lastAttempt?.outcome === "authorization_revoked"
         ? t("outcomes.authorizationRevoked")
         : post.lastError;
+    const draftIssue =
+      post.status === "DRAFT"
+        ? socialPostComposerIssue(post.provider, post.text, post.media)
+        : null;
+    const needsMedia =
+      draftIssue === "media_required" || draftIssue === "video_required"
+        ? draftIssue
+        : null;
 
     return (
       <li
@@ -561,6 +570,17 @@ export function ProjectSocialPosts({
             />
           </p>
           <p className="text-sm whitespace-pre-wrap break-words">{post.text}</p>
+          {needsMedia ? (
+            <p
+              className="text-muted-foreground text-xs"
+              data-testid="social-post-needs-media"
+              role="status"
+            >
+              {t(`needsMedia.${needsMedia}`, {
+                provider: socialPostProviderLabel(post.provider),
+              })}
+            </p>
+          ) : null}
           {post.media.length > 0 ? (
             <div
               className="flex flex-wrap items-center gap-1.5 pt-0.5"

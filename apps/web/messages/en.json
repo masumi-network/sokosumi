@@ -2571,6 +2571,10 @@
         },
         "needsReconnect": "Account needs reconnecting",
         "needsReconnectLink": "Reconnect the account",
+        "needsMedia": {
+          "media_required": "{provider} needs an image or video.",
+          "video_required": "{provider} needs a video."
+        },
         "viewPost": "View post",
         "publishedAt": "Published {date}",
         "failedAt": "Failed {date}",
