@@ -3,7 +3,12 @@
 import { useTranslations } from "next-intl";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 
-import { SOCIAL_TABS } from "@/app/projects/components/social-posts/constants";
+import {
+  SOCIAL_TAB_TRIGGER_CLASS_NAME,
+  SOCIAL_TABS,
+  SOCIAL_TABS_LIST_CLASS_NAME,
+} from "@/app/projects/components/social-posts/constants";
+import { SocialPostStatistics } from "@/app/projects/components/social-posts/social-post-statistics";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
   SEGMENTED_TABS_LIST_CLASS_NAME,
@@ -31,19 +36,20 @@ function isAllProjectsTab(value: string | null): value is AllProjectsTab {
 /**
  * Social's tab row on the all-projects view, the same row a project gets.
  *
- * The calendar spans every project. Drafts and accounts belong to one
- * project, so their tabs ask for one rather than disappear: a reader who
- * lands here still sees what Social holds and where to go for it.
+ * The calendar and Performance span every project. Drafts and accounts
+ * belong to one project, so those tabs ask for one rather than disappear.
  */
 export function SocialAllProjectsTabs({
   actions,
   calendar,
   notice,
+  workspaceId,
 }: {
   actions: React.ReactNode;
   calendar: React.ReactNode;
   /** Why the scoped project could not be opened, when it could not. */
   notice?: string;
+  workspaceId: string;
 }) {
   const t = useTranslations("App.Projects.SocialPosts");
   const [tabParam, setTabParam] = useQueryState(
@@ -65,18 +71,21 @@ export function SocialAllProjectsTabs({
         void setTabParam(value === "calendar" ? null : value);
       }}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-3">
         <TabsList
           aria-label={t("title")}
           className={cn(
             SEGMENTED_TABS_LIST_CLASS_NAME,
-            "app-scrollbar w-full min-w-0 max-w-full overflow-x-auto md:w-fit",
+            SOCIAL_TABS_LIST_CLASS_NAME,
           )}
         >
           {ALL_PROJECTS_TABS.map((candidate) => (
             <TabsTrigger
               key={candidate}
-              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+              className={cn(
+                SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+                SOCIAL_TAB_TRIGGER_CLASS_NAME,
+              )}
               data-testid={`social-posts-tab-${candidate}`}
               value={candidate}
             >
@@ -99,7 +108,7 @@ export function SocialAllProjectsTabs({
         <SocialAccountsProjectPrompt kind="drafts" />
       </TabsContent>
       <TabsContent value="statistics">
-        <SocialAccountsProjectPrompt kind="statistics" notice={notice} />
+        <SocialPostStatistics workspaceId={workspaceId} />
       </TabsContent>
       <TabsContent value="accounts">
         <SocialAccountsProjectPrompt notice={notice} />

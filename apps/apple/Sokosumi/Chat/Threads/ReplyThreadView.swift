@@ -5,6 +5,11 @@ import SokosumiWorkspace
 import SwiftUI
 
 #if os(macOS)
+  private func threadPreparationScope(_ workspaces: WorkspaceState) -> [String] {
+    [workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "",
+     workspaces.thread.parent?.id ?? "", String(workspaces.thread.timeline.generation)]
+  }
+
   struct ReplyThreadView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @State private var preparedTranscript: PreparedTranscript?
@@ -13,7 +18,7 @@ import SwiftUI
 
     private var preparationInput: PreparedTranscript.Input {
       let room = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
-      return .init(scope: [workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "", workspaces.thread.parent?.id ?? "", String(workspaces.thread.timeline.generation)],
+      return .init(scope: threadPreparationScope(workspaces),
                    messages: (workspaces.displayedThreadParent.map { [$0] } ?? []) + workspaces.displayedThreadReplies,
                    mentions: room.map(MessageMentions.init), channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
     }
@@ -39,7 +44,7 @@ import SwiftUI
     }
   }
 
-  private struct ReplyThreadContent: View {
+  struct ReplyThreadContent: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
     @Environment(\.jumpMarkClock) private var jumpMarkClock
@@ -140,13 +145,14 @@ import SwiftUI
           scrollIntent = TimelineScrollIntent()
           olderBoundaryVisible = false
           visibleMessageID = nil
-          scrollActivity.isScrolling = false
+          scrollActivity.update(for: .idle)
           pendingBottomAlignment = false
         }
     }
 
     @ViewBuilder private var content: some View {
-      if let parent = messages.first {
+      if preparationScope == threadPreparationScope(workspaces),
+         let parent = messages.first {
         let jumpTarget = readyJump(in: messages)
         let currentRoom = room
         let channels = workspaces.composerChannels
@@ -224,10 +230,7 @@ import SwiftUI
             proxy.scrollTo("thread-bottom", anchor: .bottom)
           }
           .onScrollPhaseChange { _, phase in
-            let scrolling = phase == .interacting || phase == .decelerating || phase == .tracking
-            if scrollActivity.isScrolling != scrolling {
-              scrollActivity.isScrolling = scrolling
-            }
+            scrollActivity.update(for: phase)
             if phase.endsJumpMark {
               Task { @MainActor in workspaces.thread.readerScrolled() }
             }

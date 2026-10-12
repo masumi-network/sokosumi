@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   posts: vi.fn(),
   cursor: vi.fn(),
   transaction: vi.fn(),
+  snapshot: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -27,8 +28,12 @@ vi.mock("@/services/project-social-connections.service", () => ({
 vi.mock("@/clients/social-post-providers/account-statistics", () => ({
   fetchSocialAccountStatisticsPage: mocks.provider,
 }));
+vi.mock("@/services/social-performance-snapshots.service", () => ({
+  recordSocialPerformanceSnapshot: mocks.snapshot,
+}));
 
 import {
+  exportSocialAccountStatistics,
   listSocialAccountStatistics,
   refreshSocialAccountStatistics,
 } from "./social-account-statistics.service";
@@ -142,6 +147,12 @@ describe("Social account statistics", () => {
       text: "Written outside Sokosumi",
       metrics,
     });
+    expect(result.headline.current).toEqual({
+      postCount: 1,
+      views: null,
+      impressions: 100,
+      interactions: null,
+    });
     expect(mocks.posts).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
@@ -152,6 +163,29 @@ describe("Social account statistics", () => {
       }),
     );
     expect(mocks.provider).not.toHaveBeenCalled();
+    expect(result.consistency.daily[0]).toMatchObject({
+      date: "2026-10-01",
+      postCount: 1,
+    });
+  });
+  it("exports every matching cached post without paging", async () => {
+    const publishedFrom = new Date("2026-10-01T00:00:00Z");
+    const result = await exportSocialAccountStatistics({
+      ...scope,
+      connectionId,
+      publishedFrom,
+    });
+    expect(result.posts).toHaveLength(1);
+    expect(result.accountName(connectionId)).toBe("Launch");
+    expect(mocks.posts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          connectionId: { in: [connectionId] },
+          publishedAt: { gte: publishedFrom },
+        },
+      }),
+    );
+    expect(mocks.posts.mock.calls[0][0].take).toBeUndefined();
   });
   it("pages cached history and keeps the account totals on every page", async () => {
     const second = {
@@ -163,6 +197,22 @@ describe("Social account statistics", () => {
     expect(result.posts).toHaveLength(1);
     expect(result.nextCursor).toBe(postId);
     expect(result.accounts[0].postCount).toBe(40);
+  });
+  it("lists every connected account in the workspace when no project is selected", async () => {
+    const result = await listSocialAccountStatistics({ workspaceId });
+    expect(mocks.listAccounts).not.toHaveBeenCalled();
+    expect(mocks.connections).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          project: { workspaceId },
+          status: { not: "disconnected" },
+        },
+      }),
+    );
+    expect(result.accounts[0]).toMatchObject({
+      id: connectionId,
+      postCount: 40,
+    });
   });
   it("blocks cross-workspace reads before fetching raw cached records", async () => {
     mocks.listAccounts.mockRejectedValue(new Error("Project not found"));
@@ -201,6 +251,13 @@ describe("Social account statistics", () => {
     expect(result.account.statistics?.historyComplete).toBe(false);
     expect(result.account.postCount).toBe(41);
     expect(result.importedPostCount).toBe(1);
+    expect(mocks.snapshot).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        connectionId,
+        metrics: [metric],
+      }),
+    );
     expect(mocks.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
@@ -336,13 +393,20 @@ describe("Social account statistics", () => {
     expect(result.importedPostCount).toBe(1);
     expect(mocks.upsert).toHaveBeenCalled();
   });
-  it("retains stored post metrics and their age when insights fail", async () => {
+  it("retains stored post metrics and their age when that post has no measured counters", async () => {
     mocks.provider.mockResolvedValue({
       ...page,
       posts: [
         {
           ...providerPost,
-          metrics: { ...metrics, impressions: null },
+          metrics: {
+            views: null,
+            impressions: null,
+            likes: null,
+            comments: null,
+            shares: null,
+            saves: null,
+          },
           additionalMetrics: [],
         },
       ],
@@ -363,6 +427,44 @@ describe("Social account statistics", () => {
     expect(update).not.toHaveProperty("metrics");
     expect(update).not.toHaveProperty("additionalMetrics");
     expect(update).not.toHaveProperty("fetchedAt");
+  });
+  it("still writes measured posts when a sibling insight fails", async () => {
+    mocks.provider.mockResolvedValue({
+      ...page,
+      posts: [
+        providerPost,
+        {
+          ...providerPost,
+          externalId: "failed-insight",
+          metrics: {
+            views: null,
+            impressions: null,
+            likes: null,
+            comments: null,
+            shares: null,
+            saves: null,
+          },
+        },
+      ],
+      metricWarning: "Some post insights are unavailable.",
+    });
+    await refreshSocialAccountStatistics({
+      ...scope,
+      connectionId,
+      userId: "reader",
+    });
+    const measured = mocks.upsert.mock.calls.find(
+      ([call]) =>
+        call.where.connectionId_externalId.externalId ===
+        providerPost.externalId,
+    )?.[0];
+    const failed = mocks.upsert.mock.calls.find(
+      ([call]) =>
+        call.where.connectionId_externalId.externalId === "failed-insight",
+    )?.[0];
+    expect(measured?.update).toMatchObject({ metrics });
+    expect(failed?.update).not.toHaveProperty("metrics");
+    expect(mocks.snapshot).toHaveBeenCalled();
   });
   it("retains account metrics and their age when optional analytics fail", async () => {
     mocks.provider.mockResolvedValue({
@@ -507,5 +609,43 @@ describe("Social account statistics", () => {
           providerPost.externalId,
       ),
     ).toBe(true);
+  });
+  it("refreshes the latest page without restarting a stored archive cursor", async () => {
+    mocks.provider.mockResolvedValue({
+      ...page,
+      nextCursor: "latest-next",
+    });
+    const result = await refreshSocialAccountStatistics({
+      ...scope,
+      connectionId,
+      userId: "reader",
+      refreshHead: true,
+    });
+    expect(mocks.provider).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cursor: null,
+        includeProfile: true,
+      }),
+    );
+    expect(result.account.statistics).toMatchObject({
+      historyNextCursor: previous.historyNextCursor,
+      historyComplete: false,
+      consecutiveFailures: 0,
+    });
+    expect(mocks.update.mock.calls[0][0].data).toMatchObject({
+      performanceHeadFetchedAt: expect.any(Date),
+    });
+  });
+  it("attaches a cache-only sync model on reads", async () => {
+    const result = await listSocialAccountStatistics({
+      ...scope,
+      connectionId,
+    });
+    expect(result.accounts[0]?.sync).toMatchObject({
+      status: expect.stringMatching(
+        /fresh|stale|queued|running|reauth_required|partial/,
+      ),
+    });
+    expect(mocks.provider).not.toHaveBeenCalled();
   });
 });

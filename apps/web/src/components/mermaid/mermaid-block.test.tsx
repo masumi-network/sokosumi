@@ -182,12 +182,14 @@ describe("Mermaid lifecycle", () => {
     await screen.findByRole("img");
     theme.resolvedTheme = "dark";
     rerender(block("flowchart LR\nA --> B"));
-    await screen.findByRole("img");
-    expect(renderDiagram).toHaveBeenLastCalledWith(
-      "flowchart LR\nA --> B",
-      true,
-      expect.any(AbortSignal),
-    );
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:diagram");
+    await waitFor(() => {
+      expect(screen.getByRole("img")).toHaveAttribute("src", "blob:dark");
+      expect(renderDiagram).toHaveBeenLastCalledWith(
+        "flowchart LR\nA --> B",
+        true,
+        expect.any(AbortSignal),
+      );
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:diagram");
+    });
   });
 });

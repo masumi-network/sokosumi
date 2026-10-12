@@ -45,6 +45,19 @@ import SwiftUI
   /// alone, where a changed environment value reached every realized row.
   @MainActor @Observable final class TranscriptScrollActivity {
     var isScrolling = false
+    /// Older-page insertion waits for native idle, including programmatic animations.
+    var isAtRest = true
+
+    func update(for phase: ScrollPhase) {
+      let scrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+      if isScrolling != scrolling {
+        isScrolling = scrolling
+      }
+      let atRest = phase == .idle
+      if isAtRest != atRest {
+        isAtRest = atRest
+      }
+    }
   }
 
   extension EnvironmentValues {
@@ -305,8 +318,6 @@ import SwiftUI
         } else {
           ParticipantProfileButton(sender: message.sender) { avatarView }
         }
-        // Header-to-body rhythm mirrors web: space-y-1.5 (6pt) under the
-        // header, and gap-x-2.5 (10pt) between name and time.
         VStack(alignment: .leading, spacing: 6) {
           if isContinuation, isPinned, message.deletedAt == nil {
             pinnedLabel
@@ -422,7 +433,6 @@ import SwiftUI
           Color.primary.opacity(0.04)
         }
       }
-      // Web's `absolute end-2 bottom-1`: the action pill's trailing edge, at the bottom of the row.
       .overlay(alignment: .bottomTrailing) {
         if let seenBy {
           SeenByButton(seenBy: seenBy)
@@ -624,7 +634,7 @@ import SwiftUI
     }
 
     /// Web `SokoBotFeedbackButtons`: an icon-only control; the chosen one fills, and both lock at half strength
-    /// (web's `disabled:opacity-50`) while the rating is sent and once it stuck.
+    /// while the rating is sent and once it stuck.
     private func sokoBotFeedbackButton(_ feedback: SokoBotFeedback, useful: Bool) -> some View {
       let focus = MessageAction.feedback(useful: useful)
       let chosen = feedback.isChosen(useful: useful)

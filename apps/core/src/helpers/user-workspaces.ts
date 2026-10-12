@@ -9,7 +9,7 @@ import type {
   UserWorkspace,
   UserWorkspaces,
 } from "@/schemas/user-workspace.schema";
-import { pickActiveOrganizationId } from "@/services/preferred-organization.service";
+import { pickActiveOrganizationId } from "@/services/preferred-workspace.service";
 
 /**
  * The workspaces a person can act in (personal first, then organizations),

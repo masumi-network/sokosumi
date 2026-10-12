@@ -1,8 +1,20 @@
 import { Prisma } from "@sokosumi/database";
 import { fetchSocialAccountStatisticsPage } from "@/clients/social-post-providers/account-statistics";
-import { isProjectSocialProvider } from "@/config/social-providers";
+import {
+  isProjectSocialProvider,
+  type ProjectSocialProvider,
+} from "@/config/social-providers";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { parseCursorPagination } from "@/helpers/pagination";
+import {
+  buildSocialPerformanceConsistency,
+  consistencyLookbackStart,
+  emptySocialPerformanceConsistency,
+} from "@/helpers/social-performance-consistency";
+import {
+  buildSocialPerformanceHeadline,
+  emptySocialPerformanceHeadline,
+} from "@/helpers/social-performance-headline";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -13,11 +25,15 @@ import {
   socialAccountStatisticsProviderPageSchema,
   socialAccountStatisticsSchema,
 } from "@/schemas/social-account-statistics.schema";
+import { socialPostMetricsSchema } from "@/schemas/social-post-statistics.schema";
 import { listProjectSocialConnections } from "@/services/project-social-connections.service";
+import { recordSocialPerformanceSnapshot } from "@/services/social-performance-snapshots.service";
+import { socialSyncReadModel } from "@/services/social-sync-read";
 
 interface AccountStatisticsScope {
-  projectId: string;
   workspaceId: string;
+  /** When omitted, every connected account in the workspace is in scope. */
+  projectId?: string;
 }
 interface ListSocialAccountStatisticsInput extends AccountStatisticsScope {
   provider?: string;
@@ -26,6 +42,45 @@ interface ListSocialAccountStatisticsInput extends AccountStatisticsScope {
   publishedUntil?: Date;
   cursor?: string;
   limit?: number;
+}
+
+function mapAccountPosts(
+  rows: Array<{
+    publishedAt: Date | null;
+    metrics: Prisma.JsonValue;
+    additionalMetrics: Prisma.JsonValue;
+    connection: { provider: string };
+  }>,
+) {
+  return rows.flatMap((row) => {
+    if (!isProjectSocialProvider(row.connection.provider)) return [];
+    const metrics = socialPostMetricsSchema.safeParse(row.metrics).data;
+    if (!metrics) return [];
+    const additionalMetrics = Array.isArray(row.additionalMetrics)
+      ? row.additionalMetrics.flatMap((metric) => {
+          if (
+            !metric ||
+            typeof metric !== "object" ||
+            !("key" in metric) ||
+            typeof metric.key !== "string"
+          )
+            return [];
+          const value =
+            "value" in metric && typeof metric.value === "number"
+              ? metric.value
+              : null;
+          return [{ key: metric.key, value, period: null, unit: null }];
+        })
+      : [];
+    return [
+      {
+        provider: row.connection.provider as ProjectSocialProvider,
+        publishedAt: row.publishedAt,
+        metrics,
+        additionalMetrics,
+      },
+    ];
+  });
 }
 
 const EMPTY_STATISTICS: SocialAccountStatistics = {
@@ -38,11 +93,58 @@ const EMPTY_STATISTICS: SocialAccountStatistics = {
   historyFetchedAt: null,
   historyError: null,
   metricWarning: null,
+  consecutiveFailures: 0,
 };
+
+type StatisticsConnection = Prisma.ProjectSocialConnectionGetPayload<{
+  include: { _count: { select: { accountPosts: true } } };
+}>;
+
+function accountFromRecord(record: StatisticsConnection) {
+  if (!isProjectSocialProvider(record.provider)) return null;
+  const statistics =
+    socialAccountStatisticsSchema.safeParse(record.statistics).data ?? null;
+  return socialAccountStatisticsAccountSchema.parse({
+    id: record.id,
+    provider: record.provider,
+    externalHandle: record.externalHandle,
+    displayName: record.displayName,
+    avatarUrl: record.avatarUrl,
+    status: record.status,
+    connectedAt: record.connectedAt,
+    disconnectedAt: record.disconnectedAt,
+    statistics,
+    postCount: record._count.accountPosts,
+    sync: socialSyncReadModel({
+      status: record.status,
+      performanceHeadFetchedAt: record.performanceHeadFetchedAt,
+      performanceRefreshAttemptedAt: record.performanceRefreshAttemptedAt,
+      performanceRefreshRequestedAt: record.performanceRefreshRequestedAt,
+      statistics,
+    }),
+  });
+}
 
 /** Reuse the connected-account Project/workspace guard; raw credentials never leave Core. */
 async function scopedConnections(input: AccountStatisticsScope) {
-  const summaries = await listProjectSocialConnections(input);
+  if (!input.projectId) {
+    const records = await prisma.projectSocialConnection.findMany({
+      where: {
+        project: { workspaceId: input.workspaceId },
+        status: { not: "disconnected" },
+      },
+      include: { _count: { select: { accountPosts: true } } },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    return records.flatMap((record) => {
+      const account = accountFromRecord(record);
+      return account ? [{ record, account }] : [];
+    });
+  }
+  const summaries = await listProjectSocialConnections({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+  });
   const records = await prisma.projectSocialConnection.findMany({
     where: {
       id: { in: summaries.map((account) => account.id) },
@@ -54,39 +156,35 @@ async function scopedConnections(input: AccountStatisticsScope) {
   });
   return records.flatMap((record) => {
     const summary = summaries.find((account) => account.id === record.id);
-    return summary
-      ? [
-          {
-            record,
-            account: socialAccountStatisticsAccountSchema.parse({
-              ...summary,
-              statistics:
-                socialAccountStatisticsSchema.safeParse(record.statistics)
-                  .data ?? null,
-              postCount: record._count.accountPosts,
-            }),
-          },
-        ]
-      : [];
+    const account = accountFromRecord(record);
+    return summary && account ? [{ record, account }] : [];
   });
 }
 
-/** Cached provider history only. Account totals are independent of the post page/date range. */
-export async function listSocialAccountStatistics(
-  input: ListSocialAccountStatisticsInput,
+function selectedConnections(
+  allAccounts: Awaited<ReturnType<typeof scopedConnections>>,
+  input: Pick<ListSocialAccountStatisticsInput, "provider" | "connectionId">,
 ) {
-  const allAccounts = await scopedConnections(input);
   if (
     input.connectionId &&
     !allAccounts.some(({ account }) => account.id === input.connectionId)
   )
     throw notFound("Project social connection not found");
-  const selected = allAccounts.filter(
+  return allAccounts.filter(
     ({ account }) =>
       (!input.provider || account.provider === input.provider) &&
       (!input.connectionId || account.id === input.connectionId),
   );
-  const where: Prisma.SocialAccountPostWhereInput = {
+}
+
+function statisticsPostWhere(
+  selected: Awaited<ReturnType<typeof selectedConnections>>,
+  input: Pick<
+    ListSocialAccountStatisticsInput,
+    "publishedFrom" | "publishedUntil"
+  >,
+): Prisma.SocialAccountPostWhereInput {
+  return {
     connectionId: { in: selected.map(({ account }) => account.id) },
     ...(input.publishedFrom || input.publishedUntil
       ? {
@@ -97,6 +195,24 @@ export async function listSocialAccountStatistics(
         }
       : {}),
   };
+}
+
+function accountLabel(account: {
+  displayName: string | null;
+  externalHandle: string | null;
+  provider: string;
+  id: string;
+}) {
+  return account.displayName ?? account.externalHandle ?? account.provider;
+}
+
+/** Cached provider history only. Account totals are independent of the post page/date range. */
+export async function listSocialAccountStatistics(
+  input: ListSocialAccountStatisticsInput,
+) {
+  const allAccounts = await scopedConnections(input);
+  const selected = selectedConnections(allAccounts, input);
+  const where = statisticsPostWhere(selected, input);
   const { cursor, take, skip } = parseCursorPagination(input);
   if (
     cursor &&
@@ -108,13 +224,39 @@ export async function listSocialAccountStatistics(
     throw badRequest(
       "Statistics cursor is outside the selected account history",
     );
-  const rows = await prisma.socialAccountPost.findMany({
-    where,
-    include: { connection: { select: { provider: true } } },
-    orderBy: [{ publishedAt: { sort: "desc", nulls: "last" } }, { id: "desc" }],
-    take: take + 1,
-    ...(cursor ? { cursor: { id: cursor }, skip } : {}),
-  });
+  const postSelect = {
+    publishedAt: true,
+    metrics: true,
+    additionalMetrics: true,
+    connection: { select: { provider: true } },
+  } as const;
+  const [rows, cohort, consistencyRows] = await Promise.all([
+    prisma.socialAccountPost.findMany({
+      where,
+      include: { connection: { select: { provider: true } } },
+      orderBy: [
+        { publishedAt: { sort: "desc", nulls: "last" } },
+        { id: "desc" },
+      ],
+      take: take + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip } : {}),
+    }),
+    selected.length
+      ? prisma.socialAccountPost.findMany({
+          where,
+          select: postSelect,
+        })
+      : Promise.resolve([]),
+    selected.length === 0
+      ? Promise.resolve([])
+      : prisma.socialAccountPost.findMany({
+          where: {
+            connectionId: { in: selected.map(({ account }) => account.id) },
+            publishedAt: { gte: consistencyLookbackStart() },
+          },
+          select: postSelect,
+        }),
+  ]);
   const posts = rows.slice(0, take).map((row) =>
     socialAccountPostSchema.parse({
       ...row,
@@ -125,17 +267,68 @@ export async function listSocialAccountStatistics(
     accounts: allAccounts.map(({ account }) => account),
     posts,
     nextCursor: rows.length > take ? (posts.at(-1)?.id ?? null) : null,
+    headline: selected.length
+      ? buildSocialPerformanceHeadline({
+          posts: mapAccountPosts(cohort),
+          publishedFrom: input.publishedFrom,
+          publishedUntil: input.publishedUntil,
+        })
+      : emptySocialPerformanceHeadline,
+    consistency: selected.length
+      ? buildSocialPerformanceConsistency({
+          posts: mapAccountPosts(consistencyRows),
+        })
+      : emptySocialPerformanceConsistency,
   });
+}
+
+/** Every matching cached post, unpaged, for a download. Does not refresh providers. */
+export async function exportSocialAccountStatistics(
+  input: Omit<ListSocialAccountStatisticsInput, "cursor" | "limit">,
+) {
+  const allAccounts = await scopedConnections(input);
+  const selected = selectedConnections(allAccounts, input);
+  const where = statisticsPostWhere(selected, input);
+  const rows = selected.length
+    ? await prisma.socialAccountPost.findMany({
+        where,
+        include: { connection: { select: { provider: true } } },
+        orderBy: [
+          { publishedAt: { sort: "desc", nulls: "last" } },
+          { id: "desc" },
+        ],
+      })
+    : [];
+  const names = new Map(
+    selected.map(({ account }) => [account.id, accountLabel(account)]),
+  );
+  return {
+    posts: rows.map((row) =>
+      socialAccountPostSchema.parse({
+        ...row,
+        provider: row.connection.provider,
+      }),
+    ),
+    accountName: (connectionId: string) =>
+      names.get(connectionId) ?? connectionId,
+    publishedFrom: input.publishedFrom,
+    publishedUntil: input.publishedUntil,
+  };
 }
 
 /** One provider page per request; continuations use only the server's cached cursor. */
 export async function refreshSocialAccountStatistics(
   input: AccountStatisticsScope & {
+    projectId: string;
     userId: string;
     connectionId: string;
     continueHistory?: boolean;
+    /** Latest page + profile without restarting an archive cursor. */
+    refreshHead?: boolean;
+    signal?: AbortSignal;
   },
 ) {
+  input.signal?.throwIfAborted();
   const accounts = await scopedConnections(input);
   const target = accounts.find(
     ({ account }) => account.id === input.connectionId,
@@ -151,11 +344,17 @@ export async function refreshSocialAccountStatistics(
     EMPTY_STATISTICS;
   if (input.continueHistory && previous.historyComplete)
     return { account, importedPostCount: 0 };
-  if (input.continueHistory && !previous.historyNextCursor)
+  if (
+    input.continueHistory &&
+    !input.refreshHead &&
+    !previous.historyNextCursor
+  )
     throw badRequest("Refresh the account before continuing its history");
   const attemptedAt = new Date().toISOString();
   let snapshot: SocialAccountStatistics;
-  let preservePostMetrics = false;
+  const preservePostMetrics = new Set<string>();
+  let profileMeasured = false;
+  let headFetchedAt: Date | null = null;
   let posts: ReturnType<
     typeof socialAccountStatisticsProviderPageSchema.parse
   >["posts"] = [];
@@ -168,51 +367,90 @@ export async function refreshSocialAccountStatistics(
         externalAccountId: record.externalAccountId,
         externalHandle: record.externalHandle,
         cursor: input.continueHistory ? previous.historyNextCursor : null,
-        includeProfile: !input.continueHistory,
+        includeProfile: !input.continueHistory || Boolean(input.refreshHead),
+        ...(input.signal ? { signal: input.signal } : {}),
       }),
     );
+    input.signal?.throwIfAborted();
     const fetchedAt = new Date().toISOString();
     const measuredProfile =
       page.accountMetrics !== null &&
       page.accountMetrics.some((metric) => metric.value !== null);
     const refreshProfile =
       measuredProfile && !(page.accountError && previous.metrics.length > 0);
-    preservePostMetrics = page.metricWarning !== null;
+    profileMeasured = refreshProfile;
+    for (const post of page.posts) {
+      if (!Object.values(post.metrics).some((value) => value !== null))
+        preservePostMetrics.add(post.externalId);
+    }
     const historySucceeded = page.historyError === null;
+    if ((!input.continueHistory || input.refreshHead) && historySucceeded)
+      headFetchedAt = new Date(fetchedAt);
     // Verified partial rows remain useful even when the provider reports a history limit.
     const historyProgress = historySucceeded || page.posts.length > 0;
+    const preserveHistory =
+      Boolean(input.refreshHead) &&
+      Boolean(
+        previous.historyFetchedAt ||
+          previous.historyNextCursor ||
+          previous.historyComplete,
+      );
     posts = page.posts;
     snapshot = {
       metrics: refreshProfile ? (page.accountMetrics ?? []) : previous.metrics,
       fetchedAt: refreshProfile ? fetchedAt : previous.fetchedAt,
       refreshAttemptedAt: attemptedAt,
-      error: input.continueHistory
-        ? previous.error
-        : (page.accountError ??
-          (measuredProfile
-            ? null
-            : "No account metrics are available for this connection.")),
-      historyNextCursor: historyProgress
-        ? page.nextCursor
-        : previous.historyNextCursor,
-      historyComplete: historySucceeded ? page.nextCursor === null : false,
-      historyFetchedAt: historyProgress ? fetchedAt : previous.historyFetchedAt,
-      historyError: page.historyError,
-      metricWarning: input.continueHistory
-        ? (page.metricWarning ?? previous.metricWarning)
-        : page.metricWarning,
+      error:
+        input.continueHistory && !input.refreshHead
+          ? previous.error
+          : (page.accountError ??
+            (measuredProfile
+              ? null
+              : "No account metrics are available for this connection.")),
+      historyNextCursor: preserveHistory
+        ? previous.historyNextCursor
+        : historyProgress
+          ? page.nextCursor
+          : previous.historyNextCursor,
+      historyComplete: preserveHistory
+        ? previous.historyComplete
+        : historySucceeded
+          ? page.nextCursor === null
+          : false,
+      historyFetchedAt: preserveHistory
+        ? previous.historyFetchedAt
+        : historyProgress
+          ? fetchedAt
+          : previous.historyFetchedAt,
+      historyError: preserveHistory ? previous.historyError : page.historyError,
+      metricWarning: preserveHistory
+        ? (page.historyError ?? page.metricWarning ?? previous.metricWarning)
+        : input.continueHistory
+          ? (page.metricWarning ?? previous.metricWarning)
+          : page.metricWarning,
+      consecutiveFailures: 0,
     };
   } catch {
-    snapshot = {
-      ...previous,
-      refreshAttemptedAt: attemptedAt,
-      error: input.continueHistory
-        ? previous.error
-        : "Unable to refresh account statistics. Check the connection and permissions.",
-      historyError:
-        "Unable to load account post history. Previous cached posts are retained.",
-      historyComplete: false,
-    };
+    input.signal?.throwIfAborted();
+    snapshot = input.refreshHead
+      ? {
+          ...previous,
+          refreshAttemptedAt: attemptedAt,
+          consecutiveFailures: (previous.consecutiveFailures ?? 0) + 1,
+          metricWarning:
+            "Latest posts could not be refreshed. Archive import progress is retained.",
+        }
+      : {
+          ...previous,
+          refreshAttemptedAt: attemptedAt,
+          consecutiveFailures: (previous.consecutiveFailures ?? 0) + 1,
+          error: input.continueHistory
+            ? previous.error
+            : "Unable to refresh account statistics. Check the connection and permissions.",
+          historyError:
+            "Unable to load account post history. Previous cached posts are retained.",
+          historyComplete: false,
+        };
   }
   const statistics: Prisma.InputJsonObject = {
     ...snapshot,
@@ -230,7 +468,10 @@ export async function refreshSocialAccountStatistics(
         connectorUserId: record.connectorUserId,
         statistics: { equals: record.statistics ?? Prisma.DbNull },
       },
-      data: { statistics },
+      data: {
+        statistics,
+        ...(headFetchedAt ? { performanceHeadFetchedAt: headFetchedAt } : {}),
+      },
     });
     if (updated.count === 0)
       throw conflict(
@@ -261,9 +502,25 @@ export async function refreshSocialAccountStatistics(
           externalId: post.externalId,
         },
         // Partial insights must not erase measured counters or their original age.
-        update: preservePostMetrics
+        update: preservePostMetrics.has(post.externalId)
           ? { text: data.text, publishedAt: data.publishedAt, url: data.url }
           : data,
+      });
+    }
+    if (
+      profileMeasured ||
+      posts.some((post) => !preservePostMetrics.has(post.externalId))
+    ) {
+      await recordSocialPerformanceSnapshot(tx, {
+        connectionId: record.id,
+        metrics: profileMeasured
+          ? snapshot.metrics.map((metric) => ({ ...metric }))
+          : null,
+        profileFetchedAt:
+          profileMeasured && snapshot.fetchedAt
+            ? new Date(snapshot.fetchedAt)
+            : null,
+        fetchedAt: new Date(snapshot.historyFetchedAt ?? attemptedAt),
       });
     }
     const postCount = await tx.socialAccountPost.count({

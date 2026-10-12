@@ -13,9 +13,6 @@ import {
 } from "../theme/index.js";
 import type { RenderedEmail } from "../types.js";
 
-const DEFAULT_LINK_INSTRUCTIONS =
-  "Or copy and paste this URL into your browser:";
-
 export interface ActionEmailFact {
   label: string;
   value: string;
@@ -29,13 +26,13 @@ export interface ActionEmailTemplateProps {
   footer: ReactNode;
   greeting: string;
   lang: string;
-  linkInstructions?: string;
+  linkInstructions: string;
   preview: string;
   quote?: string;
   title: string;
 }
 
-export function ActionEmailTemplate({
+function ActionEmailTemplate({
   actionLabel,
   actionUrl,
   body,
@@ -43,7 +40,7 @@ export function ActionEmailTemplate({
   footer,
   greeting,
   lang,
-  linkInstructions = DEFAULT_LINK_INSTRUCTIONS,
+  linkInstructions,
   preview,
   quote,
   title,

@@ -2,6 +2,7 @@
 
 import type { SocialPost } from "@sokosumi/core-client";
 import { ExternalLink } from "lucide-react";
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,7 @@ export function SocialPostPreviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-md"
+        className="max-h-[min(40rem,calc(100dvh-2rem))] overflow-y-auto overscroll-contain sm:max-w-md"
         onCloseAutoFocus={onCloseAutoFocus}
       >
         <DialogHeader>
@@ -77,10 +78,17 @@ export function SocialPostPreviewDialog({
         </DialogHeader>
         {post?.connectionNeedsReconnect ? (
           <p
-            className="text-muted-foreground text-sm"
+            className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
             data-testid="social-post-needs-reconnect"
+            role="status"
           >
-            {t("needsReconnect")}
+            <span>{t("needsReconnect")}</span>
+            <Link
+              className="font-medium underline-offset-4 hover:underline"
+              href={`/social?projectId=${encodeURIComponent(post.projectId)}&tab=accounts`}
+            >
+              {t("needsReconnectLink")}
+            </Link>
           </p>
         ) : null}
         {post ? (
@@ -108,6 +116,7 @@ export function SocialPostPreviewDialog({
               type="button"
               size="sm"
               variant="outline"
+              className="min-h-11 md:min-h-8"
               loading={refreshingPostId === post.id}
               disabled={Boolean(refreshingPostId)}
               onClick={() => void handleRefreshStatistics(post)}
@@ -129,6 +138,7 @@ export function SocialPostPreviewDialog({
                 <Button
                   type="button"
                   variant="outline"
+                  className="min-h-11 md:min-h-10"
                   onClick={() => {
                     onCompose({ kind: "edit", post });
                     onOpenChange(false);
@@ -138,7 +148,12 @@ export function SocialPostPreviewDialog({
                 </Button>
               ) : null}
               {post.status === "PUBLISHED" && post.publishedUrl ? (
-                <Button type="button" variant="outline" asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 md:min-h-10"
+                  asChild
+                >
                   <a href={post.publishedUrl} rel="noreferrer" target="_blank">
                     {t("viewPost")}
                     <ExternalLink className="size-4" aria-hidden />
@@ -148,6 +163,7 @@ export function SocialPostPreviewDialog({
               {post.canSchedule ? (
                 <Button
                   type="button"
+                  className="min-h-11 md:min-h-10"
                   onClick={() => {
                     onCompose({ kind: "schedule", post });
                     onOpenChange(false);

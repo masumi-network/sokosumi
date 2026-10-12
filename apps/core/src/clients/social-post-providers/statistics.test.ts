@@ -64,6 +64,7 @@ describe("fetchSocialPostStatistics", () => {
             impression_count: 42,
             like_count: 0,
             reply_count: 2,
+            organic_repost_count: 4,
             retweet_count: 3,
           },
         },
@@ -74,7 +75,7 @@ describe("fetchSocialPostStatistics", () => {
       impressions: 42,
       likes: 0,
       comments: 2,
-      shares: 3,
+      shares: 4,
     });
     expect(sessions[0]).toMatchObject({
       user_id: "executor",
@@ -150,10 +151,37 @@ describe("fetchSocialPostStatistics", () => {
       tool_slug: "FACEBOOK_GET_POST_INSIGHTS",
       arguments: {
         post_id: "123",
-        metrics: "post_media_view",
+        metrics: "post_media_view,post_activity_by_action_type",
         period: "lifetime",
       },
     });
+  });
+
+  it("prefers Facebook insight shares over a Graph shares.count of zero", async () => {
+    stubSession((slug) =>
+      toolResult(
+        slug === "FACEBOOK_GET_POST"
+          ? {
+              id: "123",
+              reactions: { summary: { total_count: 2 } },
+              shares: { count: 0 },
+            }
+          : {
+              data: [
+                {
+                  name: "post_activity_by_action_type",
+                  total_value: { value: { share: 6 } },
+                },
+              ],
+            },
+      ),
+    );
+    await expect(
+      fetchSocialPostStatistics({
+        ...input,
+        provider: "facebook",
+      }),
+    ).resolves.toMatchObject({ shares: 6, likes: 2 });
   });
 
   it("keeps available Facebook engagement when insight permission is missing", async () => {
@@ -322,11 +350,65 @@ describe("fetchSocialPostStatistics", () => {
     expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
   });
 
-  it("rejects unsupported personal LinkedIn and unresolved TikTok publish IDs without a session", async () => {
+  it("rejects unsupported personal LinkedIn without a session", async () => {
     const { fetchMock } = stubSession(() => null);
     await expect(
       fetchSocialPostStatistics({ ...input, provider: "linkedin" }),
     ).rejects.toThrow("LinkedIn personal post statistics");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("resolves a TikTok publish id to the numeric video before querying", async () => {
+    const { executeCalls } = stubSession((slug) =>
+      slug === "TIKTOK_FETCH_PUBLISH_STATUS"
+        ? toolResult({
+            status: "PUBLISH_COMPLETE",
+            publicaly_available_post_id: ["video_9", "751234567890"],
+          })
+        : toolResult({
+            videos: [
+              {
+                id: "751234567890",
+                view_count: 9,
+                like_count: 1,
+                comment_count: 0,
+                share_count: 2,
+              },
+            ],
+          }),
+    );
+    await expect(
+      fetchSocialPostStatistics({
+        ...input,
+        provider: "tiktok",
+        externalId: "v_pub_123",
+      }),
+    ).resolves.toEqual({
+      ...unavailable,
+      views: 9,
+      likes: 1,
+      comments: 0,
+      shares: 2,
+    });
+    expect(executeCalls).toEqual([
+      {
+        tool_slug: "TIKTOK_FETCH_PUBLISH_STATUS",
+        arguments: { publish_id: "v_pub_123" },
+      },
+      {
+        tool_slug: "TIKTOK_QUERY_VIDEOS",
+        arguments: { video_ids: ["751234567890"] },
+      },
+    ]);
+  });
+
+  it("leaves TikTok statistics unavailable when the publish id never yields a video", async () => {
+    const { executeCalls } = stubSession(() =>
+      toolResult({
+        status: "PUBLISH_COMPLETE",
+        publicaly_available_post_id: ["video_9"],
+      }),
+    );
     await expect(
       fetchSocialPostStatistics({
         ...input,
@@ -334,6 +416,11 @@ describe("fetchSocialPostStatistics", () => {
         externalId: "v_pub_123",
       }),
     ).rejects.toThrow("published video ID");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(executeCalls).toEqual([
+      {
+        tool_slug: "TIKTOK_FETCH_PUBLISH_STATUS",
+        arguments: { publish_id: "v_pub_123" },
+      },
+    ]);
   });
 });
