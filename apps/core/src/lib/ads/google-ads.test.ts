@@ -736,6 +736,9 @@ describe("createGoogleCampaign", () => {
         keyword: { text: "running shoes", match_type: "EXACT" },
       },
     ]);
+    expect(JSON.stringify(operationsOf("ad_group_ad_operation"))).not.toContain(
+      '"logo_images"',
+    );
     expect(operationsOf("ad_group_ad_operation")).toEqual([
       {
         ad_group: "customers/111/adGroups/-3",
@@ -1229,7 +1232,7 @@ describe("createGoogleCampaign for Display", () => {
           responsive_display_ad: {
             marketing_images: [{ asset: "customers/111/assets/100" }],
             square_marketing_images: [{ asset: "customers/111/assets/101" }],
-            logo_images: [{ asset: "customers/111/assets/102" }],
+            square_logo_images: [{ asset: "customers/111/assets/102" }],
             headlines: [{ text: "Run faster" }, { text: "Light shoes" }],
             long_headline: { text: "Run faster in the lightest shoes" },
             descriptions: [{ text: "Shoes for every runner." }],
@@ -1247,7 +1250,7 @@ describe("createGoogleCampaign for Display", () => {
     expect(operationsOf("ad_group_criterion_operation")).toEqual([]);
   });
 
-  it("keeps several images of a slot in order and omits logo_images without logos", async () => {
+  it("keeps several images of a slot in order and omits square_logo_images without logos", async () => {
     const wide2 = image("wide2.png", "LANDSCAPE");
     served["wide2.png"] = { type: "image/png", bytes: [1] };
     await createGoogleCampaign({
@@ -1264,6 +1267,7 @@ describe("createGoogleCampaign for Display", () => {
     expect(ad.responsive_display_ad.square_marketing_images).toEqual([
       { asset: "customers/111/assets/102" },
     ]);
+    expect(ad.responsive_display_ad).not.toHaveProperty("square_logo_images");
     expect(ad.responsive_display_ad).not.toHaveProperty("logo_images");
     delete served["wide2.png"];
   });
@@ -1282,6 +1286,26 @@ describe("createGoogleCampaign for Display", () => {
     ).name;
     expect(name.length).toBeLessThanOrEqual(128);
     delete served[long.name];
+  });
+
+  it("does not split a surrogate pair when it truncates the asset name", async () => {
+    const emoji = image(
+      `${"a".repeat(118)}\u{1F600}\u{1F600}.png`,
+      "LANDSCAPE",
+    );
+    served[emoji.name] = { type: "image/png", bytes: [1] };
+    await createGoogleCampaign({
+      ...create,
+      google: { ...google, images: [emoji, square] },
+    });
+    const name = (
+      calls()[0]?.arguments.mutate_operations[0].asset_operation.create as {
+        name: string;
+      }
+    ).name;
+    expect(name).toBe(name.toWellFormed());
+    expect(name.startsWith(`${"a".repeat(118)}\u{1F600} `)).toBe(true);
+    delete served[emoji.name];
   });
 
   describe("downloads", () => {

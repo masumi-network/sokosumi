@@ -10,6 +10,7 @@ import {
   AD_CAMPAIGN_STATUSES,
   AD_RANGES,
   GOOGLE_DISPLAY_IMAGE_MAX_BYTES,
+  GOOGLE_DISPLAY_IMAGE_MAX_LABEL,
   GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
   GOOGLE_DISPLAY_IMAGE_ROLES,
   GOOGLE_KEYWORD_MATCH_TYPES,
@@ -17,6 +18,7 @@ import {
   type GoogleLocationLookup,
   META_CAMPAIGN_OBJECTIVES,
 } from "@/lib/ads/campaigns";
+import { driveFileRefShape } from "@/schemas/drive-file-ref.schema";
 import { projectSocialConnectionProjectParamsSchema } from "@/schemas/project-social-connection.schema";
 
 export const projectAdProviderSchema = z
@@ -321,24 +323,20 @@ const googleSearchCampaignSpecSchema = z
 
 const googleDisplayImageSchema = z
   .object({
-    pathname: z.string().min(1).openapi({
-      example: "drive/users/user_123/banner.png",
-      description: "Drive blob pathname; must belong to the active workspace",
-    }),
-    fileUrl: z.url().openapi({
-      example:
-        "https://store.public.blob.vercel-storage.com/drive/users/user_123/banner.png",
-      description: "Public Blob URL of the Drive file",
-    }),
-    name: z.string().min(1).openapi({ example: "banner.png" }),
-    size: z.number().int().min(1).max(GOOGLE_DISPLAY_IMAGE_MAX_BYTES).openapi({
-      description: "Bytes; at most 5120 KB",
-      example: 240000,
-    }),
+    ...driveFileRefShape,
+    size: z
+      .number()
+      .int()
+      .min(1)
+      .max(GOOGLE_DISPLAY_IMAGE_MAX_BYTES)
+      .openapi({
+        description: `Bytes; at most ${GOOGLE_DISPLAY_IMAGE_MAX_LABEL}`,
+        example: 240000,
+      }),
     mimeType: z.enum(GOOGLE_DISPLAY_IMAGE_MIME_TYPES),
     role: z.enum(GOOGLE_DISPLAY_IMAGE_ROLES).openapi({
       description:
-        "LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit",
+        "LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional square (1:1, at least 128x128) logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit",
     }),
   })
   .openapi("GoogleDisplayImage");

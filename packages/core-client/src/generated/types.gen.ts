@@ -6204,7 +6204,7 @@ export type GoogleDisplayImage = {
     size: number;
     mimeType: 'image/jpeg' | 'image/png' | 'image/gif';
     /**
-     * LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit
+     * LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional square (1:1, at least 128x128) logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit
      */
     role: 'LANDSCAPE' | 'SQUARE' | 'LOGO';
 };

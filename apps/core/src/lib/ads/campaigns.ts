@@ -1,3 +1,5 @@
+import type { DriveFileRef } from "@/helpers/drive-file-ref";
+
 export const AD_RANGES = ["LAST_7_DAYS", "LAST_30_DAYS"] as const;
 export type AdRange = (typeof AD_RANGES)[number];
 
@@ -85,6 +87,7 @@ export interface GoogleSearchCampaignSpec extends GoogleCampaignSpecBase {
   callouts?: string[];
 }
 
+/** LOGO is a square (1:1) logo, at least 128x128; it fills `square_logo_images`. */
 export const GOOGLE_DISPLAY_IMAGE_ROLES = [
   "LANDSCAPE",
   "SQUARE",
@@ -101,13 +104,11 @@ export const GOOGLE_DISPLAY_IMAGE_MIME_TYPES = [
 ] as const;
 
 /** Largest image Google accepts: 5120 KB. */
-export const GOOGLE_DISPLAY_IMAGE_MAX_BYTES = 5_242_880;
+export const GOOGLE_DISPLAY_IMAGE_MAX_BYTES = 5120 * 1024;
+export const GOOGLE_DISPLAY_IMAGE_MAX_LABEL = `${GOOGLE_DISPLAY_IMAGE_MAX_BYTES / 1024} KB`;
 
 /** A Drive image of a responsive display ad, with the slot it fills. */
-export interface GoogleDisplayImage {
-  pathname: string;
-  fileUrl: string;
-  name: string;
+export interface GoogleDisplayImage extends DriveFileRef {
   size: number;
   mimeType: (typeof GOOGLE_DISPLAY_IMAGE_MIME_TYPES)[number];
   role: GoogleDisplayImageRole;

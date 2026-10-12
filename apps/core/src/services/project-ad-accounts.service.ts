@@ -58,6 +58,7 @@ import {
 } from "@/lib/ads/meta-ads";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import type { UserContext } from "@/middleware/auth";
 import { projectAdConnectionStatusSchema } from "@/schemas/project-ad-account.schema";
 import {
   projectConnectorUserId,
@@ -554,7 +555,7 @@ export async function createProjectAdCampaign(
 
 /** A Display spec with every image pinned to a file of the active Workspace's Drive; other specs unchanged. */
 function pinDisplayImagesToDrive(
-  workspace: { userId: string; organizationId: string | null },
+  workspace: Pick<UserContext, "userId" | "organizationId">,
   google: GoogleCampaignSpec,
 ): GoogleCampaignSpec {
   if (google.type !== "DISPLAY") return google;

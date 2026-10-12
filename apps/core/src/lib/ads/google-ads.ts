@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 
 import { z } from "@hono/zod-openapi";
-import { SsrfError, ssrfSafeFetch } from "@sokosumi/net";
 
 import {
   projectComposioFetch,
@@ -9,6 +8,10 @@ import {
 } from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { PROJECT_AD_PROVIDERS } from "@/config/ads-providers";
+import {
+  DriveFileDownloadError,
+  downloadDriveFile,
+} from "@/helpers/drive-file-download";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import {
   type AdCampaign,
@@ -18,6 +21,7 @@ import {
   type AdRange,
   buildAdCampaign,
   GOOGLE_DISPLAY_IMAGE_MAX_BYTES,
+  GOOGLE_DISPLAY_IMAGE_MAX_LABEL,
   GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
   GOOGLE_MAX_IDS,
   GOOGLE_MAX_LOCATION_SUGGESTIONS,
@@ -367,6 +371,26 @@ function dedupeGoogleKeywords(
   });
 }
 
+/** What differs between campaign types in the common operations. */
+const CHANNELS = {
+  SEARCH: {
+    adGroupType: "SEARCH_STANDARD",
+    // Google Search network only.
+    networkSettings: {
+      target_google_search: true,
+      target_search_network: false,
+      target_content_network: false,
+    },
+  },
+  // Display Network: Google's default network settings.
+  DISPLAY: { adGroupType: "DISPLAY_STANDARD", networkSettings: undefined },
+} as const;
+
+/** At most `max` code points, so a surrogate pair is never split. */
+function truncate(text: string, max: number): string {
+  return Array.from(text).slice(0, max).join("");
+}
+
 /**
  * The operations every paused campaign starts with: budget, campaign, location
  * and language criteria, and one ad group. `campaign` and `adGroup` are the
@@ -377,22 +401,18 @@ function campaignOperations(
   customerId: string,
   { name, dailyBudget }: AdCampaignCreate,
   google: GoogleCampaignSpec,
-  channel: {
-    type: "SEARCH" | "DISPLAY";
-    adGroupType: "SEARCH_STANDARD" | "DISPLAY_STANDARD";
-    networkSettings?: Record<string, boolean>;
-  },
 ): {
   campaign: string;
   adGroup: string;
   operations: Record<string, unknown>[];
 } {
+  const channel = CHANNELS[google.type];
   const budget = `customers/${customerId}/campaignBudgets/${BUDGET_TEMP_ID}`;
   const campaign = `customers/${customerId}/campaigns/${CAMPAIGN_TEMP_ID}`;
   const adGroup = `customers/${customerId}/adGroups/${AD_GROUP_TEMP_ID}`;
   // Budget names are unique per customer; the suffix avoids clashes with
   // earlier campaigns of the same name.
-  const budgetName = `${name.slice(0, MAX_BUDGET_NAME_LENGTH - BUDGET_NAME_SUFFIX_LENGTH)} budget ${randomUUID().slice(0, 8)}`;
+  const budgetName = `${truncate(name, MAX_BUDGET_NAME_LENGTH - BUDGET_NAME_SUFFIX_LENGTH)} budget ${randomUUID().slice(0, 8)}`;
   const criterion = (target: Record<string, unknown>) => ({
     campaign_criterion_operation: { create: { campaign, ...target } },
   });
@@ -417,7 +437,7 @@ function campaignOperations(
             resource_name: campaign,
             name,
             status: "PAUSED",
-            advertising_channel_type: channel.type,
+            advertising_channel_type: google.type,
             campaign_budget: budget,
             target_spend: {},
             ...(channel.networkSettings && {
@@ -473,15 +493,6 @@ function searchCampaignOperations(
     customerId,
     create,
     google,
-    {
-      type: "SEARCH",
-      adGroupType: "SEARCH_STANDARD",
-      networkSettings: {
-        target_google_search: true,
-        target_search_network: false,
-        target_content_network: false,
-      },
-    },
   );
   // Assets first, then their links: a link names its asset's temporary id.
   const assets = [
@@ -567,13 +578,13 @@ function displayCampaignOperations(
     customerId,
     create,
     google,
-    { type: "DISPLAY", adGroupType: "DISPLAY_STANDARD" },
   );
   const assets = (role: GoogleDisplayImageRole) =>
     images
       .filter((image) => image.role === role)
       .map(({ resourceName }) => ({ asset: resourceName }));
-  const logos = assets("LOGO");
+  // Our LOGO is a square (1:1) logo; `logo_images` is for 4:1 landscape ones.
+  const squareLogos = assets("LOGO");
   return [
     ...operations,
     {
@@ -586,7 +597,9 @@ function displayCampaignOperations(
             responsive_display_ad: {
               marketing_images: assets("LANDSCAPE"),
               square_marketing_images: assets("SQUARE"),
-              ...(logos.length > 0 && { logo_images: logos }),
+              ...(squareLogos.length > 0 && {
+                square_logo_images: squareLogos,
+              }),
               headlines: google.headlines.map((text) => ({ text })),
               long_headline: { text: google.longHeadline },
               descriptions: google.descriptions.map((text) => ({ text })),
@@ -653,6 +666,10 @@ interface DownloadedDisplayImage {
   bytes: Uint8Array;
 }
 
+const DISPLAY_IMAGE_MIME_TYPES = new Set<string>(
+  GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
+);
+
 /**
  * Fetches a Drive image through the SSRF guard. The file must still be there
  * (2xx), fit Google's size limit and be served as JPEG, PNG or GIF; anything
@@ -661,38 +678,30 @@ interface DownloadedDisplayImage {
 async function downloadDisplayImage(
   image: GoogleDisplayImage,
 ): Promise<DownloadedDisplayImage> {
-  const tooLarge = unprocessableEntity(
-    `Image "${image.name}" is larger than 5120 KB`,
-  );
-  let response: Response;
   try {
-    response = await ssrfSafeFetch(image.fileUrl, {
-      maxResponseBytes: GOOGLE_DISPLAY_IMAGE_MAX_BYTES,
-      signal: AbortSignal.timeout(IMAGE_DOWNLOAD_TIMEOUT_MS),
+    const { bytes } = await downloadDriveFile(image.fileUrl, {
+      maxBytes: GOOGLE_DISPLAY_IMAGE_MAX_BYTES,
+      timeoutMs: IMAGE_DOWNLOAD_TIMEOUT_MS,
+      acceptsMimeType: (mimeType) => DISPLAY_IMAGE_MIME_TYPES.has(mimeType),
     });
+    return { image, bytes };
   } catch (error) {
-    if (error instanceof SsrfError && /maxResponseBytes/.test(error.message)) {
-      throw tooLarge;
+    if (!(error instanceof DriveFileDownloadError)) throw error;
+    switch (error.reason) {
+      case "too_large":
+        throw unprocessableEntity(
+          `Image "${image.name}" is larger than ${GOOGLE_DISPLAY_IMAGE_MAX_LABEL}`,
+        );
+      case "unavailable":
+        throw unprocessableEntity(
+          `Image "${image.name}" is no longer available`,
+        );
+      case "wrong_type":
+        throw unprocessableEntity(
+          `Image "${image.name}" is not a JPEG, PNG or GIF image`,
+        );
     }
-    throw error;
   }
-  if (!response.ok) {
-    throw unprocessableEntity(`Image "${image.name}" is no longer available`);
-  }
-  const servedType = (response.headers.get("content-type") ?? "")
-    .split(";")[0]
-    .trim()
-    .toLowerCase();
-  if (
-    !(GOOGLE_DISPLAY_IMAGE_MIME_TYPES as readonly string[]).includes(servedType)
-  ) {
-    throw unprocessableEntity(
-      `Image "${image.name}" is not a JPEG, PNG or GIF image`,
-    );
-  }
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.length > GOOGLE_DISPLAY_IMAGE_MAX_BYTES) throw tooLarge;
-  return { image, bytes };
 }
 
 /**
@@ -707,7 +716,7 @@ async function uploadDisplayImage(
 ): Promise<UploadedDisplayImage> {
   // Asset names are unique per customer; the suffix avoids clashes with
   // earlier uploads of a file of the same name.
-  const name = `${image.name.slice(0, MAX_ASSET_NAME_LENGTH - ASSET_NAME_SUFFIX_LENGTH)} ${randomUUID().slice(0, 8)}`;
+  const name = `${truncate(image.name, MAX_ASSET_NAME_LENGTH - ASSET_NAME_SUFFIX_LENGTH)} ${randomUUID().slice(0, 8)}`;
   let payload: Record<string, unknown> | null;
   try {
     payload = await execute(

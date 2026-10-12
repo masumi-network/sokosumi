@@ -100,7 +100,7 @@ Goal: "New campaign" for Google produces a campaign that can run. Still always c
 | Ad group + keywords | One ad group "Ad group 1"; keywords with BROAD / PHRASE / EXACT |
 | Responsive search ad | Final URL, 2 display paths, 3-15 headlines, 2-4 descriptions |
 | Sitelinks, callouts | Yes: optional on Search |
-| Responsive display ad | Yes: business name, headlines, long headline, descriptions, images from Drive (landscape, square, logo) |
+| Responsive display ad | Yes: business name, headlines, long headline, descriptions, images from Drive (landscape, square, square logo) |
 | Budget | Daily, unchanged |
 | Audiences, ad schedule, AI Max, page feeds, promotions, prices, calls, lead forms | Out of scope |
 
@@ -141,7 +141,7 @@ type GoogleDisplayCampaignSpec = {     // type: "DISPLAY"; same startDate, endDa
     pathname: string; fileUrl: string; name: string;
     size: number;                      // 1..5_242_880 (5120 KB)
     mimeType: "image/jpeg" | "image/png" | "image/gif";
-    role: "LANDSCAPE" | "SQUARE" | "LOGO";
+    role: "LANDSCAPE" | "SQUARE" | "LOGO";  // LOGO = square 1:1 logo, >= 128x128
   }[];                                 // >= 1 LANDSCAPE, >= 1 SQUARE, LANDSCAPE + SQUARE <= 6, LOGO <= 2
 };
 ```
@@ -154,12 +154,12 @@ The images are Drive files, bound to the active Workspace the way Social post me
 
 Before the tree, Core, for every image in request order:
 
-1. Downloads it with `ssrfSafeFetch` (at most 5,242,880 bytes, 20 s). A missing file, a file over the cap or a file not served as `image/jpeg`, `image/png` or `image/gif` is **422 naming the file**. All downloads finish before the first write.
+1. Downloads it with the shared `downloadDriveFile` (`ssrfSafeFetch`, also used for Social post media; at most 5,242,880 bytes, 20 s). A missing file, a file over the cap or a file not served as `image/jpeg`, `image/png` or `image/gif` is **422 naming the file**. All downloads finish before the first write.
 2. Uploads it in a `GOOGLEADS_BATCH_MUTATE` call of its own (`partial_failure: false`, 60 s timeout): one `asset_operation` create with `{name: "<file name> <8 hex>", type: "IMAGE", image_asset: {data: "<base64>"}}`. Separate calls keep each request body to one image (up to about 7 MB encoded). The asset's resource name comes from `mutate_operation_responses[0].asset_result.resource_name`. A Google rejection (aspect ratio, too small) is **422 prefixed with the file name** (`Image "banner.png": <Google's message>`).
 
 Google checks the aspect ratio and pixel size; Core does not read the image. The asset name has a random suffix because Google asset names are unique per customer.
 
-**Orphaned assets.** Image uploads are not part of the atomic call, and Google cannot remove assets. If an upload or the tree fails after earlier uploads, those image assets stay unused in the account. They serve nothing and cost nothing, and there is no retry or cleanup. Uploading the same image again creates a second asset.
+**Orphaned assets.** Image uploads are not part of the atomic call, and Google cannot remove assets. If an upload or the tree fails after earlier uploads, those image assets stay unused in the account. They serve nothing and cost nothing, and there is no retry or cleanup. Uploading the same image again may create another asset (unverified).
 
 ### One atomic call
 
@@ -170,7 +170,7 @@ Google checks the aspect ratio and pixel size; Core does not read the image. The
 3. `campaign_criterion_operation` per location (`geoTargetConstants/<id>`) and language (`languageConstants/<id>`).
 4. `ad_group_operation`: `Ad group 1`, ENABLED, `SEARCH_STANDARD` | `DISPLAY_STANDARD`.
 5. Search: `ad_group_criterion_operation` per keyword, ENABLED.
-6. `ad_group_ad_operation`: ENABLED, `final_urls`, and `responsive_search_ad` (Search) or `responsive_display_ad` (Display: `marketing_images` (LANDSCAPE), `square_marketing_images` (SQUARE), `logo_images` (LOGO, omitted without logos), each `[{asset: "customers/<cid>/assets/<id>"}]`, plus `headlines`, `long_headline`, `descriptions`, `business_name`).
+6. `ad_group_ad_operation`: ENABLED, `final_urls`, and `responsive_search_ad` (Search) or `responsive_display_ad` (Display: `marketing_images` (LANDSCAPE), `square_marketing_images` (SQUARE), `square_logo_images` (LOGO, omitted without logos; `logo_images` is for 4:1 landscape logos, which we do not send), each `[{asset: "customers/<cid>/assets/<id>"}]`, plus `headlines`, `long_headline`, `descriptions`, `business_name`).
 7. Search only, sitelinks and callouts (none when omitted): an `asset_operation` per asset (`sitelink_asset` with `final_urls`, or `callout_asset`; temporary ids `-10`, `-11`, …), then a `campaign_asset_operation` per asset (`field_type` `SITELINK` / `CALLOUT`) linking it to the campaign.
 
 The campaign id is the id in the campaign result's resource name (`mutate_operation_responses[].campaign_result`). A `partial_failure_error` or a missing campaign result means nothing was applied (502). Only the campaign is PAUSED; enabling it later makes everything serve.

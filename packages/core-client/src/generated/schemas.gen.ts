@@ -21337,19 +21337,19 @@ export const GoogleDisplayImageSchema = {
         pathname: {
             type: 'string',
             minLength: 1,
-            example: 'drive/users/user_123/banner.png',
+            example: 'drive/users/user_123/launch.png',
             description: 'Drive blob pathname; must belong to the active workspace'
         },
         fileUrl: {
             type: 'string',
             format: 'uri',
-            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/banner.png',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
             description: 'Public Blob URL of the Drive file'
         },
         name: {
             type: 'string',
             minLength: 1,
-            example: 'banner.png'
+            example: 'launch.png'
         },
         size: {
             type: 'integer',
@@ -21373,7 +21373,7 @@ export const GoogleDisplayImageSchema = {
                 'SQUARE',
                 'LOGO'
             ],
-            description: 'LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit'
+            description: 'LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional square (1:1, at least 128x128) logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit'
         }
     },
     required: [

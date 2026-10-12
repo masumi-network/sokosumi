@@ -3,6 +3,7 @@ import { isVercelBlobPublicHost } from "@sokosumi/utils";
 import { assertDriveStoreMatchesWorkspace } from "@/helpers/drive-file-access";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import { badRequest } from "@/helpers/error";
+import type { UserContext } from "@/middleware/auth";
 
 /** A file a client names by its Drive blob pathname and public URL. */
 export interface DriveFileRef {
@@ -18,7 +19,7 @@ export interface DriveFileRef {
  * Returns the normalized URL, safe to download.
  */
 export function requireWorkspaceDriveFileUrl(
-  workspace: { userId: string; organizationId: string | null },
+  workspace: Pick<UserContext, "userId" | "organizationId">,
   ref: DriveFileRef,
 ): string {
   const { scope, ownerId } = parseDriveFilePathname(
