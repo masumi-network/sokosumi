@@ -78,7 +78,7 @@
         window.center()
         window.makeKeyAndOrderFront(nil)
         let menu = try await waitForView(in: host, timeoutMessage: "A message with reactions never mounted") {
-          Self.reactionMenus(host).last { $0.availability.canReact && !$0.visibleRect.isEmpty }
+          Self.reactionMenus(host).last { $0.actions.canReact && !$0.visibleRect.isEmpty }
         }
         let before = Set(NSApp.windows.map(ObjectIdentifier.init))
         // Invoke the real row action through the existing native context-menu adapter.
@@ -93,7 +93,7 @@
 
         state.rooms = [Self.room(readOnly: true)]
         _ = try await waitForView(in: host, timeoutMessage: "Reaction access did not close") {
-          Self.reactionMenus(host).first { !$0.availability.canReact && $0.availability.canCopyLink }
+          Self.reactionMenus(host).first { !$0.actions.canReact && $0.actions.canCopyLink }
         }
         // Poll rather than sleep a fixed time: the popover's dismissal animation runs late on a loaded runner.
         let deadline = ContinuousClock.now.advanced(by: .seconds(10))

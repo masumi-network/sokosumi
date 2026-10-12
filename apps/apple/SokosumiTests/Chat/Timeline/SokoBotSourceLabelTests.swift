@@ -43,7 +43,8 @@
       }
 
       private static func row(_ message: Components.Schemas.ChatRoomMessage, continuation: Bool = false) -> MessageRowView {
-        MessageRowView(message: message, isContinuation: continuation, outbound: nil, onRetry: nil, onRemove: nil, horizontalInset: 12)
+        MessageRowView(message: message, row: transcriptRow(message, previous: continuation ? message : nil), outbound: nil, onRetry: nil,
+                       onRemove: nil, horizontalInset: 12)
       }
 
       /// The rows in a key window over its background, as the transcript draws them.

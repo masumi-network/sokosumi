@@ -1,6 +1,7 @@
 #if os(macOS)
   import AppKit
   import CoreAPI
+  import OpenAPIRuntime
   @testable import Sokosumi
   import SokosumiAuth
   import SokosumiChat
@@ -138,7 +139,10 @@
                                                   createdAt: Date(),
                                                   sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
         message.id = "message_1"
-        message.metadata = nil
+        // A rated row is a Soko Bot turn: its metadata names the turn the thumbs rate.
+        message.metadata = try sokoBotFeedback.map {
+          try .init(additionalProperties: ["soko_bot": OpenAPIValueContainer(unvalidatedValue: ["turn_id": $0.turnId])])
+        }
         message.quote = quote
         let workspaces = WorkspaceState()
         let editing = workspaces.messageEditing
@@ -146,7 +150,8 @@
           editing.start(message, userId: "user")
         }
         let calls = Calls()
-        let row = MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+        let row = MessageRowView(message: message, row: transcriptRow(message, viewerId: "user", allowsPins: true, editing: editingRow),
+                                 outbound: nil, onRetry: nil, onRemove: nil,
                                  onReply: {}, onQuote: { calls.quotes += 1 }, onEdit: {},
                                  isPinned: false, onTogglePin: {}, onDelete: {},
                                  onToggleReaction: { _ in true }, editing: editing, onSendToSelf: { message },
@@ -313,20 +318,29 @@
 
       /// Two of the viewer's messages, the second a continuation directly under the first, settled at their size.
       private static func twoRows(first: Calls, second: Calls) async throws -> MessageMenuFixture {
-        func row(_ id: String, _ text: String, continuation: Bool, calls: Calls) -> MessageRowView {
+        func message(_ id: String, _ text: String) -> Components.Schemas.ChatRoomMessage {
           var message = chatRoomMessage(from: .init(clientTurnId: id, roomId: "room_1", content: text,
                                                     createdAt: Date(),
                                                     sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
           message.id = id
           message.metadata = nil
-          return MessageRowView(message: message, isContinuation: continuation, outbound: nil, onRetry: nil, onRemove: nil,
-                                onReply: {}, onQuote: { calls.quotes += 1 }, onEdit: {}, onDelete: {},
-                                onToggleReaction: { _ in true }, onSendToSelf: { message })
+          return message
         }
+        func row(_ message: Components.Schemas.ChatRoomMessage, below previous: Components.Schemas.ChatRoomMessage?,
+                 calls: Calls) -> MessageRowView {
+          MessageRowView(message: message, row: transcriptRow(message, viewerId: "user", previous: previous),
+                         outbound: nil, onRetry: nil, onRemove: nil,
+                         onReply: {}, onQuote: { calls.quotes += 1 }, onEdit: {}, onDelete: {},
+                         onToggleReaction: { _ in true }, onSendToSelf: { message })
+        }
+        let above = message("first", "The first message, above.")
+        let below = message("second", "The second message, whose pill overlaps the first.")
+        // The second row continues the first, as the transcript decides from the row above it.
+        try #require(transcriptRow(below, previous: above).isContinuation)
         let workspaces = WorkspaceState()
         let hosted = VStack(alignment: .leading, spacing: 0) {
-          row("first", "The first message, above.", continuation: false, calls: first)
-          row("second", "The second message, whose pill overlaps the first.", continuation: true, calls: second)
+          row(above, below: nil, calls: first)
+          row(below, below: above, calls: second)
         }
         .padding(16)
         .frame(width: 520, alignment: .topLeading)
