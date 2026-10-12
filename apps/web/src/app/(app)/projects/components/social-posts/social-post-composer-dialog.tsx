@@ -1274,25 +1274,28 @@ export function SocialPostComposerDialog({
             </div>
             <div className="flex items-center justify-end gap-2">
               {!isScheduleOnly && primaryAction !== "save" ? (
-                showSaveRequirementHint ? (
-                  <>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span tabIndex={0} className="inline-flex">
-                          {saveDraftButton}
-                        </span>
-                      </TooltipTrigger>
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className="inline-flex"
+                        tabIndex={showSaveRequirementHint ? 0 : undefined}
+                      >
+                        {saveDraftButton}
+                      </span>
+                    </TooltipTrigger>
+                    {showSaveRequirementHint ? (
                       <TooltipContent>
                         <p>{saveHint}</p>
                       </TooltipContent>
-                    </Tooltip>
+                    ) : null}
+                  </Tooltip>
+                  {showSaveRequirementHint ? (
                     <span className="sr-only" id={saveHintId}>
                       {saveHint}
                     </span>
-                  </>
-                ) : (
-                  saveDraftButton
-                )
+                  ) : null}
+                </>
               ) : null}
               {showRequirementHint ? (
                 <>
