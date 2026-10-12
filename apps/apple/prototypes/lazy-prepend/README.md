@@ -10,6 +10,12 @@ the real components in a disposable Apple workspace. The full message row brings
 back 60+ ms delays. Native ID anchoring failed older-page position retention;
 no production fix is included here.
 
+The [cold-versus-repeat reveal test](cold-repeat-reveal.md) keeps 48 identical rich
+rows preloaded, reveals 1/2/4/8 rows twice without insertion, and checks retained
+row state separately. Eight cold rows reach 79.4 ms; repeated reveals have a
+20.6 ms median. This remains a diagnostic reproduction, with native row actions
+preserved and no production optimization.
+
 ## Portable rich rows
 
 From any checkout of this PR, using a fresh output directory:

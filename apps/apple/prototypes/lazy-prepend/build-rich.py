@@ -278,7 +278,22 @@ for before, after in replace_metrics.items():
 original_start = original_row.index("  struct MessageRowView: View {")
 original_end = original_row.index("\n  #if DEBUG", original_start)
 original = original_row[original_start:original_end].replace("MessageRowView", "OriginalMessageRowView")
-row.write_text(text[:end] + "\n" + grouped + "\n" + metrics + "\n" + original + text[end:])
+# State tokens belong inside the production row, not a wrapper. Diagnostic runs only;
+# timings still use the original shell with no extra state or lifecycle callbacks.
+lifecycle = original.replace("OriginalMessageRowView", "LifecycleMessageRowView")
+state_seam = "    @State private var quickReactions = ReactionEmojiHistory.defaultQuickReactions"
+body_seam = "    var body: some View {\n      HStack(alignment: .top, spacing: 14) {"
+assert lifecycle.count(state_seam) == lifecycle.count(body_seam) == 1
+lifecycle = lifecycle.replace(state_seam, "    @State private var revealToken = UUID()\n" + state_seam)
+lifecycle = lifecycle.replace(body_seam, '''    var body: some View {
+      let _ = RichRowFixture.recordLifetime(message.id, token: revealToken, event: "body")
+      HStack(alignment: .top, spacing: 14) {''')
+appearance_seam = "      .padding(.horizontal, horizontalInset)"
+assert lifecycle.count(appearance_seam) == 1
+lifecycle = lifecycle.replace(appearance_seam, appearance_seam + '''
+      .onAppear { RichRowFixture.recordLifetime(message.id, token: revealToken, event: "appear") }
+      .onDisappear { RichRowFixture.recordLifetime(message.id, token: revealToken, event: "disappear") }''')
+row.write_text(text[:end] + "\n" + grouped + "\n" + metrics + "\n" + original + "\n" + lifecycle + text[end:])
 
 # Scope the fixture flag to the copied app. A global override erases SwiftPM's SWIFT_PACKAGE flag.
 project = source / "Sokosumi.xcodeproj/project.pbxproj"

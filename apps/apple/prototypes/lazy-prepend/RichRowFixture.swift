@@ -18,10 +18,24 @@ extension View {
 @MainActor enum RichRowFixture {
   static let omittedComponent = ProcessInfo.processInfo.environment["REPRO_OMIT"] ?? "none"
   static let diagnostics = ProcessInfo.processInfo.environment["REPRO_DIAGNOSTICS"] == "1"
+  static let repeatReveal = ProcessInfo.processInfo.environment["REPRO_REPEAT_ROW_COUNT"] != nil
   static let auth = AuthState(store: InMemoryTokenStore())
   static let workspace = WorkspaceState()
   static var renderEvaluations: [Int: Int] = [:]
   static var bodyEvaluations: [String: Int] = [:]
+  static var stateTokens: [String: String] = [:]
+  static var lifecycleEvents: [[String: Any]] = []
+
+  static func recordLifetime(_ id: String, token: UUID, event: String) {
+    let value = token.uuidString
+    if event == "body" {
+      recordBody(id)
+      guard stateTokens[id] != value else { return }
+      stateTokens[id] = value
+    }
+    lifecycleEvents.append(["id": id, "token": value, "event": event,
+                            "uptime": ProcessInfo.processInfo.systemUptime])
+  }
 
   static func message(at row: Int) -> Components.Schemas.ChatRoomMessage {
     if diagnostics {
@@ -37,6 +51,18 @@ extension View {
   }
 
   static let messages: [Components.Schemas.ChatRoomMessage] = (0 ..< 600).map { index in
+    if repeatReveal {
+      // Identical compact rich content fits eight complete rows in the unchanged viewport.
+      var message = chatRoomMessage(from: .init(
+        clientTurnId: "repeat-\(index)", roomId: "fixture",
+        content: "**A rich message** with *emphasis*, `inline code`, and a [link](https://example.com).",
+        createdAt: Date(timeIntervalSince1970: 1_790_000_000),
+        sender: .init(id: "u0", name: "Patrick Tobler", email: "u0@example.com", presence: .online)
+      ))
+      message.id = "repeat-\(index)"
+      message.reactions = [.init(emoji: "👍", count: 2, reactedByCurrentUser: false, reactors: [.init(id: "other", name: "Other")])]
+      return message
+    }
     let names = ["Patrick Tobler", "Francis Luz", "Andreas", "Phil"]
     let person = index % names.count
     let base = "Message \(index). "

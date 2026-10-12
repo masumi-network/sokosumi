@@ -17,7 +17,14 @@ struct ScrollReproduction: View {
 
   init(probe: FrameProbe) {
     self.probe = probe
-    _rows = State(initialValue: probe.richRows ? Array(0 ..< (probe.insertsPages ? 100 : 600)) : Array(500 ..< 600))
+    if let count = probe.repeatRowCount {
+      // Initial estimation may realize group zero; warm it explicitly before measuring five untouched groups.
+      _rows = State(initialValue: [-1] + (0 ..< 6).flatMap { group in
+        Array(group * count ..< (group + 1) * count) + [-group - 2]
+      } + Array(count * 6 ..< 48))
+    } else {
+      _rows = State(initialValue: probe.richRows ? Array(0 ..< (probe.insertsPages ? 100 : 600)) : Array(500 ..< 600))
+    }
   }
 
   var body: some View {
@@ -55,7 +62,9 @@ struct ScrollReproduction: View {
     ScrollView {
       LazyVStack(alignment: .leading, spacing: 0) {
         ForEach(rows, id: \.self) { row in
-          if revealing {
+          if probe.repeatRowCount != nil, row < 0 {
+            Color.clear.frame(height: 8000).id(row)
+          } else if revealing {
             measuredRow(row).id(row)
               .onDisappear { probe.visibleRows.remove(row) }
               .onScrollVisibilityChange(threshold: 0.1) { visible in
@@ -111,9 +120,15 @@ struct ScrollReproduction: View {
                                         isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
                                         horizontalInset: 12)
           } else if probe.omittedComponent == "original-row" {
-            OriginalMessageRowView(preparedDocument: prepared.document(for: message), message: message,
-                                   isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                                   horizontalInset: 12)
+            if probe.repeatRowCount != nil, probe.diagnostics {
+              LifecycleMessageRowView(preparedDocument: prepared.document(for: message), message: message,
+                                      isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+                                      horizontalInset: 12)
+            } else {
+              OriginalMessageRowView(preparedDocument: prepared.document(for: message), message: message,
+                                     isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+                                     horizontalInset: 12)
+            }
           } else {
             MessageRowView(preparedDocument: prepared.document(for: message), message: message,
                            isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
@@ -141,6 +156,19 @@ struct ScrollReproduction: View {
     try? await Task.sleep(for: .seconds(3))
     guard let window = NSApplication.shared.windows.first(where: \.isVisible),
           let host = window.contentView else { fatalError("No visible window") }
+    if let count = probe.repeatRowCount {
+      revealTarget = 0
+      try? await Task.sleep(for: .seconds(1))
+      precondition(probe.visibleRows.sorted() == Array(0 ..< count), "Warm-up group was not revealed")
+      revealTarget = -1
+      try? await Task.sleep(for: .seconds(1))
+      precondition(probe.visibleRows.isEmpty, "Warm-up rows remain visible")
+      probe.start(host)
+      await measureRepeats(count: count)
+      probe.finish(rows: rows.filter { $0 >= 0 }.count)
+      NSApplication.shared.terminate(nil)
+      return
+    }
     probe.start(host)
     for page in 1 ... 5 {
       try? await Task.sleep(for: .seconds(1))
@@ -167,6 +195,27 @@ struct ScrollReproduction: View {
     probe.finish(rows: rows.count)
     NSApplication.shared.terminate(nil)
   }
+
+  @MainActor private func measureRepeats(count: Int) async {
+    for group in 1 ... 5 {
+      let target = group * count
+      // Moving to an empty viewport is outside the cold/repeat measurement windows.
+      revealTarget = -group - 1
+      try? await Task.sleep(for: .seconds(1))
+      precondition(probe.visibleRows.isEmpty, "Blank viewport still shows rich rows")
+      for phase in ["cold", "repeat"] {
+        let page = (group - 1) * 2 + (phase == "cold" ? 1 : 2)
+        probe.mark(page: page, rows: 48, phase: phase, target: target)
+        revealTarget = target
+        try? await Task.sleep(for: .seconds(1))
+        probe.verifyReveal(page: page, row: target)
+        precondition(probe.visibleRows.sorted() == Array(target ..< target + count), "Wrong visible rich-row count")
+        revealTarget = -group - 1
+        try? await Task.sleep(for: .seconds(1))
+        precondition(probe.visibleRows.isEmpty, "Rows did not leave the viewport")
+      }
+    }
+  }
 }
 
 @MainActor final class FrameProbe: NSObject {
@@ -177,6 +226,7 @@ struct ScrollReproduction: View {
   let fixedRowHeight: Bool
   let omittedComponent: String
   let diagnostics: Bool
+  let repeatRowCount: Int?
   var insertsPages: Bool {
     direction != "no-insertion"
   }
@@ -184,6 +234,7 @@ struct ScrollReproduction: View {
   var visibleRows: Set<Int> = []
   var rowHeights: [Int: CGFloat] = [:]
   var inputFingerprint: String?
+  private var viewportSize = CGSize.zero
   var richRows: Bool {
     #if RICH_ROWS
       true
@@ -194,6 +245,14 @@ struct ScrollReproduction: View {
 
   private var link: CADisplayLink?
   private var callbacks: [Double] = []
+  private struct CallbackGap {
+    let start: Double
+    let end: Double
+    var milliseconds: Double {
+      (end - start) * 1000
+    }
+  }
+
   private struct Publication {
     let time: Double
     let page: Int
@@ -203,6 +262,9 @@ struct ScrollReproduction: View {
     var visibleRowHeights: [Double] = []
     var renderEvaluations: [Int: Int] = [:]
     var bodyEvaluations: [String: Int] = [:]
+    var phase: String?
+    var previouslyEvaluated: [String] = []
+    var stateTokens: [String: String] = [:]
   }
 
   private var marks: [Publication] = []
@@ -216,6 +278,12 @@ struct ScrollReproduction: View {
     fixedRowHeight = env["REPRO_FIXED_ROW_HEIGHT"] == "1"
     omittedComponent = env["REPRO_OMIT"] ?? "none"
     diagnostics = env["REPRO_DIAGNOSTICS"] == "1"
+    if let value = env["REPRO_REPEAT_ROW_COUNT"] {
+      guard let count = Int(value) else { preconditionFailure("Invalid repeat row count") }
+      repeatRowCount = count
+    } else {
+      repeatRowCount = nil
+    }
     pageSize = Int(env["REPRO_PAGE_SIZE"] ?? "100") ?? 100
     precondition(["prepend", "append", "no-insertion"].contains(direction))
     precondition((1 ... 100).contains(pageSize))
@@ -224,9 +292,14 @@ struct ScrollReproduction: View {
     precondition(richRows || omittedComponent == "none")
     precondition(insertsPages || (richRows && revealRows), "No-insertion control needs visible rich rows")
     precondition(!richRows || !singleLine, "Single-line mode applies only to the bare control")
+    if let repeatRowCount {
+      precondition([1, 2, 4, 8].contains(repeatRowCount))
+      precondition(richRows && revealRows && !insertsPages && omittedComponent == "original-row" && !fixedRowHeight)
+    }
   }
 
   func start(_ host: NSView) {
+    viewportSize = host.bounds.size
     let displayLink = host.displayLink(target: self, selector: #selector(tick))
     displayLink.add(to: .main, forMode: .common)
     link = displayLink
@@ -237,14 +310,22 @@ struct ScrollReproduction: View {
     callbacks.append(ProcessInfo.processInfo.systemUptime)
   }
 
-  func mark(page: Int, rows: Int) {
+  func mark(page: Int, rows: Int, phase: String? = nil, target: Int? = nil) {
     #if RICH_ROWS
       RichRowFixture.renderEvaluations = [:]
       RichRowFixture.bodyEvaluations = [:]
     #endif
     marks.append(Publication(time: ProcessInfo.processInfo.systemUptime, page: page, rows: rows, revealedRow: nil))
+    marks[page - 1].phase = phase
+    #if RICH_ROWS
+      if diagnostics, let target, let count = repeatRowCount {
+        marks[page - 1].previouslyEvaluated = (target ..< target + count).map { "repeat-\($0)" }.filter { RichRowFixture.stateTokens[$0] != nil }
+      }
+    #endif
     if insertsPages {
       os_signpost(.event, log: log, name: "Insert page", "page=%d rows=%d", page, rows)
+    } else if let phase {
+      os_signpost(.event, log: log, name: "Repeat reveal", "page=%d count=%d phase=%{public}s", page, repeatRowCount ?? 0, phase)
     } else {
       os_signpost(.event, log: log, name: "Reveal page", "page=%d rows=%d", page, rows)
     }
@@ -264,36 +345,48 @@ struct ScrollReproduction: View {
     #if RICH_ROWS
       marks[page - 1].renderEvaluations = RichRowFixture.renderEvaluations
       marks[page - 1].bodyEvaluations = RichRowFixture.bodyEvaluations
+      if diagnostics, repeatRowCount != nil {
+        marks[page - 1].stateTokens = Dictionary(uniqueKeysWithValues: visibleRows.sorted().map { ("repeat-\($0)", RichRowFixture.stateTokens["repeat-\($0)"]!) })
+      }
     #endif
+  }
+
+  private func measurement(_ mark: Publication, gaps: [CallbackGap]) -> [String: Any] {
+    // Include any callback interval overlapping the operation through +700 ms.
+    let near = gaps.filter { $0.end >= mark.time && $0.start <= mark.time + 0.7 }
+    var result: [String: Any] = ["page": mark.page, "rows": mark.rows, "uptime": mark.time,
+                                 "inserted_rows": insertsPages ? pageSize : 0,
+                                 "max_callback_gap_ms": near.map(\.milliseconds).max() ?? 0,
+                                 "over_25_ms": near.filter { $0.milliseconds > 25 }.count]
+    if let longest = near.max(by: { $0.milliseconds < $1.milliseconds }) {
+      result["gap_start_uptime"] = longest.start
+      result["gap_end_uptime"] = longest.end
+    }
+    if let row = mark.revealedRow {
+      result["revealed_row"] = row
+      result["visible_row_ids"] = mark.visibleRowIDs
+      if diagnostics {
+        result["visible_row_heights"] = mark.visibleRowHeights
+      }
+      if richRows, diagnostics {
+        result["render_evaluations"] = Dictionary(uniqueKeysWithValues: mark.renderEvaluations.map { (String($0.key), $0.value) })
+        result["body_evaluations"] = mark.bodyEvaluations
+      }
+    }
+    if let phase = mark.phase {
+      result["phase"] = phase
+      if diagnostics {
+        result["previously_evaluated_ids"] = mark.previouslyEvaluated
+        result["state_tokens"] = mark.stateTokens
+      }
+    }
+    return result
   }
 
   func finish(rows: Int) {
     link?.invalidate()
-    let gaps = zip(callbacks, callbacks.dropFirst()).map { (start: $0.0, end: $0.1, ms: ($0.1 - $0.0) * 1000) }
-    let insertions: [[String: Any]] = marks.map { mark in
-      // Include any callback interval overlapping the operation through +700 ms.
-      let near = gaps.filter { $0.end >= mark.time && $0.start <= mark.time + 0.7 }
-      var result: [String: Any] = ["page": mark.page, "rows": mark.rows, "uptime": mark.time,
-                                   "inserted_rows": insertsPages ? pageSize : 0,
-                                   "max_callback_gap_ms": near.map(\.ms).max() ?? 0,
-                                   "over_25_ms": near.filter { $0.ms > 25 }.count]
-      if let longest = near.max(by: { $0.ms < $1.ms }) {
-        result["gap_start_uptime"] = longest.start
-        result["gap_end_uptime"] = longest.end
-      }
-      if let row = mark.revealedRow {
-        result["revealed_row"] = row
-        result["visible_row_ids"] = mark.visibleRowIDs
-        if diagnostics {
-          result["visible_row_heights"] = mark.visibleRowHeights
-        }
-        if richRows, diagnostics {
-          result["render_evaluations"] = Dictionary(uniqueKeysWithValues: mark.renderEvaluations.map { (String($0.key), $0.value) })
-          result["body_evaluations"] = mark.bodyEvaluations
-        }
-      }
-      return result
-    }
+    let gaps = zip(callbacks, callbacks.dropFirst()).map { CallbackGap(start: $0.0, end: $0.1) }
+    let insertions = marks.map { measurement($0, gaps: gaps) }
     let nonpublication = gaps.filter { gap in
       !marks.contains { gap.end >= $0.time - 0.1 && gap.start <= $0.time + 0.8 }
     }
@@ -303,10 +396,19 @@ struct ScrollReproduction: View {
                                  "omitted_component": omittedComponent,
                                  "diagnostics": diagnostics,
                                  "page_size": pageSize, "final_rows": rows, "callback_count": callbacks.count,
-                                 "nonpublication_max_callback_gap_ms": nonpublication.map(\.ms).max() ?? 0,
+                                 "viewport_width": viewportSize.width, "viewport_height": viewportSize.height,
+                                 "nonpublication_max_callback_gap_ms": nonpublication.map(\.milliseconds).max() ?? 0,
                                  "insertions": insertions]
     if let inputFingerprint {
       result["input_fingerprint_sha256"] = inputFingerprint
+    }
+    if let repeatRowCount {
+      result["repeat_row_count"] = repeatRowCount
+      #if RICH_ROWS
+        if diagnostics {
+          result["lifecycle_events"] = RichRowFixture.lifecycleEvents
+        }
+      #endif
     }
     do {
       let data = try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
