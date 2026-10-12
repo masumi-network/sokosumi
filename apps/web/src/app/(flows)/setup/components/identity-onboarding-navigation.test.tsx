@@ -25,16 +25,13 @@ vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     organization: {
-      create: mocks.create,
       setActive: mocks.setActive,
       update: vi.fn().mockResolvedValue({ error: null }),
     },
   },
 }));
 vi.mock("@/lib/actions/organization/action", () => ({
-  generateOrganizationSlug: vi
-    .fn()
-    .mockResolvedValue({ ok: true, value: "acme" }),
+  createOrganizationWorkspaceAction: mocks.create,
   updatePreferredOrganization: mocks.preferred,
   inviteOrganizationMembersBulk: mocks.send,
 }));
@@ -107,7 +104,10 @@ async function reachReady() {
 describe("IdentityOnboardingForm navigation", () => {
   beforeEach(() => {
     for (const mock of Object.values(mocks)) mock.mockReset();
-    mocks.create.mockResolvedValue({ data: { id: "org-1" }, error: null });
+    mocks.create.mockResolvedValue({
+      ok: true,
+      value: { organizationId: "org-1" },
+    });
     mocks.setActive.mockResolvedValue({ data: null, error: null });
     mocks.preferred.mockResolvedValue({
       ok: true,
@@ -150,8 +150,10 @@ describe("IdentityOnboardingForm navigation", () => {
       screen.getByRole("button", { name: /Invite.sendInvites/i }),
     ).toBeDisabled();
     expect(screen.getByRole("button", { name: /Invite.copy/i })).toBeDisabled();
-    expect(finish).toBeDisabled();
-    expect(finish.querySelector(".animate-spin")).toBeTruthy();
+    expect(finish).toHaveAttribute("aria-busy", "true");
+    expect(
+      finish.querySelector('[data-slot="button-loading-bar"]'),
+    ).toBeTruthy();
     expect(mocks.preferred).not.toHaveBeenCalled();
     expect(mocks.replace).not.toHaveBeenCalled();
     await user.keyboard("{Escape}");
@@ -187,7 +189,9 @@ describe("IdentityOnboardingForm navigation", () => {
     });
     expect(mocks.setActive).toHaveBeenCalledOnce();
     expect(mocks.mint).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: /Nav.finish$/i })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Nav.finish$/i }),
+    ).toHaveAttribute("aria-busy", "true");
   });
   it.each(["in-band", "rejection"])(
     "retries %s selection errors and completes after preference failure",
@@ -221,7 +225,7 @@ describe("IdentityOnboardingForm navigation", () => {
       expect(screen.getByRole("dialog")).toBeTruthy();
       expect(
         screen.getByRole("button", { name: /Nav.finish$/i }),
-      ).toBeDisabled();
+      ).toHaveAttribute("aria-busy", "true");
     },
   );
   it("lets invites send before leaving and blocks same-batch sends after Finish", async () => {
@@ -276,11 +280,11 @@ describe("IdentityOnboardingForm navigation", () => {
   );
   it("allows retry after creation fails", async () => {
     mocks.create.mockResolvedValueOnce({
-      data: null,
-      error: { message: "creation offline" },
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR" },
     });
     const user = await openCreatedWizard();
-    expect(mocks.toast).toHaveBeenCalledWith("creation offline");
+    expect(mocks.toast).toHaveBeenCalledWith("Errors.createFailed");
     expect(mocks.setActive).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
     await waitFor(() => expect(mocks.create).toHaveBeenCalledTimes(2));
@@ -289,7 +293,10 @@ describe("IdentityOnboardingForm navigation", () => {
     await waitFor(() => expect(mocks.replace).toHaveBeenCalledOnce());
   });
   it("blocks dismissal as creation starts before React renders pending state", async () => {
-    const creation = deferred<{ data: { id: string }; error: null }>();
+    const creation = deferred<{
+      ok: true;
+      value: { organizationId: string };
+    }>();
     mocks.create.mockImplementationOnce(() => {
       screen.getByRole("button", { name: "Close" }).click();
       return creation.promise;
@@ -297,7 +304,9 @@ describe("IdentityOnboardingForm navigation", () => {
     await openCreatedWizard();
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(mocks.setActive).not.toHaveBeenCalled();
-    await act(() => creation.resolve({ data: { id: "org-1" }, error: null }));
+    await act(() =>
+      creation.resolve({ ok: true, value: { organizationId: "org-1" } }),
+    );
     expect(screen.getByRole("button", { name: /Nav.next/i })).toBeTruthy();
   });
   it("blocks retrying a failed invite link after Finish, including before render", async () => {

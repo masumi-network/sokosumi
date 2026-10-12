@@ -1,6 +1,6 @@
 # Core route patterns
 
-Required before adding or changing a Core `/v1` route; [`apps/core/AGENTS.md`](../../apps/core/AGENTS.md) points here.
+Required before adding, changing, or removing a Core `/v1` route; [`apps/core/AGENTS.md`](../../apps/core/AGENTS.md) points here.
 Paths are relative to `apps/core/` unless stated otherwise.
 
 ## Creating a New Route
@@ -91,35 +91,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
 ## Endpoint Migration Pattern (`/{id}` to `/me`)
 
-When the authentication context already identifies the caller (for example `authContext.coworkerId`), prefer self-scoped endpoints under `/me`:
+When the authentication context already identifies the caller (for example `authContext.coworkerId`), `/me` (or the target path) is the default:
 
 - `GET /resource/me`
 - `GET /resource/me/...`
 - `POST /resource/me/...`
 
-If older clients still depend on `/{id}`:
-
-- Keep legacy `/{id}` endpoints as temporary fallback routes.
-- Mark fallback operations as deprecated in OpenAPI with `deprecated: true` in `createRoute(...)`.
-- Keep fallback behavior/auth checks consistent with the `/me` implementation.
-
-Route mounting order:
-
-- Mount static `/me` routes before dynamic `/{id}` routes to prevent path conflicts.
+Do not keep two paths. A deprecated `/{id}` fallback stays only when a named installed client still calls it. Then mark that operation `deprecated: true` in `createRoute(...)` with a sunset date, keep its behavior and auth checks consistent with `/me`, and mount static `/me` before dynamic `/{id}`. Otherwise follow [Removing an Operation](#removing-an-operation).
 
 Required tests for migration PRs:
 
-- Add an OpenAPI contract test that asserts:
-  - `/me` endpoints exist.
-  - fallback `/{id}` endpoints exist while compatibility is required.
-  - fallback operations are marked `deprecated: true`.
-- Add/keep auth helper tests for missing self identity (`403`) and valid self identity.
+- OpenAPI contract: `/me` (or the target path) exists.
+- Auth helper tests for missing self identity (`403`) and valid self identity.
+- If a named client still needs a fallback: that operation is `deprecated: true` and the sunset is named. Do not assert that fallbacks exist as the default required test.
 
-Temporary duplication rule during deprecation:
+## Removing an Operation
 
-- Limited duplication between `/me` and deprecated `/{id}` handlers is acceptable during rollout.
-- Duplication must be temporary and tracked with a removal ticket/sunset date.
-- Remove deprecated routes and duplicated logic once clients are migrated.
+A client counts as migrated only when every installed Apple build has stopped calling the operation. Installed builds keep calling whatever their CoreAPI snapshot selected, so removing an operation (method and path) that any version of `apps/apple/Packages/CoreAPI/Sources/CoreAPI/openapi.json` ever selected is a one-way door: those builds get a 404. A build that sends `X-Sokosumi-Client` reads the 404's `route_not_found` kind and tells the person to update; an older build shows "Couldn't reach Core. Check your connection and try again."
+
+A PR that removes such an operation:
+
+1. Lists each removed operation the Apple app ever selected. From the repository root, `git log -S'<path>' -- apps/apple/Packages/CoreAPI/Sources/CoreAPI/openapi.json` shows when the snapshot added and dropped it.
+2. States which installed builds break (every build published from `main` before the Apple commit that dropped the operation) and the message they show.
+3. Names the first published build that no longer calls it. Before merge, `MACOS_MINIMUM_BUILD` on production Core is raised to that build, so older builds get 426 `client_update_required` and an update prompt instead. [ADR 0053](../adr/0053-core-turns-away-outdated-apple-builds.md) has the header and how to find a build number.
+4. Gets the user's explicit go-ahead before merge.
+
+`src/routes/v1/apple-client-operations.openapi.test.ts` fails while the in-tree snapshot still selects an operation Core no longer serves. Refreshing the snapshot clears the test, not the installed builds, so the four steps still apply.
+
+Only Core's catch-all answers `route_not_found`. Never answer a missing resource with that kind: the app would tell the person to update.
 
 ## Cursor-Based Pagination
 

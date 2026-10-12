@@ -239,12 +239,12 @@ describe("ResetPasswordForm", () => {
       await act(() => vi.advanceTimersByTimeAsync(7999));
       expect(
         screen.getByRole("button", { name: "continueToSignIn" }),
-      ).toBeDisabled();
+      ).toHaveAttribute("aria-busy", "true");
       await act(() => vi.advanceTimersByTimeAsync(1));
       expect(screen.getByRole("alert")).toHaveTextContent("signOutError");
       expect(
         screen.getByRole("button", { name: "continueToSignIn" }),
-      ).toBeEnabled();
+      ).not.toHaveAttribute("aria-busy");
       expect(push).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();

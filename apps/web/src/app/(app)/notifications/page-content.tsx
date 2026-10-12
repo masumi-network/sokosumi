@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { NotificationNeedsYouRequests } from "@/app/components/notification-needs-you-requests";
 import { NotificationCenterList } from "@/components/notifications/notification-center-list";
@@ -46,18 +45,8 @@ export function NotificationsPageContent() {
             size="sm"
             variant="outline"
             onClick={handleMarkAllRead}
-            disabled={isMarkingAllRead}
-            aria-busy={isMarkingAllRead}
+            loading={isMarkingAllRead}
           >
-            {/* The label stays put while the request runs. Swapping it for
-                "Loading..." takes away the only words that said what the
-                button does. */}
-            {isMarkingAllRead ? (
-              <Loader2
-                className="size-4 animate-spin motion-reduce:animate-none"
-                aria-hidden
-              />
-            ) : null}
             {t("markAllRead")}
           </Button>
         ) : null}

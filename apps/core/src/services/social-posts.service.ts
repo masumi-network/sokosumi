@@ -30,6 +30,10 @@ import {
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import prisma from "@/lib/db/prisma";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
+import {
+  type SocialPostStatistics,
+  socialPostStatisticsSchema,
+} from "@/schemas/social-post-statistics.schema";
 
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_REQUIRED_MESSAGE =
@@ -124,6 +128,7 @@ export interface SocialPostSummary {
   publishedAt: Date | null;
   publishedExternalId: string | null;
   publishedUrl: string | null;
+  statistics?: SocialPostStatistics | null;
   lastError: string | null;
   attemptCount: number;
   nextAttemptAt: Date | null;
@@ -147,6 +152,9 @@ interface ProjectScope {
 
 export interface ListSocialPostsInput extends ProjectScope {
   statuses?: readonly SocialPostStatus[];
+  provider?: string;
+  publishedFrom?: Date;
+  publishedUntil?: Date;
   cursor?: string;
   limit?: number;
 }
@@ -233,6 +241,8 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     publishedAt: record.publishedAt,
     publishedExternalId: record.publishedExternalId,
     publishedUrl: record.publishedUrl,
+    statistics:
+      socialPostStatisticsSchema.safeParse(record.statistics).data ?? null,
     lastError: record.lastError,
     attemptCount: record.attemptCount,
     nextAttemptAt: record.nextAttemptAt,
@@ -318,7 +328,7 @@ function requireTextWithinLimit(
   return trimmed;
 }
 
-/** Some providers refuse a post without media, or without exactly one video. */
+/** Publish and schedule refuse a post without the media the network needs. */
 function requireMediaRequirement(
   provider: SocialPostProvider,
   media: readonly SocialPostMediaRef[],
@@ -517,6 +527,15 @@ export async function listSocialPosts(
     projectId: input.projectId,
     workspaceId: input.workspaceId,
     ...(input.statuses ? { status: { in: [...input.statuses] } } : {}),
+    ...(input.provider ? { provider: input.provider } : {}),
+    ...(input.publishedFrom || input.publishedUntil
+      ? {
+          publishedAt: {
+            ...(input.publishedFrom ? { gte: input.publishedFrom } : {}),
+            ...(input.publishedUntil ? { lte: input.publishedUntil } : {}),
+          },
+        }
+      : {}),
   };
   const upcoming = input.statuses?.every(
     (status) => status === "SCHEDULED" || status === "PUBLISHING",
@@ -527,7 +546,9 @@ export async function listSocialPosts(
       include: socialPostInclude,
       orderBy: upcoming
         ? [{ scheduledAt: "asc" }, { id: "asc" }]
-        : [{ updatedAt: "desc" }, { id: "desc" }],
+        : input.statuses?.length === 1 && input.statuses[0] === "PUBLISHED"
+          ? [{ publishedAt: "desc" }, { id: "desc" }]
+          : [{ updatedAt: "desc" }, { id: "desc" }],
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip } : {}),
     }),
@@ -589,8 +610,10 @@ export async function createSocialPost(
     media: input.media ?? [],
   });
   const text = requireTextWithinLimit(input.text, provider, media.length > 0);
-  requireMediaRequirement(requireProvider(provider), media);
   const scheduled = input.scheduledAt !== undefined;
+  if (scheduled) {
+    requireMediaRequirement(requireProvider(provider), media);
+  }
 
   const post = await tx.socialPost.create({
     data: {
@@ -630,6 +653,9 @@ export async function updateSocialPost(
       ? {
           scheduledByUserId: input.userId,
           scheduledByCoworkerId: input.coworkerId ?? null,
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
         }
       : {};
   const currentProvider = requireProvider(post.provider);
@@ -692,7 +718,9 @@ export async function updateSocialPost(
         throw badRequest(mediaValidationMessage(provider, validation.reason));
       }
     }
-    requireMediaRequirement(provider, media);
+    if (post.status === "SCHEDULED") {
+      requireMediaRequirement(provider, media);
+    }
   }
 
   return mapSocialPost(

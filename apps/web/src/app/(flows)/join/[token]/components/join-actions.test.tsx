@@ -69,7 +69,6 @@ const messages = {
   },
   Join: {
     join: "Join {organization}",
-    joining: "Joining",
     signIn: "Log in",
     register: "Register",
     decline: "Decline",

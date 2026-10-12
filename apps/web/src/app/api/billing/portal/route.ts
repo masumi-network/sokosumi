@@ -1,7 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import { sanitizeAuthRedirectPathForOrigin } from "@/lib/auth/auth.utils";
+import {
+  getAbsoluteRedirectUrlForOrigin,
+  sanitizeAuthRedirectPath,
+} from "@/lib/auth/auth.utils";
 import { readRouteSession } from "@/lib/auth/route-session";
 import {
   openOrganizationBillingPortalServer,
@@ -40,13 +43,13 @@ function redirectToReturnPathWithError(
   returnPath: string,
   errorCode: string = BILLING_PORTAL_ERROR_GENERAL,
 ): NextResponse {
-  const origin = request.nextUrl.origin;
-  const safePath = sanitizeAuthRedirectPathForOrigin(
-    returnPath,
-    origin,
-    SAFE_RETURN_FALLBACK,
+  const url = new URL(
+    getAbsoluteRedirectUrlForOrigin(
+      request.nextUrl.origin,
+      returnPath,
+      SAFE_RETURN_FALLBACK,
+    ),
   );
-  const url = new URL(safePath, origin);
   url.searchParams.set(BILLING_PORTAL_ERROR_PARAM, errorCode);
 
   return NextResponse.redirect(url);
@@ -57,10 +60,10 @@ export async function GET(request: NextRequest) {
   const hasOrganizationIdParam = searchParams.has("organizationId");
   const organizationId = searchParams.get("organizationId")?.trim() || null;
   const origin = request.nextUrl.origin;
-  const safeReturnPath = sanitizeAuthRedirectPathForOrigin(
+  const safeReturnPath = sanitizeAuthRedirectPath(
     searchParams.get("returnPath") ?? undefined,
-    origin,
     SAFE_RETURN_FALLBACK,
+    origin,
   );
 
   if (

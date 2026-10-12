@@ -30,12 +30,12 @@ extension ReadOnlyDirectNotice {
 /// participant has left, so nobody would read a new message; the history stays readable.
 struct ReadOnlyDirectNoticeView: View {
   let notice: ReadOnlyDirectNotice
-  /// Web `px-4 md:px-5`: 20 in the room, 16 in the narrower Thread panel (`px-4`).
+  /// 20 in the room, 16 in the narrower Thread panel.
   var horizontalInset: CGFloat = 16
   @Environment(\.locale) private var locale
 
   var body: some View {
-    // Web `text-muted-foreground py-3 text-sm`: the message text size, muted, where the composer was.
+    // The message text size, muted, where the composer was.
     Text(notice.text(locale: locale))
       .foregroundStyle(.secondary)
       .frame(maxWidth: .infinity, alignment: .leading)

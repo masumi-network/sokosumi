@@ -1,7 +1,3 @@
 {
-  "turbo": false,
-  "apps": {
-    "apps/web": { "name": "web.sokosumi" },
-    "apps/core": { "name": "core.sokosumi" }
-  }
+  "turbo": false
 }

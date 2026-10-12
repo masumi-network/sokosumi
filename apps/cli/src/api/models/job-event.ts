@@ -1,11 +1,7 @@
-import { asRecord } from "./parse-helpers.js";
+import { asRecord, nullableString } from "./parse-helpers.js";
 
 export interface JobEvent {
   id: string | null;
-  jobId: string | null;
-  type: string | null;
-  message: string | null;
-  data: unknown;
   createdAt: string | null;
   status: string | null;
   result: string | null;
@@ -14,13 +10,9 @@ export interface JobEvent {
 export function parseJobEvent(input: unknown): JobEvent {
   const value = asRecord(input);
   return {
-    id: typeof value.id === "string" ? value.id : null,
-    jobId: typeof value.jobId === "string" ? value.jobId : null,
-    type: typeof value.type === "string" ? value.type : null,
-    message: typeof value.message === "string" ? value.message : null,
-    data: "data" in value ? value.data : null,
-    createdAt: typeof value.createdAt === "string" ? value.createdAt : null,
-    status: typeof value.status === "string" ? value.status : null,
-    result: typeof value.result === "string" ? value.result : null,
+    id: nullableString(value.id),
+    createdAt: nullableString(value.createdAt),
+    status: nullableString(value.status),
+    result: nullableString(value.result),
   };
 }

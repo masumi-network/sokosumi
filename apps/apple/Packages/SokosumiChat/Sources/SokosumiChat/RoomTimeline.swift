@@ -270,8 +270,11 @@ public final class RoomTimeline: ObservableObject {
         cursor: cursor, around: around, organizationSlug: organizationSlug
       )
     }
+    // An older page brings the latest page's 100 rows: each insertion above the reader costs the transcript a frame
+    // (M6). A jump window and a gap page keep 30.
+    let limit: Int? = kind == .older || (around == nil && cursor == nil) ? nil : 30
     return try await ChatService().listMessages(
-      client: client, roomId: roomId, cursor: cursor, around: around, limit: around != nil || cursor != nil ? 30 : nil, organizationSlug: organizationSlug
+      client: client, roomId: roomId, cursor: cursor, around: around, limit: limit, organizationSlug: organizationSlug
     )
   }
 }

@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export async function OrganizationProductSeatRequired() {
-  const t = await getTranslations("App.Sidebar.SeatRequired");
+  const t = await getTranslations("App.Sidebar.Content.SeatRequired");
 
   return (
     <div className="flex w-full justify-center px-4 py-10">

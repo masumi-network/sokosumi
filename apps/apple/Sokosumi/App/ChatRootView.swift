@@ -34,6 +34,8 @@ struct ChatRootView: View {
       }
       return .handled
     })
+    // Row 38e2: result cards load protected outputs with this window's session and workspace.
+    .environment(\.resultOutputLoader, WorkspaceResultOutputLoader(workspaces: workspaces, auth: auth))
     .modifier(InviteLinkSheet(presentation: $inviteLink))
     .modifier(PresenceLifecycleModifier())
     .modifier(ChatNotificationLifecycleModifier())
@@ -114,6 +116,22 @@ struct ChatRootView: View {
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
+    case .updateRequired:
+      VStack(spacing: 8) {
+        Text("Update Sokosumi")
+          .font(.headline)
+        Text(updateMessage)
+          .font(.callout)
+          .foregroundStyle(.secondary)
+          .multilineTextAlignment(.center)
+        HStack {
+          Link("Download Update", destination: latestDownloadURL)
+          Button("Sign out") {
+            auth.signOut()
+          }
+        }
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     case let .failed(message):
       VStack(spacing: 8) {
         Text(message)
@@ -180,14 +198,12 @@ struct ChatRootView: View {
     }
   }
 
-  private func blockedMessage(for gate: Components.Schemas.WorkspaceGateStatus) -> String {
+  private func blockedMessage(for gate: WorkspaceGate) -> String {
     switch gate {
     case .pendingInvites:
       "You have pending organization invites but no workspace yet. Accept an invite on the web, then check again."
     case .identityOnboarding:
       "Your account has no workspace yet. Finish setup on the web, then check again."
-    case .ready:
-      "Unexpected state. Try again."
     }
   }
 }

@@ -17,6 +17,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "archive_task",
   "assign_task",
   "get_task_status",
+  "preview_result",
   "list_tasks",
   "reply_to_task",
   "update_assigned_task",
@@ -55,6 +56,10 @@ export const SOKO_BOT_CAPABILITIES = [
   "run_integration_tool",
   "list_project_social_accounts",
   "list_social_posts",
+  "list_social_post_statistics",
+  "refresh_social_post_statistics",
+  "list_social_account_statistics",
+  "refresh_social_account_statistics",
   "get_social_post",
   "create_social_post",
   "update_social_post",
@@ -130,6 +135,7 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
 const DIRECT_READ_CAPABILITIES = [
   "refresh_context",
   "get_task_status",
+  "preview_result",
   "list_tasks",
   "get_job_status",
   "read_memory",
@@ -148,6 +154,10 @@ const DIRECT_READ_CAPABILITIES = [
   "list_integration_tools",
   "list_project_social_accounts",
   "list_social_posts",
+  "list_social_post_statistics",
+  "refresh_social_post_statistics",
+  "list_social_account_statistics",
+  "refresh_social_account_statistics",
   "get_social_post",
   // Reads the marketplace listing in Sokosumi and spends nothing, so "what
   // could this cost?" is answerable below the hire route's bar. The input

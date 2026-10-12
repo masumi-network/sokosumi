@@ -2,9 +2,11 @@ import Foundation
 @testable import SokosumiChat
 import Testing
 
+/// A quote's preview asks for every file link; the body's text keeps them links (row 15c).
 @Test func attachmentLinksPreserveTextAndOccurrenceOrder() {
   let document = MessageMarkdown("Before [report](https://example.com/report.pdf) between [photo](https://example.com/photo.png?token=1) after")
-  let segments = MessageAttachmentSegment.split(document.blocks[0].text)
+  #expect(MessageAttachmentSegment.split(document.blocks[0].text).allSatisfy { $0.attachment == nil })
+  let segments = MessageAttachmentSegment.split(document.blocks[0].text, linksAreAttachments: true)
   #expect(segments.count == 5)
   #expect(String(segments[0].text.characters) == "Before ")
   #expect(segments[1].attachment?.kind == .file)
@@ -39,7 +41,7 @@ import Testing
 
 @Test func formattedAttachmentLabelRemainsOnePreview() {
   let document = MessageMarkdown("[**Annual** report](https://example.com/a.pdf)")
-  let segments = MessageAttachmentSegment.split(document.blocks[0].text)
+  let segments = MessageAttachmentSegment.split(document.blocks[0].text, linksAreAttachments: true)
   #expect(segments.count == 1)
   #expect(segments.first?.attachment?.filename == "Annual report")
 }
@@ -69,7 +71,7 @@ import Testing
   link.link = URL(string: "https://example.com/report.pdf")
   text.append(link)
   text.append(AttributedString("\n\nFollowing text"))
-  let segments = MessageAttachmentSegment.split(text)
+  let segments = MessageAttachmentSegment.split(text, linksAreAttachments: true)
   #expect(String(segments[0].text.characters) == "First line\nSecond line")
   #expect(segments[1].attachment?.kind == .file)
   #expect(String(segments[2].text.characters) == "Following text")
@@ -97,7 +99,7 @@ import Testing
 @Test func textPreviewKeepsFileLinksInlineAndPreservesParagraphText() throws {
   let parsed = MessageMarkdown("Read [the PDF](https://example.com/report.pdf) before **continuing**.")
   let block = try #require(parsed.blocks.first)
-  let segments = MessageAttachmentSegment.split(block.text, includeFileAttachments: false)
+  let segments = MessageAttachmentSegment.split(block.text)
   #expect(segments.count == 1)
   #expect(segments.first?.text == block.text)
   #expect(segments.first?.attachment == nil)
@@ -108,7 +110,7 @@ import Testing
   for ext in ["markdown", "MARKDOWN"] {
     let parsed = MessageMarkdown("Read [report](https://example.com/report.\(ext)) now.")
     let block = try #require(parsed.blocks.first)
-    let segments = MessageAttachmentSegment.split(block.text)
+    let segments = MessageAttachmentSegment.split(block.text, linksAreAttachments: true)
     #expect(segments.count == 3)
     #expect(segments[1].attachment?.documentPreviewKind == .text)
   }

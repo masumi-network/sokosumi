@@ -23,6 +23,7 @@ const item: SocialPostCalendarItem = {
   sourceId: "project:project",
   sourceType: "PROJECT",
   scheduledAt: new Date("2026-09-23T12:00:00Z"),
+  lastAttempt: null,
   text: "Launch news",
   externalHandle: "team",
   status: "SCHEDULED",
@@ -36,6 +37,7 @@ const item: SocialPostCalendarItem = {
 function renderCard(
   overrides: Partial<SocialPostCalendarItem> = {},
   variant: "compact" | "preview" = "preview",
+  showThumb = false,
 ) {
   return render(
     <NextIntlClientProvider
@@ -48,6 +50,7 @@ function renderCard(
         timeZone="UTC"
         item={{ ...item, ...overrides }}
         variant={variant}
+        showThumb={showThumb}
       />
     </NextIntlClientProvider>,
   );
@@ -94,8 +97,129 @@ describe("Social post calendar event", () => {
         screen.getByRole("button", { name: new RegExp(label) }),
       ).toBeInTheDocument();
       expect(screen.queryByRole("link")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("calendar-social-post-thumb"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByTestId("social-post-provider-icon"),
+      ).toBeInTheDocument();
     },
   );
+  it("shows a square first image on a week chip and keeps the platform logo", () => {
+    renderCard(
+      { previewMedia: { fileUrl: "https://example.com/a.png", kind: "image" } },
+      "compact",
+      true,
+    );
+    const thumb = screen.getByTestId("calendar-social-post-thumb");
+    const image = thumb.querySelector("img");
+    expect(image).toHaveAttribute("src", "https://example.com/a.png");
+    expect(image).toHaveAttribute("loading", "lazy");
+    expect(image).toHaveClass("object-cover");
+    expect(thumb).toHaveClass(
+      "size-7",
+      "border-border",
+      "bg-muted",
+      "@max-[6.875rem]:hidden",
+    );
+    expect(screen.getByTestId("social-post-provider-icon")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /X post with 2 images/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("12:00 PM")).toBeInTheDocument();
+    const chip = screen.getByTestId("calendar-social-post");
+    const textCol = chip.firstElementChild;
+    expect(textCol).toContainElement(
+      screen.getByTestId("social-post-provider-icon"),
+    );
+    expect(textCol?.childElementCount).toBe(2);
+    expect(chip.lastElementChild).toBe(thumb);
+  });
+  it("shows a video first-frame on a week chip and keeps the platform logo", () => {
+    renderCard(
+      {
+        previewMedia: { fileUrl: "https://example.com/a.mp4", kind: "video" },
+        attachmentCount: 1,
+      },
+      "compact",
+      true,
+    );
+    expect(
+      screen.getByTestId("calendar-social-post-thumb").querySelector("video"),
+    ).toHaveAttribute("src", "https://example.com/a.mp4");
+    expect(screen.getByTestId("social-post-provider-icon")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /X post with video/ }),
+    ).toBeInTheDocument();
+  });
+  it("omits the thumbnail on a text-only week chip and keeps the name on its own line", () => {
+    renderCard({ previewMedia: null, attachmentCount: 0 }, "compact", true);
+    expect(
+      screen.queryByTestId("calendar-social-post-thumb"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("social-post-provider-icon")).toBeInTheDocument();
+    const name = screen.getByText("X post");
+    expect(name).toBeVisible();
+    expect(name).toHaveClass("truncate");
+    const chip = screen.getByTestId("calendar-social-post");
+    expect(chip.firstElementChild?.childElementCount).toBe(2);
+    expect(chip.lastElementChild).not.toBe(
+      screen.getByTestId("social-post-provider-icon"),
+    );
+  });
+  it("marks a GIF on the week thumb without covering the frame", () => {
+    renderCard(
+      {
+        previewMedia: { fileUrl: "https://example.com/a.gif", kind: "gif" },
+        attachmentCount: 1,
+      },
+      "compact",
+      true,
+    );
+    const thumb = screen.getByTestId("calendar-social-post-thumb");
+    expect(thumb.querySelector("img")).toHaveAttribute(
+      "src",
+      "https://example.com/a.gif",
+    );
+    expect(screen.getByTestId("social-post-preview-gif")).toHaveTextContent(
+      "GIF",
+    );
+    expect(thumb.contains(screen.getByTestId("social-post-preview-gif"))).toBe(
+      true,
+    );
+  });
+  it("keeps a failed week chip as an icon so the word does not crowd the thumb", () => {
+    renderCard(
+      {
+        status: "FAILED",
+        previewMedia: { fileUrl: "https://example.com/a.png", kind: "image" },
+      },
+      "compact",
+      true,
+    );
+    expect(screen.queryByText("Failed")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("social-post-status-reason"),
+    ).toHaveAccessibleName("Failed");
+    expect(
+      screen.getByTestId("calendar-social-post-thumb"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("12:00 PM")).toHaveClass("shrink-0");
+  });
+  it("keeps failed icon-only on a text-only week chip too", () => {
+    renderCard(
+      { status: "FAILED", previewMedia: null, attachmentCount: 0 },
+      "compact",
+      true,
+    );
+    expect(screen.queryByText("Failed")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("social-post-status-reason"),
+    ).toHaveAccessibleName("Failed");
+    expect(
+      screen.queryByTestId("calendar-social-post-thumb"),
+    ).not.toBeInTheDocument();
+  });
   it("previews the first image attachment", () => {
     const { container } = renderCard({
       previewMedia: { fileUrl: "https://example.com/a.png", kind: "image" },
@@ -118,8 +242,6 @@ describe("Social post calendar event", () => {
     ["SCHEDULED", "Scheduled"],
     ["PUBLISHING", "Publishing"],
     ["PUBLISHED", "Published"],
-    ["FAILED", "Failed"],
-    ["MISSED", "Missed"],
     ["CANCELED", "Canceled"],
   ] as const)(
     "uses an accessible icon instead of text for %s",
@@ -132,6 +254,68 @@ describe("Social post calendar event", () => {
       expect(screen.queryByText(label)).not.toBeInTheDocument();
     },
   );
+  it.each([
+    ["FAILED", "Failed"],
+    ["MISSED", "Missed"],
+  ] as const)("names %s on the card so a retry is obvious", (status, label) => {
+    renderCard({ status });
+    expect(screen.getByText(label)).toBeVisible();
+    expect(screen.queryByRole("img", { name: label })).not.toBeInTheDocument();
+  });
+  it("names a failed post on the compact workspace chip too", () => {
+    renderCard({ status: "FAILED" }, "compact");
+    expect(screen.getByText("Failed")).toBeVisible();
+  });
+  it("describes a failed chip without showing the provider error", () => {
+    renderCard({
+      status: "FAILED",
+      lastAttempt: { outcome: "failed_permanent", errorKind: "rejected" },
+    });
+    const chip = screen.getByTestId("social-post-status-reason");
+    expect(chip).toHaveAccessibleName("Failed");
+    expect(chip).toHaveAccessibleDescription(
+      "The platform rejected this post.",
+    );
+    expect(
+      screen.queryByText(/403|Duplicate|rejected the post/i),
+    ).not.toBeInTheDocument();
+  });
+  it("opens the reason on tap without opening the post", () => {
+    openPreview.current = vi.fn();
+    renderCard({
+      status: "FAILED",
+      lastAttempt: {
+        outcome: "connection_inactive",
+        errorKind: null,
+      },
+    });
+    fireEvent.click(screen.getByTestId("social-post-status-reason"));
+    expect(openPreview.current).not.toHaveBeenCalled();
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "Account disconnected. Reconnect to retry.",
+    );
+  });
+  it("opens the missed reason on keyboard focus", () => {
+    renderCard({
+      status: "MISSED",
+      lastAttempt: { outcome: "missed", errorKind: null },
+    });
+    fireEvent.focus(screen.getByTestId("social-post-status-reason"));
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "Missed the scheduled time.",
+    );
+  });
+  it("falls back to generic copy when the kind is unknown", () => {
+    renderCard({
+      status: "FAILED",
+      lastAttempt: { outcome: "failed_permanent", errorKind: "unknown" },
+    });
+    expect(
+      screen.getByTestId("social-post-status-reason"),
+    ).toHaveAccessibleDescription(
+      "Couldn't publish. Open the post for details.",
+    );
+  });
   it("opens the exact post and shows the X brand, project, scheduler, and attachments", () => {
     renderCard();
     expect(screen.getByRole("link")).toHaveAttribute(

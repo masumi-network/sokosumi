@@ -11,6 +11,7 @@
 		E172F755304F3FBD00C517E4 /* SokosumiAuth in Frameworks */ = {isa = PBXBuildFile; productRef = E172F754304F3FBD00C517E4 /* SokosumiAuth */; };
 		E173A001304F3FBD00C517E4 /* SokosumiChat in Frameworks */ = {isa = PBXBuildFile; productRef = E173A002304F3FBD00C517E4 /* SokosumiChat */; };
 		E174B027304F3FBD00C517E4 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = E174B052304F3FBD00C517E4 /* OpenAPIRuntime */; };
+		E17BD001304F3FBD00C517E4 /* BeautifulMermaid in Frameworks */ = {isa = PBXBuildFile; productRef = E17BD002304F3FBD00C517E4 /* BeautifulMermaid */; };
 		E176D030304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */ = {isa = PBXBuildFile; productRef = E176D031304F3FBD00C517E4 /* SokosumiRealtime */; };
 		E179D030304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */ = {isa = PBXBuildFile; productRef = E179D031304F3FBD00C517E4 /* SokosumiWorkspace */; };
 /* End PBXBuildFile section */
@@ -54,6 +55,7 @@
 				E176D030304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */,
 				E179D030304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */,
 				E174B027304F3FBD00C517E4 /* OpenAPIRuntime in Frameworks */,
+				E17BD001304F3FBD00C517E4 /* BeautifulMermaid in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -111,6 +113,7 @@
 				E176D031304F3FBD00C517E4 /* SokosumiRealtime */,
 				E179D031304F3FBD00C517E4 /* SokosumiWorkspace */,
 				E174B052304F3FBD00C517E4 /* OpenAPIRuntime */,
+				E17BD002304F3FBD00C517E4 /* BeautifulMermaid */,
 			);
 			productName = Sokosumi;
 			productReference = E172F721304F3FBC00C517E4 /* Sokosumi.app */;
@@ -174,6 +177,7 @@
 				E179D033304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiWorkspace" */,
 				E174B050304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */,
 				E174B051304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "swift-http-types" */,
+				E17BD003304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "beautiful-mermaid-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E172F722304F3FBC00C517E4 /* Products */;
@@ -546,6 +550,14 @@
 				minimumVersion = 1.8.0;
 			};
 		};
+		E17BD003304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "beautiful-mermaid-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/lukilabs/beautiful-mermaid-swift";
+			requirement = {
+				kind = exactVersion;
+				version = 1.0.4;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -583,6 +595,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E179D033304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiWorkspace" */;
 			productName = SokosumiWorkspace;
+		};
+		E17BD002304F3FBD00C517E4 /* BeautifulMermaid */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E17BD003304F3FBD00C517E4 /* XCRemoteSwiftPackageReference "beautiful-mermaid-swift" */;
+			productName = BeautifulMermaid;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

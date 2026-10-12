@@ -72,8 +72,8 @@ export function InvoiceDeleteButton({
   return (
     <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant={variant} size={size} disabled={isDeleting}>
-          {isDeleting ? t("deleting") : t("delete")}
+        <Button variant={variant} size={size} loading={isDeleting}>
+          {t("delete")}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
@@ -89,10 +89,10 @@ export function InvoiceDeleteButton({
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
-            disabled={isDeleting}
+            loading={isDeleting}
             className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
           >
-            {isDeleting ? t("deleting") : t("delete")}
+            {t("delete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -11,12 +11,15 @@ import {
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
-
 import {
   buildCoworkerNonEmptyBaseUrlWhere,
   buildCoworkerUsableInWorkspaceWhere,
   hasNonEmptyBaseUrl,
 } from "@/helpers/access-control";
+import {
+  chatResultDescriptors,
+  RESULT_SNAPSHOTS_KEY,
+} from "@/helpers/chat-result-metadata";
 import {
   publicChatRoomMessageMetadata,
   readUnfurlsFromMetadata,
@@ -762,6 +765,13 @@ export function mapChatRoomMessage(
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
     threadRepliers: mapThreadRepliers(message.replies, currentUserId),
     metadata: isDeleted ? null : publicChatRoomMessageMetadata(metadata),
+    ...(isDeleted || !metadata?.[RESULT_SNAPSHOTS_KEY]
+      ? {}
+      : {
+          resultPreviews: chatResultDescriptors(
+            metadata?.[RESULT_SNAPSHOTS_KEY],
+          ),
+        }),
     quote: isDeleted ? null : readQuoteFromMetadata(metadata),
     membership: isDeleted ? null : readMembershipFromMetadata(metadata),
     groupNameChange: isDeleted

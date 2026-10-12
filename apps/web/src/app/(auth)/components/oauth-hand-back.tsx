@@ -239,9 +239,9 @@ function AccountChoice({
           variant="primary"
           className="w-full"
           disabled={pendingChoice !== null}
+          loading={pendingChoice === "continue"}
           onClick={handleContinue}
         >
-          {pendingChoice === "continue" && <Spinner />}
           {t("continueAs", { account: account.name.trim() || account.email })}
         </Button>
         <Button
@@ -249,9 +249,9 @@ function AccountChoice({
           variant="outline"
           className="w-full"
           disabled={pendingChoice !== null}
+          loading={pendingChoice === "switch"}
           onClick={handleUseAnotherAccount}
         >
-          {pendingChoice === "switch" && <Spinner />}
           {t("useAnotherAccount")}
         </Button>
       </div>

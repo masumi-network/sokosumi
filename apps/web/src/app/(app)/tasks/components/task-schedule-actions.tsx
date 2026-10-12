@@ -214,7 +214,7 @@ export function TaskScheduleActions({
               {tActions("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={isPending}
+              loading={isPending}
               onClick={(event) => {
                 // Stay open until the action lands, so a failure is visible.
                 event.preventDefault();

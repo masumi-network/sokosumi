@@ -320,6 +320,22 @@ function hoverCardTriggers() {
 }
 
 describe("ChatMessageRow", () => {
+  it("renders a project-picker reply as a compact linked project without the technical ID", () => {
+    const projectId = "01a09b66-77dd-740e-889e-d4ed60b6007b";
+    renderRow({
+      message: userMessage({
+        content: `Use project "albina" (project ID: ${projectId}).`,
+      }),
+    });
+    const body = screen.getByTestId("room-message-body");
+    expect(within(body).getByRole("link", { name: /albina/ })).toHaveAttribute(
+      "href",
+      `/projects/${projectId}`,
+    );
+    expect(within(body).getByTestId("project-avatar")).toBeInTheDocument();
+    expect(body).not.toHaveTextContent(projectId);
+    expect(body).not.toHaveTextContent("Use project");
+  });
   it("skips re-rendering for an identical prop set", () => {
     const message = userMessage();
     const coworkersById = new Map<string, ChatRoomCoworkerParticipant>();

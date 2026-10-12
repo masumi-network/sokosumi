@@ -115,7 +115,7 @@ export function ParticipantCheckboxes({
             </div>
           ) : filteredMembers.length > 0 ? (
             <div className="pb-2">
-              <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-[0.6875rem] font-medium">
+              <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-2xs font-medium">
                 {t("Dialog.humans")}
               </div>
               <div className="space-y-0.5">
@@ -201,7 +201,7 @@ export function ParticipantCheckboxes({
 
           {filteredCoworkers.length > 0 ? (
             <div className="pt-1">
-              <div className="text-muted-foreground flex items-center gap-1.5 px-2 pt-1 pb-1.5 text-[0.6875rem] font-medium">
+              <div className="text-muted-foreground flex items-center gap-1.5 px-2 pt-1 pb-1.5 text-2xs font-medium">
                 <Bot className="size-3" aria-hidden />
                 {t("Dialog.coworkers")}
               </div>
@@ -258,7 +258,7 @@ export function ParticipantCheckboxes({
 
           {filteredSokoBots.length > 0 && onSokoBotIdsChange ? (
             <div className="pt-1">
-              <div className="text-muted-foreground flex items-center gap-1.5 px-2 pt-1 pb-1.5 text-[0.6875rem] font-medium">
+              <div className="text-muted-foreground flex items-center gap-1.5 px-2 pt-1 pb-1.5 text-2xs font-medium">
                 <Bot className="size-3" aria-hidden />
                 {t("Dialog.personalAssistants")}
               </div>
