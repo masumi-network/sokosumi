@@ -4981,7 +4981,7 @@
         "success": "Account erfolgreich verbunden",
         "error": "{provider} konnte nicht verbunden werden",
         "loadErrorTitle": "Verbundene Konten konnten nicht geladen werden",
-        "loadError": "Deine verbundenen Konten konnten gerade nicht geladen werden.",
+        "loadError": "Prüfe deine Verbindung und versuche es erneut.",
         "retry": "Erneut versuchen",
         "DisconnectModal": {
           "title": "{provider} trennen",
