@@ -39,7 +39,12 @@ const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_REQUIRED_MESSAGE =
   "A social connection is required to schedule a post";
 
-const EDITABLE_STATUSES: readonly SocialPostStatus[] = ["DRAFT", "SCHEDULED"];
+const EDITABLE_STATUSES: readonly SocialPostStatus[] = [
+  "DRAFT",
+  "SCHEDULED",
+  "FAILED",
+  "MISSED",
+];
 const SCHEDULABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "SCHEDULED",
@@ -644,20 +649,24 @@ export async function updateSocialPost(
   await requireScopedProject(input, tx);
   const post = await requireScopedPost(input, tx);
   if (!EDITABLE_STATUSES.includes(post.status)) {
-    throw conflict("Only a draft or scheduled post can be edited");
+    throw conflict("This post can no longer be edited");
   }
   requireRevision(post, input.revision);
 
   const data: Prisma.SocialPostUncheckedUpdateManyInput =
-    post.status === "SCHEDULED"
-      ? {
-          scheduledByUserId: input.userId,
-          scheduledByCoworkerId: input.coworkerId ?? null,
+    post.status === "DRAFT"
+      ? {}
+      : {
           lastError: null,
           attemptCount: 0,
           nextAttemptAt: null,
-        }
-      : {};
+          ...(post.status === "SCHEDULED"
+            ? {
+                scheduledByUserId: input.userId,
+                scheduledByCoworkerId: input.coworkerId ?? null,
+              }
+            : {}),
+        };
   const currentProvider = requireProvider(post.provider);
   let provider = currentProvider;
   if (input.socialConnectionId === null) {
@@ -718,7 +727,7 @@ export async function updateSocialPost(
         throw badRequest(mediaValidationMessage(provider, validation.reason));
       }
     }
-    if (post.status === "SCHEDULED") {
+    if (post.status !== "DRAFT") {
       requireMediaRequirement(provider, media);
     }
   }
