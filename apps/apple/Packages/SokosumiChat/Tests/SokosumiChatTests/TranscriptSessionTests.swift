@@ -189,6 +189,41 @@ struct TranscriptSessionTests {
     #expect(session.timeline.errorMessage == nil)
   }
 
+  /// A latest refresh held back by a gap page lands like any latest page once it runs, whether the gap applied or not.
+  @Test(arguments: [false, true])
+  func aLatestRefreshHeldByAGapPageLandsOnceItRuns(gapFails: Bool) async throws {
+    func row(_ id: String) -> String {
+      testMessageJSON(id: id, content: id, sender: testUserSender(name: "Ada", email: "ada@example.com"))
+    }
+    let transport = HeldPageTransport([
+      (200, testMessagesPageBody(messages: [row("z")], nextCursor: "z")),
+      (200, testMessagesPageBody(messages: [row("a")], nextCursor: "a")),
+      gapFails ? (500, "{}") : (200, testMessagesPageBody(messages: [row("a"), row("m")], nextCursor: "a")),
+      (200, testMessagesPageBody(messages: [row("z"), row("zz")], nextCursor: "z"))
+    ], holding: 3)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let session = TranscriptSession()
+    session.open(roomId: testRoomId)
+    var events: [String] = []
+    var failures = 0
+    session.hooks = .init(access: { (client, nil) }, failed: { _ in
+      failures += 1
+      return false
+    }, pageLanded: { await events.append("landed \($0) after \(transport.paths.count)") })
+    for page in [RoomTimeline.Page.initial, .around("a")] {
+      #expect(await session.load(page)?.value == true)
+    }
+    session.loadGap(before: "z")
+    await transport.waitForHeldRequest()
+    #expect(await session.load(.latest)?.value == false, "Held by the gap page, so nothing landed yet.")
+    #expect(events == ["landed initial after 1", "landed around(\"a\") after 2"])
+    await transport.release()
+    await session.gapTask?.value
+    #expect(events == ["landed initial after 1", "landed around(\"a\") after 2", "landed latest after 4"])
+    #expect(failures == (gapFails ? 1 : 0))
+    #expect(session.timeline.messages.map(\.id) == (gapFails ? ["a", "z", "zz"] : ["a", "m", "z", "zz"]))
+  }
+
   @Test func sendUsesInjectedTurnIdAndNow() async throws {
     let now = Date(timeIntervalSince1970: 1_788_868_800)
     let root = try await parent()
