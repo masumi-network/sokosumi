@@ -44,6 +44,8 @@ def replace_once(path, before, after):
     path.write_text(text.replace(before, after))
 
 rendering = source / "Sokosumi/Chat/Rendering"
+original_markdown = (rendering / "MessageMarkdownView.swift").read_text()
+clamp_isolation = os.environ.get("REPRO_CLAMP_ISOLATION") == "1"
 # The paragraph control uses the production styling function, prepared before timing.
 replace_once(rendering / "MessageMarkdownView.swift", "private struct MarkdownBlockView: View {", "struct MarkdownBlockView: View {")
 replace_once(rendering / "MessageMarkdownView.swift", "  private func styled(_ text: AttributedString)", "  static func styled(_ text: AttributedString)")
@@ -55,8 +57,11 @@ replace_once(rendering / "MessageMarkdownView.swift", ".textSelection(.enabled)"
 for name in ["MessageCodeBlock.swift", "MessageQuoteView.swift"]:
     replace_once(rendering / name, ".textSelection(.enabled)", ".reproductionBodySelection(nested: true)")
 replace_once(rendering / "MessageCodeBlock.swift", ".task(id: input) {", '.task(id: input) {\n      guard RichRowFixture.omittedComponent != "code-highlighting" else { return }')
-replace_once(rendering / "ExpandableMessageBody.swift", "  var body: some View {", '''  var body: some View {
-    if RichRowFixture.omittedComponent == "clamp" {
+clamp = rendering / "ExpandableMessageBody.swift"
+replace_once(clamp, "  @State private var collapsedHeight: CGFloat = 0", '''  @State private var collapsedHeight: CGFloat = RichRowFixture.contentRenderer == "no-hidden-text"
+    ? RichRowFixture.clampMeasurementHeight : 0''')
+replace_once(clamp, "  var body: some View {", '''  var body: some View {
+    if RichRowFixture.omittedComponent == "clamp" || RichRowFixture.contentRenderer == "no-clamp" {
       VStack(alignment: .leading, spacing: 4) {
         content.fixedSize(horizontal: false, vertical: true)
       }
@@ -66,6 +71,18 @@ replace_once(rendering / "ExpandableMessageBody.swift", "  var body: some View {
   }
 
   private var clampedBody: some View {''')
+# Keep every other clamp operation; only its per-row native measuring Text is removed.
+replace_once(clamp, '''      Text(String(repeating: "A\\n", count: max(0, collapsedLines - 1)) + "A")''', '''      if RichRowFixture.contentRenderer != "no-hidden-text" {
+      Text(String(repeating: "A\\n", count: max(0, collapsedLines - 1)) + "A")''')
+replace_once(clamp, '''          collapsedHeight = height
+        }
+    }
+    .onChange(of: source)''', '''          collapsedHeight = height
+          if RichRowFixture.diagnostics { RichRowFixture.observedClampHeights.insert(Double(height)) }
+        }
+      }
+    }
+    .onChange(of: source)''')
 
 row = source / "Sokosumi/Chat/Timeline/MessageRowView.swift"
 original_row = row.read_text()
@@ -302,6 +319,13 @@ lifecycle = lifecycle.replace(appearance_seam, appearance_seam + '''
       .onDisappear { RichRowFixture.recordLifetime(message.id, token: revealToken, event: "disappear") }''')
 row.write_text(text[:end] + "\n" + grouped + "\n" + metrics + "\n" + original + "\n" + lifecycle + text[end:])
 
+if clamp_isolation:
+    # Original Markdown graph and selection: discard the earlier content controls.
+    (rendering / "MessageMarkdownView.swift").write_text(original_markdown)
+    replace_once(rendering / "MessageMarkdownView.swift", "private struct MarkdownBlockView: View {", "struct MarkdownBlockView: View {")
+    replace_once(rendering / "MessageMarkdownView.swift", "  private func styled(_ text: AttributedString)", "  static func styled(_ text: AttributedString)")
+    replace_once(rendering / "MessageMarkdownView.swift", "Text(styled(segment.text))", "Text(Self.styled(segment.text))")
+
 # Reuse native action tests against the original shell and rich paragraph control.
 tests = source / "SokosumiTests/Chat/Timeline"
 for name in ["MessageContextMenuTests.swift", "MessageHoverDelayTests.swift"]:
@@ -333,7 +357,8 @@ lines = text.splitlines(keepends=True)
 app_signing = [line for line in lines if "CODE_SIGN_ENTITLEMENTS =" in line]
 assert len(app_signing) == 2, "Expected the app's Debug and Release signing settings"
 for line in set(app_signing):
-    text = text.replace(line, line + '\t\t\t\tSWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) RICH_ROWS";\n')
+    flags = "RICH_ROWS CLAMP_ISOLATION" if clamp_isolation else "RICH_ROWS"
+    text = text.replace(line, line + '\t\t\t\tSWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ' + flags + '";\n')
 project.write_text(text)
 # Native action tests host this fixture app; keep its timed loop idle during tests.
 scheme = source / "Sokosumi.xcodeproj/xcshareddata/xcschemes/Sokosumi.xcscheme"

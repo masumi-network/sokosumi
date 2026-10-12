@@ -18,10 +18,12 @@ parser.add_argument("--no-insertion-control", action="store_true", help="Also re
 parser.add_argument("--direction", choices=["prepend", "append", "no-insertion"], help="Run only this mode for component screening")
 parser.add_argument("--diagnostics", action="store_true", help="Record visible heights and one-second row evaluation counts (separate from release timings)")
 parser.add_argument("--omit", choices=["none", "body-selection", "clamp", "code-highlighting", "all-selection", "row-interactions", "row-alerts", "flat-text", "flat-markdown", "content-only", "row-content", "hover-events", "hover-writes", "row-state", "row-metrics", "row-accessibility", "menu-sizing", "alert-host", "original-row", "row-overlays"], default="none", help="Omit one component in the copied rich build")
-parser.add_argument("--rich", action="store_true", help="Require a build made with --rich")
+parser.add_argument("--rich", action="store_true", help="Require a build made with --rich or --rich-clamp")
 parser.add_argument("--cold-repeat", action="store_true", help="Compare cold/repeat reveal of 1, 2, 4, and 8 identical rich rows without insertion")
-parser.add_argument("--content-renderer", choices=["markdown", "prepared-text"], default="markdown")
-parser.add_argument("--content-comparison", action="store_true", help="Alternate both content renderers in the same cold/repeat protocol")
+parser.add_argument("--content-renderer", choices=["markdown", "prepared-text", "no-hidden-text", "no-clamp"], default="markdown")
+comparison = parser.add_mutually_exclusive_group()
+comparison.add_argument("--content-comparison", action="store_true", help="Alternate both content renderers in the same cold/repeat protocol")
+comparison.add_argument("--clamp-comparison", action="store_true", help="Rotate Markdown, no hidden measuring Text, and no clamp controls")
 parser.add_argument("--row-count", type=int, choices=[1, 2, 4, 8], help="Limit cold/repeat measurement to this count")
 parser.add_argument("--page-size", type=int, default=100)
 parser.add_argument("--check-budget", action="store_true", help="Exit 1 if a measurement window exceeds the fixed 25 ms diagnostic budget")
@@ -31,8 +33,9 @@ if args.cold_repeat:
     assert args.omit in ["none", "original-row"] and args.direction in [None, "no-insertion"]
     assert not args.no_insertion_control
     args.direction, args.reveal_rows, args.omit = "no-insertion", True, "original-row"
-assert args.cold_repeat or (args.content_renderer == "markdown" and not args.content_comparison and args.row_count is None)
-assert not args.content_comparison or args.content_renderer == "markdown"
+compared = args.content_comparison or args.clamp_comparison
+assert args.cold_repeat or (args.content_renderer == "markdown" and not compared and args.row_count is None)
+assert not compared or args.content_renderer == "markdown"
 assert args.pairs > 0
 assert args.rich or args.omit == "none", "Component controls need the rich build"
 assert not args.no_insertion_control or (args.rich and args.reveal_rows), "No-insertion control needs visible rich rows"
@@ -44,7 +47,7 @@ assert not any(args.output.glob("*-*.json")), "Use a fresh output folder"
 binary = args.app.resolve() / "Contents/MacOS/ScrollReproduction"
 runs = []
 directions = [args.direction] if args.direction else (["prepend", "append", "no-insertion"] if args.no_insertion_control else ["prepend", "append"])
-renderers = ["markdown", "prepared-text"] if args.content_comparison else [args.content_renderer]
+renderers = ["markdown", "no-hidden-text", "no-clamp"] if args.clamp_comparison else (["markdown", "prepared-text"] if args.content_comparison else [args.content_renderer])
 counts = [args.row_count] if args.row_count else ([1, 2, 4, 8] if args.cold_repeat else [None])
 conditions = [(direction, count, renderer) for count in counts for direction in directions for renderer in renderers]
 geometry = {}
@@ -55,7 +58,7 @@ for pair in range(1, args.pairs + 1):
     visible_ids = None
     visible_heights = None
     for direction, count, renderer in order:
-        path = args.output.resolve() / f"{renderer + '-' if args.content_comparison else ''}{direction}-{'rows' + str(count) + '-' if count else ''}{pair}.json"
+        path = args.output.resolve() / f"{renderer + '-' if compared else ''}{direction}-{'rows' + str(count) + '-' if count else ''}{pair}.json"
         env = dict(os.environ, REPRO_CONTENT_RENDERER=renderer, REPRO_DIRECTION=direction, REPRO_OUTPUT=str(path),
                    REPRO_SINGLE_LINE=str(int(args.single_line)), REPRO_PAGE_SIZE=str(args.page_size), REPRO_INSPECT="0", REPRO_REVEAL_ROWS=str(int(args.reveal_rows)), REPRO_OMIT=args.omit, REPRO_FIXED_ROW_HEIGHT=str(int(args.fixed_row_height)), REPRO_DIAGNOSTICS=str(int(args.diagnostics)))
         env.pop("REPRO_REPEAT_ROW_COUNT", None)
@@ -71,7 +74,16 @@ for pair in range(1, args.pairs + 1):
         assert result.get("reveal_rows", False) == args.reveal_rows
         assert result["diagnostics"] == args.diagnostics
         assert result["content_renderer"] == renderer
+        if args.clamp_comparison or renderer in ["no-hidden-text", "no-clamp"]:
+            assert result.get("clamp_isolation_build"), "Use the --rich-clamp build"
         if count:
+            assert result["shared_clamp_height"] > 0, "Native clamp height was not calibrated"
+            if args.diagnostics:
+                measured = result["observed_clamp_heights"]
+                if renderer == "markdown":
+                    assert measured and all(abs(height - result["shared_clamp_height"]) <= 0.5 for height in measured), "Shared seed differs from per-row measurement"
+                if renderer in ["no-hidden-text", "no-clamp"]:
+                    assert measured == [], "Removed measuring Text still ran"
             assert result["repeat_row_count"] == count and result["final_rows"] == 48
             assert len(result["insertions"]) == 10 and result["callback_count"] > 100
             for index, row in enumerate(result["insertions"]):
@@ -135,7 +147,7 @@ for direction, count, renderer in conditions:
         selected = [run for run in runs if run["direction"] == direction and run.get("repeat_row_count") == count and run["content_renderer"] == renderer]
         gaps = [row["max_callback_gap_ms"] for run in selected for row in run["insertions"] if row.get("phase") == phase]
         key = f"rows-{count}-{phase}" if count else direction
-        key = (renderer + "-" if args.content_comparison else "") + key
+        key = (renderer + "-" if compared else "") + key
         summary[key] = {"measurement_windows": len(gaps), "publications": 0 if direction == "no-insertion" else len(gaps), "median_max_callback_gap_ms": statistics.median(gaps),
                               "worst_callback_gap_ms": max(gaps),
                               "windows_over_25_ms": sum(gap > 25 for gap in gaps),

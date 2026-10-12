@@ -10,12 +10,13 @@ cat > "$output_dir/Profile.entitlements" <<'PLIST'
 PLIST
 case "${2:-}" in
   --rich) python3 "$source_dir/build-rich.py" "$output_dir" ;;
+  --rich-clamp) REPRO_CLAMP_ISOLATION=1 python3 "$source_dir/build-rich.py" "$output_dir" ;;
   "")
     mkdir -p "$app/Contents/MacOS"
     xcrun swiftc -parse-as-library -O -g -swift-version 6 -target arm64-apple-macos26.0 \
       "$source_dir/ScrollReproduction.swift" -o "$app/Contents/MacOS/ScrollReproduction"
     ;;
-  *) printf '%s\n' 'Usage: build.sh [output-directory] [--rich]' >&2; exit 2 ;;
+  *) printf '%s\n' 'Usage: build.sh [output-directory] [--rich|--rich-clamp]' >&2; exit 2 ;;
 esac
 cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>

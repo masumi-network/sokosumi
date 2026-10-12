@@ -21,6 +21,12 @@ row shell and native actions while bypassing the rich-content hierarchy for the
 same paragraph. It measures both renderers in one team-signed Release binary;
 this is a content-boundary diagnostic, not a production renderer replacement.
 
+The [clamp and hidden-text isolation](clamp-isolation.md) retains the original
+Markdown structure, selection, and row shell. It compares the normal clamp,
+removing only per-row measuring Text, and removing the remaining clamp layout
+path, using eight identical cold/repeat rows without insertion. A dedicated
+`--rich-clamp` build excludes the earlier Markdown content controls.
+
 ## Portable rich rows
 
 From any checkout of this PR, using a fresh output directory:

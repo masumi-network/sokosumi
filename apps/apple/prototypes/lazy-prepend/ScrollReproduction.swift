@@ -13,6 +13,7 @@ struct ScrollReproduction: View {
   let probe: FrameProbe
   #if RICH_ROWS
     @State private var prepared: PreparedTranscript?
+    @State private var clampMeasurementHeight: CGFloat = 0
   #endif
 
   init(probe: FrameProbe) {
@@ -42,6 +43,20 @@ struct ScrollReproduction: View {
         transcript(revealing: false)
       }
     }
+    #if RICH_ROWS
+    .background(alignment: .topLeading) {
+      if probe.repeatRowCount != nil {
+        // Calibrate equally in every mode, before row realization and timing.
+        Text(String(repeating: "A\n", count: 15) + "A")
+          .font(.body).fixedSize().hidden()
+          .textSelection(.enabled).accessibilityHidden(true).allowsHitTesting(false)
+          .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+            RichRowFixture.clampMeasurementHeight = height
+            clampMeasurementHeight = height
+          }
+      }
+    }
+    #endif
     .task {
       #if RICH_ROWS
         RichRowFixture.installMedia()
@@ -110,7 +125,7 @@ struct ScrollReproduction: View {
   @ViewBuilder private func renderedRow(_ row: Int) -> some View {
     #if RICH_ROWS
       VStack(alignment: .leading, spacing: 0) {
-        if let prepared {
+        if let prepared, probe.repeatRowCount == nil || clampMeasurementHeight > 0 {
           let message = RichRowFixture.message(at: row)
           if probe.omittedComponent == "content-only" {
             FixtureContentRow(message: message, document: prepared.document(for: message))
@@ -293,7 +308,12 @@ struct ScrollReproduction: View {
     precondition(["prepend", "append", "no-insertion"].contains(direction))
     precondition((1 ... 100).contains(pageSize))
     super.init()
-    precondition(["markdown", "prepared-text"].contains(contentRenderer))
+    precondition(["markdown", "prepared-text", "no-hidden-text", "no-clamp"].contains(contentRenderer))
+    #if CLAMP_ISOLATION
+      precondition(["markdown", "no-hidden-text", "no-clamp"].contains(contentRenderer))
+    #else
+      precondition(["markdown", "prepared-text"].contains(contentRenderer), "Use the --rich-clamp build for clamp controls")
+    #endif
     precondition(contentRenderer == "markdown" || repeatRowCount != nil)
     precondition(["none", "body-selection", "clamp", "code-highlighting", "all-selection", "row-interactions", "row-alerts", "flat-text", "flat-markdown", "content-only", "row-content", "hover-events", "hover-writes", "row-state", "row-metrics", "row-accessibility", "menu-sizing", "alert-host", "original-row", "row-overlays"].contains(omittedComponent))
     precondition(richRows || omittedComponent == "none")
@@ -410,10 +430,15 @@ struct ScrollReproduction: View {
     if let inputFingerprint {
       result["input_fingerprint_sha256"] = inputFingerprint
     }
+    #if CLAMP_ISOLATION
+      result["clamp_isolation_build"] = true
+    #endif
     if let repeatRowCount {
       result["repeat_row_count"] = repeatRowCount
       #if RICH_ROWS
+        result["shared_clamp_height"] = Double(RichRowFixture.clampMeasurementHeight)
         if diagnostics {
+          result["observed_clamp_heights"] = RichRowFixture.observedClampHeights.sorted()
           result["lifecycle_events"] = RichRowFixture.lifecycleEvents
         }
       #endif

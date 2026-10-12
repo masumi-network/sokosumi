@@ -20,6 +20,8 @@ extension View {
   static let diagnostics = ProcessInfo.processInfo.environment["REPRO_DIAGNOSTICS"] == "1"
   static let repeatReveal = ProcessInfo.processInfo.environment["REPRO_REPEAT_ROW_COUNT"] != nil
   static let contentRenderer = ProcessInfo.processInfo.environment["REPRO_CONTENT_RENDERER"] ?? "markdown"
+  static var clampMeasurementHeight: CGFloat = 0
+  static var observedClampHeights: Set<Double> = []
   static var preparedText: [String: AttributedString] = [:]
 
   static func prepareText(_ transcript: PreparedTranscript) {
