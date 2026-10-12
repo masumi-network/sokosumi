@@ -123,7 +123,7 @@ struct ChatNotificationPreferencesTests {
   func failedWriteRollsBackCellsAndConsent(status: Int) async throws {
     let read = TestTransport([(200, matrixBody())])
     let gate = GatedPreferencesTransport(status: status, body: errorBody)
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: gate)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: gate)
     let preferences = ChatNotificationPreferences()
     try await preferences.refresh(client: makeTestClient(read))
     let write = Task { try await preferences.setReach([.roomMessage: .banner], client: client) {} }
@@ -141,7 +141,7 @@ struct ChatNotificationPreferencesTests {
 
   @Test func resetDropsALateWriteResult() async throws {
     let gate = GatedPreferencesTransport(status: 200, body: matrixBody(room: (true, false)))
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: gate)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: gate)
     let preferences = ChatNotificationPreferences()
     try await preferences.refresh(client: makeTestClient(TestTransport([(200, matrixBody())])))
     let write = Task { try await preferences.setReach([.roomMessage: .inApp], client: client) {} }

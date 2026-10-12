@@ -276,7 +276,7 @@ struct SokoBotChainMetadataTests {
     switch error {
     case .unauthorized:
       #expect(status == 401)
-    case let .unprocessable(statusCode, message):
+    case let .unprocessable(statusCode, message, _):
       #expect(statusCode == status)
       #expect(message == "Turn not found")
     default:
