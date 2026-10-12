@@ -219,7 +219,26 @@ export async function openFileContentStream(input: {
   const row = rows[0];
   if (!row) throw notFound("File unavailable");
 
-  if (row.sizeBytes !== null && row.sizeBytes > FILE_PREVIEW_MAX_BYTES) {
+  return openStoredFileContentStream({
+    objectKey: row.objectKey,
+    displayName: row.displayName,
+    mimeType: row.mimeType,
+    sizeBytes: row.sizeBytes,
+    entityTag: entityTagFor(row),
+    download: input.download,
+  });
+}
+
+/** Internal storage read after the caller has authorized its canonical resource. */
+export async function openStoredFileContentStream(input: {
+  objectKey: string;
+  displayName: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  entityTag: string;
+  download?: boolean;
+}): Promise<FileContentStream> {
+  if (input.sizeBytes !== null && input.sizeBytes > FILE_PREVIEW_MAX_BYTES) {
     throw notFound("File is too large to serve inline");
   }
 
@@ -230,7 +249,7 @@ export async function openFileContentStream(input: {
 
   let metadata: Awaited<ReturnType<typeof head>>;
   try {
-    metadata = await head(row.objectKey, { token });
+    metadata = await head(input.objectKey, { token });
   } catch {
     throw notFound("File bytes are no longer available");
   }
@@ -247,14 +266,14 @@ export async function openFileContentStream(input: {
   }
 
   const contentType =
-    row.mimeType ?? metadata.contentType ?? "application/octet-stream";
+    input.mimeType ?? metadata.contentType ?? "application/octet-stream";
 
   return {
     stream: response.body,
     contentType,
     size: metadata.size,
-    displayName: row.displayName,
-    entityTag: entityTagFor(row),
+    displayName: input.displayName,
+    entityTag: input.entityTag,
     inline: !input.download && isInlineRenderable(contentType),
   };
 }

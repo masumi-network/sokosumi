@@ -82,7 +82,7 @@ export function FileInput({
               <FileUploadItemMetadata />
               {!isSubmitting && (
                 <FileUploadItemDelete asChild>
-                  <Button className="size-7 cursor-pointer">
+                  <Button size="icon" className="cursor-pointer md:size-8">
                     <X />
                     <span className="sr-only">{t("File.delete")}</span>
                   </Button>

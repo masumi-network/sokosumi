@@ -96,6 +96,34 @@
         try Attachment.record(data, named: "adjacent-attachments-\(dark ? "dark" : "light").png")
       }
 
+      /// Row 15c (web's own test texts): a file link inside a sentence is a link in that line of text, while the
+      /// same link on its own line after prose is a tile. Recorded light beside dark over the window background.
+      @Test func aFileLinkInsideASentenceStaysALink() async throws {
+        let link = "[r3-notes.pdf](https://example.com/r3-notes.pdf)"
+        let sources = ["It's in your Files as \(link).", "Uploaded file r3-notes.pdf.\n\(link)"]
+        var columns: [[CGImage]] = [[], []]
+        for (column, dark) in [false, true].enumerated() {
+          var heights: [CGFloat] = []
+          for source in sources {
+            let host = NSHostingView(rootView: content(source, width: 420, dark: dark))
+            let window = window(host, width: 420, dark: dark)
+            defer { window.orderOut(nil) }
+            try await Task.sleep(for: .milliseconds(200))
+            host.frame.size.height = host.fittingSize.height
+            window.setContentSize(host.fittingSize)
+            heights.append(host.fittingSize.height)
+            let shot = try bitmap(host)
+            let corner = try #require(shot.colorAt(x: 1, y: shot.pixelsHigh - 2)?.usingColorSpace(.deviceRGB))
+            #expect(corner.alphaComponent == 1, "Hosted over the window background: alpha \(corner.alphaComponent)")
+            try columns[column].append(#require(shot.cgImage))
+          }
+          #expect(heights[0] < 48, "The sentence is one line of text with no tile: \(heights[0]) pt")
+          #expect(heights[1] > heights[0] + 64, "The link on its own line is a tile under the prose: \(heights)")
+        }
+        let combined = try RoomHeaderTests.stitched(columns)
+        try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "inline-file-link.png")
+      }
+
       private func content(_ source: String, width: CGFloat, dark: Bool) -> some View {
         MessageMarkdownView(source: source, preparedDocument: MessageMarkdown(source))
           .padding(12)

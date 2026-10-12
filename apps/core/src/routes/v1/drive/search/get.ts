@@ -6,7 +6,10 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { nudgeFileExtraction } from "@/lib/files/in-process-indexer";
 import { SEARCH_PAGE_MAX } from "@/lib/files/search-session";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   fileExtractionStateSchema,
@@ -52,32 +55,34 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(SEARCH_PAGE_MAX).optional(),
 });
 
-const route = createRoute({
-  method: "get",
-  path: "/",
-  description: [
-    "Search files in the active workspace across filename, extracted text and confirmed metadata.",
-    "",
-    "Ordering: an exact normalized filename match always precedes everything else.",
-    "With a query and relevance sort, the head of the window may be reordered by the",
-    "evaluation model; any failure returns the whole deterministic order instead.",
-    "An explicit name or date sort is never reordered.",
-    "",
-    "Paging walks positions in a ≤5 minute snapshot. `hasMore` means unconsumed",
-    "positions in that snapshot, never additional matches in the corpus, and a later",
-    "page can be short when entries changed. `truncated` is independent: it means a",
-    "retrieval budget was reached, so more may match.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: { query: querySchema },
-  responses: {
-    200: jsonSuccessResponse(fileSearchResponseSchema, "File search results"),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-  },
-});
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/",
+    description: [
+      "Search files in the active workspace across filename, extracted text and confirmed metadata.",
+      "",
+      "Ordering: an exact normalized filename match always precedes everything else.",
+      "With a query and relevance sort, the head of the window may be reordered by the",
+      "evaluation model; any failure returns the whole deterministic order instead.",
+      "An explicit name or date sort is never reordered.",
+      "",
+      "Paging walks positions in a ≤5 minute snapshot. `hasMore` means unconsumed",
+      "positions in that snapshot, never additional matches in the corpus, and a later",
+      "page can be short when entries changed. `truncated` is independent: it means a",
+      "retrieval budget was reached, so more may match.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: { query: querySchema },
+    responses: {
+      200: jsonSuccessResponse(fileSearchResponseSchema, "File search results"),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

@@ -13,8 +13,8 @@ public struct ChannelDraft: Equatable, Sendable {
   public private(set) var slug = ""
   public private(set) var name = ""
   public private(set) var topic = ""
-  public private(set) var slugEdited = false
-  public private(set) var nameEdited = false
+  private(set) var slugEdited = false
+  private var nameEdited = false
   public var visibility: Visibility = .public
   public var addAllMembers = true
   public var recipients: Set<DirectRecipient> = []

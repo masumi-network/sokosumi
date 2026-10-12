@@ -16,6 +16,7 @@ import {
 import { getOAuthClientPublic, getSession } from "@/lib/auth/auth.server";
 import {
   buildSignedOAuthQueryFromSearchParams,
+  readSearchParams,
   serializeOAuthSearchParams,
 } from "@/lib/auth/auth.utils";
 
@@ -29,21 +30,7 @@ interface ConsentPageProps {
 
 export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   const t = await getTranslations("App.Account.OAuthConsent");
-  const params = await searchParams;
-  const oauthSearchParams = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(params)) {
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        oauthSearchParams.append(key, item);
-      }
-      continue;
-    }
-
-    if (value) {
-      oauthSearchParams.set(key, value);
-    }
-  }
+  const oauthSearchParams = await readSearchParams(searchParams);
 
   const client_id = oauthSearchParams.get("client_id");
   const redirectQuery = serializeOAuthSearchParams(oauthSearchParams);

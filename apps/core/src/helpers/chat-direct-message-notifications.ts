@@ -3,7 +3,7 @@ import { CHAT_DIRECT_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
 
 import { fanOutChatNotifications } from "./chat-notification-fanout";
 
-export const MAX_HUMAN_MEMBERS_FOR_DIRECT_MESSAGE_NOTIFICATIONS = 2;
+const MAX_HUMAN_MEMBERS_FOR_DIRECT_MESSAGE_NOTIFICATIONS = 2;
 
 export interface ShouldEmitChatDirectMessageNotificationsParams {
   kind: string;

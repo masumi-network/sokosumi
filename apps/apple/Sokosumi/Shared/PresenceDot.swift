@@ -8,7 +8,7 @@ import SwiftUI
 struct PresenceDot: View {
   let presence: Components.Schemas.ChatRoomPresence
   /// Outer diameter. One point of it is the halo painted in the ground
-  /// colour so the mark reads on top of an avatar (web `size-2.5` = 10).
+  /// colour so the mark reads on top of an avatar.
   var size: CGFloat = 10
 
   private var core: CGFloat {
@@ -56,7 +56,7 @@ func presenceLabel(_ presence: Components.Schemas.ChatRoomPresence) -> String {
 
 extension View {
   /// Pins the mark to an avatar's bottom-trailing corner, two points outside
-  /// the face like web's `-right-0.5 -bottom-0.5`.
+  /// the face.
   func presenceBadge(_ presence: Components.Schemas.ChatRoomPresence, size: CGFloat = 10) -> some View {
     overlay(alignment: .bottomTrailing) {
       PresenceDot(presence: presence, size: size).offset(x: 2, y: 2)

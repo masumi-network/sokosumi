@@ -2,7 +2,6 @@
 
 import type { Notice } from "@sokosumi/core-client";
 import { NoticeKind } from "@sokosumi/core-client";
-import { Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
@@ -180,14 +179,8 @@ export function NoticeDialog({
               type="button"
               variant="primary"
               onClick={handleOpenAction}
-              disabled={isSubmitting}
+              loading={isSubmitting}
             >
-              {isSubmitting ? (
-                <Loader2
-                  className="mr-2 size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : null}
               {actionLabel ?? t("actions.openLink")}
             </Button>
           ) : null}
@@ -196,14 +189,8 @@ export function NoticeDialog({
               type="button"
               variant="primary"
               onClick={handleAcknowledge}
-              disabled={isSubmitting}
+              loading={isSubmitting}
             >
-              {isSubmitting ? (
-                <Loader2
-                  className="mr-2 size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : null}
               {t("actions.confirm")}
             </Button>
           ) : null}

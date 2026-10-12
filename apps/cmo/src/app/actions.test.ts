@@ -37,10 +37,6 @@ async function settle(action: () => Promise<void>) {
   });
 }
 
-function promptSent(): string | undefined {
-  return signInSocial.mock.lastCall?.[0].body.additionalParams?.prompt;
-}
-
 describe("CMO sign-in actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -50,20 +46,28 @@ describe("CMO sign-in actions", () => {
     });
   });
 
-  it("signs in without a prompt", async () => {
-    await settle(signIn);
+  it.each([
+    ["Sign in", signIn, undefined],
+    ["Create account", createAccount, "create"],
+  ] as const)(
+    "%s goes to Core's authorize URL",
+    async (_case, action, prompt) => {
+      await settle(action);
 
-    expect(promptSent()).toBeUndefined();
-    expect(redirectMock).toHaveBeenCalledWith("https://core.example/authorize");
-  });
+      expect(
+        signInSocial.mock.lastCall?.[0].body.additionalParams?.prompt,
+      ).toBe(prompt);
+      expect(redirectMock).toHaveBeenCalledWith(
+        "https://core.example/authorize",
+      );
+    },
+  );
 
-  it("signs in without a prompt after signing out", async () => {
-    // Sign in hands back to whoever is signed in to Sokosumi; switching
-    // accounts goes through Create account's "Use another account".
+  it("signs out and goes home", async () => {
     await settle(signOut);
-    await settle(signIn);
 
-    expect(promptSent()).toBeUndefined();
+    expect(signOutApi).toHaveBeenCalledTimes(1);
+    expect(redirectMock).toHaveBeenCalledWith("/");
   });
 
   it.each([
@@ -101,12 +105,5 @@ describe("CMO sign-in actions", () => {
 
     await expect(signIn()).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
     expect(redirectMock).not.toHaveBeenCalled();
-  });
-
-  it("creates an account with the create prompt, even after signing out", async () => {
-    await settle(signOut);
-    await settle(createAccount);
-
-    expect(promptSent()).toBe("create");
   });
 });

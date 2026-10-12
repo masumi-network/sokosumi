@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -99,10 +98,8 @@ export function VendorGrantApprovalActions({
           size="sm"
           disabled={loadingAction !== null}
           onClick={() => void runAction("approve", onApprove)}
+          loading={loadingAction === "approve"}
         >
-          {loadingAction === "approve" ? (
-            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {labels.approve}
         </Button>
       ) : null}
@@ -112,10 +109,8 @@ export function VendorGrantApprovalActions({
           variant="outline"
           disabled={loadingAction !== null}
           onClick={() => void runAction("deny", onDeny)}
+          loading={loadingAction === "deny"}
         >
-          {loadingAction === "deny" ? (
-            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {labels.deny}
         </Button>
       ) : null}

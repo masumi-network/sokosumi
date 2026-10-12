@@ -50,7 +50,6 @@ export function StudioImage({
   className,
   fit = "cover",
   labels,
-  projectId,
 }: {
   asset: StudioAsset;
   className?: string;
@@ -59,7 +58,6 @@ export function StudioImage({
     StudioLabels,
     "bytesUnavailable" | "imageUnreadable" | "imageRetry"
   >;
-  projectId: string;
 }) {
   /**
    * Keyed by asset id, not a bare flag.
@@ -85,7 +83,7 @@ export function StudioImage({
     [],
   );
 
-  const base = assetContentUrl(projectId, asset.id);
+  const base = assetContentUrl(asset);
 
   /**
    * Ask the route what it thinks, now that the `img` has failed twice.

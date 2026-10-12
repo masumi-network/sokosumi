@@ -251,9 +251,9 @@ export function NotificationBrowserPermissionPrimer({
             }
           }}
           onClick={handleRestorePush}
-          disabled={isRequesting}
+          loading={isRequesting}
         >
-          {isRequesting ? t("pushQuietRestoring") : t("pushQuietRestore")}
+          {t("pushQuietRestore")}
         </Button>
       ),
     });
@@ -302,11 +302,9 @@ export function NotificationBrowserPermissionPrimer({
             }
           }}
           onClick={handleEnable}
-          disabled={isRequesting}
+          loading={isRequesting}
         >
-          {isRequesting
-            ? t("browserPermissionRequesting")
-            : t("browserPermissionEnable")}
+          {t("browserPermissionEnable")}
         </Button>
       ),
     });

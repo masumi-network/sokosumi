@@ -28,6 +28,15 @@ const IMAGE: SocialPostMediaRef = {
   kind: "image",
 };
 
+const VIDEO: SocialPostMediaRef = {
+  pathname: "drive/a.mp4",
+  fileUrl: "https://store.public.blob.vercel-storage.com/drive/a.mp4",
+  name: "a.mp4",
+  size: 20,
+  mimeType: "video/mp4",
+  kind: "video",
+};
+
 describe("SocialPostPreview", () => {
   it("renders an X post with name, handle, and highlighted tags and links", () => {
     render(
@@ -49,6 +58,81 @@ describe("SocialPostPreview", () => {
     expect(
       within(preview).getByText("example.com/a/very/long/…"),
     ).toBeVisible();
+  });
+
+  it("keeps trailing punctuation out of a shortened URL", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="See https://www.example.com/launch."
+        timestamp={null}
+      />,
+    );
+
+    const link = screen.getByText("example.com/launch");
+    expect(link).toHaveClass("text-social-x-link");
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "example.com/launch.",
+    );
+  });
+
+  it("highlights a www address and leaves the period as text", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="See www.example.com/launch."
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByText("example.com/launch")).toHaveClass(
+      "text-social-x-link",
+    );
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "See example.com/launch.",
+    );
+  });
+
+  it("does not treat an email address as a mention", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Write hello@example.com or @alice"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByText("@alice")).toHaveClass("text-social-x-link");
+    expect(screen.queryByText("@example.com")).not.toBeInTheDocument();
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "hello@example.com",
+    );
+  });
+
+  it("keeps the X handle and time when the display name is long", () => {
+    render(
+      <SocialPostPreview
+        account={{
+          ...ACCOUNT,
+          displayName: "Sokosumi Headquarters International",
+        }}
+        media={[]}
+        provider="x"
+        text="Launch day"
+        timestamp={null}
+      />,
+    );
+
+    expect(
+      screen.getByText("Sokosumi Headquarters International"),
+    ).toBeVisible();
+    expect(screen.getByText("@sokosumi · now")).toBeVisible();
   });
 
   it("falls back to initials and the handle when the profile is missing", () => {
@@ -85,7 +169,72 @@ describe("SocialPostPreview", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows Instagram's square media frame and asks for media when missing", () => {
+  it("folds LinkedIn text on a word", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="linkedin"
+        text={`${"hello ".repeat(34)}UNIQWORD and more text after the fold`}
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByTestId("social-post-preview")).not.toHaveTextContent(
+      "UNIQWORD",
+    );
+    expect(
+      screen.getByRole("button", { name: "linkedin.seeMore" }),
+    ).toBeVisible();
+  });
+
+  it("highlights Instagram tags and links in the Instagram link color", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="instagram"
+        text="Launch #sokosumi @alice https://example.com/a"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByText("#sokosumi")).toHaveClass(
+      "text-social-instagram-link",
+    );
+    expect(screen.getByText("@alice")).toHaveClass(
+      "text-social-instagram-link",
+    );
+    expect(screen.getByText("example.com/a")).toHaveClass(
+      "text-social-instagram-link",
+    );
+  });
+
+  it("shows Instagram's date in uppercase dense type", () => {
+    const { rerender } = render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="instagram"
+        text="Caption"
+        timestamp={new Date("2026-10-10T12:00:00.000Z")}
+      />,
+    );
+    expect(screen.getByText("October 10")).toHaveClass("text-2xs", "uppercase");
+
+    rerender(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="instagram"
+        text="Caption"
+        timestamp={null}
+      />,
+    );
+    expect(screen.getByText("now")).toHaveClass("text-2xs", "uppercase");
+  });
+
+  it("shows Instagram's 4:5 media frame and asks for media when missing", () => {
     const { rerender } = render(
       <SocialPostPreview
         account={ACCOUNT}
@@ -95,7 +244,11 @@ describe("SocialPostPreview", () => {
         timestamp={null}
       />,
     );
-    expect(screen.getByText("instagram.mediaRequired")).toBeVisible();
+    const frame = screen.getByTestId("social-post-preview-instagram-frame");
+    expect(frame).toHaveClass("aspect-[4/5]", "bg-media-ground");
+    expect(screen.getByText("instagram.mediaRequired")).toHaveClass(
+      "text-on-media-muted",
+    );
 
     rerender(
       <SocialPostPreview
@@ -107,6 +260,33 @@ describe("SocialPostPreview", () => {
       />,
     );
     expect(screen.getByRole("img", { name: "a.png" })).toBeVisible();
+    expect(
+      screen.getByTestId("social-post-preview-instagram-frame"),
+    ).toHaveClass("aspect-[4/5]", "bg-media-ground");
+  });
+
+  it("marks a GIF with a GIF badge", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[
+          {
+            ...IMAGE,
+            pathname: "drive/a.gif",
+            name: "a.gif",
+            mimeType: "image/gif",
+            kind: "gif",
+          },
+        ]}
+        provider="x"
+        text=""
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByTestId("social-post-preview-gif")).toHaveTextContent(
+      "GIF",
+    );
   });
 
   it("lays out several images in a grid", () => {
@@ -127,7 +307,163 @@ describe("SocialPostPreview", () => {
     ).toHaveLength(2);
   });
 
-  it("uses the generic card for networks without a native layout", () => {
+  it("renders a Facebook feed card with public reach, tags, and actions", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="facebook"
+        text="Launch day #sokosumi https://www.example.com/launch"
+        timestamp={null}
+      />,
+    );
+
+    const preview = screen.getByTestId("social-post-preview");
+    expect(preview).toHaveAttribute("data-provider", "facebook");
+    expect(within(preview).getByText("Sokosumi HQ")).toBeVisible();
+    expect(within(preview).getByLabelText("facebook.public")).toBeVisible();
+    expect(within(preview).getByText("#sokosumi")).toHaveClass(
+      "text-social-facebook-link",
+    );
+    expect(within(preview).getByText("example.com/launch")).toBeVisible();
+    expect(preview).toHaveTextContent("facebook.like");
+    expect(preview).toHaveTextContent("facebook.comment");
+    expect(preview).toHaveTextContent("facebook.share");
+  });
+
+  it("folds long Facebook text behind see more", async () => {
+    const user = userEvent.setup();
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="facebook"
+        text={"word ".repeat(120)}
+        timestamp={null}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "facebook.seeMore" }));
+
+    expect(
+      screen.queryByRole("button", { name: "facebook.seeMore" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders a YouTube watch card with title, tags, and a play overlay", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="youtube"
+        text={`${"T".repeat(120)}\nFirst clip #sokosumi https://www.example.com/watch`}
+        timestamp={null}
+      />,
+    );
+
+    const preview = screen.getByTestId("social-post-preview");
+    expect(preview).toHaveAttribute("data-provider", "youtube");
+    expect(within(preview).getByText("T".repeat(100))).toBeVisible();
+    expect(within(preview).getByText("Sokosumi HQ")).toBeVisible();
+    expect(within(preview).getByText("#sokosumi")).toHaveClass(
+      "text-social-youtube-link",
+    );
+    expect(within(preview).getByText("example.com/watch")).toBeVisible();
+    expect(preview.querySelector("video")).toHaveAttribute(
+      "src",
+      VIDEO.fileUrl,
+    );
+  });
+
+  it("asks for a video when YouTube has no media", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="youtube"
+        text="Launch day"
+        timestamp={null}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("social-post-preview-youtube-player"),
+    ).toHaveClass("aspect-video", "bg-media-ground");
+    expect(screen.getByText("youtube.videoRequired")).toHaveClass(
+      "text-on-media-muted",
+    );
+  });
+
+  it("folds long YouTube description behind show more", async () => {
+    const user = userEvent.setup();
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="youtube"
+        text={`Title\n${"word ".repeat(80)}`}
+        timestamp={null}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "youtube.seeMore" }));
+
+    expect(
+      screen.queryByRole("button", { name: "youtube.seeMore" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("marks a video with a play badge on Instagram and X", () => {
+    const { rerender } = render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="instagram"
+        text="Clip"
+        timestamp={null}
+      />,
+    );
+    expect(screen.getByTestId("social-post-preview-play")).toBeVisible();
+    expect(screen.getByLabelText("a.mp4")).toHaveAttribute(
+      "src",
+      VIDEO.fileUrl,
+    );
+
+    rerender(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="x"
+        text=""
+        timestamp={null}
+      />,
+    );
+    expect(screen.getByTestId("social-post-preview-play")).toBeVisible();
+  });
+
+  it("renders a TikTok clip with handle, tags, and a 9:16 frame", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="tiktok"
+        text="Launch day #sokosumi https://www.example.com/clip"
+        timestamp={null}
+      />,
+    );
+
+    const preview = screen.getByTestId("social-post-preview");
+    expect(preview).toHaveAttribute("data-provider", "tiktok");
+    expect(within(preview).getByText("@sokosumi")).toBeVisible();
+    expect(within(preview).getByText("#sokosumi")).toHaveClass("font-semibold");
+    expect(within(preview).getByText("example.com/clip")).toBeVisible();
+    expect(preview.querySelector("video")).toHaveAttribute(
+      "src",
+      VIDEO.fileUrl,
+    );
+  });
+
+  it("asks for a video when TikTok has no media", () => {
     render(
       <SocialPostPreview
         account={ACCOUNT}
@@ -138,10 +474,31 @@ describe("SocialPostPreview", () => {
       />,
     );
 
-    expect(screen.getByTestId("social-post-preview")).toHaveAttribute(
-      "data-provider",
-      "tiktok",
+    expect(screen.getByTestId("social-post-preview-tiktok-frame")).toHaveClass(
+      "aspect-[9/16]",
+      "bg-media-ground",
     );
-    expect(screen.getByText("Clip")).toBeVisible();
+    expect(screen.getByText("tiktok.videoRequired")).toHaveClass(
+      "text-on-media-muted",
+    );
+  });
+
+  it("folds long TikTok caption behind more", async () => {
+    const user = userEvent.setup();
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="tiktok"
+        text={"word ".repeat(40)}
+        timestamp={null}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "tiktok.more" }));
+
+    expect(
+      screen.queryByRole("button", { name: "tiktok.more" }),
+    ).not.toBeInTheDocument();
   });
 });

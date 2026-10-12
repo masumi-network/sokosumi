@@ -23,7 +23,8 @@ import {
   priceUnitLabelKey,
 } from "./catalog";
 import { STUDIO_PILL_CLASS } from "./studio-classes";
-import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
+import { StudioTemplateStrip } from "./studio-template-picker";
+import type { StudioTemplate } from "./studio-templates";
 import {
   assetContentUrl,
   type StudioAsset,
@@ -33,7 +34,7 @@ import {
   type StudioSettings,
   type StudioTarget,
 } from "./types";
-import type { QueuedGeneration } from "./use-generation-queue";
+import type { GenerationRequest } from "./use-generation-queue";
 
 /**
  * The most a single press of Generate may buy.
@@ -146,18 +147,19 @@ export function StudioComposer({
   onGenerate,
   onPromptChange,
   onTargetChange,
-  projectId,
   prompt,
   promptRef,
   referenceAssets,
   onClearReferences,
   target,
+  showTemplates = true,
 }: {
   busy: boolean;
+  showTemplates?: boolean;
   catalog: StudioCatalog;
   labels: StudioLabels;
   onApplyTemplate: (template: StudioTemplate) => void;
-  onGenerate: (requests: QueuedGeneration[]) => void;
+  onGenerate: (requests: GenerationRequest[]) => void;
   /**
    * The prompt lives above this component.
    *
@@ -176,7 +178,6 @@ export function StudioComposer({
    * this composer, so that was not a rare case.
    */
   onTargetChange: (update: (current: StudioTarget) => StudioTarget) => void;
-  projectId: string;
   prompt: string;
   /**
    * The prompt box itself, so the studio can put the caret in it.
@@ -356,7 +357,7 @@ export function StudioComposer({
     // Straight from the plan, so the batch bought is the batch the line above
     // the button described — including its model order and its clamped
     // settings. Nothing is decided a second time here.
-    const requests: QueuedGeneration[] = plan.legs.map((leg) => {
+    const requests: GenerationRequest[] = plan.legs.map((leg) => {
       const id = crypto.randomUUID();
       return {
         id,
@@ -371,8 +372,9 @@ export function StudioComposer({
         idempotencyKey: `ui:${id}`,
       };
     });
+    // The studio clears the prompt once the batch has somewhere to go: with no
+    // project picked yet, the brief stays put while the person chooses one.
     onGenerate(requests);
-    onPromptChange("");
   }
 
   const modelSummary =
@@ -396,7 +398,16 @@ export function StudioComposer({
     .join(" · ");
 
   return (
-    <section aria-label={labels.composerTitle} className="shrink-0">
+    <section
+      aria-label={labels.composerTitle}
+      className="min-w-0 shrink-0 space-y-2"
+    >
+      {showTemplates ? (
+        <StudioTemplateStrip
+          labels={labels}
+          onApplyTemplate={onApplyTemplate}
+        />
+      ) : null}
       {/* The chat room's own composer card, minus the formatting toolbar: same
           border, radius, padding and text size, so the two read as one. */}
       <RoomMessageComposer
@@ -416,13 +427,13 @@ export function StudioComposer({
                     <img
                       alt=""
                       className="size-5 rounded-sm object-cover"
-                      src={assetContentUrl(projectId, asset.id)}
+                      src={assetContentUrl(asset)}
                     />
                     v{asset.version}
                   </span>
                 ))}
                 <Button
-                  className="size-6"
+                  className="hit-area size-6"
                   onClick={onClearReferences}
                   size="icon"
                   variant="ghost"
@@ -430,35 +441,6 @@ export function StudioComposer({
                   <X aria-hidden className="size-3.5" />
                   <span className="sr-only">{labels.clearSelection}</span>
                 </Button>
-              </div>
-            ) : null}
-
-            {/* Templates live in the box and leave as soon as there is text: they
-          are a way to start, and a way to start is noise once you have. */}
-            {prompt === "" ? (
-              <div
-                aria-label={labels.templates}
-                className="app-scrollbar flex gap-2 overflow-x-auto px-4 pt-1 pb-1"
-                role="group"
-              >
-                {STUDIO_TEMPLATES.map((template) => (
-                  <button
-                    className="bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 flex shrink-0 transition-[transform,background-color] duration-200 ease-out motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-95 cursor-pointer items-center gap-2 rounded-lg p-1 pr-3 text-left outline-none focus-visible:ring-[3px]"
-                    key={template.id}
-                    onClick={() => onApplyTemplate(template)}
-                    type="button"
-                  >
-                    <img
-                      alt=""
-                      className="bg-muted size-8 rounded-md object-cover"
-                      loading="lazy"
-                      src={`/studio/templates/${template.id}.jpg`}
-                    />
-                    <span className="text-xs font-medium">
-                      {labels.templateLabels[template.id]}
-                    </span>
-                  </button>
-                ))}
               </div>
             ) : null}
           </>

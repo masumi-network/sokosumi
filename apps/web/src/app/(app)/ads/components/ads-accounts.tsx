@@ -7,7 +7,6 @@ import {
   ProjectAdProvider,
 } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -208,18 +207,12 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
               className="flex flex-col items-stretch gap-1.5 sm:items-start"
             >
               <Button
-                aria-busy={connecting === provider}
                 aria-describedby={isUnavailable ? noteId : undefined}
                 disabled={isUnavailable || connecting !== null}
+                loading={connecting === provider}
                 onClick={() => void handleConnect(provider)}
                 type="button"
               >
-                {connecting === provider ? (
-                  <Loader2
-                    aria-hidden
-                    className="size-4 animate-spin motion-reduce:animate-pulse"
-                  />
-                ) : null}
                 {t("connect", { provider: providerName(provider) })}
               </Button>
               {isUnavailable ? (

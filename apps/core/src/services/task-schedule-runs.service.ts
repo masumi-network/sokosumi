@@ -63,10 +63,7 @@ type RuleState = Pick<
 >;
 
 /** First Run after `from`, or null once the end rule is reached. */
-export function computeNextScheduleRun(
-  schedule: RuleState,
-  from: Date,
-): Date | null {
+function computeNextScheduleRun(schedule: RuleState, from: Date): Date | null {
   if (
     schedule.endsMode === TaskScheduleEndsMode.AFTER &&
     schedule.targetRunCount != null &&

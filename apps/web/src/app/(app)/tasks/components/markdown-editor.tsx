@@ -88,7 +88,7 @@ interface MarkdownFormatToolsProps {
   onCleanFormat: () => void;
 }
 
-const FORMAT_TOOL_BUTTON_CLASSNAME = "h-7 w-7 cursor-pointer p-0";
+const FORMAT_TOOL_BUTTON_CLASSNAME = "size-7 cursor-pointer p-0";
 const FORMAT_TOOLBAR_FALLBACK_WIDTH_PX = 244;
 
 export function isMarkdownEditorDomEmpty(editor: HTMLElement): boolean {
@@ -895,7 +895,7 @@ export const MarkdownEditor = forwardRef<
       className={cn(
         variant === "document"
           ? "rounded-none border-0"
-          : "focus-within:border-ring focus-within:ring-ring-halo rounded-md border transition-[color,box-shadow] focus-within:ring-[3px]",
+          : "focus-within:border-ring focus-within:ring-ring-halo rounded-md border transition-[color] focus-within:ring-[3px]",
         className,
       )}
       style={style}

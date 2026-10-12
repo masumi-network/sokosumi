@@ -1,7 +1,6 @@
 "use client";
 
 import type { CoworkerWorkspaceAccess } from "@sokosumi/core-client";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
@@ -163,15 +162,8 @@ export function DeveloperCoworkerEarlyAccess({
             )}
             <p className="text-muted-foreground text-xs">{t("hint")}</p>
           </div>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-                {t("submit")}
-              </>
-            ) : (
-              t("submit")
-            )}
+          <Button type="submit" loading={isSubmitting}>
+            {t("submit")}
           </Button>
         </form>
       </CardContent>
