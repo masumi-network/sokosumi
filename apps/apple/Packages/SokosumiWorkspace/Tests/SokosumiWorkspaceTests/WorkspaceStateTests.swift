@@ -3866,6 +3866,30 @@ extension WorkspaceStateTests {
     #expect(state.transcriptMessages.map(\.id) == ["a", "b", "m", "n", "z"])
   }
 
+  /// A refresh the gap page held back still hands the room's newer copy of an open Thread's parent to the Thread.
+  @Test func aRefreshHeldByAGapPageRefreshesTheOpenThreadParent() async throws {
+    let (state, auth, transport) = try await stateWithGap([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned"), transcriptMessage(id: "m", roomId: "room", content: "Between")], nextCursor: "a")),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "z", roomId: "room", content: "Latest edited")], nextCursor: "z"))
+    ])
+    defer { state.reset() }
+    #expect(try state.thread.open(#require(state.transcriptMessages.first { $0.id == "z" })))
+    transport.pauseGET = true
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    for _ in 0 ..< 1000 where gapPages(transport).isEmpty {
+      await Task.yield()
+    }
+    transport.pauseGET = false
+    state.refreshTranscript(auth: auth)
+    _ = await state.room.loadTask?.value
+    #expect(transport.paths.count == 3, "The refresh waits for the gap page.")
+    transport.releasePausedRequest()
+    await state.room.gapTask?.value
+    #expect(transport.paths.count == 4)
+    #expect(state.room.timeline.historyGapMessageIds.isEmpty)
+    #expect(state.thread.parent?.content == "Latest edited")
+  }
+
   @Test func leavingTheRoomForgetsTheGapRows() async throws {
     let (state, auth, _) = try await stateWithGap([(500, "{}")])
     defer { state.reset() }
