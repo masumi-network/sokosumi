@@ -2690,7 +2690,10 @@
             "dayEngagementUnavailable": "{date}: engagement unavailable",
             "dayOutside": "{date}: outside collected history",
             "legendNone": "None",
-            "legendMore": "More"
+            "legendMore": "More",
+            "moreActions": "More actions",
+            "exportCsv": "Export CSV",
+            "exportXlsx": "Export spreadsheet"
           },
           "accountsTitle": "Connected accounts",
           "postsTitle": "Published account posts",
@@ -3102,10 +3105,6 @@
       "pickProject": "Choose a project",
       "platforms": {
         "label": "Social platforms"
-      },
-      "statisticsNeedProject": {
-        "title": "Choose a project to see performance",
-        "body": "Account performance belongs to a project. Choose one to evaluate its connected accounts and published content."
       }
     },
     "Error": {

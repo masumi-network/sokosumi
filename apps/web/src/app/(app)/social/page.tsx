@@ -92,6 +92,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             }
             calendar={<SocialCalendar calendar={calendar} />}
             notice={projectId ? t("pickUnavailable") : undefined}
+            workspaceId={calendar.workspaceId}
           />
         </SocialCalendarPreviewProvider>
       </SocialPageShell>
