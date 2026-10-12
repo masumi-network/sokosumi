@@ -14,11 +14,7 @@ import {
   MetaCampaignForm,
 } from "@/app/ads/components/ads-new-campaign-form";
 import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
-import {
-  type GoogleTargeting,
-  MARKET_LOCATION_IDS,
-  matchGoogleLanguage,
-} from "@/lib/ads/targeting";
+import { type GoogleTargeting, matchGoogleLanguage } from "@/lib/ads/targeting";
 import { adsService } from "@/lib/services/ads.service";
 import { projectService } from "@/lib/services/project.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
@@ -52,7 +48,7 @@ async function loadGoogleSetup(projectId: string, accountId: string) {
   const profile = profileLoad.error ? null : profileLoad.data.profile;
   const languages = languagesLoad.error ? null : languagesLoad.data.languages;
 
-  const locationId = profile ? MARKET_LOCATION_IDS[profile.countryCode] : null;
+  const locationId = profile?.locationId ?? null;
   const locationLoad = locationId
     ? await settleAdsLoad(
         adsService.listLocationsByIds(projectId, accountId, [locationId]),

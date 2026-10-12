@@ -515,9 +515,12 @@ describe("AdsNewCampaignForm", () => {
         await user.click(locationsPicker());
         await user.type(screen.getByPlaceholderText("Search locations"), "mun");
 
-        expect(
-          await screen.findByText("Couldn't search locations. Try again."),
-        ).toBeVisible();
+        // The popover animates in; wait until the message is shown.
+        await waitFor(() =>
+          expect(
+            screen.getByText("Couldn't search locations. Try again."),
+          ).toBeVisible(),
+        );
         await user.keyboard("{Escape}");
         await user.click(submit());
         await waitFor(() => expect(createMock).toHaveBeenCalled());

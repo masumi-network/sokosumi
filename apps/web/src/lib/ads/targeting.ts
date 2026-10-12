@@ -1,5 +1,3 @@
-import type { AdMarketCountryCode } from "@sokosumi/core-client";
-
 /** The longest place name Core's location search takes. */
 export const GOOGLE_LOCATION_QUERY_MAX_LENGTH = 80;
 
@@ -19,31 +17,6 @@ export interface GoogleTargeting {
   defaultLocations: GoogleTarget[];
   defaultLanguages: GoogleTarget[];
 }
-
-/**
- * Each Market country's Google geo target constant id. The Market profile
- * stores DataForSEO's `location_code`, which is that id, but the API returns
- * only the country code. Mirrors `AD_MARKET_LOCATIONS` in Core.
- */
-export const MARKET_LOCATION_IDS: Record<AdMarketCountryCode, string> = {
-  US: "2840",
-  GB: "2826",
-  DE: "2276",
-  FR: "2250",
-  ES: "2724",
-  IT: "2380",
-  NL: "2528",
-  CH: "2756",
-  AT: "2040",
-  BE: "2056",
-  IE: "2372",
-  CA: "2124",
-  AU: "2036",
-  BR: "2076",
-  MX: "2484",
-  IN: "2356",
-  JP: "2392",
-};
 
 /** Codes that name one language and differ between ISO and Google. */
 const SAME_LANGUAGE = [

@@ -78,7 +78,12 @@ describe("NewAdsCampaignPage", () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     adsServiceMock.listAccounts.mockResolvedValue([GOOGLE, META]);
     adsServiceMock.getMarketProfile.mockResolvedValue({
-      profile: { keywords: ["shoes"], countryCode: "DE", languageCode: "de" },
+      profile: {
+        keywords: ["shoes"],
+        countryCode: "DE",
+        locationId: "2276",
+        languageCode: "de",
+      },
     });
     adsServiceMock.listLanguages.mockResolvedValue({
       languages: [
@@ -222,7 +227,7 @@ describe("NewAdsCampaignPage", () => {
 
     it("leaves the language empty when Google has none for the profile's", async () => {
       adsServiceMock.getMarketProfile.mockResolvedValue({
-        profile: { countryCode: "JP", languageCode: "ja" },
+        profile: { countryCode: "JP", locationId: "2392", languageCode: "ja" },
       });
       render(await visit({ projectId: "project-1", accountId: "a1" }));
 
