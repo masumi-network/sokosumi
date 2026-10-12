@@ -2,9 +2,9 @@ import { ssrfSafeFetch } from "@sokosumi/net";
 
 const MAX_COWORKER_RETRIEVE_RESPONSE_BYTES = 16 * 1024 * 1024;
 
-export const DEFAULT_POLL_MAX_ATTEMPTS = 5;
-export const DEFAULT_POLL_BASE_DELAY_MS = 500;
-export const DEFAULT_POLL_MAX_DELAY_MS = 5_000;
+const DEFAULT_POLL_MAX_ATTEMPTS = 5;
+const DEFAULT_POLL_BASE_DELAY_MS = 500;
+const DEFAULT_POLL_MAX_DELAY_MS = 5_000;
 
 export type CoworkerResponsePollStatus =
   | { status: "in_progress"; responseId: string }

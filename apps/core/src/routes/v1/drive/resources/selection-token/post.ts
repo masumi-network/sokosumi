@@ -13,7 +13,10 @@ import {
   loadResultWindow,
   SELECTION_TOKEN_TTL_MS,
 } from "@/lib/files/search-session";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import { fileSelectionTokenResponseSchema } from "@/schemas/file-resource.schema";
 import { loadLiveResources } from "@/services/file-search.service";
@@ -25,34 +28,36 @@ const bodySchema = z.object({
   windowCursor: z.string(),
 });
 
-const route = createRoute({
-  method: "post",
-  path: "/selection-token",
-  description: [
-    "Materialize 'select all N in this result window' into an explicit,",
-    "short-lived set of ids and revisions.",
-    "",
-    "This is never 'all matching files'. It is exactly the bounded window the",
-    "reader was shown, revalidated now: entries that changed are dropped and",
-    "the revised count comes back for explicit reconfirmation.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    body: {
-      required: true,
-      content: { "application/json": { schema: bodySchema } },
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/selection-token",
+    description: [
+      "Materialize 'select all N in this result window' into an explicit,",
+      "short-lived set of ids and revisions.",
+      "",
+      "This is never 'all matching files'. It is exactly the bounded window the",
+      "reader was shown, revalidated now: entries that changed are dropped and",
+      "the revised count comes back for explicit reconfirmation.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      body: {
+        required: true,
+        content: { "application/json": { schema: bodySchema } },
+      },
     },
-  },
-  responses: {
-    201: jsonSuccessResponse(
-      fileSelectionTokenResponseSchema,
-      "Selection token",
-    ),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-  },
-});
+    responses: {
+      201: jsonSuccessResponse(
+        fileSelectionTokenResponseSchema,
+        "Selection token",
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

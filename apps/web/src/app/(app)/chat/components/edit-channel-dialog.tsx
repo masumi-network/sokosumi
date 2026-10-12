@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import { Archive as ArchiveIcon, Loader2 } from "lucide-react";
+import { Archive as ArchiveIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -277,11 +277,9 @@ export function EditChannelDialog({
               <Button
                 type="submit"
                 variant="primary"
-                disabled={isPending || !hasChanges}
+                disabled={!hasChanges}
+                loading={isPending}
               >
-                {isPending ? (
-                  <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                ) : null}
                 {t("Dialog.save")}
               </Button>
             </DialogFooter>
@@ -336,20 +334,14 @@ export function EditChannelDialog({
               {tActions("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={isArchiving}
+              loading={isArchiving}
               onClick={(event) => {
                 // Keep the confirm mounted while the action runs, so the
-                // spinner is visible and a second click cannot double-submit.
+                // loading bar is visible and a second click cannot double-submit.
                 event.preventDefault();
                 void handleConfirmArchive();
               }}
             >
-              {isArchiving ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : null}
               {tActions("archiveConfirm")}
             </AlertDialogAction>
           </AlertDialogFooter>

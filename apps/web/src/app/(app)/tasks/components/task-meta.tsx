@@ -101,7 +101,7 @@ function TaskActorCluster({
             </span>
           ))}
           {remainder > 0 ? (
-            <span className="bg-muted text-muted-foreground ring-background relative -ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[0.625rem] font-medium tabular-nums ring-2">
+            <span className="bg-muted text-muted-foreground ring-background relative -ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-2xs font-medium tabular-nums ring-2">
               +{remainder}
             </span>
           ) : null}
@@ -153,14 +153,12 @@ export function TaskMetaDetails({
         {commentsCount > 0 && (
           <div className="flex items-center gap-1">
             <MessageSquare className="size-3" aria-hidden />
-            <span className="text-[0.625rem] tabular-nums">
-              {commentsCount}
-            </span>
+            <span className="text-2xs tabular-nums">{commentsCount}</span>
           </div>
         )}
         <div className="flex items-center gap-1">
           <Calendar className="size-3" aria-hidden />
-          <span className="text-[0.625rem] tabular-nums">
+          <span className="text-2xs tabular-nums">
             {formatShortDate(createdAt)}
           </span>
         </div>

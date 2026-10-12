@@ -204,13 +204,11 @@ describe("push devices in notification settings", () => {
     const status = screen.getByRole("status");
     expect(status.textContent).toBe("Loading devices…");
     expect(status.classList.contains("sr-only")).toBe(true);
-    expect(refresh.hasAttribute("disabled")).toBe(true);
+    expect(refresh.getAttribute("aria-disabled")).toBe("true");
     expect(refresh.getAttribute("aria-busy")).toBe("true");
     expect(
-      refresh
-        .querySelector("svg")
-        ?.classList.contains("motion-safe:animate-spin"),
-    ).toBe(true);
+      refresh.querySelector('[data-slot="button-loading-bar"]'),
+    ).not.toBeNull();
     expect(screen.queryByText(/No registered devices found/)).toBeNull();
     fireEvent.click(refresh);
     expect(listPushDevices).toHaveBeenCalledTimes(1);
@@ -218,12 +216,11 @@ describe("push devices in notification settings", () => {
     resolveDevices([device]);
     await screen.findByRole("list");
     expect(refresh.hasAttribute("disabled")).toBe(false);
-    expect(refresh.getAttribute("aria-busy")).toBe("false");
+    expect(refresh.hasAttribute("aria-disabled")).toBe(false);
+    expect(refresh.hasAttribute("aria-busy")).toBe(false);
     expect(
-      refresh
-        .querySelector("svg")
-        ?.classList.contains("motion-safe:animate-spin"),
-    ).toBe(false);
+      refresh.querySelector('[data-slot="button-loading-bar"]'),
+    ).toBeNull();
     expect(status.textContent).toBe("");
   });
   it("shows an empty state when no devices are registered", async () => {
@@ -320,13 +317,11 @@ describe("push devices in notification settings", () => {
     );
     const confirm = screen.getByRole("button", { name: "Remove device" });
     await userEvent.click(confirm);
-    expect(confirm.hasAttribute("disabled")).toBe(true);
+    expect(confirm.getAttribute("aria-disabled")).toBe("true");
     expect(confirm.getAttribute("aria-busy")).toBe("true");
     expect(
-      confirm
-        .querySelector("svg")
-        ?.classList.contains("motion-safe:animate-spin"),
-    ).toBe(true);
+      confirm.querySelector('[data-slot="button-loading-bar"]'),
+    ).not.toBeNull();
     fireEvent.click(confirm);
     await userEvent.keyboard("{Escape}");
     expect(screen.getByRole("alertdialog")).toBeTruthy();
@@ -466,7 +461,7 @@ describe("push devices in notification settings", () => {
     expect(
       screen
         .getByRole("button", { name: "Remove device" })
-        .getAttribute("aria-busy"),
-    ).toBe("false");
+        .hasAttribute("aria-busy"),
+    ).toBe(false);
   });
 });

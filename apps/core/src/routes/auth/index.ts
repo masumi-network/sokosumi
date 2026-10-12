@@ -44,7 +44,7 @@ app.get("/.well-known/openid-configuration", (c) =>
   handleOpenIdConfiguration(c.req.raw),
 );
 
-// Token requests are adjusted before Better Auth reads them.
+// Refresh-rotation retry wraps Better Auth's token handler.
 app.post("/oauth2/token", (c) =>
   handleOAuthTokenRequest(
     c.req.raw,

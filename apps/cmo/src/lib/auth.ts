@@ -1,5 +1,9 @@
-import { getUsersById, type User } from "@sokosumi/core-client";
-import { createClient } from "@sokosumi/core-client/client";
+import {
+  getUsersById,
+  type SignUpContext,
+  type User,
+} from "@sokosumi/core-client";
+import { type Client, createClient } from "@sokosumi/core-client/client";
 import { joinFirstAndLastName, OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
 import type { AuthContext, BetterAuthPlugin } from "better-auth";
 import {
@@ -31,20 +35,36 @@ const SOKOSUMI_OAUTH_PROVIDER_ID = "sokosumi";
 
 export interface SokosumiSignInOptions {
   createAccount: boolean;
+  /** Values a new account keeps as its sign-up context (ADR 0052). */
+  signUpContext?: SignUpContext["context"];
 }
 
 /**
  * What CMO sends to start Sign in with Sokosumi. "Create account" adds the
  * OpenID Connect `prompt=create`, which makes Core open Sokosumi's sign-up
- * page instead of its sign-in page. Sign in sends no prompt, so a person
- * still signed in to Sokosumi goes straight back to CMO.
+ * page instead of its sign-in page, and any sign-up context as one JSON
+ * `signup_context` parameter. Sign in sends neither, so a person still signed
+ * in to Sokosumi goes straight back to CMO.
  */
-export function sokosumiSignInBody({ createAccount }: SokosumiSignInOptions) {
+function sokosumiSignInBody({
+  createAccount,
+  signUpContext = {},
+}: SokosumiSignInOptions) {
+  const hasContext = Object.keys(signUpContext).length > 0;
   return {
     provider: SOKOSUMI_OAUTH_PROVIDER_ID,
     callbackURL: "/",
     errorCallbackURL: "/",
-    ...(createAccount ? { additionalParams: { prompt: "create" } } : {}),
+    ...(createAccount
+      ? {
+          additionalParams: {
+            prompt: "create",
+            ...(hasContext
+              ? { signup_context: JSON.stringify(signUpContext) }
+              : {}),
+          },
+        }
+      : {}),
   };
 }
 
@@ -57,6 +77,16 @@ const SESSION_MAX_AGE_S = 90 * 24 * 60 * 60;
 /** Better Auth refreshes an access token this close to its expiry. */
 const ACCESS_TOKEN_REFRESH_MARGIN_MS = 5_000;
 
+/**
+ * Marks a page's token read. A page cannot write cookies, so it is served the
+ * cookie's token as long as it still works and never refreshed: a refresh
+ * there would rotate Core's refresh token and lose the new one.
+ */
+const PAGE_TOKEN_READ_HEADER = "x-cmo-page-token-read";
+/** The proxy refreshes below 5 seconds, so a page sees at least this much. */
+const PAGE_TOKEN_MIN_LIFETIME_MS = 1_000;
+const RENEWAL_REQUIRED = "RENEWAL_REQUIRED";
+
 /** Token endpoint statuses that mean Core could not answer, not "no". */
 const CORE_UNAVAILABLE_STATUSES = new Set([408, 429]);
 
@@ -67,11 +97,11 @@ function coreDiscoveryUrl(coreBaseUrl: string): string {
   return `${coreBaseUrl}/auth/.well-known/openid-configuration`;
 }
 
-/** False while Core's discovery failed on this instance. */
-function hasSokosumiProvider({
+/** Sokosumi's provider, missing while Core's discovery failed on this instance. */
+function sokosumiProvider({
   socialProviders,
-}: Pick<AuthContext, "socialProviders">): boolean {
-  return socialProviders.some(({ id }) => id === SOKOSUMI_OAUTH_PROVIDER_ID);
+}: Pick<AuthContext, "socialProviders">) {
+  return socialProviders.find(({ id }) => id === SOKOSUMI_OAUTH_PROVIDER_ID);
 }
 
 /** Whether a refresh failed without an answer from Core. */
@@ -97,9 +127,7 @@ function isUnanswered(error: unknown): boolean {
 const recordUnansweredRefreshes = {
   id: "cmo-record-unanswered-refreshes",
   init(ctx) {
-    const provider = ctx.socialProviders.find(
-      ({ id }) => id === SOKOSUMI_OAUTH_PROVIDER_ID,
-    );
+    const provider = sokosumiProvider(ctx);
     const refresh = provider?.refreshAccessToken;
     if (!provider || !refresh) return;
     provider.refreshAccessToken = async (refreshToken, refreshCtx) => {
@@ -123,13 +151,25 @@ function personName(user: User): string {
   );
 }
 
+const coreClients = new Map<string, Client>();
+
+/** The `/v1` client for a Core, shared by CMO's auth and its pages. */
+export function coreClientFor(coreBaseUrl: string): Client {
+  let client = coreClients.get(coreBaseUrl);
+  if (!client) {
+    client = createClient({ baseUrl: `${coreBaseUrl}/v1` });
+    coreClients.set(coreBaseUrl, client);
+  }
+  return client;
+}
+
 /**
  * Sign in with Sokosumi. Better Auth runs stateless: no database, the session
  * and the Sokosumi tokens live in encrypted httpOnly cookies (ADR 0045).
  */
 export function createCmoAuth(config: CmoAuthConfig) {
   const discoveryUrl = coreDiscoveryUrl(config.coreBaseUrl);
-  const coreClient = createClient({ baseUrl: `${config.coreBaseUrl}/v1` });
+  const coreClient = coreClientFor(config.coreBaseUrl);
   let revocationEndpoint: Promise<string> | undefined;
 
   function getCoreUser(accessToken: string) {
@@ -192,7 +232,13 @@ export function createCmoAuth(config: CmoAuthConfig) {
       ipAddress: { ipAddressHeaders: CLIENT_IP_HEADERS },
     },
     // Better Auth only enables this in production by default; keep tests honest.
-    rateLimit: { enabled: true },
+    rateLimit: {
+      enabled: true,
+      // Every page load renews through this path, signed in or not, and a
+      // refused renewal signs the person out. Browsers cannot reach it
+      // (`api/auth/[...all]`), and Core limits the refresh itself.
+      customRules: { "/get-access-token": false },
+    },
     // Where a failure goes when it carries no errorCallbackURL: a callback
     // whose state is gone (expired, another browser, Back). The signed-out
     // page explains it; Better Auth's bare error page does not.
@@ -200,9 +246,10 @@ export function createCmoAuth(config: CmoAuthConfig) {
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         if (ctx.path === "/get-access-token") {
+          const pageRead = ctx.headers?.has(PAGE_TOKEN_READ_HEADER) ?? false;
           // Without discovery there is no provider, and Better Auth fails
           // before it looks at the token. A valid token needs no provider.
-          if (hasSokosumiProvider(ctx.context)) return;
+          if (!pageRead && sokosumiProvider(ctx.context)) return;
           const [session, account] = await Promise.all([
             getSessionFromCtx(ctx),
             getAccountCookie(ctx),
@@ -215,9 +262,16 @@ export function createCmoAuth(config: CmoAuthConfig) {
             !account?.accessToken ||
             account.userId !== session.user.id ||
             !expiresAt ||
-            expiresAt.getTime() - Date.now() < ACCESS_TOKEN_REFRESH_MARGIN_MS
+            expiresAt.getTime() - Date.now() <
+              (pageRead
+                ? PAGE_TOKEN_MIN_LIFETIME_MS
+                : ACCESS_TOKEN_REFRESH_MARGIN_MS)
           ) {
-            return;
+            if (!pageRead) return;
+            throw new APIError("UNAUTHORIZED", {
+              code: RENEWAL_REQUIRED,
+              message: "Renew the Sokosumi access token before this page",
+            });
           }
           return ctx.json({
             accessToken: await decryptOAuthToken(
@@ -290,6 +344,9 @@ export function createCmoAuth(config: CmoAuthConfig) {
             discoveryUrl,
             clientId: config.clientId,
             clientSecret: config.clientSecret,
+            // Better Auth defaults to `client_secret_post`; Core registers
+            // CMO as `client_secret_basic` and refuses a body secret.
+            tokenEndpointAuth: { method: "client_secret_basic" },
             scopes: [...OAUTH_PROVIDER_SCOPES],
             pkce: true,
             // Core's ID token and userinfo carry only `sub` (it grants no
@@ -328,7 +385,7 @@ export function getAuth(): CmoAuth {
   const created = createCmoAuth(config);
   auth = created;
   created.$context.then((context) => {
-    if (hasSokosumiProvider(context)) return;
+    if (sokosumiProvider(context)) return;
     // Better Auth discovers Core once per instance. A preview's first request
     // can beat its branch's Core deploy, so discover again on the next one.
     if (auth === created) auth = undefined;
@@ -378,8 +435,35 @@ export async function startSokosumiSignIn(
 }
 
 /**
+ * The Sokosumi access token for a page render, or null when it must be
+ * renewed first. Pages render after the proxy renewed it; only a render the
+ * proxy skipped (a prefetch or prerender) can find it expired.
+ */
+export async function getPageAccessToken(
+  auth: CmoAuth,
+  requestHeaders: Headers,
+): Promise<string | null> {
+  const headers = new Headers(requestHeaders);
+  headers.set(PAGE_TOKEN_READ_HEADER, "1");
+  try {
+    const { accessToken } = await auth.api.getAccessToken({
+      body: { useAccountCookie: true },
+      headers,
+    });
+    return accessToken;
+  } catch (error) {
+    if (error instanceof APIError && error.body?.code === RENEWAL_REQUIRED) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
  * A link's way into Sign in with Sokosumi, for `/signup` and `/signin`.
- * A person already signed in to CMO goes home instead.
+ * A person already signed in to CMO goes home instead. A Create account
+ * link's query parameters become the sign-up context; a repeated one keeps
+ * its first value.
  */
 export async function sokosumiSignInRedirect(
   auth: CmoAuth,
@@ -402,10 +486,18 @@ export async function sokosumiSignInRedirect(
     return new Response(null, { status: 403, headers });
   }
   if (!(await auth.api.getSession({ headers: request.headers }))) {
+    // In the link's key order; the first of a repeated parameter wins.
+    const signUpContext: Record<string, string> = {};
+    if (options.createAccount) {
+      for (const [key, value] of new URL(request.url).searchParams) {
+        // Own keys only: `constructor` is inherited from Object.prototype.
+        if (!Object.hasOwn(signUpContext, key)) signUpContext[key] = value;
+      }
+    }
     const { url, setCookies } = await startSokosumiSignIn(
       auth,
       request.headers,
-      options,
+      { ...options, signUpContext },
     );
     headers.set("location", url);
     for (const cookie of setCookies) headers.append("set-cookie", cookie);
@@ -421,7 +513,8 @@ function withSetCookies(from: Response, status: number): Response {
   return new Response(null, { status, headers });
 }
 
-// ponytail: 30s replay within one process; cross-instance rotation needs Core coordination.
+// Within one process. Across instances, Core replays a rotated refresh token's
+// answer for 30s, so a second instance renewing the same session gets it too.
 const RENEWAL_REPLAY_MS = 30_000;
 // Inside Core's 30s rotation replay, so the first retry after a lost answer
 // still receives the rotated token instead of revoking the family.
@@ -496,7 +589,8 @@ async function renewSessionOnce(
     origin,
     "content-type": "application/json",
   });
-  // Rate-limit renewals per visitor, not in one bucket for the whole server.
+  // Better Auth reads the visitor from these, e.g. to rate-limit the sign-out
+  // below per visitor, not in one bucket for the whole server.
   for (const name of CLIENT_IP_HEADERS) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
@@ -520,7 +614,7 @@ async function renewSessionOnce(
       typeof body === "object" &&
       "code" in body &&
       body.code === "PROVIDER_NOT_SUPPORTED" &&
-      !hasSokosumiProvider(await auth.$context))
+      !sokosumiProvider(await auth.$context))
   ) {
     return withSetCookies(renewed, 503);
   }

@@ -272,11 +272,6 @@ export {
   findHttpAutolinks,
 } from "./markdown-url-scan.js";
 export {
-  NextJobAction,
-  NextJobActionErrorType,
-  OnChainTransactionStatus,
-} from "./masumi-protocol.js";
-export {
   type MetadataRecord,
   serializeMetadataRecord,
 } from "./metadata-record.js";
@@ -316,6 +311,7 @@ export {
   hasCoreApiOAuthScope,
   hasOfflineAccessOAuthScope,
   OAUTH_PROVIDER_SCOPES,
+  OAUTH_SCOPE_CORE_API,
 } from "./oauth-scopes.js";
 export {
   isReactJsonFencePrefixCandidate,
@@ -350,6 +346,7 @@ export {
   getOrganizationMetadata,
   parseOrganizationMetadata,
 } from "./organization-metadata.js";
+export { createOrganizationSlug } from "./organization-slug.js";
 export {
   compareByDisplayNameThenId,
   formatParticipantNameList,
@@ -434,7 +431,6 @@ export {
 export {
   formatTaskIdentifier,
   parseTaskRef,
-  type TaskRef,
 } from "./task-identifier.js";
 export { isTaskScheduleCronShape } from "./task-schedule-cron.js";
 export {

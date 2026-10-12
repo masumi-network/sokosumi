@@ -1,3 +1,4 @@
+import CoreAPI
 import Foundation
 
 enum CoreSettings {
@@ -22,6 +23,12 @@ enum CoreSettings {
       plist: Bundle.main.object(forInfoDictionaryKey: "SokosumiWebBaseURL") as? String,
       fallback: "https://app.sokosumi.com"
     )
+  }
+
+  /// Names this build on every Core request (ADR 0053). Build 1, the project
+  /// default, marks a local build that Core never turns away.
+  static var clientBuildMiddleware: ClientBuildMiddleware {
+    ClientBuildMiddleware(build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1")
   }
 
   static var setupURL: URL {

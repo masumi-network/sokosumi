@@ -1,17 +1,9 @@
-import {
-  NextJobAction,
-  NextJobActionErrorType,
-  OnChainTransactionStatus,
-  SokosumiJobStatus,
-} from "@sokosumi/utils";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
   HistoryKind as PrismaHistoryKind,
-  NextJobAction as PrismaNextJobAction,
-  NextJobActionErrorType as PrismaNextJobActionErrorType,
   NotificationKind as PrismaNotificationKind,
-  OnChainTransactionStatus as PrismaOnChainTransactionStatus,
   VendorMemberRole as PrismaVendorMemberRole,
 } from "../../generated/prisma/enums.js";
 import { InvitationStatus } from "../invitation.js";
@@ -26,7 +18,6 @@ import { MemberRole } from "../organization.js";
  * in `apps/web/src/lib/clients/__tests__/core-enums-drift.test.ts`.
  *
  * This file only guards mirrors that still live outside Prisma codegen:
- * - Masumi protocol maps in `@sokosumi/utils` ↔ Prisma
  * - `SokosumiJobStatus` (no Prisma enum)
  * - Database `MemberRole` / `InvitationStatus` value locks
  */
@@ -47,22 +38,6 @@ describe("status enum drift guard", () => {
       BILLING: "BILLING",
       SYSTEM: "SYSTEM",
       CHAT: "CHAT",
-    });
-  });
-
-  it("utils NextJobAction matches the Prisma-generated NextJobAction enum", () => {
-    expect({ ...NextJobAction }).toEqual({ ...PrismaNextJobAction });
-  });
-
-  it("utils NextJobActionErrorType matches the Prisma-generated NextJobActionErrorType enum", () => {
-    expect({ ...NextJobActionErrorType }).toEqual({
-      ...PrismaNextJobActionErrorType,
-    });
-  });
-
-  it("utils OnChainTransactionStatus matches the Prisma-generated OnChainTransactionStatus enum", () => {
-    expect({ ...OnChainTransactionStatus }).toEqual({
-      ...PrismaOnChainTransactionStatus,
     });
   });
 

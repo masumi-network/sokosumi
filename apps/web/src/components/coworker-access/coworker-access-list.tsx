@@ -1,7 +1,6 @@
 "use client";
 
 import type { CoworkerWorkspaceAccess } from "@sokosumi/core-client";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -236,10 +235,8 @@ function CoworkerAccessCardActions({
               "approveError",
             )
           }
+          loading={loadingAction === "approve"}
         >
-          {loadingAction === "approve" ? (
-            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {tActions("approve")}
         </Button>
         <Button
@@ -255,10 +252,8 @@ function CoworkerAccessCardActions({
               "denyError",
             )
           }
+          loading={loadingAction === "deny"}
         >
-          {loadingAction === "deny" ? (
-            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {tActions("deny")}
         </Button>
       </div>
@@ -281,10 +276,8 @@ function CoworkerAccessCardActions({
               "revokeError",
             )
           }
+          loading={loadingAction === "revoke"}
         >
-          {loadingAction === "revoke" ? (
-            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {tActions("revoke")}
         </Button>
       </div>

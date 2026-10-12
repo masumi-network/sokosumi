@@ -21,7 +21,7 @@ interface EnterprisePoolBalances {
   remainingCents: bigint;
 }
 
-export function buildEnterpriseContractBillingSummaryFallback(
+function buildEnterpriseContractBillingSummaryFallback(
   billingPlan: Extract<
     OrganizationBillingPlan,
     { mode: "enterprise_contract" }

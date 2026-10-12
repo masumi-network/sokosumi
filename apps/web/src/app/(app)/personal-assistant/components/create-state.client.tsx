@@ -126,9 +126,10 @@ export function CreateState({
         <Button
           type="submit"
           className="w-full"
-          disabled={isPending || name.trim().length === 0}
+          loading={isPending}
+          disabled={name.trim().length === 0}
         >
-          {isPending ? t("submitting") : t("submit")}
+          {t("submit")}
         </Button>
       </form>
     </div>

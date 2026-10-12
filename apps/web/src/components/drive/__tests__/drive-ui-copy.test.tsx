@@ -12,14 +12,14 @@ const catalogs = { en, de, es } as const;
 const expected = {
   en: {
     breadcrumb: "Files",
-    myDrive: "My Files",
+    myDrive: "My files",
     selectTitle: "Select from Files",
     fromDrive: "From Files",
     uploadFile: "Upload from device",
     menu: "Files",
     copyToFilesAction: "Copy to Files",
     copyToFilesDialogTitle: "Copy to Files?",
-    copyToFilesDialogDescription: "Copy report.pdf to My Files.",
+    copyToFilesDialogDescription: "Copy report.pdf to My files.",
   },
   de: {
     breadcrumb: "Dateien",
