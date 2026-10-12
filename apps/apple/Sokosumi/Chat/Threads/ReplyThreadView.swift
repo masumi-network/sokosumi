@@ -156,12 +156,18 @@ import SwiftUI
         let jumpTarget = readyJump(in: messages)
         let currentRoom = room
         let channels = workspaces.composerChannels
+        let rowContext = TranscriptContext(
+          room: currentRoom, viewerId: workspaces.currentUserId, allowsPins: false, allowsThreads: false,
+          outbound: workspaces.thread.outbox.shells, editingMessageId: workspaces.messageEditing.source?.id
+        )
         ScrollViewReader { proxy in
           ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
-              MessageRowView(channels: channels, room: currentRoom, preparedDocument: preparedTranscript?.document(for: parent), message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+              MessageRowView(channels: channels, room: currentRoom, preparedDocument: preparedTranscript?.document(for: parent), message: parent,
+                             row: MessageRow(parent, in: rowContext, previous: nil, isNewest: false),
+                             outbound: nil, onRetry: nil, onRemove: nil,
                              onQuote: quoteAction(for: parent),
-                             onEdit: canModifyOwnMessage(parent, userId: workspaces.currentUserId) ? { workspaces.startEditing(parent) } : nil,
+                             onEdit: { workspaces.startEditing(parent) },
                              onDelete: deletionAction(for: parent),
                              onRemoveUnfurl: unfurlAction(for: parent),
                              onToggleReaction: reactionAction(for: parent),
@@ -197,7 +203,7 @@ import SwiftUI
               }
               .font(.caption)
               .frame(minHeight: 24)
-              replies(messages: Array(messages.dropFirst()), channels: channels, room: currentRoom)
+              replies(messages: Array(messages.dropFirst()), channels: channels, room: currentRoom, rowContext: rowContext)
               Color.clear.frame(height: 17).id("thread-bottom")
             }
             .scrollTargetLayout()
@@ -336,7 +342,8 @@ import SwiftUI
       }
     }
 
-    @ViewBuilder private func replies(messages: [Components.Schemas.ChatRoomMessage], channels: [ComposerChannel], room: Components.Schemas.ChatRoom?) -> some View {
+    @ViewBuilder private func replies(messages: [Components.Schemas.ChatRoomMessage], channels: [ComposerChannel], room: Components.Schemas.ChatRoom?,
+                                      rowContext: TranscriptContext) -> some View {
       let timeline = workspaces.thread.timeline
       if timeline.isLoading {
         ProgressView("Loading replies…")
@@ -352,14 +359,15 @@ import SwiftUI
         if messages.isEmpty, timeline.errorMessage == nil {
           Text("No replies yet.").foregroundStyle(.secondary)
         }
-        replyRows(messages: messages, channels: channels, room: room)
+        replyRows(messages: messages, channels: channels, room: room, rowContext: rowContext)
       }
     }
 
     private func replyRows(
       messages: [Components.Schemas.ChatRoomMessage],
       channels: [ComposerChannel],
-      room: Components.Schemas.ChatRoom?
+      room: Components.Schemas.ChatRoom?,
+      rowContext: TranscriptContext
     ) -> some View {
       let gaps = workspaces.thread.timeline.historyGapMessageIds
       return ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
@@ -384,13 +392,13 @@ import SwiftUI
             RoomStatusRow(text: status)
               .jumpSpotlightRow(messageId: message.id)
           } else {
-            MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.document(for: message), message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
+            MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.document(for: message), message: message, row: MessageRow(message, in: rowContext, previous: previous, isNewest: false),
                            outbound: shell, sentAt: outbox.sentAt[message.id],
                            onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
                            onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
                            onRetryMention: mentionRetryAction(for: message),
                            onQuote: quoteAction(for: message),
-                           onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
+                           onEdit: { workspaces.startEditing(message) },
                            jumpMark: workspaces.thread.jumpTarget.flatMap { $0.messageId == message.id ? $0.mark : nil },
                            onDelete: deletionAction(for: message),
                            onRemoveUnfurl: unfurlAction(for: message),
