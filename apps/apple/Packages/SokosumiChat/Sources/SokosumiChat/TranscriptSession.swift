@@ -84,6 +84,7 @@ public final class TranscriptSession: ObservableObject {
     jumpTarget = nil
     loadTask?.cancel()
     loadTask = nil
+    gapTask?.cancel()
     gapTask = nil
     recovery.stop()
     outbox.reset()

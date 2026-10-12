@@ -27,7 +27,10 @@ public extension WorkspaceState {
     let request = UUID()
     messageNavigationRequest = request
     let generation = room.timeline.generation
-    _ = await room.loadTask?.value
+    // Only the room's first page decides whether the message is there; a refresh or older page may keep running.
+    if room.timeline.isLoading {
+      _ = await room.loadTask?.value
+    }
     guard isCurrent(NavigationGuard(request: request, generation: generation)), transcriptRoomId == roomId else { return .superseded }
     guard let messageId else { thread.close()
       return .opened
