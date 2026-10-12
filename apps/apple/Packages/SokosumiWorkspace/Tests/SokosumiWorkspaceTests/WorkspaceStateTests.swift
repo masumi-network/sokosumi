@@ -217,7 +217,9 @@ private func lifecycleFixture(general: String, design: String) throws -> (Worksp
 private func ephemeralState(
   _ responses: [(Int, String)],
   visible: Bool = true,
-  openRoomUnreadRecheck: OpenRoomUnreadRecheck = OpenRoomUnreadRecheck()
+  openRoomUnreadRecheck: OpenRoomUnreadRecheck = OpenRoomUnreadRecheck(),
+  now: @escaping () -> Date = Date.init,
+  makeId: @escaping () -> String = { UUID().uuidString }
 ) throws -> (WorkspaceState, AuthState, ScriptedTransport, UserDefaults) { // swiftlint:disable:this large_tuple
   let transport = ScriptedTransport(responses)
   // The app registers this middleware too; without it the create-link body cannot carry `expiresInDays`.
@@ -228,7 +230,9 @@ private func ephemeralState(
   let state = WorkspaceState(
     savedRoom: SavedRoomSelection(defaults: defaults),
     openRoomUnreadRecheck: openRoomUnreadRecheck,
-    recoverySleep: recoveryTimersNeverFire
+    now: now,
+    makeId: makeId,
+    sleep: recoveryTimersNeverFire
   )
   state.readAttention.setVisible(visible, window: UUID())
   state.clientResolver = { client }
@@ -1352,6 +1356,7 @@ struct WorkspaceStateTests {
   @Test func sendPaintsPendingThenConfirmed() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let confirmedID = "550e8400-e29b-41d4-a716-446655440501"
+    let sentAt = Date(timeIntervalSince1970: 1_788_868_800)
     let (state, auth, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
@@ -1359,13 +1364,16 @@ struct WorkspaceStateTests {
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 0)),
       (201, createdMessageBody(id: confirmedID, roomId: roomID, content: "hello"))
-    ])
+    ], now: { sentAt }, makeId: { "turn-fixed" })
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
     transport.pausePOST = true
     state.sendMessage("hello", auth: auth)
     #expect(state.outboundShells.count == 1)
     #expect(state.outboundShells[0].status == .pending)
+    // The room's shell takes the injected id and clock, like the Thread's.
+    #expect(state.outboundShells[0].clientTurnId == "turn-fixed")
+    #expect(state.outboundShells[0].createdAt == sentAt)
     #expect(state.displayedTranscript.map(\.content) == ["hello"])
     #expect(isOutboundLocalMessage(state.displayedTranscript[0]))
     for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/messages") {

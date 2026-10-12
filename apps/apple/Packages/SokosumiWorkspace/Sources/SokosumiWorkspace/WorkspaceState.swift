@@ -48,7 +48,7 @@ public final class WorkspaceState: ObservableObject {
   public let crossRoomThreads = CrossRoomThreads()
   @Published public internal(set) var threadAttentionRevision = 0
   public let messageEditing = MessageEditing()
-  public let directStream = DirectStreamSession()
+  public let directStream: DirectStreamSession
   private var threadObservations: Set<AnyCancellable> = []
   private var workspaceGeneration = 0
   @Published public private(set) var openingDirect: DirectRecipient?
@@ -189,7 +189,7 @@ public final class WorkspaceState: ObservableObject {
 
   /// Unconfirmed classic sends for the open room. Remount / room change
   /// drops them (no durable outbox).
-  public let outbox = RoomOutbox()
+  public let outbox: RoomOutbox
   private var outboxObservation: AnyCancellable?
   public var outboundShells: [OutboundShell] {
     outbox.shells
@@ -248,6 +248,8 @@ public final class WorkspaceState: ObservableObject {
   private(set) var transcriptRealtimeHealthy = false
 
   private let service = ChatService()
+  private let now: () -> Date
+  private let makeId: () -> String
   private var hasLoaded = false
   private var workspaceLoadTask: Task<Void, Never>?
 
@@ -257,20 +259,25 @@ public final class WorkspaceState: ObservableObject {
   let realtimeClientInstanceId: String
 
   /// Creates a workspace coordinator. The host app must inject its authenticated
-  /// client provider; the default resolves no client. `threadNow` is the open Thread's clock;
-  /// `recoverySleep` paces the room, Thread and sidebar recovery timers.
+  /// client provider; the default resolves no client. `now`, `makeId` and `sleep` are the room and Thread
+  /// transcripts' clock and ids; `sleep` also paces the sidebar recovery timer.
   public init(
     clientProvider: @escaping (AuthState) -> Client? = { _ in nil },
     savedRoom: SavedRoomSelection = SavedRoomSelection(),
     instanceStore: RealtimeClientInstanceIdStore = UserDefaultsRealtimeInstanceIdStore(),
     unreadsFilter: UnreadsFilterPreference = .transient,
     openRoomUnreadRecheck: OpenRoomUnreadRecheck = OpenRoomUnreadRecheck(),
-    threadNow: @escaping () -> Date = Date.init,
-    recoverySleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+    now: @escaping () -> Date = Date.init,
+    makeId: @escaping () -> String = { UUID().uuidString },
+    sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
   ) {
-    thread = ThreadSession(now: threadNow, recoverySleep: recoverySleep)
-    transcriptRecovery = ChatRefreshScheduler(sleep: recoverySleep)
-    sidebarRecovery = SidebarCollectionsRecovery(sleep: recoverySleep)
+    self.now = now
+    self.makeId = makeId
+    thread = ThreadSession(now: now, makeId: makeId, sleep: sleep)
+    outbox = RoomOutbox(now: now, sleep: sleep)
+    directStream = DirectStreamSession(now: now, makeId: makeId)
+    transcriptRecovery = ChatRefreshScheduler(sleep: sleep)
+    sidebarRecovery = SidebarCollectionsRecovery(sleep: sleep)
     self.clientProvider = clientProvider
     self.openRoomUnreadRecheck = openRoomUnreadRecheck
     sidebar = ConversationSidebar(savedRoom: savedRoom, unreadsFilter: unreadsFilter)
@@ -781,7 +788,7 @@ public final class WorkspaceState: ObservableObject {
         signOutIfUnauthorized(error, auth: auth)
       })
     }
-    let id = UUID().uuidString
+    let id = makeId()
     let slug = selection?.workspace.organizationSlug
     let mentions = ComposerMention.selected(in: draft.text, catalog: composerMentions)
     var shell = makeOutboundShell(clientMessageId: id, roomId: roomId, content: draft.text)
@@ -1003,7 +1010,7 @@ public final class WorkspaceState: ObservableObject {
       }
       return
     case let .tombstone(messageId):
-      transcriptMessages = applyRealtimeTombstone(messages: transcriptMessages, messageId: messageId, now: Date())
+      transcriptMessages = applyRealtimeTombstone(messages: transcriptMessages, messageId: messageId, now: now())
     case .needsRefetch:
       transcriptRecovery.requestRefresh()
     }
@@ -1120,7 +1127,7 @@ public final class WorkspaceState: ObservableObject {
       clientTurnId: clientMessageId,
       roomId: roomId,
       content: content,
-      createdAt: Date(),
+      createdAt: now(),
       sender: outboundSender
     )
   }
