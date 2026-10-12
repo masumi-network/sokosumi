@@ -21154,6 +21154,7 @@ export const GoogleSearchCampaignSpecSchema = {
                 minLength: 1,
                 maxLength: 25
             },
+            minItems: 0,
             maxItems: 10
         }
     },

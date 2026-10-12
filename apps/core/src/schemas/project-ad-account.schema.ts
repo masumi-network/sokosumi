@@ -10,12 +10,7 @@ import {
   AD_CAMPAIGN_STATUSES,
   AD_RANGES,
   GOOGLE_KEYWORD_MATCH_TYPES,
-  GOOGLE_MAX_CALLOUT_TEXT,
-  GOOGLE_MAX_CALLOUTS,
   GOOGLE_MAX_IDS,
-  GOOGLE_MAX_SITELINK_DESCRIPTION,
-  GOOGLE_MAX_SITELINK_TEXT,
-  GOOGLE_MAX_SITELINKS,
   type GoogleLocationLookup,
   META_CAMPAIGN_OBJECTIVES,
 } from "@/lib/ads/campaigns";
@@ -228,28 +223,28 @@ const googleKeywordSchema = z
   })
   .openapi("GoogleKeyword");
 
-const googleAdTextsSchema = (min: number, max: number, length: number) =>
-  z.array(z.string().trim().min(1).max(length)).min(min).max(max);
+// Google's text limits are counted in characters here; Google counts wide
+// (e.g. CJK) characters twice and answers 422 for those itself.
+function googleTextSchema(length: number) {
+  return z.string().trim().min(1).max(length);
+}
 
-const uniqueIgnoringCase = (texts: readonly string[]) =>
-  new Set(texts.map((text) => text.toLowerCase())).size === texts.length;
+function googleAdTextsSchema(min: number, max: number, length: number) {
+  return z.array(googleTextSchema(length)).min(min).max(max);
+}
+
+function uniqueIgnoringCase(texts: readonly string[]): boolean {
+  return new Set(texts.map((text) => text.toLowerCase())).size === texts.length;
+}
+
+const googleFinalUrlSchema = z.url({ protocol: /^https?$/ }).max(2048);
 
 const googleSitelinkSchema = z
   .object({
-    text: z.string().trim().min(1).max(GOOGLE_MAX_SITELINK_TEXT),
-    finalUrl: z.url({ protocol: /^https?$/ }).max(2048),
-    description1: z
-      .string()
-      .trim()
-      .min(1)
-      .max(GOOGLE_MAX_SITELINK_DESCRIPTION)
-      .optional(),
-    description2: z
-      .string()
-      .trim()
-      .min(1)
-      .max(GOOGLE_MAX_SITELINK_DESCRIPTION)
-      .optional(),
+    text: googleTextSchema(25),
+    finalUrl: googleFinalUrlSchema,
+    description1: googleTextSchema(35).optional(),
+    description2: googleTextSchema(35).optional(),
   })
   .refine(
     ({ description1, description2 }) =>
@@ -281,10 +276,9 @@ const googleCampaignSpecShape = {
   }),
   locationIds: googleIdsSchema("Geo target constant ids (0-25)"),
   languageIds: googleIdsSchema("Language constant ids (0-25)"),
-  finalUrl: z
-    .url({ protocol: /^https?$/ })
-    .max(2048)
-    .openapi({ example: "https://example.com/spring" }),
+  finalUrl: googleFinalUrlSchema.openapi({
+    example: "https://example.com/spring",
+  }),
 };
 
 const googleSearchCampaignSpecSchema = z
@@ -305,14 +299,12 @@ const googleSearchCampaignSpecSchema = z
     }),
     sitelinks: z
       .array(googleSitelinkSchema)
-      .max(GOOGLE_MAX_SITELINKS)
+      .max(8)
       .refine((links) => uniqueIgnoringCase(links.map(({ text }) => text)), {
         message: "Sitelink texts must be unique (ignoring case)",
       })
       .optional(),
-    callouts: z
-      .array(z.string().trim().min(1).max(GOOGLE_MAX_CALLOUT_TEXT))
-      .max(GOOGLE_MAX_CALLOUTS)
+    callouts: googleAdTextsSchema(0, 10, 25)
       .refine(uniqueIgnoringCase, {
         message: "Callouts must be unique (ignoring case)",
       })

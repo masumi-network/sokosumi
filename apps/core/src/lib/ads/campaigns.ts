@@ -66,13 +66,6 @@ interface GoogleCampaignSpecBase {
   finalUrl: string;
 }
 
-/** Most sitelinks and callouts a Search campaign has, and the longest texts (Google's limits). */
-export const GOOGLE_MAX_SITELINKS = 8;
-export const GOOGLE_MAX_CALLOUTS = 10;
-export const GOOGLE_MAX_SITELINK_TEXT = 25;
-export const GOOGLE_MAX_SITELINK_DESCRIPTION = 35;
-export const GOOGLE_MAX_CALLOUT_TEXT = 25;
-
 export interface GoogleSitelink {
   text: string;
   finalUrl: string;
