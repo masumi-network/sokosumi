@@ -6136,6 +6136,8 @@ export type GoogleSearchCampaignSpec = {
      * Requires path1
      */
     path2?: string;
+    sitelinks?: Array<GoogleSitelink>;
+    callouts?: Array<string>;
 };
 
 export type GoogleKeyword = {
@@ -6144,6 +6146,13 @@ export type GoogleKeyword = {
      */
     text: string;
     matchType: 'BROAD' | 'PHRASE' | 'EXACT';
+};
+
+export type GoogleSitelink = {
+    text: string;
+    finalUrl: string;
+    description1?: string;
+    description2?: string;
 };
 
 export type ListGoogleLocationsResponse = {

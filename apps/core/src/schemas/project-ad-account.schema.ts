@@ -10,7 +10,12 @@ import {
   AD_CAMPAIGN_STATUSES,
   AD_RANGES,
   GOOGLE_KEYWORD_MATCH_TYPES,
+  GOOGLE_MAX_CALLOUT_TEXT,
+  GOOGLE_MAX_CALLOUTS,
   GOOGLE_MAX_IDS,
+  GOOGLE_MAX_SITELINK_DESCRIPTION,
+  GOOGLE_MAX_SITELINK_TEXT,
+  GOOGLE_MAX_SITELINKS,
   type GoogleLocationLookup,
   META_CAMPAIGN_OBJECTIVES,
 } from "@/lib/ads/campaigns";
@@ -226,6 +231,33 @@ const googleKeywordSchema = z
 const googleAdTextsSchema = (min: number, max: number, length: number) =>
   z.array(z.string().trim().min(1).max(length)).min(min).max(max);
 
+const uniqueIgnoringCase = (texts: readonly string[]) =>
+  new Set(texts.map((text) => text.toLowerCase())).size === texts.length;
+
+const googleSitelinkSchema = z
+  .object({
+    text: z.string().trim().min(1).max(GOOGLE_MAX_SITELINK_TEXT),
+    finalUrl: z.url({ protocol: /^https?$/ }).max(2048),
+    description1: z
+      .string()
+      .trim()
+      .min(1)
+      .max(GOOGLE_MAX_SITELINK_DESCRIPTION)
+      .optional(),
+    description2: z
+      .string()
+      .trim()
+      .min(1)
+      .max(GOOGLE_MAX_SITELINK_DESCRIPTION)
+      .optional(),
+  })
+  .refine(
+    ({ description1, description2 }) =>
+      (description1 === undefined) === (description2 === undefined),
+    { message: "Set both descriptions or neither", path: ["description2"] },
+  )
+  .openapi("GoogleSitelink");
+
 // Not z.iso.date(): that is `format: date` in the OpenAPI document, which the
 // generated client reads as a Date and would send as a timestamp.
 const googleDate = z
@@ -263,16 +295,28 @@ const googleSearchCampaignSpecSchema = z
       description:
         "Repeats of a keyword with the same match type (ignoring case) are dropped",
     }),
-    headlines: googleAdTextsSchema(3, 15, 30).refine(
-      (texts) =>
-        new Set(texts.map((text) => text.toLowerCase())).size === texts.length,
-      { message: "Headlines must be unique (ignoring case)" },
-    ),
+    headlines: googleAdTextsSchema(3, 15, 30).refine(uniqueIgnoringCase, {
+      message: "Headlines must be unique (ignoring case)",
+    }),
     descriptions: googleAdTextsSchema(2, 4, 90),
     path1: z.string().trim().min(1).max(15).optional(),
     path2: z.string().trim().min(1).max(15).optional().openapi({
       description: "Requires path1",
     }),
+    sitelinks: z
+      .array(googleSitelinkSchema)
+      .max(GOOGLE_MAX_SITELINKS)
+      .refine((links) => uniqueIgnoringCase(links.map(({ text }) => text)), {
+        message: "Sitelink texts must be unique (ignoring case)",
+      })
+      .optional(),
+    callouts: z
+      .array(z.string().trim().min(1).max(GOOGLE_MAX_CALLOUT_TEXT))
+      .max(GOOGLE_MAX_CALLOUTS)
+      .refine(uniqueIgnoringCase, {
+        message: "Callouts must be unique (ignoring case)",
+      })
+      .optional(),
   })
   .refine((spec) => spec.path1 !== undefined || spec.path2 === undefined, {
     message: "path2 needs path1",

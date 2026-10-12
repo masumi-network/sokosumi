@@ -21139,6 +21139,22 @@ export const GoogleSearchCampaignSpecSchema = {
             minLength: 1,
             maxLength: 15,
             description: 'Requires path1'
+        },
+        sitelinks: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleSitelink'
+            },
+            maxItems: 8
+        },
+        callouts: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 25
+            },
+            maxItems: 10
         }
     },
     required: [
@@ -21174,6 +21190,36 @@ export const GoogleKeywordSchema = {
     required: [
         'text',
         'matchType'
+    ]
+} as const;
+
+export const GoogleSitelinkSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 25
+        },
+        finalUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri'
+        },
+        description1: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 35
+        },
+        description2: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 35
+        }
+    },
+    required: [
+        'text',
+        'finalUrl'
     ]
 } as const;
 

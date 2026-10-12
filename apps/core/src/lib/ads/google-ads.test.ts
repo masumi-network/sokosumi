@@ -785,6 +785,88 @@ describe("createGoogleCampaign", () => {
     expect(ad.responsive_search_ad).not.toHaveProperty("path2");
   });
 
+  it("adds sitelink and callout assets and links them to the campaign", async () => {
+    await createGoogleCampaign({
+      ...create,
+      google: {
+        ...google,
+        sitelinks: [
+          {
+            text: "Shoes",
+            finalUrl: "https://example.com/shoes",
+            description1: "Light and fast",
+            description2: "Free returns",
+          },
+          { text: "Sale", finalUrl: "https://example.com/sale" },
+        ],
+        callouts: ["Free shipping", "24/7 support"],
+      },
+    });
+    const keys = operations().map((operation) => Object.keys(operation)[0]);
+    expect(keys.slice(-8)).toEqual([
+      "asset_operation",
+      "asset_operation",
+      "asset_operation",
+      "asset_operation",
+      "campaign_asset_operation",
+      "campaign_asset_operation",
+      "campaign_asset_operation",
+      "campaign_asset_operation",
+    ]);
+    expect(keys.indexOf("asset_operation")).toBeGreaterThan(
+      keys.indexOf("campaign_operation"),
+    );
+    expect(operationsOf("asset_operation")).toEqual([
+      {
+        resource_name: "customers/111/assets/-10",
+        final_urls: ["https://example.com/shoes"],
+        sitelink_asset: {
+          link_text: "Shoes",
+          description1: "Light and fast",
+          description2: "Free returns",
+        },
+      },
+      {
+        resource_name: "customers/111/assets/-11",
+        final_urls: ["https://example.com/sale"],
+        sitelink_asset: { link_text: "Sale" },
+      },
+      {
+        resource_name: "customers/111/assets/-12",
+        callout_asset: { callout_text: "Free shipping" },
+      },
+      {
+        resource_name: "customers/111/assets/-13",
+        callout_asset: { callout_text: "24/7 support" },
+      },
+    ]);
+    expect(operationsOf("campaign_asset_operation")).toEqual(
+      [
+        ["-10", "SITELINK"],
+        ["-11", "SITELINK"],
+        ["-12", "CALLOUT"],
+        ["-13", "CALLOUT"],
+      ].map(([id, field_type]) => ({
+        campaign: "customers/111/campaigns/-2",
+        asset: `customers/111/assets/${id}`,
+        field_type,
+      })),
+    );
+  });
+
+  it("adds no asset operations without sitelinks and callouts", async () => {
+    await createGoogleCampaign(create);
+    await createGoogleCampaign({
+      ...create,
+      google: { ...google, sitelinks: [], callouts: [] },
+    });
+    for (const call of calls()) {
+      expect(JSON.stringify(call.arguments.mutate_operations)).not.toContain(
+        "asset_operation",
+      );
+    }
+  });
+
   it("sends a repeated location or language once", async () => {
     await createGoogleCampaign({
       ...create,

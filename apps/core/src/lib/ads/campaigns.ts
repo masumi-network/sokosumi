@@ -66,6 +66,21 @@ interface GoogleCampaignSpecBase {
   finalUrl: string;
 }
 
+/** Most sitelinks and callouts a Search campaign has, and the longest texts (Google's limits). */
+export const GOOGLE_MAX_SITELINKS = 8;
+export const GOOGLE_MAX_CALLOUTS = 10;
+export const GOOGLE_MAX_SITELINK_TEXT = 25;
+export const GOOGLE_MAX_SITELINK_DESCRIPTION = 35;
+export const GOOGLE_MAX_CALLOUT_TEXT = 25;
+
+export interface GoogleSitelink {
+  text: string;
+  finalUrl: string;
+  /** Both descriptions or neither. */
+  description1?: string;
+  description2?: string;
+}
+
 export interface GoogleSearchCampaignSpec extends GoogleCampaignSpecBase {
   type: "SEARCH";
   keywords: GoogleKeyword[];
@@ -73,6 +88,8 @@ export interface GoogleSearchCampaignSpec extends GoogleCampaignSpecBase {
   descriptions: string[];
   path1?: string;
   path2?: string;
+  sitelinks?: GoogleSitelink[];
+  callouts?: string[];
 }
 
 /** What a new Google campaign contains beyond its name and budget; one member per campaign type. */

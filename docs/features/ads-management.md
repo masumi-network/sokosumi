@@ -84,7 +84,7 @@ Errors map through the existing Composio error classes (`ComposioConfigError` â†
 
 ## Google campaign builder
 
-Goal: "New campaign" for Google produces a campaign that can run. Still always created **PAUSED**. Search ships first; Display, sitelinks and callouts follow in the stack below.
+Goal: "New campaign" for Google produces a campaign that can run. Still always created **PAUSED**. Search ships first (with sitelinks and callouts); Display follows in the stack below.
 
 ### Gap map (Google Ads UI walk, 2026-10-12)
 
@@ -99,7 +99,7 @@ Goal: "New campaign" for Google produces a campaign that can run. Still always c
 | Start / end dates | Optional |
 | Ad group + keywords | One ad group "Ad group 1"; keywords with BROAD / PHRASE / EXACT |
 | Responsive search ad | Final URL, 2 display paths, 3-15 headlines, 2-4 descriptions |
-| Sitelinks, callouts | Yes (later PR) |
+| Sitelinks, callouts | Yes: optional on Search |
 | Responsive display ad | Yes (later PR), images from Drive |
 | Budget | Daily, unchanged |
 | Audiences, ad schedule, AI Max, page feeds, promotions, prices, calls, lead forms | Out of scope |
@@ -125,6 +125,8 @@ type GoogleCampaignSpec = {            // discriminated on `type`
   headlines: string[];                 // 3-15, each 1-30, unique ignoring case (else 422)
   descriptions: string[];              // 2-4, each 1-90
   path1?: string; path2?: string;      // <= 15; path2 needs path1
+  sitelinks?: { text: string /* 1-25 */; finalUrl: string /* http(s), <= 2048 */; description1?: string; description2?: string /* 1-35, both or neither (else 422) */ }[]; // 0-8, texts unique ignoring case
+  callouts?: string[];                 // 0-10, each 1-25, unique ignoring case
 };
 ```
 
@@ -140,6 +142,7 @@ Keywords repeating another with the same match type (ignoring case) are dropped,
 4. `ad_group_operation`: `Ad group 1`, ENABLED, `SEARCH_STANDARD`.
 5. `ad_group_criterion_operation` per keyword, ENABLED.
 6. `ad_group_ad_operation`: ENABLED, `final_urls`, `responsive_search_ad`.
+7. Sitelinks and callouts (none when omitted): an `asset_operation` per asset (`sitelink_asset` with `final_urls`, or `callout_asset`; temporary ids `-10`, `-11`, â€¦), then a `campaign_asset_operation` per asset (`field_type` `SITELINK` / `CALLOUT`) linking it to the campaign.
 
 The campaign id is the id in the campaign result's resource name (`mutate_operation_responses[].campaign_result`). A `partial_failure_error` or a missing campaign result means nothing was applied (502). Only the campaign is PAUSED; enabling it later makes everything serve.
 

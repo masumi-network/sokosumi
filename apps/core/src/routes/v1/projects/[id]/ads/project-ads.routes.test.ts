@@ -497,6 +497,10 @@ describe("Project ads routes", () => {
       headlines: ["One", "Two", "Three"],
       descriptions: ["First description", "Second description"],
     };
+    const sitelink = (text: string) => ({
+      text,
+      finalUrl: "https://example.com/page",
+    });
     const withGoogle = (changes: Record<string, unknown>) => ({
       name: "Spring",
       dailyBudget: 5,
@@ -553,6 +557,33 @@ describe("Project ads routes", () => {
       expect(m.createCampaign).toHaveBeenCalledWith(
         expect.objectContaining({ name: "Spring" }),
       );
+    });
+
+    it("trims sitelinks and callouts", async () => {
+      await createPost(
+        withGoogle({
+          sitelinks: [
+            {
+              text: " Shoes ",
+              finalUrl: "https://example.com/shoes",
+              description1: " One ",
+              description2: " Two ",
+            },
+          ],
+          callouts: [" Free shipping "],
+        }),
+      );
+      expect(m.createCampaign.mock.calls[0]?.[0].google).toMatchObject({
+        sitelinks: [
+          {
+            text: "Shoes",
+            finalUrl: "https://example.com/shoes",
+            description1: "One",
+            description2: "Two",
+          },
+        ],
+        callouts: ["Free shipping"],
+      });
     });
 
     it("has no status input: a requested status never reaches the service", async () => {
@@ -661,6 +692,48 @@ describe("Project ads routes", () => {
       ["a path over 15 characters", { path1: "a".repeat(16) }],
       ["path2 without path1", { path2: "spring" }],
       [
+        "9 sitelinks",
+        { sitelinks: Array.from({ length: 9 }, (_, i) => sitelink(`S${i}`)) },
+      ],
+      [
+        "a sitelink text over 25 characters",
+        { sitelinks: [sitelink("a".repeat(26))] },
+      ],
+      ["an empty sitelink text", { sitelinks: [sitelink("  ")] }],
+      [
+        "a sitelink without http(s) url",
+        {
+          sitelinks: [{ ...sitelink("Shoes"), finalUrl: "ftp://example.com" }],
+        },
+      ],
+      [
+        "a sitelink description over 35 characters",
+        {
+          sitelinks: [
+            {
+              ...sitelink("Shoes"),
+              description1: "a".repeat(36),
+              description2: "ok",
+            },
+          ],
+        },
+      ],
+      [
+        "only one sitelink description",
+        { sitelinks: [{ ...sitelink("Shoes"), description1: "Light" }] },
+      ],
+      [
+        "duplicate sitelink texts ignoring case",
+        { sitelinks: [sitelink("Shoes"), sitelink("shoes")] },
+      ],
+      [
+        "11 callouts",
+        { callouts: Array.from({ length: 11 }, (_, i) => `C${i}`) },
+      ],
+      ["a callout over 25 characters", { callouts: ["a".repeat(26)] }],
+      ["an empty callout", { callouts: [" "] }],
+      ["duplicate callouts ignoring case", { callouts: ["Free", "free"] }],
+      [
         "26 locations",
         { locationIds: Array.from({ length: 26 }, (_, i) => `${i}`) },
       ],
@@ -685,6 +758,33 @@ describe("Project ads routes", () => {
         { locationIds: Array.from({ length: 25 }, (_, i) => `${i}`) },
       ],
       ["both paths", { path1: "shoes", path2: "spring" }],
+      [
+        "8 sitelinks, with and without descriptions",
+        {
+          sitelinks: [
+            {
+              ...sitelink("S0"),
+              description1: "a".repeat(35),
+              description2: "b",
+            },
+            ...Array.from({ length: 7 }, (_, i) => sitelink(`S${i + 1}`)),
+          ],
+        },
+      ],
+      [
+        "a 25-character sitelink text",
+        { sitelinks: [sitelink("a".repeat(25))] },
+      ],
+      [
+        "10 callouts of up to 25 characters",
+        {
+          callouts: [
+            "a".repeat(25),
+            ...Array.from({ length: 9 }, (_, i) => `C${i}`),
+          ],
+        },
+      ],
+      ["empty sitelinks and callouts", { sitelinks: [], callouts: [] }],
       [
         "an end date equal to the start date",
         { startDate: "2026-11-01", endDate: "2026-11-01" },

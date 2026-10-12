@@ -341,6 +341,8 @@ const BUDGET_NAME_SUFFIX_LENGTH = " budget ".length + 8;
 const BUDGET_TEMP_ID = -1;
 const CAMPAIGN_TEMP_ID = -2;
 const AD_GROUP_TEMP_ID = -3;
+// Sitelink and callout assets count down from here.
+const FIRST_ASSET_TEMP_ID = -10;
 
 /** Drops keywords that repeat another with the same match type, ignoring case. */
 function dedupeGoogleKeywords(
@@ -358,7 +360,8 @@ function dedupeGoogleKeywords(
 /**
  * The operations of a paused Search campaign: budget, campaign (Maximize
  * clicks, Google Search network only), location and language criteria, one
- * ad group with its keywords and one responsive search ad. Each item has
+ * ad group with its keywords and one responsive search ad, then the
+ * sitelink and callout assets with their campaign links. Each item has
  * exactly one operation key, as the tool requires.
  */
 function searchCampaignOperations(
@@ -374,6 +377,29 @@ function searchCampaignOperations(
   const criterion = (target: Record<string, unknown>) => ({
     campaign_criterion_operation: { create: { campaign, ...target } },
   });
+  // Assets first, then their links: a link names its asset's temporary id.
+  const assets = [
+    ...(google.sitelinks ?? []).map(
+      ({ text, finalUrl, description1, description2 }) => ({
+        fieldType: "SITELINK",
+        asset: {
+          final_urls: [finalUrl],
+          sitelink_asset: {
+            link_text: text,
+            ...(description1 && { description1 }),
+            ...(description2 && { description2 }),
+          },
+        },
+      }),
+    ),
+    ...(google.callouts ?? []).map((text) => ({
+      fieldType: "CALLOUT",
+      asset: { callout_asset: { callout_text: text } },
+    })),
+  ].map((item, index) => ({
+    ...item,
+    resourceName: `customers/${customerId}/assets/${FIRST_ASSET_TEMP_ID - index}`,
+  }));
 
   return [
     {
@@ -457,6 +483,14 @@ function searchCampaignOperations(
         },
       },
     },
+    ...assets.map(({ resourceName, asset }) => ({
+      asset_operation: { create: { resource_name: resourceName, ...asset } },
+    })),
+    ...assets.map(({ resourceName, fieldType }) => ({
+      campaign_asset_operation: {
+        create: { campaign, asset: resourceName, field_type: fieldType },
+      },
+    })),
   ];
 }
 
