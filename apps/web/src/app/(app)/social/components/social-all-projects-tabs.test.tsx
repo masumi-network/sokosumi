@@ -18,6 +18,15 @@ vi.mock("./social-accounts-project-prompt", () => ({
   }) => <p>{notice ?? `choose a project for ${kind}`}</p>,
 }));
 
+vi.mock(
+  "@/app/projects/components/social-posts/social-post-statistics",
+  () => ({
+    SocialPostStatistics: ({ workspaceId }: { workspaceId: string }) => (
+      <p>{`workspace performance ${workspaceId}`}</p>
+    ),
+  }),
+);
+
 import { SocialAllProjectsTabs } from "./social-all-projects-tabs";
 
 function renderTabs(searchParams = "", notice?: string) {
@@ -27,6 +36,7 @@ function renderTabs(searchParams = "", notice?: string) {
         actions={<button type="button">New post</button>}
         calendar={<p>Calendar panel</p>}
         notice={notice}
+        workspaceId="workspace-1"
       />
     </NuqsTestingAdapter>,
   );
@@ -39,18 +49,25 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "sections.calendar",
       "sections.drafts",
+      "sections.statistics",
       "sections.accounts",
     ]);
     expect(screen.getByText("Calendar panel")).toBeVisible();
     expect(screen.getByRole("button", { name: "New post" })).toBeVisible();
   });
 
-  it("asks for a project on Drafts and Accounts", async () => {
+  it("asks for a project on Drafts and Accounts, and shows workspace Performance", async () => {
     const user = userEvent.setup();
     renderTabs();
 
     await user.click(screen.getByRole("tab", { name: "sections.drafts" }));
     expect(screen.getByText("choose a project for drafts")).toBeVisible();
+
+    await user.click(screen.getByRole("tab", { name: "sections.statistics" }));
+    expect(screen.getByText("workspace performance workspace-1")).toBeVisible();
+    expect(
+      screen.queryByText("choose a project for statistics"),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "sections.accounts" }));
     expect(screen.getByText("choose a project for accounts")).toBeVisible();
@@ -74,6 +91,24 @@ describe("SocialAllProjectsTabs", () => {
 
     expect(screen.getByText("Calendar panel")).toBeVisible();
     expect(screen.queryByText(/choose a project/)).not.toBeInTheDocument();
+  });
+
+  it("gives tabs 44px phone targets and scrolls from the start", () => {
+    renderTabs();
+
+    const tablist = screen.getByRole("tablist");
+    expect(tablist).toHaveClass(
+      "min-h-11",
+      "flex-1",
+      "min-w-0",
+      "justify-start",
+      "overflow-x-auto",
+    );
+    expect(tablist).not.toHaveClass("md:w-fit");
+    expect(tablist.parentElement).toHaveClass("gap-3");
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab).toHaveClass("min-h-11", "shrink-0");
+    }
   });
 
   it("says a lost project is gone above the calendar", () => {

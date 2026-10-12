@@ -17,18 +17,20 @@ struct MessageAttachmentRunTests {
   }
 
   @Test func textAndMixedAttachmentsKeepTheirOrder() {
-    let document = MessageMarkdown("**Before** " + link("a.png") + " " + link("report.pdf") + " after " + link("b.png"))
+    let document = MessageMarkdown("**Before**\n" + link("a.png") + " " + link("report.pdf") + "\nafter\n" + link("b.png"))
     #expect(document.segments.map { $0.attachments.map(\.filename) } == [[], ["a.png", "report.pdf"], [], ["b.png"]])
     #expect(document.segments.map(\.usesLargeImage) == [false, false, false, true])
     #expect(document.segments.first?.blocks.first?.text.runs.first?.inlinePresentationIntent?.contains(.stronglyEmphasized) == true)
     #expect(!document.clampsLongBody)
   }
 
+  /// A rule between two lone links splits the run. A list or quote marker or a table pipe on a link's line keeps
+  /// that link a link (row 15c), so only a lone link before it is a card.
   @Test func structuralMarkersBreakRuns() {
-    for gap in ["\n- ", "\n> ", "\n\n---\n\n", " | "] {
+    for (gap, runs) in [("\n\n---\n\n", [1, 1]), ("\n- ", [1]), ("\n> ", [1]), (" | ", [])] {
       let document = MessageMarkdown(link("a.png") + gap + link("b.png"))
-      #expect(document.segments.filter { !$0.attachments.isEmpty }.map(\.attachments.count) == [1, 1])
-      #expect(!document.clampsLongBody)
+      #expect(document.segments.filter { !$0.attachments.isEmpty }.map(\.attachments.count) == runs, "\(gap)")
+      #expect(document.clampsLongBody == runs.isEmpty, "\(gap)")
     }
   }
 
@@ -48,7 +50,7 @@ struct MessageAttachmentRunTests {
     let user = Components.Schemas.ChatRoomUserParticipant(id: "peer", name: "Anna", email: "anna@example.com", image: nil, presence: .online)
     let room = Components.Schemas.ChatRoom(id: "room", name: "Room", kind: .direct, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, createdByUserId: "peer", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [user], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: [])
     let channels = [ComposerChannel(id: "launch", name: "Launch", slug: "launch")]
-    let document = MessageMarkdown("@peer:old " + link("a.png") + " #launch", mentions: MessageMentions(room: room), channels: channels)
+    let document = MessageMarkdown("@peer:old\n" + link("a.png") + "\n#launch", mentions: MessageMentions(room: room), channels: channels)
     #expect(document.segments.count == 3)
     #expect(document.segments.first?.blocks.first?.text.runs.first?.link?.scheme == "sokosumi-participant")
     #expect(document.segments.last?.blocks.first?.text.runs.compactMap(\.link).first?.scheme == "sokosumi-channel")
@@ -57,8 +59,8 @@ struct MessageAttachmentRunTests {
   /// Row 31b3 (web `endsWithAttachmentRow`): the newest row keeps the Seen by corner clear when its body's last
   /// segment is a run of files — a picture, a document, media or a mix — whatever text came before it.
   @Test(arguments: [
-    "![photo](https://example.com/photo.png)",
     "[report.pdf](https://example.com/report.pdf)",
+    "Here are the pictures:\n[a.png](https://example.com/a.png) [b.png](https://example.com/b.png)",
     "[a.png](https://example.com/a.png) [b.mp4](https://example.com/b.mp4) [notes.pdf](https://example.com/notes.pdf)",
     "Here are Friday's files.\n\n[a.png](https://example.com/a.png)",
     "[a.png](https://example.com/a.png)\n\n  \n\n"

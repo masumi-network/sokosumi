@@ -204,7 +204,7 @@ export default function DownloadButton({
           className={cn("text-muted-foreground", className)}
           title={t("download")}
         >
-          <Download className="h-4 w-4" />
+          <Download className="size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">

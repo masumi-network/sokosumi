@@ -9,7 +9,9 @@ const inviteOrganizationMemberViaCoreMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
 const headersMock = vi.fn();
-const setMyPreferredOrganizationMock = vi.fn();
+const getMyWorkspacesMock = vi.fn();
+const setMyPreferredWorkspaceMock = vi.fn();
+const createMyWorkspaceMock = vi.fn();
 
 class MockCoreApiRequestError extends Error {
   kind?: string;
@@ -26,9 +28,17 @@ class MockCoreApiRequestError extends Error {
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: MockCoreApiRequestError,
   coreClient: {
-    setMyPreferredOrganization: (...args: unknown[]) =>
-      setMyPreferredOrganizationMock(...args),
+    createMyWorkspace: (...args: unknown[]) => createMyWorkspaceMock(...args),
+    getMyWorkspaces: (...args: unknown[]) => getMyWorkspacesMock(...args),
+    setMyPreferredWorkspace: (...args: unknown[]) =>
+      setMyPreferredWorkspaceMock(...args),
   },
+}));
+
+const readRouteSessionMock = vi.fn();
+
+vi.mock("@/lib/auth/route-session", () => ({
+  readRouteSession: () => readRouteSessionMock(),
 }));
 
 vi.mock("@/middleware/auth-middleware", () => ({
@@ -263,14 +273,25 @@ describe("organization actions", () => {
   });
 });
 
+const WORKSPACES = {
+  data: {
+    workspaces: [
+      { id: "ws-personal", kind: "personal", organizationId: null },
+      { id: "ws-org-1", kind: "organization", organizationId: "org-1" },
+    ],
+    pendingInvitationCount: 0,
+  },
+};
+
 describe("updatePreferredOrganization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getMyWorkspacesMock.mockResolvedValue(WORKSPACES);
   });
 
-  it("sets the preferred organization via Core", async () => {
-    setMyPreferredOrganizationMock.mockResolvedValue({
-      data: { organizationId: "org-1" },
+  it("prefers the organization's workspace via Core", async () => {
+    setMyPreferredWorkspaceMock.mockResolvedValue({
+      data: { id: "ws-org-1", organizationId: "org-1" },
     });
     const { updatePreferredOrganization } = await import("./action");
 
@@ -283,7 +304,7 @@ describe("updatePreferredOrganization", () => {
       ok: true,
       value: { organizationId: "org-1" },
     });
-    expect(setMyPreferredOrganizationMock).toHaveBeenCalledWith("org-1");
+    expect(setMyPreferredWorkspaceMock).toHaveBeenCalledWith("ws-org-1");
     expect(invalidatePrivateSidebarChromeMock).toHaveBeenCalledWith({
       userId: "user-1",
       organizationId: "org-1",
@@ -291,9 +312,9 @@ describe("updatePreferredOrganization", () => {
     });
   });
 
-  it("clears the preferred organization when null is provided", async () => {
-    setMyPreferredOrganizationMock.mockResolvedValue({
-      data: { organizationId: null },
+  it("prefers the personal workspace when null is provided", async () => {
+    setMyPreferredWorkspaceMock.mockResolvedValue({
+      data: { id: "ws-personal", organizationId: null },
     });
     const { updatePreferredOrganization } = await import("./action");
 
@@ -306,20 +327,14 @@ describe("updatePreferredOrganization", () => {
       ok: true,
       value: { organizationId: null },
     });
-    expect(setMyPreferredOrganizationMock).toHaveBeenCalledWith(null);
+    expect(setMyPreferredWorkspaceMock).toHaveBeenCalledWith("ws-personal");
   });
 
-  it("maps the organization_membership_required kind to UNAUTHORIZED", async () => {
-    setMyPreferredOrganizationMock.mockRejectedValue(
-      new MockCoreApiRequestError("Membership check failed", {
-        kind: "organization_membership_required",
-        status: 403,
-      }),
-    );
+  it("refuses an organization the person is not a member of", async () => {
     const { updatePreferredOrganization } = await import("./action");
 
     const result = await updatePreferredOrganization({
-      organizationId: "org-1",
+      organizationId: "org-other",
       session,
     });
 
@@ -330,10 +345,72 @@ describe("updatePreferredOrganization", () => {
         message: "You are not a member of this organization",
       },
     });
+    expect(setMyPreferredWorkspaceMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "the membership ended",
+      new MockCoreApiRequestError("Membership check failed", {
+        kind: "organization_membership_required",
+        status: 403,
+      }),
+    ],
+    [
+      "the organization is gone",
+      new MockCoreApiRequestError("Workspace not found", { status: 404 }),
+    ],
+  ])("refuses when %s before Core saved it", async (_label, failure) => {
+    setMyPreferredWorkspaceMock.mockRejectedValue(failure);
+    const { updatePreferredOrganization } = await import("./action");
+
+    const result = await updatePreferredOrganization({
+      organizationId: "org-1",
+      session,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "UNAUTHORIZED" },
+    });
+  });
+
+  it("says the personal workspace is gone when Core no longer finds it", async () => {
+    setMyPreferredWorkspaceMock.mockRejectedValue(
+      new MockCoreApiRequestError("Workspace not found", { status: 404 }),
+    );
+    const { updatePreferredOrganization } = await import("./action");
+
+    const result = await updatePreferredOrganization({
+      organizationId: null,
+      session,
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+  });
+
+  it("says when there is no personal workspace to prefer", async () => {
+    getMyWorkspacesMock.mockResolvedValue({
+      data: {
+        workspaces: [
+          { id: "ws-org-1", kind: "organization", organizationId: "org-1" },
+        ],
+        pendingInvitationCount: 0,
+      },
+    });
+    const { updatePreferredOrganization } = await import("./action");
+
+    const result = await updatePreferredOrganization({
+      organizationId: null,
+      session,
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+    expect(setMyPreferredWorkspaceMock).not.toHaveBeenCalled();
   });
 
   it("rethrows unexpected Core errors", async () => {
-    setMyPreferredOrganizationMock.mockRejectedValue(
+    setMyPreferredWorkspaceMock.mockRejectedValue(
       new MockCoreApiRequestError("Internal Server Error", { status: 500 }),
     );
     const { updatePreferredOrganization } = await import("./action");
@@ -344,5 +421,130 @@ describe("updatePreferredOrganization", () => {
         session,
       }),
     ).rejects.toThrow("Internal Server Error");
+  });
+});
+
+describe("createOrganizationWorkspaceAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    readRouteSessionMock.mockResolvedValue({
+      status: "authenticated",
+      session,
+    });
+  });
+
+  it("returns UNAUTHENTICATED for a signed-out person without asking Core", async () => {
+    readRouteSessionMock.mockResolvedValue({ status: "signedOut" });
+    const { createOrganizationWorkspaceAction } = await import("./action");
+
+    const result = await createOrganizationWorkspaceAction({
+      name: "Acme",
+      websiteUrl: "https://acme.com",
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "UNAUTHENTICATED" },
+    });
+    expect(createMyWorkspaceMock).not.toHaveBeenCalled();
+  });
+
+  it("creates the organization through Core's workspaces resource", async () => {
+    createMyWorkspaceMock.mockResolvedValue({
+      data: { id: "ws-org-1", kind: "organization", organizationId: "org-1" },
+    });
+    const { createOrganizationWorkspaceAction } = await import("./action");
+
+    const result = await createOrganizationWorkspaceAction({
+      name: "Acme",
+      websiteUrl: "https://acme.com",
+    });
+
+    expect(result).toEqual({ ok: true, value: { organizationId: "org-1" } });
+    expect(createMyWorkspaceMock).toHaveBeenCalledWith({
+      kind: "organization",
+      name: "Acme",
+      websiteUrl: "https://acme.com",
+    });
+  });
+
+  it.each([
+    [401, "UNAUTHENTICATED"],
+    [403, "ORGANIZATION_LIMIT_REACHED"],
+    [400, "BAD_INPUT"],
+    [422, "BAD_INPUT"],
+  ])("maps Core %i to %s with Core's message", async (status, code) => {
+    createMyWorkspaceMock.mockRejectedValue(
+      new MockCoreApiRequestError("Core refused", { status }),
+    );
+    const { createOrganizationWorkspaceAction } = await import("./action");
+
+    const result = await createOrganizationWorkspaceAction({
+      name: "Acme",
+      websiteUrl: "https://acme.com",
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code, message: "Core refused" },
+    });
+  });
+
+  it.each(["A", "A".repeat(51)])(
+    "rejects a name Core would refuse (%s) without asking Core",
+    async (name) => {
+      const { createOrganizationWorkspaceAction } = await import("./action");
+
+      const result = await createOrganizationWorkspaceAction({
+        name,
+        websiteUrl: "https://acme.com",
+      });
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: "BAD_INPUT" },
+      });
+      expect(createMyWorkspaceMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["", "not a website"])(
+    "rejects a website Core would refuse (%j) without asking Core",
+    async (websiteUrl) => {
+      const { createOrganizationWorkspaceAction } = await import("./action");
+
+      const result = await createOrganizationWorkspaceAction({
+        name: "Acme",
+        websiteUrl,
+      });
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: "BAD_INPUT" },
+      });
+      expect(createMyWorkspaceMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("maps other failures to INTERNAL_SERVER_ERROR", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    createMyWorkspaceMock.mockRejectedValue(new Error("fetch failed"));
+    const { createOrganizationWorkspaceAction } = await import("./action");
+
+    try {
+      const result = await createOrganizationWorkspaceAction({
+        name: "Acme",
+        websiteUrl: "https://acme.com",
+      });
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: "INTERNAL_SERVER_ERROR" },
+      });
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });

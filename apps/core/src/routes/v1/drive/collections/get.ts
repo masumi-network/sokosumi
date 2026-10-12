@@ -4,7 +4,10 @@ import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import { fileCollectionSchema } from "@/schemas/file-resource.schema";
 
@@ -13,22 +16,24 @@ const querySchema = z.object({
   organizationId: z.string().optional(),
 });
 
-const route = createRoute({
-  method: "get",
-  path: "/",
-  description: [
-    "Saved views: the reader's own collections plus any shared in this workspace.",
-    "A collection is a filter definition, never a stored result set — each",
-    "reader sees their own authorized subset and no count is cached.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: { query: querySchema },
-  responses: {
-    200: jsonSuccessResponse(z.array(fileCollectionSchema), "Collections"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-  },
-});
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/",
+    description: [
+      "Saved views: the reader's own collections plus any shared in this workspace.",
+      "A collection is a filter definition, never a stored result set — each",
+      "reader sees their own authorized subset and no count is cached.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: { query: querySchema },
+    responses: {
+      200: jsonSuccessResponse(z.array(fileCollectionSchema), "Collections"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

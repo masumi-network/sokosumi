@@ -50,6 +50,12 @@ public struct SokoBotTurnMetadata: Equatable, Sendable {
     !pendingDecisionIds.isEmpty || !taskIds.isEmpty
   }
 
+  /// Web `SokoBotMessageFooter`'s `previewedTaskIds`: a Task whose result card already shows drops its small
+  /// Task button (row 38e1).
+  public func footerTaskIds(excluding previewed: Set<String>) -> [String] {
+    taskIds.filter { !previewed.contains($0) }
+  }
+
   /// The assistant page filtered to this turn (`/personal-assistant?turn=`),
   /// where the pending approvals are resolved. Opens on web.
   public func assistantURL(webBaseURL: URL) -> URL? {
@@ -61,17 +67,14 @@ public struct SokoBotTurnMetadata: Equatable, Sendable {
 
   /// A Task the turn created (`/tasks/{id}`). Opens on web.
   public static func taskURL(taskId: String, webBaseURL: URL) -> URL? {
-    guard var components = URLComponents(url: webBaseURL, resolvingAgainstBaseURL: false),
-          let encoded = taskId.addingPercentEncoding(withAllowedCharacters: uriComponentAllowed) else { return nil }
-    components.percentEncodedPath = basePath(components) + "/tasks/" + encoded
-    components.queryItems = nil
-    return components.url
+    guard let encoded = taskId.addingPercentEncoding(withAllowedCharacters: uriComponentAllowed) else { return nil }
+    return MessageResultPreviews.webURL(forLocalHref: "/tasks/" + encoded, webBaseURL: webBaseURL)
   }
 
   /// JavaScript `encodeURIComponent`: alphanumerics plus `-_.!~*'()`.
   private static let uriComponentAllowed = CharacterSet.alphanumerics.union(.init(charactersIn: "-_.!~*'()"))
 
-  private static func basePath(_ components: URLComponents) -> String {
+  static func basePath(_ components: URLComponents) -> String {
     let path = components.percentEncodedPath
     return path.hasSuffix("/") ? String(path.dropLast()) : path
   }

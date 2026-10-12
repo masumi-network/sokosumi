@@ -30,7 +30,10 @@ import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
 import {
   driveRecentsListSchema,
@@ -38,29 +41,31 @@ import {
 } from "@/schemas/drive-recents.schema";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 
-const route = createRoute({
-  method: "get",
-  path: "/",
-  description: [
-    "List recent Drive files and task/agent outputs for the active workspace.",
-    "Returns a flat, activity-sorted file list (newest first) with cursor pagination.",
-    "Mixes Drive blob uploads at any folder depth with READY TASK_OUTPUT TaskFiles.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    query: driveRecentsQuerySchema,
-  },
-  responses: {
-    200: jsonPaginatedSuccessResponse(
-      driveRecentsListSchema,
-      "Drive recents retrieved",
-    ),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    503: jsonErrorResponse("Service Unavailable"),
-  },
-});
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/",
+    description: [
+      "List recent Drive files and task/agent outputs for the active workspace.",
+      "Returns a flat, activity-sorted file list (newest first) with cursor pagination.",
+      "Mixes Drive blob uploads at any folder depth with READY TASK_OUTPUT TaskFiles.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      query: driveRecentsQuerySchema,
+    },
+    responses: {
+      200: jsonPaginatedSuccessResponse(
+        driveRecentsListSchema,
+        "Drive recents retrieved",
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

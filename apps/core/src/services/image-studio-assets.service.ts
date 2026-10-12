@@ -1,10 +1,13 @@
-import { ProjectImageJobStatus } from "@sokosumi/database";
+import { type Prisma, ProjectImageJobStatus } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { get } from "@vercel/blob";
 
 import { internalServerError, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
-import { requireProjectAccess } from "@/lib/image-studio/access";
+import {
+  requireProjectAccess,
+  requireWorkspaceAccess,
+} from "@/lib/image-studio/access";
 import { requireStudioBlobToken } from "@/lib/image-studio/blob-store";
 import {
   type ImageJobFailureReason,
@@ -27,6 +30,9 @@ import {
 
 export interface AssetView {
   id: string;
+  projectId: string;
+  /** Named on the row so a workspace-wide gallery can say where each image lives. */
+  projectName: string;
   settings: unknown;
   rootId: string;
   parentId: string | null;
@@ -43,6 +49,8 @@ export interface AssetView {
 
 const assetSelect = {
   id: true,
+  projectId: true,
+  project: { select: { name: true } },
   settings: true,
   rootId: true,
   parentId: true,
@@ -57,6 +65,36 @@ const assetSelect = {
   jobId: true,
 } as const;
 
+function toAssetView({
+  project,
+  ...asset
+}: Prisma.ProjectImageAssetGetPayload<{
+  select: typeof assetSelect;
+}>): AssetView {
+  return { ...asset, projectName: project.name };
+}
+
+/**
+ * Where a listing reads from: one project, or every project in the workspace.
+ *
+ * `projectId: null` is the workspace-wide view. Access is re-derived either
+ * way; membership of the workspace is what grants every project in it.
+ */
+interface ListScope {
+  projectId: string | null;
+  workspaceId: string;
+  userId: string;
+}
+
+async function scopeWhere(scope: ListScope) {
+  if (scope.projectId === null) {
+    await requireWorkspaceAccess(scope);
+    return { project: { workspaceId: scope.workspaceId } };
+  }
+  await requireProjectAccess({ ...scope, projectId: scope.projectId });
+  return { projectId: scope.projectId };
+}
+
 /**
  * A page of versions, newest first, plus any version the caller is looking at.
  *
@@ -65,20 +103,19 @@ const assetSelect = {
  * the selected version was not in the newest page. It is fetched by id
  * regardless of age and merged in.
  */
-export async function listAssets(options: {
-  projectId: string;
-  workspaceId: string;
-  userId: string;
-  limit: number;
-  /** Return versions older than this cursor instead of the newest page. */
-  before?: { createdAt: Date; id: string };
-  /** Always include this version, whatever its age. */
-  pinnedAssetId?: string;
-}): Promise<{
+export async function listAssets(
+  options: ListScope & {
+    limit: number;
+    /** Return versions older than this cursor instead of the newest page. */
+    before?: { createdAt: Date; id: string };
+    /** Always include this version, whatever its age. */
+    pinnedAssetId?: string;
+  },
+): Promise<{
   assets: AssetView[];
   nextCursor: { createdAt: Date; id: string } | null;
 }> {
-  await requireProjectAccess(options);
+  const where = await scopeWhere(options);
 
   // Ordered by `(createdAt, id)`, not `createdAt` alone. Two versions settled
   // in the same millisecond are not rare — a webhook and a poll finishing
@@ -86,7 +123,7 @@ export async function listAssets(options: {
   // `<` steps over every tie.
   const page = await prisma.projectImageAsset.findMany({
     where: {
-      projectId: options.projectId,
+      ...where,
       ...(options.before
         ? {
             OR: [
@@ -105,7 +142,9 @@ export async function listAssets(options: {
   });
 
   const hasMore = page.length > options.limit;
-  const assets = hasMore ? page.slice(0, options.limit) : page;
+  const assets = (hasMore ? page.slice(0, options.limit) : page).map(
+    toAssetView,
+  );
 
   // Taken from the page itself, before anything is appended. Reading it after
   // appending the pinned version made the next page start just past that
@@ -119,12 +158,12 @@ export async function listAssets(options: {
     !assets.some((asset) => asset.id === options.pinnedAssetId)
   ) {
     const pinned = await prisma.projectImageAsset.findFirst({
-      where: { id: options.pinnedAssetId, projectId: options.projectId },
+      where: { id: options.pinnedAssetId, ...where },
       select: assetSelect,
     });
     // Appended out of order on purpose: it is not part of this page, it is the
     // version the caller is looking at. The client keys off ids.
-    if (pinned) assets.push(pinned);
+    if (pinned) assets.push(toAssetView(pinned));
   }
 
   return { assets, nextCursor };
@@ -142,7 +181,7 @@ export async function getAsset(options: {
     select: assetSelect,
   });
   if (!asset) throw notFound("Image not found");
-  return asset;
+  return toAssetView(asset);
 }
 
 /**
@@ -220,6 +259,7 @@ export async function readAssetBytes(
 
 export interface JobView {
   id: string;
+  projectId: string;
   status: ProjectImageJobStatus;
   kind: string;
   model: string;
@@ -271,6 +311,7 @@ export async function getJob(options: {
     where: { id: options.jobId, projectId: options.projectId },
     select: {
       id: true,
+      projectId: true,
       status: true,
       kind: true,
       model: true,
@@ -292,19 +333,17 @@ export async function getJob(options: {
   return job ? toJobView(job) : null;
 }
 
-export async function listJobs(options: {
-  projectId: string;
-  workspaceId: string;
-  userId: string;
-  limit: number;
-}): Promise<JobView[]> {
-  await requireProjectAccess(options);
+export async function listJobs(
+  options: ListScope & { limit: number },
+): Promise<JobView[]> {
+  const where = await scopeWhere(options);
   const jobs = await prisma.projectImageJob.findMany({
-    where: { projectId: options.projectId },
+    where,
     orderBy: { createdAt: "desc" },
     take: options.limit,
     select: {
       id: true,
+      projectId: true,
       status: true,
       kind: true,
       model: true,
@@ -328,6 +367,7 @@ export async function listJobs(options: {
 
 function toJobView(job: {
   id: string;
+  projectId: string;
   status: ProjectImageJobStatus;
   kind: string;
   model: string;
@@ -347,6 +387,7 @@ function toJobView(job: {
 }): JobView {
   return {
     id: job.id,
+    projectId: job.projectId,
     status: job.status,
     kind: job.kind,
     model: job.model,

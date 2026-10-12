@@ -3,7 +3,7 @@
 import type { ProjectSocialConnection } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
-  Loader2,
+  Link2,
   MoreHorizontal,
   Plus,
   RefreshCw,
@@ -11,16 +11,10 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ComponentType, useRef, useState } from "react";
-import { SiX } from "react-icons/si";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  FacebookIcon,
-  InstagramIcon,
-  LinkedInIcon,
-  TikTokIcon,
-  YouTubeIcon,
-} from "@/components/social-icons";
+import { EmptyState } from "@/components/common/empty-state";
+import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,21 +62,6 @@ interface Feedback {
 
 type OAuthAction = "connect" | "reconnect" | "replace";
 
-const SOCIAL_PROVIDERS = [
-  { id: "x", name: "X", Icon: SiX },
-  // Not offered yet: publishing needs TikTok's app review first.
-  { id: "tiktok", name: "TikTok", Icon: TikTokIcon, comingSoon: true },
-  { id: "instagram", name: "Instagram", Icon: InstagramIcon },
-  { id: "linkedin", name: "LinkedIn", Icon: LinkedInIcon },
-  { id: "facebook", name: "Facebook", Icon: FacebookIcon },
-  { id: "youtube", name: "YouTube", Icon: YouTubeIcon },
-] as const satisfies readonly {
-  id: ProjectSocialConnection["provider"];
-  name: string;
-  Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-  comingSoon?: boolean;
-}[];
-
 const STATUS_TRANSLATION_KEYS: Record<
   ProjectSocialConnection["status"],
   | "status.active"
@@ -105,6 +84,45 @@ function formatHandle(
   return handle.startsWith("@") ? handle : `@${handle}`;
 }
 
+function normalizeAccountLabel(value: string): string {
+  return value.trim().replace(/^@+/, "").toLowerCase();
+}
+
+function accountLabels(
+  connection: ProjectSocialConnection,
+  formattedHandle: string,
+): { primary: string; secondaryHandle: string | null } {
+  const displayName = connection.displayName?.trim() ?? "";
+  if (!displayName) {
+    return { primary: formattedHandle, secondaryHandle: null };
+  }
+
+  const rawHandle = connection.externalHandle?.trim() ?? "";
+  if (
+    normalizeAccountLabel(displayName) === normalizeAccountLabel(rawHandle) ||
+    normalizeAccountLabel(displayName) ===
+      normalizeAccountLabel(formattedHandle)
+  ) {
+    return { primary: formattedHandle, secondaryHandle: null };
+  }
+
+  return {
+    primary: displayName,
+    secondaryHandle: rawHandle ? formattedHandle : null,
+  };
+}
+
+function accountName(
+  connection: ProjectSocialConnection,
+  unknownHandle: string,
+): string {
+  return accountLabels(
+    connection,
+    formatHandle(connection.externalHandle, connection.provider) ??
+      unknownHandle,
+  ).primary;
+}
+
 function isExpiredIntentError(error: ActionError): boolean {
   return error.message?.toLowerCase().includes("unknown or expired") ?? false;
 }
@@ -122,7 +140,7 @@ export function ProjectSocialAccounts({
   // dialog closes, so focus goes back to that row's menu trigger by hand.
   const actionTriggersRef = useRef(new Map<string, HTMLButtonElement>());
   const confirmationTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const headingRef = useRef<HTMLElement | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   // The provider being connected, or the connection being changed.
   const [pendingTarget, setPendingTarget] = useState<string | null>(null);
@@ -218,7 +236,12 @@ export function ProjectSocialAccounts({
     }
 
     if (outcome.kind === "connected") {
-      showFeedback({ kind: "success", message: t("success.connected") });
+      showFeedback({
+        kind: "success",
+        message: t("success.connected", {
+          account: accountName(outcome.value, t("unknownHandle")),
+        }),
+      });
     } else if (outcome.kind === "timeout") {
       showFeedback({ kind: "error", message: t("errors.timeout") });
     } else if (outcome.kind === "failed") {
@@ -276,7 +299,12 @@ export function ProjectSocialAccounts({
         return;
       }
 
-      showFeedback({ kind: "success", message: t("success.disconnected") });
+      showFeedback({
+        kind: "success",
+        message: t("success.disconnected", {
+          account: accountName(connection, t("unknownHandle")),
+        }),
+      });
       if (result.value.providerRevocation === "failed") {
         showFeedback({
           kind: "warning",
@@ -314,44 +342,42 @@ export function ProjectSocialAccounts({
   }
 
   const confirmationIsDisconnect = pendingConfirmation?.action === "disconnect";
+  const listedConnections = connections.filter(
+    (connection) => connection.status !== "disconnected",
+  );
+  const confirmationAccount = pendingConfirmation
+    ? accountLabels(
+        pendingConfirmation.connection,
+        formatHandle(
+          pendingConfirmation.connection.externalHandle,
+          pendingConfirmation.connection.provider,
+        ) ?? t("unknownHandle"),
+      ).primary
+    : "";
 
   return (
     <section
-      aria-labelledby="social-accounts-heading"
+      ref={headingRef}
+      tabIndex={-1}
+      aria-label={t("title")}
       className="space-y-4"
       data-testid="project-social-accounts"
       id="social-accounts"
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h2
-            id="social-accounts-heading"
-            ref={headingRef}
-            tabIndex={-1}
-            className="text-base font-semibold"
-          >
-            {t("title")}
-          </h2>
-          <p className="text-muted-foreground text-sm">{t("description")}</p>
-        </div>
+      <div className="flex items-center justify-end">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          {/* Disabled on the trigger, not the button: a loading button drops
+              native `disabled`, and only the trigger's own flag stops Radix
+              from opening the menu. */}
+          <DropdownMenuTrigger asChild disabled={isBusy}>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="shrink-0"
-              disabled={isBusy}
-              aria-busy={pendingAction === "connect"}
+              className="h-11 shrink-0 md:h-8"
+              loading={pendingAction === "connect"}
             >
-              {pendingAction === "connect" ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : (
-                <Plus className="size-4" aria-hidden />
-              )}
+              <Plus className="size-4" aria-hidden />
               {t("connectAccount")}
             </Button>
           </DropdownMenuTrigger>
@@ -362,6 +388,7 @@ export function ProjectSocialAccounts({
               return (
                 <DropdownMenuItem
                   key={id}
+                  className="min-h-11"
                   aria-label={
                     comingSoon
                       ? t("connectComingSoon", { provider: name })
@@ -404,16 +431,21 @@ export function ProjectSocialAccounts({
         </p>
       ) : null}
 
-      {connections.length > 0 ? (
+      {listedConnections.length > 0 ? (
         <ul className="divide-y rounded-lg border">
-          {connections.map((connection) => {
+          {listedConnections.map((connection) => {
             const provider = SOCIAL_PROVIDERS.find(
               ({ id }) => id === connection.provider,
             );
             const providerName = provider?.name ?? connection.provider;
-            const handle =
-              formatHandle(connection.externalHandle, connection.provider) ??
-              t("unknownHandle");
+            const formattedHandle = formatHandle(
+              connection.externalHandle,
+              connection.provider,
+            );
+            const { primary, secondaryHandle } = accountLabels(
+              connection,
+              formattedHandle ?? t("unknownHandle"),
+            );
             const canReconnect =
               connection.status === "reauthorization_required";
             const canReplace = connection.status === "active" || canReconnect;
@@ -438,8 +470,9 @@ export function ProjectSocialAccounts({
                   )}
                 </span>
                 <div className="min-w-40 flex-1">
-                  <p className="truncate text-sm font-medium">{handle}</p>
+                  <p className="truncate text-sm font-medium">{primary}</p>
                   <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
+                    {secondaryHandle ? <span>{secondaryHandle}</span> : null}
                     <span>{t("account", { provider: providerName })}</span>
                     <span
                       className={cn(
@@ -470,25 +503,20 @@ export function ProjectSocialAccounts({
                       type="button"
                       variant="outline"
                       size="sm"
+                      className="h-11 md:h-8"
                       disabled={isBusy}
+                      loading={isRowPending && pendingAction === "reconnect"}
                       onClick={() => {
                         void startOAuth("reconnect", connection.id);
                       }}
                     >
-                      {isRowPending && pendingAction === "reconnect" ? (
-                        <Loader2
-                          className="size-4 animate-spin motion-reduce:animate-pulse"
-                          aria-hidden
-                        />
-                      ) : (
-                        <RefreshCw className="size-4" aria-hidden />
-                      )}
+                      <RefreshCw className="size-4" aria-hidden />
                       {t("reconnect")}
                     </Button>
                   ) : null}
                   {canDisconnect ? (
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenuTrigger asChild disabled={isBusy}>
                         <Button
                           ref={(node) => {
                             if (node) {
@@ -503,23 +531,18 @@ export function ProjectSocialAccounts({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          disabled={isBusy}
-                          aria-busy={isRowPending}
-                          aria-label={t("actions", { account: handle })}
+                          loading={
+                            isRowPending && pendingAction !== "reconnect"
+                          }
+                          aria-label={t("actions", { account: primary })}
                         >
-                          {isRowPending && pendingAction !== "reconnect" ? (
-                            <Loader2
-                              className="size-4 animate-spin motion-reduce:animate-pulse"
-                              aria-hidden
-                            />
-                          ) : (
-                            <MoreHorizontal className="size-4" aria-hidden />
-                          )}
+                          <MoreHorizontal className="size-4" aria-hidden />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         {canReplace ? (
                           <DropdownMenuItem
+                            className="min-h-11"
                             onSelect={() => {
                               requestConfirmation("replace", connection);
                             }}
@@ -528,6 +551,7 @@ export function ProjectSocialAccounts({
                           </DropdownMenuItem>
                         ) : null}
                         <DropdownMenuItem
+                          className="min-h-11"
                           variant="destructive"
                           onSelect={() => {
                             requestConfirmation("disconnect", connection);
@@ -543,7 +567,15 @@ export function ProjectSocialAccounts({
             );
           })}
         </ul>
-      ) : null}
+      ) : (
+        <div data-testid="project-social-accounts-empty">
+          <EmptyState
+            description={t("emptyHint")}
+            icon={Link2}
+            title={t("empty")}
+          />
+        </div>
+      )}
 
       <AlertDialog
         open={pendingConfirmation !== null}
@@ -555,7 +587,10 @@ export function ProjectSocialAccounts({
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             const trigger = confirmationTriggerRef.current;
-            (trigger?.isConnected && !trigger.disabled
+            // A loading trigger is aria-disabled, not natively disabled.
+            (trigger?.isConnected &&
+            !trigger.disabled &&
+            trigger.getAttribute("aria-disabled") !== "true"
               ? trigger
               : headingRef.current
             )?.focus();
@@ -564,8 +599,8 @@ export function ProjectSocialAccounts({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {confirmationIsDisconnect
-                ? t("disconnectDialog.title")
-                : t("replaceDialog.title")}
+                ? t("disconnectDialog.title", { account: confirmationAccount })
+                : t("replaceDialog.title", { account: confirmationAccount })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmationIsDisconnect
@@ -577,11 +612,15 @@ export function ProjectSocialAccounts({
             <AlertDialogCancel disabled={isBusy}>
               {t("cancel")}
             </AlertDialogCancel>
-            <AlertDialogAction disabled={isBusy} onClick={handleConfirmation}>
+            <AlertDialogAction
+              disabled={isBusy}
+              loading={
+                confirmationIsDisconnect && pendingAction === "disconnect"
+              }
+              onClick={handleConfirmation}
+            >
               {confirmationIsDisconnect
-                ? pendingAction === "disconnect"
-                  ? t("disconnecting")
-                  : t("disconnectDialog.confirm")
+                ? t("disconnectDialog.confirm")
                 : t("replaceDialog.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>

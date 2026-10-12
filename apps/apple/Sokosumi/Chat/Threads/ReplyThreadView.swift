@@ -5,6 +5,11 @@ import SokosumiWorkspace
 import SwiftUI
 
 #if os(macOS)
+  private func threadPreparationScope(_ workspaces: WorkspaceState) -> [String] {
+    [workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "",
+     workspaces.thread.parent?.id ?? "", String(workspaces.thread.timeline.generation)]
+  }
+
   struct ReplyThreadView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @State private var preparedTranscript: PreparedTranscript?
@@ -13,7 +18,7 @@ import SwiftUI
 
     private var preparationInput: PreparedTranscript.Input {
       let room = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
-      return .init(scope: [workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "", workspaces.thread.parent?.id ?? "", String(workspaces.thread.timeline.generation)],
+      return .init(scope: threadPreparationScope(workspaces),
                    messages: (workspaces.displayedThreadParent.map { [$0] } ?? []) + workspaces.displayedThreadReplies,
                    mentions: room.map(MessageMentions.init), channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
     }
@@ -39,9 +44,10 @@ import SwiftUI
     }
   }
 
-  private struct ReplyThreadContent: View {
+  struct ReplyThreadContent: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
+    @Environment(\.jumpMarkClock) private var jumpMarkClock
     let messages: [Components.Schemas.ChatRoomMessage]
     let preparedTranscript: PreparedTranscript?
     let preparationScope: [String]
@@ -56,7 +62,7 @@ import SwiftUI
     @State private var scrollIntent = TimelineScrollIntent()
     @State private var olderBoundaryVisible = false
     @State private var visibleMessageID: String?
-    @State private var userIsScrolling = false
+    @State private var scrollActivity = TranscriptScrollActivity()
     @State private var pendingBottomAlignment = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     @State private var jumpError: String?
@@ -80,6 +86,22 @@ import SwiftUI
     private func sokoBotFeedbackAction(for message: Components.Schemas.ChatRoomMessage) -> ((Bool) async throws -> Void)? {
       guard let turnId = SokoBotFeedback.turnId(for: message) else { return nil }
       return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful, auth: auth) }
+    }
+
+    /// Row 38e1: the Thread's rows read their result cards as the room's do.
+    private func resultPreviewsAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> [Components.Schemas.ChatResultPreview])? {
+      guard !MessageResultPreviews.descriptorIds(of: message).isEmpty else { return nil }
+      return { try await workspaces.messageResultPreviews(message, auth: auth) }
+    }
+
+    /// Row 38h1: a question asked in the Thread is answered in the Thread.
+    private func selectProjectAction(for message: Components.Schemas.ChatRoomMessage) -> (String, String) async throws -> Void {
+      { previewId, projectId in try await workspaces.selectProject(projectId, preview: previewId, question: message, auth: auth) }
+    }
+
+    /// Row 38h2: a decision card in the Thread resolves like the room's.
+    private var resolveDecisionAction: (String, SokoBotDecision.Resolution) async throws -> Void {
+      { decisionId, resolution in try await workspaces.resolveSokoBotDecision(decisionId, resolution, auth: auth) }
     }
 
     private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
@@ -106,6 +128,10 @@ import SwiftUI
       }
     }
 
+    private var userIsScrolling: Bool {
+      scrollActivity.isScrolling
+    }
+
     var body: some View {
       content
         .alert("Couldn’t load message", isPresented: Binding(get: { jumpError != nil }, set: {
@@ -119,13 +145,14 @@ import SwiftUI
           scrollIntent = TimelineScrollIntent()
           olderBoundaryVisible = false
           visibleMessageID = nil
-          userIsScrolling = false
+          scrollActivity.update(for: .idle)
           pendingBottomAlignment = false
         }
     }
 
     @ViewBuilder private var content: some View {
-      if let parent = messages.first {
+      if preparationScope == threadPreparationScope(workspaces),
+         let parent = messages.first {
         let jumpTarget = readyJump(in: messages)
         let currentRoom = room
         let channels = workspaces.composerChannels
@@ -142,7 +169,10 @@ import SwiftUI
                              onQuoteJump: jumpToQuote,
                              onSendToSelf: sendToSelfAction(for: parent),
                              sokoBotFeedback: workspaces.sokoBotFeedback(for: parent),
-                             onSokoBotFeedback: sokoBotFeedbackAction(for: parent))
+                             onSokoBotFeedback: sokoBotFeedbackAction(for: parent),
+                             loadResultPreviews: resultPreviewsAction(for: parent),
+                             selectProject: selectProjectAction(for: parent),
+                             resolveDecision: resolveDecisionAction)
                 .jumpSpotlightRow(messageId: parent.id)
                 .id(parent.id)
               Divider()
@@ -171,6 +201,7 @@ import SwiftUI
               Color.clear.frame(height: 17).id("thread-bottom")
             }
             .scrollTargetLayout()
+            .environment(\.transcriptScrollActivity, scrollActivity)
             .padding(.horizontal)
             .padding(.top)
           }
@@ -189,7 +220,7 @@ import SwiftUI
           }
           .task(id: workspaces.thread.jumpTarget?.mark) {
             guard let mark = workspaces.thread.jumpTarget?.mark else { return }
-            try? await Task.sleep(for: .seconds(max(0, mark.endsAt.timeIntervalSinceNow)))
+            try? await jumpMarkClock.sleep(until: mark.endsAt)
             guard !Task.isCancelled else { return }
             workspaces.thread.endJumpIfMarkEnded()
           }
@@ -199,7 +230,7 @@ import SwiftUI
             proxy.scrollTo("thread-bottom", anchor: .bottom)
           }
           .onScrollPhaseChange { _, phase in
-            userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+            scrollActivity.update(for: phase)
             if phase.endsJumpMark {
               Task { @MainActor in workspaces.thread.readerScrolled() }
             }
@@ -237,6 +268,7 @@ import SwiftUI
             }
           }
         }
+        .scrollEdgeEffectStyle(.hard, for: .top)
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
           if let notice = ReadOnlyDirectNotice(room: currentRoom) {
@@ -367,6 +399,9 @@ import SwiftUI
                            onQuoteJump: jumpToQuote, onSendToSelf: sendToSelfAction(for: message),
                            sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
                            onSokoBotFeedback: sokoBotFeedbackAction(for: message),
+                           loadResultPreviews: resultPreviewsAction(for: message),
+                           selectProject: selectProjectAction(for: message),
+                           resolveDecision: resolveDecisionAction,
                            streamThinking: thinking)
               .jumpSpotlightRow(messageId: message.id)
           }

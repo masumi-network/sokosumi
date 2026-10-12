@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { Fragment, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -22,7 +21,6 @@ export interface HistoryListLabels {
     description: string;
   };
   loadMore: string;
-  loading: string;
   loadMoreError: string;
   row: HistoryListItemLabels;
 }
@@ -108,19 +106,9 @@ export function HistoryList({
           <Button
             variant="outline"
             onClick={handleLoadMore}
-            disabled={isPending}
+            loading={isPending}
           >
-            {isPending ? (
-              <>
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-                {labels.loading}
-              </>
-            ) : (
-              labels.loadMore
-            )}
+            {labels.loadMore}
           </Button>
         </div>
       ) : null}

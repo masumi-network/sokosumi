@@ -18,8 +18,8 @@ struct DocumentAttachmentPreview: View {
         NativePDFPreview(document: document)
       } else if let textDocument {
         ScrollView {
-          MarkdownBlocksView(blocks: textDocument.blocks, presentsFileAttachments: false)
-            .messageImageGallery(textDocument.imageGallery)
+          MarkdownBlocksView(blocks: textDocument.blocks)
+            .messageImageGallery(MessageImageGallery(blocks: textDocument.blocks))
             .textSelection(.enabled)
             .frame(maxWidth: 680, alignment: .leading)
             .padding(24)

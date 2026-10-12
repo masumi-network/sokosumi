@@ -113,12 +113,12 @@ export function SokoBotVersionActions({ version }: SokoBotVersionActionsProps) {
                 {t("Actions.cancel")}
               </AlertDialogCancel>
               <AlertDialogAction
-                disabled={isPromoting}
+                loading={isPromoting}
                 onClick={() => {
                   void handlePromote();
                 }}
               >
-                {isPromoting ? t("Actions.promoting") : t("Actions.promote")}
+                {t("Actions.promote")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -148,13 +148,13 @@ export function SokoBotVersionActions({ version }: SokoBotVersionActionsProps) {
                   {t("Actions.cancel")}
                 </AlertDialogCancel>
                 <AlertDialogAction
-                  disabled={isArchiving}
+                  loading={isArchiving}
                   className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
                   onClick={() => {
                     void handleArchive();
                   }}
                 >
-                  {isArchiving ? t("Actions.archiving") : t("Actions.archive")}
+                  {t("Actions.archive")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

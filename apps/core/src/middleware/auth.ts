@@ -1,17 +1,21 @@
 import * as Sentry from "@sentry/node";
 import {
+  CORE_API_ERROR_KINDS,
   hasAdminRole as checkAdminRole,
   hasCoreApiOAuthScope,
+  OAUTH_SCOPE_CORE_API,
 } from "@sokosumi/utils";
 import type { Context, MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
 import { resolveAgentApiKeyAuthContext } from "@/helpers/agent-api-key-auth";
 import { forbidden, unauthorized } from "@/helpers/error";
-import { OAUTH_ACCESS_TOKEN_PREFIX } from "@/lib/auth-oauth-token-prefixes";
+import {
+  hashStoredOAuthToken,
+  OAUTH_ACCESS_TOKEN_PREFIX,
+} from "@/lib/auth-oauth-token-prefixes";
 import {
   COWORKER_API_KEY_PREFIX,
-  hashApiKey,
   isSokoBotApiKeyToken,
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
@@ -517,12 +521,20 @@ async function verifyAgentApiKey(
   return true;
 }
 
-const hashAccessToken = async (value: string) => {
-  const tokenWithoutPrefix = value.startsWith(OAUTH_ACCESS_TOKEN_PREFIX)
-    ? value.slice(OAUTH_ACCESS_TOKEN_PREFIX.length)
-    : value;
-  return await hashApiKey(tokenWithoutPrefix);
-};
+/**
+ * A valid OAuth token that lacks `sokosumi:api`: 403 with the RFC 6750 §3.1
+ * challenge, so the integrator learns which scope to request instead of
+ * reading the same 401 as a garbage token.
+ */
+function insufficientOAuthScope() {
+  return forbidden(
+    `OAuth access token lacks the ${OAUTH_SCOPE_CORE_API} scope`,
+    {
+      kind: CORE_API_ERROR_KINDS.INSUFFICIENT_SCOPE,
+      wwwAuthenticate: `Bearer error="insufficient_scope", scope="${OAUTH_SCOPE_CORE_API}"`,
+    },
+  );
+}
 
 /**
  * Verifies an OAuth access token and sets the authentication context if valid.
@@ -534,12 +546,14 @@ const hashAccessToken = async (value: string) => {
  * @param token - The OAuth access token to verify
  * @param c - The Hono context
  * @returns `true` if the token is valid and context was set, `false` otherwise
+ * @throws 403 `insufficient_scope` when an otherwise valid token, its client,
+ *   or its consent lacks `sokosumi:api`
  */
 async function verifyOAuthToken(
   token: string,
   c: Context<AuthEnv>,
 ): Promise<boolean> {
-  const hashedToken = await hashAccessToken(token);
+  const hashedToken = hashStoredOAuthToken(token, OAUTH_ACCESS_TOKEN_PREFIX);
   const oauthToken = await prisma.oauthAccessToken.findUnique({
     where: { token: hashedToken },
     include: {
@@ -580,22 +594,27 @@ async function verifyOAuthToken(
     return false;
   }
 
-  // Identity-only tokens (openid without sokosumi:api) cannot call Core API.
-  if (!hasCoreApiOAuthScope(oauthToken.scopes)) {
-    return false;
-  }
-
   if (oauthToken.refreshId && oauthToken.refreshToken) {
     if (oauthToken.refreshToken.revoked) {
       return false;
     }
   }
 
-  // Client allow-list must still include Core API (e.g. after privilege reduction).
-  // Check before consent so disabled/reduced clients skip the consent query.
   const client = oauthToken.client;
-  if (!client || client.disabled || !hasCoreApiOAuthScope(client.scopes)) {
+  if (!client || client.disabled) {
     return false;
+  }
+
+  // The token is valid from here; what remains is whether it may call Core.
+  // Identity-only tokens (openid without sokosumi:api) cannot call Core API.
+  if (!hasCoreApiOAuthScope(oauthToken.scopes)) {
+    throw insufficientOAuthScope();
+  }
+
+  // Client allow-list must still include Core API (e.g. after privilege reduction).
+  // Check before consent so reduced clients skip the consent query.
+  if (!hasCoreApiOAuthScope(client.scopes)) {
+    throw insufficientOAuthScope();
   }
 
   // A first-party client skips consent, so it has no consent row (ADR 0046).
@@ -612,8 +631,11 @@ async function verifyOAuthToken(
       },
     });
 
-    if (!consent || !hasCoreApiOAuthScope(consent.scopes)) {
+    if (!consent) {
       return false;
+    }
+    if (!hasCoreApiOAuthScope(consent.scopes)) {
+      throw insufficientOAuthScope();
     }
   }
 

@@ -9,6 +9,7 @@ import { waitUntil } from "@vercel/functions";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
+import { assertCoworkerUserContextBinding } from "@/helpers/coworker-user-context-binding";
 import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
@@ -23,7 +24,8 @@ import { createCoworkerUsageRequestSchema } from "./schema";
 const route = createRoute({
   method: "post",
   path: "/me/usage",
-  description: "Create usage for the current coworker",
+  description:
+    "Create usage for the current coworker. Bills `userId` only when the coworker is bound to that user's workspace: a granted vendor workspace grant, or an assigned or same-vendor sibling task owned by the user. A denied or revoked grant always rejects.",
   tags: ["Coworkers"],
   request: {
     body: {
@@ -40,6 +42,7 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
     409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
@@ -106,6 +109,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
+      // A replay moves no credits and returns only this coworker's own row,
+      // so it skips the binding check: a vendor retrying after a timeout
+      // must learn whether the charge landed even if the grant was revoked
+      // in between.
       if (existing) {
         const requestedCents = convertCreditsToCents(credits);
 
@@ -148,6 +155,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
       }
+
+      // Same `tx`, so a serializable retry re-checks the grant.
+      await assertCoworkerUserContextBinding(
+        authContext,
+        { userId, organizationId },
+        tx,
+      );
 
       await requireAssignedOrganizationSeat(userId, organizationId, tx);
 

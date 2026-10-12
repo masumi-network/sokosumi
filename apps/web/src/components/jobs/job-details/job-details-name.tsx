@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Job } from "@sokosumi/core-client";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -143,10 +142,7 @@ export default function JobDetailsName({
               </FormItem>
             )}
           />
-          <Button size="sm" type="submit" disabled={isSubmitting}>
-            {isSubmitting && (
-              <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-            )}
+          <Button size="sm" type="submit" loading={isSubmitting}>
             {t("save")}
           </Button>
           <Button

@@ -11,6 +11,7 @@ import { createAgentClient } from "@sokosumi/masumi";
 import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import {
   sokoBotAgentIdInputSchema as agentIdInputSchema,
+  type ChatResultReference,
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   exceedsUnattendedHireBudget,
@@ -42,6 +43,7 @@ import {
   sokoBotManageReminderInputSchema,
   sokoBotOpenDirectChatInputSchema,
   sokoBotPostChatInputSchema,
+  sokoBotPreviewResultInputSchema,
   sokoBotReadChatInputSchema,
   sokoBotReadEmailInputSchema,
   sokoBotReadFileInputSchema,
@@ -78,6 +80,7 @@ import { DAY_MS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import { buildTaskWriteAccessWhere } from "@/helpers/access-control";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
+import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import {
   batchTableRows,
   createDataTable,
@@ -151,6 +154,7 @@ import {
 } from "@/lib/soko-bot/evaluation-dispatch";
 import {
   persistedToolResult,
+  sanitizePersistedValue,
   truncateUtf8,
 } from "@/lib/soko-bot/persisted-value";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
@@ -163,9 +167,14 @@ import {
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
 } from "@/routes/v1/chats/rooms/helpers";
+import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { dataTableSchema } from "@/schemas/data-table.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
+import {
+  hydrateChatResultSnapshots,
+  resolveChatResultReference,
+} from "@/services/chat-result-preview.service";
 import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
 import {
   activateDriveUploadResource,
@@ -186,7 +195,15 @@ import {
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
 import { listProjectSocialConnections } from "@/services/project-social-connections.service";
+import {
+  listSocialAccountStatistics,
+  refreshSocialAccountStatistics,
+} from "@/services/social-account-statistics.service";
 import { publishSocialPostNow } from "@/services/social-post-publisher.service";
+import {
+  listSocialPostStatistics,
+  refreshSocialPostStatistics,
+} from "@/services/social-post-statistics.service";
 import {
   cancelSocialPost,
   createSocialPost,
@@ -1398,11 +1415,31 @@ export class SokoBotRuntimeService {
       roomId: string;
       content: string;
       toolCallId: string;
+      resultReferences?: ChatResultReference[];
       openedDirect?: { name: string; created: boolean; withUserName: string };
       publicationId?: string;
     },
     transaction?: Prisma.TransactionClient,
   ) {
+    if (input.resultReferences?.length && authorized.askedByKind !== "OWNER") {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Result previews are prepared for the owner's requests",
+      );
+    }
+    const snapshots: Awaited<ReturnType<typeof resolveChatResultReference>>[] =
+      [];
+    for (const reference of input.resultReferences ?? []) {
+      snapshots.push(
+        await resolveChatResultReference({
+          reference,
+          actor: {
+            userId: authorized.turn.userId,
+            workspaceId: authorized.turn.workspaceId,
+            kind: "soko_bot",
+          },
+        }),
+      );
+    }
     const persist = async (tx: Prisma.TransactionClient) => {
       await this.requireMutationAuthority(
         tx,
@@ -1521,6 +1558,9 @@ export class SokoBotRuntimeService {
             // Lets the reader see, on hover, that this is part of an assistant
             // exchange and how close it is to the point where it stops.
             metadata: {
+              ...(snapshots.length
+                ? { [RESULT_SNAPSHOTS_KEY]: sanitizePersistedValue(snapshots) }
+                : {}),
               soko_bot_chain: {
                 depth: chainDepth,
                 max_depth: MAX_CHAT_CHAIN_DEPTH,
@@ -3799,6 +3839,20 @@ export class SokoBotRuntimeService {
       }
       if (existing.status === "COMPLETED") {
         let replayResult = existing.result;
+        if (input.capability === "preview_result") {
+          if (authorized.askedByKind !== "OWNER")
+            throw new SokoBotRuntimeAuthorizationError(
+              "Result previews are prepared for the owner's requests",
+            );
+          const snapshot = chatResultSnapshotSchema.parse(existing.result);
+          const [preview] = await hydrateChatResultSnapshots(
+            [snapshot],
+            authorized.turn.userId,
+          );
+          if (!preview || preview.state !== "available")
+            throw new SokoBotRuntimeAuthorizationError("Result unavailable");
+          return { ...snapshot, data: preview };
+        }
         if (
           [
             "create_social_post",
@@ -3806,9 +3860,44 @@ export class SokoBotRuntimeService {
             "schedule_social_post",
             "cancel_social_post",
             "publish_social_post",
+            "refresh_social_post_statistics",
+            "refresh_social_account_statistics",
           ].includes(input.capability)
         ) {
           await this.requireSocialAccess(authorized);
+        }
+        if (input.capability === "refresh_social_post_statistics") {
+          const params =
+            SOKO_BOT_TOOL_INPUT_SCHEMAS.refresh_social_post_statistics.parse(
+              input.input,
+            );
+          // Recheck project access and return the cache without another provider fetch.
+          return socialPostSchema.parse(
+            await getSocialPost({
+              ...params,
+              workspaceId: authorized.turn.workspaceId,
+            }),
+          );
+        }
+        if (input.capability === "refresh_social_account_statistics") {
+          const params =
+            SOKO_BOT_TOOL_INPUT_SCHEMAS.refresh_social_account_statistics.parse(
+              input.input,
+            );
+          const result = await listSocialAccountStatistics({
+            projectId: params.projectId,
+            connectionId: params.connectionId,
+            workspaceId: authorized.turn.workspaceId,
+            limit: 1,
+          });
+          const account = result.accounts.find(
+            (account) => account.id === params.connectionId,
+          );
+          if (!account)
+            throw new SokoBotRuntimeAuthorizationError(
+              "Social account is no longer available",
+            );
+          return { account, importedPostCount: 0 };
         }
         if (
           input.capability === "list_tables" ||
@@ -3819,6 +3908,8 @@ export class SokoBotRuntimeService {
         if (
           input.capability === "list_project_social_accounts" ||
           input.capability === "list_social_posts" ||
+          input.capability === "list_social_post_statistics" ||
+          input.capability === "list_social_account_statistics" ||
           input.capability === "get_social_post"
         ) {
           const result = await this.executeAuthorizedTool(input);
@@ -4140,10 +4231,11 @@ export class SokoBotRuntimeService {
   ) {
     if (
       authorized.turn.chainDepth > 0 ||
-      authorized.askedByKind === "ASSISTANT"
+      authorized.askedByKind === "ASSISTANT" ||
+      authorized.askedByKind === "TEAMMATE"
     ) {
       throw new SokoBotRuntimeAuthorizationError(
-        "Project social tools are only available when a person asks",
+        "Project social tools are only available for the owner",
       );
     }
     const owner = await tx.user.findUnique({
@@ -4197,6 +4289,66 @@ export class SokoBotRuntimeService {
           ...result,
           posts: result.posts.map((post) => socialPostSchema.parse(post)),
         };
+      }
+      case "list_social_post_statistics": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.list_social_post_statistics.parse(
+            input.input,
+          );
+        await this.requireSocialAccess(authorized);
+        const result = await listSocialPostStatistics({
+          ...params,
+          workspaceId,
+          publishedFrom: params.publishedFrom
+            ? new Date(params.publishedFrom)
+            : undefined,
+          publishedUntil: params.publishedUntil
+            ? new Date(params.publishedUntil)
+            : undefined,
+        });
+        return {
+          ...result,
+          posts: result.posts.map((post) => socialPostSchema.parse(post)),
+        };
+      }
+      case "refresh_social_post_statistics": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.refresh_social_post_statistics.parse(
+            input.input,
+          );
+        await this.requireSocialAccess(authorized);
+        return socialPostSchema.parse(
+          await refreshSocialPostStatistics({ ...params, workspaceId, userId }),
+        );
+      }
+      case "list_social_account_statistics": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.list_social_account_statistics.parse(
+            input.input,
+          );
+        await this.requireSocialAccess(authorized);
+        return listSocialAccountStatistics({
+          ...params,
+          workspaceId,
+          publishedFrom: params.publishedFrom
+            ? new Date(params.publishedFrom)
+            : undefined,
+          publishedUntil: params.publishedUntil
+            ? new Date(params.publishedUntil)
+            : undefined,
+        });
+      }
+      case "refresh_social_account_statistics": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.refresh_social_account_statistics.parse(
+            input.input,
+          );
+        await this.requireSocialAccess(authorized);
+        return refreshSocialAccountStatistics({
+          ...params,
+          workspaceId,
+          userId,
+        });
       }
       case "get_social_post": {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.get_social_post.parse(
@@ -4324,6 +4476,10 @@ export class SokoBotRuntimeService {
     switch (input.capability) {
       case "list_project_social_accounts":
       case "list_social_posts":
+      case "list_social_post_statistics":
+      case "refresh_social_post_statistics":
+      case "list_social_account_statistics":
+      case "refresh_social_account_statistics":
       case "get_social_post":
       case "create_social_post":
       case "update_social_post":
@@ -4803,6 +4959,25 @@ export class SokoBotRuntimeService {
         return this.openDirectChat(authorized, {
           ...parsed,
           toolCallId: input.toolCallId,
+        });
+      }
+      case "preview_result": {
+        const { reference } = sokoBotPreviewResultInputSchema.parse(
+          input.input,
+        );
+        // A colleague's prompt cannot turn the owner's private data into a result.
+        if (authorized.askedByKind !== "OWNER") {
+          throw new SokoBotRuntimeAuthorizationError(
+            "Result previews are prepared for the owner's requests",
+          );
+        }
+        return resolveChatResultReference({
+          reference,
+          actor: {
+            userId: authorized.turn.userId,
+            workspaceId: authorized.turn.workspaceId,
+            kind: "soko_bot",
+          },
         });
       }
       case "post_chat": {

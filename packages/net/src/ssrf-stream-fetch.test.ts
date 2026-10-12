@@ -161,12 +161,29 @@ describe("SSRF invariant: coworker response streams use filtered connections", (
           "Content-Type": "application/json",
           "Content-Length": "17",
           "Accept-Encoding": "identity",
+          "User-Agent": "sokosumi-core",
         },
       });
       expect(useAgent).toHaveBeenCalledWith(url);
       expect(request.write).toHaveBeenCalledWith('{"input":"hello"}');
       await response.body!.cancel();
       expect(message.destroyed).toBe(true);
+    },
+  );
+
+  it.each(["User-Agent", "user-agent"])(
+    "preserves a caller-provided %s header",
+    async (name) => {
+      fixture();
+      const response = await ssrfSafeStreamFetch(URL, {
+        headers: { [name]: "custom-agent" },
+        maxResponseBytes: 1024,
+      });
+      expect(httpsRequest.mock.calls[0][1].headers).toEqual({
+        [name]: "custom-agent",
+        "Accept-Encoding": "identity",
+      });
+      await response.body!.cancel();
     },
   );
 

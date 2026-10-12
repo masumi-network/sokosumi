@@ -21,33 +21,32 @@ test("tolerates null and unexpected agent values with safe defaults", () => {
     updatedAt: null,
     name: null,
     description: null,
-    status: null,
-    isNew: false,
-    isShown: false,
-    price: { credits: null, includedFee: null },
+    credits: null,
     tags: [],
   });
 
   assert.deepEqual(
     parseAgent({
       id: "agent-1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:01:00.000Z",
       name: "Researcher",
-      price: { credits: 12, includedFee: 2 },
-      tags: [{ name: "research" }, null, "unexpected"],
+      description: "Finds facts",
+      credits: 12,
+      categories: [{ name: "research" }, { name: "analysis" }, null],
+      status: "ONLINE",
       isNew: true,
       isShown: true,
+      price: { credits: 99, includedFee: 2 },
     }),
     {
       id: "agent-1",
-      createdAt: null,
-      updatedAt: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:01:00.000Z",
       name: "Researcher",
-      description: null,
-      status: null,
-      isNew: true,
-      isShown: true,
-      price: { credits: 12, includedFee: 2 },
-      tags: [{ name: "research" }, { name: null }, { name: null }],
+      description: "Finds facts",
+      credits: 12,
+      tags: ["research", "analysis"],
     },
   );
 });
@@ -62,18 +61,6 @@ test("tolerates null and unexpected agent job values", () => {
     createdAt: null,
     updatedAt: null,
   });
-  assert.deepEqual(
-    parseAgentJob({ id: "job-1", agent_id: "agent-1", status: "pending" }),
-    {
-      id: "job-1",
-      agentId: "agent-1",
-      status: "pending",
-      name: null,
-      result: null,
-      createdAt: null,
-      updatedAt: null,
-    },
-  );
 });
 
 test("preserves Core job summary result", () => {

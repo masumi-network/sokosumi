@@ -145,7 +145,6 @@ describe("AuthenticatedAppFrame workspace gate", () => {
       gate: "identity-onboarding",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
-      hasPendingOrganizationInvites: false,
     });
 
     const { default: AuthenticatedAppFrame } = await import(
@@ -191,7 +190,6 @@ describe("AuthenticatedAppFrame workspace gate", () => {
       gate: "ready",
       hasPersonalWorkspace: true,
       hasOrganizationMembership: false,
-      hasPendingOrganizationInvites: false,
     });
 
     const { default: AuthenticatedAppFrame } = await import(
@@ -221,7 +219,6 @@ describe("AuthenticatedAppFrame workspace gate", () => {
         gate: "ready",
         hasPersonalWorkspace: true,
         hasOrganizationMembership: false,
-        hasPendingOrganizationInvites: false,
       });
 
       const { default: AuthenticatedAppFrame } = await import(
