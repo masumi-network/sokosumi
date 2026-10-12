@@ -68,13 +68,13 @@
           host.layoutSubtreeIfNeeded()
           try await Task.sleep(for: .milliseconds(20))
         }
-        try #require(state.timeline.messages.count == 60, "The page merged into the timeline.")
+        try #require(state.room.timeline.messages.count == 60, "The page merged into the timeline.")
         #expect(abs(documentHeight(scroll) - height) < 100,
                 "The page's rows wait while the reader scrolls: document \(documentHeight(scroll)) pt, was \(height) pt.")
         #expect(TranscriptPageProtocol.requests.withLock { $0 } == 2, "No further page is asked for while one waits.")
         // A visible message keeps receiving chunks even though the older prefix waits.
-        let streamingIndex = try #require(state.timeline.messages.firstIndex { $0.id == "message-40" })
-        state.timeline.messages[streamingIndex].content = "**Streaming while paging**"
+        let streamingIndex = try #require(state.room.timeline.messages.firstIndex { $0.id == "message-40" })
+        state.room.timeline.messages[streamingIndex].content = "**Streaming while paging**"
         var streamed = false
         for index in 0 ..< 30 {
           try sendTranscriptScroll(scroll, delta: index.isMultiple(of: 2) ? 3 : -3, phase: 2)
@@ -161,9 +161,9 @@
           TranscriptPageProtocol.page((10 ..< 40).map(message), cursor: "c10"),
           TranscriptPageProtocol.page((0 ..< 10).map(message), cursor: nil)
         ])
-        state.timeline.reset(roomId: "room")
-        _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
-        try #require(state.timeline.messages.count == 30 && state.transcriptHasMore)
+        state.room.timeline.reset(roomId: "room")
+        _ = try await state.room.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.room.timeline.generation)
+        try #require(state.room.timeline.messages.count == 30 && state.room.timeline.hasMore)
         return (state, session)
       }
 

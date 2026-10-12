@@ -23,7 +23,7 @@
         var parent = try #require(state.thread.parent)
         parent.content = "Previous thread projection marker"
         state.thread.open(parent)
-        let scope = [state.currentUserId, state.selectionId ?? "", state.transcriptRoomId ?? "", parent.id, String(state.thread.transcript.timeline.generation)]
+        let scope = [state.currentUserId, state.selectionId ?? "", state.room.timeline.roomId ?? "", parent.id, String(state.thread.transcript.timeline.generation)]
         let prepared = try await PreparedTranscript.prepare(.init(scope: scope, messages: [parent], mentions: nil, channels: [],
                                                                   baseURL: #require(URL(string: "https://example.com"))), reusing: nil)
         let host = NSHostingView(rootView: ReplyThreadContent(messages: [parent], preparedTranscript: prepared,

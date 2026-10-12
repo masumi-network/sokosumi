@@ -140,7 +140,8 @@ public final class WorkspaceState: ObservableObject {
   /// App-side OS notification adapter; without it events raise no banner.
   public var notificationPresenter: (any ChatNotificationPresenting)?
   var notificationBanners = ChatNotificationBanners()
-  public let timeline = RoomTimeline()
+  /// The open room's main Transcript: its history, Send queue, realtime updates and recovery.
+  public let room: TranscriptSession
   public let pins = PinnedMessages()
   @Published var pendingPins: Set<String> = []
   private(set) var transcriptLoadTask: Task<Void, Never>?
@@ -149,55 +150,42 @@ public final class WorkspaceState: ObservableObject {
   /// The chained gap-page loads (row 04a); `historyGapRequest` tells the last one to clear it.
   var historyGapTask: Task<Void, Never>?
   var historyGapRequest = 0
-  private var timelineObservation: AnyCancellable?
 
   /// Room the transcript pane shows. Nil clears the pane.
-  public var transcriptRoomId: String? {
-    timeline.roomId
+  var transcriptRoomId: String? {
+    room.timeline.roomId
   }
 
   var transcriptMessages: [Components.Schemas.ChatRoomMessage] {
-    get { timeline.messages }
-    set { timeline.messages = newValue }
+    get { room.timeline.messages }
+    set { room.timeline.messages = newValue }
   }
 
-  public var transcriptHasMore: Bool {
-    timeline.hasMore
+  var transcriptLoading: Bool {
+    room.timeline.isLoading
   }
 
-  public var transcriptLoading: Bool {
-    timeline.isLoading
-  }
-
-  public var transcriptLoadingOlder: Bool {
-    timeline.isLoadingOlder
+  var transcriptLoadingOlder: Bool {
+    room.timeline.isLoadingOlder
   }
 
   /// Latest-page refetch in flight (ADR 0014 envelope). Not the older-page
   /// spinner: live refetch must not flash `transcriptLoadingOlder`.
   var transcriptRefreshing: Bool {
-    timeline.isRefreshing
+    room.timeline.isRefreshing
   }
 
   /// Failure text. Shown full-pane when there is no history, as a banner
   /// above loaded history otherwise — a failed older page never wipes
   /// what already resolved.
-  public var transcriptError: String? {
-    get { timeline.errorMessage }
-    set { timeline.errorMessage = newValue }
-  }
-
-  /// Unconfirmed classic sends for the open room. Remount / room change
-  /// drops them (no durable outbox).
-  public let outbox: RoomOutbox
-  private var outboxObservation: AnyCancellable?
-  public var outboundShells: [OutboundShell] {
-    outbox.shells
+  var transcriptError: String? {
+    get { room.timeline.errorMessage }
+    set { room.timeline.errorMessage = newValue }
   }
 
   /// True while a classic POST is in flight for this composer.
   var outboundInFlight: Bool {
-    outbox.isSending
+    room.outbox.isSending
   }
 
   /// Factory for the live socket. Set by the app at launch (ably-cocoa);
@@ -222,22 +210,21 @@ public final class WorkspaceState: ObservableObject {
 
   /// Confirmed history plus unresolved outbound shells (sticky at the end), with Pending reactions on top.
   public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
-    let messages = directStream.displayedMessages(persisted: SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells))
+    let messages = directStream.displayedMessages(persisted: room.displayedMessages)
     let rows = pendingReactions.overlaying(messages, viewer: reactionViewer)
     // Once the room's unread-thread read has answered it owns every reply bar's count (web, SOK-1151).
     return threadOverview.unreadReplyCounts.map { applyThreadUnreadReplyCounts(rows, counts: $0) } ?? rows
   }
 
   var transcriptCursor: String? {
-    timeline.cursor
+    room.timeline.cursor
   }
 
   /// Bumps on every open/clear so a slow room cannot paint over a newer one.
   private var transcriptGeneration: Int {
-    timeline.generation
+    room.timeline.generation
   }
 
-  let transcriptRecovery: ChatRefreshScheduler
   let sidebarRecovery: SidebarCollectionsRecovery
   /// Re-reads the open room while it still counts unread (row 07e); see `WorkspaceState+OpenRoomUnreadRecheck`.
   let openRoomUnreadRecheck: OpenRoomUnreadRecheck
@@ -248,8 +235,6 @@ public final class WorkspaceState: ObservableObject {
   private(set) var transcriptRealtimeHealthy = false
 
   private let service = ChatService()
-  private let now: () -> Date
-  private let makeId: () -> String
   private var hasLoaded = false
   private var workspaceLoadTask: Task<Void, Never>?
 
@@ -271,32 +256,21 @@ public final class WorkspaceState: ObservableObject {
     makeId: @escaping () -> String = { UUID().uuidString },
     sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
   ) {
-    self.now = now
-    self.makeId = makeId
+    room = TranscriptSession(now: now, makeId: makeId, sleep: sleep)
     thread = ThreadSession(now: now, makeId: makeId, sleep: sleep)
-    outbox = RoomOutbox(now: now, sleep: sleep)
     directStream = DirectStreamSession(now: now, makeId: makeId)
-    transcriptRecovery = ChatRefreshScheduler(sleep: sleep)
     sidebarRecovery = SidebarCollectionsRecovery(sleep: sleep)
     self.clientProvider = clientProvider
     self.openRoomUnreadRecheck = openRoomUnreadRecheck
     sidebar = ConversationSidebar(savedRoom: savedRoom, unreadsFilter: unreadsFilter)
     realtimeClientInstanceId = getOrCreateRealtimeClientInstanceId(store: instanceStore)
-    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.transcript.objectWillChange, thread.transcript.timeline.objectWillChange, thread.transcript.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange, roomReads.objectWillChange] {
+    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, room.objectWillChange, room.timeline.objectWillChange, room.outbox.objectWillChange, thread.objectWillChange, thread.transcript.objectWillChange, thread.transcript.timeline.objectWillChange, thread.transcript.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange, roomReads.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
     // Rows need editor identity changes; draft and save state are observed by the editor itself.
     messageEditing.$source.map { $0?.id }.removeDuplicates().dropFirst()
       .sink { [weak self] _ in self?.objectWillChange.send() }
       .store(in: &threadObservations)
-    timeline.$messages.sink { [weak outbox] in outbox?.reconcile(messages: $0) }
-      .store(in: &threadObservations)
-    outboxObservation = outbox.objectWillChange.sink { [weak self] in
-      self?.objectWillChange.send()
-    }
-    timelineObservation = timeline.objectWillChange.sink { [weak self] in
-      self?.objectWillChange.send()
-    }
     sidebarObservation = sidebar.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }
@@ -666,18 +640,15 @@ public final class WorkspaceState: ObservableObject {
     thread.close()
     threadOverview.reset()
     transcriptRealtimeHealthy = false
-    transcriptRecovery.stop()
     readAttention.roomChanged()
     pins.reset()
     pendingPins = []
-    timeline.reset()
+    room.close()
     transcriptLoadTask = nil
     olderPageTask = nil
     transcriptRefreshTask = nil
     historyGapTask = nil
     watchRoom(nil)
-    transcriptError = nil
-    clearOutbound()
   }
 
   /// Open a room's transcript: history first, mark-read after it resolves
@@ -699,12 +670,11 @@ public final class WorkspaceState: ObservableObject {
     readAttention.roomChanged()
     pins.reset(roomId: room.id)
     pendingPins = []
-    timeline.reset(roomId: room.id)
+    self.room.open(roomId: room.id)
     olderPageTask = nil
     transcriptRefreshTask = nil
     historyGapTask = nil
     let generation = transcriptGeneration
-    clearOutbound()
     watchRoom(room.id)
     transcriptLoadTask = Task { await loadTranscript(auth: auth, room: room, generation: generation) }
     if directStream.roomId != nil, let client = resolveClient(auth: auth) {
@@ -716,7 +686,7 @@ public final class WorkspaceState: ObservableObject {
         signOutIfUnauthorized(error, auth: auth)
       })
     }
-    transcriptRecovery.start(foreground: readAttention.isVisible, healthy: transcriptRealtimeHealthy) { [weak self, weak auth] in
+    self.room.recovery.start(foreground: readAttention.isVisible, healthy: transcriptRealtimeHealthy) { [weak self, weak auth] in
       guard let self, let auth else { return }
       await recoverTranscript(auth: auth, generation: generation)
     }
@@ -726,7 +696,7 @@ public final class WorkspaceState: ObservableObject {
     let wasVisible = readAttention.isVisible
     readAttention.setVisible(visible, window: window)
     thread.transcript.recovery.setForeground(readAttention.isVisible)
-    transcriptRecovery.setForeground(readAttention.isVisible)
+    room.recovery.setForeground(readAttention.isVisible)
     sidebarRecovery.setForeground(readAttention.isVisible)
     if !wasVisible, readAttention.isVisible {
       realtime?.refreshMembership()
@@ -777,7 +747,7 @@ public final class WorkspaceState: ObservableObject {
     guard draft.canSend(quoted: quote != nil && directStream.roomId != roomId) else { return false }
     // The message is on its way, so the Typing line must not outlive what it promised.
     composerStoppedTyping(roomId: roomId)
-    timeline.followLatest()
+    room.timeline.followLatest()
     if directStream.roomId == roomId {
       let generation = transcriptGeneration
       return directStream.send(draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, attachments: attachments, quote: quote, settled: { [weak self, weak auth] in
@@ -788,36 +758,23 @@ public final class WorkspaceState: ObservableObject {
         signOutIfUnauthorized(error, auth: auth)
       })
     }
-    let id = makeId()
-    let slug = selection?.workspace.organizationSlug
     let mentions = ComposerMention.selected(in: draft.text, catalog: composerMentions)
-    var shell = makeOutboundShell(clientMessageId: id, roomId: roomId, content: draft.text)
-    shell.quote = quote
-    shell.skills = skills
-    outbox.enqueue(shell, send: { [service] in
-      try await service.createMessage(
-        client: client, roomId: roomId, content: draft.text,
-        clientMessageId: id, mentions: mentions, quote: quote, skillIds: skills.map(\.id), organizationSlug: slug
-      )
-    }, confirmed: { [weak self] message in
-      guard let self else { return }
-      transcriptMessages = confirmOutbound(
-        messages: transcriptMessages, shells: [], confirmed: message, clientTurnId: id
-      ).messages
-    }, failed: { [weak self, weak auth] error in
-      guard let self, let auth, let error = error as? ChatServiceError else { return }
+    return room.send(
+      draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, sender: outboundSender,
+      mentions: mentions, quote: quote, skills: skills
+    ) { [weak self, weak auth] result in
+      guard case let .failure(error) = result, let self, let auth, let error = error as? ChatServiceError else { return }
       signOutIfUnauthorized(error, auth: auth)
-    })
-    return true
+    }
   }
 
   public func retryOutbound(clientTurnId: String) {
-    outbox.retry(clientTurnId)
+    room.outbox.retry(clientTurnId)
   }
 
   /// Drops the failed local shell only. Does not delete a Core row.
   public func removeOutbound(clientTurnId: String) {
-    outbox.remove(clientTurnId)
+    room.outbox.remove(clientTurnId)
   }
 
   // MARK: - Live realtime (SOK-976)
@@ -927,14 +884,13 @@ public final class WorkspaceState: ObservableObject {
 
   func applyRealtimeMessagePatch(_ patch: RealtimeMessagePatch) {
     thread.apply(patch)
-    guard patch.roomId == transcriptRoomId else { return }
-    transcriptMessages = applyRealtimePatch(patch, messages: transcriptMessages)
+    room.apply(patch)
   }
 
   private func applyRealtimePin(roomId: String, messageId: String, isPinned: Bool, count: Int) {
     guard let index = rooms.firstIndex(where: { $0.id == roomId }) else { return }
     rooms[index].pinnedMessageCount = count
-    timeline.applyPin(roomId: roomId, messageId: messageId, isPinned: isPinned)
+    room.timeline.applyPin(roomId: roomId, messageId: messageId, isPinned: isPinned)
     if pins.roomId == roomId {
       if !isPinned {
         pins.remove(messageId: messageId)
@@ -948,11 +904,11 @@ public final class WorkspaceState: ObservableObject {
     guard roomId == transcriptRoomId else { return }
     transcriptRealtimeHealthy = healthy
     thread.transcript.recovery.setHealthy(healthy)
-    transcriptRecovery.setHealthy(healthy)
+    room.recovery.setHealthy(healthy)
     if continuityLost {
       threadAttentionRevision += 1
       thread.transcript.recovery.requestRefresh()
-      transcriptRecovery.requestRefresh()
+      room.recovery.requestRefresh()
     }
   }
 
@@ -979,14 +935,7 @@ public final class WorkspaceState: ObservableObject {
       rooms[index] = renamed
     }
     guard roomId == transcriptRoomId, message.roomId == transcriptRoomId, !directStream.isBusy || eventType == .delete else { return }
-    let result = applyRealtimeFullEvent(
-      messages: transcriptMessages,
-      shells: outboundShells,
-      eventType: eventType,
-      message: message
-    )
-    transcriptMessages = result.messages
-    outbox.reconcile(result.shells, confirmed: message)
+    room.apply(eventType: eventType, message: message)
   }
 
   /// Apply an id envelope (ADR 0014): delete tombstones the on-screen row,
@@ -1000,19 +949,13 @@ public final class WorkspaceState: ObservableObject {
     if envelope.roomId == directStream.roomId, directStream.isBusy, envelope.eventType != .delete, !refreshParent {
       return
     }
-    switch resolveRealtimeEnvelope(envelope, focusedRoomId: transcriptRoomId) {
-    case .ignore:
-      if refreshParent || (thread.parent != nil && envelope.roomId == transcriptRoomId && envelope.parentMessageId == thread.parent?.id) {
-        transcriptRecovery.requestRefresh()
-      }
-      if envelope.eventType == .create {
-        sidebarRecovery.requestRefresh([.active])
-      }
-      return
-    case let .tombstone(messageId):
-      transcriptMessages = applyRealtimeTombstone(messages: transcriptMessages, messageId: messageId, now: now())
-    case .needsRefetch:
-      transcriptRecovery.requestRefresh()
+    // The room tombstones or refetches what it shows; an envelope it ignores may still move the Thread or sidebar.
+    guard room.apply(envelope) == .ignore else { return }
+    if refreshParent || (thread.parent != nil && envelope.roomId == transcriptRoomId && envelope.parentMessageId == thread.parent?.id) {
+      room.recovery.requestRefresh()
+    }
+    if envelope.eventType == .create {
+      sidebarRecovery.requestRefresh([.active])
     }
   }
 
@@ -1024,7 +967,7 @@ public final class WorkspaceState: ObservableObject {
     guard !directStream.isBusy || thread.parent != nil else { return }
     // A gap page in flight does not drop the refresh: the timeline holds it
     // and runs it once the gap settles (`RoomTimeline.pendingLatestRefresh`).
-    if transcriptLoading || transcriptLoadingOlder || (transcriptRefreshing && !timeline.isFillingGap)
+    if transcriptLoading || transcriptLoadingOlder || (transcriptRefreshing && !room.timeline.isFillingGap)
       || transcriptLoadTask != nil || olderPageTask != nil || transcriptRefreshTask != nil {
       return
     }
@@ -1046,7 +989,7 @@ public final class WorkspaceState: ObservableObject {
       return false
     }
     do {
-      let applied = try await timeline.loadPage(.latest, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation)
+      let applied = try await room.timeline.loadPage(.latest, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation)
       guard applied else { return false }
       if let parent = transcriptMessages.first(where: { $0.id == thread.parent?.id }) {
         thread.apply(eventType: .update, message: parent)
@@ -1118,20 +1061,6 @@ public final class WorkspaceState: ObservableObject {
     realtime?.setMembershipRooms(Set(rooms.map(\.id)))
   }
 
-  private func clearOutbound() {
-    outbox.reset()
-  }
-
-  private func makeOutboundShell(clientMessageId: String, roomId: String, content: String) -> OutboundShell {
-    .init(
-      clientTurnId: clientMessageId,
-      roomId: roomId,
-      content: content,
-      createdAt: now(),
-      sender: outboundSender
-    )
-  }
-
   var outboundSender: Components.Schemas.ChatRoomUserParticipant {
     .init(
       id: currentUserId,
@@ -1154,12 +1083,12 @@ public final class WorkspaceState: ObservableObject {
     }
     guard let client = resolveClient(auth: auth) else {
       if generation == transcriptGeneration {
-        timeline.failInitialLoad(message: "Sign-in is not configured.", generation: generation)
+        room.timeline.failInitialLoad(message: "Sign-in is not configured.", generation: generation)
       }
       return
     }
     do {
-      guard try await timeline.loadPage(.initial, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation) else { return }
+      guard try await room.timeline.loadPage(.initial, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation) else { return }
       await syncReadAttention(auth: auth)
     } catch let error as ChatServiceError {
       guard generation == transcriptGeneration else { return }
@@ -1178,7 +1107,7 @@ public final class WorkspaceState: ObservableObject {
   }
 
   var roomHistoryReadable: Bool {
-    timeline.historicalAnchor == nil && timeline.hasLoadedHistory && timeline.failedPage != .initial && timeline.failedPage != .latest
+    room.timeline.historicalAnchor == nil && room.timeline.hasLoadedHistory && room.timeline.failedPage != .initial && room.timeline.failedPage != .latest
   }
 
   public func syncReadAttention(auth: AuthState) async {
@@ -1240,7 +1169,7 @@ public final class WorkspaceState: ObservableObject {
   /// Older history page for scroll-up. Merges by message ID; never marks read and never
   /// clears resolved history on failure.
   public func loadOlderMessages(auth: AuthState) {
-    guard transcriptRoomId != nil, transcriptHasMore,
+    guard transcriptRoomId != nil, room.timeline.hasMore,
           !directStream.isBusy,
           !transcriptLoading, !transcriptLoadingOlder, !transcriptRefreshing,
           olderPageTask == nil, transcriptRefreshTask == nil,
@@ -1265,7 +1194,7 @@ public final class WorkspaceState: ObservableObject {
       return
     }
     do {
-      _ = try await timeline.loadPage(.older, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation)
+      _ = try await room.timeline.loadPage(.older, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation)
     } catch let error as ChatServiceError {
       guard generation == transcriptGeneration else { return }
       transcriptError = transcriptFailureMessage(error, auth: auth)

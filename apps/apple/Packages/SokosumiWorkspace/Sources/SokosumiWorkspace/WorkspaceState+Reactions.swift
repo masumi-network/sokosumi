@@ -26,7 +26,7 @@ public extension WorkspaceState {
         let sendReaction = sent ? service.addReaction : service.removeReaction
         let response = try await sendReaction(client, source.roomId, source.id, emoji, organizationSlug)
         // Matched by message and room id, so a room left meanwhile is untouched.
-        timeline.messages = timeline.messages.map { applyingReactionResponse(response, emoji: emoji, to: $0) }
+        room.timeline.messages = room.timeline.messages.map { applyingReactionResponse(response, emoji: emoji, to: $0) }
         if let parent = thread.parent {
           thread.apply(eventType: .update, message: applyingReactionResponse(response, emoji: emoji, to: parent))
         }
@@ -59,7 +59,7 @@ extension WorkspaceState {
 
 private extension WorkspaceState {
   func confirmedMessage(_ messageId: String) -> Components.Schemas.ChatRoomMessage? {
-    timeline.messages.first { $0.id == messageId }
+    room.timeline.messages.first { $0.id == messageId }
       ?? (thread.parent?.id == messageId ? thread.parent : nil)
       ?? thread.transcript.timeline.messages.first { $0.id == messageId }
   }

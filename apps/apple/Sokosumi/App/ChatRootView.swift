@@ -60,7 +60,7 @@ struct ChatRootView: View {
     .onChange(of: workspaces.thread.transcript.timeline.isLoading) { _, _ in
       Task { @MainActor in await workspaces.syncReadAttention(auth: auth) }
     }
-    .onChange(of: workspaces.timeline.hasLoadedHistory) { _, _ in
+    .onChange(of: workspaces.room.timeline.hasLoadedHistory) { _, _ in
       Task { @MainActor in await workspaces.syncReadAttention(auth: auth) }
     }
     .alert("Couldn’t update unread status", isPresented: Binding(

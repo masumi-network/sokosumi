@@ -8,11 +8,11 @@ public extension WorkspaceState {
     guard let client = resolveClient(auth: auth) else {
       throw ChatServiceError.unauthorized("Log in to remove link previews.")
     }
-    let generation = timeline.generation
+    let generation = room.timeline.generation
     do {
       _ = try await ChatService().removeUnfurl(client: client, roomId: source.roomId, messageId: source.id,
                                                url: url, organizationSlug: selection?.workspace.organizationSlug)
-      guard generation == timeline.generation, !Task.isCancelled else { return }
+      guard generation == room.timeline.generation, !Task.isCancelled else { return }
       /// Remove only this URL: a full response could overwrite a newer edit or another removal.
       func removingPreview(_ message: Components.Schemas.ChatRoomMessage) -> Components.Schemas.ChatRoomMessage {
         guard message.id == source.id, message.deletedAt == nil else { return message }
@@ -20,13 +20,13 @@ public extension WorkspaceState {
         updated.unfurls = message.unfurls?.filter { $0.url != url }
         return updated
       }
-      timeline.messages = timeline.messages.map(removingPreview)
+      room.timeline.messages = room.timeline.messages.map(removingPreview)
       if let parent = thread.parent {
         thread.apply(eventType: .update, message: removingPreview(parent))
       }
       thread.transcript.timeline.messages = thread.transcript.timeline.messages.map(removingPreview)
     } catch {
-      guard generation == timeline.generation, !Task.isCancelled else { return }
+      guard generation == room.timeline.generation, !Task.isCancelled else { return }
       if let error = error as? ChatServiceError {
         signOutIfUnauthorized(error, auth: auth)
       }

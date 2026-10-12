@@ -344,9 +344,9 @@ import Synchronization
       M6Probe.reset()
       if env["M6_ONLY"] == "prepare" { await prepareSamples(fixture, count: count, mix: mix); continue }
       let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
-      state.timeline.reset(roomId: "fixture")
-      state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-      state.timeline.messages = thread ? [fixture[0]] : fixture
+      state.room.timeline.reset(roomId: "fixture")
+      state.room.timeline.failInitialLoad(message: "", generation: state.room.timeline.generation)
+      state.room.timeline.messages = thread ? [fixture[0]] : fixture
       if thread {
         state.thread.open(fixture[0])
         state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
@@ -423,7 +423,7 @@ import Synchronization
   }
   func validateUpdates(_ state: WorkspaceState, auth: AuthState, host: NSView,
                        fixture: [Components.Schemas.ChatRoomMessage], thread: Bool) async {
-    let timeline = thread ? state.thread.transcript.timeline : state.timeline
+    let timeline = thread ? state.thread.transcript.timeline : state.room.timeline
     let target = fixture.last!.id
     var passed: [String] = []
     func check(_ label: String, _ condition: () -> Bool) async {
@@ -485,7 +485,7 @@ import Synchronization
     timeline.messages.removeAll { $0.id == "arriving" }
     await check("removal") { !M6Probe.projectedRows.contains { $0.id == "arriving" } }
 
-    let outbox = thread ? state.thread.transcript.outbox : state.outbox
+    let outbox = thread ? state.thread.transcript.outbox : state.room.outbox
     let shell = OutboundShell(clientTurnId: "projection-outbox", roomId: "fixture",
       parentMessageId: thread ? fixture.first!.id : nil, content: "Pending projection marker",
       createdAt: Date(timeIntervalSince1970: 1_700_000_000),

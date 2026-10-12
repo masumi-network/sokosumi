@@ -27,9 +27,9 @@
       private static func render(dark: Bool) async throws -> NSBitmapImageRep {
         let state = WorkspaceState(clientProvider: { _ in Client.core(baseURL: URL(string: "https://example.com")!) })
         state.rooms = [selfDirect]
-        state.timeline.reset(roomId: roomId)
-        state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-        state.transcriptError = nil
+        state.room.timeline.reset(roomId: roomId)
+        state.room.timeline.failInitialLoad(message: "", generation: state.room.timeline.generation)
+        state.room.timeline.errorMessage = nil
         let size = NSRect(x: 0, y: 0, width: 900, height: 360)
         let host = NSHostingView(rootView: HStack(spacing: 0) {
           ConversationSidebarView().frame(width: 260)

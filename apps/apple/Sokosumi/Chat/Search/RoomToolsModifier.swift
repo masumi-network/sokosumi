@@ -36,7 +36,7 @@ import SwiftUI
     }
 
     private var scope: [String] {
-      [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.timeline.generation)]
+      [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.room.timeline.generation)]
     }
 
     private var request: [String] {

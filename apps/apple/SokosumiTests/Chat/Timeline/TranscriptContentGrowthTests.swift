@@ -76,7 +76,7 @@
         if thread {
           state.thread.transcript.timeline.messages[index].content += String(repeating: "\nMore loaded content", count: lines)
         } else {
-          state.timeline.messages[index].content += String(repeating: "\nMore loaded content", count: lines)
+          state.room.timeline.messages[index].content += String(repeating: "\nMore loaded content", count: lines)
         }
         // Drive layout before yielding so deferred scroll corrections run before assertions.
         for _ in 0 ..< 25 {
@@ -95,17 +95,17 @@
 
       private func fixtureState(thread: Bool) -> WorkspaceState {
         let state = WorkspaceState()
-        state.timeline.reset(roomId: "growth")
-        state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-        state.timeline.messages = (0 ..< 50).map { index in
+        state.room.timeline.reset(roomId: "growth")
+        state.room.timeline.failInitialLoad(message: "", generation: state.room.timeline.generation)
+        state.room.timeline.messages = (0 ..< 50).map { index in
           var message = chatRoomMessage(from: .init(clientTurnId: "growth-\(index)", roomId: "growth", content: "Message \(index)", createdAt: Date(), sender: .init(id: "user-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))
           message.id = "growth-\(index)"
           return message
         }
-        if thread, let parent = state.timeline.messages.first {
+        if thread, let parent = state.room.timeline.messages.first {
           state.thread.open(parent)
           state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
-          state.thread.transcript.timeline.messages = state.timeline.messages.map { message in
+          state.thread.transcript.timeline.messages = state.room.timeline.messages.map { message in
             var reply = message
             reply.id = "reply-\(message.id)"
             reply.parentMessageId = parent.id

@@ -169,15 +169,19 @@ public final class TranscriptSession: ObservableObject {
     timeline.messages = applyRealtimePatch(patch, messages: timeline.messages, parentMessageId: timeline.parentMessageId)
   }
 
-  /// A tombstone applies at once; anything that needs the message's content asks recovery to refetch.
-  public func apply(_ envelope: ChatRoomMessageIdEnvelope) {
-    guard let roomId = timeline.roomId, envelope.roomId == roomId else { return }
-    switch resolveRealtimeEnvelope(envelope, focusedRoomId: roomId, parentMessageId: timeline.parentMessageId) {
+  /// A tombstone applies at once; anything that needs the message's content asks recovery to refetch. Returns how the
+  /// envelope resolved, so a caller can act on one this Transcript ignores.
+  @discardableResult
+  public func apply(_ envelope: ChatRoomMessageIdEnvelope) -> ChatRoomMessageEnvelopeResolution {
+    guard let roomId = timeline.roomId, envelope.roomId == roomId else { return .ignore }
+    let resolution = resolveRealtimeEnvelope(envelope, focusedRoomId: roomId, parentMessageId: timeline.parentMessageId)
+    switch resolution {
     case let .tombstone(id):
       timeline.messages = applyRealtimeTombstone(messages: timeline.messages, messageId: id, now: now())
     case .needsRefetch:
       recovery.requestRefresh()
     case .ignore: break
     }
+    return resolution
   }
 }

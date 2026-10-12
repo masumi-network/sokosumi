@@ -25,11 +25,11 @@
         defer { window.orderOut(nil) }
         let scroll = try await landedTranscript(state: state, host: host)
         #expect(GapPageProtocol.fillRequests == 0, "A gap below the fold does not load until it is in view.")
-        #expect(state.timeline.boundaryLoads.status(of: "fixture-70") == .idle)
+        #expect(state.room.timeline.boundaryLoads.status(of: "fixture-70") == .idle)
 
         try await scrollDownUntilTheGapAsks(scroll)
         #expect(GapPageProtocol.fillRequests == 1)
-        #expect(state.timeline.boundaryLoads.status(of: "fixture-70") == .loading)
+        #expect(state.room.timeline.boundaryLoads.status(of: "fixture-70") == .loading)
         // A little further, so the row that asked is fully in view at the bottom while its page is held back.
         for _ in 0 ..< 3 {
           try sendScroll(scroll, delta: -40, phase: 2)
@@ -50,14 +50,14 @@
         try #require(lastRow > firstRow + 100 * scale,
                      "The gap row must leave rows above it to compare: rows \(firstRow)..<\(lastRow) of \(before.height) at \(scale)x, gap row at \(gapRowTop).")
 
-        try #require(state.timeline.messages.count == 60)
+        try #require(state.room.timeline.messages.count == 60)
         GapPageProtocol.release()
-        _ = try await waitForView(in: host, timeoutMessage: "The gap page did not merge; \(state.timeline.messages.count) rows") {
-          state.timeline.messages.count == 95 ? scroll : nil
+        _ = try await waitForView(in: host, timeoutMessage: "The gap page did not merge; \(state.room.timeline.messages.count) rows") {
+          state.room.timeline.messages.count == 95 ? scroll : nil
         }
-        #expect(state.timeline.historyGapMessageIds.isEmpty, "The page reached the jump window, so the ranges joined.")
-        #expect(state.timeline.boundaryLoads.status(of: "fixture-70") == .idle)
-        #expect(state.transcriptError == nil)
+        #expect(state.room.timeline.historyGapMessageIds.isEmpty, "The page reached the jump window, so the ranges joined.")
+        #expect(state.room.timeline.boundaryLoads.status(of: "fixture-70") == .idle)
+        #expect(state.room.timeline.errorMessage == nil)
         #expect(GapPageProtocol.olderRequests == 0, "The row above the oldest range did not load on its own.")
         try await Task.sleep(for: .milliseconds(300))
         host.layoutSubtreeIfNeeded()
@@ -92,13 +92,13 @@
         }
         try sendScroll(scroll, delta: 0, phase: 4)
         _ = try await waitForView(in: host, timeoutMessage: "The failed page did not settle on the row") {
-          state.timeline.boundaryLoads.status(of: "fixture-70") == .failed ? scroll : nil
+          state.room.timeline.boundaryLoads.status(of: "fixture-70") == .failed ? scroll : nil
         }
         #expect(GapPageProtocol.fillRequests == 1)
-        #expect(state.timeline.historyGapMessageIds == ["fixture-70"], "The gap is kept for Try again.")
-        #expect(state.timeline.messages.count == 60)
-        #expect(state.transcriptError == nil, "No banner above the transcript.")
-        #expect(state.timeline.failedPage == nil)
+        #expect(state.room.timeline.historyGapMessageIds == ["fixture-70"], "The gap is kept for Try again.")
+        #expect(state.room.timeline.messages.count == 60)
+        #expect(state.room.timeline.errorMessage == nil, "No banner above the transcript.")
+        #expect(state.room.timeline.failedPage == nil)
         for _ in 0 ..< 15 {
           host.layoutSubtreeIfNeeded()
           try await Task.sleep(for: .milliseconds(20))
@@ -107,15 +107,15 @@
         #expect(NSApp.windows.count == windowsBefore + 1, "No alert panel opened beside the fixture window.")
 
         try tryAgain(in: window, host: host, state: state, auth: fixture.auth)
-        _ = try await waitForView(in: host, timeoutMessage: "Try again did not start a load; status \(state.timeline.boundaryLoads.status(of: "fixture-70"))") {
-          state.timeline.boundaryLoads.status(of: "fixture-70") != .failed ? scroll : nil
+        _ = try await waitForView(in: host, timeoutMessage: "Try again did not start a load; status \(state.room.timeline.boundaryLoads.status(of: "fixture-70"))") {
+          state.room.timeline.boundaryLoads.status(of: "fixture-70") != .failed ? scroll : nil
         }
-        _ = try await waitForView(in: host, timeoutMessage: "The retried page did not merge; \(state.timeline.messages.count) rows") {
-          state.timeline.messages.count == 95 ? scroll : nil
+        _ = try await waitForView(in: host, timeoutMessage: "The retried page did not merge; \(state.room.timeline.messages.count) rows") {
+          state.room.timeline.messages.count == 95 ? scroll : nil
         }
         #expect(GapPageProtocol.fillRequests == 2)
-        #expect(state.timeline.historyGapMessageIds.isEmpty)
-        #expect(state.transcriptError == nil)
+        #expect(state.room.timeline.historyGapMessageIds.isEmpty)
+        #expect(state.room.timeline.errorMessage == nil)
         #expect(window.attachedSheet == nil)
       }
 
@@ -232,11 +232,11 @@
         ))
         let state = WorkspaceState(clientProvider: { _ in client })
         let auth = AuthState()
-        state.timeline.reset(roomId: "room")
-        _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
+        state.room.timeline.reset(roomId: "room")
+        _ = try await state.room.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.room.timeline.generation)
         #expect(try await state.openMessage("fixture-20", auth: auth) == .opened)
-        #expect(state.timeline.historyGapMessageIds == ["fixture-70"])
-        #expect(state.timeline.messages.count == 60)
+        #expect(state.room.timeline.historyGapMessageIds == ["fixture-70"])
+        #expect(state.room.timeline.messages.count == 60)
         return GapFixture(state: state, auth: auth, session: session)
       }
 

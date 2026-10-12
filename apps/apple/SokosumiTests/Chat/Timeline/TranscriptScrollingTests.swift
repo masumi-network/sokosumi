@@ -152,14 +152,14 @@
           clientProvider: { _ in Client.core(baseURL: URL(string: "https://example.com")!) },
           now: clock.map { clock in { MainActor.assumeIsolated { clock.now } } } ?? Date.init
         )
-        state.timeline.reset(roomId: "fixture")
-        state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-        state.timeline.messages = fixtureMessages(media: media)
+        state.room.timeline.reset(roomId: "fixture")
+        state.room.timeline.failInitialLoad(message: "", generation: state.room.timeline.generation)
+        state.room.timeline.messages = fixtureMessages(media: media)
         if thread {
-          let parent = try #require(state.timeline.messages.first)
+          let parent = try #require(state.room.timeline.messages.first)
           state.thread.open(parent)
           state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
-          state.thread.transcript.timeline.messages = state.timeline.messages.dropFirst().map { message in
+          state.thread.transcript.timeline.messages = state.room.timeline.messages.dropFirst().map { message in
             var reply = message
             reply.parentMessageId = parent.id
             return reply

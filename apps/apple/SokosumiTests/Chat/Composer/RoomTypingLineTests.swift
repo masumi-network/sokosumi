@@ -33,8 +33,8 @@
       saved = SavedComposeDraft(userId: userId, organizationId: nil, roomId: Self.roomId, parentMessageId: parentMessageId)
       saved.save(draft)
       state.rooms = [Self.room()]
-      state.timeline.reset(roomId: Self.roomId)
-      state.timeline.failInitialLoad(message: "Fixture has no server", generation: state.timeline.generation)
+      state.room.timeline.reset(roomId: Self.roomId)
+      state.room.timeline.failInitialLoad(message: "Fixture has no server", generation: state.room.timeline.generation)
       state.typing.open(roomId: Self.roomId, selfUserId: "me")
       state.typing.channelChanged(roomId: Self.roomId, canPublish: true)
       let uploads = ComposeUploads(savedDraft: saved)
