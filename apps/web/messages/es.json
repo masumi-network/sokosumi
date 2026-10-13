@@ -2588,7 +2588,7 @@
           "dismiss": "Descartar"
         },
         "publishDialog": {
-          "title": "¿Publicar esta publicación ahora?",
+          "title": "¿Publicar ahora?",
           "description": "La publicación saldrá de inmediato en lugar de esperar a la hora programada.",
           "confirm": "Publicar ahora"
         },
