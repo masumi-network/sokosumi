@@ -5,8 +5,6 @@ import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/actions/ads/action", () => ({ createAdCampaign: vi.fn() }));
-
 import messages from "../../../../../messages/en.json";
 import { AdsCampaignsToolbar } from "./ads-campaigns-toolbar";
 
@@ -69,9 +67,12 @@ describe("AdsCampaignsToolbar", () => {
     expect(onUrlUpdate).not.toHaveBeenCalled();
   });
 
-  it("offers New campaign while an account is selected", () => {
+  it("links New campaign to the create page for the selected account", () => {
     renderToolbar(ACCOUNTS);
 
-    expect(screen.getByRole("button", { name: "New campaign" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "New campaign" })).toHaveAttribute(
+      "href",
+      "/ads/campaigns/new?projectId=project-1&accountId=a1",
+    );
   });
 });

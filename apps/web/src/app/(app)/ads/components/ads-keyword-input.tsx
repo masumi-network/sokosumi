@@ -3,12 +3,13 @@
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 
-import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { Input } from "@/components/ui/input";
 import {
   MARKET_KEYWORD_LIMIT,
   MARKET_KEYWORD_MAX_LENGTH,
 } from "@/lib/ads/market";
+
+import { AdsChipList } from "./ads-chip-list";
 
 interface AdsKeywordInputProps
   extends Omit<
@@ -83,22 +84,11 @@ export function AdsKeywordInput({
           {t("keywordsFull")}
         </p>
       ) : null}
-      {value.length > 0 ? (
-        <ul className="flex flex-wrap gap-2">
-          {value.map((keyword) => (
-            <li
-              key={keyword}
-              className="bg-muted text-foreground inline-flex items-center rounded-full pl-3 text-sm"
-            >
-              {keyword}
-              <ChipRemoveButton
-                aria-label={t("removeKeyword", { keyword })}
-                onClick={() => handleRemove(keyword)}
-              />
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <AdsChipList
+        items={value.map((keyword) => ({ id: keyword, name: keyword }))}
+        removeLabel={(keyword) => t("removeKeyword", { keyword })}
+        onRemove={handleRemove}
+      />
     </div>
   );
 }

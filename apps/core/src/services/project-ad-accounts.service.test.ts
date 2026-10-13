@@ -21,6 +21,8 @@ const m = vi.hoisted(() => {
     metaUpdate: vi.fn(),
     googleCreate: vi.fn(),
     metaCreate: vi.fn(),
+    googleLocations: vi.fn(),
+    googleLanguages: vi.fn(),
     requireScopedProject: vi.fn(),
     requireLockedOpenProject: vi.fn(),
     intentFindUnique: vi.fn(),
@@ -83,6 +85,8 @@ vi.mock("@/lib/ads/google-ads", () => ({
   listGoogleCampaigns: m.googleCampaigns,
   updateGoogleCampaign: m.googleUpdate,
   createGoogleCampaign: m.googleCreate,
+  searchGoogleLocations: m.googleLocations,
+  listGoogleLanguages: m.googleLanguages,
 }));
 vi.mock("@/lib/ads/meta-ads", () => ({
   listMetaAdAccounts: m.listMeta,
@@ -112,7 +116,9 @@ import {
   getPendingProjectAdRevocation,
   initiateProjectAdConnection,
   listProjectAdCampaigns,
+  listProjectAdLanguages,
   revokeProjectAdConnectionForClose,
+  searchProjectAdLocations,
   updateProjectAdCampaign,
 } from "./project-ad-accounts.service";
 
@@ -578,6 +584,96 @@ describe("project ad accounts service", () => {
     });
   });
 
+  describe("targeting lookups", () => {
+    const connected = {
+      connectedAccountId: "ca_1",
+      executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+    };
+    const lookups = {
+      locations: () =>
+        searchProjectAdLocations({
+          ...scope,
+          accountId: ACCOUNT_UUID,
+          q: "Berlin",
+        }),
+      languages: () =>
+        listProjectAdLanguages({ ...scope, accountId: ACCOUNT_UUID }),
+    };
+
+    it("searches locations inside the attached customer", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      m.googleLocations.mockResolvedValue([{ id: "1" }]);
+      await expect(lookups.locations()).resolves.toEqual({
+        locations: [{ id: "1" }],
+      });
+      expect(m.googleLocations).toHaveBeenCalledWith({
+        ...connected,
+        customerId: "111",
+        q: "Berlin",
+      });
+    });
+
+    it("looks locations up by id", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      m.googleLocations.mockResolvedValue([]);
+      await searchProjectAdLocations({
+        ...scope,
+        accountId: ACCOUNT_UUID,
+        ids: ["2276"],
+      });
+      expect(m.googleLocations).toHaveBeenCalledWith({
+        ...connected,
+        customerId: "111",
+        ids: ["2276"],
+      });
+    });
+
+    it("lists languages inside the attached customer", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      m.googleLanguages.mockResolvedValue([{ id: "1000" }]);
+      await expect(lookups.languages()).resolves.toEqual({
+        languages: [{ id: "1000" }],
+      });
+      expect(m.googleLanguages).toHaveBeenCalledWith({
+        ...connected,
+        customerId: "111",
+      });
+    });
+
+    it.each(Object.entries(lookups))(
+      "returns 404 for a Meta account (%s)",
+      async (_name, lookup) => {
+        m.accountFindFirst.mockResolvedValue(accountRow("meta_ads", "act_9"));
+        await expect(lookup()).rejects.toMatchObject({
+          status: 404,
+          message: expect.stringContaining("Google Ads"),
+        });
+        expect(m.googleLocations).not.toHaveBeenCalled();
+        expect(m.googleLanguages).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(Object.entries(lookups))(
+      "returns 404 for an account of another Project (%s)",
+      async (_name, lookup) => {
+        m.accountFindFirst.mockResolvedValue(null);
+        await expect(lookup()).rejects.toMatchObject({ status: 404 });
+      },
+    );
+
+    it.each(Object.entries(lookups))(
+      "returns 409 when the connection is not active (%s)",
+      async (_name, lookup) => {
+        m.accountFindFirst.mockResolvedValue(
+          accountRow("google_ads", "111", "disconnected"),
+        );
+        await expect(lookup()).rejects.toMatchObject({ status: 409 });
+        expect(m.googleLocations).not.toHaveBeenCalled();
+        expect(m.googleLanguages).not.toHaveBeenCalled();
+      },
+    );
+  });
+
   describe("update campaign", () => {
     const update = (
       changes: AdCampaignUpdate = {
@@ -676,12 +772,23 @@ describe("project ad accounts service", () => {
   });
 
   describe("create campaign", () => {
+    const google = {
+      type: "SEARCH" as const,
+      locationIds: ["2276"],
+      languageIds: ["1001"],
+      finalUrl: "https://example.com",
+      keywords: [{ text: "shoes", matchType: "BROAD" as const }],
+      headlines: ["One", "Two", "Three"],
+      descriptions: ["First description", "Second description"],
+    };
     const create = (
       changes: Partial<Parameters<typeof createProjectAdCampaign>[0]> = {},
     ) =>
       createProjectAdCampaign({
         ...scope,
         accountId: ACCOUNT_UUID,
+        userId: "user_123",
+        organizationId: null,
         name: "Spring sale",
         dailyBudget: 12.5,
         ...changes,
@@ -691,17 +798,161 @@ describe("project ad accounts service", () => {
       executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
     };
 
-    it("creates a Google campaign inside the attached customer, ignoring any objective", async () => {
+    it("creates a Google campaign inside the attached customer", async () => {
       m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
       m.googleCreate.mockResolvedValue("42");
-      await expect(create({ objective: "OUTCOME_SALES" })).resolves.toEqual({
-        id: "42",
-      });
+      await expect(create({ google })).resolves.toEqual({ id: "42" });
       expect(m.googleCreate).toHaveBeenCalledWith({
         ...connected,
         customerId: "111",
         name: "Spring sale",
         dailyBudget: 12.5,
+        google,
+      });
+      expect(m.metaCreate).not.toHaveBeenCalled();
+    });
+
+    describe("Display images", () => {
+      const BLOB = "https://store.public.blob.vercel-storage.com";
+      const image = (
+        pathname: string,
+        role: "LANDSCAPE" | "SQUARE" | "LOGO",
+        fileUrl = `${BLOB}/${pathname}`,
+      ) => ({
+        pathname,
+        fileUrl,
+        name: pathname.split("/").at(-1) ?? pathname,
+        size: 1000,
+        mimeType: "image/png" as const,
+        role,
+      });
+      const display = (images: ReturnType<typeof image>[]) => ({
+        type: "DISPLAY" as const,
+        locationIds: [],
+        languageIds: [],
+        finalUrl: "https://example.com",
+        businessName: "Acme",
+        headlines: ["Run faster"],
+        longHeadline: "Run faster in the lightest shoes",
+        descriptions: ["Shoes for every runner."],
+        images,
+      });
+      const personal = [
+        image("drive/users/user_123/wide.png", "LANDSCAPE"),
+        image("drive/users/user_123/square.png", "SQUARE"),
+      ];
+
+      beforeEach(() => {
+        m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+        m.googleCreate.mockResolvedValue("42");
+      });
+
+      it("creates the campaign with the images pinned to the personal Drive", async () => {
+        await expect(create({ google: display(personal) })).resolves.toEqual({
+          id: "42",
+        });
+        expect(m.googleCreate).toHaveBeenCalledWith(
+          expect.objectContaining({ google: display(personal) }),
+        );
+      });
+
+      it("accepts the active organization's Drive", async () => {
+        const images = [
+          image("drive/organizations/org_1/wide.png", "LANDSCAPE"),
+          image("drive/organizations/org_1/square.png", "SQUARE"),
+        ];
+        await create({ google: display(images), organizationId: "org_1" });
+        expect(m.googleCreate).toHaveBeenCalled();
+      });
+
+      it("normalizes the file URL it hands to the provider", async () => {
+        const spaced = image(
+          "drive/users/user_123/my wide.png",
+          "LANDSCAPE",
+          `${BLOB}/drive/users/user_123/my%20wide.png`,
+        );
+        await create({ google: display([spaced, personal[1]]) });
+        expect(m.googleCreate.mock.calls[0]?.[0].google.images[0].fileUrl).toBe(
+          `${BLOB}/drive/users/user_123/my%20wide.png`,
+        );
+      });
+
+      it.each([
+        [
+          "an image in another organization's Drive",
+          image("drive/organizations/org_2/wide.png", "LANDSCAPE"),
+          403,
+        ],
+        [
+          "a personal image in an organization Workspace",
+          image("drive/users/user_123/wide.png", "LANDSCAPE"),
+          403,
+        ],
+        [
+          "an image of another user",
+          image("drive/users/user_999/wide.png", "LANDSCAPE"),
+          422,
+        ],
+        [
+          "an image outside the Drive",
+          image("avatars/wide.png", "LANDSCAPE"),
+          422,
+        ],
+        [
+          "an image on a foreign host",
+          image(
+            "drive/organizations/org_1/wide.png",
+            "LANDSCAPE",
+            "https://evil.example/drive/organizations/org_1/wide.png",
+          ),
+          400,
+        ],
+      ])("rejects %s before calling Google", async (_name, bad, status) => {
+        await expect(
+          create({
+            google: display([bad, personal[1]]),
+            organizationId: "org_1",
+          }),
+        ).rejects.toMatchObject({ status });
+        expect(m.googleCreate).not.toHaveBeenCalled();
+      });
+
+      it("still refuses a Meta account with a Display spec first", async () => {
+        m.accountFindFirst.mockResolvedValue(accountRow("meta_ads", "act_9"));
+        await expect(
+          create({ google: display(personal), objective: "OUTCOME_LEADS" }),
+        ).rejects.toMatchObject({ status: 422 });
+        expect(m.metaCreate).not.toHaveBeenCalled();
+      });
+    });
+
+    it("rejects a Google campaign without a google spec before calling Google", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      await expect(create()).rejects.toMatchObject({
+        status: 422,
+        message: expect.stringContaining("google"),
+      });
+      expect(m.googleCreate).not.toHaveBeenCalled();
+    });
+
+    it("rejects a Google campaign with an objective before calling Google", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      await expect(
+        create({ google, objective: "OUTCOME_SALES" }),
+      ).rejects.toMatchObject({
+        status: 422,
+        message: expect.stringContaining("objective"),
+      });
+      expect(m.googleCreate).not.toHaveBeenCalled();
+    });
+
+    it("rejects a Meta campaign with a google spec before calling Meta", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("meta_ads", "act_9"));
+      await expect(
+        create({ google, objective: "OUTCOME_LEADS" }),
+      ).rejects.toMatchObject({
+        status: 422,
+        message: expect.stringContaining("google"),
       });
       expect(m.metaCreate).not.toHaveBeenCalled();
     });
@@ -740,7 +991,7 @@ describe("project ad accounts service", () => {
         m.accountFindFirst.mockResolvedValue(
           accountRow("google_ads", "111", "active", currency),
         );
-        await expect(create({ dailyBudget })).rejects.toMatchObject({
+        await expect(create({ dailyBudget, google })).rejects.toMatchObject({
           status: 422,
           message: expect.stringContaining(currency),
         });

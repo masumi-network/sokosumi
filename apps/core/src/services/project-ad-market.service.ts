@@ -61,6 +61,8 @@ interface ProjectScope {
 export interface AdMarketProfile {
   keywords: string[];
   countryCode: AdMarketCountryCode;
+  /** The country's Google geo target constant id (DataForSEO location codes are the same ids). */
+  locationId: string;
   languageCode: AdMarketLanguageCode;
   updatedAt: Date;
 }
@@ -88,6 +90,7 @@ function toProfile(profile: ProjectAdMarketProfile): AdMarketProfile {
   return {
     keywords: profile.keywords,
     countryCode,
+    locationId: String(profile.locationCode),
     languageCode: profile.languageCode,
     updatedAt: profile.updatedAt,
   };

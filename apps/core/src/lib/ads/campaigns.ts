@@ -1,3 +1,5 @@
+import type { DriveFileRef } from "@/helpers/drive-file-ref";
+
 export const AD_RANGES = ["LAST_7_DAYS", "LAST_30_DAYS"] as const;
 export type AdRange = (typeof AD_RANGES)[number];
 
@@ -19,7 +21,7 @@ export interface AdCampaignUpdate {
   dailyBudget?: number;
 }
 
-/** Objectives a new Meta campaign may have. Google Search campaigns have none. */
+/** Objectives a new Meta campaign may have. Google campaigns have none. */
 export const META_CAMPAIGN_OBJECTIVES = [
   "OUTCOME_TRAFFIC",
   "OUTCOME_AWARENESS",
@@ -34,6 +36,101 @@ export interface AdCampaignCreate {
   name: string;
   /** Decimal in the account currency. */
   dailyBudget: number;
+}
+
+export const GOOGLE_KEYWORD_MATCH_TYPES = ["BROAD", "PHRASE", "EXACT"] as const;
+export type GoogleKeywordMatchType =
+  (typeof GOOGLE_KEYWORD_MATCH_TYPES)[number];
+
+export interface GoogleKeyword {
+  text: string;
+  matchType: GoogleKeywordMatchType;
+}
+
+/** Geo target or language constant ids one request names at most. */
+export const GOOGLE_MAX_IDS = 25;
+
+/** Locations one name search returns at most. */
+export const GOOGLE_MAX_LOCATION_SUGGESTIONS = 20;
+
+/** Find Google locations by name, or look them up by geo target constant id. */
+export type GoogleLocationLookup = { q: string } | { ids: string[] };
+
+interface GoogleCampaignSpecBase {
+  /** `YYYY-MM-DD`, the account's time zone. */
+  startDate?: string;
+  /** `YYYY-MM-DD`, not before startDate. */
+  endDate?: string;
+  /** Geo target constant ids; none targets all countries. */
+  locationIds: string[];
+  /** Language constant ids; none targets all languages. */
+  languageIds: string[];
+  finalUrl: string;
+}
+
+export interface GoogleSitelink {
+  text: string;
+  finalUrl: string;
+  /** Both descriptions or neither. */
+  description1?: string;
+  description2?: string;
+}
+
+export interface GoogleSearchCampaignSpec extends GoogleCampaignSpecBase {
+  type: "SEARCH";
+  keywords: GoogleKeyword[];
+  headlines: string[];
+  descriptions: string[];
+  path1?: string;
+  path2?: string;
+  sitelinks?: GoogleSitelink[];
+  callouts?: string[];
+}
+
+/** LOGO is a square (1:1) logo, at least 128x128; it fills `square_logo_images`. */
+export const GOOGLE_DISPLAY_IMAGE_ROLES = [
+  "LANDSCAPE",
+  "SQUARE",
+  "LOGO",
+] as const;
+export type GoogleDisplayImageRole =
+  (typeof GOOGLE_DISPLAY_IMAGE_ROLES)[number];
+
+/** Image types Google accepts for a responsive display ad. */
+export const GOOGLE_DISPLAY_IMAGE_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+] as const;
+
+/** Largest image Google accepts: 5120 KB. */
+export const GOOGLE_DISPLAY_IMAGE_MAX_BYTES = 5120 * 1024;
+export const GOOGLE_DISPLAY_IMAGE_MAX_LABEL = `${GOOGLE_DISPLAY_IMAGE_MAX_BYTES / 1024} KB`;
+
+/** A Drive image of a responsive display ad, with the slot it fills. */
+export interface GoogleDisplayImage extends DriveFileRef {
+  size: number;
+  mimeType: (typeof GOOGLE_DISPLAY_IMAGE_MIME_TYPES)[number];
+  role: GoogleDisplayImageRole;
+}
+
+export interface GoogleDisplayCampaignSpec extends GoogleCampaignSpecBase {
+  type: "DISPLAY";
+  businessName: string;
+  headlines: string[];
+  longHeadline: string;
+  descriptions: string[];
+  /** At least one LANDSCAPE and one SQUARE; LANDSCAPE + SQUARE at most 6, LOGO at most 2. */
+  images: GoogleDisplayImage[];
+}
+
+/** What a new Google campaign contains beyond its name and budget; one member per campaign type. */
+export type GoogleCampaignSpec =
+  | GoogleSearchCampaignSpec
+  | GoogleDisplayCampaignSpec;
+
+export interface GoogleCampaignCreate extends AdCampaignCreate {
+  google: GoogleCampaignSpec;
 }
 
 export interface AdCampaignMetrics {

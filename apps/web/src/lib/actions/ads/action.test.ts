@@ -21,6 +21,8 @@ const adsServiceMock = {
   discardConnection: vi.fn(),
   updateCampaign: vi.fn(),
   createCampaign: vi.fn(),
+  listMarketKeywords: vi.fn(),
+  searchLocations: vi.fn(),
   saveMarketProfile: vi.fn(),
 };
 
@@ -458,10 +460,64 @@ describe("ads actions", () => {
       );
     });
 
+    const google = {
+      type: "SEARCH" as const,
+      locationIds: [],
+      languageIds: [],
+      finalUrl: "https://example.com",
+      keywords: [{ text: "running shoes", matchType: "BROAD" as const }],
+      headlines: ["One", "Two", "Three"],
+      descriptions: ["First description", "Second description"],
+    };
+
+    it("passes the Google spec to Core, without an objective", async () => {
+      adsServiceMock.createCampaign.mockResolvedValue({ id: "42" });
+
+      const { createAdCampaign } = await import("./action");
+      const result = await createAdCampaign({ ...base, google });
+
+      expect(adsServiceMock.createCampaign).toHaveBeenCalledWith(
+        "project-1",
+        "account-1",
+        { name: "Spring sale", dailyBudget: 25.5, google },
+      );
+      expect(result).toEqual({ ok: true, value: { id: "42" } });
+    });
+
     it.each([
       ["a blank name", { name: "   " }],
+      [
+        "a Google spec without keywords",
+        { google: { ...google, keywords: [] } },
+      ],
+      [
+        "a Google spec with two headlines",
+        { google: { ...google, headlines: ["One", "Two"] } },
+      ],
       ["a name over 255 characters", { name: "a".repeat(256) }],
       ["a zero budget", { dailyBudget: 0 }],
+      [
+        "a keyword of 11 words",
+        {
+          google: {
+            ...google,
+            keywords: [
+              {
+                text: "one two three four five six seven eight nine ten eleven",
+                matchType: "BROAD" as const,
+              },
+            ],
+          },
+        },
+      ],
+      [
+        "a start date that is not on the calendar",
+        { google: { ...google, startDate: "2026-02-31" } },
+      ],
+      [
+        "an end date that is not on the calendar",
+        { google: { ...google, endDate: "2026-13-01" } },
+      ],
     ])("rejects %s, calling nothing", async (_name, changes) => {
       const { createAdCampaign } = await import("./action");
       const { revalidatePath } = await import("next/cache");
@@ -470,6 +526,120 @@ describe("ads actions", () => {
       expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
       expect(adsServiceMock.createCampaign).not.toHaveBeenCalled();
       expect(revalidatePath).not.toHaveBeenCalled();
+    });
+
+    describe("Display", () => {
+      const image = (role: "LANDSCAPE" | "SQUARE" | "LOGO", name: string) => ({
+        pathname: `drive/users/user_1/${name}`,
+        fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/user_1/${name}`,
+        name,
+        size: 240000,
+        mimeType: "image/png" as const,
+        role,
+      });
+      const display = {
+        type: "DISPLAY" as const,
+        locationIds: ["2276"],
+        languageIds: [],
+        finalUrl: "https://example.com",
+        businessName: "Acme",
+        headlines: ["One"],
+        longHeadline: "A longer headline",
+        descriptions: ["First description"],
+        images: [
+          image("LANDSCAPE", "wide.png"),
+          image("SQUARE", "square.png"),
+          image("LOGO", "logo.png"),
+        ],
+      };
+
+      it("passes the Display spec to Core as it is", async () => {
+        adsServiceMock.createCampaign.mockResolvedValue({ id: "42" });
+
+        const { createAdCampaign } = await import("./action");
+        const result = await createAdCampaign({ ...base, google: display });
+
+        expect(adsServiceMock.createCampaign).toHaveBeenCalledWith(
+          "project-1",
+          "account-1",
+          { name: "Spring sale", dailyBudget: 25.5, google: display },
+        );
+        expect(result).toEqual({ ok: true, value: { id: "42" } });
+      });
+
+      it.each([
+        ["no landscape image", { images: display.images.slice(1) }],
+        ["no square image", { images: [display.images[0]] }],
+        [
+          "seven marketing images",
+          {
+            images: [
+              ...Array.from({ length: 6 }, (_, i) =>
+                image("LANDSCAPE", `wide-${i}.png`),
+              ),
+              image("SQUARE", "square.png"),
+            ],
+          },
+        ],
+        [
+          "three logos",
+          {
+            images: [
+              ...display.images,
+              image("LOGO", "logo-2.png"),
+              image("LOGO", "logo-3.png"),
+            ],
+          },
+        ],
+        [
+          "one file twice",
+          { images: [...display.images, image("LOGO", "wide.png")] },
+        ],
+        [
+          "an image over 5120 KB",
+          {
+            images: [
+              { ...display.images[0], size: 5 * 1024 * 1024 + 1 },
+              display.images[1],
+            ],
+          },
+        ],
+        ["a 26-character business name", { businessName: "a".repeat(26) }],
+        ["a 91-character long headline", { longHeadline: "a".repeat(91) }],
+        ["six headlines", { headlines: ["a", "b", "c", "d", "e", "f"] }],
+        ["repeated headlines", { headlines: ["Same", "same"] }],
+        ["no descriptions", { descriptions: [] }],
+        [
+          "an end before the start",
+          { startDate: "2026-11-02", endDate: "2026-11-01" },
+        ],
+      ])("rejects %s, calling nothing", async (_name, changes) => {
+        const { createAdCampaign } = await import("./action");
+        const result = await createAdCampaign({
+          ...base,
+          google: { ...display, ...changes },
+        });
+
+        expect(result).toMatchObject({
+          ok: false,
+          error: { code: "BAD_INPUT" },
+        });
+        expect(adsServiceMock.createCampaign).not.toHaveBeenCalled();
+      });
+    });
+
+    it("passes Google's 422 message through", async () => {
+      adsServiceMock.createCampaign.mockRejectedValue(
+        await coreError("Destination not working.", 422),
+      );
+
+      const { createAdCampaign } = await import("./action");
+      const result = await createAdCampaign({ ...base, google });
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: { status: 422, message: "Destination not working." },
+      });
     });
 
     it.each([409, 422])("tells the UI Core refused with %i", async (status) => {
@@ -483,6 +653,102 @@ describe("ads actions", () => {
 
       expect(result).toMatchObject({ ok: false, error: { status } });
       expect(revalidatePath).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("listAdMarketKeywords", () => {
+    it("returns the names of the trending keywords", async () => {
+      adsServiceMock.listMarketKeywords.mockResolvedValue({
+        keywords: [{ keyword: "running shoes" }, { keyword: "trail shoes" }],
+      });
+
+      const { listAdMarketKeywords } = await import("./action");
+      const result = await listAdMarketKeywords({ projectId: " project-1 " });
+
+      expect(adsServiceMock.listMarketKeywords).toHaveBeenCalledWith(
+        "project-1",
+      );
+      expect(result).toEqual({
+        ok: true,
+        value: ["running shoes", "trail shoes"],
+      });
+    });
+
+    it("reports a Core failure", async () => {
+      adsServiceMock.listMarketKeywords.mockRejectedValue(
+        await coreError("down", 502),
+      );
+
+      const { listAdMarketKeywords } = await import("./action");
+      const result = await listAdMarketKeywords({ projectId: "project-1" });
+
+      expect(result).toMatchObject({ ok: false, error: { status: 502 } });
+    });
+
+    it("rejects a blank project, calling nothing", async () => {
+      const { listAdMarketKeywords } = await import("./action");
+      const result = await listAdMarketKeywords({ projectId: " " });
+
+      expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+      expect(adsServiceMock.listMarketKeywords).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("searchAdLocations", () => {
+    const munich = {
+      id: "1003854",
+      name: "Munich",
+      canonicalName: "Munich,Bavaria,Germany",
+      targetType: "City",
+      countryCode: "DE",
+    };
+
+    it("returns the matching locations for the trimmed text", async () => {
+      adsServiceMock.searchLocations.mockResolvedValue({ locations: [munich] });
+
+      const { searchAdLocations } = await import("./action");
+      const result = await searchAdLocations({
+        projectId: "project-1",
+        accountId: "account-1",
+        q: " Mun ",
+      });
+
+      expect(adsServiceMock.searchLocations).toHaveBeenCalledWith(
+        "project-1",
+        "account-1",
+        "Mun",
+      );
+      expect(result).toEqual({ ok: true, value: [munich] });
+    });
+
+    it("reports a Core failure with its status", async () => {
+      adsServiceMock.searchLocations.mockRejectedValue(
+        await coreError("down", 502),
+      );
+
+      const { searchAdLocations } = await import("./action");
+      const result = await searchAdLocations({
+        projectId: "project-1",
+        accountId: "account-1",
+        q: "Mun",
+      });
+
+      expect(result).toMatchObject({ ok: false, error: { status: 502 } });
+    });
+
+    it.each([
+      ["blank text", " "],
+      ["text over 80 characters", "x".repeat(81)],
+    ])("rejects %s, calling nothing", async (_name, q) => {
+      const { searchAdLocations } = await import("./action");
+      const result = await searchAdLocations({
+        projectId: "project-1",
+        accountId: "account-1",
+        q,
+      });
+
+      expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+      expect(adsServiceMock.searchLocations).not.toHaveBeenCalled();
     });
   });
 

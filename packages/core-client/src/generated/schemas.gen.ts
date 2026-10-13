@@ -21021,7 +21021,10 @@ export const CreateAdCampaignRequestSchema = {
                 'OUTCOME_LEADS',
                 'OUTCOME_SALES'
             ],
-            description: 'Required for Meta ad accounts; ignored for Google (campaigns are Search campaigns)'
+            description: 'Required for Meta ad accounts; 422 for Google'
+        },
+        google: {
+            $ref: '#/components/schemas/GoogleCampaignSpec'
         }
     },
     required: [
@@ -21029,6 +21032,455 @@ export const CreateAdCampaignRequestSchema = {
         'dailyBudget'
     ],
     description: 'There is no status: a new campaign is always created paused'
+} as const;
+
+export const GoogleCampaignSpecSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/GoogleSearchCampaignSpec'
+        },
+        {
+            $ref: '#/components/schemas/GoogleDisplayCampaignSpec'
+        }
+    ],
+    discriminator: {
+        propertyName: 'type',
+        mapping: {
+            SEARCH: '#/components/schemas/GoogleSearchCampaignSpec',
+            DISPLAY: '#/components/schemas/GoogleDisplayCampaignSpec'
+        }
+    },
+    description: 'Required for Google ad accounts; 422 for Meta'
+} as const;
+
+export const GoogleSearchCampaignSpecSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'SEARCH'
+            ]
+        },
+        startDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign starts at 00:00:00 of this day in the account\'s time zone'
+        },
+        endDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign ends at 23:59:59 of this day in the account\'s time zone; not before startDate'
+        },
+        locationIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^\\d{1,20}$'
+            },
+            maxItems: 25,
+            description: 'Geo target constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        languageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^\\d{1,20}$'
+            },
+            maxItems: 25,
+            description: 'Language constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        finalUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri',
+            example: 'https://example.com/spring'
+        },
+        keywords: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleKeyword'
+            },
+            minItems: 1,
+            maxItems: 50,
+            description: 'Repeats of a keyword with the same match type (ignoring case) are dropped'
+        },
+        headlines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 30
+            },
+            minItems: 3,
+            maxItems: 15
+        },
+        descriptions: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 90
+            },
+            minItems: 2,
+            maxItems: 4
+        },
+        path1: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 15
+        },
+        path2: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 15,
+            description: 'Requires path1'
+        },
+        sitelinks: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleSitelink'
+            },
+            maxItems: 8
+        },
+        callouts: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 25
+            },
+            minItems: 0,
+            maxItems: 10
+        }
+    },
+    required: [
+        'type',
+        'locationIds',
+        'languageIds',
+        'finalUrl',
+        'keywords',
+        'headlines',
+        'descriptions'
+    ]
+} as const;
+
+export const GoogleKeywordSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80,
+            description: 'Plain text, without quotes or brackets',
+            example: 'running shoes'
+        },
+        matchType: {
+            type: 'string',
+            enum: [
+                'BROAD',
+                'PHRASE',
+                'EXACT'
+            ]
+        }
+    },
+    required: [
+        'text',
+        'matchType'
+    ]
+} as const;
+
+export const GoogleSitelinkSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 25
+        },
+        finalUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri'
+        },
+        description1: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 35
+        },
+        description2: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 35
+        }
+    },
+    required: [
+        'text',
+        'finalUrl'
+    ]
+} as const;
+
+export const GoogleDisplayCampaignSpecSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'DISPLAY'
+            ]
+        },
+        startDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign starts at 00:00:00 of this day in the account\'s time zone'
+        },
+        endDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign ends at 23:59:59 of this day in the account\'s time zone; not before startDate'
+        },
+        locationIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^\\d{1,20}$'
+            },
+            maxItems: 25,
+            description: 'Geo target constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        languageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^\\d{1,20}$'
+            },
+            maxItems: 25,
+            description: 'Language constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        finalUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri',
+            example: 'https://example.com/spring'
+        },
+        businessName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 25
+        },
+        headlines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 30
+            },
+            minItems: 1,
+            maxItems: 5
+        },
+        longHeadline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 90
+        },
+        descriptions: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 90
+            },
+            minItems: 1,
+            maxItems: 5
+        },
+        images: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleDisplayImage'
+            },
+            maxItems: 8,
+            description: 'Drive images: 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each file once'
+        }
+    },
+    required: [
+        'type',
+        'locationIds',
+        'languageIds',
+        'finalUrl',
+        'businessName',
+        'headlines',
+        'longHeadline',
+        'descriptions',
+        'images'
+    ]
+} as const;
+
+export const GoogleDisplayImageSchema = {
+    type: 'object',
+    properties: {
+        pathname: {
+            type: 'string',
+            minLength: 1,
+            example: 'drive/users/user_123/launch.png',
+            description: 'Drive blob pathname; must belong to the active workspace'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+            description: 'Public Blob URL of the Drive file'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            example: 'launch.png'
+        },
+        size: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 5242880,
+            description: 'Bytes; at most 5120 KB',
+            example: 240000
+        },
+        mimeType: {
+            type: 'string',
+            enum: [
+                'image/jpeg',
+                'image/png',
+                'image/gif'
+            ]
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'LANDSCAPE',
+                'SQUARE',
+                'LOGO'
+            ],
+            description: 'LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional square (1:1, at least 128x128) logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit'
+        }
+    },
+    required: [
+        'pathname',
+        'fileUrl',
+        'name',
+        'size',
+        'mimeType',
+        'role'
+    ]
+} as const;
+
+export const ListGoogleLocationsResponseSchema = {
+    type: 'object',
+    properties: {
+        locations: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleLocation'
+            },
+            maxItems: 25
+        }
+    },
+    required: [
+        'locations'
+    ]
+} as const;
+
+export const GoogleLocationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Geo target constant id; pass it in `google.locationIds`',
+            example: '2276'
+        },
+        name: {
+            type: 'string',
+            example: 'Berlin'
+        },
+        canonicalName: {
+            type: 'string',
+            example: 'Berlin,Berlin,Germany'
+        },
+        targetType: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when Google omits it',
+            example: 'City'
+        },
+        countryCode: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when Google omits it',
+            example: 'DE'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'canonicalName',
+        'targetType',
+        'countryCode'
+    ]
+} as const;
+
+export const ListGoogleLanguagesResponseSchema = {
+    type: 'object',
+    properties: {
+        languages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleLanguage'
+            }
+        }
+    },
+    required: [
+        'languages'
+    ]
+} as const;
+
+export const GoogleLanguageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Language constant id; pass it in `google.languageIds`',
+            example: '1001'
+        },
+        code: {
+            type: 'string',
+            example: 'de'
+        },
+        name: {
+            type: 'string',
+            example: 'German'
+        }
+    },
+    required: [
+        'id',
+        'code',
+        'name'
+    ]
 } as const;
 
 export const GetAdMarketProfileResponseSchema = {
@@ -21063,6 +21515,11 @@ export const AdMarketProfileSchema = {
         countryCode: {
             $ref: '#/components/schemas/AdMarketCountryCode'
         },
+        locationId: {
+            type: 'string',
+            description: 'Google geo target constant id of the country, for campaign targeting',
+            example: '2840'
+        },
         languageCode: {
             $ref: '#/components/schemas/AdMarketLanguageCode'
         },
@@ -21075,6 +21532,7 @@ export const AdMarketProfileSchema = {
     required: [
         'keywords',
         'countryCode',
+        'locationId',
         'languageCode',
         'updatedAt'
     ]

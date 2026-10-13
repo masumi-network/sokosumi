@@ -21,6 +21,8 @@ import mountUpdateCampaign from "./accounts/[accountId]/campaigns/[campaignId]/p
 import mountListCampaigns from "./accounts/[accountId]/campaigns/get.js";
 import mountCreateCampaign from "./accounts/[accountId]/campaigns/post.js";
 import mountDeleteAccount from "./accounts/[accountId]/delete.js";
+import mountListLanguages from "./accounts/[accountId]/targeting/languages/get.js";
+import mountSearchLocations from "./accounts/[accountId]/targeting/locations/get.js";
 import mountListAccounts from "./accounts/get.js";
 import mountAttachAccounts from "./accounts/post.js";
 import mountDiscardConnection from "./connections/[adConnectionId]/delete.js";
@@ -38,6 +40,8 @@ const m = vi.hoisted(() => ({
   campaigns: vi.fn(),
   updateCampaign: vi.fn(),
   createCampaign: vi.fn(),
+  locations: vi.fn(),
+  languages: vi.fn(),
 }));
 
 vi.mock("@/helpers/social-beta-access", () => ({
@@ -53,6 +57,8 @@ vi.mock("@/services/project-ad-accounts.service", () => ({
   listProjectAdCampaigns: m.campaigns,
   updateProjectAdCampaign: m.updateCampaign,
   createProjectAdCampaign: m.createCampaign,
+  searchProjectAdLocations: m.locations,
+  listProjectAdLanguages: m.languages,
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
@@ -132,6 +138,8 @@ function createApp(
   mountListCampaigns(app);
   mountUpdateCampaign(app);
   mountCreateCampaign(app);
+  mountSearchLocations(app);
+  mountListLanguages(app);
   return app;
 }
 
@@ -480,18 +488,44 @@ describe("Project ads routes", () => {
         body: JSON.stringify(body),
       });
 
+    const googleSpec = {
+      type: "SEARCH",
+      locationIds: ["2276"],
+      languageIds: ["1001"],
+      finalUrl: "https://example.com/spring",
+      keywords: [{ text: "running shoes", matchType: "BROAD" }],
+      headlines: ["One", "Two", "Three"],
+      descriptions: ["First description", "Second description"],
+    };
+    const sitelink = (text: string) => ({
+      text,
+      finalUrl: "https://example.com/page",
+    });
+    const withGoogle = (changes: Record<string, unknown>) => ({
+      name: "Spring",
+      dailyBudget: 5,
+      google: { ...googleSpec, ...changes },
+    });
+
     beforeEach(() => {
       m.createCampaign.mockResolvedValue({ id: "42" });
     });
 
     it.each([
-      ["without objective", { name: "Spring", dailyBudget: 12.5 }],
       [
-        "with objective",
+        "a Meta objective",
         { name: "Spring", dailyBudget: 12.5, objective: "OUTCOME_TRAFFIC" },
       ],
+      [
+        "a Google spec",
+        { name: "Spring", dailyBudget: 12.5, google: googleSpec },
+      ],
+      [
+        "neither (the service refuses it)",
+        { name: "Spring", dailyBudget: 12.5 },
+      ],
     ])(
-      "creates a campaign %s and returns 201 with its id",
+      "creates a campaign with %s and returns 201 with its id",
       async (_name, body) => {
         const response = await createPost(body);
         expect(response.status).toBe(201);
@@ -500,16 +534,58 @@ describe("Project ads routes", () => {
           projectId: PROJECT_ID,
           workspaceId: WORKSPACE_ID,
           accountId: ACCOUNT_UUID,
+          userId: USER_ID,
+          organizationId: null,
           ...body,
         });
       },
     );
 
-    it("trims the name", async () => {
+    it("trims the name, keywords, headlines and descriptions", async () => {
+      await createPost(
+        withGoogle({
+          keywords: [{ text: "  shoes ", matchType: "EXACT" }],
+          headlines: [" One ", "Two", "Three"],
+          descriptions: [" First ", "Second"],
+        }),
+      );
+      expect(m.createCampaign.mock.calls[0]?.[0].google).toMatchObject({
+        keywords: [{ text: "shoes", matchType: "EXACT" }],
+        headlines: ["One", "Two", "Three"],
+        descriptions: ["First", "Second"],
+      });
+      m.createCampaign.mockClear();
       await createPost({ name: "  Spring  ", dailyBudget: 5 });
       expect(m.createCampaign).toHaveBeenCalledWith(
         expect.objectContaining({ name: "Spring" }),
       );
+    });
+
+    it("trims sitelinks and callouts", async () => {
+      await createPost(
+        withGoogle({
+          sitelinks: [
+            {
+              text: " Shoes ",
+              finalUrl: "https://example.com/shoes",
+              description1: " One ",
+              description2: " Two ",
+            },
+          ],
+          callouts: [" Free shipping "],
+        }),
+      );
+      expect(m.createCampaign.mock.calls[0]?.[0].google).toMatchObject({
+        sitelinks: [
+          {
+            text: "Shoes",
+            finalUrl: "https://example.com/shoes",
+            description1: "One",
+            description2: "Two",
+          },
+        ],
+        callouts: ["Free shipping"],
+      });
     });
 
     it("has no status input: a requested status never reaches the service", async () => {
@@ -542,6 +618,372 @@ describe("Project ads routes", () => {
     });
 
     it.each([
+      [
+        "a duplicate keyword",
+        {
+          keywords: [
+            { text: "Shoes", matchType: "BROAD" },
+            { text: "shoes", matchType: "BROAD" },
+          ],
+        },
+      ],
+      [
+        "the same keyword with another match type",
+        {
+          keywords: [
+            { text: "Shoes", matchType: "BROAD" },
+            { text: "shoes", matchType: "EXACT" },
+          ],
+        },
+      ],
+    ])("accepts %s (the provider drops repeats)", async (_name, changes) => {
+      expect((await createPost(withGoogle(changes))).status).toBe(201);
+    });
+
+    it.each([
+      ["an unknown type", { type: "VIDEO" }],
+      ["no type", { type: undefined }],
+      ["a missing final URL", { finalUrl: undefined }],
+      ["a non-http final URL", { finalUrl: "javascript:alert(1)" }],
+      [
+        "a too long final URL",
+        { finalUrl: `https://example.com/${"a".repeat(2048)}` },
+      ],
+      ["no keywords", { keywords: [] }],
+      [
+        "51 keywords",
+        {
+          keywords: Array.from({ length: 51 }, (_, i) => ({
+            text: `kw ${i}`,
+            matchType: "BROAD",
+          })),
+        },
+      ],
+      ["an empty keyword", { keywords: [{ text: "  ", matchType: "BROAD" }] }],
+      [
+        "a keyword over 80 characters",
+        { keywords: [{ text: "a".repeat(81), matchType: "BROAD" }] },
+      ],
+      [
+        "a keyword of 11 words",
+        { keywords: [{ text: "a b c d e f g h i j k", matchType: "BROAD" }] },
+      ],
+      [
+        "an unknown match type",
+        { keywords: [{ text: "shoes", matchType: "NEGATIVE" }] },
+      ],
+      ["2 headlines", { headlines: ["One", "Two"] }],
+      [
+        "16 headlines",
+        { headlines: Array.from({ length: 16 }, (_, i) => `H${i}`) },
+      ],
+      [
+        "a headline over 30 characters",
+        { headlines: ["a".repeat(31), "Two", "Three"] },
+      ],
+      [
+        "a duplicate headline ignoring case",
+        { headlines: ["One", "one", "Three"] },
+      ],
+      ["1 description", { descriptions: ["Only one"] }],
+      ["5 descriptions", { descriptions: ["1", "2", "3", "4", "5"] }],
+      [
+        "a description over 90 characters",
+        { descriptions: ["a".repeat(91), "Two"] },
+      ],
+      ["a path over 15 characters", { path1: "a".repeat(16) }],
+      ["path2 without path1", { path2: "spring" }],
+      [
+        "9 sitelinks",
+        { sitelinks: Array.from({ length: 9 }, (_, i) => sitelink(`S${i}`)) },
+      ],
+      [
+        "a sitelink text over 25 characters",
+        { sitelinks: [sitelink("a".repeat(26))] },
+      ],
+      ["an empty sitelink text", { sitelinks: [sitelink("  ")] }],
+      [
+        "a sitelink without http(s) url",
+        {
+          sitelinks: [{ ...sitelink("Shoes"), finalUrl: "ftp://example.com" }],
+        },
+      ],
+      [
+        "a sitelink description over 35 characters",
+        {
+          sitelinks: [
+            {
+              ...sitelink("Shoes"),
+              description1: "a".repeat(36),
+              description2: "ok",
+            },
+          ],
+        },
+      ],
+      [
+        "only one sitelink description",
+        { sitelinks: [{ ...sitelink("Shoes"), description1: "Light" }] },
+      ],
+      [
+        "duplicate sitelink texts ignoring case",
+        { sitelinks: [sitelink("Shoes"), sitelink("shoes")] },
+      ],
+      [
+        "11 callouts",
+        { callouts: Array.from({ length: 11 }, (_, i) => `C${i}`) },
+      ],
+      ["a callout over 25 characters", { callouts: ["a".repeat(26)] }],
+      ["an empty callout", { callouts: [" "] }],
+      ["duplicate callouts ignoring case", { callouts: ["Free", "free"] }],
+      [
+        "26 locations",
+        { locationIds: Array.from({ length: 26 }, (_, i) => `${i}`) },
+      ],
+      ["a non-numeric location", { locationIds: ["Berlin"] }],
+      ["a non-numeric language", { languageIds: ["en"] }],
+      ["a malformed date", { startDate: "01.11.2026" }],
+      ["an impossible date", { startDate: "2026-02-30" }],
+      [
+        "an end date before the start date",
+        { startDate: "2026-11-02", endDate: "2026-11-01" },
+      ],
+    ])("rejects a Google spec with %s", async (_name, changes) => {
+      const response = await createPost(withGoogle(changes));
+      expect(response.status).toBe(422);
+      expect(m.createCampaign).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["no locations or languages", { locationIds: [], languageIds: [] }],
+      [
+        "25 locations",
+        { locationIds: Array.from({ length: 25 }, (_, i) => `${i}`) },
+      ],
+      ["both paths", { path1: "shoes", path2: "spring" }],
+      [
+        "8 sitelinks, with and without descriptions",
+        {
+          sitelinks: [
+            {
+              ...sitelink("S0"),
+              description1: "a".repeat(35),
+              description2: "b",
+            },
+            ...Array.from({ length: 7 }, (_, i) => sitelink(`S${i + 1}`)),
+          ],
+        },
+      ],
+      [
+        "a 25-character sitelink text",
+        { sitelinks: [sitelink("a".repeat(25))] },
+      ],
+      [
+        "10 callouts of up to 25 characters",
+        {
+          callouts: [
+            "a".repeat(25),
+            ...Array.from({ length: 9 }, (_, i) => `C${i}`),
+          ],
+        },
+      ],
+      ["empty sitelinks and callouts", { sitelinks: [], callouts: [] }],
+      [
+        "an end date equal to the start date",
+        { startDate: "2026-11-01", endDate: "2026-11-01" },
+      ],
+      ["only an end date", { endDate: "2026-11-01" }],
+      [
+        "15 headlines and 4 descriptions",
+        {
+          headlines: Array.from({ length: 15 }, (_, i) => `H${i}`),
+          descriptions: ["1", "2", "3", "4"],
+        },
+      ],
+    ])("accepts a Google spec with %s", async (_name, changes) => {
+      const response = await createPost(withGoogle(changes));
+      expect(response.status).toBe(201);
+    });
+
+    describe("Display spec", () => {
+      const BLOB = "https://store.public.blob.vercel-storage.com";
+      const image = (
+        role: "LANDSCAPE" | "SQUARE" | "LOGO",
+        n: number,
+        changes: Record<string, unknown> = {},
+      ) => ({
+        pathname: `drive/users/${USER_ID}/${role.toLowerCase()}-${n}.png`,
+        fileUrl: `${BLOB}/drive/users/${USER_ID}/${role.toLowerCase()}-${n}.png`,
+        name: `${role.toLowerCase()}-${n}.png`,
+        size: 240_000,
+        mimeType: "image/png",
+        role,
+        ...changes,
+      });
+      const images = (landscape: number, square: number, logo = 0) => [
+        ...Array.from({ length: landscape }, (_, i) => image("LANDSCAPE", i)),
+        ...Array.from({ length: square }, (_, i) => image("SQUARE", i)),
+        ...Array.from({ length: logo }, (_, i) => image("LOGO", i)),
+      ];
+      const displaySpec = {
+        type: "DISPLAY",
+        locationIds: ["2276"],
+        languageIds: ["1001"],
+        finalUrl: "https://example.com/spring",
+        businessName: "Acme Shoes",
+        headlines: ["Run faster"],
+        longHeadline: "Run faster in the lightest shoes",
+        descriptions: ["Shoes for every runner."],
+        images: images(1, 1),
+      };
+      const withDisplay = (changes: Record<string, unknown>) => ({
+        name: "Spring",
+        dailyBudget: 5,
+        google: { ...displaySpec, ...changes },
+      });
+
+      it("creates a Display campaign and hands the spec to the service with the Workspace", async () => {
+        const response = await createPost(withDisplay({}));
+        expect(response.status).toBe(201);
+        expect(m.createCampaign).toHaveBeenCalledWith(
+          expect.objectContaining({
+            userId: USER_ID,
+            organizationId: null,
+            google: displaySpec,
+          }),
+        );
+      });
+
+      it("trims the business name, headlines, long headline and descriptions", async () => {
+        await createPost(
+          withDisplay({
+            businessName: " Acme ",
+            headlines: [" One "],
+            longHeadline: " Long ",
+            descriptions: [" First "],
+          }),
+        );
+        expect(m.createCampaign.mock.calls[0]?.[0].google).toMatchObject({
+          businessName: "Acme",
+          headlines: ["One"],
+          longHeadline: "Long",
+          descriptions: ["First"],
+        });
+      });
+
+      it.each([
+        ["no images", { images: [] }],
+        ["no LANDSCAPE image", { images: images(0, 1, 1) }],
+        ["no SQUARE image", { images: images(1, 0, 1) }],
+        ["only logos", { images: images(0, 0, 2) }],
+        ["7 marketing images", { images: images(4, 3) }],
+        ["3 logos", { images: images(1, 1, 3) }],
+        ["more than 8 images", { images: images(3, 3, 3) }],
+        [
+          "the same file twice",
+          { images: [...images(1, 1), image("LANDSCAPE", 0)] },
+        ],
+        [
+          "a webp image",
+          {
+            images: [
+              image("LANDSCAPE", 0, { mimeType: "image/webp" }),
+              image("SQUARE", 0),
+            ],
+          },
+        ],
+        [
+          "an image over 5120 KB",
+          {
+            images: [
+              image("LANDSCAPE", 0, { size: 5_242_881 }),
+              image("SQUARE", 0),
+            ],
+          },
+        ],
+        [
+          "an empty image",
+          { images: [image("LANDSCAPE", 0, { size: 0 }), image("SQUARE", 0)] },
+        ],
+        [
+          "an unknown image role",
+          {
+            images: [
+              image("LANDSCAPE", 0, { role: "BANNER" }),
+              image("SQUARE", 0),
+            ],
+          },
+        ],
+        [
+          "an image without a URL",
+          {
+            images: [
+              image("LANDSCAPE", 0, { fileUrl: undefined }),
+              image("SQUARE", 0),
+            ],
+          },
+        ],
+        ["no business name", { businessName: undefined }],
+        [
+          "a business name over 25 characters",
+          { businessName: "a".repeat(26) },
+        ],
+        ["no headlines", { headlines: [] }],
+        ["6 headlines", { headlines: ["1", "2", "3", "4", "5", "6"] }],
+        ["a headline over 30 characters", { headlines: ["a".repeat(31)] }],
+        [
+          "duplicate headlines ignoring case",
+          { headlines: ["Run faster", "run FASTER"] },
+        ],
+        ["no long headline", { longHeadline: undefined }],
+        [
+          "a long headline over 90 characters",
+          { longHeadline: "a".repeat(91) },
+        ],
+        ["no descriptions", { descriptions: [] }],
+        ["6 descriptions", { descriptions: ["1", "2", "3", "4", "5", "6"] }],
+        [
+          "a description over 90 characters",
+          { descriptions: ["a".repeat(91)] },
+        ],
+        ["a missing final URL", { finalUrl: undefined }],
+      ])("rejects a Display spec with %s", async (_name, changes) => {
+        const response = await createPost(withDisplay(changes));
+        expect(response.status).toBe(422);
+        expect(m.createCampaign).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        ["6 marketing images and 2 logos", { images: images(3, 3, 2) }],
+        ["5 landscape and 1 square image", { images: images(5, 1) }],
+        [
+          "JPEG and GIF images of exactly 5120 KB",
+          {
+            images: [
+              image("LANDSCAPE", 0, {
+                mimeType: "image/jpeg",
+                size: 5_242_880,
+              }),
+              image("SQUARE", 0, { mimeType: "image/gif" }),
+            ],
+          },
+        ],
+        [
+          "5 headlines, 5 descriptions and the longest texts",
+          {
+            businessName: "a".repeat(25),
+            headlines: ["1", "2", "3", "4", "a".repeat(30)],
+            longHeadline: "a".repeat(90),
+            descriptions: ["1", "2", "3", "4", "a".repeat(90)],
+          },
+        ],
+        ["no locations or languages", { locationIds: [], languageIds: [] }],
+      ])("accepts a Display spec with %s", async (_name, changes) => {
+        const response = await createPost(withDisplay(changes));
+        expect(response.status).toBe(201);
+      });
+    });
+
+    it.each([
       ["foreign account", notFound("Ad account not found"), 404],
       ["disconnected connection", conflict("Ad connection is not active"), 409],
       [
@@ -549,6 +991,7 @@ describe("Project ads routes", () => {
         unprocessableEntity("Objective required"),
         422,
       ],
+      ["a Google validation failure", unprocessableEntity("Too long."), 422],
       [
         "Composio tool error",
         new ComposioToolError({ message: "secret detail" }),
@@ -567,6 +1010,181 @@ describe("Project ads routes", () => {
       const response = await createPost({ name: "Spring", dailyBudget: 5 });
       expect(response.status).toBe(403);
       expect(m.createCampaign).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("targeting lookups", () => {
+    const targetingUrl = (what: "locations" | "languages", query = "") =>
+      `http://localhost/${PROJECT_ID}/ads/accounts/${ACCOUNT_UUID}/targeting/${what}${query}`;
+    const locationsResult = {
+      locations: [
+        {
+          id: "2276",
+          name: "Germany",
+          canonicalName: "Germany",
+          targetType: "Country",
+          countryCode: "DE",
+        },
+        {
+          id: "1003854",
+          name: "Berlin",
+          canonicalName: "Berlin,Berlin,Germany",
+          targetType: null,
+          countryCode: null,
+        },
+      ],
+    };
+    const scope = {
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      accountId: ACCOUNT_UUID,
+    };
+
+    beforeEach(() => {
+      m.locations.mockResolvedValue(locationsResult);
+      m.languages.mockResolvedValue({
+        languages: [{ id: "1001", code: "de", name: "German" }],
+      });
+    });
+
+    it("searches locations by text", async () => {
+      const response = await createApp().request(
+        targetingUrl("locations", "?q=%20Berlin%20(DE)%20"),
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ data: locationsResult });
+      expect(m.locations).toHaveBeenCalledWith({ ...scope, q: "Berlin (DE)" });
+    });
+
+    it("looks locations up by comma-separated ids", async () => {
+      const response = await createApp().request(
+        targetingUrl("locations", "?ids=2276,2840"),
+      );
+      expect(response.status).toBe(200);
+      expect(m.locations).toHaveBeenCalledWith({
+        ...scope,
+        ids: ["2276", "2840"],
+      });
+    });
+
+    it.each([
+      "O'Brien",
+      'a"b',
+      "100%",
+      "a\\b",
+      "a_b",
+      "a' OR 1=1",
+      "Zürich, 東京-都 (St.)",
+      "B",
+      "a".repeat(80),
+    ])("accepts the search text %j", async (q) => {
+      const response = await createApp().request(
+        targetingUrl("locations", `?q=${encodeURIComponent(q)}`),
+      );
+      expect(response.status).toBe(200);
+      expect(m.locations).toHaveBeenCalledWith({ ...scope, q });
+    });
+
+    it.each([
+      ["no input", ""],
+      ["both q and ids", "?q=Berlin&ids=2276"],
+      ["an empty q", "?q="],
+      ["a blank q", "?q=%20%20"],
+      ["an 81-character q", `?q=${"a".repeat(81)}`],
+      ["an empty ids", "?ids="],
+      ["a non-digit id", "?ids=2276,abc"],
+      ["an empty id between commas", "?ids=2276,,2840"],
+      ["a trailing comma", "?ids=2276,"],
+      ["a leading comma", "?ids=,2276"],
+      ["an injected id", `?ids=${encodeURIComponent("1) OR (1=1")}`],
+      ["a 21-digit id", `?ids=${"1".repeat(21)}`],
+      [
+        "26 ids",
+        `?ids=${Array.from({ length: 26 }, (_, i) => i + 1).join(",")}`,
+      ],
+    ])("rejects %s with 422", async (_name, query) => {
+      const response = await createApp().request(
+        targetingUrl("locations", query),
+      );
+      expect(response.status).toBe(422);
+      expect(m.locations).not.toHaveBeenCalled();
+    });
+
+    it("accepts 25 ids", async () => {
+      const ids = Array.from({ length: 25 }, (_, i) => i + 1);
+      const response = await createApp().request(
+        targetingUrl("locations", `?ids=${ids.join(",")}`),
+      );
+      expect(response.status).toBe(200);
+      expect(m.locations).toHaveBeenCalledWith({
+        ...scope,
+        ids: ids.map(String),
+      });
+    });
+
+    it("returns 25 locations for 25 ids", async () => {
+      m.locations.mockResolvedValue({
+        locations: Array.from({ length: 25 }, (_, i) => ({
+          id: String(i + 1),
+          name: `Place ${i + 1}`,
+          canonicalName: `Place ${i + 1}`,
+          targetType: null,
+          countryCode: null,
+        })),
+      });
+      const response = await createApp().request(
+        targetingUrl("locations", "?ids=1"),
+      );
+      expect(response.status).toBe(200);
+      expect((await response.json()).data.locations).toHaveLength(25);
+    });
+
+    it("lists languages", async () => {
+      const response = await createApp().request(targetingUrl("languages"));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        data: { languages: [{ id: "1001", code: "de", name: "German" }] },
+      });
+      expect(m.languages).toHaveBeenCalledWith(scope);
+    });
+
+    it.each([
+      ["locations", "?q=Berlin", () => m.locations],
+      ["languages", "", () => m.languages],
+    ] as const)("maps service errors for %s", async (what, query, service) => {
+      for (const [error, status] of [
+        [notFound("Targeting is only available for Google Ads accounts"), 404],
+        [conflict("Ad connection is not active"), 409],
+        [new ComposioToolError({ message: "secret detail" }), 502],
+        [new ComposioConfigError("nope"), 503],
+      ] as const) {
+        service().mockRejectedValue(error);
+        const response = await createApp().request(targetingUrl(what, query));
+        expect(response.status).toBe(status);
+        expect(await response.text()).not.toContain("secret detail");
+      }
+    });
+
+    it("denies users outside the beta before any work", async () => {
+      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
+      const app = createApp();
+      const responses = await Promise.all([
+        app.request(targetingUrl("locations", "?q=Berlin")),
+        app.request(targetingUrl("languages")),
+      ]);
+      expect(responses.map((r) => r.status)).toEqual([403, 403]);
+      expect(m.locations).not.toHaveBeenCalled();
+      expect(m.languages).not.toHaveBeenCalled();
+    });
+
+    it("rejects a user API key", async () => {
+      const app = createApp({
+        ...SESSION_AUTH,
+        authenticationMethod: "api_key",
+      });
+      const response = await app.request(targetingUrl("languages"));
+      expect(response.status).toBe(403);
+      expect(m.languages).not.toHaveBeenCalled();
     });
   });
 

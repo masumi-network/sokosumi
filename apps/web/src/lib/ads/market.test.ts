@@ -88,6 +88,7 @@ describe("marketSummary", () => {
         {
           keywords: ["running shoes", "trail shoes"],
           countryCode: "DE",
+          locationId: "2276",
           languageCode: "de",
           updatedAt: new Date(),
         },

@@ -1,6 +1,6 @@
 # Ads Management
 
-Last updated: 2026-09-30
+Last updated: 2026-10-12
 
 ## Goal
 
@@ -21,7 +21,7 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | Google Ads accounts | `GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS`, GAQL on `customer` / `customer_client` | Per-user OAuth; Composio auth config holds our Google Ads developer token |
 | Google campaigns + metrics | `GOOGLEADS_SEARCH_STREAM_GAQL` | same |
 | Google status / budget | `GOOGLEADS_MUTATE_CAMPAIGNS`, `GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS` | same |
-| Google create | `GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS` then `GOOGLEADS_MUTATE_CAMPAIGNS` (Search, manual CPC (the tool has no Maximize clicks field), PAUSED, `contains_eu_political_advertising = DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING`) | same |
+| Google create | `GOOGLEADS_BATCH_MUTATE` (`partial_failure: false`): budget, PAUSED campaign, criteria, ad group, keywords or display ad in one atomic call; Display images are uploaded first, one `BATCH_MUTATE` call each. See [Google campaign builder](#google-campaign-builder) | same |
 | Meta ad accounts | `METAADS_GET_AD_ACCOUNTS` | Per-user OAuth; our own Meta app (no Composio-managed OAuth) |
 | Meta campaigns + metrics | `METAADS_LIST_CAMPAIGNS`, `METAADS_GET_INSIGHTS` (level=campaign) | same |
 | Meta status / budget | `METAADS_UPDATE_CAMPAIGN` (one budget field per call) | same |
@@ -57,7 +57,9 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | DELETE | `/ads/accounts/{accountId}` | Detach; revoke the Composio account when its last ad account goes |
 | GET | `/ads/accounts/{accountId}/campaigns?range=LAST_7_DAYS\|LAST_30_DAYS` | Campaigns + spend, impressions, clicks, CTR, CPC, conversions |
 | PATCH | `/ads/accounts/{accountId}/campaigns/{campaignId}` `{status?: ACTIVE\|PAUSED, dailyBudget?}` | Pause/resume, budget |
-| POST | `/ads/accounts/{accountId}/campaigns` `{name, dailyBudget, objective? (Meta, required)}` | Create, always PAUSED → 201 `{id}`; no start date |
+| POST | `/ads/accounts/{accountId}/campaigns` `{name, dailyBudget, objective? (Meta, required), google? (Google, required)}` | Create, always PAUSED → 201 `{id}`. Google: `google` spec, `objective` is 422; Meta: `google` is 422. See [Google campaign builder](#google-campaign-builder) |
+| GET | `/ads/accounts/{accountId}/targeting/locations?q=<1-80>` or `?ids=2276,2840` | Google only (Meta is 404): `{locations: {id, name, canonicalName, targetType, countryCode}[]}`, enabled Google locations. Send exactly one of `q` (a place name, any characters) or `ids` (1-25 digit ids), else 422. See [Targeting lookups](#targeting-lookups) |
+| GET | `/ads/accounts/{accountId}/targeting/languages` | Google only (Meta is 404): `{languages: {id, code, name}[]}`, targetable languages sorted by name |
 | GET / PUT | `/ads/market` | Market profile |
 | GET | `/ads/market/keywords` | Trending keywords (volume, 12-month trend, competition, CPC range) |
 | GET | `/ads/market/ads` | `{status: ready\|gathering\|failed, ads, fetchedAt}`: search competitors for the profile keywords → their recent ads with `preview_image`, format, first/last shown. Clients poll every ~20s while `gathering` |
@@ -80,13 +82,133 @@ The ads endpoint drives a job; there is no cron. Each call moves it one step:
 
 Errors map through the existing Composio error classes (`ComposioConfigError` → 503 "not configured", `ComposioApiError`/`ComposioToolError` → 502 with a safe message).
 
+## Google campaign builder
+
+Goal: "New campaign" for Google produces a campaign that can run. Still always created **PAUSED**. Search (with sitelinks and callouts) and Display (with Drive images).
+
+### Gap map (Google Ads UI walk, 2026-10-12)
+
+| Google Ads UI step | Decision |
+|---|---|
+| Objective | Not an API field; not needed |
+| Campaign type | Search + Display. PMax, Demand Gen, Video, Shopping later |
+| Bidding | Maximize clicks (`target_spend: {}`); the old Manual CPC came from Composio's `MUTATE_CAMPAIGNS` having no such field |
+| Networks | Search: Google Search only. Display: Display Network |
+| Locations, languages | Geo target constant / language constant ids; empty = all. Web prefills them from the Market profile (DataForSEO `location_code` is the geo target constant id) |
+| EU political ads | Unchanged: does not contain |
+| Start / end dates | Optional |
+| Ad group + keywords | One ad group "Ad group 1"; keywords with BROAD / PHRASE / EXACT |
+| Responsive search ad | Final URL, 2 display paths, 3-15 headlines, 2-4 descriptions |
+| Sitelinks, callouts | Yes: optional on Search |
+| Responsive display ad | Yes: business name, headlines, long headline, descriptions, images from Drive (landscape, square, square logo) |
+| Budget | Daily, unchanged |
+| Audiences, ad schedule, AI Max, page feeds, promotions, prices, calls, lead forms | Out of scope |
+
+### Contract
+
+```ts
+{
+  name: string;                // 1-255
+  dailyBudget: number;         // > 0, currency precision
+  objective?: MetaObjective;   // Meta: required. Google: 422 if sent
+  google?: GoogleCampaignSpec; // Google: required. Meta: 422 if sent
+}
+
+type GoogleCampaignSpec = {            // discriminated on `type`
+  type: "SEARCH";                      // see the Display member below
+  startDate?: "YYYY-MM-DD";            // sent as `${d} 00:00:00`
+  endDate?: "YYYY-MM-DD";              // not before startDate; sent as `${d} 23:59:59`
+  locationIds: string[];               // 0-25 digit ids; [] = all countries
+  languageIds: string[];               // 0-25 digit ids; [] = all languages
+  finalUrl: string;                    // http(s), <= 2048
+  keywords: { text: string /* 1-80, <= 10 words */; matchType: "BROAD" | "PHRASE" | "EXACT" }[]; // 1-50
+  headlines: string[];                 // 3-15, each 1-30, unique ignoring case (else 422)
+  descriptions: string[];              // 2-4, each 1-90
+  path1?: string; path2?: string;      // <= 15; path2 needs path1
+  sitelinks?: { text: string /* 1-25 */; finalUrl: string /* http(s), <= 2048 */; description1?: string; description2?: string /* 1-35, both or neither (else 422) */ }[]; // 0-8, texts unique ignoring case
+  callouts?: string[];                 // 0-10, each 1-25, unique ignoring case
+};
+```
+
+```ts
+type GoogleDisplayCampaignSpec = {     // type: "DISPLAY"; same startDate, endDate, locationIds, languageIds, finalUrl
+  type: "DISPLAY";
+  businessName: string;                // 1-25
+  headlines: string[];                 // 1-5, each 1-30, unique ignoring case (else 422)
+  longHeadline: string;                // 1-90
+  descriptions: string[];              // 1-5, each 1-90
+  images: {                            // 2-8 Drive files, each file once
+    pathname: string; fileUrl: string; name: string;
+    size: number;                      // 1..5_242_880 (5120 KB)
+    mimeType: "image/jpeg" | "image/png" | "image/gif";
+    role: "LANDSCAPE" | "SQUARE" | "LOGO";  // LOGO = square 1:1 logo, >= 128x128
+  }[];                                 // >= 1 LANDSCAPE, >= 1 SQUARE, LANDSCAPE + SQUARE <= 6, LOGO <= 2
+};
+```
+
+Keywords repeating another with the same match type (ignoring case) are dropped, not rejected. Zod covers the documented limits; Google stays the authority for width rules and policy.
+
+### Display images
+
+The images are Drive files, bound to the active Workspace the way Social post media is (one shared check, `requireWorkspaceDriveFileUrl`): the pathname must be in the Workspace's Drive store (403 for another store, 422 for a pathname that is not a Drive path), and `fileUrl` must be an https Vercel Blob URL of exactly that pathname (400). All refusals happen before Google is called.
+
+Before the tree, Core, for every image in request order:
+
+1. Downloads it with the shared `downloadDriveFile` (`ssrfSafeFetch`, also used for Social post media; at most 5,242,880 bytes, 20 s). A missing file, a file over the cap or a file not served as `image/jpeg`, `image/png` or `image/gif` is **422 naming the file**. All downloads finish before the first write.
+2. Uploads it in a `GOOGLEADS_BATCH_MUTATE` call of its own (`partial_failure: false`, 60 s timeout): one `asset_operation` create with `{name: "<file name> <8 hex>", type: "IMAGE", image_asset: {data: "<base64>"}}`. Separate calls keep each request body to one image (up to about 7 MB encoded). The asset's resource name comes from `mutate_operation_responses[0].asset_result.resource_name`. A Google rejection (aspect ratio, too small) is **422 prefixed with the file name** (`Image "banner.png": <Google's message>`).
+
+Google checks the aspect ratio and pixel size; Core does not read the image. The asset name has a random suffix because Google asset names are unique per customer.
+
+**Orphaned assets.** Image uploads are not part of the atomic call, and Google cannot remove assets. If an upload or the tree fails after earlier uploads, those image assets stay unused in the account. They serve nothing and cost nothing, and there is no retry or cleanup. Uploading the same image again may create another asset (unverified).
+
+### One atomic call
+
+`GOOGLEADS_BATCH_MUTATE` with `partial_failure: false` (Google's `GoogleAdsService.Mutate`): every operation is applied or none is, so there is no rollback code. Negative temporary ids link the resources: budget `-1`, campaign `-2`, ad group `-3`. Each `mutate_operations` item has exactly one key:
+
+1. `campaign_budget_operation`: unique name (`<name> budget <8 hex>`), STANDARD, not shared.
+2. `campaign_operation`: PAUSED, `advertising_channel_type: SEARCH | DISPLAY`, `target_spend: {}`, `contains_eu_political_advertising`, `start_date_time` / `end_date_time` (`YYYY-MM-DD HH:MM:SS`, account time zone). Search sets `network_settings` to Google Search only; Display sends none (Display Network).
+3. `campaign_criterion_operation` per location (`geoTargetConstants/<id>`) and language (`languageConstants/<id>`).
+4. `ad_group_operation`: `Ad group 1`, ENABLED, `SEARCH_STANDARD` | `DISPLAY_STANDARD`.
+5. Search: `ad_group_criterion_operation` per keyword, ENABLED.
+6. `ad_group_ad_operation`: ENABLED, `final_urls`, and `responsive_search_ad` (Search) or `responsive_display_ad` (Display: `marketing_images` (LANDSCAPE), `square_marketing_images` (SQUARE), `square_logo_images` (LOGO, omitted without logos; `logo_images` is for 4:1 landscape logos, which we do not send), each `[{asset: "customers/<cid>/assets/<id>"}]`, plus `headlines`, `long_headline`, `descriptions`, `business_name`).
+7. Search only, sitelinks and callouts (none when omitted): an `asset_operation` per asset (`sitelink_asset` with `final_urls`, or `callout_asset`; temporary ids `-10`, `-11`, …), then a `campaign_asset_operation` per asset (`field_type` `SITELINK` / `CALLOUT`) linking it to the campaign.
+
+The campaign id is the id in the campaign result's resource name (`mutate_operation_responses[].campaign_result`). A `partial_failure_error` or a missing campaign result means nothing was applied (502). Only the campaign is PAUSED; enabling it later makes everything serve.
+
+### Targeting lookups
+
+The ids for `locationIds` and `languageIds` come from two lookups:
+
+- Locations: Google's `POST https://googleads.googleapis.com/v23/geoTargetConstants:suggest`, called through the Composio proxy (`/api/v3/tools/execute/proxy`) with the ad account's connected account. Body `{locale: "en", locationNames: {names: [q]}}` for `q`, or `{locale: "en", geoTargets: {geoTargetConstants: ["geoTargetConstants/<id>", …]}}` for `ids`. Verified live: matching is case-insensitive ("müNCHEN" finds Munich) and Google ranks the suggestions (Core keeps that order). It is not customer-scoped (no customer id, no `login-customer-id`), so it works for any connected Google login. The proxy answers `{data, status, headers}`; a `status` outside 2xx is a provider error (502).
+- Core keeps `status = ENABLED` suggestions, drops repeats of an id and caps a `q` search at one page of suggestions (`GOOGLE_MAX_LOCATION_SUGGESTIONS`). An `ids` lookup returns every id found.
+- Languages: GAQL `language_constant WHERE targetable = TRUE` (`GOOGLEADS_SEARCH_STREAM_GAQL`, in the account's customer), sorted by name in code.
+
+The suggest body is JSON, so `q` needs no character whitelist.
+
+### Errors
+
+- A Google validation or policy failure (the Composio tool error carries a `GoogleAdsFailure`, e.g. "Too long.", "Destination not working") is **422 with Google's first error message**. The message is read from the tool error text (Core keeps its first 2000 characters, enough for Google's envelope), matched on the text because a long failure can still be cut. Authentication, authorization, quota, internal and transient (concurrent modification, database) failures stay provider errors (502).
+- Authentication, authorization, quota and internal Google errors, and transport errors, keep the usual mapping (502, 503 for missing configuration). Other routes are unchanged.
+- A Display image outside the active Workspace's Drive is 403 / 422 / 400 (see [Display images](#display-images)); one that cannot be downloaded or has the wrong served type is 422 naming the file.
+- Account rules (422): Google account without `google`, Google account with `objective`, Meta account with `google`, Meta account without `objective`.
+
 ## Web (`apps/web/src/app/(app)/ads`)
 
 - Sidebar item "Ads" (lucide `Megaphone`) in `menu-items.tsx`, gated like Social, project-scoped via `project-scope-href.ts`.
 - You page: "Ads" row in `you-page.client.tsx`, same gate passed from `you-page-content.tsx`.
 - `/ads?projectId=…&tab=campaigns|market|accounts`. Template: `(app)/social/`.
 - Accounts: connect via `useComposioOAuthPopup`, pick accounts, disconnect.
-- Campaigns: table on desktop, stacked rows on mobile; range switch; pause/resume and budget with confirm; "New campaign" sheet.
+- Campaigns: table on desktop, stacked rows on mobile; range switch; pause/resume and budget with confirm; "New campaign" links to the create page.
+- Create page `/ads/campaigns/new?projectId=…&accountId=…` (same beta gate; unknown project or account is a 404). Meta: name, budget, objective. Google: Type (Search | Display), Basics (name, budget, optional dates), Targeting (locations and languages, prefilled from the Market profile), then the type's sections. Core's 422 message (Google's own wording) shows above the form with the input kept; 409 links to Accounts.
+- Google type picker: one form (`GoogleCampaignForm`) holds the fields of both types and judges only the shown one (a zod schema per type, chosen by `type`). Switching keeps name, budget, dates, targeting and final URL; the Search ad's texts and the Display ad's texts are separate fields, so neither is lost or cut to the other's limits. Switching clears the other type's refusals.
+- Search: Keywords (one textarea, `kw` broad, `"kw"` phrase, `[kw]` exact, live count; "Add from Market", shown when the project has a Market profile, loads the trending keywords on click (never with the page: a cold cache is a paid DataForSEO call) and appends them as broad lines up to 50) and the responsive search ad (final URL, display paths, 3-15 headlines, 2-4 descriptions with counters, optional sitelinks and callouts).
+- Display: the responsive display ad: final URL, business name (25), 1-5 headlines (30), long headline (90), 1-5 descriptions (90), counters on each, then images and logos (below). Text limits are read from the generated Core schema (`GOOGLE_DISPLAY_LIMITS`).
+- Display images (`ads-display-images.tsx`, rules in `lib/ads/google-display-images.ts`): an "Images" slot and a "Logo" slot, each with "Upload" (file input, multiple) and "Choose from Drive" (`DriveFilePicker`), thumbnails (`FileChipMiniPreview`, alt = file name) with their role and a remove button. Images must be Drive files in the active Workspace (Core binds them there): an upload goes to the Workspace's Drive with `uploadDriveFile`, as Social posts do, and a picked file is used as it is. The role comes from the picture's natural size, read in the browser, never from the reader:
+  - Images slot: ratio within 1% of 1.91:1 and at least 600 x 314 is LANDSCAPE; within 1% of 1:1 and at least 300 x 300 is SQUARE; any other ratio is refused with both required ratios and minimum sizes, a right ratio under its minimum with that minimum.
+  - Logo slot: ratio within 1% of 1:1 and at least 128 x 128 is LOGO; anything else is refused.
+  - Also refused, before any upload: a type other than JPEG, PNG or GIF (a Drive file is judged by its extension), a file over 5120 KB, a picture the browser cannot read, more than 6 landscape and square images together, more than 2 logos. A file already added is caught by its Drive pathname, so a re-upload is refused after it lands in Drive.
+  - The counts read "Landscape 1 · Square 1 · 2 of 6 images"; the hint "Add at least one landscape and one square image" (or just the missing one) turns into the refusal on a submit without them; the submit is disabled ("Uploading images…") while any picture is being read or uploaded. Core's width and policy checks stay the authority: its 422 shows above the form with the images kept.
+  - The 1% ratio tolerance (Google's for marketing, square and logo images) and the size minimums are written in Web (`DISPLAY_IMAGE_RULES`) because the Core schema states them only in prose; the file size cap and types are read from the schema.
 - Market: profile form (keywords, country, language); trending keywords list; ads gallery of `preview_image` cards.
 - Ad preview images are Google-hosted URLs (https, from DataForSEO); render them with a plain `<img>` and `referrerPolicy="no-referrer"`, not `next/image`.
 - Calm UI per DESIGN.md: one accent, typography over boxes, empty/loading/error states, en/de/es messages.
@@ -94,7 +216,9 @@ Errors map through the existing Composio error classes (`ComposioConfigError` �
 ## Out of scope / follow-ups
 
 - Meta Ad Library (direct Graph API `ads_archive`, EU markets).
-- Ad set / ad / creative management.
+- Ad set / ad / creative management (Meta), and editing ad groups or ads after create (Google).
+- PMax, Demand Gen, Video, Shopping campaigns.
+- Conversion-based bidding, audiences, ad schedule, campaign-total budgets.
 - Apple app.
 
 ## Stack
@@ -116,5 +240,14 @@ Plain branches, each based on the one below. Draft PRs. Before every PR: `code-r
 | 11 | `ads/11-web-campaign-create` | Web | New campaign sheet |
 | 12 | `ads/12-web-market` | Web | Market profile, trending keywords, ads gallery |
 | 13 | `ads/13-core-market-ads-async` | Core | Market ads as a queued DataForSEO job polled by the page |
+| 14 | `ads/14-web-market-gathering` | Web | Market ads gathering, refreshing and failed states |
+| 15 | `ads/15-core-google-search-create` | Core | Atomic BATCH_MUTATE create: Search type, keywords, RSA, location / language ids, Maximize clicks, dates, 422 mapping. Deletes the two-step create |
+| 16 | `ads/16-core-google-targeting` | Core | Location search / by ids, language list (Google accounts) |
+| 17 | `ads/17-core-google-search-assets` | Core | Sitelinks + callouts in the Search tree |
+| 18 | `ads/18-core-google-display` | Core | Display type: Drive image refs → image assets → responsive display ad. Drive-ref helper shared with social posts |
+| 19 | `ads/19-web-create-page` | Web | Create page (replaces the sheet): basics, dates, keywords (+ from Market), responsive search ad; Meta path |
+| 20 | `ads/20-web-targeting` | Web | Location + language pickers, Market defaults |
+| 21 | `ads/21-web-search-assets` | Web | Sitelinks + callouts editors |
+| 22 | `ads/22-web-display` | Web | Type picker, Display ad editor, image upload / pick |
 
 Ops (no PR): Google Ads developer token + Composio `googleads` auth config; Meta app (ads_read, ads_management, App Review, Business Verification) + Composio `metaads` auth config; DataForSEO account + Composio platform connection.

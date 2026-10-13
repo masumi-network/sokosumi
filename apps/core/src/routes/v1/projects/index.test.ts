@@ -66,6 +66,16 @@ const AD_OPERATIONS = [
     "/ads/accounts/{accountId}/campaigns",
     ["201", "403", "404", "409", "422", "502"],
   ],
+  [
+    "get",
+    "/ads/accounts/{accountId}/targeting/locations",
+    ["200", "403", "404", "409", "422", "502"],
+  ],
+  [
+    "get",
+    "/ads/accounts/{accountId}/targeting/languages",
+    ["200", "403", "404", "409", "502"],
+  ],
   ["get", "/ads/market", ["200", "403", "404"]],
   ["put", "/ads/market", ["200", "403", "404", "409", "422"]],
   ["get", "/ads/market/keywords", ["200", "403", "404", "502", "503"]],

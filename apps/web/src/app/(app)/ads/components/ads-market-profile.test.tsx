@@ -25,6 +25,7 @@ type SaveResult = Awaited<ReturnType<typeof saveAdsMarketProfile>>;
 const SAVED: AdMarketProfile = {
   keywords: ["running shoes", "trail shoes"],
   countryCode: "DE",
+  locationId: "2276",
   languageCode: "de",
   updatedAt: new Date("2026-10-01T10:00:00.000Z"),
 };

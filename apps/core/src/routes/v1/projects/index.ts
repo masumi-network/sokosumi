@@ -3,6 +3,8 @@ import mountUpdateProjectAdCampaign from "./[id]/ads/accounts/[accountId]/campai
 import mountListProjectAdCampaigns from "./[id]/ads/accounts/[accountId]/campaigns/get.js";
 import mountCreateProjectAdCampaign from "./[id]/ads/accounts/[accountId]/campaigns/post.js";
 import mountDeleteProjectAdAccount from "./[id]/ads/accounts/[accountId]/delete.js";
+import mountListProjectAdLanguages from "./[id]/ads/accounts/[accountId]/targeting/languages/get.js";
+import mountSearchProjectAdLocations from "./[id]/ads/accounts/[accountId]/targeting/locations/get.js";
 import mountListProjectAdAccounts from "./[id]/ads/accounts/get.js";
 import mountAttachProjectAdAccounts from "./[id]/ads/accounts/post.js";
 import mountDiscardProjectAdConnection from "./[id]/ads/connections/[adConnectionId]/delete.js";
@@ -89,6 +91,8 @@ mountDiscardProjectAdConnection(app);
 mountListProjectAdCampaigns(app);
 mountUpdateProjectAdCampaign(app);
 mountCreateProjectAdCampaign(app);
+mountSearchProjectAdLocations(app);
+mountListProjectAdLanguages(app);
 mountGetProjectAdMarket(app);
 mountPutProjectAdMarket(app);
 mountListProjectAdMarketKeywords(app);

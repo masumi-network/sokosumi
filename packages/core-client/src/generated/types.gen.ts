@@ -6095,9 +6095,152 @@ export type CreateAdCampaignRequest = {
      */
     dailyBudget: number;
     /**
-     * Required for Meta ad accounts; ignored for Google (campaigns are Search campaigns)
+     * Required for Meta ad accounts; 422 for Google
      */
     objective?: 'OUTCOME_TRAFFIC' | 'OUTCOME_AWARENESS' | 'OUTCOME_ENGAGEMENT' | 'OUTCOME_LEADS' | 'OUTCOME_SALES';
+    google?: GoogleCampaignSpec;
+};
+
+/**
+ * Required for Google ad accounts; 422 for Meta
+ */
+export type GoogleCampaignSpec = ({
+    type: 'SEARCH';
+} & GoogleSearchCampaignSpec) | ({
+    type: 'DISPLAY';
+} & GoogleDisplayCampaignSpec);
+
+export type GoogleSearchCampaignSpec = {
+    type: 'SEARCH';
+    /**
+     * Campaign starts at 00:00:00 of this day in the account's time zone
+     */
+    startDate?: string;
+    /**
+     * Campaign ends at 23:59:59 of this day in the account's time zone; not before startDate
+     */
+    endDate?: string;
+    /**
+     * Geo target constant ids (0-25); none targets all
+     */
+    locationIds: Array<string>;
+    /**
+     * Language constant ids (0-25); none targets all
+     */
+    languageIds: Array<string>;
+    finalUrl: string;
+    /**
+     * Repeats of a keyword with the same match type (ignoring case) are dropped
+     */
+    keywords: Array<GoogleKeyword>;
+    headlines: Array<string>;
+    descriptions: Array<string>;
+    path1?: string;
+    /**
+     * Requires path1
+     */
+    path2?: string;
+    sitelinks?: Array<GoogleSitelink>;
+    callouts?: Array<string>;
+};
+
+export type GoogleKeyword = {
+    /**
+     * Plain text, without quotes or brackets
+     */
+    text: string;
+    matchType: 'BROAD' | 'PHRASE' | 'EXACT';
+};
+
+export type GoogleSitelink = {
+    text: string;
+    finalUrl: string;
+    description1?: string;
+    description2?: string;
+};
+
+export type GoogleDisplayCampaignSpec = {
+    type: 'DISPLAY';
+    /**
+     * Campaign starts at 00:00:00 of this day in the account's time zone
+     */
+    startDate?: string;
+    /**
+     * Campaign ends at 23:59:59 of this day in the account's time zone; not before startDate
+     */
+    endDate?: string;
+    /**
+     * Geo target constant ids (0-25); none targets all
+     */
+    locationIds: Array<string>;
+    /**
+     * Language constant ids (0-25); none targets all
+     */
+    languageIds: Array<string>;
+    finalUrl: string;
+    businessName: string;
+    headlines: Array<string>;
+    longHeadline: string;
+    descriptions: Array<string>;
+    /**
+     * Drive images: 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each file once
+     */
+    images: Array<GoogleDisplayImage>;
+};
+
+export type GoogleDisplayImage = {
+    /**
+     * Drive blob pathname; must belong to the active workspace
+     */
+    pathname: string;
+    /**
+     * Public Blob URL of the Drive file
+     */
+    fileUrl: string;
+    name: string;
+    /**
+     * Bytes; at most 5120 KB
+     */
+    size: number;
+    mimeType: 'image/jpeg' | 'image/png' | 'image/gif';
+    /**
+     * LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional square (1:1, at least 128x128) logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit
+     */
+    role: 'LANDSCAPE' | 'SQUARE' | 'LOGO';
+};
+
+export type ListGoogleLocationsResponse = {
+    locations: Array<GoogleLocation>;
+};
+
+export type GoogleLocation = {
+    /**
+     * Geo target constant id; pass it in `google.locationIds`
+     */
+    id: string;
+    name: string;
+    canonicalName: string;
+    /**
+     * Null when Google omits it
+     */
+    targetType: string | null;
+    /**
+     * Null when Google omits it
+     */
+    countryCode: string | null;
+};
+
+export type ListGoogleLanguagesResponse = {
+    languages: Array<GoogleLanguage>;
+};
+
+export type GoogleLanguage = {
+    /**
+     * Language constant id; pass it in `google.languageIds`
+     */
+    id: string;
+    code: string;
+    name: string;
 };
 
 export type GetAdMarketProfileResponse = {
@@ -6110,6 +6253,10 @@ export type GetAdMarketProfileResponse = {
 export type AdMarketProfile = {
     keywords: Array<string>;
     countryCode: AdMarketCountryCode;
+    /**
+     * Google geo target constant id of the country, for campaign targeting
+     */
+    locationId: string;
     languageCode: AdMarketLanguageCode;
     updatedAt: Date;
 };
@@ -44021,6 +44168,329 @@ export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse
 };
 
 export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse = PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses[keyof PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: {
+        /**
+         * Place name to find, in any case (1-80 characters); send either `q` or `ids`
+         */
+        q?: string;
+        /**
+         * Comma-separated geo target constant ids (1-25); send either `q` or `ids`
+         */
+        ids?: string;
+    };
+    url: '/projects/{id}/ads/accounts/{accountId}/targeting/locations';
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsError = GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsErrors[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsErrors];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponses = {
+    /**
+     * Matching Google locations
+     */
+    200: {
+        data: ListGoogleLocationsResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponse = GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponses[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponses];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}/targeting/languages';
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesError = GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesErrors[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesErrors];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponses = {
+    /**
+     * Targetable Google languages
+     */
+    200: {
+        data: ListGoogleLanguagesResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponse = GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponses[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponses];
 
 export type GetProjectsByIdAdsMarketData = {
     body?: never;

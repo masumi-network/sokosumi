@@ -2,6 +2,7 @@
 
 import {
   type FinalizeProjectAdConnectionResponse,
+  type GoogleLocation,
   type InitiateProjectSocialConnectionResponse,
   type ProjectAdAccount,
   ProjectAdProvider,
@@ -15,8 +16,14 @@ import {
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import { AD_CAMPAIGN_OBJECTIVES } from "@/lib/ads/campaign";
+import {
+  AD_CAMPAIGN_NAME_MAX_LENGTH,
+  AD_CAMPAIGN_OBJECTIVES,
+} from "@/lib/ads/campaign";
+import { googleDisplaySpecSchema } from "@/lib/ads/google-display";
+import { googleSearchSpecSchema } from "@/lib/ads/google-search";
 import { createMarketProfileSchema } from "@/lib/ads/market";
+import { GOOGLE_LOCATION_QUERY_MAX_LENGTH } from "@/lib/ads/targeting";
 import {
   CoreApiRequestError,
   toCoreApiActionError,
@@ -149,23 +156,69 @@ export const updateAdCampaign = adsAction(
   },
 );
 
-/** Creates a campaign. Core always creates it paused. */
+/**
+ * Creates a campaign. Core always creates it paused. A Google campaign carries
+ * its `google` spec and no objective; a Meta one the reverse. Core refuses a
+ * mismatch with 422, and so does Google for what it dislikes: the message
+ * reaches the UI.
+ */
 export const createAdCampaign = adsAction(
   z.object({
     projectId: trimmedId,
     accountId: trimmedId,
-    name: z.string().trim().min(1).max(255),
+    name: z.string().trim().min(1).max(AD_CAMPAIGN_NAME_MAX_LENGTH),
     dailyBudget: z.number().positive(),
     objective: z.enum(AD_CAMPAIGN_OBJECTIVES).optional(),
+    google: z
+      .discriminatedUnion("type", [
+        googleSearchSpecSchema(),
+        googleDisplaySpecSchema(),
+      ])
+      .optional(),
   }),
-  async ({ projectId, accountId, name, dailyBudget, objective }) => {
+  async ({ projectId, accountId, name, dailyBudget, objective, google }) => {
     const campaign = await adsService.createCampaign(projectId, accountId, {
       name,
       dailyBudget,
       ...(objective ? { objective } : {}),
+      ...(google ? { google } : {}),
     });
     revalidatePath("/ads");
     return campaign;
+  },
+);
+
+/**
+ * The names of the project's trending Market keywords, for "Add from Market".
+ * Core serves them from its 24-hour cache and asks the data provider (which
+ * is paid) only when that has run out, so this is called on a click, never on
+ * page load.
+ */
+export const listAdMarketKeywords = adsAction(
+  z.object({ projectId: trimmedId }),
+  async ({ projectId }): Promise<string[]> => {
+    const { keywords } = await adsService.listMarketKeywords(projectId);
+    return keywords.map(({ keyword }) => keyword);
+  },
+);
+
+/**
+ * Google locations matching what the reader typed, for the location picker.
+ * Core refuses an account that is not a Google one with 404.
+ */
+export const searchAdLocations = adsAction(
+  z.object({
+    projectId: trimmedId,
+    accountId: trimmedId,
+    q: z.string().trim().min(1).max(GOOGLE_LOCATION_QUERY_MAX_LENGTH),
+  }),
+  async ({ projectId, accountId, q }): Promise<GoogleLocation[]> => {
+    const { locations } = await adsService.searchLocations(
+      projectId,
+      accountId,
+      q,
+    );
+    return locations;
   },
 );
 

@@ -17,6 +17,7 @@ import {
   type ProjectAdProvider,
 } from "@/config/ads-providers";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import { requireWorkspaceDriveFileUrl } from "@/helpers/drive-file-ref";
 import {
   badRequest,
   conflict,
@@ -31,13 +32,22 @@ import {
   type AdCampaignUpdate,
   type AdRange,
   currencyFractionDigits,
+  type GoogleCampaignSpec,
+  type GoogleLocationLookup,
   type MetaCampaignObjective,
 } from "@/lib/ads/campaigns";
-import type { AvailableAdAccount } from "@/lib/ads/composio-tools";
+import type {
+  AdsConnectedAccount,
+  AvailableAdAccount,
+} from "@/lib/ads/composio-tools";
 import {
   createGoogleCampaign,
+  type GoogleLanguage,
+  type GoogleLocation,
   listGoogleAdAccounts,
   listGoogleCampaigns,
+  listGoogleLanguages,
+  searchGoogleLocations,
   updateGoogleCampaign,
 } from "@/lib/ads/google-ads";
 import {
@@ -48,6 +58,7 @@ import {
 } from "@/lib/ads/meta-ads";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import type { UserContext } from "@/middleware/auth";
 import { projectAdConnectionStatusSchema } from "@/schemas/project-ad-account.schema";
 import {
   projectConnectorUserId,
@@ -405,6 +416,45 @@ export async function listProjectAdCampaigns(
   return { campaigns, range: input.range, currency: account.currency };
 }
 
+/** The Google customer of an attached ad account; targeting does not exist for Meta. */
+async function requireGoogleTargetingAccount(
+  input: ProjectScope & { accountId: string },
+): Promise<AdsConnectedAccount & { customerId: string }> {
+  const account = await requireActiveAdAccount(input);
+  if (account.provider !== "google_ads") {
+    throw notFound("Targeting is only available for Google Ads accounts");
+  }
+  return {
+    ...account.connected,
+    customerId: account.externalAccountId,
+  };
+}
+
+/** Google locations of a name search (`q`) or of geo target constant `ids`. */
+export async function searchProjectAdLocations(
+  input: ProjectScope & { accountId: string } & GoogleLocationLookup,
+): Promise<{ locations: GoogleLocation[] }> {
+  const account = await requireGoogleTargetingAccount(input);
+  return {
+    locations: await searchGoogleLocations(
+      "q" in input
+        ? { ...account, q: input.q }
+        : { ...account, ids: input.ids },
+    ),
+  };
+}
+
+/** The languages a Google campaign of the ad account can target. */
+export async function listProjectAdLanguages(
+  input: ProjectScope & { accountId: string },
+): Promise<{ languages: GoogleLanguage[] }> {
+  return {
+    languages: await listGoogleLanguages(
+      await requireGoogleTargetingAccount(input),
+    ),
+  };
+}
+
 /** A budget with more decimals than the currency has cannot be charged exactly. */
 function requireBudgetPrecision(dailyBudget: number, currency: string): void {
   const digits = currencyFractionDigits(currency);
@@ -450,12 +500,21 @@ export async function updateProjectAdCampaign(
 
 /**
  * Creates a paused campaign in an attached ad account and returns its id. Meta
- * needs an objective; Google creates Search campaigns and ignores it. All
- * refusals happen before the provider is called.
+ * needs an objective and takes no `google` spec; Google needs the spec and
+ * takes no objective. The Drive images of a Display spec must belong to the
+ * active Workspace's Drive (`userId`, `organizationId`). All refusals happen
+ * before the provider is called.
  */
 export async function createProjectAdCampaign(
   input: ProjectScope &
-    AdCampaignCreate & { accountId: string; objective?: MetaCampaignObjective },
+    AdCampaignCreate & {
+      accountId: string;
+      userId: string;
+      /** Active Workspace owner: null for a personal Workspace. */
+      organizationId: string | null;
+      objective?: MetaCampaignObjective;
+      google?: GoogleCampaignSpec;
+    },
 ): Promise<{ id: string }> {
   const account = await requireActiveAdAccount(input);
   requireBudgetPrecision(input.dailyBudget, account.currency);
@@ -465,12 +524,22 @@ export async function createProjectAdCampaign(
     dailyBudget: input.dailyBudget,
   };
   if (account.provider === "google_ads") {
+    if (input.objective) {
+      throw unprocessableEntity("Google campaigns do not take an objective");
+    }
+    if (!input.google) {
+      throw unprocessableEntity("Google campaigns need a google spec");
+    }
     return {
       id: await createGoogleCampaign({
         ...campaign,
         customerId: account.externalAccountId,
+        google: pinDisplayImagesToDrive(input, input.google),
       }),
     };
+  }
+  if (input.google) {
+    throw unprocessableEntity("Meta campaigns do not take a google spec");
   }
   if (!input.objective) {
     throw unprocessableEntity("Meta campaigns need an objective");
@@ -481,6 +550,21 @@ export async function createProjectAdCampaign(
       adAccountId: account.externalAccountId,
       objective: input.objective,
     }),
+  };
+}
+
+/** A Display spec with every image pinned to a file of the active Workspace's Drive; other specs unchanged. */
+function pinDisplayImagesToDrive(
+  workspace: Pick<UserContext, "userId" | "organizationId">,
+  google: GoogleCampaignSpec,
+): GoogleCampaignSpec {
+  if (google.type !== "DISPLAY") return google;
+  return {
+    ...google,
+    images: google.images.map((image) => ({
+      ...image,
+      fileUrl: requireWorkspaceDriveFileUrl(workspace, image),
+    })),
   };
 }
 

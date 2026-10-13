@@ -4,6 +4,10 @@ import { CreateAdCampaignRequestSchema } from "@sokosumi/core-client/schemas";
 export const AD_CAMPAIGN_OBJECTIVES =
   CreateAdCampaignRequestSchema.properties.objective.enum;
 
+/** Longest campaign name Core accepts, from its API schema. */
+export const AD_CAMPAIGN_NAME_MAX_LENGTH =
+  CreateAdCampaignRequestSchema.properties.name.maxLength;
+
 /** Decimal places the currency allows: 2 for USD, 0 for JPY. */
 export function currencyFractionDigits(currency: string): number {
   // The digits belong to the currency, not the locale, so no text is rendered
