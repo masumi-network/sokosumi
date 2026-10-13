@@ -167,9 +167,7 @@ private final class RecordingChannel: ARTRealtimeChannel, @unchecked Sendable {
   }
 
   override func subscribe(_: String, callback _: @escaping ARTMessageCallback) -> ARTEventListener? {
-    if !channels.log.contains("subscribe \(channelName)") {
-      channels.record("subscribe \(channelName)")
-    }
+    channels.record("subscribe \(channelName)")
     return nil
   }
 
