@@ -130,6 +130,108 @@ export function buildSokoBotAudienceJobParentTaskWhere(
 }
 
 /**
+ * What a shared Soko Bot may read. Its workspace is always pinned: nothing in
+ * the schema ties a bot's Project to the bot's workspace.
+ */
+export interface SokoBotScope {
+  sokoBotId: string;
+  workspaceId: string;
+  /** Set for a project bot; null for a workspace bot. */
+  projectId: string | null;
+}
+
+/** The scope of a shared bot, or null for a personal bot. */
+export function sokoBotSharedScopeOf(bot: {
+  id: string;
+  userId: string | null;
+  workspaceId: string;
+  projectId: string | null;
+}): SokoBotScope | null {
+  if (bot.userId !== null) return null;
+  return {
+    sokoBotId: bot.id,
+    workspaceId: bot.workspaceId,
+    projectId: bot.projectId,
+  };
+}
+
+/**
+ * A shared bot sees PUBLIC Tasks only: a project bot those of its Project, a
+ * workspace bot every one in its workspace. Never a member's private Task.
+ */
+export function buildSokoBotScopeTaskWhere(
+  scope: SokoBotScope,
+): Prisma.TaskWhereInput {
+  return {
+    workspaceId: scope.workspaceId,
+    visibility: TaskVisibility.PUBLIC,
+    ...(scope.projectId === null ? {} : { projectId: scope.projectId }),
+  };
+}
+
+/** A shared bot's Jobs: its own hires, plus Jobs on a Task it can see. */
+export function buildSokoBotScopeJobWhere(
+  scope: SokoBotScope,
+): Prisma.JobWhereInput {
+  return {
+    workspaceId: scope.workspaceId,
+    OR: [
+      {
+        sokoBotDelegations: { some: { turn: { sokoBotId: scope.sokoBotId } } },
+      },
+      { task: { is: buildSokoBotScopeTaskWhere(scope) } },
+    ],
+  };
+}
+
+/** Who reads through a Soko Bot turn. */
+export interface SokoBotTurnReader {
+  /** The turn's member: the owner of a personal bot, the asker of a shared one. */
+  userId: string;
+  audience: SokoBotPacketAudience | undefined;
+  /** Null for a personal bot. */
+  sharedScope: SokoBotScope | null;
+}
+
+/** A turn reader. A shared bot has no owner, so it never reads as OWNER. */
+export function sokoBotTurnReader(
+  userId: string,
+  audience: SokoBotPacketAudience | undefined,
+  sharedScope: SokoBotScope | null,
+): SokoBotTurnReader {
+  if (sharedScope === null) return { userId, audience, sharedScope };
+  return {
+    userId,
+    audience: audience === "ASSISTANT" ? "ASSISTANT" : "TEAMMATE",
+    sharedScope,
+  };
+}
+
+/** A shared bot reads its scope; a personal bot reads by audience. */
+export function buildSokoBotReaderTaskWhere(
+  reader: SokoBotTurnReader,
+): Prisma.TaskWhereInput {
+  return reader.sharedScope
+    ? buildSokoBotScopeTaskWhere(reader.sharedScope)
+    : buildSokoBotAudienceTaskVisibilityWhere(reader.userId, reader.audience);
+}
+
+/** A shared bot reads its scope; a personal bot reads its owner's Jobs. */
+export function buildSokoBotReaderJobWhere(
+  reader: SokoBotTurnReader,
+): Prisma.JobWhereInput {
+  return reader.sharedScope
+    ? buildSokoBotScopeJobWhere(reader.sharedScope)
+    : {
+        ownerId: reader.userId,
+        ...buildSokoBotAudienceJobParentTaskWhere(
+          reader.userId,
+          reader.audience,
+        ),
+      };
+}
+
+/**
  * Coworker list access: GRANTED must not open other members' private Tasks.
  * Baseline assignee / same-vendor sibling still applies to private Tasks.
  */

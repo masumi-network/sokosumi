@@ -128,6 +128,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
       const authorized: AuthorizedSokoBotRuntime = {
         turn,
         classificationConfidence: 1,
+        reader: { userId, audience: undefined, sharedScope: null },
         grant: {
           userId,
           workspaceId,

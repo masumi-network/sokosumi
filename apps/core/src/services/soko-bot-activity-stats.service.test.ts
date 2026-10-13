@@ -108,7 +108,7 @@ describe("activityStats", () => {
 });
 
 describe("activityStats for a shared bot", () => {
-  const shared = { ...bot, userId: null };
+  const shared = { ...bot, userId: null, projectId: null };
 
   it("counts no owner work and reads only public Tasks for the team", async () => {
     eventFindManyMock.mockResolvedValue([
@@ -134,11 +134,33 @@ describe("activityStats for a shared bot", () => {
         where: {
           workspaceId: "ws",
           createdAt: { gte: since, lt: until },
-          AND: [{ visibility: "PUBLIC" }],
+          AND: [{ workspaceId: "ws", visibility: "PUBLIC" }],
         },
       }),
     );
     expect(eventFindManyMock).toHaveBeenCalledOnce();
+  });
+
+  it("counts a project bot's team numbers in its Project only", async () => {
+    eventFindManyMock.mockResolvedValue([]);
+    await activityStats({ ...shared, projectId: "project-1" }, since, until);
+    const scope = {
+      workspaceId: "ws",
+      visibility: "PUBLIC",
+      projectId: "project-1",
+    };
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ AND: [scope] }),
+      }),
+    );
+    expect(eventFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          task: expect.objectContaining({ AND: [scope] }),
+        }),
+      }),
+    );
   });
 });
 

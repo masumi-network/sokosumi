@@ -11,9 +11,13 @@ import {
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import { mapTaskEvent } from "@/helpers/task";
+import { buildSokoBotScopeTaskWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireSokoBotAuthContext } from "@/middleware/auth";
+import {
+  isSharedSokoBotAuthContext,
+  requireSokoBotAuthContext,
+} from "@/middleware/auth";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { taskEventApiInclude } from "@/types/task";
@@ -41,11 +45,20 @@ export function mountSokoBotEventRoutes(app: OpenAPIHonoWithAuth): void {
     const query = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(query);
     const takePlusOne = take + 1;
+    // A shared bot sees only PUBLIC Tasks in its scope, even assigned ones.
+    const scope = isSharedSokoBotAuthContext(auth)
+      ? buildSokoBotScopeTaskWhere({
+          sokoBotId: auth.sokoBotId,
+          workspaceId: auth.workspaceId,
+          projectId: auth.projectId,
+        })
+      : {};
     const where = {
       task: {
         assigneeSokoBotId: auth.sokoBotId,
         workspaceId: auth.workspaceId,
         status: { not: TaskStatus.DRAFT },
+        ...scope,
       },
     };
     const [events, count] = await prisma.$transaction([

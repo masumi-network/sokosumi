@@ -4,6 +4,9 @@ import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import {
   readSokoBotPacketAudience,
   type SokoBotPacketAudience,
+  type SokoBotTurnReader,
+  sokoBotSharedScopeOf,
+  sokoBotTurnReader,
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 
@@ -71,6 +74,24 @@ export function sokoBotTurnAudience(turn: {
   const audience = readSokoBotPacketAudience(turn.contextSnapshot?.packet);
   if (turn.sokoBot.userId !== null) return audience;
   return audience === "ASSISTANT" ? "ASSISTANT" : "TEAMMATE";
+}
+
+/** Who reads through a turn: its member, its audience, a shared bot's scope. */
+export function sokoBotTurnReaderOf(turn: {
+  sokoBotId: string;
+  userId: string;
+  sokoBot: {
+    userId: string | null;
+    workspaceId: string;
+    projectId: string | null;
+  };
+  contextSnapshot: { packet: unknown } | null;
+}): SokoBotTurnReader {
+  return sokoBotTurnReader(
+    turn.userId,
+    sokoBotTurnAudience(turn),
+    sokoBotSharedScopeOf({ id: turn.sokoBotId, ...turn.sokoBot }),
+  );
 }
 
 /** How another bot's Task event is signed in a packet. */

@@ -82,6 +82,7 @@ describe.skipIf(!databaseUrl)(
           chainDepth: 0,
         },
         askedByKind: "OWNER",
+        reader: { userId, audience: "OWNER", sharedScope: null },
         classificationConfidence: 1,
         grant: {
           userId,

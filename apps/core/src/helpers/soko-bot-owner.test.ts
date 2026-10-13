@@ -16,6 +16,7 @@ import {
   sokoBotOwnerOf,
   sokoBotPersonaOf,
   sokoBotTurnAudience,
+  sokoBotTurnReaderOf,
 } from "./soko-bot-owner";
 
 const PROJECT_ID = "01960001-0001-7001-8001-000000000010";
@@ -127,6 +128,37 @@ describe("sokoBotTurnAudience", () => {
         contextSnapshot: null,
       }),
     ).toBeUndefined();
+  });
+});
+
+describe("sokoBotTurnReaderOf", () => {
+  const packet = { trigger: { askedBy: { kind: "OWNER" } } };
+  const turn = {
+    sokoBotId: "bot-1",
+    userId: "member",
+    contextSnapshot: { packet },
+  };
+
+  it("reads a personal turn as its owner with no scope", () => {
+    expect(
+      sokoBotTurnReaderOf({
+        ...turn,
+        sokoBot: { userId: "member", workspaceId: "ws", projectId: null },
+      }),
+    ).toEqual({ userId: "member", audience: "OWNER", sharedScope: null });
+  });
+
+  it("reads a shared turn as a teammate within the bot's scope", () => {
+    expect(
+      sokoBotTurnReaderOf({
+        ...turn,
+        sokoBot: { userId: null, workspaceId: "ws", projectId: "p-1" },
+      }),
+    ).toEqual({
+      userId: "member",
+      audience: "TEAMMATE",
+      sharedScope: { sokoBotId: "bot-1", workspaceId: "ws", projectId: "p-1" },
+    });
   });
 });
 

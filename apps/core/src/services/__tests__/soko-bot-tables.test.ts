@@ -53,6 +53,7 @@ const authorized: AuthorizedSokoBotRuntime = {
     chainDepth: 0,
   },
   classificationConfidence: 1,
+  reader: { userId, audience: undefined, sharedScope: null },
   grant: {
     userId,
     workspaceId,

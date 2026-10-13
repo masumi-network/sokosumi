@@ -10,9 +10,15 @@ import {
   buildSokoBotAudienceJobParentTaskWhere,
   buildSokoBotAudienceTaskVisibilityWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
+  buildSokoBotReaderJobWhere,
+  buildSokoBotReaderTaskWhere,
+  buildSokoBotScopeJobWhere,
+  buildSokoBotScopeTaskWhere,
   isPrivateTaskVisibleToCoworker,
   isPrivateTaskVisibleToHuman,
   readSokoBotPacketAudience,
+  sokoBotSharedScopeOf,
+  sokoBotTurnReader,
 } from "./task-visibility";
 
 describe("task visibility helpers", () => {
@@ -165,5 +171,69 @@ describe("task visibility helpers", () => {
         },
       },
     });
+  });
+});
+
+describe("shared Soko Bot scope", () => {
+  const project = { sokoBotId: "bot_1", workspaceId: "ws_1", projectId: "p_1" };
+  const workspace = { ...project, projectId: null };
+
+  it("has no scope for a personal bot and keeps a shared bot's columns", () => {
+    const columns = { id: "bot_1", workspaceId: "ws_1", projectId: "p_1" };
+    expect(sokoBotSharedScopeOf({ ...columns, userId: "owner" })).toBeNull();
+    expect(sokoBotSharedScopeOf({ ...columns, userId: null })).toEqual(project);
+  });
+
+  it("pins the workspace and PUBLIC, and the Project for a project bot", () => {
+    expect(buildSokoBotScopeTaskWhere(project)).toEqual({
+      workspaceId: "ws_1",
+      visibility: TaskVisibility.PUBLIC,
+      projectId: "p_1",
+    });
+    expect(buildSokoBotScopeTaskWhere(workspace)).toEqual({
+      workspaceId: "ws_1",
+      visibility: TaskVisibility.PUBLIC,
+    });
+  });
+
+  it("scopes Jobs to the bot's own hires or a visible Task", () => {
+    expect(buildSokoBotScopeJobWhere(project)).toEqual({
+      workspaceId: "ws_1",
+      OR: [
+        { sokoBotDelegations: { some: { turn: { sokoBotId: "bot_1" } } } },
+        { task: { is: buildSokoBotScopeTaskWhere(project) } },
+      ],
+    });
+  });
+
+  it("never reads as OWNER for a shared bot", () => {
+    expect(sokoBotTurnReader("member", "OWNER", project).audience).toBe(
+      "TEAMMATE",
+    );
+    expect(sokoBotTurnReader("member", undefined, project).audience).toBe(
+      "TEAMMATE",
+    );
+    expect(sokoBotTurnReader("member", "ASSISTANT", project).audience).toBe(
+      "ASSISTANT",
+    );
+    expect(sokoBotTurnReader("owner", "OWNER", null).audience).toBe("OWNER");
+  });
+
+  it("routes reader wheres by scope and keeps the personal ones unchanged", () => {
+    const owner = sokoBotTurnReader("owner", "OWNER", null);
+    expect(buildSokoBotReaderTaskWhere(owner)).toEqual(
+      buildSokoBotAudienceTaskVisibilityWhere("owner", "OWNER"),
+    );
+    expect(buildSokoBotReaderJobWhere(owner)).toEqual({
+      ownerId: "owner",
+      ...buildSokoBotAudienceJobParentTaskWhere("owner", "OWNER"),
+    });
+    const shared = sokoBotTurnReader("member", "OWNER", project);
+    expect(buildSokoBotReaderTaskWhere(shared)).toEqual(
+      buildSokoBotScopeTaskWhere(project),
+    );
+    expect(buildSokoBotReaderJobWhere(shared)).toEqual(
+      buildSokoBotScopeJobWhere(project),
+    );
   });
 });

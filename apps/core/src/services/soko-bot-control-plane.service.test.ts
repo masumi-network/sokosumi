@@ -5,7 +5,9 @@ import {
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { sokoBotTurnReader } from "@/helpers/task-visibility";
 import { buildActionResponse } from "@/lib/soko-bot/action-response";
+import { loadClassificationContext } from "@/lib/soko-bot/classification-context";
 import { enqueueSokoBotDelivery } from "@/services/soko-bot-delivery.service";
 import { assessSokoBotIntentOutcome } from "@/services/soko-bot-outcome.service";
 import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-previews.service";
@@ -1103,10 +1105,9 @@ describe("SokoBotControlPlane lifecycle", () => {
         status: "RUNNING",
       },
     ]);
-    const context = await new SokoBotControlPlane()["classificationContext"](
-      "user_1",
+    const context = await loadClassificationContext(
+      sokoBotTurnReader("user_1", "OWNER", null),
       "workspace_1",
-      "OWNER",
       'What is the status of "Apollo launch"?',
     );
     expect(context.namedTaskIds).toEqual(["old-apollo"]);
@@ -1132,10 +1133,9 @@ describe("SokoBotControlPlane lifecycle", () => {
       { id: "apollo-one", name: "Apollo launch marketing" },
       { id: "apollo-two", name: "Apollo launch engineering" },
     ]);
-    const context = await new SokoBotControlPlane()["classificationContext"](
-      "user_1",
+    const context = await loadClassificationContext(
+      sokoBotTurnReader("user_1", "OWNER", null),
       "workspace_1",
-      "OWNER",
       "What is the status of Apollo launch?",
     );
     expect(context.namedTaskIds).toEqual(["apollo-one", "apollo-two"]);
@@ -1143,10 +1143,9 @@ describe("SokoBotControlPlane lifecycle", () => {
 
   it("does not expand a teammate request through owner-only descriptive search", async () => {
     taskFindManyMock.mockResolvedValue([]);
-    const context = await new SokoBotControlPlane()["classificationContext"](
-      "user_1",
+    const context = await loadClassificationContext(
+      sokoBotTurnReader("user_1", "TEAMMATE", null),
       "workspace_1",
-      "TEAMMATE",
       'Find "Apollo launch"',
     );
     expect(context.namedTaskIds).toEqual([]);

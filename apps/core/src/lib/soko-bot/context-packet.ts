@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
-import { TaskVisibility } from "@sokosumi/database";
 import type {
   SokoBotContextPacket,
   TurnClassification,
@@ -13,12 +12,12 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import { DAY_MS } from "@/config/constants";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
-import {
-  buildHumanParentTaskVisibilityWhere,
-  buildSokoBotOwnerTaskVisibilityWhere,
-} from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { listHireableAgents } from "./agent-search";
+import {
+  type ContextPacketReaderInput,
+  contextPacketScope,
+} from "./context-packet-scope";
 import { buildSourceCoverage } from "./source-coverage";
 
 const LIMITS = {
@@ -97,62 +96,9 @@ interface ProjectStatusJob {
   events: readonly { status: string }[];
 }
 
-function buildPacketTaskVisibilityWhere(
-  userId: string,
-  audience: "OWNER" | "TEAMMATE" | undefined,
-): Prisma.TaskWhereInput {
-  if (audience === "TEAMMATE") {
-    return { visibility: TaskVisibility.PUBLIC };
-  }
-  return buildSokoBotOwnerTaskVisibilityWhere(userId);
-}
-
-function buildPacketJobParentTaskWhere(
-  userId: string,
-  audience: "OWNER" | "TEAMMATE" | undefined,
-): Prisma.JobWhereInput {
-  if (audience === "TEAMMATE") {
-    return {
-      OR: [
-        { taskId: null },
-        { task: { is: { visibility: TaskVisibility.PUBLIC } } },
-      ],
-    };
-  }
-  return {
-    OR: [
-      { taskId: null },
-      { task: { is: buildHumanParentTaskVisibilityWhere(userId) } },
-    ],
-  };
-}
-
-export interface BuildContextPacketInput {
-  userId: string;
-  sokoBotId: string;
-  workspaceId: string;
+export interface BuildContextPacketInput extends ContextPacketReaderInput {
   source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
   classification: TurnClassification;
-  /**
-   * Who the turn answers. A teammate mentioning someone else's bot in a shared
-   * room receives the model's answer in that room, so the packet must not carry
-   * the owner's private surfaces even though the turn runs as the owner.
-   */
-  audience?: "OWNER" | "TEAMMATE";
-  /**
-   * Who is on the other side of this turn. The turn runs as the owner — their
-   * bot, their credits — so `actor` is always the owner, and without this the
-   * packet asserts the owner is the one speaking: a bot reading that greets
-   * its owner by name at a teammate.
-   *
-   * `ASSISTANT` is another bot asking, and is deliberately nameless. The id
-   * that reaches us then belongs to the *sending bot's owner*, who is not in
-   * the conversation at all, so naming them would be worse than saying
-   * nothing.
-   */
-  askedByKind?: "OWNER" | "TEAMMATE" | "ASSISTANT";
-  askedByUserId?: string | null;
-  roomId?: string | null;
   referencedTaskIds?: readonly string[];
 }
 
@@ -504,7 +450,8 @@ export class ContextPacketBuilder {
     const hiring = MARKETPLACE_ROUTES.has(input.classification.route);
     const agentsPromise = listHireableAgents(hiring ? LIMITS.agents : 0);
 
-    const askedByKind = input.askedByKind ?? "OWNER";
+    const scope = contextPacketScope(input);
+    const { askedByKind } = scope;
     const [
       user,
       projects,
@@ -529,7 +476,7 @@ export class ContextPacketBuilder {
         select: { id: true, name: true, metadata: true },
       }),
       prisma.project.findMany({
-        where: { workspaceId: input.workspaceId },
+        where: scope.projectWhere,
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: LIMITS.projects,
         select: {
@@ -539,24 +486,8 @@ export class ContextPacketBuilder {
           updatedAt: true,
           _count: {
             select: {
-              tasks: {
-                where: {
-                  archivedAt: null,
-                  ...buildPacketTaskVisibilityWhere(
-                    input.userId,
-                    input.audience,
-                  ),
-                },
-              },
-              jobs: {
-                where: {
-                  ownerId: input.userId,
-                  ...buildPacketJobParentTaskWhere(
-                    input.userId,
-                    input.audience,
-                  ),
-                },
-              },
+              tasks: { where: { archivedAt: null, ...scope.taskWhere } },
+              jobs: { where: scope.jobWhere },
             },
           },
         },
@@ -591,7 +522,7 @@ export class ContextPacketBuilder {
               ...page.where,
               workspaceId: input.workspaceId,
               archivedAt: null,
-              ...buildPacketTaskVisibilityWhere(input.userId, input.audience),
+              ...scope.taskWhere,
             },
             orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
             take: page.take,
@@ -617,10 +548,7 @@ export class ContextPacketBuilder {
                   fromTask: {
                     workspaceId: input.workspaceId,
                     archivedAt: null,
-                    ...buildPacketTaskVisibilityWhere(
-                      input.userId,
-                      input.audience,
-                    ),
+                    ...scope.taskWhere,
                   },
                 },
                 orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -639,10 +567,7 @@ export class ContextPacketBuilder {
                       fromTask: {
                         workspaceId: input.workspaceId,
                         archivedAt: null,
-                        ...buildPacketTaskVisibilityWhere(
-                          input.userId,
-                          input.audience,
-                        ),
+                        ...scope.taskWhere,
                       },
                     },
                   },
@@ -661,7 +586,7 @@ export class ContextPacketBuilder {
           archivedAt: null,
           OR: [
             { isWhitelisted: true },
-            { assignments: { some: { userId: input.userId } } },
+            { assignments: { some: scope.coworkerAssignmentWhere } },
             {
               workspaceAccess: {
                 some: { workspaceId: input.workspaceId, status: "GRANTED" },
@@ -679,7 +604,7 @@ export class ContextPacketBuilder {
           capabilities: true,
           isWhitelisted: true,
           assignments: {
-            where: { userId: input.userId },
+            where: scope.coworkerAssignmentWhere,
             select: { id: true },
             take: 1,
           },
@@ -701,11 +626,7 @@ export class ContextPacketBuilder {
       }),
       agentsPromise,
       prisma.job.findMany({
-        where: {
-          ownerId: input.userId,
-          workspaceId: input.workspaceId,
-          ...buildPacketJobParentTaskWhere(input.userId, input.audience),
-        },
+        where: { ...scope.jobWhere, workspaceId: input.workspaceId },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: LIMITS.jobs,
         select: {
@@ -724,22 +645,7 @@ export class ContextPacketBuilder {
         },
       }),
       prisma.sokoBotPendingDecision.findMany({
-        where: {
-          userId: input.userId,
-          workspaceId: input.workspaceId,
-          status: "PENDING",
-          sokoBotId: input.sokoBotId,
-          expiresAt: { gt: new Date() },
-          turn: {
-            requestedByUserId:
-              input.askedByUserId && input.askedByUserId !== input.userId
-                ? input.askedByUserId
-                : null,
-            ...(input.roomId
-              ? { chatMention: { message: { roomId: input.roomId } } }
-              : { chatMentionId: null }),
-          },
-        },
+        where: scope.pendingDecisionWhere(),
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: LIMITS.pendingDecisions,
         select: {
@@ -751,19 +657,7 @@ export class ContextPacketBuilder {
         },
       }),
       prisma.sokoBotTurn.findMany({
-        where: {
-          sokoBotId: input.sokoBotId,
-          userId: input.userId,
-          workspaceId: input.workspaceId,
-          status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
-          requestedByUserId:
-            input.askedByUserId && input.askedByUserId !== input.userId
-              ? input.askedByUserId
-              : null,
-          ...(input.roomId
-            ? { chatMention: { message: { roomId: input.roomId } } }
-            : { chatMentionId: null }),
-        },
+        where: scope.recentTurnWhere,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: LIMITS.recentTurns,
         select: {
@@ -778,20 +672,17 @@ export class ContextPacketBuilder {
         },
       }),
       prisma.sokoBotMemoryRevision.findFirst({
-        where: {
-          sokoBotId: input.sokoBotId,
-          sokoBot: { userId: input.userId },
-        },
+        where: scope.memoryWhere,
         orderBy: { version: "desc" },
         select: { id: true, version: true, hash: true, markdown: true },
       }),
       billingPromise,
-      prisma.project.count({ where: { workspaceId: input.workspaceId } }),
+      prisma.project.count({ where: scope.projectWhere }),
       prisma.task.count({
         where: {
           workspaceId: input.workspaceId,
           archivedAt: null,
-          ...buildPacketTaskVisibilityWhere(input.userId, input.audience),
+          ...scope.taskWhere,
         },
       }),
       prisma.coworker.count({
@@ -799,7 +690,7 @@ export class ContextPacketBuilder {
           archivedAt: null,
           OR: [
             { isWhitelisted: true },
-            { assignments: { some: { userId: input.userId } } },
+            { assignments: { some: scope.coworkerAssignmentWhere } },
             {
               workspaceAccess: {
                 some: { workspaceId: input.workspaceId, status: "GRANTED" },
@@ -809,76 +700,38 @@ export class ContextPacketBuilder {
         },
       }),
       prisma.job.count({
-        where: {
-          ownerId: input.userId,
-          workspaceId: input.workspaceId,
-          ...buildPacketJobParentTaskWhere(input.userId, input.audience),
-        },
+        where: { ...scope.jobWhere, workspaceId: input.workspaceId },
       }),
       prisma.sokoBotPendingDecision.count({
-        where: {
-          userId: input.userId,
-          workspaceId: input.workspaceId,
-          status: "PENDING",
-          sokoBotId: input.sokoBotId,
-          expiresAt: { gt: new Date() },
-          turn: {
-            requestedByUserId:
-              input.askedByUserId && input.askedByUserId !== input.userId
-                ? input.askedByUserId
-                : null,
-            ...(input.roomId
-              ? { chatMention: { message: { roomId: input.roomId } } }
-              : { chatMentionId: null }),
-          },
-        },
+        where: scope.pendingDecisionWhere(),
       }),
-      prisma.sokoBotTurn.count({
-        where: {
-          sokoBotId: input.sokoBotId,
-          userId: input.userId,
-          workspaceId: input.workspaceId,
-          status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
-          requestedByUserId:
-            input.askedByUserId && input.askedByUserId !== input.userId
-              ? input.askedByUserId
-              : null,
-          ...(input.roomId
-            ? { chatMention: { message: { roomId: input.roomId } } }
-            : { chatMentionId: null }),
-        },
-      }),
-      // Only a named human is looked up: the owner is already `actor`, and
-      // the id behind an assistant's question is its owner, not the asker.
-      askedByKind === "TEAMMATE" &&
-      input.askedByUserId &&
-      input.askedByUserId !== input.userId
+      prisma.sokoBotTurn.count({ where: scope.recentTurnWhere }),
+      scope.askerUserId
         ? prisma.user.findUnique({
-            where: { id: input.askedByUserId },
+            where: { id: scope.askerUserId },
             select: { name: true },
           })
         : null,
     ]);
 
-    const reminders =
-      input.audience === "TEAMMATE"
-        ? []
-        : await prisma.sokoBotNudge.findMany({
-            where: {
-              sokoBotId: input.sokoBotId,
-              state: { in: ["ACTIVE", "ACKNOWLEDGED", "SNOOZED"] },
-            },
-            orderBy: [{ lastAt: "desc" }, { id: "desc" }],
-            take: 12,
-            select: {
-              key: true,
-              state: true,
-              revision: true,
-              snoozedUntil: true,
-              expiresAt: true,
-              lastDeliveredAt: true,
-            },
-          });
+    const reminders = !scope.includeReminders
+      ? []
+      : await prisma.sokoBotNudge.findMany({
+          where: {
+            sokoBotId: input.sokoBotId,
+            state: { in: ["ACTIVE", "ACKNOWLEDGED", "SNOOZED"] },
+          },
+          orderBy: [{ lastAt: "desc" }, { id: "desc" }],
+          take: 12,
+          select: {
+            key: true,
+            state: true,
+            revision: true,
+            snoozedUntil: true,
+            expiresAt: true,
+            lastDeliveredAt: true,
+          },
+        });
     const { agents, count: agentCount } = agentRead;
     const counts = {
       projects: projectCount,

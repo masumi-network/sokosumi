@@ -102,6 +102,7 @@ import {
   SOKO_BOT_OWNER_NAME_SELECT,
   sokoBotAuthorLabel,
   sokoBotTurnAudience,
+  sokoBotTurnReaderOf,
 } from "@/helpers/soko-bot-owner";
 import { loadSokoBotTurnAuthContext } from "@/helpers/soko-bot-turn-auth-context";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
@@ -110,9 +111,10 @@ import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import {
-  buildSokoBotAudienceJobParentTaskWhere,
-  buildSokoBotAudienceTaskVisibilityWhere,
+  buildSokoBotReaderJobWhere,
+  buildSokoBotReaderTaskWhere,
   type SokoBotPacketAudience,
+  type SokoBotTurnReader,
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -231,10 +233,7 @@ import {
   listSokoBotIntegrations,
   runIntegrationTool,
 } from "@/services/soko-bot-integrations.service";
-import {
-  criteriaForConfirmedSokoBotAction,
-  readSokoBotTaskOutcome,
-} from "@/services/soko-bot-outcome.service";
+import { criteriaForConfirmedSokoBotAction } from "@/services/soko-bot-outcome.service";
 import { manageSokoBotReminder } from "@/services/soko-bot-proactive.service";
 import {
   createSokoBotSchedule,
@@ -244,6 +243,7 @@ import {
   SokoBotScheduleValidationError,
   updateSokoBotSchedule,
 } from "@/services/soko-bot-schedule.service";
+import { readSokoBotTaskOutcome } from "@/services/soko-bot-task-outcome.service";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 import {
   createTaskForActor,
@@ -497,6 +497,7 @@ export interface SokoBotActionContext {
 export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
   grant: SokoBotTurnGrantClaims;
   askedByKind?: SokoBotPacketAudience;
+  reader: SokoBotTurnReader;
 }
 
 export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
@@ -758,6 +759,8 @@ export class SokoBotRuntimeService {
             archivedAt: true,
             status: true,
             userId: true,
+            workspaceId: true,
+            projectId: true,
           },
         },
       },
@@ -901,6 +904,7 @@ export class SokoBotRuntimeService {
     return {
       grant,
       askedByKind: sokoBotTurnAudience(turn),
+      reader: sokoBotTurnReaderOf(turn),
       turn: {
         id: turn.id,
         sokoBotId: turn.sokoBotId,
@@ -2305,10 +2309,7 @@ export class SokoBotRuntimeService {
     const where: Prisma.TaskWhereInput = {
       AND: [
         { workspaceId: authorized.turn.workspaceId, archivedAt: null },
-        buildSokoBotAudienceTaskVisibilityWhere(
-          authorized.turn.userId,
-          authorized.askedByKind,
-        ),
+        buildSokoBotReaderTaskWhere(authorized.reader),
         // An exact status is the question itself; `state` would only
         // contradict it (FAILED is finished, yet "open" is the default).
         input.status
@@ -2417,10 +2418,7 @@ export class SokoBotRuntimeService {
     const visiblePeerTask = {
       workspaceId: authorized.turn.workspaceId,
       archivedAt: null,
-      ...buildSokoBotAudienceTaskVisibilityWhere(
-        authorized.turn.userId,
-        authorized.askedByKind,
-      ),
+      ...buildSokoBotReaderTaskWhere(authorized.reader),
     };
     const task = await prisma.task.findFirst({
       where: {
@@ -2440,10 +2438,7 @@ export class SokoBotRuntimeService {
               ],
             }
           : { archivedAt: null }),
-        ...buildSokoBotAudienceTaskVisibilityWhere(
-          authorized.turn.userId,
-          authorized.askedByKind,
-        ),
+        ...buildSokoBotReaderTaskWhere(authorized.reader),
       },
       select: {
         id: true,
@@ -2772,10 +2767,7 @@ export class SokoBotRuntimeService {
           id: input.taskId,
           workspaceId: authorized.turn.workspaceId,
           archivedAt: null,
-          ...buildSokoBotAudienceTaskVisibilityWhere(
-            authorized.turn.userId,
-            authorized.askedByKind,
-          ),
+          ...buildSokoBotReaderTaskWhere(authorized.reader),
         },
         select: {
           id: true,
@@ -2944,10 +2936,7 @@ export class SokoBotRuntimeService {
           id: { in: [input.taskId, input.peerTaskId] },
           workspaceId: authorized.turn.workspaceId,
           archivedAt: null,
-          ...buildSokoBotAudienceTaskVisibilityWhere(
-            authorized.turn.userId,
-            authorized.askedByKind,
-          ),
+          ...buildSokoBotReaderTaskWhere(authorized.reader),
         },
         select: { id: true, name: true },
       });
@@ -4854,15 +4843,8 @@ export class SokoBotRuntimeService {
         return prisma.job.findFirst({
           where: {
             AND: [
-              {
-                id: jobId,
-                ownerId: authorized.turn.userId,
-                workspaceId: authorized.turn.workspaceId,
-              },
-              buildSokoBotAudienceJobParentTaskWhere(
-                authorized.turn.userId,
-                authorized.askedByKind,
-              ),
+              { id: jobId, workspaceId: authorized.turn.workspaceId },
+              buildSokoBotReaderJobWhere(authorized.reader),
             ],
           },
           select: {

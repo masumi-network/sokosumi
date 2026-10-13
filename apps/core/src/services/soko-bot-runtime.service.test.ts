@@ -1475,6 +1475,7 @@ describe("SokoBotRuntimeService authorization", () => {
       {
         turn: { ...SCOPE, id: SCOPE.turnId },
         askedByKind: "OWNER",
+        reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
       } as never,
       "task_1",
     );
@@ -1508,6 +1509,7 @@ describe("SokoBotRuntimeService authorization", () => {
       {
         turn: { ...SCOPE, id: SCOPE.turnId },
         askedByKind: "OWNER",
+        reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
       } as never,
       "task_1",
     );
@@ -1964,12 +1966,9 @@ describe("SokoBotRuntimeService authorization", () => {
       expect.objectContaining({
         where: {
           AND: [
+            { id: "job_1", workspaceId: SCOPE.workspaceId },
             {
-              id: "job_1",
               ownerId: SCOPE.userId,
-              workspaceId: SCOPE.workspaceId,
-            },
-            {
               OR: [
                 { taskId: null },
                 { task: { is: { visibility: "PUBLIC" } } },
@@ -2417,6 +2416,11 @@ describe("SokoBotRuntimeService authorization", () => {
           userId: SCOPE.userId,
           workspaceId: SCOPE.workspaceId,
         },
+        reader: {
+          userId: SCOPE.userId,
+          audience: undefined,
+          sharedScope: null,
+        },
       } as never,
       {
         taskId: "task_1",
@@ -2466,6 +2470,11 @@ describe("SokoBotRuntimeService authorization", () => {
             userId: SCOPE.userId,
             workspaceId: SCOPE.workspaceId,
           },
+          reader: {
+            userId: SCOPE.userId,
+            audience: undefined,
+            sharedScope: null,
+          },
         } as never,
         { taskId: "task_1", comment: "Stop", status: "CANCELED" },
         "call_cancel_other",
@@ -2491,6 +2500,11 @@ describe("SokoBotRuntimeService authorization", () => {
           sokoBotId: SCOPE.sokoBotId,
           userId: SCOPE.userId,
           workspaceId: SCOPE.workspaceId,
+        },
+        reader: {
+          userId: SCOPE.userId,
+          audience: undefined,
+          sharedScope: null,
         },
       } as never,
       { taskId: "task_1", comment: "Inputs received", status: "READY" },

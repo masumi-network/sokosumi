@@ -122,6 +122,7 @@ function buildInput() {
     workspaceId: "01960001-0001-7001-8001-000000000002",
     source: "CHAT" as const,
     classification: CLASSIFICATION,
+    sharedScope: null,
   };
 }
 
@@ -542,6 +543,57 @@ describe("ContextPacketBuilder", () => {
             },
           ],
         },
+      }),
+    );
+  });
+
+  it("builds a shared bot's packet from its scope and never as OWNER", async () => {
+    const sharedScope = {
+      sokoBotId: buildInput().sokoBotId,
+      workspaceId: buildInput().workspaceId,
+      projectId: "project-1",
+    };
+    userFindUniqueMock.mockResolvedValue({ name: "Member Mia" });
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      sharedScope,
+      askedByKind: "OWNER",
+    });
+
+    expect(result.packet.trigger.askedBy).toMatchObject({
+      kind: "TEAMMATE",
+      name: "Member Mia",
+    });
+    expect(userFindUniqueMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "user-1" } }),
+    );
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspaceId: sharedScope.workspaceId,
+          visibility: "PUBLIC",
+          projectId: "project-1",
+        }),
+      }),
+    );
+    expect(taskFindManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ OR: expect.anything() }),
+      }),
+    );
+    expect(jobFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.not.objectContaining({ ownerId: expect.anything() }),
+      }),
+    );
+    expect(projectFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { workspaceId: sharedScope.workspaceId, id: "project-1" },
+      }),
+    );
+    expect(memoryFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { sokoBotId: sharedScope.sokoBotId },
       }),
     );
   });

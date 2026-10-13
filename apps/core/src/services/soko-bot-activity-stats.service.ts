@@ -1,17 +1,24 @@
-import { TaskVisibility } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { personalOwnerUserId } from "@/helpers/soko-bot-owner";
-import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
+import {
+  buildSokoBotOwnerTaskVisibilityWhere,
+  buildSokoBotScopeTaskWhere,
+} from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { roundCredits } from "@/lib/soko-bot/task-charges";
 
-export interface ActivityStatsBot {
+/**
+ * A shared bot has no owner, so nothing counts as "own", and must name its
+ * Project (null for a workspace bot) so team numbers stay in its scope.
+ */
+export type ActivityStatsBot = {
   id: string;
   name?: string | null;
-  /** Null for a shared bot: with no owner, nothing counts as "own". */
-  userId: string | null;
   workspaceId: string;
-}
+} & (
+  | { userId: string; projectId?: string | null }
+  | { userId: null; projectId: string | null }
+);
 
 export interface ActivityStats {
   /** Null for a shared bot. */
@@ -87,9 +94,13 @@ export async function activityStats(
   const window = { gte: since, lt: until };
   const ownerId = personalOwnerUserId(bot);
   const visible =
-    ownerId === null
-      ? { visibility: TaskVisibility.PUBLIC }
-      : buildSokoBotOwnerTaskVisibilityWhere(ownerId);
+    bot.userId === null
+      ? buildSokoBotScopeTaskWhere({
+          sokoBotId: bot.id,
+          workspaceId: bot.workspaceId,
+          projectId: bot.projectId,
+        })
+      : buildSokoBotOwnerTaskVisibilityWhere(bot.userId);
   const others = ownerId === null ? {} : { NOT: { ownerId } };
   const [
     owner,
