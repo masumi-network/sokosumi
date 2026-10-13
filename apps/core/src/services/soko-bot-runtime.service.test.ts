@@ -867,6 +867,124 @@ describe("SokoBotRuntimeService authorization", () => {
     ).rejects.toThrow(SokoBotRuntimeAuthorizationError);
   });
 
+  describe("audience of a bot with no owner", () => {
+    function ownerPacketTurn(botUserId: string | null) {
+      return {
+        userMessage: "Check the tasks",
+        id: SCOPE.turnId,
+        sokoBotId: SCOPE.sokoBotId,
+        userId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        capabilityNames: ["get_task_status", "create_task"],
+        contextSnapshot: {
+          id: "01960001-0001-7001-8001-000000000004",
+          packet: {
+            trigger: { askedBy: { kind: "OWNER" } },
+            memory: { version: 1 },
+          },
+        },
+        eveSessionId: SCOPE.sessionId,
+        status: "RUNNING",
+        deadlineAt: new Date(Date.now() + 60_000),
+        leaseExpiresAt: new Date(Date.now() + 60_000),
+        sokoBot: { archivedAt: null, status: "RUNNING", userId: botUserId },
+      };
+    }
+
+    it("keeps the OWNER audience for a personal bot", async () => {
+      turnFindUniqueMock.mockResolvedValue(ownerPacketTurn(SCOPE.userId));
+      const authorized = await new SokoBotRuntimeService().authorize({
+        ...SCOPE,
+        capability: "create_task",
+      });
+      expect(authorized.askedByKind).toBe("OWNER");
+    });
+
+    it("reads a shared bot's OWNER packet as TEAMMATE", async () => {
+      turnFindUniqueMock.mockResolvedValue(ownerPacketTurn(null));
+      const authorized = await new SokoBotRuntimeService().authorize({
+        ...SCOPE,
+        capability: "create_task",
+      });
+      expect(authorized.askedByKind).toBe("TEAMMATE");
+    });
+
+    it("never shows the asking member's private Tasks through a shared bot", async () => {
+      turnFindUniqueMock.mockResolvedValue(ownerPacketTurn(null));
+      toolCallFindUniqueMock.mockResolvedValue({
+        id: "01960001-0001-7001-8001-000000000010",
+        status: "PENDING",
+        capability: "get_task_status",
+        inputHash: createHash("sha256")
+          .update(JSON.stringify({ taskId: "task_1" }))
+          .digest("hex"),
+        updatedAt: new Date(0),
+      });
+      toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+      taskFindFirstMock.mockResolvedValue(null);
+
+      await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "get_task_status",
+        toolCallId: "call_shared_task",
+        input: { taskId: "task_1" },
+      });
+
+      const where = taskFindFirstMock.mock.calls[0]?.[0]?.where;
+      expect(where).toMatchObject({
+        id: "task_1",
+        archivedAt: null,
+        visibility: "PUBLIC",
+      });
+      expect(JSON.stringify(where)).not.toContain(SCOPE.userId);
+    });
+
+    it("introduces a shared bot in its system prompt with no owner", async () => {
+      turnFindUniqueMock.mockResolvedValue(ownerPacketTurn(null));
+      contextSnapshotFindFirstMock.mockResolvedValue({
+        packet: {},
+        hash: "hash",
+        schemaVersion: 1,
+        generatedAt: new Date(),
+      });
+      botFindUniqueMock.mockResolvedValue({
+        name: "Scout",
+        userId: null,
+        user: null,
+      });
+      const context = await new SokoBotRuntimeService().getContext({
+        ...SCOPE,
+      });
+      const persona = context.version.systemPrompt.split("\n\n")[0];
+      expect(persona).toContain(
+        "Your name is Scout. You are a shared team assistant",
+      );
+      expect(persona).not.toContain("personal assistant");
+      expect(persona).not.toContain("your owner");
+    });
+
+    it("introduces a personal bot as its owner's assistant", async () => {
+      turnFindUniqueMock.mockResolvedValue(ownerPacketTurn(SCOPE.userId));
+      contextSnapshotFindFirstMock.mockResolvedValue({
+        packet: {},
+        hash: "hash",
+        schemaVersion: 1,
+        generatedAt: new Date(),
+      });
+      botFindUniqueMock.mockResolvedValue({
+        name: "Jarvis",
+        userId: SCOPE.userId,
+        user: { name: "Ana Lima" },
+      });
+      const context = await new SokoBotRuntimeService().getContext({
+        ...SCOPE,
+      });
+      expect(context.version.systemPrompt).toContain(
+        "Your name is Jarvis. You are Ana's personal assistant",
+      );
+    });
+  });
+
   it("carries the turn's version and source into the action context", async () => {
     // Dropping these silently made every turn resolve the default version and
     // meant self-started turns could not be told apart from owner turns.
@@ -1363,6 +1481,39 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(read?.events[0]).toMatchObject({
       by: "another_bot",
       byName: "Lili, Albina's assistant",
+    });
+
+    // A shared assistant has no owner to be named with.
+    taskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: "READY",
+      events: [
+        {
+          id: "event-2",
+          status: null,
+          comment: "Budget looks fine.",
+          createdAt: new Date(0),
+          coworkerId: null,
+          userId: null,
+          sokoBotId: "shared-bot",
+          sokoBot: { name: "Scout", userId: null, user: null },
+        },
+      ],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+    });
+    const sharedRead = await service["readTask"](
+      {
+        turn: { ...SCOPE, id: SCOPE.turnId },
+        askedByKind: "OWNER",
+      } as never,
+      "task_1",
+    );
+    expect(sharedRead?.events[0]).toMatchObject({
+      by: "another_bot",
+      byName: "Scout, a shared team assistant",
     });
     expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -71,7 +71,8 @@ function resolveTaskAssigneeDisplay(
       image: claimed,
       avatarSeed: claimed
         ? null
-        : (sokoBot.avatarSeed ?? defaultOrbSeed(sokoBot.owner.id)),
+        : (sokoBot.avatarSeed ??
+          defaultOrbSeed(sokoBot.owner?.id ?? sokoBot.id)),
     };
   }
 

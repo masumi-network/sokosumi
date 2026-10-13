@@ -34,11 +34,12 @@ type SokoBotActorSummary = {
   name: string | null;
   avatarSeed?: string | null;
   avatarImageUrl?: string | null;
+  /** Null for a shared bot: it has no owner. */
   owner: {
     id: string;
     name: string;
     image?: string | null;
-  };
+  } | null;
 };
 
 /**
@@ -257,8 +258,8 @@ function sokoBotActorInfo(sokoBot: SokoBotActorSummary): TaskActivityActorInfo {
     // here than the one the owner sees everywhere else.
     avatarSeed: sokoBot.avatarImageUrl
       ? null
-      : (sokoBot.avatarSeed ?? defaultOrbSeed(sokoBot.owner.id)),
-    ownerName: sokoBot.owner.name,
+      : (sokoBot.avatarSeed ?? defaultOrbSeed(sokoBot.owner?.id ?? sokoBot.id)),
+    ownerName: sokoBot.owner?.name,
   };
 }
 

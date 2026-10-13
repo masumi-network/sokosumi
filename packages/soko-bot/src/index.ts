@@ -24,6 +24,7 @@ export {
 export {
   composeSokoBotIntroduction,
   composeSokoBotVersionNotice,
+  type SokoBotPersona,
 } from "./persona.js";
 export {
   capabilitiesForClassification,

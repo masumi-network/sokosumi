@@ -97,6 +97,12 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { jsonInput } from "@/helpers/prisma-json";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
+import {
+  loadSokoBotPersona,
+  SOKO_BOT_OWNER_NAME_SELECT,
+  sokoBotAuthorLabel,
+  sokoBotTurnAudience,
+} from "@/helpers/soko-bot-owner";
 import { loadSokoBotTurnAuthContext } from "@/helpers/soko-bot-turn-auth-context";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
@@ -106,7 +112,6 @@ import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import {
   buildSokoBotAudienceJobParentTaskWhere,
   buildSokoBotAudienceTaskVisibilityWhere,
-  readSokoBotPacketAudience,
   type SokoBotPacketAudience,
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
@@ -752,6 +757,7 @@ export class SokoBotRuntimeService {
             adminPausedAt: true,
             archivedAt: true,
             status: true,
+            userId: true,
           },
         },
       },
@@ -894,7 +900,7 @@ export class SokoBotRuntimeService {
 
     return {
       grant,
-      askedByKind: readSokoBotPacketAudience(turn.contextSnapshot?.packet),
+      askedByKind: sokoBotTurnAudience(turn),
       turn: {
         id: turn.id,
         sokoBotId: turn.sokoBotId,
@@ -948,20 +954,14 @@ export class SokoBotRuntimeService {
       );
     }
     const version = await resolveSokoBotVersion(authorized.turn.versionId);
-    const bot = await prisma.sokoBot.findUnique({
-      where: { id: authorized.turn.sokoBotId },
-      select: { name: true, user: { select: { name: true } } },
-    });
+    const persona = await loadSokoBotPersona(authorized.turn.sokoBotId);
     return {
       ...snapshot,
       version: {
         id: version.id,
         name: version.name,
         model: version.model,
-        systemPrompt: composeSystemPrompt(version, {
-          name: bot?.name ?? null,
-          ownerName: bot?.user.name ?? null,
-        }),
+        systemPrompt: composeSystemPrompt(version, persona),
         skills: [...version.skills],
       },
     };
@@ -2471,9 +2471,7 @@ export class SokoBotRuntimeService {
             coworkerId: true,
             userId: true,
             sokoBotId: true,
-            sokoBot: {
-              select: { name: true, user: { select: { name: true } } },
-            },
+            sokoBot: { select: SOKO_BOT_OWNER_NAME_SELECT },
           },
         },
         files: {
@@ -2559,7 +2557,7 @@ export class SokoBotRuntimeService {
         // owner, never for yours.
         ...(event.sokoBot && event.sokoBotId !== authorized.turn.sokoBotId
           ? {
-              byName: `${sokoBotDisplayName({ name: event.sokoBot.name })}, ${event.sokoBot.user.name ?? "another person"}'s assistant`,
+              byName: sokoBotAuthorLabel(event.sokoBot),
             }
           : {}),
         status: event.status,

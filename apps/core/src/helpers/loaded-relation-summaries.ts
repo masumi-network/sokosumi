@@ -127,7 +127,7 @@ interface SokoBotLoadedRelation {
   name: string | null;
   avatarSeed: string | null;
   avatarImageUrl: string | null;
-  userId: string;
+  userId: string | null;
   user: UserSummaryFields | null;
 }
 
@@ -136,12 +136,14 @@ export interface SokoBotSummaryFields {
   name: string | null;
   avatarSeed: string | null;
   avatarImageUrl: string | null;
-  owner: UserSummaryFields;
+  /** Null for a shared bot: it has no owner. */
+  owner: UserSummaryFields | null;
 }
 
 /**
  * When `sokoBotId` is null, there is no sokoBot summary.
- * When it is set, the sokoBot relation (including owner user) must be loaded.
+ * When it is set, the sokoBot relation must be loaded, and so must the owner
+ * user of a personal bot. A shared bot has no owner.
  */
 export function sokoBotSummaryFromLoadedRelation(
   context: string,
@@ -163,10 +165,13 @@ export function sokoBotSummaryFromLoadedRelation(
     name: sokoBot.name,
     avatarSeed: sokoBot.avatarSeed,
     avatarImageUrl: sokoBot.avatarImageUrl,
-    owner: userSummaryFromLoadedRelation(
-      `${context} sokoBot owner`,
-      sokoBot.userId,
-      sokoBot.user,
-    ),
+    owner:
+      sokoBot.userId === null
+        ? null
+        : userSummaryFromLoadedRelation(
+            `${context} sokoBot owner`,
+            sokoBot.userId,
+            sokoBot.user,
+          ),
   };
 }

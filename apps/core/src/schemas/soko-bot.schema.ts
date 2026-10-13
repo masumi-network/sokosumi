@@ -23,7 +23,7 @@ export const sokoBotSummarySchema = z
     avatarImageUrl: z.string().nullable().openapi({
       example: "https://blob.example/mascot.png",
     }),
-    owner: userSummarySchema,
+    owner: z.union([userSummarySchema, z.null()]),
   })
   .openapi("SokoBotSummary");
 

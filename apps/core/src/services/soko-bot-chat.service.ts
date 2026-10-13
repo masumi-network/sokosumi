@@ -5,6 +5,10 @@ import {
 } from "@sokosumi/soko-bot";
 import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
+import {
+  SOKO_BOT_OWNER_NAME_SELECT,
+  sokoBotPersonaOf,
+} from "@/helpers/soko-bot-owner";
 import prisma from "@/lib/db/prisma";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { collectTurnResultSnapshots } from "@/services/chat-result-preview.service";
@@ -237,11 +241,7 @@ export async function introduceSokoBot(input: {
       workspaceId: input.workspaceId,
       archivedAt: null,
     },
-    select: {
-      id: true,
-      name: true,
-      user: { select: { name: true } },
-    },
+    select: { id: true, ...SOKO_BOT_OWNER_NAME_SELECT },
   });
   if (!bot) throw new SokoBotIntroductionError("Soko Bot not found");
   const room = await prisma.chatRoom.findFirst({
@@ -264,10 +264,7 @@ export async function introduceSokoBot(input: {
       data: {
         roomId: room.id,
         senderSokoBotId: bot.id,
-        content: composeSokoBotIntroduction({
-          name: bot.name,
-          ownerName: bot.user.name,
-        }),
+        content: composeSokoBotIntroduction(sokoBotPersonaOf(bot)),
       },
       select: { id: true },
     });

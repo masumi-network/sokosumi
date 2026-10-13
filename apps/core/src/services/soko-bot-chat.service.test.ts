@@ -340,6 +340,40 @@ describe("introduceSokoBot", () => {
     });
   });
 
+  it("greets the owner of a personal bot by name", async () => {
+    sokoBotFindFirst.mockResolvedValue({
+      id: "bot-a",
+      name: "Eve",
+      userId: "owner",
+      user: { name: "Ada Lovelace" },
+    });
+    await introduceSokoBot({
+      userId: "owner",
+      workspaceId: "ws-a",
+      roomId: "room-a",
+    });
+    expect(messageCreate.mock.calls[0]?.[0]?.data?.content).toContain(
+      "Hi Ada! I'm **Eve**, your personal assistant",
+    );
+  });
+
+  it("names no owner when the bot is shared", async () => {
+    sokoBotFindFirst.mockResolvedValue({
+      id: "bot-a",
+      name: "Eve",
+      userId: null,
+      user: null,
+    });
+    await introduceSokoBot({
+      userId: "member",
+      workspaceId: "ws-a",
+      roomId: "room-a",
+    });
+    const content = messageCreate.mock.calls[0]?.[0]?.data?.content;
+    expect(content).toContain("a shared assistant for this team");
+    expect(content).not.toContain("your personal assistant");
+  });
+
   it("does not invalidate when the bot already introduced itself", async () => {
     messageFindFirst.mockResolvedValue({ id: "msg-existing" });
     const result = await introduceSokoBot({

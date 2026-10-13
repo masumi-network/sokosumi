@@ -6325,7 +6325,14 @@ export const SokoBotSummarySchema = {
             example: 'https://blob.example/mascot.png'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -6668,7 +6675,14 @@ export const TaskEventSchema = {
                     example: 'https://blob.example/mascot.png'
                 },
                 owner: {
-                    $ref: '#/components/schemas/UserSummary'
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/UserSummary'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
                 }
             },
             required: [

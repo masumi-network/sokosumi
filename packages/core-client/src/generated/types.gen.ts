@@ -1579,7 +1579,7 @@ export type SokoBotSummary = {
     name: string | null;
     avatarSeed: string | null;
     avatarImageUrl: string | null;
-    owner: UserSummary;
+    owner: UserSummary | null;
 };
 
 export type TaskParticipant = {
@@ -1721,7 +1721,7 @@ export type TaskEvent = {
         name: string | null;
         avatarSeed: string | null;
         avatarImageUrl: string | null;
-        owner: UserSummary;
+        owner: UserSummary | null;
     } | null;
     transactionId?: string | null;
     credits?: number | null;
