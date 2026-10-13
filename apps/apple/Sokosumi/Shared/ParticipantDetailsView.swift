@@ -45,7 +45,7 @@ struct ParticipantDetailsView: View {
             } catch { errorMessage = friendlyMessage(for: error) }
           }
         }
-        .disabled(workspaces.openingDirect != nil)
+        .disabled(workspaces.roomMutationInFlight)
       }
     }
     .padding()

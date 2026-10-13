@@ -226,7 +226,7 @@ struct ConversationSidebarView: View {
           ForEach(workspaces.archivedChannels.rooms, id: \.id) { room in
             ArchivedChannelRow(
               room: room,
-              pending: workspaces.channelLifecycle?.roomId == room.id,
+              pending: workspaces.runningMutation?.lifecycleRoomId == room.id,
               busy: workspaces.roomMutationInFlight,
               canDelete: workspaces.archivedChannels.canDelete
             ) { requestLifecycle($0, room: room) }
@@ -271,7 +271,7 @@ struct ConversationSidebarView: View {
         ForEach(invitations, id: \.id) { invitation in
           PendingInvitationRow(
             invitation: invitation,
-            responding: workspaces.invitationResponse?.invitationId == invitation.id ? workspaces.invitationResponse?.action : nil,
+            responding: workspaces.runningMutation?.response(to: invitation.id),
             busy: workspaces.roomMutationInFlight
           ) { respondToInvitation($0, invitation: invitation) }
         }
@@ -736,7 +736,7 @@ struct ConversationSidebarView: View {
   private func roomStatus(_ room: Components.Schemas.ChatRoom, reorderingIn pinned: [Components.Schemas.ChatRoom]?) -> some View {
     if let pinned {
       reorderHandle(room, in: pinned)
-    } else if workspaces.sidebar.isPending(roomId: room.id) || workspaces.channelLifecycle?.roomId == room.id {
+    } else if workspaces.sidebar.isPending(roomId: room.id) || workspaces.runningMutation?.lifecycleRoomId == room.id {
       ProgressView()
         .controlSize(.mini)
         .accessibilityLabel("Updating conversation")
