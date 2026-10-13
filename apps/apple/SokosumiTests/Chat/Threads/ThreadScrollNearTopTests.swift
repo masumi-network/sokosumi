@@ -173,7 +173,7 @@
       let originalGet = method_getImplementation(getter), originalSet = method_getImplementation(setter)
       let get = unsafeBitCast(originalGet, to: Getter.self), set = unsafeBitCast(originalSet, to: Setter.self)
       let legacy = NSScroller.Style.legacy.rawValue
-      weak var pinned = window
+      weak let pinned = window
       func isPinned(_ view: NSScrollView) -> Bool {
         pinned.map { view.window === $0 } ?? false
       }
