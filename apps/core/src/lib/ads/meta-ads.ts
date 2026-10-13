@@ -290,8 +290,8 @@ export async function updateMetaCampaign(
 
       const result = await execute(UPDATE_CAMPAIGN, {
         campaign_id: campaignId,
-        status,
-        daily_budget: dailyBudget,
+        ...(status !== undefined ? { status } : {}),
+        ...(dailyBudget !== undefined ? { daily_budget: dailyBudget } : {}),
       });
       if (!updateResultSchema.safeParse(result).success) {
         throw new ComposioToolError({

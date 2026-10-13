@@ -170,7 +170,7 @@ export const updateAdCampaignRequestSchema = z
     status: z.enum(AD_CAMPAIGN_SETTABLE_STATUSES).optional(),
     dailyBudget: z.number().positive().optional().openapi({
       description:
-        "Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)",
+        "Decimal in the account currency, greater than 0. Core rejects budgets with more fraction digits than the currency allows (JPY 0, USD 2) with 422",
       example: 25.5,
     }),
   })
