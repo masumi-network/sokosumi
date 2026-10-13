@@ -52,6 +52,7 @@ const bots: BotFixture[] = [
   bot({ id: "deleted-shared", deletedAt: new Date() }),
   bot({ id: "deleted-personal", userId: "owner", deletedAt: new Date() }),
   bot({ id: "orphan-shared", workspaceId: PERSONAL_WS }),
+  bot({ id: "archived-own", userId: "owner", archivedAt: new Date() }),
 ];
 
 type Where = Record<string, unknown>;
@@ -211,6 +212,15 @@ describe("resolveBotForRequest: personal bot by id", () => {
     });
   });
 
+  it("lets the owner reach it while archived", async () => {
+    await expect(
+      resolveBotForRequest(user("owner"), ORG_WS, byId("archived-own")),
+    ).resolves.toMatchObject({
+      bot: { id: "archived-own", userId: "owner" },
+      viewerUserId: "owner",
+    });
+  });
+
   it("hides it from another member", async () => {
     await expect(
       resolveBotForRequest(user("member"), ORG_WS, byId("personal")),
@@ -294,6 +304,16 @@ describe("resolveBotForRequest: keys by id", () => {
       resolveBotForRequest(sharedKey("workspace"), ORG_WS, byId("project")),
     ).resolves.toBeNull();
     expect(findFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a shared key outside an Organization workspace", async () => {
+    await expect(
+      resolveBotForRequest(
+        sharedKey("orphan-shared"),
+        PERSONAL_WS,
+        byId("orphan-shared"),
+      ),
+    ).resolves.toBeNull();
   });
 
   it("refuses a shared key whose id names a personal bot", async () => {

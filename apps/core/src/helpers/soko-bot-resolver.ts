@@ -74,12 +74,16 @@ async function resolveSharedKeySelf(
   workspaceId: string,
   client: DbClient,
 ): Promise<ResolvedSokoBot | null> {
-  const row = await client.sokoBot.findFirst({
+  const found = await client.sokoBot.findFirst({
     where: { id: caller.sokoBotId, workspaceId, deletedAt: null },
+    include: { workspace: { select: { organizationId: true } } },
   });
-  if (!row) return null;
+  if (!found) return null;
+  const { workspace, ...row } = found;
   const bot: ResolvedSokoBotRow = row;
-  return bot.userId === null ? { bot, viewerUserId: null } : null;
+  return bot.userId === null && workspace.organizationId !== null
+    ? { bot, viewerUserId: null }
+    : null;
 }
 
 /**
