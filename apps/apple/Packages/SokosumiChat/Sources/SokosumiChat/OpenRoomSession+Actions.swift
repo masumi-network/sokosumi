@@ -7,8 +7,9 @@ struct MentionRetry: Hashable {
   let shellId: String
 }
 
-/// What the reader does to the open room's messages on Core. Each runs through `request`, so an answer that comes
-/// back after the room changed moves nothing on screen.
+/// What the reader does to the open room's messages on Core. An answer that comes back after the room changed moves
+/// nothing on screen: most actions run through `request`, while the jump and Room Find, whose loaders keep their own
+/// state, check the client and the visit themselves.
 public extension OpenRoomSession {
   // MARK: - Attachments
 
