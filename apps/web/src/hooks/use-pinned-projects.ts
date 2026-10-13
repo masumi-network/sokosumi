@@ -11,7 +11,7 @@ import type { RecentProjectsScope } from "@/hooks/use-recent-projects";
  */
 export const PINNED_PROJECTS_QUERY_KEY = "sidebar-pinned-projects" as const;
 
-export function pinnedProjectsQueryKey(scope: RecentProjectsScope | null) {
+function pinnedProjectsQueryKey(scope: RecentProjectsScope | null) {
   return [
     PINNED_PROJECTS_QUERY_KEY,
     scope?.userId ?? null,
