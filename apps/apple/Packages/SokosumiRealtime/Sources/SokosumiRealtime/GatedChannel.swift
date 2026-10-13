@@ -69,16 +69,15 @@ struct GatedScope<Grant: Equatable> {
   }
 }
 
+/// How long a channel waits after a failed token mint before it authorizes again.
+let gatedChannelRetryDelay: Duration = .seconds(15)
+
 /// One capability-gated channel over one socket lifetime (ADR 0003, ADR 0033). The channel is attached only after a
 /// fresh token grants it, and every `connected` transition authorizes again, because a grant is a snapshot of
 /// membership at mint time. Token renewal reports `update` while still connected and authorizes nothing, or each
-/// renewal would mint another. A failed mint retries after `retryDelay`; a missing grant stays off until the next
-/// connection.
+/// renewal would mint another. A failed mint retries after `gatedChannelRetryDelay`; a missing grant stays off until
+/// the next connection.
 final class GatedChannel<Policy: GatedChannelPolicy>: @unchecked Sendable {
-  static var retryDelay: Duration {
-    .seconds(15)
-  }
-
   let queue: DispatchQueue
   private let host: any GatedChannelHost
   private let policy: Policy
@@ -132,12 +131,12 @@ final class GatedChannel<Policy: GatedChannelPolicy>: @unchecked Sendable {
     }
   }
 
-  /// On the queue only. Runs `action` after `retryDelay` in the one retry slot, while the channel is granted and the
-  /// slot is free; a new target, a fresh authorization, `cancelRetry` and `stop` drop it.
+  /// On the queue only. Runs `action` after `gatedChannelRetryDelay` in the one retry slot, while the channel is
+  /// granted and the slot is free; a new target, a fresh authorization, `cancelRetry` and `stop` drop it.
   func retryLater(_ action: @escaping @Sendable () -> Void) {
     guard active, retry == nil, scope.grant != nil else { return }
     retry = Task { [weak self, sleep] in
-      do { try await sleep(Self.retryDelay) } catch { return }
+      do { try await sleep(gatedChannelRetryDelay) } catch { return }
       guard !Task.isCancelled else { return }
       self?.queue.async { [weak self] in
         guard let self, active else { return }
@@ -189,7 +188,7 @@ final class GatedChannel<Policy: GatedChannelPolicy>: @unchecked Sendable {
       policy.denied(target)
       if failed {
         retry = Task { [weak self, sleep] in
-          do { try await sleep(Self.retryDelay) } catch { return }
+          do { try await sleep(gatedChannelRetryDelay) } catch { return }
           guard !Task.isCancelled else { return }
           self?.queue.async { [weak self] in self?.synchronize() }
         }
