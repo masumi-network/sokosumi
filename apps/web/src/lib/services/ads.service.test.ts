@@ -281,7 +281,7 @@ describe("adsService", () => {
 
   it("lists market keywords and ads", async () => {
     const keywords = { keywords: [], fetchedAt: new Date() };
-    const ads = { ads: [], fetchedAt: new Date() };
+    const ads = { status: "ready" as const, ads: [], fetchedAt: new Date() };
     coreClientMock.getProjectsByIdAdsMarketKeywords.mockResolvedValue({
       data: keywords,
     });
