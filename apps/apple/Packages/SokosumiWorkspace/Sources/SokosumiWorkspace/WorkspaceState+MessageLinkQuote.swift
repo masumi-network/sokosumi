@@ -16,7 +16,7 @@ public extension WorkspaceState {
       // The coworker stream endpoint only takes same-room quotes.
       allowCrossRoom: directStream.roomId != roomId,
       loadMessage: { sourceRoomId, messageId in
-        try? await ChatService().getMessage(client: client, roomId: sourceRoomId, messageId: messageId, organizationSlug: slug)
+        try? await service.getMessage(client: client, roomId: sourceRoomId, messageId: messageId, organizationSlug: slug)
       }
     )
   }

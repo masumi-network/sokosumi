@@ -18,17 +18,13 @@ public extension WorkspaceState {
 
   func loadPins(older: Bool = false) async throws {
     guard canUsePins else { return }
-    guard let client = resolveClient() else {
-      throw ChatServiceError.unauthorized("Log in to view pinned messages.")
+    try await request(signIn: "Log in to view pinned messages.") { _, client, slug in
+      try await pins.load(client: client, organizationSlug: slug, older: older)
     }
-    try await pins.load(client: client, organizationSlug: selection?.workspace.organizationSlug, older: older)
   }
 
   func setPinned(_ pinned: Bool, messageId: String) async throws {
     guard canUsePins, let roomId = transcriptRoomId, !pendingPins.contains(messageId) else { return }
-    guard let client = resolveClient() else {
-      throw ChatServiceError.unauthorized("Log in to update pinned messages.")
-    }
     let generation = pins.roomGeneration
     let revision = pins.revision
     pendingPins.insert(messageId)
@@ -38,9 +34,11 @@ public extension WorkspaceState {
       }
     }
     do {
-      let response = try await pinned
-        ? ChatService().pinMessage(client: client, roomId: roomId, messageId: messageId, organizationSlug: selection?.workspace.organizationSlug)
-        : ChatService().unpinMessage(client: client, roomId: roomId, messageId: messageId, organizationSlug: selection?.workspace.organizationSlug)
+      let response = try await request(signIn: "Log in to update pinned messages.") { service, client, slug in
+        try await pinned
+          ? service.pinMessage(client: client, roomId: roomId, messageId: messageId, organizationSlug: slug)
+          : service.unpinMessage(client: client, roomId: roomId, messageId: messageId, organizationSlug: slug)
+      }
       guard generation == pins.roomGeneration, !Task.isCancelled else { return }
       // A live event may already carry a newer count or opposite action.
       guard revision == pins.revision else { pins.invalidate()
@@ -50,9 +48,6 @@ public extension WorkspaceState {
       applyPin(roomId: roomId, messageId: messageId, isPinned: pinned, count: response.pinnedMessageCount)
     } catch {
       guard generation == pins.roomGeneration, !Task.isCancelled else { return }
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
       throw error
     }
   }
@@ -64,7 +59,6 @@ public extension WorkspaceState {
     guard resolveClient() != nil else {
       throw ChatServiceError.unauthorized("Log in to view this message.")
     }
-    connectRoomTranscript()
     return try await room.loadAround(messageId)
   }
 
@@ -73,7 +67,6 @@ public extension WorkspaceState {
     guard resolveClient() != nil else {
       throw ChatServiceError.unauthorized("Log in to load messages.")
     }
-    connectRoomTranscript()
     return try await room.returnToLatest()
   }
 }
