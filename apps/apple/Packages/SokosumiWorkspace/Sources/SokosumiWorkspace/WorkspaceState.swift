@@ -18,38 +18,11 @@ public final class WorkspaceState: ObservableObject {
   public typealias Phase = WorkspaceSession.Phase
   private let workspaceSession = WorkspaceSession()
   private var workspaceObservation: AnyCancellable?
-  public struct MessageJump: Equatable, Sendable {
-    public let roomId: String
-    public let messageId: String
-    /// The open Thread's parent after a reply jump (row 25c). The Thread covers the room, so the room marks it on
-    /// arrival and lands on it when the Thread closes; any other jump marks its row once it scrolls into view.
-    public let isThreadParent: Bool
-    public let requestId = UUID()
-
-    init(roomId: String, messageId: String, isThreadParent: Bool = false) {
-      self.roomId = roomId
-      self.messageId = messageId
-      self.isThreadParent = isThreadParent
-    }
-  }
-
-  @Published public internal(set) var messageJump: MessageJump?
-  /// The sidebar's "N more unread threads" row asks for the room's thread overview (row 24g2, web's
-  /// `?threads=1`); the room's tools open it once that room is on screen.
-  public struct ThreadOverviewRequest: Equatable, Sendable {
-    public let roomId: String
-    public let requestId = UUID()
-  }
-
-  @Published public internal(set) var threadOverviewRequest: ThreadOverviewRequest?
-  var messageNavigationRequest = UUID()
-  public let thread: ThreadSession
-  public let threadOverview = RoomThreadOverview()
+  /// The Open room: its Transcript, the open Thread, the coworker stream, Pins and what else resets with the room.
+  public let openRoom: OpenRoomSession
   public let crossRoomThreads = CrossRoomThreads()
   @Published public internal(set) var threadAttentionRevision = 0
-  public let messageEditing = MessageEditing()
-  public let directStream: DirectStreamSession
-  private var threadObservations: Set<AnyCancellable> = []
+  private var observations: Set<AnyCancellable> = []
   /// The Channel, Direct or invitation change in flight, if any.
   @Published public private(set) var runningMutation: WorkspaceMutation?
   public let archivedChannels = ArchivedChannels()
@@ -135,50 +108,41 @@ public final class WorkspaceState: ObservableObject {
   /// App-side OS notification adapter; without it events raise no banner.
   let notificationPresenter: (any ChatNotificationPresenting)?
   var notificationBanners = ChatNotificationBanners()
-  /// The open room's main Transcript: its history, Send queue, realtime updates and recovery.
-  public let room: TranscriptSession
-  /// Every loaded copy of a message (the room's history, the open Thread's parent and its replies) and the viewer's
-  /// Pending reactions on them.
-  public let loaded: LoadedMessages
-
-  public let pins = PinnedMessages()
-  @Published var pendingPins: Set<String> = []
-
   /// Room the transcript pane shows. Nil clears the pane.
   var transcriptRoomId: String? {
-    room.timeline.roomId
+    openRoom.room.timeline.roomId
   }
 
   var transcriptMessages: [Components.Schemas.ChatRoomMessage] {
-    get { room.timeline.messages }
-    set { room.timeline.messages = newValue }
+    get { openRoom.room.timeline.messages }
+    set { openRoom.room.timeline.messages = newValue }
   }
 
   var transcriptLoading: Bool {
-    room.timeline.isLoading
+    openRoom.room.timeline.isLoading
   }
 
   var transcriptLoadingOlder: Bool {
-    room.timeline.isLoadingOlder
+    openRoom.room.timeline.isLoadingOlder
   }
 
   /// Latest-page refetch in flight (ADR 0014 envelope). Not the older-page
   /// spinner: live refetch must not flash `transcriptLoadingOlder`.
   var transcriptRefreshing: Bool {
-    room.timeline.isRefreshing
+    openRoom.room.timeline.isRefreshing
   }
 
   /// Failure text. Shown full-pane when there is no history, as a banner
   /// above loaded history otherwise — a failed older page never wipes
   /// what already resolved.
   var transcriptError: String? {
-    get { room.timeline.errorMessage }
-    set { room.timeline.errorMessage = newValue }
+    get { openRoom.room.timeline.errorMessage }
+    set { openRoom.room.timeline.errorMessage = newValue }
   }
 
   /// True while a classic POST is in flight for this composer.
   var outboundInFlight: Bool {
-    room.outbox.isSending
+    openRoom.room.outbox.isSending
   }
 
   /// Factory for the live socket: the app's ably-cocoa connection, a fake in tests. Without one the transcript stays
@@ -205,19 +169,19 @@ public final class WorkspaceState: ObservableObject {
 
   /// Confirmed history plus unresolved outbound shells (sticky at the end), with Pending reactions on top.
   public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
-    let messages = directStream.displayedMessages(persisted: room.displayedMessages)
-    let rows = loaded.pendingReactions.overlaying(messages, viewer: reactionViewer)
+    let messages = openRoom.directStream.displayedMessages(persisted: openRoom.room.displayedMessages)
+    let rows = openRoom.loaded.pendingReactions.overlaying(messages, viewer: reactionViewer)
     // Once the room's unread-thread read has answered it owns every reply bar's count (web, SOK-1151).
-    return threadOverview.unreadReplyCounts.map { applyThreadUnreadReplyCounts(rows, counts: $0) } ?? rows
+    return openRoom.threadOverview.unreadReplyCounts.map { applyThreadUnreadReplyCounts(rows, counts: $0) } ?? rows
   }
 
   var transcriptCursor: String? {
-    room.timeline.cursor
+    openRoom.room.timeline.cursor
   }
 
   /// Bumps on every open/clear so a slow room cannot paint over a newer one.
   private var transcriptGeneration: Int {
-    room.timeline.generation
+    openRoom.room.timeline.generation
   }
 
   let sidebarRecovery: SidebarCollectionsRecovery
@@ -227,7 +191,6 @@ public final class WorkspaceState: ObservableObject {
   private(set) var roomsRefreshTask: Task<Void, Never>?
   private var roomsRefreshID = UUID()
   private var sidebarRecoveryGeneration = UUID()
-  private(set) var transcriptRealtimeHealthy = false
 
   let service = ChatService()
   private var hasLoaded = false
@@ -255,10 +218,7 @@ public final class WorkspaceState: ObservableObject {
     makeId: @escaping () -> String = { UUID().uuidString },
     sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
   ) {
-    room = TranscriptSession(now: now, makeId: makeId, sleep: sleep)
-    thread = ThreadSession(now: now, makeId: makeId, sleep: sleep)
-    loaded = LoadedMessages(room: room, thread: thread)
-    directStream = DirectStreamSession(now: now, makeId: makeId)
+    openRoom = OpenRoomSession(now: now, makeId: makeId, sleep: sleep)
     sidebarRecovery = SidebarCollectionsRecovery(sleep: sleep)
     self.auth = auth
     self.clientProvider = clientProvider
@@ -267,13 +227,9 @@ public final class WorkspaceState: ObservableObject {
     self.notificationPresenter = notificationPresenter
     sidebar = ConversationSidebar(savedRoom: savedRoom, unreadsFilter: unreadsFilter)
     realtimeClientInstanceId = getOrCreateRealtimeClientInstanceId(store: instanceStore)
-    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, loaded.objectWillChange, room.objectWillChange, room.timeline.objectWillChange, room.outbox.objectWillChange, thread.objectWillChange, thread.transcript.objectWillChange, thread.transcript.timeline.objectWillChange, thread.transcript.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange, roomReads.objectWillChange] {
-      publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
+    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, chatDisplay.objectWillChange, openRoom.objectWillChange, presence.objectWillChange, roomReads.objectWillChange] {
+      publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observations)
     }
-    // Rows need editor identity changes; draft and save state are observed by the editor itself.
-    messageEditing.$source.map { $0?.id }.removeDuplicates().dropFirst()
-      .sink { [weak self] _ in self?.objectWillChange.send() }
-      .store(in: &threadObservations)
     sidebarObservation = sidebar.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }
@@ -354,7 +310,7 @@ public final class WorkspaceState: ObservableObject {
     workspaceLoadTask?.cancel()
     workspaceLoadTask = nil
     renewContext()
-    loaded.clearPendingReactions()
+    openRoom.loaded.clearPendingReactions()
     sokoBotFeedback = [:]
     pendingSokoBotFeedback = []
     chatDisplay.reset()
@@ -369,7 +325,7 @@ public final class WorkspaceState: ObservableObject {
     switchError = nil
     selectedRoomId = nil
     stopRealtime()
-    clearTranscript()
+    leaveRoom()
     // Parent text from the signed-in reader. The next account must not see it.
     crossRoomThreads.reset()
   }
@@ -627,10 +583,10 @@ public final class WorkspaceState: ObservableObject {
   private func applyRoomSelection(_ id: String?) {
     sidebar.select(id, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     guard let id = selectedRoomId, let room = rooms.first(where: { $0.id == id }) else {
-      clearTranscript()
+      leaveRoom()
       return
     }
-    openRoom(room)
+    enterRoom(room)
   }
 
   /// Keep a room selected whenever rooms exist: the saved room when it is
@@ -640,19 +596,9 @@ public final class WorkspaceState: ObservableObject {
   }
 
   /// Forget the transcript without touching rooms or selection.
-  func clearTranscript() {
-    messageNavigationRequest = UUID()
-    messageJump = nil
-    threadOverviewRequest = nil
-    messageEditing.reset()
-    directStream.reset()
-    thread.close()
-    threadOverview.reset()
-    transcriptRealtimeHealthy = false
+  func leaveRoom() {
+    openRoom.close()
     readAttention.roomChanged()
-    pins.reset()
-    pendingPins = []
-    room.close()
     watchRoom(nil)
   }
 
@@ -660,27 +606,14 @@ public final class WorkspaceState: ObservableObject {
   /// (ADR 0026). The sidebar entry is replaced with the POST-read DTO so
   /// unread chrome matches Core. A failed read keeps the resolved history
   /// on screen and leaves unread chrome unchanged.
-  public func openRoom(_ room: Components.Schemas.ChatRoom) {
-    messageNavigationRequest = UUID()
-    messageJump = nil
-    // Only the room it names takes an overview request; any other room drops it.
-    if threadOverviewRequest?.roomId != room.id {
-      threadOverviewRequest = nil
-    }
-    messageEditing.reset()
-    directStream.reset(room: room, userId: currentUserId, organizationId: selection?.workspace.organizationId)
-    thread.close()
-    threadOverview.reset()
-    transcriptRealtimeHealthy = transcriptRoomId == room.id && transcriptRealtimeHealthy
+  public func enterRoom(_ room: Components.Schemas.ChatRoom) {
+    openRoom.open(room, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     readAttention.roomChanged()
-    pins.reset(roomId: room.id)
-    pendingPins = []
-    self.room.open(roomId: room.id)
     let generation = transcriptGeneration
     watchRoom(room.id)
-    self.room.load(.initial)
-    if directStream.roomId != nil, let client = resolveClient() {
-      directStream.resume(client: client, organizationSlug: selection?.workspace.organizationSlug, settled: { [weak self] in
+    openRoom.room.load(.initial)
+    if openRoom.directStream.roomId != nil, let client = resolveClient() {
+      openRoom.directStream.resume(client: client, organizationSlug: selection?.workspace.organizationSlug, settled: { [weak self] in
         guard let self else { return false }
         return await settleDirectStream(generation: generation)
       }, failed: { [weak self] error in
@@ -688,7 +621,7 @@ public final class WorkspaceState: ObservableObject {
         signOutIfUnauthorized(error)
       })
     }
-    self.room.recovery.start(foreground: readAttention.isVisible, healthy: transcriptRealtimeHealthy) { [weak self] in
+    openRoom.room.recovery.start(foreground: readAttention.isVisible, healthy: openRoom.realtimeHealthy) { [weak self] in
       guard let self else { return }
       await recoverTranscript(generation: generation)
     }
@@ -697,8 +630,8 @@ public final class WorkspaceState: ObservableObject {
   public func setWindowVisible(_ visible: Bool, window: UUID) {
     let wasVisible = readAttention.isVisible
     readAttention.setVisible(visible, window: window)
-    thread.transcript.recovery.setForeground(readAttention.isVisible)
-    room.recovery.setForeground(readAttention.isVisible)
+    openRoom.thread.transcript.recovery.setForeground(readAttention.isVisible)
+    openRoom.room.recovery.setForeground(readAttention.isVisible)
     sidebarRecovery.setForeground(readAttention.isVisible)
     if !wasVisible, readAttention.isVisible {
       realtime?.refreshMembership()
@@ -716,10 +649,10 @@ public final class WorkspaceState: ObservableObject {
   /// The scheduler decides whether a read may start while no chat window is
   /// active (row 07d); read attention keeps its own visibility gate.
   private func recoverTranscript(generation: Int) async {
-    await room.whenIdle()
+    await openRoom.room.whenIdle()
     guard generation == transcriptGeneration else { return }
     refreshTranscript()
-    await room.whenIdle()
+    await openRoom.room.whenIdle()
   }
 
   /// The room's and the Thread's Transcripts load on their own with this account's client, and read attention syncs
@@ -727,15 +660,15 @@ public final class WorkspaceState: ObservableObject {
   /// (`loadThreadPage`).
   private func connectTranscripts() {
     // Every landed page changes what the reader sees, so read attention syncs before the load ends.
-    room.hooks = transcriptHooks { [weak self] page in
+    openRoom.room.hooks = transcriptHooks { [weak self] page in
       guard let self else { return }
       // The room's fresh copy of an open Thread's parent is the newer one.
-      if page == .latest, let parent = transcriptMessages.first(where: { $0.id == thread.parent?.id }) {
-        thread.apply(eventType: .update, message: parent)
+      if page == .latest, let parent = transcriptMessages.first(where: { $0.id == openRoom.thread.parent?.id }) {
+        openRoom.thread.apply(eventType: .update, message: parent)
       }
       await syncReadAttention()
     }
-    thread.transcript.hooks = transcriptHooks { [weak self] _ in
+    openRoom.thread.transcript.hooks = transcriptHooks { [weak self] _ in
       await self?.syncReadAttention()
     }
   }
@@ -775,13 +708,13 @@ public final class WorkspaceState: ObservableObject {
           let client = resolveClient() else { return false }
     // A quote can be the whole message, except in the coworker 1:1 stream,
     // which needs words to answer.
-    guard draft.canSend(quoted: quote != nil && directStream.roomId != roomId) else { return false }
+    guard draft.canSend(quoted: quote != nil && openRoom.directStream.roomId != roomId) else { return false }
     // The message is on its way, so the Typing line must not outlive what it promised.
     composerStoppedTyping(roomId: roomId)
-    room.timeline.followLatest()
-    if directStream.roomId == roomId {
+    openRoom.room.timeline.followLatest()
+    if openRoom.directStream.roomId == roomId {
       let generation = transcriptGeneration
-      return directStream.send(draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, attachments: attachments, quote: quote, settled: { [weak self] in
+      return openRoom.directStream.send(draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, attachments: attachments, quote: quote, settled: { [weak self] in
         guard let self else { return false }
         return await settleDirectStream(generation: generation)
       }, failed: { [weak self] error in
@@ -790,7 +723,7 @@ public final class WorkspaceState: ObservableObject {
       })
     }
     let mentions = ComposerMention.selected(in: draft.text, catalog: composerMentions)
-    return room.send(
+    return openRoom.room.send(
       draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, sender: outboundSender,
       mentions: mentions, quote: quote, skills: skills
     ) { [weak self] result in
@@ -927,32 +860,32 @@ public final class WorkspaceState: ObservableObject {
   }
 
   func applyRealtimeMessagePatch(_ patch: RealtimeMessagePatch) {
-    loaded.apply(patch)
+    openRoom.loaded.apply(patch)
   }
 
   /// A pin changed, here or in another client: the sidebar count, the row's pin and the open room's Pins follow.
   func applyPin(roomId: String, messageId: String, isPinned: Bool, count: Int) {
     guard let index = rooms.firstIndex(where: { $0.id == roomId }) else { return }
     rooms[index].pinnedMessageCount = count
-    room.timeline.applyPin(roomId: roomId, messageId: messageId, isPinned: isPinned)
-    if pins.roomId == roomId {
+    openRoom.room.timeline.applyPin(roomId: roomId, messageId: messageId, isPinned: isPinned)
+    if openRoom.pins.roomId == roomId {
       if !isPinned {
-        pins.remove(messageId: messageId)
+        openRoom.pins.remove(messageId: messageId)
       } else {
-        pins.invalidate()
+        openRoom.pins.invalidate()
       }
     }
   }
 
   private func applyRealtimeHealth(roomId: String, healthy: Bool, continuityLost: Bool) {
     guard roomId == transcriptRoomId else { return }
-    transcriptRealtimeHealthy = healthy
-    thread.transcript.recovery.setHealthy(healthy)
-    room.recovery.setHealthy(healthy)
+    openRoom.setRealtimeHealthy(healthy)
+    openRoom.thread.transcript.recovery.setHealthy(healthy)
+    openRoom.room.recovery.setHealthy(healthy)
     if continuityLost {
       threadAttentionRevision += 1
-      thread.transcript.recovery.requestRefresh()
-      room.recovery.requestRefresh()
+      openRoom.thread.transcript.recovery.requestRefresh()
+      openRoom.room.recovery.requestRefresh()
     }
   }
 
@@ -978,10 +911,10 @@ public final class WorkspaceState: ObservableObject {
       rooms[index] = renamed
     }
     // While the coworker stream draws the room's newest rows, only a delete reaches the room's own history.
-    guard roomId == transcriptRoomId, message.roomId == transcriptRoomId, !directStream.isBusy || eventType == .delete else {
-      return thread.apply(eventType: eventType, message: message)
+    guard roomId == transcriptRoomId, message.roomId == transcriptRoomId, !openRoom.directStream.isBusy || eventType == .delete else {
+      return openRoom.thread.apply(eventType: eventType, message: message)
     }
-    loaded.apply(eventType: eventType, message: message)
+    openRoom.loaded.apply(eventType: eventType, message: message)
   }
 
   /// Apply an id envelope (ADR 0014): delete tombstones the on-screen row,
@@ -991,14 +924,14 @@ public final class WorkspaceState: ObservableObject {
     if envelope.roomId == transcriptRoomId, envelope.parentMessageId != nil {
       threadAttentionRevision += 1
     }
-    let refreshParent = thread.apply(envelope)
-    if envelope.roomId == directStream.roomId, directStream.isBusy, envelope.eventType != .delete, !refreshParent {
+    let refreshParent = openRoom.thread.apply(envelope)
+    if envelope.roomId == openRoom.directStream.roomId, openRoom.directStream.isBusy, envelope.eventType != .delete, !refreshParent {
       return
     }
     // The room tombstones or refetches what it shows; an envelope it ignores may still move the Thread or sidebar.
-    guard room.apply(envelope) == .ignore else { return }
-    if refreshParent || (thread.parent != nil && envelope.roomId == transcriptRoomId && envelope.parentMessageId == thread.parent?.id) {
-      room.recovery.requestRefresh()
+    guard openRoom.room.apply(envelope) == .ignore else { return }
+    if refreshParent || (openRoom.thread.parent != nil && envelope.roomId == transcriptRoomId && envelope.parentMessageId == openRoom.thread.parent?.id) {
+      openRoom.room.recovery.requestRefresh()
     }
     if envelope.eventType == .create {
       sidebarRecovery.requestRefresh([.active])
@@ -1010,34 +943,34 @@ public final class WorkspaceState: ObservableObject {
   /// wipes resolved history on failure.
   public func refreshTranscript() {
     guard transcriptRoomId != nil else { return }
-    guard !directStream.isBusy || thread.parent != nil else { return }
-    room.load(.latest)
+    guard !openRoom.directStream.isBusy || openRoom.thread.parent != nil else { return }
+    openRoom.room.load(.latest)
   }
 
   func settleDirectStream(generation: Int) async -> Bool {
-    await room.whenIdle()
+    await openRoom.room.whenIdle()
     guard generation == transcriptGeneration, !Task.isCancelled else { return false }
-    guard let refreshed = room.load(.latest), await refreshed.value else { return false }
+    guard let refreshed = openRoom.room.load(.latest), await refreshed.value else { return false }
     var openedGeneration: Int?
     if let parent = streamingThreadToOpen {
       openThread(parent)
-      openedGeneration = thread.transcript.timeline.generation
+      openedGeneration = openRoom.thread.transcript.timeline.generation
     }
-    guard let parentId = directStream.parentMessageId, thread.parent?.id == parentId else {
+    guard let parentId = openRoom.directStream.parentMessageId, openRoom.thread.parent?.id == parentId else {
       return true
     }
-    _ = await thread.transcript.loadTask?.value
+    _ = await openRoom.thread.transcript.loadTask?.value
     guard generation == transcriptGeneration else { return false }
-    guard thread.parent?.id == parentId else { return true }
+    guard openRoom.thread.parent?.id == parentId else { return true }
     // A thread opened after the room refresh already fetched the completed turn.
-    if openedGeneration == thread.transcript.timeline.generation, thread.transcript.timeline.hasLoadedHistory, thread.transcript.timeline.errorMessage == nil {
+    if openedGeneration == openRoom.thread.transcript.timeline.generation, openRoom.thread.transcript.timeline.hasLoadedHistory, openRoom.thread.transcript.timeline.errorMessage == nil {
       return true
     }
-    loadThreadPage(thread.transcript.timeline.hasLoadedHistory ? .latest : .initial)
-    _ = await thread.transcript.loadTask?.value
+    loadThreadPage(openRoom.thread.transcript.timeline.hasLoadedHistory ? .latest : .initial)
+    _ = await openRoom.thread.transcript.loadTask?.value
     guard generation == transcriptGeneration else { return false }
-    guard thread.parent?.id == parentId else { return true }
-    return thread.transcript.timeline.errorMessage == nil
+    guard openRoom.thread.parent?.id == parentId else { return true }
+    return openRoom.thread.transcript.timeline.errorMessage == nil
   }
 
   /// Drop a revoked room from the sidebar (chat-control event, SOK-742).
@@ -1059,7 +992,7 @@ public final class WorkspaceState: ObservableObject {
     rooms = result.rooms
     selectedRoomId = result.selectedRoomId
     if transcriptRoomId == revokedRoomId {
-      clearTranscript()
+      leaveRoom()
     }
     realtime?.setMembershipRooms(Set(rooms.map(\.id)))
   }
@@ -1076,12 +1009,12 @@ public final class WorkspaceState: ObservableObject {
 
   var readContent: RoomReadAttention.Content {
     .init(messages: transcriptMessages.map { .init(id: $0.id, content: $0.content) },
-          parentMessageId: thread.parent?.id,
-          replies: thread.transcript.timeline.messages.map { .init(id: $0.id, content: $0.content) })
+          parentMessageId: openRoom.thread.parent?.id,
+          replies: openRoom.thread.transcript.timeline.messages.map { .init(id: $0.id, content: $0.content) })
   }
 
   var roomHistoryReadable: Bool {
-    room.timeline.historicalAnchor == nil && room.timeline.hasLoadedHistory && room.timeline.failedPage != .initial && room.timeline.failedPage != .latest
+    openRoom.room.timeline.historicalAnchor == nil && openRoom.room.timeline.hasLoadedHistory && openRoom.room.timeline.failedPage != .initial && openRoom.room.timeline.failedPage != .latest
   }
 
   public func syncReadAttention() async {
@@ -1093,7 +1026,7 @@ public final class WorkspaceState: ObservableObject {
       try await readAttention.readIfNeeded(
         room: room,
         content: content,
-        historyReadable: roomHistoryReadable && !thread.transcript.timeline.isLoading,
+        historyReadable: roomHistoryReadable && !openRoom.thread.transcript.timeline.isLoading,
         client: client,
         organizationSlug: slug,
         threadLooked: { threadLooked(content.parentMessageId) }
@@ -1129,8 +1062,8 @@ public final class WorkspaceState: ObservableObject {
   /// Older history page for scroll-up. Merges by message ID and never clears resolved history on failure; the landed
   /// page syncs read attention like any other.
   public func loadOlderMessages() {
-    guard !directStream.isBusy else { return }
-    room.load(.older)
+    guard !openRoom.directStream.isBusy else { return }
+    openRoom.room.load(.older)
   }
 
   /// Signs out when Core rejects the session. Returns whether it did, so
@@ -1164,7 +1097,7 @@ public final class WorkspaceState: ObservableObject {
     switchError = nil
     selectedRoomId = nil
     stopRealtime()
-    clearTranscript()
+    leaveRoom()
     crossRoomThreads.reset()
     guard let client = resolveClient() else { return }
     do {
@@ -1199,7 +1132,7 @@ public final class WorkspaceState: ObservableObject {
       archivedChannels.reset()
       pendingInvitations.reset()
       readAttention.reset()
-      clearTranscript()
+      leaveRoom()
       crossRoomThreads.reset()
       selectedRoomId = nil
       rooms = loaded
@@ -1289,11 +1222,11 @@ public extension WorkspaceState {
   /// A gap row scrolled into or out of view (web's `useLoadWhenVisible`):
   /// in view and idle, it loads itself once.
   func setHistoryGapVisible(before messageId: String, _ isVisible: Bool) {
-    room.setGapVisible(before: messageId, isVisible)
+    openRoom.room.setGapVisible(before: messageId, isVisible)
   }
 
   /// A tap on the row, or Try again after a failure. The outcome stays on the row.
   func loadHistoryGap(before messageId: String) {
-    room.loadGap(before: messageId)
+    openRoom.room.loadGap(before: messageId)
   }
 }

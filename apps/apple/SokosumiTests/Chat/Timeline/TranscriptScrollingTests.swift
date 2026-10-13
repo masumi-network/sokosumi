@@ -63,8 +63,8 @@
         #expect(!clock.wasRead, "Only the jump reads the clock, so the check below proves it landed.")
         let auth = AuthState()
         if thread {
-          state.thread.transcript.requestJump(to: "fixture-2")
-          #expect(state.thread.transcript.jumpTarget?.messageId == "fixture-2")
+          state.openRoom.thread.transcript.requestJump(to: "fixture-2")
+          #expect(state.openRoom.thread.transcript.jumpTarget?.messageId == "fixture-2")
         } else {
           #expect(try await state.openMessage("fixture-2") == .opened)
         }
@@ -86,9 +86,9 @@
         }
         #expect(clock.wasRead, "The jump landed on the test clock.")
         if thread {
-          #expect(state.thread.transcript.jumpTarget?.messageId == "fixture-2")
+          #expect(state.openRoom.thread.transcript.jumpTarget?.messageId == "fixture-2")
         } else {
-          #expect(state.messageJump == nil)
+          #expect(state.openRoom.messageJump == nil)
         }
         #expect(Self.distanceFromBottom(scroll) > 400)
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
@@ -132,7 +132,7 @@
         window.makeFirstResponder(input)
         input.insertText("Sent from above", replacementRange: NSRange(location: 0, length: 0))
         try input.keyDown(with: MessageEditComposerFixture.returnEvent())
-        let outbox = thread ? state.thread.transcript.outbox : state.room.outbox
+        let outbox = thread ? state.openRoom.thread.transcript.outbox : state.openRoom.room.outbox
         _ = try await waitForView(in: host, timeoutMessage: "The composer did not send; it holds \(input.string.debugDescription)") {
           outbox.shells.isEmpty ? nil : scroll
         }
@@ -199,14 +199,14 @@
           clientProvider: { _ in Client.core(baseURL: URL(string: "https://example.com")!) },
           now: clock.map { clock in { MainActor.assumeIsolated { clock.now } } } ?? Date.init
         )
-        state.room.timeline.reset(roomId: "fixture")
-        state.room.timeline.failInitialLoad(message: "", generation: state.room.timeline.generation)
-        state.room.timeline.messages = fixtureMessages(media: media)
+        state.openRoom.room.timeline.reset(roomId: "fixture")
+        state.openRoom.room.timeline.failInitialLoad(message: "", generation: state.openRoom.room.timeline.generation)
+        state.openRoom.room.timeline.messages = fixtureMessages(media: media)
         if thread {
-          let parent = try #require(state.room.timeline.messages.first)
-          state.thread.open(parent)
-          state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
-          state.thread.transcript.timeline.messages = state.room.timeline.messages.dropFirst().map { message in
+          let parent = try #require(state.openRoom.room.timeline.messages.first)
+          state.openRoom.thread.open(parent)
+          state.openRoom.thread.transcript.timeline.failInitialLoad(message: "", generation: state.openRoom.thread.transcript.timeline.generation)
+          state.openRoom.thread.transcript.timeline.messages = state.openRoom.room.timeline.messages.dropFirst().map { message in
             var reply = message
             reply.parentMessageId = parent.id
             return reply

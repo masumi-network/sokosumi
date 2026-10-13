@@ -61,7 +61,7 @@ import UniformTypeIdentifiers
     /// The coworker 1:1 stream needs words to answer, so a quote cannot be the
     /// whole message there.
     private var requiresBody: Bool {
-      workspaces.directStream.roomId == roomId
+      workspaces.openRoom.directStream.roomId == roomId
     }
 
     /// Typing belongs to the room's main transcript (ADR 0033): the Thread composer announces nothing
@@ -90,9 +90,9 @@ import UniformTypeIdentifiers
         && uploads.uploadingName == nil
         && !attachmentIngress.isReceiving
         && (uploads.attachments.isEmpty || workspaces.canAttachFiles(roomId: roomId))
-        && !workspaces.directStream.isBusy
-        && workspaces.room.timeline.roomId == roomId
-        && (parentMessageId == nil || workspaces.thread.parent?.id == parentMessageId)
+        && !workspaces.openRoom.directStream.isBusy
+        && workspaces.openRoom.room.timeline.roomId == roomId
+        && (parentMessageId == nil || workspaces.openRoom.thread.parent?.id == parentMessageId)
     }
 
     var body: some View {
@@ -145,14 +145,14 @@ import UniformTypeIdentifiers
         guard announcesTyping, !active else { return }
         Task { @MainActor in workspaces.composerStoppedTyping(roomId: roomId) }
       }
-      .onChange(of: workspaces.directStream.restoredDraft, initial: true) { _, _ in
-        guard let text = workspaces.directStream.restoredDraft(for: roomId, parentMessageId: parentMessageId) else { return }
+      .onChange(of: workspaces.openRoom.directStream.restoredDraft, initial: true) { _, _ in
+        guard let text = workspaces.openRoom.directStream.restoredDraft(for: roomId, parentMessageId: parentMessageId) else { return }
         draft = savedDraft.restoreFailedSend(text, preserving: draft)
         if pendingQuote == nil {
-          pendingQuote = workspaces.directStream.restoredQuote
+          pendingQuote = workspaces.openRoom.directStream.restoredQuote
         }
         Task { @MainActor in
-          workspaces.directStream.consumeRestoredDraft()
+          workspaces.openRoom.directStream.consumeRestoredDraft()
         }
       }
     }
@@ -198,7 +198,7 @@ import UniformTypeIdentifiers
       guard pendingQuote == nil else { return }
       Task { @MainActor in
         guard let quote = await workspaces.messageLinkQuote(pasted: paste.text, roomId: roomId, webBaseURL: CoreSettings.webBaseURL),
-              generation == pasteGeneration, pendingQuote == nil, workspaces.room.timeline.roomId == roomId,
+              generation == pasteGeneration, pendingQuote == nil, workspaces.openRoom.room.timeline.roomId == roomId,
               // Nothing to swap once the link was edited away.
               paste.remove() else { return }
         pendingQuote = quote

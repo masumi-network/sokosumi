@@ -24,15 +24,14 @@ public extension WorkspaceState {
     // A link, a notification or a Threads row shows its room in place of the Threads view (row 24f1).
     sidebar.showsThreadsView = false
     selectRoom(roomId)
-    let request = UUID()
-    messageNavigationRequest = request
-    let generation = room.timeline.generation
+    let request = openRoom.beginNavigation()
+    let generation = openRoom.room.timeline.generation
     // Only the room's first page decides whether the message is there; a refresh or older page may keep running.
-    if room.timeline.isLoading {
-      _ = await room.loadTask?.value
+    if openRoom.room.timeline.isLoading {
+      _ = await openRoom.room.loadTask?.value
     }
     guard isCurrent(NavigationGuard(request: request, generation: generation)), transcriptRoomId == roomId else { return .superseded }
-    guard let messageId else { thread.close()
+    guard let messageId else { openRoom.thread.close()
       return .opened
     }
     return try await openMessage(messageId)
@@ -44,10 +43,9 @@ public extension WorkspaceState {
   @discardableResult
   func openMessage(_ messageId: String, marksThreadParent: Bool = true) async throws -> MessageNavigationResult {
     guard let roomId = transcriptRoomId, let client = resolveClient() else { return .unavailable }
-    let request = UUID()
-    messageNavigationRequest = request
-    let initialThreadGeneration = thread.transcript.timeline.generation
-    let generation = room.timeline.generation
+    let request = openRoom.beginNavigation()
+    let initialThreadGeneration = openRoom.thread.transcript.timeline.generation
+    let generation = openRoom.room.timeline.generation
     let slug = selection?.workspace.organizationSlug
     let navigation = NavigationGuard(request: request, generation: generation)
     do {
@@ -62,8 +60,8 @@ public extension WorkspaceState {
       }
       guard try await jumpToMessage(messageId),
             isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
-      thread.close()
-      messageJump = MessageJump(roomId: roomId, messageId: messageId)
+      openRoom.thread.close()
+      openRoom.requestJump(to: messageId)
       return .opened
     } catch {
       return try currentNavigationFailure(error, navigation: navigation)
@@ -93,15 +91,8 @@ public extension WorkspaceState {
   /// window only if the result is outside loaded replies. Every suspension is
   /// guarded against room/thread changes.
   func openMessageReply(_ hit: Components.Schemas.ChatRoomMessage) async throws -> MessageNavigationResult {
-    let request = UUID()
-    messageNavigationRequest = request
+    let request = openRoom.beginNavigation()
     return try await navigateReply(hit, request: request, marksParent: true)
-  }
-
-  func consumeMessageJump(_ requestId: UUID) {
-    if messageJump?.requestId == requestId {
-      messageJump = nil
-    }
   }
 
   private func navigateReply(
@@ -113,8 +104,8 @@ public extension WorkspaceState {
     guard let client = resolveClient() else {
       throw ChatServiceError.unauthorized("Log in to view this reply.")
     }
-    let initialThreadGeneration = thread.transcript.timeline.generation
-    let generation = room.timeline.generation
+    let initialThreadGeneration = openRoom.thread.transcript.timeline.generation
+    let generation = openRoom.room.timeline.generation
     let slug = selection?.workspace.organizationSlug
     let navigation = NavigationGuard(request: request, generation: generation)
     do {
@@ -122,10 +113,10 @@ public extension WorkspaceState {
       guard isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
       guard parent.id == parentId, parent.roomId == hit.roomId, parent.parentMessageId == nil else { return .unavailable }
       openThread(parent)
-      let threadGeneration = thread.transcript.timeline.generation
-      _ = await thread.transcript.loadTask?.value
+      let threadGeneration = openRoom.thread.transcript.timeline.generation
+      _ = await openRoom.thread.transcript.loadTask?.value
       guard isCurrent(navigation, threadGeneration: threadGeneration),
-            thread.parent?.id == parentId else { return .superseded }
+            openRoom.thread.parent?.id == parentId else { return .superseded }
       // Web lands the room on the parent after the reply's branch, whatever that branch found (row 25c,
       // `performRoomSearchJump`): a reply that is gone or whose window Core refused still marks it. A transport
       // failure ends web's jump in its `catch`, so only Core's answer counts here.
@@ -160,20 +151,20 @@ public extension WorkspaceState {
     }
     guard isCurrent(navigation, threadGeneration: threadGeneration) else { return .superseded }
     // A search hit keeps its old body; the loaded row says whether the thread still shows it.
-    if let loaded = thread.transcript.timeline.messages.first(where: { $0.id == hit.id }), !shouldKeepPersistedMessage(loaded) {
+    if let loaded = openRoom.thread.transcript.timeline.messages.first(where: { $0.id == hit.id }), !shouldKeepPersistedMessage(loaded) {
       return .unavailable
     }
-    thread.transcript.requestJump(to: hit.id)
-    return thread.transcript.jumpTarget?.messageId == hit.id ? .opened : .unavailable
+    openRoom.thread.transcript.requestJump(to: hit.id)
+    return openRoom.thread.transcript.jumpTarget?.messageId == hit.id ? .opened : .unavailable
   }
 
   /// Sends the room to the open Thread's parent, which it marks on its own clock (row 25c, web
   /// `highlightInRoom`). Only for the newest jump in the same room and Thread (web `isNewestJump`), and only when
   /// the room's loaded rows hold the parent: no window is loaded around it.
   private func markThreadParentInRoom(_ parentId: String, navigation: NavigationGuard, threadGeneration: Int) {
-    guard isCurrent(navigation, threadGeneration: threadGeneration), thread.parent?.id == parentId,
-          let roomId = transcriptRoomId, displayedTranscript.contains(where: { $0.id == parentId }) else { return }
-    messageJump = MessageJump(roomId: roomId, messageId: parentId, isThreadParent: true)
+    guard isCurrent(navigation, threadGeneration: threadGeneration), openRoom.thread.parent?.id == parentId,
+          transcriptRoomId != nil, displayedTranscript.contains(where: { $0.id == parentId }) else { return }
+    openRoom.requestJump(to: parentId, isThreadParent: true)
   }
 
   private func loadReplyIfNeeded(
@@ -182,16 +173,16 @@ public extension WorkspaceState {
     organizationSlug: String?,
     generation: Int
   ) async throws -> MessageNavigationResult? {
-    guard !thread.transcript.timeline.messages.contains(where: { $0.id == hit.id }) else { return nil }
-    guard try await thread.transcript.timeline.loadPage(.around(hit.id), client: client, organizationSlug: organizationSlug,
-                                                        generation: generation) else { return .superseded }
+    guard !openRoom.thread.transcript.timeline.messages.contains(where: { $0.id == hit.id }) else { return nil }
+    guard try await openRoom.thread.transcript.timeline.loadPage(.around(hit.id), client: client, organizationSlug: organizationSlug,
+                                                                 generation: generation) else { return .superseded }
     return nil
   }
 
   private func isCurrent(_ navigation: NavigationGuard, threadGeneration: Int? = nil) -> Bool {
-    guard messageNavigationRequest == navigation.request, navigation.generation == room.timeline.generation, !Task.isCancelled else { return false }
+    guard openRoom.navigationRequest == navigation.request, navigation.generation == openRoom.room.timeline.generation, !Task.isCancelled else { return false }
     if let threadGeneration {
-      return threadGeneration == thread.transcript.timeline.generation
+      return threadGeneration == openRoom.thread.transcript.timeline.generation
     }
     return true
   }
@@ -213,7 +204,7 @@ public extension WorkspaceState {
 
   private func messageParent(_ id: String, roomId: String, client: Client, organizationSlug: String?) async throws -> Components.Schemas.ChatRoomMessage {
     // A parent is a top-level row: the room's history or the open Thread's parent, never a reply.
-    if let parent = room.timeline.messages.first(where: { $0.id == id }) ?? thread.parent.flatMap({ $0.id == id ? $0 : nil }) {
+    if let parent = openRoom.room.timeline.messages.first(where: { $0.id == id }) ?? openRoom.thread.parent.flatMap({ $0.id == id ? $0 : nil }) {
       return parent
     }
     return try await service.getThread(client: client, roomId: roomId, parentMessageId: id, organizationSlug: organizationSlug).parentMessage

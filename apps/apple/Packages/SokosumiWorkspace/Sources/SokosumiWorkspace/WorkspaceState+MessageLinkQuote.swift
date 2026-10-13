@@ -14,7 +14,7 @@ public extension WorkspaceState {
     return await SokosumiChat.messageLinkQuote(
       link, targetRoom: target, rooms: rooms,
       // The coworker stream endpoint only takes same-room quotes.
-      allowCrossRoom: directStream.roomId != roomId,
+      allowCrossRoom: openRoom.directStream.roomId != roomId,
       loadMessage: { sourceRoomId, messageId in
         try? await service.getMessage(client: client, roomId: sourceRoomId, messageId: messageId, organizationSlug: slug)
       }

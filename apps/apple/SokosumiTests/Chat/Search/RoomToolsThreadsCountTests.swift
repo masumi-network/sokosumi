@@ -21,7 +21,7 @@
         let transport = ThreadsCountTransport(counts: [3, 1])
         let client = try Client.core(baseURL: #require(URL(string: "https://threads-count.invalid/v1")), transport: transport)
         let state = WorkspaceState(clientProvider: { _ in client })
-        state.room.timeline.reset(roomId: "room")
+        state.openRoom.room.timeline.reset(roomId: "room")
         let auth = AuthState()
         let renders = RenderCount()
         let content = NavigationStack {
@@ -42,7 +42,7 @@
         let host = controller.view
 
         try await waitUntil("the first count; \(Self.describe(transport, state))", in: host) {
-          transport.countRequests == 1 && state.threadOverview.unreadCount == 3
+          transport.countRequests == 1 && state.openRoom.threadOverview.unreadCount == 3
         }
         #expect(!(window.toolbar?.items.isEmpty ?? true), "The room puts the Threads trigger in the window toolbar.")
 
@@ -52,7 +52,7 @@
         try #require(state.threadAttentionRevision == revision + 1, "Mark all bumps the Threads attention revision.")
 
         try await waitUntil("the re-count after the bump; \(Self.describe(transport, state))", in: host) {
-          transport.countRequests >= 2 && state.threadOverview.unreadCount == 1
+          transport.countRequests >= 2 && state.openRoom.threadOverview.unreadCount == 1
         }
         #expect(transport.countRequests == 2, "One bump sends exactly one more count request, and Mark all sends none of its own.")
 
@@ -62,7 +62,7 @@
         try await waitUntil("a second render", in: host) { renders.value > rendered }
         try await expectQuiet(for: RoomToolsModifier.threadsCountDebounce * 3) { transport.countRequests == 2 }
         #expect(transport.countRequests == 2, "A render without a bump sends no count request.")
-        #expect(state.threadOverview.unreadCount == 1)
+        #expect(state.openRoom.threadOverview.unreadCount == 1)
       }
 
       private func waitUntil(_ what: @autoclosure () -> String, in host: NSView, _ condition: () -> Bool) async throws {
@@ -70,7 +70,7 @@
       }
 
       private static func describe(_ transport: ThreadsCountTransport, _ state: WorkspaceState) -> String {
-        "\(transport.countRequests) unread-count requests, trigger shows \(state.threadOverview.unreadCount)"
+        "\(transport.countRequests) unread-count requests, trigger shows \(state.openRoom.threadOverview.unreadCount)"
       }
 
       /// A request that must not happen has no event to wait for. Watch for three debounce windows, which any
@@ -96,7 +96,7 @@
 
     var body: some View {
       renders.value += 1
-      return Text("Threads \(workspaces.threadOverview.unreadCount)")
+      return Text("Threads \(workspaces.openRoom.threadOverview.unreadCount)")
     }
   }
 
