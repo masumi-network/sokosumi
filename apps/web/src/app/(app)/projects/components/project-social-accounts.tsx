@@ -14,6 +14,7 @@ import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/common/empty-state";
+import { AccountChipMark } from "@/components/social-account-chip-mark";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import {
   AlertDialog,
@@ -486,16 +487,10 @@ export function ProjectSocialAccounts({
                 className="flex flex-wrap items-center gap-3 p-3"
                 data-testid={`project-social-connection-${connection.id}`}
               >
-                <span
-                  aria-hidden
-                  className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border text-sm font-semibold"
-                >
-                  {provider ? (
-                    <provider.Icon className="size-5" />
-                  ) : (
-                    providerName.slice(0, 1)
-                  )}
-                </span>
+                <AccountChipMark
+                  avatarUrl={connection.avatarUrl}
+                  provider={connection.provider}
+                />
                 <div className="min-w-40 flex-1">
                   <p className="truncate text-sm font-medium">{primary}</p>
                   <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
