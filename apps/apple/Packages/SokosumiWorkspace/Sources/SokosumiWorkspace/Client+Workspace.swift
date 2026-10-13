@@ -5,9 +5,13 @@ import SokosumiAuth
 import SokosumiChat
 
 public extension Client {
-  /// The signed-in Core client every workspace request goes through. `build` names this app build to Core (ADR 0053).
-  static func workspace(session: OAuthSession, cooldown: ChatReadCooldown, baseURL: URL, build: String) -> Client {
-    .core(baseURL: baseURL, middlewares: workspaceMiddlewares(session: session, cooldown: cooldown, build: build))
+  /// The signed-in Core client every workspace request goes through. `build` names this app build to Core (ADR 0053);
+  /// `transport` replaces URLSession in tests.
+  static func workspace(session: OAuthSession, cooldown: ChatReadCooldown, baseURL: URL, build: String,
+                        transport: (any ClientTransport)? = nil) -> Client {
+    let middlewares = workspaceMiddlewares(session: session, cooldown: cooldown, build: build)
+    guard let transport else { return .core(baseURL: baseURL, middlewares: middlewares) }
+    return .core(baseURL: baseURL, transport: transport, middlewares: middlewares)
   }
 }
 
