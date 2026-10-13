@@ -11,14 +11,14 @@ public extension WorkspaceState {
     _ = try? await request { _, client, slug in
       switch action {
       case .load, .older:
-        try await threadOverview.load(client: client, roomId: roomId, organizationSlug: slug, older: action == .older, mentions: mentions)
+        try await openRoom.threadOverview.load(client: client, roomId: roomId, organizationSlug: slug, older: action == .older, mentions: mentions)
       case .count:
-        try await threadOverview.refreshCount(client: client, roomId: roomId, organizationSlug: slug)
+        try await openRoom.threadOverview.refreshCount(client: client, roomId: roomId, organizationSlug: slug)
       case .markAllRead:
-        try await threadOverview.markAllRead(client: client, roomId: roomId, organizationSlug: slug, mentions: mentions) {
+        try await openRoom.threadOverview.markAllRead(client: client, roomId: roomId, organizationSlug: slug, mentions: mentions) {
           // Web's `onAllThreadsLooked` voids its room read: a failed one never fails Mark all.
           guard roomId == transcriptRoomId else { return }
-          let stillUnread = threadOverview.mutedUnreadParentIds
+          let stillUnread = openRoom.threadOverview.mutedUnreadParentIds
           clearThreadUnreadReplies { !stillUnread.contains($0) }
           do {
             try await syncRoomAttentionAfterThreadChange(client: client)

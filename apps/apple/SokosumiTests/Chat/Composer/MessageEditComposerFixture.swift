@@ -26,7 +26,7 @@
       message.id = "message_1"
       // The workspace's own editor, as `MessageRowView` passes it: `saveMessageEdit` saves that one.
       let workspaces = client.map { client in WorkspaceState(clientProvider: { _ in client }) } ?? WorkspaceState()
-      let editing = workspaces.messageEditing
+      let editing = workspaces.openRoom.messageEditing
       editing.start(message, userId: "user")
       let content = MessageEditComposer(editing: editing)
         .environmentObject(workspaces)

@@ -269,9 +269,9 @@ private func whileARoomListReadIsInFlight<T: Sendable>(
 }
 
 private func waitForRealtimeIdle(_ state: WorkspaceState) async {
-  while state.sidebarRecovery.isRefreshing || state.roomsRefreshTask != nil || state.room.recovery.isRefreshing || state.room.loadTask != nil {
+  while state.sidebarRecovery.isRefreshing || state.roomsRefreshTask != nil || state.openRoom.room.recovery.isRefreshing || state.openRoom.room.loadTask != nil {
     await state.roomsRefreshTask?.value
-    _ = await state.room.loadTask?.value
+    _ = await state.openRoom.room.loadTask?.value
     await Task.yield()
   }
   for _ in 0 ..< 1000 where state.outboundInFlight {
@@ -670,7 +670,7 @@ struct WorkspaceRealtimeTests {
     for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/messages") {
       await Task.yield()
     }
-    let turnId = try #require(state.room.outbox.shells.first?.clientTurnId)
+    let turnId = try #require(state.openRoom.room.outbox.shells.first?.clientTurnId)
     #expect(state.displayedTranscript.map(\.content) == ["hello"])
 
     // The Ably create for our own send carries the same client turn id.
@@ -683,7 +683,7 @@ struct WorkspaceRealtimeTests {
       )
     ])
     state.applyRealtimeMessage(roomId: roomA, eventType: .create, message: incoming[0])
-    #expect(state.room.outbox.shells.isEmpty)
+    #expect(state.openRoom.room.outbox.shells.isEmpty)
     #expect(state.displayedTranscript.map(\.content) == ["hello"])
     #expect(state.transcriptMessages.map(\.id) == [confirmedId])
 
@@ -736,12 +736,12 @@ struct WorkspaceRealtimeTests {
     await state.reload()
     await waitForRealtimeIdle(state)
     if openParent {
-      try state.thread.open(#require(state.transcriptMessages.first))
+      try state.openRoom.thread.open(#require(state.transcriptMessages.first))
     }
     state.applyRealtimeEnvelope(
       .init(eventType: .create, messageId: openParent ? oldId : newId, roomId: roomA)
     )
-    state.thread.close()
+    state.openRoom.thread.close()
     await waitForRealtimeIdle(state)
     #expect(state.transcriptMessages.map(\.content) == ["old edited", "oversize body"])
     #expect(state.transcriptError == nil)
@@ -1065,10 +1065,10 @@ struct WorkspaceRealtimeTests {
     fake.deliver(.roomHealth(roomId: roomA, healthy: true, continuityLost: false))
     // A following pin is a visible barrier for the ordered event stream.
     fake.deliver(.pin(roomId: roomA, messageId: "barrier", isPinned: true, count: 1))
-    for _ in 0 ..< 1000 where state.room.timeline.pinOverrides["barrier"] != true {
+    for _ in 0 ..< 1000 where state.openRoom.room.timeline.pinOverrides["barrier"] != true {
       await Task.yield()
     }
-    #expect(state.room.timeline.pinOverrides["barrier"] == true)
+    #expect(state.openRoom.room.timeline.pinOverrides["barrier"] == true)
     #expect(state.threadAttentionRevision == initialAttention)
     await waitForRealtimeIdle(state)
     #expect(transport.operationIDs.count == initialRequests)
@@ -1076,10 +1076,10 @@ struct WorkspaceRealtimeTests {
     fake.deliver(.roomHealth(roomId: roomA, healthy: false, continuityLost: true))
     fake.deliver(.roomHealth(roomId: roomA, healthy: true, continuityLost: true))
     fake.deliver(.pin(roomId: roomA, messageId: "barrier", isPinned: false, count: 0))
-    for _ in 0 ..< 1000 where state.room.timeline.pinOverrides["barrier"] != false {
+    for _ in 0 ..< 1000 where state.openRoom.room.timeline.pinOverrides["barrier"] != false {
       await Task.yield()
     }
-    #expect(state.room.timeline.pinOverrides["barrier"] == false)
+    #expect(state.openRoom.room.timeline.pinOverrides["barrier"] == false)
     #expect(state.threadAttentionRevision == initialAttention + 2)
     await waitForRealtimeIdle(state)
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 3)
@@ -1130,7 +1130,7 @@ struct WorkspaceRealtimeTests {
       realtimeMessageJSON(id: liveId, roomId: roomA, content: "in flight", createdAt: "2026-01-01T00:00:01.000Z")
     ])
     let room = try #require(state.rooms.first)
-    state.openRoom(room)
+    state.enterRoom(room)
     // The load task has not run yet: this live row lands first, and the
     // resolving history GET must merge around it, not wipe it.
     state.applyRealtimeMessage(roomId: roomA, eventType: .create, message: live[0])
@@ -1284,16 +1284,16 @@ struct WorkspaceRealtimeTests {
     #expect(state.displayedTranscript.map(\.content) == ["first", "over the wire"])
 
     fake.deliver(.pin(roomId: roomA, messageId: liveId, isPinned: true, count: 1))
-    for _ in 0 ..< 1000 where state.room.timeline.pinOverrides[liveId] != true {
+    for _ in 0 ..< 1000 where state.openRoom.room.timeline.pinOverrides[liveId] != true {
       await Task.yield()
     }
-    #expect(state.room.timeline.pinOverrides[liveId] == true)
+    #expect(state.openRoom.room.timeline.pinOverrides[liveId] == true)
     #expect(state.rooms.first?.pinnedMessageCount == 1)
     fake.deliver(.pin(roomId: roomA, messageId: liveId, isPinned: false, count: 0))
-    for _ in 0 ..< 1000 where state.room.timeline.pinOverrides[liveId] != false {
+    for _ in 0 ..< 1000 where state.openRoom.room.timeline.pinOverrides[liveId] != false {
       await Task.yield()
     }
-    #expect(state.room.timeline.pinOverrides[liveId] == false)
+    #expect(state.openRoom.room.timeline.pinOverrides[liveId] == false)
     #expect(state.rooms.first?.pinnedMessageCount == 0)
 
     fake.deliver(.revoked(roomId: roomA))
@@ -1304,7 +1304,7 @@ struct WorkspaceRealtimeTests {
     #expect(state.selectedRoomId == nil)
     #expect(state.transcriptRoomId == nil)
     #expect(fake.watchedRooms == [roomA, nil])
-    #expect(state.room.timeline.pinOverrides.isEmpty)
+    #expect(state.openRoom.room.timeline.pinOverrides.isEmpty)
 
     state.reset()
     #expect(fake.disconnectCount == 1)

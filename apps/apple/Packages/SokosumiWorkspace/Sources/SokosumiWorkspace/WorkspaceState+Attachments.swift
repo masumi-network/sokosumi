@@ -13,11 +13,11 @@ public extension WorkspaceState {
     guard canAttachFiles(roomId: roomId) else {
       throw ChatServiceError.unexpectedResponse("Attachments are not available in this conversation.")
     }
-    let generation = room.timeline.generation
+    let generation = openRoom.room.timeline.generation
     return try await request(signIn: "Attachments are not available in this conversation.") { service, client, _ in
       let items = try await service.driveItems(client: client, organizationId: selection?.workspace.organizationId, folder: folder, query: query)
       try Task.checkCancellation()
-      guard generation == room.timeline.generation else { throw CancellationError() }
+      guard generation == openRoom.room.timeline.generation else { throw CancellationError() }
       return items
     }
   }
@@ -26,7 +26,7 @@ public extension WorkspaceState {
     guard canAttachFiles(roomId: roomId) else {
       throw ChatServiceError.unexpectedResponse("Attachments are not available in this conversation.")
     }
-    let generation = room.timeline.generation
+    let generation = openRoom.room.timeline.generation
     let scoped = file.startAccessingSecurityScopedResource()
     defer {
       if scoped {
@@ -40,7 +40,7 @@ public extension WorkspaceState {
     return try await request(signIn: "Attachments are not available in this conversation.") { service, client, slug in
       let grant = try await service.attachmentGrant(client: client, roomId: roomId, file: .init(filename: file.lastPathComponent, contentType: contentType, size: size), organizationSlug: slug)
       try Task.checkCancellation()
-      guard generation == room.timeline.generation else { throw CancellationError() }
+      guard generation == openRoom.room.timeline.generation else { throw CancellationError() }
       return try await AttachmentUpload.put(file: file, filename: file.lastPathComponent, contentType: contentType, size: size, grant: grant)
     }
   }

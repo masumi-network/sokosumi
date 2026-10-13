@@ -554,6 +554,10 @@ _Avoid_: Unread threads (as the name of this list), treating this as a cross-roo
 The ordered messages of a Room or a Thread as the reader sees them: confirmed history plus Pending messages and Failed sends. A room's main transcript excludes Thread replies; a Thread's transcript holds only its replies, below the parent.
 _Avoid_: Timeline (the loaded history alone), feed, history (when Pending messages are meant too)
 
+**Open room**:
+The one room whose Transcript a client shows, with what lives and dies with it: the open Thread, Pins, the Thread overview and where a jump lands. Opening another room starts it clean.
+_Avoid_: Selected room (the sidebar's pick, which can differ while the Threads view covers it), current conversation
+
 **Look**:
 The user’s high-water mark in a Thread: they opened it, and that moment is stored. Distinct from Room last-read and from being a Participant. Look clears; it does not opt a lurker into unread. Opening the Thread, posting a reply, or Mark all threads Looks it. Advancing Room last-read does not Look.
 _Avoid_: Replied, Participant, lastLookedAt, Room read receipt (that is a different mark on a different table). Do not use “looked” in product UI (say unread / mark as read)

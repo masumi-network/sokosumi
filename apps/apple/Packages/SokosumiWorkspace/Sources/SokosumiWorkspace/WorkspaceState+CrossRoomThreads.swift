@@ -35,15 +35,9 @@ public extension WorkspaceState {
   /// `showThreadList` does; the room's tools open the overview once the room is on screen.
   func openThreadOverview(roomId: String) async {
     guard rooms.contains(where: { $0.id == roomId }) else { return }
-    thread.close()
-    threadOverviewRequest = ThreadOverviewRequest(roomId: roomId)
+    openRoom.thread.close()
+    openRoom.requestThreadOverview(roomId: roomId)
     await showRoom(roomId)
-  }
-
-  func consumeThreadOverviewRequest(_ requestId: UUID) {
-    if threadOverviewRequest?.requestId == requestId {
-      threadOverviewRequest = nil
-    }
   }
 
   func updateCrossRoomThreads(_ action: CrossRoomThreadsAction) async {

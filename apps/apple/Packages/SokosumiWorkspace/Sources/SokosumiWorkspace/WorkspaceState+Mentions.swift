@@ -25,7 +25,7 @@ public extension WorkspaceState {
   func retryMention(_ shell: Components.Schemas.ChatRoomMessage, now: Date) async throws {
     guard shell.roomId == transcriptRoomId,
           case let .failed(mentionId, sourceMessageId?) = MentionThoughtShell(message: shell) else { return }
-    let request = MentionRetryRequest(generation: room.timeline.generation, shellId: shell.id)
+    let request = MentionRetryRequest(generation: openRoom.room.timeline.generation, shellId: shell.id)
     guard !pendingMentionRetries.contains(request) else { return }
     pendingMentionRetries.insert(request)
     defer { pendingMentionRetries.remove(request) }
@@ -35,10 +35,10 @@ public extension WorkspaceState {
         try await service.retryMention(client: client, roomId: shell.roomId, messageId: sourceMessageId, mentionId: mentionId,
                                        organizationSlug: slug)
       }
-      guard request.generation == room.timeline.generation, !Task.isCancelled else { return }
+      guard request.generation == openRoom.room.timeline.generation, !Task.isCancelled else { return }
       replaceLoaded(source)
     } catch {
-      guard request.generation == room.timeline.generation, !Task.isCancelled else { return }
+      guard request.generation == openRoom.room.timeline.generation, !Task.isCancelled else { return }
       replaceLoaded(shell)
       throw error
     }
@@ -47,11 +47,11 @@ public extension WorkspaceState {
 
 private extension WorkspaceState {
   var mentionRetrySources: [Components.Schemas.ChatRoomMessage] {
-    loaded.all
+    openRoom.loaded.all
   }
 
   /// Update-only: a row that is not loaded stays absent, unlike a realtime create.
   func replaceLoaded(_ message: Components.Schemas.ChatRoomMessage) {
-    loaded.update(message.id) { _ in message }
+    openRoom.loaded.update(message.id) { _ in message }
   }
 }

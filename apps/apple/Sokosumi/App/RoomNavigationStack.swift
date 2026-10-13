@@ -15,10 +15,10 @@ struct RoomNavigationStack: View {
     NavigationStack {
       RoomTimelineView(roomId: room.id)
         .navigationDestination(isPresented: Binding(
-          get: { workspaces.thread.parent != nil },
+          get: { workspaces.openRoom.thread.parent != nil },
           set: { presented in
             if !presented {
-              Task { @MainActor in workspaces.thread.close() }
+              Task { @MainActor in workspaces.openRoom.thread.close() }
             }
           }
         )) {

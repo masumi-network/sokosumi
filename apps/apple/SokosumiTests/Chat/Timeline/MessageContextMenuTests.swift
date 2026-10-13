@@ -155,7 +155,7 @@
         }
         message.quote = quote
         let workspaces = WorkspaceState()
-        let editing = workspaces.messageEditing
+        let editing = workspaces.openRoom.messageEditing
         if editingRow {
           editing.start(message, userId: "user")
         }
@@ -369,7 +369,7 @@
           try await Task.sleep(for: .milliseconds(20))
         }
         return MessageMenuFixture(window: window, host: host, text: host, recorder: MenuRecorder(), calls: second,
-                                  editing: workspaces.messageEditing)
+                                  editing: workspaces.openRoom.messageEditing)
       }
 
       /// The drawn pixels of a small square around `point`, to tell whether something now covers it.
