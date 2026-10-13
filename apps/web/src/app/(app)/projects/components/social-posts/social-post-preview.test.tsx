@@ -331,6 +331,38 @@ describe("SocialPostPreview", () => {
     expect(preview).toHaveTextContent("facebook.share");
   });
 
+  it("enlarges a short Facebook status with no media", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="facebook"
+        text="Launch day is here."
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByText("Launch day is here.").closest("p")).toHaveClass(
+      "text-3xl",
+    );
+  });
+
+  it("keeps usual type on a short Facebook post with a photo", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[IMAGE]}
+        provider="facebook"
+        text="Launch day is here."
+        timestamp={null}
+      />,
+    );
+
+    expect(
+      screen.getByText("Launch day is here.").closest("p"),
+    ).not.toHaveClass("text-3xl");
+  });
+
   it("folds long Facebook text behind see more", async () => {
     const user = userEvent.setup();
     render(

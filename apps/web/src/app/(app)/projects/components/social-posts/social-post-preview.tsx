@@ -241,6 +241,9 @@ function LinkedInPreview({
   );
 }
 
+/** Facebook enlarges a short status with no photo or link. */
+const FACEBOOK_LARGE_STATUS_MAX = 85;
+
 function FacebookPreview({
   account,
   media,
@@ -251,6 +254,10 @@ function FacebookPreview({
   const name = accountName(account, t("accountFallback"));
   const time = usePreviewTime(timestamp);
   const fold = useFold(text, 400, 4);
+  const largeStatus =
+    media.length === 0 &&
+    text.length <= FACEBOOK_LARGE_STATUS_MAX &&
+    !/\b(?:https?:\/\/|www\.)/i.test(text);
   const actions = [
     { Icon: ThumbsUp, label: t("facebook.like") },
     { Icon: MessageSquare, label: t("facebook.comment") },
@@ -275,7 +282,12 @@ function FacebookPreview({
       </div>
       {text ? (
         <div className="px-4 py-2">
-          <p className="leading-5 whitespace-pre-wrap break-words">
+          <p
+            className={cn(
+              "whitespace-pre-wrap break-words",
+              largeStatus ? "text-3xl leading-snug" : "leading-5",
+            )}
+          >
             <PreviewRichText
               text={fold.visibleText}
               linkClassName="text-social-facebook-link"
