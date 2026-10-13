@@ -66,7 +66,7 @@ function displayUrl(url: string): string {
     : bare;
 }
 
-const URL_TRAILING_PUNCT = /[.,;:!?)]+$/;
+const URL_TRAILING_PUNCT = /[.,;:!?)>]+$/;
 
 /** Post text with links, hashtags and mentions in the platform's link color. */
 export function PreviewRichText({
