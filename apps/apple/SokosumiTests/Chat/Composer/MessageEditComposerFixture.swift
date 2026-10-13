@@ -61,6 +61,27 @@
       }
     }
 
+    /// Waits until the composer exposes `text` and the window, refitted on each poll, has fitted it twice running.
+    /// The draft reaches the text view before SwiftUI grows the field and inserts the rows under it; a window
+    /// fitted in between is too short, and the centered content loses its top and its bottom row to the bitmap.
+    func waitForLayout(showing text: String) async throws {
+      let clock = ContinuousClock()
+      let deadline = clock.now.advanced(by: .seconds(10))
+      var settled = 0
+      repeat {
+        window.setContentSize(host.fittingSize)
+        host.layoutSubtreeIfNeeded()
+        let shown = await hostedTexts(in: host).contains { $0.contains(text) }
+        settled = shown && host.fittingSize == host.bounds.size ? settled + 1 : 0
+        if settled == 2 {
+          return
+        }
+        try await Task.sleep(for: .milliseconds(20))
+      } while clock.now < deadline
+      let texts = await hostedTexts(in: host)
+      try #require(settled == 2, "Timed out after 10 seconds: \(text.debugDescription) not laid out (fitting \(host.fittingSize), bounds \(host.bounds.size), texts \(texts))")
+    }
+
     static func returnEvent(_ modifiers: NSEvent.ModifierFlags = []) throws -> NSEvent {
       try #require(NSEvent.keyEvent(
         with: .keyDown, location: .zero, modifierFlags: modifiers,
