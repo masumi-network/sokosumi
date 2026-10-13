@@ -224,6 +224,60 @@ struct GatedChannelTests {
     #expect(host.mintCount == 0)
   }
 
+  /// Presence's failed `enter` waits in the engine's one retry slot.
+  @Test func aRetryLaterRunsOnTheClockWhileGranted() async {
+    let ran = Ran()
+    engine.setTarget("a")
+    settle()
+    engine.queue.async { [engine] in engine.retryLater { ran.append("too early") } }
+    settle()
+    #expect(clock.pending == 0, "Nothing to retry before the channel is granted.")
+    host.answer(0, granting: "a")
+    engine.queue.async { [engine] in
+      engine.retryLater { ran.append("resent") }
+      engine.retryLater { ran.append("second") }
+    }
+    await waitFor { clock.pending == 1 }
+    #expect(clock.pending == 1, "One retry slot.")
+    clock.fire()
+    await waitFor { !ran.values.isEmpty }
+    #expect(ran.values == ["resent"])
+  }
+
+  @Test func cancelRetryAndAFreshAuthorizationDropAPendingRetry() async {
+    let ran = Ran()
+    engine.setTarget("a")
+    settle()
+    host.answer(0, granting: "a")
+    engine.queue.async { [engine] in
+      engine.retryLater { ran.append("cancelled") }
+      engine.cancelRetry()
+      engine.retryLater { ran.append("superseded") }
+    }
+    await waitFor { clock.pending == 2 }
+    host.reconnect()
+    settle()
+    #expect(host.mintCount == 2, "The reconnect authorizes again and drops the retry.")
+    clock.fire()
+    clock.fire()
+    for _ in 0 ..< 20 {
+      await Task.yield()
+    }
+    settle()
+    #expect(ran.values.isEmpty)
+  }
+
+  /// Presence keeps its latest data while not granted, but a stopped channel keeps nothing.
+  @Test func aStoppedChannelRunsNoMoreWork() {
+    let ran = Ran()
+    engine.whileActive { ran.append("before") }
+    settle()
+    engine.stop()
+    engine.whileActive { ran.append("after") }
+    settle()
+    #expect(ran.values == ["before"])
+  }
+
   @Test func onlyAGrantedChannelRunsItsWork() {
     let ran = Ran()
     engine.setTarget("a")
