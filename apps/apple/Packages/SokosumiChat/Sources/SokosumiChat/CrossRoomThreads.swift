@@ -114,7 +114,13 @@ public final class CrossRoomThreads: ObservableObject {
       guard self[keyPath: pages].generation == request, !Task.isCancelled else { return }
       labels.merge(previews) { _, new in new }
       var answered = self[keyPath: pages]
-      answered.threads = older ? answered.threads + page.items : page.items
+      if older {
+        // A Thread whose reply moved since the last page comes back on this one; the held copy stays.
+        let known = Set(answered.threads.map { $0[keyPath: parts.parent] })
+        answered.threads += page.items.filter { !known.contains($0[keyPath: parts.parent]) }
+      } else {
+        answered.threads = page.items
+      }
       answered.nextCursor = page.nextCursor == cursor ? nil : page.nextCursor
       answered.hasAnswered = true
       answered.firstPageFailed = false
@@ -177,26 +183,21 @@ public final class CrossRoomThreads: ObservableObject {
     return label
   }
 
-  /// The unread Threads to list: only those whose room the sidebar lists and the reader has not muted, each
-  /// once, in Core's order.
+  /// The unread Threads to list: only those whose room the sidebar lists and the reader has not muted, in
+  /// Core's order.
   public func unreadRows(rooms: [Components.Schemas.ChatRoom]) -> [Components.Schemas.ChatUnreadThread] {
-    Self.listed(unread.threads, rooms: rooms, parent: \.parentMessageId, room: \.roomId)
+    Self.listed(unread.threads, rooms: rooms, room: \.roomId)
   }
 
   /// The read Threads to list, by the same rule.
   public func earlierRows(rooms: [Components.Schemas.ChatRoom]) -> [Components.Schemas.ChatEarlierThread] {
-    Self.listed(earlier.threads, rooms: rooms, parent: \.parentMessageId, room: \.roomId)
+    Self.listed(earlier.threads, rooms: rooms, room: \.roomId)
   }
 
-  private static func listed<Thread>(
-    _ threads: [Thread],
-    rooms: [Components.Schemas.ChatRoom],
-    parent: KeyPath<Thread, String>,
-    room: KeyPath<Thread, String>
-  ) -> [Thread] {
+  /// Each list already holds a Thread once: Core groups a page by parent, and an older page skips held ones.
+  private static func listed<Thread>(_ threads: [Thread], rooms: [Components.Schemas.ChatRoom], room: KeyPath<Thread, String>) -> [Thread] {
     let listedRooms = Set(rooms.filter { $0.mutedAt == nil }.map(\.id))
-    var seen = Set<String>()
-    return threads.filter { listedRooms.contains($0[keyPath: room]) && seen.insert($0[keyPath: parent]).inserted }
+    return threads.filter { listedRooms.contains($0[keyPath: room]) }
   }
 
   /// Web's `enabled`: live rooms at zero already answer, so Core is not asked; an empty roster that is not a
