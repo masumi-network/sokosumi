@@ -38,7 +38,7 @@ struct TranscriptRowActions {
     switch action {
     case .reply: workspaces.openRoom.openThread(message)
     case .quote: quote(message)
-    case .edit: workspaces.startEditing(message)
+    case .edit: workspaces.openRoom.startEditing(message)
     case .retrySend, .removeSend:
       guard let shell = transcript.outbox.shells.first(where: { $0.id == message.id }) else { return nil }
       if case .retrySend = action {
@@ -47,21 +47,21 @@ struct TranscriptRowActions {
         transcript.outbox.remove(shell.clientTurnId)
       }
     case .togglePin:
-      return Task { try await workspaces.setPinned(!workspaces.isPinned(message), messageId: message.id) }
+      return Task { try await workspaces.setPinned(!workspaces.openRoom.isPinned(message), messageId: message.id) }
     case .delete:
-      return Task { try await workspaces.deleteMessage(message) }
+      return Task { try await workspaces.openRoom.deleteMessage(message) }
     case .retryMention:
-      return Task { try await workspaces.retryMention(message, now: Date()) }
+      return Task { try await workspaces.openRoom.retryMention(message, now: Date()) }
     case let .toggleReaction(emoji):
       return Task {
         // Match web: adding teaches quick reactions; removing does not. Taps absorbed by a running request answer
         // false, so on/off/on counts once.
-        if try await workspaces.toggleReaction(message, emoji: emoji) {
+        if try await workspaces.openRoom.toggleReaction(message, emoji: emoji) {
           ReactionEmojiHistory().record(emoji)
         }
       }
     case let .removeUnfurl(url):
-      return Task { try await workspaces.removeUnfurl(message, url: url) }
+      return Task { try await workspaces.openRoom.removeUnfurl(message, url: url) }
     case let .rate(useful):
       guard let turnId = SokoBotFeedback.turnId(for: message) else { return nil }
       return Task { try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful) }

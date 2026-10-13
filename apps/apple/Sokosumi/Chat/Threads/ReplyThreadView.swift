@@ -331,7 +331,7 @@ import SwiftUI
                            row: bubble.row,
                            outbound: bubble.outbound, sentAt: bubble.sentAt,
                            perform: { rowActions.perform($0, on: message) },
-                           canRetryMention: workspaces.canRetryMention(message),
+                           canRetryMention: workspaces.openRoom.canRetryMention(message),
                            jumpMark: bubble.jumpMark,
                            editing: workspaces.openRoom.messageEditing,
                            onSendToSelf: { try await workspaces.sendMessageToSelf(message) },

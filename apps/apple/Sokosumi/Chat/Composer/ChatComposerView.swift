@@ -82,14 +82,14 @@ import UniformTypeIdentifiers
     }
 
     private var canAttachFiles: Bool {
-      workspaces.canAttachFiles(roomId: roomId) && uploads.uploadingName == nil && !attachmentIngress.isReceiving
+      workspaces.openRoom.canAttachFiles(roomId: roomId) && uploads.uploadingName == nil && !attachmentIngress.isReceiving
     }
 
     private var canSend: Bool {
       preparedContent.canSend(quoted: pendingQuote != nil && !requiresBody)
         && uploads.uploadingName == nil
         && !attachmentIngress.isReceiving
-        && (uploads.attachments.isEmpty || workspaces.canAttachFiles(roomId: roomId))
+        && (uploads.attachments.isEmpty || workspaces.openRoom.canAttachFiles(roomId: roomId))
         && !workspaces.openRoom.directStream.isBusy
         && workspaces.openRoom.room.timeline.roomId == roomId
         && (parentMessageId == nil || workspaces.openRoom.thread.parent?.id == parentMessageId)
@@ -107,7 +107,7 @@ import UniformTypeIdentifiers
           HStack {
             ComposerTooLongHint()
             Spacer(minLength: 8)
-            if !draft.isEmpty, workspaces.canAttachFiles(roomId: roomId) {
+            if !draft.isEmpty, workspaces.openRoom.canAttachFiles(roomId: roomId) {
               Button("Convert to file", systemImage: "doc.text") { attachOverflow() }
                 .controlSize(.small)
                 .disabled(!canAttachFiles)
@@ -123,7 +123,7 @@ import UniformTypeIdentifiers
       }
       .sheet(isPresented: $drivePickerPresented) {
         DriveFilePickerView(load: { folder, query in
-          try await workspaces.driveItems(folder: folder, query: query, roomId: roomId)
+          try await workspaces.openRoom.driveItems(folder: folder, query: query, roomId: roomId)
         }, select: { attachment in
           guard canAttachFiles else { return }
           uploads.add(attachment)
@@ -173,7 +173,7 @@ import UniformTypeIdentifiers
         }
         input.onBlur = { workspaces.composerStoppedTyping(roomId: roomId) }
       }
-      if workspaces.canAttachFiles(roomId: roomId) {
+      if workspaces.openRoom.canAttachFiles(roomId: roomId) {
         input.attach = { filePickerPresented = true }
         input.attachFromDrive = { drivePickerPresented = true }
         input.attachmentsEnabled = canAttachFiles
@@ -217,7 +217,7 @@ import UniformTypeIdentifiers
     private func attachFiles(_ files: [URL]) {
       guard canAttachFiles else { return }
       uploads.upload(files) { file in
-        try await workspaces.uploadAttachment(file, roomId: roomId)
+        try await workspaces.openRoom.uploadAttachment(file, roomId: roomId)
       }
     }
 
@@ -239,7 +239,7 @@ import UniformTypeIdentifiers
     private func attachTemporary(_ data: Data, filename: String, completed: (() -> Void)? = nil) {
       guard canAttachFiles else { return }
       uploads.upload(data, filename: filename, using: { file in
-        try await workspaces.uploadAttachment(file, roomId: roomId)
+        try await workspaces.openRoom.uploadAttachment(file, roomId: roomId)
       }, completed: completed)
     }
 

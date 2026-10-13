@@ -1937,7 +1937,7 @@ extension WorkspaceStateTests {
     }
     state.openRoom.messageEditing.start(source, userId: "user_1")
     state.openRoom.messageEditing.draft = "Changed"
-    await state.saveMessageEdit()
+    await state.openRoom.saveEdit()
     #expect(state.openRoom.messageEditing.source == nil)
     if reply {
       #expect(state.openRoom.thread.transcript.timeline.messages.first?.content == "Changed")
@@ -2009,7 +2009,7 @@ extension WorkspaceStateTests {
       state.openRoom.thread.open(source)
     }
     state.openRoom.messageEditing.start(source, userId: "user_1")
-    try await state.deleteMessage(source)
+    try await state.openRoom.deleteMessage(source)
     #expect(state.openRoom.messageEditing.source == nil)
     #expect(state.openRoom.thread.parent != nil)
     if reply {
@@ -2039,7 +2039,7 @@ extension WorkspaceStateTests {
     state.openRoom.messageEditing.start(source, userId: "user_1")
     state.openRoom.messageEditing.draft = "Unsaved"
     #expect(state.displayedTranscript.map(\.id) == ["message"])
-    await #expect(throws: (any Error).self) { try await state.deleteMessage(source) }
+    await #expect(throws: (any Error).self) { try await state.openRoom.deleteMessage(source) }
     // Deletion is not optimistic (web awaits the server action too): a refusal leaves the row on screen.
     #expect(state.displayedTranscript.map(\.id) == ["message"])
     #expect(state.openRoom.room.timeline.messages.first?.content == "Original")
@@ -2066,7 +2066,7 @@ extension WorkspaceStateTests {
     state.openRoom.thread.open(parent)
     state.openRoom.thread.transcript.timeline.messages = [reply]
     transport.pauseDELETE = true
-    let deletion = Task { try await state.deleteMessage(reply) }
+    let deletion = Task { try await state.openRoom.deleteMessage(reply) }
     while transport.operationIDs.isEmpty {
       await Task.yield()
     }
@@ -2133,7 +2133,7 @@ extension WorkspaceStateTests {
       state.openRoom.thread.open(source)
     }
     transport.pauseReaction = true
-    let toggle = Task { try await state.toggleReaction(source, emoji: "👍") }
+    let toggle = Task { try await state.openRoom.toggleReaction(source, emoji: "👍") }
     await waitForRequests(1, transport)
     let shown = reply ? state.displayedThreadReplies.first : state.displayedTranscript.first
     #expect(shown?.reactions.first?.count == 1)
@@ -2163,11 +2163,11 @@ extension WorkspaceStateTests {
     state.openRoom.room.timeline.reset(roomId: "room")
     state.openRoom.room.timeline.messages = [source]
     transport.pauseReaction = true
-    let toggle = Task { try await state.toggleReaction(source, emoji: "👍") }
+    let toggle = Task { try await state.openRoom.toggleReaction(source, emoji: "👍") }
     await waitForRequests(1, transport)
     // On, off, on, off while the PUT is out: every tap shows at once and none sends.
     for expected in [false, true, false] {
-      #expect(try await state.toggleReaction(source, emoji: "👍") == false)
+      #expect(try await state.openRoom.toggleReaction(source, emoji: "👍") == false)
       #expect(state.displayedTranscript.first?.reactions.isEmpty == !expected)
     }
     #expect(transport.operationIDs.count == 1)
@@ -2192,10 +2192,10 @@ extension WorkspaceStateTests {
     state.openRoom.room.timeline.reset(roomId: "room")
     state.openRoom.room.timeline.messages = [source]
     transport.pauseReaction = true
-    let toggle = Task { try await state.toggleReaction(source, emoji: "👍") }
+    let toggle = Task { try await state.openRoom.toggleReaction(source, emoji: "👍") }
     await waitForRequests(1, transport)
-    try await state.toggleReaction(source, emoji: "👍")
-    try await state.toggleReaction(source, emoji: "👍")
+    try await state.openRoom.toggleReaction(source, emoji: "👍")
+    try await state.openRoom.toggleReaction(source, emoji: "👍")
     transport.releasePausedRequest()
     #expect(try await toggle.value)
     #expect(transport.operationIDs.count == 1)
@@ -2209,10 +2209,10 @@ extension WorkspaceStateTests {
     state.openRoom.room.timeline.reset(roomId: "room")
     state.openRoom.room.timeline.messages = [source]
     transport.pauseReaction = true
-    let failing = Task { try await state.toggleReaction(source, emoji: "👍") }
+    let failing = Task { try await state.openRoom.toggleReaction(source, emoji: "👍") }
     await waitForRequests(1, transport)
     // A second emoji on the same message has its own request.
-    let removing = Task { try await state.toggleReaction(source, emoji: "🎉") }
+    let removing = Task { try await state.openRoom.toggleReaction(source, emoji: "🎉") }
     await waitForRequests(2, transport)
     let heart = Components.Schemas.ChatRoomMessageReaction(emoji: "❤️", count: 1, reactedByCurrentUser: false, reactors: [.init(id: "user_2", name: "Ada")])
     state.applyRealtimeMessagePatch(.init(roomId: "room", messageId: "message", parentMessageId: nil,
@@ -2238,7 +2238,7 @@ extension WorkspaceStateTests {
     state.openRoom.room.timeline.reset(roomId: "room")
     state.openRoom.room.timeline.messages = [source]
     transport.pauseReaction = true
-    let toggle = Task { try await state.toggleReaction(source, emoji: "👍") }
+    let toggle = Task { try await state.openRoom.toggleReaction(source, emoji: "👍") }
     await waitForRequests(1, transport)
     state.openRoom.room.timeline.reset(roomId: "other")
     #expect(state.displayedTranscript.isEmpty)
@@ -2258,7 +2258,7 @@ extension WorkspaceStateTests {
     state.openRoom.room.timeline.reset(roomId: "room")
     state.openRoom.room.timeline.messages = [source]
     transport.pauseReaction = true
-    let toggle = Task { try await state.toggleReaction(source, emoji: "👍") }
+    let toggle = Task { try await state.openRoom.toggleReaction(source, emoji: "👍") }
     await waitForRequests(1, transport)
     state.openRoom.room.timeline.reset(roomId: "other")
     transport.releasePausedRequest()
@@ -2282,19 +2282,19 @@ extension WorkspaceStateTests {
     #expect(message.pinnedAt != nil)
     #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages"])
     #expect(state.openRoom.pins.items.isEmpty)
-    #expect(state.isPinned(message))
+    #expect(state.openRoom.isPinned(message))
     state.openRoom.room.timeline.applyPin(roomId: "room", messageId: message.id, isPinned: false)
-    #expect(!state.isPinned(message))
+    #expect(!state.openRoom.isPinned(message))
     message.pinnedAt = nil
     state.openRoom.room.timeline.applyPin(roomId: "room", messageId: message.id, isPinned: true)
-    #expect(state.isPinned(message))
+    #expect(state.openRoom.isPinned(message))
     state.applyRealtimeEnvelope(.init(eventType: .delete, messageId: message.id, roomId: "room"))
     let deletedMessage = try #require(state.openRoom.room.timeline.messages.first)
     #expect(deletedMessage.deletedAt != nil)
-    #expect(!state.isPinned(deletedMessage))
+    #expect(!state.openRoom.isPinned(deletedMessage))
     #expect(state.openRoom.pins.items.isEmpty)
     state.openRoom.room.timeline.reset(roomId: "other")
-    #expect(!state.isPinned(message))
+    #expect(!state.openRoom.isPinned(message))
   }
 
   @Test func pinMutationsUpdateOnlyAfterSuccess() async throws {
@@ -2311,11 +2311,11 @@ extension WorkspaceStateTests {
                                               sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     message.id = "message"
     try await state.setPinned(true, messageId: "message")
-    #expect(state.isPinned(message))
+    #expect(state.openRoom.isPinned(message))
     #expect(state.rooms.first?.pinnedMessageCount == 1)
     await #expect(throws: (any Error).self) { try await state.setPinned(false, messageId: "message") }
-    #expect(state.isPinned(message))
-    #expect(!state.isUpdatingPin("message"))
+    #expect(state.openRoom.isPinned(message))
+    #expect(!state.openRoom.isUpdatingPin("message"))
     #expect(transport.operationIDs.last == "delete/chats/rooms/{id}/messages/{messageId}/pin")
   }
 
@@ -2332,13 +2332,13 @@ extension WorkspaceStateTests {
     while transport.operationIDs.isEmpty {
       await Task.yield()
     }
-    #expect(state.isUpdatingPin("message"))
+    #expect(state.openRoom.isUpdatingPin("message"))
     state.leaveRoom()
     state.openRoom.room.timeline.reset(roomId: "other")
     transport.releasePausedRequest()
     try await request.value
     #expect(state.openRoom.room.timeline.pinOverrides.isEmpty)
-    #expect(!state.isUpdatingPin("message"))
+    #expect(!state.openRoom.isUpdatingPin("message"))
   }
 
   @Test func historicalWindowRetainsLiveHeadWithoutMarkingRead() async throws {
@@ -2346,7 +2346,7 @@ extension WorkspaceStateTests {
       (200, transcriptPageBody(messages: [transcriptMessage(id: "old", roomId: "room", content: "Old")], nextCursor: nil))
     ], visible: false)
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.jumpToMessage("old"))
+    #expect(try await state.openRoom.jumpToMessage("old"))
     #expect(!state.roomHistoryReadable)
     var live = try #require(state.openRoom.room.timeline.messages.first)
     live.id = "new"
@@ -2373,7 +2373,7 @@ extension WorkspaceStateTests {
     await state.reload()
     await waitForTranscriptIdle(state)
     let reads = transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count
-    #expect(try await state.jumpToMessage("old"))
+    #expect(try await state.openRoom.jumpToMessage("old"))
     // Something arrived meanwhile; the jumped-to page is not readable, so nothing is read yet.
     state.rooms[0].unreadCount = 1
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == reads)
@@ -2392,7 +2392,7 @@ extension WorkspaceStateTests {
     state.rooms = [room]
     state.openRoom.room.timeline.reset(roomId: room.id)
     state.openRoom.directStream.reset(room: room)
-    #expect(try await state.jumpToMessage("old"))
+    #expect(try await state.openRoom.jumpToMessage("old"))
     #expect(state.sendMessage("New message"))
     #expect(state.openRoom.room.timeline.historicalAnchor == nil)
     #expect(state.openRoom.directStream.isBusy)
@@ -2434,7 +2434,7 @@ extension WorkspaceStateTests {
     state.rooms = [generalChannel(id: roomId)]
     state.openRoom.room.timeline.reset(roomId: roomId)
     state.openRoom.pins.reset(roomId: roomId)
-    #expect(try await state.jumpToMessage("old"))
+    #expect(try await state.openRoom.jumpToMessage("old"))
     transport.pauseDELETE = true
     let unpin = Task { try await state.setPinned(false, messageId: "old") }
     while transport.operationIDs.count < 2 {
@@ -2443,12 +2443,12 @@ extension WorkspaceStateTests {
     let revision = state.openRoom.pins.revision
     #expect(state.sendMessage("New message"))
     #expect(state.openRoom.room.timeline.historicalAnchor == nil)
-    #expect(state.isUpdatingPin("old"))
+    #expect(state.openRoom.isUpdatingPin("old"))
     #expect(state.openRoom.pins.revision == revision)
     #expect(state.openRoom.room.timeline.messages.map(\.id) == ["old"])
     transport.releasePausedRequest()
     try await unpin.value
-    #expect(!state.isUpdatingPin("old"))
+    #expect(!state.openRoom.isUpdatingPin("old"))
     await waitForTranscriptIdle(state)
     await waitForOutboundIdle(state)
     #expect(state.openRoom.room.outbox.shells.first?.content == "New message")
@@ -2473,7 +2473,7 @@ extension WorkspaceStateTests {
     state.openRoom.room.timeline.messages = [message]
     #expect(state.openRoom.thread.open(message))
     transport.pauseUnfurl = true
-    let request = Task { try await state.removeUnfurl(message, url: "https://example.com") }
+    let request = Task { try await state.openRoom.removeUnfurl(message, url: "https://example.com") }
     while transport.operationIDs.last != "post/chats/rooms/{id}/messages/{messageId}/unfurls/remove" {
       await Task.yield()
     }
@@ -2506,7 +2506,7 @@ extension WorkspaceStateTests {
     let state = WorkspaceState(auth: auth, clientProvider: { _ in nil })
     state.openRoom.room.timeline.reset(roomId: "room")
     let search = RoomSearch()
-    await state.searchMessages("  matching  ", roomId: "room", search: search)
+    await state.openRoom.searchMessages("  matching  ", roomId: "room", search: search)
     #expect(search.query == "matching", "The view must show this failure instead of treating the query as pending.")
     #expect(search.errorMessage != nil)
     #expect(!search.isLoading)
@@ -2523,7 +2523,7 @@ extension WorkspaceStateTests {
     ], visible: false)
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.jumpToMessage("parent"))
+    #expect(try await state.openRoom.jumpToMessage("parent"))
     var hit = try #require(state.transcriptMessages.first)
     hit.id = "old"
     hit.parentMessageId = "parent"
@@ -2547,7 +2547,7 @@ extension WorkspaceStateTests {
     ], visible: false)
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.jumpToMessage("parent"))
+    #expect(try await state.openRoom.jumpToMessage("parent"))
     var hit = try #require(state.transcriptMessages.first)
     hit.id = "old"
     hit.content = "Old"
@@ -2569,7 +2569,7 @@ extension WorkspaceStateTests {
     ], visible: false)
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.jumpToMessage("parent"))
+    #expect(try await state.openRoom.jumpToMessage("parent"))
     var hit = try #require(state.transcriptMessages.first)
     hit.id = "reply"
     hit.parentMessageId = "parent"
@@ -2672,7 +2672,7 @@ extension WorkspaceStateTests {
     ], visible: false)
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.jumpToMessage("parent"))
+    #expect(try await state.openRoom.jumpToMessage("parent"))
     #expect(try await state.openMessage("reply") == .opened)
     #expect(state.openRoom.thread.parent?.id == "parent")
     #expect(state.openRoom.thread.transcript.jumpTarget?.messageId == "reply")
@@ -2689,7 +2689,7 @@ extension WorkspaceStateTests {
     ], visible: false)
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.jumpToMessage("parent"))
+    #expect(try await state.openRoom.jumpToMessage("parent"))
     var hit = try #require(state.transcriptMessages.first)
     hit.id = "reply"
     hit.parentMessageId = "parent"
@@ -2714,7 +2714,7 @@ extension WorkspaceStateTests {
     ], visible: false)
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.jumpToMessage("parent"))
+    #expect(try await state.openRoom.jumpToMessage("parent"))
     var hit = try #require(state.transcriptMessages.first)
     hit.id = "old"
     hit.parentMessageId = "parent"
@@ -2736,7 +2736,7 @@ extension WorkspaceStateTests {
     ], visible: false)
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.jumpToMessage("parent"))
+    #expect(try await state.openRoom.jumpToMessage("parent"))
     // The quote's lookup answers from loaded rows: the reply is in the open Thread.
     try state.openRoom.openThread(#require(state.transcriptMessages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
@@ -2758,7 +2758,7 @@ extension WorkspaceStateTests {
     ], visible: false)
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.jumpToMessage("parent"))
+    #expect(try await state.openRoom.jumpToMessage("parent"))
     var hit = try #require(state.transcriptMessages.first)
     hit.id = "old"
     hit.parentMessageId = "parent"
@@ -2790,7 +2790,7 @@ extension WorkspaceStateTests {
     ], visible: false)
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.jumpToMessage("other"))
+    #expect(try await state.openRoom.jumpToMessage("other"))
     var hit = try #require(state.transcriptMessages.first)
     hit.id = "reply"
     hit.parentMessageId = "parent"
@@ -2807,7 +2807,7 @@ extension WorkspaceStateTests {
     ], visible: false)
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.jumpToMessage("new"))
+    #expect(try await state.openRoom.jumpToMessage("new"))
     transport.pauseGET = true
     let old = Task { try await state.openMessage("old") }
     while transport.operationIDs.count < 2 {
@@ -3321,14 +3321,14 @@ extension WorkspaceStateTests {
     defer { state.reset() }
     let source = try #require(state.openRoom.room.timeline.messages.first)
     let shell = try #require(state.openRoom.room.timeline.messages.last)
-    #expect(!state.canRetryMention(source))
-    #expect(!state.canRetryMention(MentionThoughtShell.retrying(shell, startedAt: source.createdAt)))
+    #expect(!state.openRoom.canRetryMention(source))
+    #expect(!state.openRoom.canRetryMention(MentionThoughtShell.retrying(shell, startedAt: source.createdAt)))
 
     var orphan = shell
     orphan.metadata = try .init(additionalProperties: ["mention_id": .init(unvalidatedValue: "mention_1"), "mention_failed": .init(unvalidatedValue: true)])
-    #expect(!state.canRetryMention(orphan))
+    #expect(!state.openRoom.canRetryMention(orphan))
     state.openRoom.room.timeline.messages = [shell]
-    #expect(!state.canRetryMention(shell))
+    #expect(!state.openRoom.canRetryMention(shell))
   }
 
   @Test(arguments: [false, true])
@@ -3347,9 +3347,9 @@ extension WorkspaceStateTests {
     if reply {
       state.openRoom.thread.transcript.timeline.messages = [source]
     }
-    #expect(state.canRetryMention(shell))
+    #expect(state.openRoom.canRetryMention(shell))
     state.openRoom.thread.close()
-    #expect(!state.canRetryMention(shell))
+    #expect(!state.openRoom.canRetryMention(shell))
   }
 
   @Test(arguments: [false, true])
@@ -3363,27 +3363,27 @@ extension WorkspaceStateTests {
       shell.parentMessageId = source.id
       state.openRoom.thread.transcript.timeline.messages = [shell]
     }
-    #expect(state.canRetryMention(shell))
+    #expect(state.openRoom.canRetryMention(shell))
     #expect(MentionThoughtShell(message: shell) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
 
     transport.pauseMentionRetry = true
     let now = Date(timeIntervalSince1970: 1_700_000_123.456)
-    let retry = Task { try await state.retryMention(shell, now: now) }
+    let retry = Task { try await state.openRoom.retryMention(shell, now: now) }
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
     let inFlight = reply ? state.openRoom.thread.transcript.timeline.messages.first : state.openRoom.room.timeline.messages.last
     #expect(try MentionThoughtShell(message: #require(inFlight)) == .thinking(startedAt: now))
     #expect(try !canQuoteMessage(#require(inFlight)))
-    #expect(state.pendingMentionRetries.count == 1)
+    #expect(state.openRoom.pendingMentionRetries.count == 1)
     // A second click while the POST is in flight must not send another request.
-    try await state.retryMention(shell, now: Date())
+    try await state.openRoom.retryMention(shell, now: Date())
     #expect(transport.operationIDs.filter { $0 == mentionRetryOperation }.count == 1)
     #expect(transport.operationIDs.last?.hasSuffix("/retry") == true)
 
     transport.releasePausedRequest()
     try await retry.value
-    #expect(state.pendingMentionRetries.isEmpty)
+    #expect(state.openRoom.pendingMentionRetries.isEmpty)
     #expect(state.openRoom.room.timeline.messages.first?.mentions.first?.status == .pending)
     if reply {
       #expect(state.openRoom.thread.parent?.mentions.first?.status == .pending)
@@ -3398,7 +3398,7 @@ extension WorkspaceStateTests {
     let (state, _, transport) = try await mentionRetryFixture(retryResponses: [(409, coreRejection(status: "Conflict", message: "Mention is not failed"))])
     let shell = try #require(state.openRoom.room.timeline.messages.last)
     transport.pauseMentionRetry = true
-    let retry = Task { try await state.retryMention(shell, now: Date()) }
+    let retry = Task { try await state.openRoom.retryMention(shell, now: Date()) }
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
@@ -3408,15 +3408,15 @@ extension WorkspaceStateTests {
     #expect(error == .unprocessable(statusCode: 409, message: "Mention is not failed"))
     #expect(try friendlyMessage(for: #require(error)) == "Core rejected the request (409): Mention is not failed")
     #expect(try MentionThoughtShell(message: #require(state.openRoom.room.timeline.messages.last)) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
-    #expect(state.pendingMentionRetries.isEmpty)
-    #expect(state.canRetryMention(shell))
+    #expect(state.openRoom.pendingMentionRetries.isEmpty)
+    #expect(state.openRoom.canRetryMention(shell))
   }
 
   @Test func retryResultAfterRoomChangeIsDropped() async throws {
     let (state, _, transport) = try await mentionRetryFixture(retryResponses: [(403, coreRejection(status: "Forbidden", message: "You can only retry mentions you authored"))])
     let shell = try #require(state.openRoom.room.timeline.messages.last)
     transport.pauseMentionRetry = true
-    let retry = Task { try await state.retryMention(shell, now: Date()) }
+    let retry = Task { try await state.openRoom.retryMention(shell, now: Date()) }
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
@@ -3424,8 +3424,8 @@ extension WorkspaceStateTests {
     transport.releasePausedRequest()
     try await retry.value
     #expect(state.openRoom.room.timeline.messages.isEmpty)
-    #expect(state.pendingMentionRetries.isEmpty)
-    #expect(!state.canRetryMention(shell))
+    #expect(state.openRoom.pendingMentionRetries.isEmpty)
+    #expect(!state.openRoom.canRetryMention(shell))
   }
 
   /// Row 38d: a Soko Bot's failed shell stays in the room's transcript like a coworker's (web #5617), offers
@@ -3437,11 +3437,11 @@ extension WorkspaceStateTests {
     defer { state.reset() }
     let shell = try #require(state.openRoom.room.timeline.messages.last)
     #expect(state.displayedTranscript.map(\.id) == ["source", "shell"])
-    #expect(state.canRetryMention(shell))
+    #expect(state.openRoom.canRetryMention(shell))
 
     transport.pauseMentionRetry = true
     let now = Date(timeIntervalSince1970: 1_700_000_123.456)
-    let retry = Task { try await state.retryMention(shell, now: now) }
+    let retry = Task { try await state.openRoom.retryMention(shell, now: now) }
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
@@ -3457,12 +3457,12 @@ extension WorkspaceStateTests {
   @Test func retryIsHiddenFromOtherMembers() async throws {
     let (state, _, transport) = try await mentionRetryFixture(sourceSenderId: "user_2", retryResponses: [])
     let shell = try #require(state.openRoom.room.timeline.messages.last)
-    #expect(!state.canRetryMention(shell))
+    #expect(!state.openRoom.canRetryMention(shell))
     #expect(MentionThoughtShell(message: shell) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
     // The coordinator still refuses a source it cannot see, without a request.
     var orphan = shell
     orphan.metadata = try .init(additionalProperties: ["mention_id": .init(unvalidatedValue: "mention_1"), "mention_failed": .init(unvalidatedValue: true)])
-    try await state.retryMention(orphan, now: Date())
+    try await state.openRoom.retryMention(orphan, now: Date())
     #expect(!transport.operationIDs.contains(mentionRetryOperation))
   }
 }
@@ -3478,10 +3478,10 @@ extension WorkspaceStateTests {
     state.openRoom.room.timeline.reset(roomId: roomId)
     // Settles the open room's load without a network page; the gate only asks that it is not loading.
     state.openRoom.room.timeline.failInitialLoad(message: "offline", generation: state.openRoom.room.timeline.generation)
-    #expect(state.canAttachFiles(roomId: roomId))
+    #expect(state.openRoom.canAttachFiles(roomId: roomId))
     room.isReadOnly = true
     state.rooms = [room]
-    #expect(!state.canAttachFiles(roomId: roomId))
+    #expect(!state.openRoom.canAttachFiles(roomId: roomId))
   }
 
   @Test func canSendToSelfHidesInsideSelfDirectAndOnLocalRows() throws {
@@ -3840,7 +3840,7 @@ extension WorkspaceStateTests {
     state.openRoom.room.timeline.reset(roomId: "room")
     let client = try #require(state.resolveClient())
     try await state.openRoom.room.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.openRoom.room.timeline.generation)
-    #expect(try await state.jumpToMessage("a"))
+    #expect(try await state.openRoom.jumpToMessage("a"))
     #expect(state.openRoom.room.timeline.historyGapMessageIds == ["z"])
     return (state, auth, transport)
   }
@@ -3909,7 +3909,7 @@ extension WorkspaceStateTests {
       (200, transcriptPageBody(messages: [transcriptMessage(id: "m", roomId: "room", content: "Middle"), transcriptMessage(id: "n", roomId: "room", content: "Later")], nextCursor: "m"))
     ])
     defer { state.reset() }
-    #expect(try await state.jumpToMessage("m"))
+    #expect(try await state.openRoom.jumpToMessage("m"))
     #expect(state.openRoom.room.timeline.historyGapMessageIds == ["m", "z"])
     state.setHistoryGapVisible(before: "m", true)
     state.setHistoryGapVisible(before: "z", true)

@@ -27,30 +27,40 @@ public final class OpenRoomSession: ObservableObject {
 
   /// What the session asks the workspace for: this account's client and slug, sign-out when Core rejects the
   /// session (returning whether it signed out), the read sync after a landed page, the Look before a Thread's first
-  /// page and whether any window shows the room.
+  /// page, whether any window shows the room, the room as the sidebar lists it now, the reader and their workspace.
   public struct Hooks {
     public var access: () -> (client: Client, organizationSlug: String?)?
     public var failed: (Error) -> Bool
     public var pageLanded: () async -> Void
     public var lookBeforeThread: () async -> Void
     public var isForeground: () -> Bool
+    public var listedRoom: () -> Components.Schemas.ChatRoom?
+    public var viewerId: () -> String
+    public var organizationId: () -> String?
 
     public init(
       access: @escaping () -> (client: Client, organizationSlug: String?)?,
       failed: @escaping (Error) -> Bool,
       pageLanded: @escaping () async -> Void,
       lookBeforeThread: @escaping () async -> Void,
-      isForeground: @escaping () -> Bool
+      isForeground: @escaping () -> Bool,
+      listedRoom: @escaping () -> Components.Schemas.ChatRoom?,
+      viewerId: @escaping () -> String,
+      organizationId: @escaping () -> String?
     ) {
       self.access = access
       self.failed = failed
       self.pageLanded = pageLanded
       self.lookBeforeThread = lookBeforeThread
       self.isForeground = isForeground
+      self.listedRoom = listedRoom
+      self.viewerId = viewerId
+      self.organizationId = organizationId
     }
   }
 
-  public var hooks = Hooks(access: { nil }, failed: { _ in false }, pageLanded: {}, lookBeforeThread: {}, isForeground: { false })
+  public var hooks = Hooks(access: { nil }, failed: { _ in false }, pageLanded: {}, lookBeforeThread: {}, isForeground: { false },
+                           listedRoom: { nil }, viewerId: { "" }, organizationId: { nil })
   /// The room's main Transcript: its history, Send queue, realtime updates and recovery.
   public let room: TranscriptSession
   public let thread: ThreadSession
@@ -64,7 +74,10 @@ public final class OpenRoomSession: ObservableObject {
   @Published public private(set) var messageJump: MessageJump?
   @Published public private(set) var threadOverviewRequest: ThreadOverviewRequest?
   /// Pins whose change is in flight.
-  @Published public private(set) var pendingPins: Set<String> = []
+  @Published public internal(set) var pendingPins: Set<String> = []
+  /// Failed mention shells whose retry is in flight, by the visit they started in.
+  @Published var pendingMentionRetries: Set<MentionRetry> = []
+  let service = ChatService()
   /// The newest message navigation; opening or closing the room supersedes it.
   public private(set) var navigationRequest = UUID()
   /// Whether the socket reports the room's live updates as healthy, which lets recovery poll less.
@@ -163,13 +176,26 @@ public final class OpenRoomSession: ObservableObject {
     }
   }
 
-  /// Marks a pin change for `messageId` in flight; false when one already is.
-  public func startPinChange(_ messageId: String) -> Bool {
-    pendingPins.insert(messageId).inserted
-  }
-
-  public func finishPinChange(_ messageId: String) {
-    pendingPins.remove(messageId)
+  /// Runs one Core request for this visit: without a client it throws `unauthorized(signIn)`, and a session Core
+  /// rejects is signed out. Nil when the room changed, or the task was cancelled, before Core answered; the result
+  /// or the failure belongs to a visit that is over. `outlivingTheVisit` keeps both for work whose state is not the
+  /// visit's, such as a Pending reaction.
+  func request<Value>(
+    signIn: String, outlivingTheVisit: Bool = false, _ operation: (ChatService, Client, String?) async throws -> Value
+  ) async throws -> Value? {
+    guard let access = hooks.access() else { throw ChatServiceError.unauthorized(signIn) }
+    let visit = room.timeline.generation
+    let isCurrent = { [self] in outlivingTheVisit || (visit == room.timeline.generation && !Task.isCancelled) }
+    do {
+      let value = try await operation(service, access.client, access.organizationSlug)
+      return isCurrent() ? value : nil
+    } catch {
+      if let error = error as? ChatServiceError {
+        _ = hooks.failed(error)
+      }
+      guard isCurrent() else { return nil }
+      throw error
+    }
   }
 
   public func setForeground(_ foreground: Bool) {
