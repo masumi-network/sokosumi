@@ -80,7 +80,7 @@
       }
 
       private static func row(_ message: Components.Schemas.ChatRoomMessage, retry: Bool = false) -> MessageRowView {
-        MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+        MessageRowView(message: message, row: transcriptRow(message), outbound: nil, onRetry: nil, onRemove: nil,
                        onRetryMention: retry ? {} : nil, horizontalInset: 12)
       }
 

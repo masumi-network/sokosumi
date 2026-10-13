@@ -190,7 +190,7 @@ private func realtimeCreatedBody(id: String, roomId: String, content: String) ->
 /// apply path exercises the same shapes the transcript renders.
 private func decodeRealtimeMessages(_ messages: [String]) async throws -> [Components.Schemas.ChatRoomMessage] {
   let transport = RealtimeScriptedTransport([(200, realtimePageBody(messages: messages))])
-  let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+  let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
   let response = try await client.getChatsRoomsIdMessages(
     .init(path: .init(id: roomA), query: .init(), headers: .init())
   )
@@ -206,26 +206,26 @@ private func realtimeState(
   instanceId: String = "inst_test00000001"
 ) throws -> (WorkspaceState, AuthState, RealtimeScriptedTransport) { // swiftlint:disable:this large_tuple
   let transport = RealtimeScriptedTransport(responses)
-  let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+  let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
   let suite = "sokosumi-workspace-realtime-tests.\(UUID().uuidString)"
   let defaults = UserDefaults(suiteName: suite)!
   defaults.removePersistentDomain(forName: suite)
+  let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
   let state = WorkspaceState(
+    auth: auth,
     savedRoom: SavedRoomSelection(defaults: defaults),
     instanceStore: MemoryRealtimeClientInstanceIdStore(stored: instanceId),
-    recoverySleep: recoveryTimersNeverFire
+    sleep: recoveryTimersNeverFire
   )
   state.setWindowVisible(true, window: realtimeWindow)
   state.clientResolver = { client }
-  return (state, AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport)
+  return (state, auth, transport)
 }
 
 private func waitForRealtimeIdle(_ state: WorkspaceState) async {
-  while state.sidebarRecovery.isRefreshing || state.roomsRefreshTask != nil || state.transcriptRecovery.isRefreshing || state.transcriptLoadTask != nil || state.olderPageTask != nil || state.transcriptRefreshTask != nil {
+  while state.sidebarRecovery.isRefreshing || state.roomsRefreshTask != nil || state.room.recovery.isRefreshing || state.room.loadTask != nil {
     await state.roomsRefreshTask?.value
-    await state.transcriptLoadTask?.value
-    await state.olderPageTask?.value
-    await state.transcriptRefreshTask?.value
+    _ = await state.room.loadTask?.value
     await Task.yield()
   }
   for _ in 0 ..< 1000 where state.outboundInFlight {
@@ -319,7 +319,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [])),
       (200, realtimePageBody(messages: []))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     state.setWindowVisible(false, window: realtimeWindow)
     state.applyRealtimeEnvelope(.init(eventType: .create, messageId: "new", roomId: roomA))
@@ -343,7 +343,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     #expect(state.displayedTranscript.map(\.content) == ["first"])
 
@@ -378,7 +378,7 @@ struct WorkspaceRealtimeTests {
     // active; with none active it waits (and nothing is marked read), so the script holds exactly the reads this test
     // makes however slow the run.
     state.setWindowVisible(false, window: realtimeWindow)
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     let placeholder = try #require(state.transcriptMessages.first { $0.id == replyId })
     #expect(MessageResultPreviews.descriptorIds(of: placeholder).isEmpty)
@@ -392,7 +392,7 @@ struct WorkspaceRealtimeTests {
     let reply = try #require(state.transcriptMessages.first { $0.id == replyId })
     #expect(MessageResultPreviews.descriptorIds(of: reply) == [card, locked])
 
-    let previews = try await state.messageResultPreviews(reply, auth: auth)
+    let previews = try await state.messageResultPreviews(reply)
     #expect(previews.count == 2)
     #expect(transport.operationIDs.last == "getChatRoomMessageResults")
     let request = try #require(transport.requests.last)
@@ -424,11 +424,11 @@ struct WorkspaceRealtimeTests {
     ])
     // As above: no window active, so the fallback poll takes no scripted answer.
     state.setWindowVisible(false, window: realtimeWindow)
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     let asked = try #require(state.transcriptMessages.first { $0.id == questionId })
 
-    try await state.selectProject(books, preview: preview, question: asked, auth: auth)
+    try await state.selectProject(books, preview: preview, question: asked)
     #expect(Array(transport.operationIDs.suffix(2)) == ["getChatRoomMessageResults", "post/chats/rooms/{id}/messages"])
     #expect(transport.requests.suffix(2).allSatisfy { request in
       HTTPField.Name("X-Organization-Slug").flatMap { request.headerFields[$0] } == "acme"
@@ -465,10 +465,10 @@ struct WorkspaceRealtimeTests {
     ])
     // With no window active the open room's fallback poll waits, so the script holds exactly these reads.
     state.setWindowVisible(false, window: realtimeWindow)
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
 
-    try await state.resolveSokoBotDecision(decisionId, .accept, auth: auth)
+    try await state.resolveSokoBotDecision(decisionId, .accept)
     #expect(transport.operationIDs.last == "resolveMySokoBotDecision")
     let request = try #require(transport.requests.last)
     #expect(request.path?.hasSuffix("/soko-bots/me/decisions/\(decisionId)") == true)
@@ -477,7 +477,7 @@ struct WorkspaceRealtimeTests {
     #expect(try JSONSerialization.jsonObject(with: body) as? [String: String] == ["resolution": "ACCEPT"])
 
     await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
-      try await state.resolveSokoBotDecision(decisionId, .reject, auth: auth)
+      try await state.resolveSokoBotDecision(decisionId, .reject)
     }
     #expect(transport.operationIDs.suffix(2) == ["resolveMySokoBotDecision", "resolveMySokoBotDecision"])
     #expect(try JSONSerialization.jsonObject(with: #require(transport.bodies.last)) as? [String: String] == ["resolution": "REJECT"])
@@ -497,10 +497,10 @@ struct WorkspaceRealtimeTests {
     ])
     // With no window active the open room's fallback poll waits, so the script holds exactly these reads.
     state.setWindowVisible(false, window: realtimeWindow)
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
 
-    let file = try await state.resultOutput(.jobFile(jobId: "job-1", fileId: "blob-1", download: true), fileName: "report.pdf", auth: auth)
+    let file = try await state.resultOutput(.jobFile(jobId: "job-1", fileId: "blob-1", download: true), fileName: "report.pdf")
     #expect(try Data(contentsOf: file.url) == Data("%PDF-1.7 report".utf8))
     #expect(file.url.lastPathComponent == "report.pdf")
     #expect(transport.operationIDs.last == "get/jobs/{id}/files/{fileId}/content")
@@ -509,7 +509,7 @@ struct WorkspaceRealtimeTests {
     #expect(HTTPField.Name("X-Organization-Slug").flatMap { request.headerFields[$0] } == "acme")
 
     await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
-      try await state.resultOutput(.studioAsset(projectId: "p1", assetId: "a1"), fileName: "fox.png", auth: auth)
+      try await state.resultOutput(.studioAsset(projectId: "p1", assetId: "a1"), fileName: "fox.png")
     }
     #expect(transport.operationIDs.last == "get/projects/{id}/image-studio/assets/{assetId}/content")
     state.reset()
@@ -523,7 +523,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-446655440716", roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     #expect(state.rooms.first?.groupName == nil)
 
@@ -558,7 +558,7 @@ struct WorkspaceRealtimeTests {
       ])),
       (200, realtimeReadBody(id: roomA))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
 
     let edited = try await decodeRealtimeMessages([
@@ -587,7 +587,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeRoomsBody(ids: [roomA, roomB])),
       (200, realtimeRoomsBody(ids: [roomA, roomB]))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
 
     let foreign = try await decodeRealtimeMessages([
@@ -617,14 +617,14 @@ struct WorkspaceRealtimeTests {
       (200, realtimeReadBody(id: roomA)),
       (201, realtimeCreatedBody(id: confirmedId, roomId: roomA, content: "hello"))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     transport.pausePOST = true
-    state.sendMessage("hello", auth: auth)
+    state.sendMessage("hello")
     for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/messages") {
       await Task.yield()
     }
-    let turnId = try #require(state.outboundShells.first?.clientTurnId)
+    let turnId = try #require(state.room.outbox.shells.first?.clientTurnId)
     #expect(state.displayedTranscript.map(\.content) == ["hello"])
 
     // The Ably create for our own send carries the same client turn id.
@@ -637,7 +637,7 @@ struct WorkspaceRealtimeTests {
       )
     ])
     state.applyRealtimeMessage(roomId: roomA, eventType: .create, message: incoming[0])
-    #expect(state.outboundShells.isEmpty)
+    #expect(state.room.outbox.shells.isEmpty)
     #expect(state.displayedTranscript.map(\.content) == ["hello"])
     #expect(state.transcriptMessages.map(\.id) == [confirmedId])
 
@@ -658,11 +658,11 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: messageId, roomId: roomA, content: "arrived")])),
       (200, realtimeReadBody(id: roomA))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     transport.pauseNextMessagesGET = true
     // Both actions queue before either page request starts.
-    state.loadOlderMessages(auth: auth)
+    state.loadOlderMessages()
     state.applyRealtimeEnvelope(.init(eventType: .create, messageId: messageId, roomId: roomA))
     await transport.waitForMessagesGET()
     transport.releaseMessagesGET()
@@ -687,7 +687,7 @@ struct WorkspaceRealtimeTests {
       ])),
       (200, realtimeReadBody(id: roomA))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     if openParent {
       try state.thread.open(#require(state.transcriptMessages.first))
@@ -720,7 +720,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeReadBody(id: roomA))
     ])
     transport.pauseNextMessagesGET = true
-    await state.reload(auth: auth)
+    await state.reload()
     for _ in 0 ..< 1000 where !transport.operationIDs.contains("get/chats/rooms/{id}/messages") {
       await Task.yield()
     }
@@ -759,7 +759,7 @@ struct WorkspaceRealtimeTests {
       ])),
       (200, realtimeReadBody(id: roomA))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     transport.pauseNextMessagesGET = true
     state.applyRealtimeEnvelope(
@@ -769,7 +769,7 @@ struct WorkspaceRealtimeTests {
       await Task.yield()
     }
     let org = try #require(state.options.first { $0.id == "org_1" })
-    await state.switchRooms(auth: auth, option: org)
+    await state.switchRooms(option: org)
     #expect(state.selectionId == "personal")
     #expect(state.switchError != nil)
     transport.releaseMessagesGET()
@@ -792,7 +792,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: targetId, roomId: roomA, content: "bye")])),
       (200, realtimeReadBody(id: roomA))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     #expect(state.displayedTranscript.map(\.id) == [targetId])
     state.applyRealtimeEnvelope(
@@ -819,7 +819,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeReadBody(id: roomA))
     ])
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     #expect(state.selectedRoomId == roomA)
 
@@ -848,7 +848,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeRoomsBody(ids: [roomA, roomC]))
     ])
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     let loaded = transport.operationIDs.count
 
@@ -890,12 +890,12 @@ struct WorkspaceRealtimeTests {
       (200, realtimeRoomsBody(ids: [roomB])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     let personal = try #require(state.collectionsLoadContext)
 
     transport.pauseNextRoomsGET = true
-    let refresh = Task { await state.refreshRooms(auth: auth) }
+    let refresh = Task { await state.refreshRooms() }
     await transport.waitForRoomsGET()
     #expect(state.roomsLoading)
     #expect(state.collectionsLoadContext == personal)
@@ -905,7 +905,7 @@ struct WorkspaceRealtimeTests {
     #expect(state.collectionsLoadContext == personal)
 
     let org = try #require(state.options.first { $0.id == "org_1" })
-    await state.switchRooms(auth: auth, option: org)
+    await state.switchRooms(option: org)
     await waitForRealtimeIdle(state)
     let organization = try #require(state.collectionsLoadContext)
     #expect(organization != personal && organization == state.compositionContext)
@@ -922,7 +922,7 @@ struct WorkspaceRealtimeTests {
       (200, #"{"data":[],"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
     ])
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     let loaded = transport.operationIDs.count
 
@@ -945,7 +945,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeReadBody(id: roomA))
     ])
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     // The window was visible before the socket existed, so the connection is
     // told at connect rather than waiting for the next change.
@@ -966,10 +966,10 @@ struct WorkspaceRealtimeTests {
       (200, realtimeReadBody(id: roomA)),
       (200, realtimeRoomsBody(ids: [roomA]))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     transport.pauseNextRoomsGET = true
-    let refresh = Task { await state.refreshRooms(auth: auth) }
+    let refresh = Task { await state.refreshRooms() }
     await transport.waitForRoomsGET()
     state.applyMembershipRevoked(roomId: roomA)
     transport.releaseRoomsGET()
@@ -990,11 +990,11 @@ struct WorkspaceRealtimeTests {
       (200, realtimeRoomsBody(ids: [roomB]))
     ])
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     let org = try #require(state.options.first { $0.id == "org_1" })
     transport.pauseNextRoomsGET = true
-    let switching = Task { await state.switchRooms(auth: auth, option: org) }
+    let switching = Task { await state.switchRooms(option: org) }
     await transport.waitForRoomsGET()
     state.applyMembershipRevoked(roomId: roomB)
     transport.releaseRoomsGET()
@@ -1017,7 +1017,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [])), (200, realtimePageBody(messages: []))
     ])
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     let initialRequests = transport.operationIDs.count
     let initialAttention = state.threadAttentionRevision
@@ -1025,10 +1025,10 @@ struct WorkspaceRealtimeTests {
     fake.deliver(.roomHealth(roomId: roomA, healthy: true, continuityLost: false))
     // A following pin is a visible barrier for the ordered event stream.
     fake.deliver(.pin(roomId: roomA, messageId: "barrier", isPinned: true, count: 1))
-    for _ in 0 ..< 1000 where state.timeline.pinOverrides["barrier"] != true {
+    for _ in 0 ..< 1000 where state.room.timeline.pinOverrides["barrier"] != true {
       await Task.yield()
     }
-    #expect(state.timeline.pinOverrides["barrier"] == true)
+    #expect(state.room.timeline.pinOverrides["barrier"] == true)
     #expect(state.threadAttentionRevision == initialAttention)
     await waitForRealtimeIdle(state)
     #expect(transport.operationIDs.count == initialRequests)
@@ -1036,10 +1036,10 @@ struct WorkspaceRealtimeTests {
     fake.deliver(.roomHealth(roomId: roomA, healthy: false, continuityLost: true))
     fake.deliver(.roomHealth(roomId: roomA, healthy: true, continuityLost: true))
     fake.deliver(.pin(roomId: roomA, messageId: "barrier", isPinned: false, count: 0))
-    for _ in 0 ..< 1000 where state.timeline.pinOverrides["barrier"] != false {
+    for _ in 0 ..< 1000 where state.room.timeline.pinOverrides["barrier"] != false {
       await Task.yield()
     }
-    #expect(state.timeline.pinOverrides["barrier"] == false)
+    #expect(state.room.timeline.pinOverrides["barrier"] == false)
     #expect(state.threadAttentionRevision == initialAttention + 2)
     await waitForRealtimeIdle(state)
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 3)
@@ -1061,7 +1061,7 @@ struct WorkspaceRealtimeTests {
       )])),
       (200, realtimeReadBody(id: roomA))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     state.applyMembershipRevoked(roomId: roomB)
     #expect(state.rooms.map(\.id) == [roomA])
@@ -1084,13 +1084,13 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     let live = try await decodeRealtimeMessages([
       realtimeMessageJSON(id: liveId, roomId: roomA, content: "in flight", createdAt: "2026-01-01T00:00:01.000Z")
     ])
     let room = try #require(state.rooms.first)
-    state.openRoom(room, auth: auth)
+    state.openRoom(room)
     // The load task has not run yet: this live row lands first, and the
     // resolving history GET must merge around it, not wipe it.
     state.applyRealtimeMessage(roomId: roomA, eventType: .create, message: live[0])
@@ -1100,8 +1100,8 @@ struct WorkspaceRealtimeTests {
 
   @Test func instanceIdIsStableAcrossStates() {
     let store = MemoryRealtimeClientInstanceIdStore()
-    let first = WorkspaceState(instanceStore: store)
-    let second = WorkspaceState(instanceStore: store)
+    let first = WorkspaceState(auth: signedOutAuth(), instanceStore: store)
+    let second = WorkspaceState(auth: signedOutAuth(), instanceStore: store)
     #expect(first.realtimeClientInstanceId == second.realtimeClientInstanceId)
     #expect(first.realtimeClientInstanceId.count == 16)
   }
@@ -1120,7 +1120,7 @@ struct WorkspaceRealtimeTests {
       instanceId: "inst_personal0001"
     )
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     let provider = try #require(fake.tokenProvider)
     let token = try await provider(nil)
@@ -1152,7 +1152,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeTokenBody())
     ])
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
 
     #expect(fake.connectCount == 1)
@@ -1169,16 +1169,16 @@ struct WorkspaceRealtimeTests {
     #expect(state.displayedTranscript.map(\.content) == ["first", "over the wire"])
 
     fake.deliver(.pin(roomId: roomA, messageId: liveId, isPinned: true, count: 1))
-    for _ in 0 ..< 1000 where state.timeline.pinOverrides[liveId] != true {
+    for _ in 0 ..< 1000 where state.room.timeline.pinOverrides[liveId] != true {
       await Task.yield()
     }
-    #expect(state.timeline.pinOverrides[liveId] == true)
+    #expect(state.room.timeline.pinOverrides[liveId] == true)
     #expect(state.rooms.first?.pinnedMessageCount == 1)
     fake.deliver(.pin(roomId: roomA, messageId: liveId, isPinned: false, count: 0))
-    for _ in 0 ..< 1000 where state.timeline.pinOverrides[liveId] != false {
+    for _ in 0 ..< 1000 where state.room.timeline.pinOverrides[liveId] != false {
       await Task.yield()
     }
-    #expect(state.timeline.pinOverrides[liveId] == false)
+    #expect(state.room.timeline.pinOverrides[liveId] == false)
     #expect(state.rooms.first?.pinnedMessageCount == 0)
 
     fake.deliver(.revoked(roomId: roomA))
@@ -1189,7 +1189,7 @@ struct WorkspaceRealtimeTests {
     #expect(state.selectedRoomId == nil)
     #expect(state.transcriptRoomId == nil)
     #expect(fake.watchedRooms == [roomA, nil])
-    #expect(state.timeline.pinOverrides.isEmpty)
+    #expect(state.room.timeline.pinOverrides.isEmpty)
 
     state.reset()
     #expect(fake.disconnectCount == 1)
@@ -1209,12 +1209,12 @@ struct WorkspaceRealtimeTests {
       (200, realtimeReadBody(id: roomB))
     ])
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     #expect(fake.watchedRooms == [roomA])
 
     let org = try #require(state.options.first { $0.id == "org_1" })
-    await state.switchRooms(auth: auth, option: org)
+    await state.switchRooms(option: org)
     await waitForRealtimeIdle(state)
 
     #expect(state.selectionId == "org_1")
@@ -1237,7 +1237,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeRoomsBody(ids: []))
     ])
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     // Personal workspace: nothing to enter, nothing to publish, DTO fallback wins.
     #expect(fake.presenceOrganizations.isEmpty)
@@ -1245,7 +1245,7 @@ struct WorkspaceRealtimeTests {
     #expect(state.presence(forUser: "alice", fallback: .afk) == .afk)
 
     let org = try #require(state.options.first { $0.id == "org_1" })
-    await state.switchRooms(auth: auth, option: org)
+    await state.switchRooms(option: org)
     await waitForRealtimeIdle(state)
     #expect(fake.presenceOrganizations == ["org_1"])
     #expect(fake.publishedPresence.count == 1)
@@ -1267,7 +1267,7 @@ struct WorkspaceRealtimeTests {
     #expect(state.presence(for: coworker) == .online)
 
     let personal = try #require(state.options.first { $0.workspace == .personal })
-    await state.switchRooms(auth: auth, option: personal)
+    await state.switchRooms(option: personal)
     await waitForRealtimeIdle(state)
     #expect(fake.presenceOrganizations == ["org_1", nil])
     #expect(state.presence.byUserId.isEmpty)
@@ -1281,7 +1281,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeRoomsBody(ids: []))
     ])
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     #expect(fake.presenceOrganizations == ["org_1"])
     #expect(fake.publishedPresence.count == 1)
@@ -1326,7 +1326,7 @@ struct WorkspaceRealtimeTests {
     let (state, auth, _) = try realtimeState(notificationLoadScript)
     state.realtimeConnectionFactory = { fake }
     state.notificationPresenter = presenter
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     let arrival = ChatNotificationEvent(id: "n1", roomId: roomB, messageKey: "Notifications.Chat.mentioned", authorName: "Ada", roomName: "design",
                                         createdAt: Date(timeIntervalSince1970: 100))
@@ -1367,10 +1367,10 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
     ])
     state.notificationPresenter = presenter
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     #expect(state.selectedRoomId == roomA)
-    let result = try await state.openNotification(.init(id: "n1", roomId: roomB), auth: auth)
+    let result = try await state.openNotification(.init(id: "n1", roomId: roomB))
     await waitForRealtimeIdle(state)
     #expect(result == .opened && state.selectedRoomId == roomB && state.transcriptRoomId == roomB)
     #expect(presenter.dismissed == ["sokosumi-room:\(roomB)"])
@@ -1382,7 +1382,7 @@ struct WorkspaceRealtimeTests {
     let presenter = FakeNotificationPresenter()
     let (state, auth, _) = try realtimeState(notificationLoadScript)
     state.notificationPresenter = presenter
-    let result = try await state.openNotification(.init(id: "n1", roomId: roomB), auth: auth)
+    let result = try await state.openNotification(.init(id: "n1", roomId: roomB))
     #expect(result == .unavailable && presenter.dismissed == ["sokosumi-room:\(roomB)"])
   }
 
@@ -1394,10 +1394,10 @@ struct WorkspaceRealtimeTests {
       (200, realtimeRoomsBody(ids: ["550e8400-e29b-41d4-a716-446655440702"])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: "550e8400-e29b-41d4-a716-446655440702"))
     ])
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     let orgRoom = "550e8400-e29b-41d4-a716-446655440702"
-    let result = try await state.openNotification(.init(id: "n2", roomId: orgRoom, workspaceId: "11111111-1111-7111-8111-111111111111"), auth: auth)
+    let result = try await state.openNotification(.init(id: "n2", roomId: orgRoom, workspaceId: "11111111-1111-7111-8111-111111111111"))
     await waitForRealtimeIdle(state)
     #expect(result == .opened && state.selectionId == "org_1" && state.selectedRoomId == orgRoom)
     let operations = transport.operationIDs
@@ -1415,7 +1415,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
     ])
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     #expect(fake.typingLog == ["watch \(roomA)"])
     #expect(state.typing.roomId == roomA)
@@ -1442,13 +1442,13 @@ struct WorkspaceRealtimeTests {
     #expect(fake.typingLog.suffix(2) == ["started \(roomA)", "stopped \(roomA)"] && fake.typingLog.count == 6)
 
     state.composerEdited(roomId: roomA, hasText: true, now: typingOrigin.addingTimeInterval(14))
-    #expect(state.sendMessage("hello", auth: auth))
+    #expect(state.sendMessage("hello"))
     await waitForRealtimeIdle(state)
     #expect(fake.typingLog.suffix(2) == ["started \(roomA)", "stopped \(roomA)"] && fake.typingLog.count == 8)
 
     // Leaving tells the room before its channel goes; the next room starts unannounced.
     state.composerEdited(roomId: roomA, hasText: true, now: typingOrigin.addingTimeInterval(15))
-    state.selectRoom(roomB, auth: auth)
+    state.selectRoom(roomB)
     await waitForRealtimeIdle(state)
     #expect(fake.typingLog.suffix(3) == ["started \(roomA)", "stopped \(roomA)", "watch \(roomB)"])
     state.composerEdited(roomId: roomB, hasText: true, now: typingOrigin.addingTimeInterval(16))
@@ -1482,7 +1482,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
     ])
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
 
     // Through the socket's ordered stream: another room's typist and the reader never show.
@@ -1515,7 +1515,7 @@ struct WorkspaceRealtimeTests {
 
     state.applyTyping(roomId: roomA, signal: .init(userId: "pat", state: .started), now: typingOrigin.addingTimeInterval(20))
     #expect(state.typing.typistIds == ["pat"])
-    state.selectRoom(roomB, auth: auth)
+    state.selectRoom(roomB)
     #expect(state.typing.typistIds.isEmpty && state.typing.roomId == roomB)
     await waitForRealtimeIdle(state)
     state.reset()
@@ -1532,7 +1532,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
     ])
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
 
     // The payload is the floor; the viewer is never a reader of their own room.
@@ -1550,7 +1550,7 @@ struct WorkspaceRealtimeTests {
     state.applyRoomRead(.init(roomId: roomA, userId: "kim", lastReadAt: readAt(minutes: 1)))
     #expect(state.roomReadReceipts.readers.first?.lastReadAt == readAt(minutes: 10))
 
-    state.selectRoom(roomB, auth: auth)
+    state.selectRoom(roomB)
     #expect(state.roomReads.roomId == roomB && state.roomReads.marks.isEmpty)
     await waitForRealtimeIdle(state)
     #expect(state.roomReadReceipts.readers.map(\.participant.id) == ["pat"])
@@ -1567,7 +1567,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA))
     ])
     state.realtimeConnectionFactory = { fake }
-    await state.reload(auth: auth)
+    await state.reload()
     await waitForRealtimeIdle(state)
     let open = try #require(state.rooms.first { $0.id == roomA })
     let other = try #require(state.rooms.first { $0.id == roomB })

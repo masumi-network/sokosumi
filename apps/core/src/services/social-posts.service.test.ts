@@ -389,51 +389,67 @@ describe("social posts service", () => {
     },
   );
 
-  it("requires media for an instagram post", async () => {
-    socialConnectionFindFirstMock.mockResolvedValue({
-      ...activeConnection,
-      provider: "instagram",
-    });
-    const { createSocialPost } = await loadService();
+  it.each(["instagram", "tiktok", "youtube"] as const)(
+    "saves a %s draft without media",
+    async (provider) => {
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        provider,
+      });
+      const { createSocialPost } = await loadService();
 
-    await expect(
-      createSocialPost({
+      await createSocialPost({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
         organizationId: null,
         userId: USER_ID,
         socialConnectionId: SOCIAL_CONNECTION_ID,
         text: "Hello",
-      }),
-    ).rejects.toMatchObject({
-      status: 400,
-      message: "Instagram requires at least one image or video",
-    });
-    expect(socialPostCreateMock).not.toHaveBeenCalled();
-  });
+      });
 
-  it("requires a video for a youtube post", async () => {
-    socialConnectionFindFirstMock.mockResolvedValue({
-      ...activeConnection,
-      provider: "youtube",
-    });
-    const { createSocialPost } = await loadService();
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            provider,
+            text: "Hello",
+            status: "DRAFT",
+          }),
+        }),
+      );
+    },
+  );
 
-    await expect(
-      createSocialPost({
-        projectId: PROJECT_ID,
-        workspaceId: WORKSPACE_ID,
-        organizationId: null,
-        userId: USER_ID,
-        socialConnectionId: SOCIAL_CONNECTION_ID,
-        text: "Hello",
-      }),
-    ).rejects.toMatchObject({
-      status: 400,
-      message: "YouTube requires a video",
-    });
-    expect(socialPostCreateMock).not.toHaveBeenCalled();
-  });
+  it.each([
+    ["instagram", "Instagram requires at least one image or video"],
+    ["tiktok", "TikTok requires a video"],
+    ["youtube", "YouTube requires a video"],
+  ] as const)(
+    "still requires media to schedule a %s post",
+    async (provider, message) => {
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        provider,
+      });
+      const { createSocialPost } = await loadService();
+
+      await expect(
+        createSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          text: "Hello",
+          scheduledAt: FUTURE,
+          timezone: "Europe/Zurich",
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message,
+      });
+      expect(socialPostCreateMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("requires text for a linkedin post", async () => {
     socialConnectionFindFirstMock.mockResolvedValue({
@@ -459,12 +475,40 @@ describe("social posts service", () => {
     expect(socialPostCreateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects a draft whose stored content cannot move to the new provider", async () => {
+  it("moves a text draft onto Instagram without media", async () => {
     const instagramConnection = {
       ...activeConnection,
       provider: "instagram",
     };
     socialConnectionFindFirstMock.mockResolvedValue(instagramConnection);
+    const { updateSocialPost } = await loadService();
+
+    await updateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      postId: POST_ID,
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      revision: 0,
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          provider: "instagram",
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+        }),
+      }),
+    );
+  });
+
+  it("refuses to strip media from a scheduled Instagram post", async () => {
+    socialPostFindFirstMock.mockResolvedValue({
+      ...scheduledPost,
+      provider: "instagram",
+      media: [JPEG_REF],
+    });
     const { updateSocialPost } = await loadService();
 
     await expect(
@@ -474,8 +518,8 @@ describe("social posts service", () => {
         organizationId: null,
         userId: USER_ID,
         postId: POST_ID,
-        socialConnectionId: SOCIAL_CONNECTION_ID,
-        revision: 0,
+        media: [],
+        revision: 1,
       }),
     ).rejects.toMatchObject({
       status: 400,
@@ -1486,6 +1530,37 @@ describe("social posts service", () => {
         data: expect.objectContaining({
           scheduledByUserId: USER_ID,
           scheduledByCoworkerId: "cow_123",
+        }),
+      }),
+    );
+  });
+
+  it("clears retry state when a scheduled post is edited after a failed attempt", async () => {
+    socialPostFindFirstMock.mockResolvedValue({
+      ...scheduledPost,
+      lastError: "X is unavailable",
+      attemptCount: 2,
+      nextAttemptAt: FUTURE,
+    });
+    const { updateSocialPost } = await loadService();
+
+    await updateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: scheduledPost.revision,
+      text: "Fixed copy",
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          text: "Fixed copy",
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
         }),
       }),
     );

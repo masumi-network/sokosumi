@@ -8,7 +8,6 @@ struct RoomDetailsView: View {
   let room: Components.Schemas.ChatRoom
   let close: () -> Void
   @EnvironmentObject private var workspaces: WorkspaceState
-  @EnvironmentObject private var auth: AuthState
   @Environment(RoomEditSheets.self) private var roomEditSheets: RoomEditSheets?
   @State private var errorMessage: String?
   @State private var directRequestId: UUID?
@@ -176,7 +175,7 @@ struct RoomDetailsView: View {
           directRequestId = requestId
           Task { @MainActor in
             do {
-              _ = try await workspaces.openParticipantDirect(member.id, auth: auth)
+              _ = try await workspaces.openParticipantDirect(member.id)
             } catch {
               if directRequestId == requestId {
                 errorMessage = friendlyMessage(for: error)
@@ -262,7 +261,7 @@ struct RoomDetailsView: View {
     let roomId = room.id
     Task { @MainActor in
       do {
-        let removed = try await workspaces.removeChannelMember(member.id, roomId: roomId, context: context, auth: auth)
+        let removed = try await workspaces.removeChannelMember(member.id, roomId: roomId, context: context)
         if removed {
           post(.removed(member.id, name: member.profile.name))
         } else {
@@ -284,7 +283,7 @@ struct RoomDetailsView: View {
     let roomId = room.id
     Task { @MainActor in
       do {
-        if try await !workspaces.addChannelMembers([member], roomId: roomId, context: context, auth: auth) {
+        if try await !workspaces.addChannelMembers([member], roomId: roomId, context: context) {
           errorMessage = "Couldn’t undo. Try again."
         }
       } catch is CancellationError {

@@ -51,8 +51,8 @@
     static func heldClient() throws -> Client {
       let configuration = URLSessionConfiguration.ephemeral
       configuration.protocolClasses = [EditRequestProtocol.self]
-      return try Client.connecting(to: #require(URL(string: "https://edit-fixture.invalid/v1")),
-                                   session: URLSession(configuration: configuration))
+      return try Client.core(baseURL: #require(URL(string: "https://edit-fixture.invalid/v1")),
+                             session: URLSession(configuration: configuration))
     }
 
     func waitForDraft(_ draft: String) async throws {

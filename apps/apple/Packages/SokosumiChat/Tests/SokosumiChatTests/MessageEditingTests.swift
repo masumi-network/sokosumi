@@ -152,7 +152,7 @@ extension MessageEditingTests {
     editing.start(message(), userId: "user")
     editing.draft = "Changed"
     let transport = PausedEditTransport()
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let save = Task { try await editing.save(client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     #expect(editing.isSaving)

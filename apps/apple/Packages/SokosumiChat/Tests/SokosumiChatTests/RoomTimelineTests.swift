@@ -32,7 +32,7 @@ private actor PausedHistoryTransport: ClientTransport {
 
 /// Scripted pages whose `heldRequest` (1-based) waits for `release()`, so a
 /// second page can be requested while one is in flight.
-private actor HeldPageTransport: ClientTransport {
+actor HeldPageTransport: ClientTransport {
   private var responses: [(Int, String)]
   private let heldRequest: Int
   private(set) var paths: [String] = []
@@ -74,7 +74,7 @@ private actor HeldPageTransport: ClientTransport {
 @MainActor
 struct RoomTimelineTests {
   private func client(_ transport: some ClientTransport) -> Client {
-    Client.connecting(to: URL(string: "https://core.example/v1")!, transport: transport)
+    Client.core(baseURL: URL(string: "https://core.example/v1")!, transport: transport)
   }
 
   private func row(_ id: String, content: String, date: String = testTimestamp) -> String {

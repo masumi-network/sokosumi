@@ -28,7 +28,8 @@ public final class RoomTimeline: ObservableObject {
   @Published public var boundaryLoads = TranscriptBoundaryLoads()
   /// A latest refresh (realtime envelope, recovery poll) that arrived while a
   /// gap page held the timeline. It runs through the latest-page path once the
-  /// gap settles, so a live message is not lost behind an auto-loaded gap.
+  /// gap settles, so a live message is not lost behind an auto-loaded gap, and
+  /// the gap page's caller hears when it applied (`heldRefreshLanded`).
   public private(set) var pendingLatestRefresh = false
 
   private var activePage: Page?
@@ -91,12 +92,14 @@ public final class RoomTimeline: ObservableObject {
   /// Commit only to the room generation that requested this page. Merge
   /// by ID in chronological order, so overlapping pages cannot duplicate
   /// rows and a live message received during loading remains visible.
+  /// `heldRefreshLanded` runs after a gap page's held latest refresh applied.
   @discardableResult
   public func loadPage(
     _ kind: Page,
     client: Client,
     organizationSlug: String?,
-    generation expectedGeneration: Int
+    generation expectedGeneration: Int,
+    heldRefreshLanded: () async -> Void = {}
   ) async throws -> Bool {
     guard generation == expectedGeneration else { return false }
     if isFillingGap, kind == .latest {
@@ -113,7 +116,9 @@ public final class RoomTimeline: ObservableObject {
       // The gap settled either way; the refresh it held back runs now, through
       // the same latest-page path a poll would take (its failure is that page's).
       pendingLatestRefresh = false
-      _ = try? await loadPage(.latest, client: client, organizationSlug: organizationSlug, generation: expectedGeneration)
+      if await (try? loadPage(.latest, client: client, organizationSlug: organizationSlug, generation: expectedGeneration)) == true {
+        await heldRefreshLanded()
+      }
     }
     return try result.get()
   }

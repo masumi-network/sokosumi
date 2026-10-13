@@ -69,13 +69,13 @@
     "pg": "8.23.1"
   },
   "devDependencies": {
-    "@types/node": "24.19.1",
+    "@types/node": "24.19.2",
     "@types/pg": "8.23.1",
     "@typescript/typescript6": "6.0.2",
-    "dotenv": "18.0.6",
+    "dotenv": "18.0.7",
     "prisma": "7.10.0",
     "tsx": "4.23.15",
     "typescript": "7.0.2",
-    "vitest": "5.0.3"
+    "vitest": "5.0.4"
   }
 }

@@ -5,6 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import en from "@/../messages/en.json";
@@ -146,11 +147,16 @@ function response(accountValue = account, nextCursor: string | null = null) {
     },
   };
 }
-function renderStatistics(searchParams = "") {
+function renderStatistics(
+  searchParams = "",
+  scope: { projectId: string } | { workspaceId: string } = {
+    projectId: "project-1",
+  },
+) {
   return render(
     <TestQueryProvider>
       <NuqsTestingAdapter searchParams={searchParams}>
-        <SocialPostStatistics projectId="project-1" />
+        <SocialPostStatistics {...scope} />
       </NuqsTestingAdapter>
     </TestQueryProvider>,
   );
@@ -191,6 +197,11 @@ describe("SocialPostStatistics account history", () => {
       "h-11",
       "md:h-8",
     );
+    for (const days of [7, 30, 90]) {
+      expect(
+        screen.getByRole("button", { name: `Last ${days} days` }),
+      ).toHaveClass("h-11", "md:h-8");
+    }
     expect(
       screen.getByRole("heading", { name: "Posting consistency" }),
     ).toBeVisible();
@@ -210,6 +221,7 @@ describe("SocialPostStatistics account history", () => {
     expect(
       screen.getByRole("combobox", { name: "Connected accounts" }),
     ).toBeVisible();
+    expect(screen.getByRole("button", { name: "More actions" })).toBeVisible();
     expect(screen.getByText("Link clicks")).toBeVisible();
     expect(
       screen.getByRole("link", { name: "Open post on platform" }),
@@ -217,6 +229,24 @@ describe("SocialPostStatistics account history", () => {
     expect(
       screen.queryByRole("button", { name: /edit|schedule|post now/i }),
     ).not.toBeInTheDocument();
+  });
+  it("offers CSV and spreadsheet downloads for the selected filters", async () => {
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "More actions" }));
+    expect(
+      await screen.findByRole("menuitem", { name: "Export CSV" }),
+    ).toHaveAttribute(
+      "href",
+      expect.stringContaining(
+        "/api/projects/project-1/social-statistics/export?",
+      ),
+    );
+    expect(
+      screen.getByRole("menuitem", { name: "Export spreadsheet" }),
+    ).toHaveAttribute("href", expect.stringContaining("format=xlsx"));
   });
   it("hides the trend chart when the selected period has no daily points", async () => {
     mocks.fetch.mockResolvedValue({
@@ -498,5 +528,26 @@ describe("SocialPostStatistics account history", () => {
         .getByRole("option", { name: "Brand page" })
         .querySelectorAll("[data-testid='social-post-provider-icon']"),
     ).toHaveLength(1);
+  });
+
+  it("reads workspace statistics and hides Sync on the all-projects view", async () => {
+    renderStatistics("", { workspaceId: "workspace-1" });
+    expect(await screen.findByText(post.text)).toBeVisible();
+    const url = new URL(mocks.fetch.mock.calls[0][0], "https://web.test");
+    expect(url.pathname).toBe("/api/workspaces/workspace-1/social-statistics");
+    expect(
+      screen.queryByRole("button", { name: /sync/i }),
+    ).not.toBeInTheDocument();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "More actions" }));
+    expect(
+      await screen.findByRole("menuitem", { name: "Export CSV" }),
+    ).toHaveAttribute(
+      "href",
+      expect.stringContaining(
+        "/api/workspaces/workspace-1/social-statistics/export?",
+      ),
+    );
   });
 });

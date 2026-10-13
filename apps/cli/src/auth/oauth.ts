@@ -58,7 +58,7 @@ export interface BrowserLoginOptions extends OAuthTokenRequestOptions {
   serverFactory?: () => Server;
 }
 
-export class OAuthTokenError extends Error {
+class OAuthTokenError extends Error {
   readonly status: number;
   readonly body: unknown;
 
@@ -76,7 +76,7 @@ export function createPkcePair(): PkcePair {
   return { verifier, challenge };
 }
 
-export const DEFAULT_OAUTH_SCOPE = "openid sokosumi:api offline_access";
+const DEFAULT_OAUTH_SCOPE = "openid sokosumi:api offline_access";
 
 function trimBaseUrl(value: string | undefined, label: string): string {
   const base = String(value || "")

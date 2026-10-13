@@ -60,12 +60,13 @@
       func messageLinkWaitsForPreparedTranscript(thread: Bool) async throws {
         let clock = ManualJumpMarkClock()
         let state = try Self.fixtureState(thread: thread, media: false, clock: clock)
+        #expect(!clock.wasRead, "Only the jump reads the clock, so the check below proves it landed.")
         let auth = AuthState()
         if thread {
-          state.thread.requestJump(to: "fixture-2")
-          #expect(state.thread.jumpTarget?.messageId == "fixture-2")
+          state.thread.transcript.requestJump(to: "fixture-2")
+          #expect(state.thread.transcript.jumpTarget?.messageId == "fixture-2")
         } else {
-          #expect(try await state.openMessage("fixture-2", auth: auth) == .opened)
+          #expect(try await state.openMessage("fixture-2") == .opened)
         }
         let host = NSHostingView(rootView: Group {
           if thread {
@@ -85,7 +86,7 @@
         }
         #expect(clock.wasRead, "The jump landed on the test clock.")
         if thread {
-          #expect(state.thread.jumpTarget?.messageId == "fixture-2")
+          #expect(state.thread.transcript.jumpTarget?.messageId == "fixture-2")
         } else {
           #expect(state.messageJump == nil)
         }
@@ -145,20 +146,20 @@
       }
 
       /// A hundred tall text messages in room `fixture`; with `thread`, the first opens a thread holding the rest.
-      /// `clock`, when given, is the Thread's clock; the view under test needs it as its `jumpMarkClock` too.
+      /// `clock`, when given, is the transcripts' clock; the view under test needs it as its `jumpMarkClock` too.
       static func fixtureState(thread: Bool, media: Bool, clock: ManualJumpMarkClock? = nil) throws -> WorkspaceState {
         let state = WorkspaceState(
-          clientProvider: { _ in Client.connecting(to: URL(string: "https://example.com")!) },
-          threadNow: clock.map { clock in { MainActor.assumeIsolated { clock.now } } } ?? Date.init
+          clientProvider: { _ in Client.core(baseURL: URL(string: "https://example.com")!) },
+          now: clock.map { clock in { MainActor.assumeIsolated { clock.now } } } ?? Date.init
         )
-        state.timeline.reset(roomId: "fixture")
-        state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-        state.timeline.messages = fixtureMessages(media: media)
+        state.room.timeline.reset(roomId: "fixture")
+        state.room.timeline.failInitialLoad(message: "", generation: state.room.timeline.generation)
+        state.room.timeline.messages = fixtureMessages(media: media)
         if thread {
-          let parent = try #require(state.timeline.messages.first)
+          let parent = try #require(state.room.timeline.messages.first)
           state.thread.open(parent)
-          state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
-          state.thread.timeline.messages = state.timeline.messages.dropFirst().map { message in
+          state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
+          state.thread.transcript.timeline.messages = state.room.timeline.messages.dropFirst().map { message in
             var reply = message
             reply.parentMessageId = parent.id
             return reply

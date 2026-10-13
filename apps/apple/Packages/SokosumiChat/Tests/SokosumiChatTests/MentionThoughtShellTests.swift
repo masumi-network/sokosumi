@@ -148,7 +148,7 @@ struct MentionThoughtShellTests {
     switch error {
     case .unauthorized:
       #expect(status == 401)
-    case let .unprocessable(statusCode, message):
+    case let .unprocessable(statusCode, message, _):
       #expect(statusCode == status)
       #expect(message == "Mention is not failed")
     default:

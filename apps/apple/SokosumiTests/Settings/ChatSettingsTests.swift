@@ -45,7 +45,7 @@
         .frame(width: 220, alignment: .leading)
         .padding(.horizontal, 20)
         ForEach(TimeFormatPreference.allCases) { preference in
-          MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
+          MessageRowView(message: message, row: transcriptRow(message), outbound: nil, onRetry: nil, onRemove: nil)
             .environment(\.timeFormat, preference)
         }
         .padding(.horizontal, 20)

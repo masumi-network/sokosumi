@@ -27,8 +27,8 @@ import {
 import { toast } from "sonner";
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
+import { AccountChipMark } from "@/components/social-account-chip-mark";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import {
@@ -62,6 +62,7 @@ import {
 } from "./social-post-composer-accounts";
 import {
   socialPostComposerAccept,
+  socialPostComposerDraftIssue,
   socialPostComposerFormat,
   socialPostComposerIssue,
   socialPostComposerProviders,
@@ -112,70 +113,6 @@ function zoneName(timezone: string): string {
 
 function resolveTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
-}
-
-function AccountChipLogo({
-  className,
-  provider,
-}: {
-  className: string;
-  provider: ProjectSocialConnection["provider"];
-}) {
-  return (
-    <SocialPostProviderIcon
-      aria-hidden
-      className={className}
-      data-testid="social-post-account-logo"
-      provider={provider}
-    />
-  );
-}
-
-/** Photo with a corner network badge, or the same logo circle main uses. */
-function AccountChipMark({
-  avatarUrl,
-  provider,
-}: {
-  avatarUrl: string | null;
-  provider: ProjectSocialConnection["provider"];
-}) {
-  const [photoReady, setPhotoReady] = useState(false);
-  const showPhoto = Boolean(avatarUrl) && photoReady;
-
-  if (!avatarUrl) {
-    return (
-      <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
-        <AccountChipLogo className="size-3.5" provider={provider} />
-      </span>
-    );
-  }
-
-  return (
-    <span className="relative size-6 shrink-0">
-      <Avatar className={cn("size-6", !showPhoto && "invisible")}>
-        <AvatarImage
-          alt=""
-          data-testid="social-post-account-photo"
-          onLoadingStatusChange={(status) => {
-            setPhotoReady(status === "loaded");
-          }}
-          src={avatarUrl}
-        />
-      </Avatar>
-      {showPhoto ? (
-        <span
-          className="bg-background ring-background absolute end-0 bottom-0 flex size-3 items-center justify-center rounded-full ring-1"
-          data-testid="social-post-account-logo-badge"
-        >
-          <AccountChipLogo className="size-2" provider={provider} />
-        </span>
-      ) : (
-        <span className="bg-muted absolute inset-0 flex items-center justify-center rounded-full">
-          <AccountChipLogo className="size-3.5" provider={provider} />
-        </span>
-      )}
-    </span>
-  );
 }
 
 export function SocialPostComposerDialog({
@@ -310,6 +247,16 @@ export function SocialPostComposerDialog({
       (candidate) => socialPostComposerIssue(candidate, text, media) !== null,
     ) ?? provider;
   const composerIssue = socialPostComposerIssue(issueProvider, text, media);
+  const draftIssueProvider =
+    providers.find(
+      (candidate) =>
+        socialPostComposerDraftIssue(candidate, text, media) !== null,
+    ) ?? provider;
+  const draftIssue = socialPostComposerDraftIssue(
+    draftIssueProvider,
+    text,
+    media,
+  );
   const requirementHints = socialPostComposerRequirements(
     providers,
     text,
@@ -321,6 +268,7 @@ export function SocialPostComposerDialog({
     (candidate) => validateSocialPostMedia(candidate, media).ok,
   );
   const textValid = isScheduleOnly || (composerIssue === null && !overLimit);
+  const draftValid = isScheduleOnly || (draftIssue === null && !overLimit);
   const earliestScheduledAt = Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
   const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
   const scheduledAtTooSoon =
@@ -337,7 +285,7 @@ export function SocialPostComposerDialog({
     connectionId !== "" &&
     scheduledAtValid &&
     !isBusy;
-  const canSave = textValid && !isBusy;
+  const canSave = draftValid && !isBusy;
   // Posting now is for a new post: the fastest path is open, type, post.
   const canPublishNow =
     mode.kind === "create" &&
@@ -1169,7 +1117,7 @@ export function SocialPostComposerDialog({
                         aria-label={t("preview.as", { handle })}
                         aria-pressed={active}
                         className={cn(
-                          "focus-visible:ring-ring inline-flex h-8 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2",
+                          "focus-visible:ring-ring inline-flex h-11 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 md:h-8",
                           active
                             ? "border-foreground text-foreground"
                             : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",

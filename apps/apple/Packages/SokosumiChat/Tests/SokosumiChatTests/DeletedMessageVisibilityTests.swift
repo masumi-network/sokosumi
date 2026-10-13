@@ -75,13 +75,13 @@ struct DeletedMessageVisibilityTests {
     ], nextCursor: nil))])
     let session = ThreadSession()
     #expect(session.open(root))
-    _ = try await session.timeline.loadPage(.initial, client: makeTestClient(transport), organizationSlug: nil, generation: session.timeline.generation)
-    #expect(session.timeline.messages.count == 2)
-    #expect(session.displayedReplies.map(\.id) == ["reply-live"])
+    _ = try await session.transcript.timeline.loadPage(.initial, client: makeTestClient(transport), organizationSlug: nil, generation: session.transcript.timeline.generation)
+    #expect(session.transcript.timeline.messages.count == 2)
+    #expect(session.transcript.displayedMessages.map(\.id) == ["reply-live"])
 
     let deletedReply = try await row(reply("reply-live", "", deletedStamp))
     session.apply(eventType: .delete, message: deletedReply)
-    #expect(session.displayedReplies.isEmpty)
+    #expect(session.transcript.displayedMessages.isEmpty)
 
     // Web filters replies only; the root above the divider keeps its tombstone.
     let now = Date(timeIntervalSince1970: 1_700_000_000)

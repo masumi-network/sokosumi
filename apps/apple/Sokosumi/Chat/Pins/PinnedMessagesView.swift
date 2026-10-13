@@ -6,7 +6,6 @@ import SwiftUI
 
 struct PinnedMessagesView: View {
   @EnvironmentObject private var workspaces: WorkspaceState
-  @EnvironmentObject private var auth: AuthState
   @ObservedObject var pins: PinnedMessages
   let room: Components.Schemas.ChatRoom
   let jump: (String) async throws -> MessageNavigationResult
@@ -47,7 +46,7 @@ struct PinnedMessagesView: View {
                               jump: { performJump(item.messageId) },
                               unpin: { Task {
                                 do {
-                                  try await workspaces.setPinned(false, messageId: item.messageId, auth: auth)
+                                  try await workspaces.setPinned(false, messageId: item.messageId)
                                 } catch { actionError = friendlyMessage(for: error) }
                               } })
                               .disabled(jumpingId != nil)
@@ -68,7 +67,7 @@ struct PinnedMessagesView: View {
   private func load(older: Bool = false) async {
     actionError = nil
     do {
-      try await workspaces.loadPins(auth: auth, older: older)
+      try await workspaces.loadPins(older: older)
     } catch {
       if !Task.isCancelled {
         actionError = friendlyMessage(for: error)
