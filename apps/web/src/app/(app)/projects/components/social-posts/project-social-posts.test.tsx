@@ -231,7 +231,7 @@ const MESSAGES: Record<string, string> = {
   "toasts.unauthenticatedAction": "Log in",
   "preview.open": "Preview",
   "preview.accounts": "Preview account",
-  "preview.as": "Preview as {handle}",
+  "preview.as": "Preview as {provider} {handle}",
   "preview.dialogTitle": "Post preview",
   "outcomes.authorizationRevoked":
     "Coworker scheduling access was revoked. Reschedule this post to publish it.",
@@ -2403,22 +2403,28 @@ describe("ProjectSocialPosts", () => {
     const preview = within(dialog).getByTestId("social-post-preview");
     expect(preview).toHaveAttribute("data-provider", "x");
     expect(
-      within(dialog).getByRole("button", { name: "Preview as @sokosumi" }),
+      within(dialog).getByRole("button", { name: "Preview as X @sokosumi" }),
     ).toHaveAttribute("aria-pressed", "true");
     expect(
-      within(dialog).getByRole("button", { name: "Preview as @sokosumi" }),
+      within(dialog).getByRole("button", { name: "Preview as X @sokosumi" }),
     ).toHaveClass("h-11", "md:h-8");
     expect(
-      within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),
+      within(dialog).getByRole("button", {
+        name: "Preview as LinkedIn @sokosumi-co",
+      }),
     ).toHaveClass("h-11", "md:h-8");
 
     await user.click(
-      within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),
+      within(dialog).getByRole("button", {
+        name: "Preview as LinkedIn @sokosumi-co",
+      }),
     );
     expect(preview).toHaveAttribute("data-provider", "linkedin");
     expect(within(preview).getByText("Sokosumi Co")).toBeVisible();
     expect(
-      within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),
+      within(dialog).getByRole("button", {
+        name: "Preview as LinkedIn @sokosumi-co",
+      }),
     ).toHaveAttribute("aria-pressed", "true");
 
     await user.click(

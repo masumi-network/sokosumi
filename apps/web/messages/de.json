@@ -2613,7 +2613,7 @@
           "accountFallback": "Dein Konto",
           "open": "Vorschau",
           "accounts": "Vorschaukonto",
-          "as": "Vorschau als {handle}",
+          "as": "Vorschau als {provider} {handle}",
           "dialogTitle": "Beitragsvorschau",
           "offline": "Du bist offline.",
           "timeout": "Zeitüberschreitung.",

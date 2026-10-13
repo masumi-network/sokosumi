@@ -2613,7 +2613,7 @@
           "accountFallback": "Your account",
           "open": "Preview",
           "accounts": "Preview account",
-          "as": "Preview as {handle}",
+          "as": "Preview as {provider} {handle}",
           "dialogTitle": "Post preview",
           "offline": "You're offline.",
           "timeout": "Timed out.",
