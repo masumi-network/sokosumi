@@ -105,6 +105,11 @@ import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-p
 import { enqueueSokoBotDelivery } from "./soko-bot-delivery.service";
 
 const TURN_DEADLINE_MS = 15 * 60 * 1_000;
+/**
+ * A person can ask for work that takes a while — three years of mail into a
+ * CRM table. The turn still ends the moment the bot answers.
+ */
+const PERSON_TURN_DEADLINE_MS = 60 * 60 * 1_000;
 const TURN_LEASE_MS = 16 * 60 * 1_000;
 const RECONCILER_HEARTBEAT_MS = 15_000;
 export const SOKO_BOT_START_RECOVERY_GRACE_MS = 120_000;
@@ -2469,9 +2474,11 @@ export class SokoBotControlPlane {
     const routeCapabilities = (
       personAsked
         ? SOKO_BOT_CAPABILITIES
-        : writes
-          ? limitSokoBotWrites(classified, writes)
-          : classified
+        : input.presetRoute?.capabilities
+          ? input.presetRoute.capabilities
+          : writes
+            ? limitSokoBotWrites(classified, writes)
+            : classified
     ).filter(
       (capability) =>
         !input.presetRoute ||
@@ -2486,7 +2493,9 @@ export class SokoBotControlPlane {
         ? [...SOKO_BOT_BOT_TO_BOT_CAPABILITIES]
         : routeCapabilities) as readonly SokoBotCapability[],
     ) as readonly SokoBotCapability[];
-    const deadlineAt = new Date(Date.now() + TURN_DEADLINE_MS);
+    const deadlineAt = new Date(
+      Date.now() + (personAsked ? PERSON_TURN_DEADLINE_MS : TURN_DEADLINE_MS),
+    );
     const leaseToken = randomUUID();
     const leaseExpiresAt = new Date(Date.now() + TURN_LEASE_MS);
     // Eve only offers create-operation idempotency. A fresh session per Core

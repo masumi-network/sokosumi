@@ -788,6 +788,10 @@ describe("SokoBotControlPlane lifecycle", () => {
         ]),
       );
       expect(result.capabilities).toEqual(capabilities);
+      const deadlineAt = turnCreateMock.mock.calls[0]?.[0]?.data?.deadlineAt;
+      expect(deadlineAt.getTime() - Date.now()).toBeGreaterThan(
+        55 * 60 * 1_000,
+      );
     },
   );
 
@@ -1726,6 +1730,51 @@ describe("SokoBotControlPlane lifecycle", () => {
     // Core wrote this prompt from mail; no shell or web for it.
     expect(data?.capabilityNames).not.toContain("bash");
     expect(data?.capabilityNames).not.toContain("web_fetch");
+  });
+
+  it("gives a bot-written follow-up exactly the tools it was written with", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    chatRoomFindFirstMock.mockResolvedValue({ id: "room-owner" });
+    turnCreateMock.mockResolvedValue({ id: "follow-turn", leaseToken: "l" });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "follow-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "follow-client",
+      message: "Continue the Gmail CRM table from April 2024.",
+      source: "SCHEDULE",
+      presetRoute: {
+        route: "DELEGATE_TASK",
+        reason: "Follow-up",
+        capabilities: ["search_inbox", "write_table_rows", "bash"],
+        sandbox: true,
+      },
+    });
+    const data = turnCreateMock.mock.calls[0]?.[0]?.data;
+    expect([...data.capabilityNames].sort()).toEqual([
+      "bash",
+      "search_inbox",
+      "write_table_rows",
+    ]);
+    // Only a person waiting in chat gets the hour.
+    expect(data.deadlineAt.getTime() - Date.now()).toBeLessThanOrEqual(
+      15 * 60 * 1_000,
+    );
   });
 
   it("opens the owner's chat for a proactive turn when there is none", async () => {

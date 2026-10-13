@@ -2789,6 +2789,9 @@ model SokoBotSchedule {
   legacyScheduleId    String?   @unique
   /// Built-in rhythm (see @sokosumi/soko-bot proactive); null for owner/bot-made schedules.
   systemKey           String?
+  /// Tools of the turn that wrote it; a run gets them back instead of being
+  /// classified again. Empty for schedules the owner set in the console.
+  capabilityNames     String[]  @default([])
   nextRunAt           DateTime
   lastRunAt           DateTime?
   consecutiveFailures Int       @default(0)
