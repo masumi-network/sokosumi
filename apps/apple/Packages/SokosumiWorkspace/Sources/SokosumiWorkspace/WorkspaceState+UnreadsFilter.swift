@@ -29,7 +29,6 @@ public extension WorkspaceState {
     guard marked != false else { return }
     // What Core holds now, part-read or not, is what the rooms show next. A list already in flight predates it.
     guard context == compositionContext else { return }
-    await roomsRefreshTask?.value
-    await refreshRooms()
+    await refreshRoomsAfterChange()
   }
 }
