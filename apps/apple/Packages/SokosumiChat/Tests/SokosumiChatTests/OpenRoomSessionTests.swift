@@ -27,7 +27,7 @@ struct OpenRoomSessionTests {
     session.thread.open(parent)
     session.requestJump(to: "parent")
     session.requestThreadOverview(roomId: "a")
-    session.setRealtimeHealthy(true)
+    session.applyRealtimeHealth(true, continuityLost: false)
     _ = session.startPinChange("parent")
     return session
   }
@@ -114,5 +114,116 @@ struct OpenRoomSessionTests {
     #expect(session.messageJump == jump)
     session.consumeMessageJump(jump?.requestId ?? UUID())
     #expect(session.messageJump == nil)
+  }
+
+  // MARK: - Routes through the session
+
+  /// A session on Core through `transport`; `rejected` hears every failure the workspace would see.
+  private func connected(_ transport: TestTransport, rejected: @escaping (Error) -> Void = { _ in }) throws -> OpenRoomSession {
+    let client = try makeTestClient(transport)
+    let session = OpenRoomSession(sleep: { _ in try await Task.sleep(for: .seconds(3600)) })
+    session.hooks = .init(access: { (client, nil) }, failed: { error in
+      rejected(error)
+      return false
+    }, pageLanded: {}, lookBeforeThread: {}, isForeground: { false })
+    return session
+  }
+
+  private let ada = testUserSender(name: "Ada", email: "ada@example.com")
+
+  /// The Thread's reply bar lives on the room's copy of the parent, so a confirmed reply reaches the room too.
+  @Test func aConfirmedReplyCountsOnTheRoomsParent() async throws {
+    let reply = testCreatedMessageBody(id: "reply", content: "Reply", clientMessageId: "unused")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\"")
+    let session = try connected(TestTransport([
+      (200, testMessagesPageBody(messages: [testMessageJSON(id: "root", content: "Root", sender: ada)], nextCursor: nil)),
+      (200, testMessagesPageBody(messages: [], nextCursor: nil)),
+      (201, reply)
+    ]))
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    _ = await session.room.loadTask?.value
+    try session.openThread(#require(session.room.timeline.messages.first))
+    _ = await session.thread.transcript.loadTask?.value
+    #expect(session.sendReply("Reply", sender: viewer, mentions: []))
+    while session.thread.transcript.outbox.isSending {
+      await Task.yield()
+    }
+    #expect(session.room.timeline.messages.first?.threadReplyCount == 1)
+  }
+
+  /// A rejected send reaches the workspace, which signs a dead session out.
+  @Test func aFailedSendReachesTheWorkspace() async throws {
+    var failures = 0
+    let session = try connected(TestTransport([
+      (200, testMessagesPageBody(messages: [], nextCursor: nil)),
+      (500, #"{"message":"offline"}"#)
+    ]), rejected: { _ in failures += 1 })
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    _ = await session.room.loadTask?.value
+    let draft = ComposerContent("Hello")
+    #expect(session.canSend(draft, quoted: false))
+    #expect(session.send(draft, sender: viewer, mentions: []))
+    while session.room.outbox.isSending {
+      await Task.yield()
+    }
+    #expect(failures == 1)
+  }
+
+  /// A draft the room refuses leaves a jumped-to page where it is.
+  @Test func aRefusedDraftKeepsTheJumpedToPage() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [], nextCursor: nil)),
+      (200, testMessagesPageBody(messages: [testMessageJSON(id: "m1", content: "Old", sender: ada)], nextCursor: "m1"))
+    ])
+    let session = try connected(transport)
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    _ = await session.room.loadTask?.value
+    _ = try await session.room.timeline.loadPage(.around("m1"), client: makeTestClient(transport), organizationSlug: nil,
+                                                 generation: session.room.timeline.generation)
+    try #require(session.room.timeline.historicalAnchor == "m1")
+    #expect(!session.send(ComposerContent(" \n"), sender: viewer, mentions: []))
+    #expect(session.room.timeline.historicalAnchor == "m1")
+  }
+
+  /// The room's latest page carries the newer copy of an open Thread's parent.
+  @Test func theRoomsLatestPageRefreshesTheThreadsParent() async throws {
+    let session = try connected(TestTransport([
+      (200, testMessagesPageBody(messages: [testMessageJSON(id: "root", content: "Root", sender: ada)], nextCursor: nil)),
+      (200, testMessagesPageBody(messages: [], nextCursor: nil)),
+      (200, testMessagesPageBody(messages: [testMessageJSON(id: "root", content: "Edited", sender: ada)], nextCursor: nil))
+    ]))
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    _ = await session.room.loadTask?.value
+    try session.openThread(#require(session.room.timeline.messages.first))
+    _ = await session.thread.transcript.loadTask?.value
+    session.refresh()
+    _ = await session.room.loadTask?.value
+    #expect(session.thread.parent?.content == "Edited")
+  }
+
+  /// An envelope for the open room is the room's; one for another room is left to the workspace's sidebar.
+  @Test func anEnvelopeForAnotherRoomIsLeftToTheWorkspace() async throws {
+    let session = try connected(TestTransport([
+      (200, testMessagesPageBody(messages: [testMessageJSON(id: "root", content: "Root", sender: ada)], nextCursor: nil)),
+      (200, testMessagesPageBody(messages: [], nextCursor: nil))
+    ]))
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    _ = await session.room.loadTask?.value
+    #expect(session.apply(ChatRoomMessageIdEnvelope(eventType: .delete, messageId: "root", roomId: testRoomId)))
+    #expect(session.room.timeline.messages.first?.deletedAt != nil)
+    #expect(!session.apply(ChatRoomMessageIdEnvelope(eventType: .create, messageId: "m1", roomId: "elsewhere")))
+  }
+
+  /// A live message for another room never lands in the open room's history.
+  @Test func aMessageForAnotherRoomStaysOutOfTheRoom() async throws {
+    let session = try connected(TestTransport([(200, testMessagesPageBody(messages: [], nextCursor: nil))]))
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    _ = await session.room.loadTask?.value
+    let elsewhere = try #require(try await fetchTestMessages([testMessageJSON(id: "m1", content: "Hi", sender: ada, roomId: "elsewhere")]).first)
+    session.apply(eventType: .create, message: elsewhere, roomId: "elsewhere")
+    #expect(session.room.timeline.messages.isEmpty)
+    let here = try #require(try await fetchTestMessages([testMessageJSON(id: "m2", content: "Hi", sender: ada)]).first)
+    session.apply(eventType: .create, message: here, roomId: testRoomId)
+    #expect(session.room.timeline.messages.map(\.id) == ["m2"])
   }
 }

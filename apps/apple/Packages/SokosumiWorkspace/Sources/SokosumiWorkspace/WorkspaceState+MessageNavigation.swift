@@ -112,7 +112,7 @@ public extension WorkspaceState {
       let parent = try await messageParent(parentId, roomId: hit.roomId, client: client, organizationSlug: slug)
       guard isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
       guard parent.id == parentId, parent.roomId == hit.roomId, parent.parentMessageId == nil else { return .unavailable }
-      openThread(parent)
+      openRoom.openThread(parent)
       let threadGeneration = openRoom.thread.transcript.timeline.generation
       _ = await openRoom.thread.transcript.loadTask?.value
       guard isCurrent(navigation, threadGeneration: threadGeneration),

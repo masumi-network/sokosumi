@@ -244,7 +244,7 @@ import SwiftUI
             if workspaces.openRoom.room.timeline.hasMore || olderPageWaits {
               PageBoundaryRow(copy: .transcript(isGap: false), status: olderPageWaits ? .loading : workspaces.openRoom.room.timeline.oldestBoundaryStatus) {
                 scroll.readOlder()
-                workspaces.loadOlderMessages()
+                workspaces.openRoom.loadOlder()
               }
             }
             // An older page's failure is on its row; the banner is for the latest page.
@@ -435,7 +435,7 @@ import SwiftUI
           }
           if loadsOlder {
             Task { @MainActor in
-              workspaces.loadOlderMessages()
+              workspaces.openRoom.loadOlder()
             }
           }
         }
@@ -483,7 +483,7 @@ import SwiftUI
     private func transcriptError(_ error: String, retryOlder: Bool) -> some View {
       errorBanner(error) {
         if retryOlder {
-          workspaces.loadOlderMessages()
+          workspaces.openRoom.loadOlder()
         } else if let room {
           workspaces.enterRoom(room)
         }
@@ -495,7 +495,7 @@ import SwiftUI
     /// is illegal inside the scroll view.
     private func inlineError(_ error: String) -> some View {
       errorBanner(error) {
-        workspaces.refreshTranscript()
+        workspaces.openRoom.refresh()
       }
       .frame(maxWidth: .infinity)
     }

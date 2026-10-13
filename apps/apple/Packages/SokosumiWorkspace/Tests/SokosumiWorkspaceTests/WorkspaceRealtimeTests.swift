@@ -708,7 +708,7 @@ struct WorkspaceRealtimeTests {
     await waitForRealtimeIdle(state)
     transport.pauseNextMessagesGET = true
     // Both actions queue before either page request starts.
-    state.loadOlderMessages()
+    state.openRoom.loadOlder()
     state.applyRealtimeEnvelope(.init(eventType: .create, messageId: messageId, roomId: roomA))
     await transport.waitForMessagesGET()
     transport.releaseMessagesGET()

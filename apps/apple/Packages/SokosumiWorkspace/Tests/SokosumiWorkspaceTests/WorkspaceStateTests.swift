@@ -4,7 +4,7 @@ import Foundation
 import HTTPTypes
 import OpenAPIRuntime
 import SokosumiAuth
-import SokosumiChat
+@testable import SokosumiChat
 @testable import SokosumiWorkspace
 import Testing
 
@@ -1025,7 +1025,7 @@ struct WorkspaceStateTests {
     #expect(state.resolveClient() == nil)
     state.openRoom.thread.transcript.timeline.reset(roomId: "room", parentMessageId: "parent")
     #expect(state.openRoom.thread.transcript.timeline.isLoading)
-    state.loadThreadPage(.initial)
+    state.openRoom.loadThreadPage(.initial)
     _ = await state.openRoom.thread.transcript.loadTask?.value
     #expect(!state.openRoom.thread.transcript.timeline.isLoading)
     #expect(state.openRoom.thread.transcript.timeline.failedPage == .initial)
@@ -1068,11 +1068,11 @@ struct WorkspaceStateTests {
     await state.reload()
     await waitForTranscriptIdle(state)
     if olderRoomFailure {
-      state.loadOlderMessages()
+      state.openRoom.loadOlder()
       _ = await state.openRoom.room.loadTask?.value
       #expect(state.openRoom.room.timeline.failedPage == .older)
     }
-    try state.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.transcriptMessages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     if initialFailure {
       #expect(state.openRoom.thread.transcript.timeline.failedPage == .initial)
@@ -1121,7 +1121,7 @@ struct WorkspaceStateTests {
     state.setWindowVisible(true, window: window)
     await state.reload()
     await waitForTranscriptIdle(state)
-    try state.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.transcriptMessages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     #expect(state.openRoom.thread.transcript.displayedMessages.map(\.content) == ["Reply"])
     let writes = transport.operationIDs.filter { $0.hasPrefix("post/") }.count
@@ -1196,7 +1196,7 @@ struct WorkspaceStateTests {
     ])
     await state.reload()
     await waitForTranscriptIdle(state)
-    state.refreshTranscript()
+    state.openRoom.refresh()
     await waitForTranscriptIdle(state)
     #expect(state.openRoom.room.timeline.failedPage == .latest)
     // A realtime update arrives while the failed refresh blocks reads.
@@ -1204,7 +1204,7 @@ struct WorkspaceStateTests {
     state.openRoom.room.timeline.messages[messageIndex].content = "updated"
     await state.syncReadAttention()
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == 1)
-    state.refreshTranscript()
+    state.openRoom.refresh()
     await waitForTranscriptIdle(state)
     #expect(state.openRoom.room.timeline.failedPage == nil)
     #expect(state.transcriptMessages.map(\.content) == ["updated"])
@@ -1231,7 +1231,7 @@ struct WorkspaceStateTests {
     await state.reload()
     await waitForTranscriptIdle(state)
     #expect(state.openRoom.room.timeline.hasMore)
-    state.loadOlderMessages()
+    state.openRoom.loadOlder()
     await waitForTranscriptIdle(state)
     // Resolved history stays; the failure surfaces as a banner instead.
     #expect(state.transcriptMessages.map(\.content) == ["newest"])
@@ -1640,7 +1640,7 @@ struct WorkspaceStateTests {
     #expect(state.displayedThreadReplies.first?.content == "Thread turn")
     if closeThread {
       state.openRoom.thread.close()
-      #expect(state.streamingThreadToOpen?.id == "root")
+      #expect(state.openRoom.streamingThreadToOpen?.id == "root")
     }
     await state.openRoom.directStream.task?.value
     #expect(state.openRoom.thread.parent?.id == "root")
@@ -1673,7 +1673,7 @@ struct WorkspaceStateTests {
     let parent = try #require(state.transcriptMessages.first)
     #expect(state.openRoom.thread.open(parent))
     state.openRoom.room.recovery.start(foreground: true, healthy: true) {
-      state.refreshTranscript()
+      state.openRoom.refresh()
       while state.openRoom.room.loadTask != nil {
         _ = await state.openRoom.room.loadTask?.value
       }
@@ -1715,7 +1715,7 @@ struct WorkspaceStateTests {
       await Task.yield()
     }
     #expect(state.openRoom.room.timeline.hasMore)
-    state.loadOlderMessages()
+    state.openRoom.loadOlder()
     #expect(state.openRoom.room.loadTask == nil)
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 1)
     transport.releasePausedRequest()
@@ -1739,10 +1739,10 @@ struct WorkspaceStateTests {
     #expect(prepared.state.sendThreadReply("Thread turn"))
     await waitWhile { prepared.transport.messageGets < 2 }
     prepared.state.openRoom.thread.close()
-    #expect(prepared.state.streamingThreadToOpen?.id == "root")
+    #expect(prepared.state.openRoom.streamingThreadToOpen?.id == "root")
     prepared.transport.releasePausedRequest()
     await waitWhile { prepared.transport.threadGets == 0 }
-    prepared.state.openThread(parent)
+    prepared.state.openRoom.openThread(parent)
     prepared.transport.releasePausedRequest()
     await prepared.state.openRoom.directStream.task?.value
     #expect(prepared.state.openRoom.thread.parent?.id == "root")
@@ -1772,15 +1772,13 @@ struct WorkspaceStateTests {
     #expect(prepared.state.openRoom.directStream.parentMessageId == "root")
     prepared.transport.pauseStream = true
     prepared.transport.pauseGET = true
-    prepared.state.openRoom.directStream.resume(client: prepared.client, organizationSlug: nil, settled: {
-      await prepared.state.settleDirectStream(generation: prepared.state.openRoom.room.timeline.generation)
-    }, failed: { Issue.record($0) })
+    prepared.state.openRoom.resumeStream()
     await waitWhile { !prepared.transport.operationIDs.contains("get/chats/rooms/{id}/stream/active") }
     #expect(prepared.state.openRoom.directStream.phase == .resuming)
-    #expect(prepared.state.streamingThreadToOpen == nil)
+    #expect(prepared.state.openRoom.streamingThreadToOpen == nil)
     prepared.transport.releasePausedRequest()
     await waitWhile { prepared.transport.messageGets < 3 }
-    #expect(prepared.state.streamingThreadToOpen?.id == "root")
+    #expect(prepared.state.openRoom.streamingThreadToOpen?.id == "root")
     prepared.transport.releasePausedRequest()
     await waitWhile { prepared.transport.threadGets == 0 }
     prepared.transport.releasePausedRequest()
@@ -2740,7 +2738,7 @@ extension WorkspaceStateTests {
     state.openRoom.room.timeline.reset(roomId: "room")
     #expect(try await state.jumpToMessage("parent"))
     // The quote's lookup answers from loaded rows: the reply is in the open Thread.
-    try state.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.transcriptMessages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     #expect(try await state.openMessage("reply", marksThreadParent: false) == .opened)
     #expect(state.openRoom.thread.transcript.jumpTarget?.messageId == "reply", "The quote still opens the Thread on the reply.")
@@ -3938,7 +3936,7 @@ extension WorkspaceStateTests {
       await Task.yield()
     }
     transport.pauseGET = false
-    state.refreshTranscript()
+    state.openRoom.refresh()
     _ = await state.openRoom.room.loadTask?.value
     #expect(transport.paths.count == 3, "The refresh waits for the gap page.")
     transport.releasePausedRequest()
@@ -3995,7 +3993,7 @@ extension WorkspaceStateTests {
     ] + extra)
     await state.reload()
     await waitForTranscriptIdle(state)
-    try state.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.transcriptMessages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     return (state, auth, transport)
   }
@@ -4323,7 +4321,7 @@ extension WorkspaceStateTests {
   @Test func aLookSettlesTheInsetRowsOnCoresAnswer() async throws {
     let (state, _, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.otherRootId]))
     #expect(Self.insetThreads(state) == [Self.muteRootId, Self.otherRootId], "The room read lists both Threads.")
-    try state.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.transcriptMessages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     #expect(Self.insetThreads(state) == [Self.otherRootId], "The Look's room read drops the Thread just read.")
     #expect(transport.remainingStubs == 0)
@@ -4335,7 +4333,7 @@ extension WorkspaceStateTests {
       (200, Self.threadBody(mutedAt: nil)), (200, Self.threadBody(mutedAt: timestamp)),
       (200, roomReadBody(id: Self.muteRoomId, unread: 1, split: (channel: 0, threads: 1), threads: [Self.otherRootId]))
     ])
-    try state.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.transcriptMessages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     #expect(Self.insetThreads(state) == [Self.muteRootId, Self.otherRootId])
     await state.readThreadMuteIfNeeded()
@@ -4382,7 +4380,7 @@ extension WorkspaceStateTests {
   /// Web's overflow row opens the room's thread list (`?threads=1`), putting an open thread away first.
   @Test func theOverflowRowOpensTheRoomsThreadOverview() async throws {
     let (state, _, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.muteRootId, Self.otherRootId]))
-    try state.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.transcriptMessages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     let written = transport.operationIDs.count
     await state.openThreadOverview(roomId: Self.muteRoomId)
@@ -4569,7 +4567,7 @@ extension WorkspaceStateTests {
     ])
     await state.updateThreadOverview(.count, roomId: Self.muteRoomId)
     let revision = state.threadAttentionRevision
-    try state.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.transcriptMessages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     #expect(transport.operationIDs.contains("post/chats/rooms/{id}/threads/{parentMessageId}/read"))
     #expect(state.openRoom.threadOverview.unreadReplyCounts == [Self.otherRootId: 1], "The looked Thread leaves the trigger at once.")
@@ -4741,7 +4739,7 @@ extension WorkspaceStateTests {
     ], visible: false, openRoomUnreadRecheck: OpenRoomUnreadRecheck(sleep: clock.sleep))
     await state.reload()
     await waitForTranscriptIdle(state)
-    try state.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.transcriptMessages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     await waitWhile { clock.pending == 0 }
     #expect(clock.intervals == [.seconds(4)])

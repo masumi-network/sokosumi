@@ -25,9 +25,9 @@ struct RoomNavigationStack: View {
           ReplyThreadView()
         }
     }
-    .task(id: workspaces.streamingThreadToOpen?.id) {
-      if let parent = workspaces.streamingThreadToOpen {
-        workspaces.openThread(parent)
+    .task(id: workspaces.openRoom.streamingThreadToOpen?.id) {
+      if let parent = workspaces.openRoom.streamingThreadToOpen {
+        workspaces.openRoom.openThread(parent)
       }
     }
   }
