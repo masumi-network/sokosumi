@@ -102,8 +102,8 @@ function tooLong(messages: OptionalMessages, max: number) {
   return messages.tooLong?.(max);
 }
 
-const sitelinkDescription = (messages: OptionalMessages) =>
-  z
+function sitelinkDescription(messages: OptionalMessages) {
+  return z
     .string()
     .trim()
     .min(1)
@@ -112,10 +112,11 @@ const sitelinkDescription = (messages: OptionalMessages) =>
       tooLong(messages, SITELINK_LIMITS.description),
     )
     .optional();
+}
 
 /** One sitelink as Core takes it: both description lines or neither. */
-const sitelinkSchema = (messages: OptionalMessages) =>
-  z
+function sitelinkSchema(messages: OptionalMessages) {
+  return z
     .object({
       text: z
         .string()
@@ -131,28 +132,32 @@ const sitelinkSchema = (messages: OptionalMessages) =>
         ctx.addIssue({
           code: "custom",
           path: [value.description1 ? "description2" : "description1"],
+          // Form always passes translated messages. Spec path without them
+          // keeps a machine code, never English product copy.
           message:
-            messages.sitelinkDescriptionsPair ??
-            "Add both description lines or neither",
+            messages.sitelinkDescriptionsPair ?? "sitelinks.descriptionsPair",
         });
       }
     });
+}
 
-const callout = (messages: OptionalMessages) =>
-  z
+function callout(messages: OptionalMessages) {
+  return z
     .string()
     .trim()
     .max(CALLOUT_LIMITS.length, tooLong(messages, CALLOUT_LIMITS.length));
+}
 
 /** The optional display path: empty or up to Core's length. */
-const path = (messages: OptionalMessages) =>
-  z
+function path(messages: OptionalMessages) {
+  return z
     .string()
     .trim()
     .max(
       GOOGLE_SEARCH_LIMITS.path,
       tooLong(messages, GOOGLE_SEARCH_LIMITS.path),
     );
+}
 
 /** Rules that span fields; absent values may be undefined or empty. */
 function refineAcrossFields(
@@ -187,14 +192,14 @@ function refineAcrossFields(
       ctx.addIssue({
         code: "custom",
         path: ["sitelinks", index, "text"],
-        message: messages.sitelinkDuplicate ?? "Sitelinks must be different",
+        message: messages.sitelinkDuplicate ?? "sitelinks.duplicate",
       }),
   );
   forEachDuplicate(value.callouts ?? [], (index) =>
     ctx.addIssue({
       code: "custom",
       path: ["callouts", index],
-      message: messages.calloutDuplicate ?? "Callouts must be different",
+      message: messages.calloutDuplicate ?? "callouts.duplicate",
     }),
   );
 }
