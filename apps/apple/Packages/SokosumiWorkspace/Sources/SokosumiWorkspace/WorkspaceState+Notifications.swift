@@ -20,19 +20,11 @@ public extension WorkspaceState {
   /// failure. A write that leaves a banner on asks the OS for permission
   /// first, which is where web asks the browser.
   func setNotificationReach(_ changes: [ChatNotificationKind: ChatNotificationReach]) async throws {
-    guard let client = resolveClient() else {
-      throw ChatServiceError.unauthorized("Log in to change notification preferences.")
-    }
     let presenter = notificationPresenter
-    do {
+    try await request(signIn: "Log in to change notification preferences.") { _, client, _ in
       try await notificationPreferences.setReach(changes, client: client) {
         _ = await presenter?.requestAuthorization()
       }
-    } catch {
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
-      throw error
     }
   }
 
@@ -46,7 +38,7 @@ public extension WorkspaceState {
     notificationPresenter?.dismiss(identifier: ChatNotificationEvent.bannerIdentifier(roomId: target.roomId))
     guard phase == .ready, let client = resolveClient() else { return .unavailable }
     // Still open the link when mark-read fails. Awaited rather than detached so requests keep one order.
-    try? await ChatService().markNotificationRead(client: client, id: target.id)
+    try? await service.markNotificationRead(client: client, id: target.id)
     guard phase == .ready else { return .unavailable }
     if let workspaceId = target.workspaceId {
       try await switchWorkspaceIfNeeded(workspaceId: workspaceId, client: client)
@@ -67,7 +59,7 @@ extension WorkspaceState {
     let organizationId: String?
     do {
       // Nil is the personal workspace.
-      organizationId = try await ChatService().workspaceOrganizationId(client: client, workspaceId: workspaceId)
+      organizationId = try await service.workspaceOrganizationId(client: client, workspaceId: workspaceId)
     } catch {
       return
     }

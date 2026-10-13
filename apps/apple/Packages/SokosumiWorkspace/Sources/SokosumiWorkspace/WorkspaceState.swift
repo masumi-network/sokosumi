@@ -132,7 +132,7 @@ public final class WorkspaceState: ObservableObject {
   /// Soko Bot turns rated in this session, by turn id; see `WorkspaceState+SokoBot`.
   @Published public internal(set) var sokoBotFeedback: [String: Bool] = [:]
   @Published var pendingSokoBotFeedback: Set<String> = []
-  /// Account-synced chat display preferences; see `WorkspaceState+DisplayPreferences`.
+  /// Account-synced chat display preferences; see `WorkspaceState+UserPreferences`.
   public let chatDisplay = ChatDisplayPreferences()
   public let notificationPreferences = ChatNotificationPreferences()
   /// App-side OS notification adapter; without it events raise no banner.
@@ -230,7 +230,7 @@ public final class WorkspaceState: ObservableObject {
   private var sidebarRecoveryGeneration = UUID()
   private(set) var transcriptRealtimeHealthy = false
 
-  private let service = ChatService()
+  let service = ChatService()
   private var hasLoaded = false
   private var workspaceLoadTask: Task<Void, Never>?
 
@@ -280,6 +280,7 @@ public final class WorkspaceState: ObservableObject {
       self?.objectWillChange.send()
     }
     watchOpenRoomUnread()
+    connectTranscripts()
   }
 
   /// The app's one sign-in, shared by every window: Core requests read its client, and a rejected session signs it out.
@@ -290,6 +291,23 @@ public final class WorkspaceState: ObservableObject {
   var clientResolver: (() -> Client?)?
   func resolveClient() -> Client? {
     clientResolver?() ?? clientProvider(auth)
+  }
+
+  /// One Core request for this workspace: this account's client, the open workspace's slug and the one `ChatService`.
+  /// A session Core rejects is signed out; without a client the request throws `unauthorized(signIn)`.
+  func request<Value>(
+    signIn: String = "Log in again.",
+    _ operation: (ChatService, Client, String?) async throws -> Value
+  ) async throws -> Value {
+    guard let client = resolveClient() else { throw ChatServiceError.unauthorized(signIn) }
+    do {
+      return try await operation(service, client, selection?.workspace.organizationSlug)
+    } catch {
+      if let error = error as? ChatServiceError {
+        signOutIfUnauthorized(error)
+      }
+      throw error
+    }
   }
 
   public var selection: WorkspaceOption? {
@@ -365,13 +383,13 @@ public final class WorkspaceState: ObservableObject {
 
   public func loadChannelRoster(context: UUID) async throws -> ChannelRoster {
     try await channelOperation(context: context) { client, organizationId, slug in
-      try await ChatService().channelRoster(client: client, organizationId: organizationId, organizationSlug: slug)
+      try await service.channelRoster(client: client, organizationId: organizationId, organizationSlug: slug)
     }
   }
 
   public func checkChannelSlug(_ slug: String, context: UUID) async throws -> Bool {
     try await channelOperation(context: context) { client, _, organizationSlug in
-      try await ChatService().channelSlugIsAvailable(client: client, slug: slug, organizationSlug: organizationSlug)
+      try await service.channelSlugIsAvailable(client: client, slug: slug, organizationSlug: organizationSlug)
     }
   }
 
@@ -385,7 +403,7 @@ public final class WorkspaceState: ObservableObject {
       }
     }
     let room = try await channelOperation(context: context) { client, _, slug in
-      try await ChatService().createChannel(client: client, draft: draft, roster: roster, currentUserId: self.currentUserId, organizationSlug: slug)
+      try await service.createChannel(client: client, draft: draft, roster: roster, currentUserId: self.currentUserId, organizationSlug: slug)
     }
     acceptCreatedRoom(room, sourceRoom: sourceRoom)
     return true
@@ -402,7 +420,7 @@ public final class WorkspaceState: ObservableObject {
     }
     let request = draft.updateRequest
     let room = try await channelOperation(context: context) { client, _, slug in
-      try await ChatService().updateRoom(client: client, roomId: roomId, request: request, organizationSlug: slug)
+      try await service.updateRoom(client: client, roomId: roomId, request: request, organizationSlug: slug)
     }
     // A list read already in flight predates this settings edit.
     sidebar.invalidateRefresh()
@@ -423,7 +441,7 @@ public final class WorkspaceState: ObservableObject {
     }
     let slug = selection?.workspace.organizationSlug
     let room = try await workspaceOperation(context: context) { client in
-      try await ChatService().updateRoom(client: client, roomId: roomId, request: draft.updateRequest, organizationSlug: slug)
+      try await service.updateRoom(client: client, roomId: roomId, request: draft.updateRequest, organizationSlug: slug)
     }
     // A list read already in flight predates this rename.
     sidebar.invalidateRefresh()
@@ -435,7 +453,7 @@ public final class WorkspaceState: ObservableObject {
 
   public func browseChannels(query: String, context: UUID) async throws -> [Components.Schemas.DiscoverableChatRoom] {
     try await channelOperation(context: context) { client, _, slug in
-      try await ChatService().discoverableChannels(client: client, query: query, organizationSlug: slug)
+      try await service.discoverableChannels(client: client, query: query, organizationSlug: slug)
     }
   }
 
@@ -450,7 +468,7 @@ public final class WorkspaceState: ObservableObject {
       }
     }
     let room = try await channelOperation(context: context) { client, _, slug in
-      try await ChatService().joinChannel(client: client, roomId: roomId, organizationSlug: slug)
+      try await service.joinChannel(client: client, roomId: roomId, organizationSlug: slug)
     }
     acceptCreatedRoom(room, sourceRoom: sourceRoom)
     return true
@@ -493,7 +511,7 @@ public final class WorkspaceState: ObservableObject {
     let context = compositionContext
     await archivedChannels.load {
       try await channelOperation(context: context) { client, organizationId, slug in
-        try await ChatService().archivedChannels(client: client, organizationId: organizationId, organizationSlug: slug)
+        try await service.archivedChannels(client: client, organizationId: organizationId, organizationSlug: slug)
       }
     }
   }
@@ -503,7 +521,7 @@ public final class WorkspaceState: ObservableObject {
     try await runChannelLifecycle(.leave, roomId: roomId, context: context) {
       let slug = selection?.workspace.organizationSlug
       try await workspaceOperation(context: context) { client in
-        try await ChatService().leaveChannel(client: client, roomId: roomId, organizationSlug: slug)
+        try await service.leaveChannel(client: client, roomId: roomId, organizationSlug: slug)
       }
       applyMembershipRevoked(roomId: roomId)
     }
@@ -513,7 +531,7 @@ public final class WorkspaceState: ObservableObject {
   public func archiveChannel(roomId: String, context: UUID) async throws -> Bool {
     try await runChannelLifecycle(.archive, roomId: roomId, context: context) {
       try await channelOperation(context: context) { client, _, slug in
-        try await ChatService().archiveChannel(client: client, roomId: roomId, organizationSlug: slug)
+        try await service.archiveChannel(client: client, roomId: roomId, organizationSlug: slug)
       }
       if let room = rooms.first(where: { $0.id == roomId }) {
         archivedChannels.insert(room)
@@ -527,7 +545,7 @@ public final class WorkspaceState: ObservableObject {
     let sourceRoom = transcriptRoomId
     return try await runChannelLifecycle(.restore, roomId: roomId, context: context) {
       let room = try await channelOperation(context: context) { client, _, slug in
-        try await ChatService().restoreChannel(client: client, roomId: roomId, organizationSlug: slug)
+        try await service.restoreChannel(client: client, roomId: roomId, organizationSlug: slug)
       }
       archivedChannels.remove(roomId: roomId)
       acceptCreatedRoom(room, sourceRoom: sourceRoom)
@@ -537,7 +555,7 @@ public final class WorkspaceState: ObservableObject {
   public func deleteChannel(roomId: String, context: UUID) async throws -> Bool {
     try await runChannelLifecycle(.delete, roomId: roomId, context: context) {
       try await channelOperation(context: context) { client, _, slug in
-        try await ChatService().deleteChannel(client: client, roomId: roomId, organizationSlug: slug)
+        try await service.deleteChannel(client: client, roomId: roomId, organizationSlug: slug)
       }
       archivedChannels.remove(roomId: roomId)
     }
@@ -567,7 +585,7 @@ public final class WorkspaceState: ObservableObject {
       let yourself = currentUserId.isEmpty ? nil : ChatRecipientTarget.messageYourself(
         userId: currentUserId, name: currentUserName.isEmpty ? currentUserEmail : currentUserName, imageURL: currentUserImageURL
       )
-      let roster = try await ChatService().directRecipients(
+      let roster = try await service.directRecipients(
         client: client, yourself: yourself,
         organizationId: selection?.workspace.organizationId,
         organizationSlug: selection?.workspace.organizationSlug
@@ -603,7 +621,7 @@ public final class WorkspaceState: ObservableObject {
       }
     }
     do {
-      let room = try await ChatService().openDirect(client: client, selection: recipients, organizationSlug: selection?.workspace.organizationSlug)
+      let room = try await service.openDirect(client: client, selection: recipients, organizationSlug: selection?.workspace.organizationSlug)
       guard !Task.isCancelled, context == compositionContext, phase == .ready else { return false }
       acceptCreatedRoom(room, sourceRoom: sourceRoom)
       return true
@@ -668,7 +686,6 @@ public final class WorkspaceState: ObservableObject {
     pins.reset(roomId: room.id)
     pendingPins = []
     self.room.open(roomId: room.id)
-    connectRoomTranscript()
     let generation = transcriptGeneration
     watchRoom(room.id)
     self.room.load(.initial)
@@ -715,9 +732,10 @@ public final class WorkspaceState: ObservableObject {
     await room.whenIdle()
   }
 
-  /// Every entry point that loads the room hands the room's Transcript this account's hooks first, so a load reads
-  /// with the client the caller's sign-in resolves.
-  func connectRoomTranscript() {
+  /// The room's and the Thread's Transcripts load on their own with this account's client: the room reads attention
+  /// after its first and latest pages; the Thread reads the room after later pages, its first page's Look coming
+  /// before the request (`loadThreadPage`).
+  private func connectTranscripts() {
     room.hooks = transcriptHooks { [weak self] page in
       guard let self else { return }
       switch page {
@@ -732,6 +750,10 @@ public final class WorkspaceState: ObservableObject {
       default:
         break
       }
+    }
+    thread.transcript.hooks = transcriptHooks { [weak self] page in
+      guard let self, page != .initial else { return }
+      await syncReadAttention()
     }
   }
 
@@ -993,14 +1015,12 @@ public final class WorkspaceState: ObservableObject {
   public func refreshTranscript() {
     guard transcriptRoomId != nil else { return }
     guard !directStream.isBusy || thread.parent != nil else { return }
-    connectRoomTranscript()
     room.load(.latest)
   }
 
   func settleDirectStream(generation: Int) async -> Bool {
     await room.whenIdle()
     guard generation == transcriptGeneration, !Task.isCancelled else { return false }
-    connectRoomTranscript()
     guard let refreshed = room.load(.latest), await refreshed.value else { return false }
     var openedGeneration: Int?
     if let parent = streamingThreadToOpen {
@@ -1070,54 +1090,42 @@ public final class WorkspaceState: ObservableObject {
 
   public func syncReadAttention() async {
     // Behind the Threads view the room is off screen (row 24f1).
-    guard !sidebar.showsThreadsView,
-          let room = rooms.first(where: { $0.id == transcriptRoomId }), let client = resolveClient() else { return }
+    guard !sidebar.showsThreadsView, let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return }
     let content = readContent
-    do {
+    // Background reads stay silent; only a dead session needs action, and `request` signs that out.
+    _ = try? await request { _, client, slug in
       try await readAttention.readIfNeeded(
         room: room,
         content: content,
         historyReadable: roomHistoryReadable && !thread.transcript.timeline.isLoading,
         client: client,
-        organizationSlug: selection?.workspace.organizationSlug,
+        organizationSlug: slug,
         threadLooked: { threadLooked(content.parentMessageId) }
       )
-    } catch {
-      // Background reads stay silent; only a dead session needs action.
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
     }
   }
 
   public func performSidebarAction(_ action: ConversationSidebar.Action, roomId: String) async {
-    guard let client = resolveClient() else { return }
     do {
-      try await sidebar.perform(
-        action, roomId: roomId, client: client, organizationSlug: selection?.workspace.organizationSlug,
-        clock: (now: Date(), makeId: UUID.init)
-      )
-    } catch {
-      if let error = error as? ChatServiceError, signOutIfUnauthorized(error) {
-        // The auth card takes over; the modal alert would double-surface.
-        readAttention.clearError()
-        sidebar.clearActionError()
+      try await request { _, client, slug in
+        try await sidebar.perform(action, roomId: roomId, client: client, organizationSlug: slug, clock: (now: Date(), makeId: UUID.init))
       }
-    }
+    } catch ChatServiceError.unauthorized(_) {
+      // The auth card takes over; the modal alert would double-surface.
+      readAttention.clearError()
+      sidebar.clearActionError()
+    } catch {}
   }
 
   /// Reorder Pinned. A failure of the latest reorder reloads the list: what Core holds is the truth.
   public func reorderPinnedRooms(_ roomIds: [String]) async {
-    guard let client = resolveClient() else { return }
     do {
-      try await sidebar.reorderPinned(
-        roomIds, client: client, organizationSlug: selection?.workspace.organizationSlug, now: Date()
-      )
-    } catch {
-      if let error = error as? ChatServiceError, signOutIfUnauthorized(error) {
-        sidebar.clearActionError()
-        return
+      try await request { _, client, slug in
+        try await sidebar.reorderPinned(roomIds, client: client, organizationSlug: slug, now: Date())
       }
+    } catch ChatServiceError.unauthorized(_) {
+      sidebar.clearActionError()
+    } catch {
       // A read that started before the failure may already be running; it must not stand in for the reload.
       await roomsRefreshTask?.value
       await refreshRooms()
@@ -1128,7 +1136,6 @@ public final class WorkspaceState: ObservableObject {
   /// clears resolved history on failure.
   public func loadOlderMessages() {
     guard !directStream.isBusy else { return }
-    connectRoomTranscript()
     room.load(.older)
   }
 
@@ -1285,5 +1292,20 @@ public final class WorkspaceState: ObservableObject {
     if case let ChatServiceError.unauthorized(message) = error {
       auth.signOut(message: "Core rejected the session (\(message)). Log in again.")
     }
+  }
+}
+
+/// History gap rows (row 04a): the page between two loaded ranges that a jump left apart. The room's
+/// `TranscriptSession` loads them, one after another; the row's state lives in `RoomTimeline.boundaryLoads`.
+public extension WorkspaceState {
+  /// A gap row scrolled into or out of view (web's `useLoadWhenVisible`):
+  /// in view and idle, it loads itself once.
+  func setHistoryGapVisible(before messageId: String, _ isVisible: Bool) {
+    room.setGapVisible(before: messageId, isVisible)
+  }
+
+  /// A tap on the row, or Try again after a failure. The outcome stays on the row.
+  func loadHistoryGap(before messageId: String) {
+    room.loadGap(before: messageId)
   }
 }

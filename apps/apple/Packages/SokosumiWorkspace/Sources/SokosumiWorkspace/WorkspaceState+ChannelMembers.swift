@@ -21,7 +21,7 @@ public extension WorkspaceState {
       }
     }
     let room = try await channelOperation(context: context) { client, _, slug in
-      try await ChatService().addChannelMembers(client: client, roomId: roomId, recipients: recipients, organizationSlug: slug)
+      try await service.addChannelMembers(client: client, roomId: roomId, recipients: recipients, organizationSlug: slug)
     }
     // A list read already in flight predates this roster edit.
     sidebar.invalidateRefresh()
@@ -45,12 +45,12 @@ public extension WorkspaceState {
     let updated: Components.Schemas.ChatRoom? = try await channelOperation(context: context) { client, _, slug in
       switch member {
       case let .human(userId):
-        try await ChatService().removeMember(client: client, roomId: roomId, userId: userId, organizationSlug: slug)
+        try await service.removeMember(client: client, roomId: roomId, userId: userId, organizationSlug: slug)
         return nil
       case let .coworker(coworkerId):
-        return try await ChatService().removeCoworker(client: client, roomId: roomId, coworkerId: coworkerId, organizationSlug: slug)
+        return try await service.removeCoworker(client: client, roomId: roomId, coworkerId: coworkerId, organizationSlug: slug)
       case let .sokoBot(sokoBotId):
-        return try await ChatService().removeSokoBot(client: client, roomId: roomId, sokoBotId: sokoBotId, organizationSlug: slug)
+        return try await service.removeSokoBot(client: client, roomId: roomId, sokoBotId: sokoBotId, organizationSlug: slug)
       }
     }
     // A list read already in flight predates this roster edit.

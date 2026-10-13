@@ -13,7 +13,7 @@ public extension WorkspaceState {
     let slug = selection?.workspace.organizationSlug
     await pendingInvitations.load {
       try await workspaceOperation(context: context) { client in
-        try await ChatService().pendingInvitations(client: client, organizationSlug: slug)
+        try await service.pendingInvitations(client: client, organizationSlug: slug)
       }
     }
   }
@@ -21,7 +21,7 @@ public extension WorkspaceState {
   func loadInvitation(id: String, context: UUID) async throws -> Components.Schemas.ChatRoomInvitation {
     let slug = selection?.workspace.organizationSlug
     return try await workspaceOperation(context: context) { client in
-      try await ChatService().invitation(client: client, id: id, organizationSlug: slug)
+      try await service.invitation(client: client, id: id, organizationSlug: slug)
     }
   }
 
@@ -32,7 +32,7 @@ public extension WorkspaceState {
     let slug = selection?.workspace.organizationSlug
     return try await runInvitationResponse(.accept, id: id, context: context) {
       let invitation = try await workspaceOperation(context: context) { client in
-        try await ChatService().acceptInvitation(client: client, id: id, organizationSlug: slug)
+        try await service.acceptInvitation(client: client, id: id, organizationSlug: slug)
       }
       pendingInvitations.remove(id: id)
       await openJoinedRoom(invitation.roomId, sourceRoom: sourceRoom, context: context)
@@ -44,7 +44,7 @@ public extension WorkspaceState {
     let slug = selection?.workspace.organizationSlug
     return try await runInvitationResponse(.decline, id: id, context: context) {
       _ = try await workspaceOperation(context: context) { client in
-        try await ChatService().declineInvitation(client: client, id: id, organizationSlug: slug)
+        try await service.declineInvitation(client: client, id: id, organizationSlug: slug)
       }
       pendingInvitations.remove(id: id)
     }
@@ -52,7 +52,7 @@ public extension WorkspaceState {
 
   func resolveGuestInviteLink(token: String, context: UUID) async throws -> Components.Schemas.ResolveChatRoomGuestInviteLink {
     try await workspaceOperation(context: context) { client in
-      try await ChatService().resolveGuestInviteLink(client: client, token: token)
+      try await service.resolveGuestInviteLink(client: client, token: token)
     }
   }
 
@@ -63,7 +63,7 @@ public extension WorkspaceState {
     let slug = selection?.workspace.organizationSlug
     return try await runInvitationResponse(.accept, id: token, context: context) {
       let joined = try await workspaceOperation(context: context) { client in
-        try await ChatService().acceptGuestInviteLink(client: client, token: token, organizationSlug: slug)
+        try await service.acceptGuestInviteLink(client: client, token: token, organizationSlug: slug)
       }
       await openJoinedRoom(joined.roomId, sourceRoom: sourceRoom, context: context)
     }

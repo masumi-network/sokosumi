@@ -21,15 +21,12 @@ public extension WorkspaceState {
 
   /// Web's Mark all as read: every room's reads at once, then the rooms again, whatever the outcome.
   func markAllUnreadRead() async {
-    guard let client = resolveClient() else { return }
     let context = compositionContext
-    do {
-      guard try await sidebar.markAllUnreadRead(client: client, organizationSlug: selection?.workspace.organizationSlug) else { return }
-    } catch {
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
+    let marked = try? await request { _, client, slug in
+      try await sidebar.markAllUnreadRead(client: client, organizationSlug: slug)
     }
+    // Refused before it started (nothing marked) leaves the rooms as they are.
+    guard marked != false else { return }
     // What Core holds now, part-read or not, is what the rooms show next. A list already in flight predates it.
     guard context == compositionContext else { return }
     await roomsRefreshTask?.value
