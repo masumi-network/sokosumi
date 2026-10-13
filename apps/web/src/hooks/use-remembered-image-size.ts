@@ -1,6 +1,9 @@
 import { type SyntheticEvent, useCallback } from "react";
 
-import type { ImageSize } from "@/lib/ads/image-size";
+interface ImageSize {
+  width: number;
+  height: number;
+}
 
 /** Natural sizes by URL, for the life of the page. */
 const rememberedSizes = new Map<string, ImageSize>();
