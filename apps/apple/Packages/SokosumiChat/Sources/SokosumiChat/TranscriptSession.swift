@@ -221,7 +221,11 @@ public final class TranscriptSession: ObservableObject {
 
   private func loadDirectly(_ page: RoomTimeline.Page) async throws -> Bool {
     guard let access = hooks.access() else { throw ChatServiceError.unauthorized(Self.signInMissing) }
-    return try await timeline.loadPage(page, client: access.client, organizationSlug: access.organizationSlug, generation: timeline.generation)
+    guard try await timeline.loadPage(page, client: access.client, organizationSlug: access.organizationSlug, generation: timeline.generation) else {
+      return false
+    }
+    await hooks.pageLanded(page)
+    return true
   }
 
   /// Waits until no page load runs for this Transcript.

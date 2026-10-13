@@ -21,6 +21,9 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
   var pausePOST = false
   var pauseNextMessagesGET = false
   var pauseNextRoomsGET = false
+  var pauseNextRead = false
+  private var readWaiter: CheckedContinuation<Void, Never>?
+  private var readReleased = false
   private var roomsGETWaiter: CheckedContinuation<Void, Never>?
   private var roomsGETObserver: CheckedContinuation<Void, Never>?
   private var pauseWaiter: CheckedContinuation<Void, Never>?
@@ -62,6 +65,12 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
       }
       messagesGETReleased = false
     }
+    if pauseNextRead, operationID == "post/chats/rooms/{id}/read" {
+      pauseNextRead = false
+      if !readReleased {
+        await withCheckedContinuation { readWaiter = $0 }
+      }
+    }
     let next = try nextScriptedResponse(&responses, operationID: operationID)
     if pauseNextRoomsGET, operationID == "get/chats/rooms" {
       pauseNextRoomsGET = false
@@ -102,6 +111,12 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
     messagesGETReleased = true
     messagesGETWaiter?.resume()
     messagesGETWaiter = nil
+  }
+
+  func releaseRead() {
+    readReleased = true
+    readWaiter?.resume()
+    readWaiter = nil
   }
 }
 
@@ -1135,6 +1150,82 @@ struct WorkspaceRealtimeTests {
       return
     }
     #expect(tokenRequest.headerFields[slugName] == nil)
+  }
+
+  /// Another member's message over the socket changes what the reader sees, so the open room is read again; the
+  /// read runs beside the event loop and the next event never waits on it.
+  @Test func aLiveMessageReadsTheOpenRoom() async throws {
+    let firstId = "550e8400-e29b-41d4-a716-446655440740"
+    let fake = FakeRealtimeConnection()
+    let (state, _, transport) = try realtimeState([
+      (200, workspacesBody()),
+      (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
+      (200, realtimeReadBody(id: roomA)),
+      (200, realtimeTokenBody()),
+      (200, realtimeReadBody(id: roomA))
+    ], realtime: { fake })
+    await state.reload()
+    await waitForRealtimeIdle(state)
+    let reads = transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count
+    // A sidebar refresh counted something unread meanwhile.
+    state.rooms[0].unreadCount = 2
+    let live = try await decodeRealtimeMessages([
+      realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-446655440741", roomId: roomA, content: "over the wire",
+                          createdAt: "2026-01-01T00:00:01.000Z")
+    ])
+    fake.deliver(.message(roomId: roomA, eventType: .create, message: live[0]))
+    for _ in 0 ..< 1000 where state.realtimeReadSync == nil {
+      await Task.yield()
+    }
+    await state.realtimeReadSync?.value
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == reads + 1)
+    #expect(state.rooms.first?.unreadCount == 0)
+  }
+
+  /// Events arriving while a read is in flight queue exactly one more read after it, however many there are.
+  @Test func eventsDuringAReadQueueOneMoreRead() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, _, transport) = try realtimeState([
+      (200, workspacesBody()),
+      (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-446655440750", roomId: roomA, content: "first")])),
+      (200, realtimeReadBody(id: roomA)),
+      (200, realtimeTokenBody()),
+      (200, realtimeReadBody(id: roomA))
+    ], realtime: { fake })
+    await state.reload()
+    await waitForRealtimeIdle(state)
+    let reads = transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count
+    state.rooms[0].unreadCount = 2
+    transport.pauseNextRead = true
+    let live = try await decodeRealtimeMessages((1 ... 3).map { index in
+      realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-44665544076\(index)", roomId: roomA, content: "live \(index)",
+                          createdAt: "2026-01-01T00:00:0\(index).000Z")
+    })
+    fake.deliver(.message(roomId: roomA, eventType: .create, message: live[0]))
+    // The read is on the wire (recorded before it pauses), so its sync is past the point where it can take more.
+    for _ in 0 ..< 1000 where transport.operationIDs.filter({ $0 == "post/chats/rooms/{id}/read" }).count == reads {
+      await Task.yield()
+    }
+    let inFlight = try #require(state.realtimeReadSync)
+    fake.deliver(.message(roomId: roomA, eventType: .create, message: live[1]))
+    for _ in 0 ..< 1000 where state.realtimeReadSync == inFlight {
+      await Task.yield()
+    }
+    let queued = try #require(state.realtimeReadSync)
+    #expect(queued != inFlight, "An event during the read queues one more.")
+    fake.deliver(.message(roomId: roomA, eventType: .create, message: live[2]))
+    for _ in 0 ..< 1000 where state.displayedTranscript.count < 4 {
+      await Task.yield()
+    }
+    #expect(state.realtimeReadSync == queued, "A further event joins the queued read.")
+    transport.releaseRead()
+    await queued.value
+    // Two reads in all: the one in flight, and one covering both messages that arrived during it.
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == reads + 2)
   }
 
   @Test func liveSocketConnectsWatchesOpenRoomAndDelivers() async throws {
