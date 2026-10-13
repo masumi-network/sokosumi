@@ -722,9 +722,9 @@ public final class WorkspaceState: ObservableObject {
     await room.whenIdle()
   }
 
-  /// The room's and the Thread's Transcripts load on their own with this account's client: the room reads attention
-  /// after its first and latest pages; the Thread reads the room after later pages, its first page's Look coming
-  /// before the request (`loadThreadPage`).
+  /// The room's and the Thread's Transcripts load on their own with this account's client, and read attention syncs
+  /// after every page that reports landing (gap fills do not); the Thread's first page also Looks before its request
+  /// (`loadThreadPage`).
   private func connectTranscripts() {
     // Every landed page changes what the reader sees, so read attention syncs before the load ends.
     room.hooks = transcriptHooks { [weak self] page in
@@ -861,6 +861,10 @@ public final class WorkspaceState: ObservableObject {
     realtimeContinuation = nil
     realtimeStreamTask?.cancel()
     realtimeStreamTask = nil
+    // A read the socket queued belongs to the session that is closing.
+    realtimeReadSync?.cancel()
+    realtimeReadSync = nil
+    realtimeReadSyncPending = false
     realtime?.disconnect()
     realtime = nil
   }
@@ -955,8 +959,8 @@ public final class WorkspaceState: ObservableObject {
   /// Apply a full-DTO Ably create/update/delete to the open room. Events for
   /// any other room are ignored here — the sidebar reads unread chrome from
   /// Core, not from live events. Own send + Ably create dedupe to one bubble
-  /// by client turn id (ADR 0004). No mark-read: live arrival must not move
-  /// unread chrome on its own.
+  /// by client turn id (ADR 0004). Applying marks nothing read; the event loop then schedules a read sync, which reads
+  /// only for a visible, readable room.
   func applyRealtimeMessage(
     roomId: String,
     eventType: ChatRoomMessageRealtimeEventType,
@@ -1124,8 +1128,8 @@ public final class WorkspaceState: ObservableObject {
     }
   }
 
-  /// Older history page for scroll-up. Merges by message ID; never marks read and never
-  /// clears resolved history on failure.
+  /// Older history page for scroll-up. Merges by message ID and never clears resolved history on failure; the landed
+  /// page syncs read attention like any other.
   public func loadOlderMessages() {
     guard !directStream.isBusy else { return }
     room.load(.older)
