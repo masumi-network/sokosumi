@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 
@@ -99,7 +99,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     );
   }
 
-  const [pages, connections, selectedPost, calendar, sokoBot] =
+  const [pages, connections, selectedPost, calendarResult, sokoBot] =
     await Promise.all([
       Promise.all(
         SECTION_ORDER.map((section) =>
@@ -115,9 +115,15 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
       loadWorkspaceCalendarPage({
         projectId: project.id,
         searchParams: Promise.resolve(withoutAgendaView(query)),
-      }),
+      })
+        .then((calendar) => ({ failed: false as const, calendar }))
+        .catch((error: unknown) => {
+          unstable_rethrow(error);
+          return { failed: true as const, calendar: null };
+        }),
       sokoBotService.getMine().catch(() => null),
     ]);
+  const { calendar, failed: calendarFailed } = calendarResult;
   const activeConnections = connections.filter(
     (socialConnection) => socialConnection.status === "active",
   );
@@ -151,12 +157,15 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
               />
             }
             calendar={
-              <SocialCalendar
-                calendar={calendar}
-                lockedProjectId={project.id}
-              />
+              calendar ? (
+                <SocialCalendar
+                  calendar={calendar}
+                  lockedProjectId={project.id}
+                />
+              ) : undefined
             }
             accountCount={managedAccountCount}
+            calendarFailed={calendarFailed}
             connections={activeConnections}
             nextCursors={Object.fromEntries(
               SECTION_ORDER.map((section, index) => [
