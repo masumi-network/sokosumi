@@ -132,7 +132,8 @@ export const adCampaignSchema = z
       description: "spend / clicks; null without clicks",
     }),
     conversions: z.number().nullable().openapi({
-      description: "Null when the provider does not report conversions (Meta)",
+      description:
+        "Over the range; null only when the provider omits the metric",
     }),
   })
   .openapi("AdCampaign");

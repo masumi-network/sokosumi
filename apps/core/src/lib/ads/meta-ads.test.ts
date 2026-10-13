@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ComposioApiError } from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
@@ -89,6 +89,7 @@ describe("listMetaAdAccounts", () => {
 });
 
 describe("listMetaCampaigns", () => {
+  const NOW = new Date("2026-10-13T15:30:00.000Z");
   const campaignInput = {
     ...input,
     adAccountId: "act_1",
@@ -133,8 +134,20 @@ describe("listMetaCampaigns", () => {
 
   const insights = {
     data: [
-      { campaign_id: "10", spend: "12.345", impressions: "2000", clicks: "50" },
-      { campaign_id: "12", spend: "3.00", impressions: "100", clicks: "0" },
+      {
+        campaign_id: "10",
+        spend: "12.345",
+        impressions: "2000",
+        clicks: "50",
+        conversions: [{ value: "2" }, { value: "1.5" }],
+      },
+      {
+        campaign_id: "12",
+        spend: "3.00",
+        impressions: "100",
+        clicks: "0",
+        conversions: "0",
+      },
     ],
   };
 
@@ -146,8 +159,14 @@ describe("listMetaCampaigns", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
     createSessionMock.mockResolvedValue("sess_1");
     mockTools(campaignList, insights);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("merges campaigns with insights and maps the effective status", async () => {
@@ -163,7 +182,7 @@ describe("listMetaCampaigns", () => {
         clicks: 50,
         ctr: 0.025,
         cpc: 0.25,
-        conversions: null,
+        conversions: 3.5,
       },
       {
         id: "11",
@@ -176,7 +195,7 @@ describe("listMetaCampaigns", () => {
         clicks: 0,
         ctr: null,
         cpc: null,
-        conversions: null,
+        conversions: 0,
       },
       {
         // Zero clicks: cpc is null, not Infinity.
@@ -190,7 +209,7 @@ describe("listMetaCampaigns", () => {
         clicks: 0,
         ctr: 0,
         cpc: null,
-        conversions: null,
+        conversions: 0,
       },
       {
         id: "14",
@@ -203,7 +222,7 @@ describe("listMetaCampaigns", () => {
         clicks: 0,
         ctr: null,
         cpc: null,
-        conversions: null,
+        conversions: 0,
       },
     ]);
   });
@@ -233,7 +252,7 @@ describe("listMetaCampaigns", () => {
     );
   });
 
-  it("asks for campaign-level insights over the range and pins the two tools", async () => {
+  it("asks for campaign-level insights over complete days and pins the two tools", async () => {
     await listMetaCampaigns({ ...campaignInput, range: "LAST_30_DAYS" });
     expect(executeToolMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -241,8 +260,14 @@ describe("listMetaCampaigns", () => {
         arguments: expect.objectContaining({
           object_id: "act_1",
           level: "campaign",
-          fields: ["campaign_id", "spend", "impressions", "clicks"],
-          date_preset: "last_30d",
+          fields: [
+            "campaign_id",
+            "spend",
+            "impressions",
+            "clicks",
+            "conversions",
+          ],
+          time_range: { since: "2026-09-13", until: "2026-10-12" },
         }),
       }),
     );
