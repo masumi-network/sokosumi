@@ -17,7 +17,7 @@
 
     var body: some View {
       let receipts = RoomReadReceipts(room: room, currentUserId: "user_ben", liveReads: marks.roomId == room.id ? marks.marks : [:])
-      MessageRowView(message: message, row: transcriptRow(message, isNewest: true), outbound: nil, onRetry: nil, onRemove: nil,
+      MessageRowView(message: message, row: transcriptRow(message, isNewest: true), outbound: nil,
                      horizontalInset: 12,
                      seenBy: receipts.seenBy(messageId: message.id, createdAt: message.createdAt, newestMessageId: message.id))
     }
@@ -181,8 +181,7 @@
         defer { hosted.window.orderOut(nil) }
         let before = try await Self.settled(hosted, pictures: false)
         let plainMessage = Self.message(text)
-        let plain = Self.host(MessageRowView(message: plainMessage, row: transcriptRow(plainMessage), outbound: nil, onRetry: nil,
-                                             onRemove: nil, horizontalInset: 12),
+        let plain = Self.host(MessageRowView(message: plainMessage, row: transcriptRow(plainMessage), outbound: nil, horizontalInset: 12),
                               marks: RoomReadMarks(), dark: false)
         defer { plain.window.orderOut(nil) }
         let plainBitmap = try await Self.settled(plain, pictures: false)
@@ -204,7 +203,7 @@
         let message = Self.message(Self.pictureSource, reacted: true)
         let newest = Self.newestRow(message)
         defer { newest.window.orderOut(nil) }
-        let plain = Self.host(MessageRowView(message: message, row: transcriptRow(message), outbound: nil, onRetry: nil, onRemove: nil,
+        let plain = Self.host(MessageRowView(message: message, row: transcriptRow(message), outbound: nil,
                                              horizontalInset: 12),
                               marks: RoomReadMarks(), dark: false)
         defer { plain.window.orderOut(nil) }

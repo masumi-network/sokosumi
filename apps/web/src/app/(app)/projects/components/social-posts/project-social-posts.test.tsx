@@ -96,6 +96,7 @@ const MESSAGES: Record<string, string> = {
   attempts: "{count} attempts",
   "actions.publishNow": "Publish now",
   "actions.retry": "Retry",
+  "actions.dismiss": "Dismiss",
   "sections.calendar": "Calendar",
   "sections.drafts": "Drafts",
   "sections.attention": "Needs attention",
@@ -133,6 +134,7 @@ const MESSAGES: Record<string, string> = {
   "composer.textPlaceholder": "What do you want to post?",
   "composer.characters": "{count} / {limit}",
   "composer.media.addFromDrive": "Add from Drive",
+  "composer.media.drop": "Drop files to attach",
   "composer.media.upload": "Upload",
   "composer.media.remove": "Remove {name}",
   "composer.media.hint": "Up to 4 images, or one GIF, or one video.",
@@ -184,10 +186,15 @@ const MESSAGES: Record<string, string> = {
   "composer.connectAccount": "Connect account",
   "composer.previewEmpty": "Your post shows here as you write.",
   now: "Now",
+  accountFallback: "Your account",
+  label: "{provider} preview",
   "cancelDialog.title": "Cancel this post?",
   "cancelDialog.description":
     "The post will not be published. This cannot be undone.",
   "cancelDialog.confirm": "Cancel post",
+  "dismissDialog.title": "Dismiss this post?",
+  "dismissDialog.description": "It leaves Needs attention.",
+  "dismissDialog.confirm": "Dismiss",
   "publishDialog.title": "Publish this post now?",
   "publishDialog.description":
     "The post goes out to X right away instead of waiting for its scheduled time.",
@@ -201,6 +208,7 @@ const MESSAGES: Record<string, string> = {
   "toasts.scheduled": "Post scheduled.",
   "toasts.updated": "Post updated.",
   "toasts.canceled": "Post canceled.",
+  "toasts.dismissed": "Post dismissed.",
   "toasts.conflict":
     "This post was changed elsewhere. Reloading the latest version.",
   "toasts.failed": "Something went wrong. Try again.",
@@ -423,7 +431,7 @@ const FAILED_POST = buildPost({
   revision: 5,
   canEdit: false,
   canSchedule: true,
-  canCancel: false,
+  canCancel: true,
   canPublishNow: true,
 });
 
@@ -576,13 +584,18 @@ describe("ProjectSocialPosts", () => {
 
     const drafts = screen.getByTestId("social-posts-section-drafts");
     const draftRow = within(drafts).getByTestId("social-post-post-draft");
+    expect(within(draftRow).getByTestId("social-post-preview")).toBeVisible();
     expect(within(draftRow).getByText("Draft text")).toBeVisible();
-    expect(within(draftRow).getByText("No account")).toBeVisible();
-    expect(within(draftRow).getByText("User · Alice")).toBeVisible();
-    // Every card leads with its status, the way a task card does.
     expect(
-      within(draftRow).getByTestId("social-post-status-DRAFT"),
-    ).toHaveTextContent("Draft");
+      within(draftRow).getByRole("button", { name: "Preview" }),
+    ).toBeVisible();
+    expect(
+      within(draftRow).getByRole("button", { name: "Post actions" }),
+    ).toBeVisible();
+    expect(screen.getByTestId("social-posts-drafts-grid")).toHaveClass(
+      "sm:grid-cols-2",
+      "xl:grid-cols-3",
+    );
 
     expect(
       screen.queryByTestId("social-post-post-scheduled"),
@@ -591,6 +604,109 @@ describe("ProjectSocialPosts", () => {
       screen.queryByTestId("social-post-post-published"),
     ).not.toBeInTheDocument();
     expect(screen.getAllByRole("list")).toHaveLength(1);
+  });
+
+  it("shows a draft's media in the platform preview, including a GIF badge", () => {
+    const gif: SocialPostMediaRef = {
+      pathname: "drive/users/user_1/loop.gif",
+      fileUrl:
+        "https://store.public.blob.vercel-storage.com/drive/users/user_1/loop.gif",
+      name: "loop.gif",
+      size: 1024,
+      mimeType: "image/gif",
+      kind: "gif",
+    };
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({
+            socialConnection: {
+              id: "connection-1",
+              externalHandle: "sokosumi",
+              displayName: "Sokosumi",
+              avatarUrl: null,
+              status: "active",
+            },
+            media: [IMAGE_REF, gif],
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const draft = screen.getByTestId("social-post-post-draft");
+    const preview = within(draft).getByTestId("social-post-preview");
+    expect(within(preview).getByAltText("launch.png")).toBeVisible();
+    expect(within(preview).getByAltText("loop.gif")).toBeVisible();
+    expect(
+      within(preview).getByTestId("social-post-preview-gif"),
+    ).toHaveTextContent("GIF");
+  });
+
+  it("opens the preview dialog from a draft card", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByTestId("social-post-preview-open-post-draft"));
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(
+      within(screen.getByRole("dialog")).getByText("Post preview"),
+    ).toBeVisible();
+  });
+
+  it("keeps the reconnect warning on a draft card", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({
+            socialConnection: {
+              id: "connection-1",
+              externalHandle: "sokosumi",
+              displayName: null,
+              avatarUrl: null,
+              status: "reauthorization_required",
+            },
+            connectionNeedsReconnect: true,
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const warning = within(
+      screen.getByTestId("social-post-post-draft"),
+    ).getByTestId("social-post-needs-reconnect");
+    expect(warning).toHaveTextContent("Account needs reconnecting");
+    expect(
+      within(warning).getByRole("link", { name: "Reconnect the account" }),
+    ).toHaveAttribute("href", "/social?projectId=project-1&tab=accounts");
+  });
+
+  it("keeps Needs attention as compact rows", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[FAILED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    const row = screen.getByTestId("social-post-post-failed");
+    expect(
+      within(row).queryByTestId("social-post-preview"),
+    ).not.toBeInTheDocument();
+    expect(within(row).getByText("Failed text")).toBeVisible();
+    expect(within(row).getByTestId("social-post-status-FAILED")).toBeVisible();
   });
 
   it("opens Social on its calendar, with Accounts as the last tab", async () => {
@@ -2105,10 +2221,13 @@ describe("ProjectSocialPosts", () => {
       });
     });
 
-    const dropTransfer = new DataTransfer();
-    dropTransfer.items.add(dropped);
     await act(async () => {
-      fireEvent.drop(surface, { dataTransfer: dropTransfer });
+      fireEvent.drop(surface, {
+        dataTransfer: {
+          types: ["Files"],
+          files: [dropped],
+        },
+      });
     });
     await waitFor(() => {
       expect(uploadDriveFileMock).toHaveBeenCalledTimes(2);
@@ -2116,6 +2235,25 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
     ).toHaveLength(2);
+  });
+
+  it("shows a drop hint while a file is held over the composer", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const surface = within(dialog).getByTestId("social-post-composer-surface");
+    fireEvent.dragEnter(surface, {
+      dataTransfer: { types: ["Files"], files: [] },
+    });
+    expect(within(dialog).getByText("Drop files to attach")).toBeVisible();
   });
 
   it("schedules a new post with an ISO timestamp and the viewer timezone", async () => {
@@ -2611,6 +2749,12 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getByRole("menuitem", { name: "Reschedule" })).toHaveClass(
       "min-h-11",
     );
+    expect(screen.getByRole("menuitem", { name: "Dismiss" })).toHaveClass(
+      "min-h-11",
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Cancel post" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "Retry" }),
     ).not.toBeInTheDocument();
@@ -2619,6 +2763,62 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "Edit" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("dismisses a FAILED post after confirmation and leaves Needs attention", async () => {
+    const user = userEvent.setup();
+    vi.mocked(cancelProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: {
+        ...FAILED_POST,
+        status: "CANCELED",
+        canceledAt: new Date("2026-09-15T12:00:00.000Z"),
+        revision: 6,
+        canEdit: false,
+        canSchedule: false,
+        canCancel: false,
+        canPublishNow: false,
+      },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[FAILED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    await openRowMenu(user, "post-failed");
+    await user.click(screen.getByRole("menuitem", { name: "Dismiss" }));
+    expect(cancelProjectSocialPost).not.toHaveBeenCalled();
+
+    const alert = screen.getByRole("alertdialog");
+    expect(
+      within(alert).getByRole("heading", { name: "Dismiss this post?" }),
+    ).toBeVisible();
+    expect(within(alert).getByText("It leaves Needs attention.")).toBeVisible();
+    expect(
+      within(alert).queryByRole("heading", { name: "Cancel this post?" }),
+    ).not.toBeInTheDocument();
+    await user.click(within(alert).getByRole("button", { name: "Dismiss" }));
+
+    await waitFor(() => {
+      expect(cancelProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-failed",
+        revision: 5,
+      });
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Post dismissed.");
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: /^Needs attention/ }),
+    ).not.toBeInTheDocument();
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.queryByTestId("social-post-post-failed"),
     ).not.toBeInTheDocument();
   });
 

@@ -77,6 +77,7 @@ import {
   type SocialTab,
 } from "./constants";
 import { SocialPostMetrics } from "./social-post-metrics";
+import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
 import { SocialPostStatistics } from "./social-post-statistics";
 
@@ -151,6 +152,21 @@ function upsertPost(posts: SocialPost[], next: SocialPost): SocialPost[] {
   const index = posts.findIndex((post) => post.id === next.id);
   if (index === -1) return [next, ...posts];
   return posts.map((post) => (post.id === next.id ? next : post));
+}
+
+function previewAccountFor(
+  post: SocialPost,
+  connections: ProjectSocialConnection[],
+) {
+  const connection = post.socialConnection;
+  if (!connection) return null;
+  return {
+    handle: connection.externalHandle,
+    displayName: connection.displayName,
+    avatarUrl:
+      connections.find((candidate) => candidate.id === connection.id)
+        ?.avatarUrl ?? connection.avatarUrl,
+  };
 }
 
 /**
@@ -354,7 +370,13 @@ export function ProjectSocialPosts({
         handleActionError(result.error);
         return;
       }
-      toast.success(t("toasts.canceled"));
+      toast.success(
+        t(
+          RETRY_STATUSES.includes(target.status)
+            ? "toasts.dismissed"
+            : "toasts.canceled",
+        ),
+      );
       handleSaved(result.value);
     } catch (error) {
       handleActionError(toActionRejectionError(error), error);
@@ -499,7 +521,7 @@ export function ProjectSocialPosts({
                     setCancelTarget(post);
                   }}
                 >
-                  {t("composer.cancel")}
+                  {isRetry ? t("actions.dismiss") : t("composer.cancel")}
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuContent>
@@ -513,6 +535,63 @@ export function ProjectSocialPosts({
     publishTarget && RETRY_STATUSES.includes(publishTarget.status)
       ? "retryDialog"
       : "publishDialog";
+  const cancelCopy =
+    cancelTarget && RETRY_STATUSES.includes(cancelTarget.status)
+      ? "dismissDialog"
+      : "cancelDialog";
+
+  function renderReconnectWarning(post: SocialPost) {
+    if (!post.connectionNeedsReconnect) return null;
+    return (
+      <p
+        className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
+        data-testid="social-post-needs-reconnect"
+        role="status"
+      >
+        <span className="inline-flex items-center gap-1">
+          <AlertTriangle className="size-3" aria-hidden />
+          {t("needsReconnect")}
+        </span>
+        {accounts !== undefined ? (
+          <button
+            className="font-medium underline-offset-4 hover:underline"
+            onClick={() => showTab("accounts")}
+            type="button"
+          >
+            {t("needsReconnectLink")}
+          </button>
+        ) : (
+          <Link
+            className="font-medium underline-offset-4 hover:underline"
+            href={accountsHref}
+          >
+            {t("needsReconnectLink")}
+          </Link>
+        )}
+      </p>
+    );
+  }
+
+  function renderDraft(post: SocialPost) {
+    return (
+      <li
+        key={post.id}
+        id={`social-post-${post.id}`}
+        className="flex min-w-0 flex-col gap-2"
+        data-testid={`social-post-${post.id}`}
+      >
+        <SocialPostPreview
+          account={previewAccountFor(post, connections)}
+          media={post.media}
+          provider={post.provider}
+          text={post.text}
+          timestamp={null}
+        />
+        {renderReconnectWarning(post)}
+        {renderPostActions(post)}
+      </li>
+    );
+  }
 
   function renderPost(post: SocialPost) {
     const handle = formatHandle(post.socialConnection?.externalHandle ?? null);
@@ -577,34 +656,7 @@ export function ProjectSocialPosts({
               <span>{t("attempts", { count: post.attemptCount })}</span>
             ) : null}
           </p>
-          {post.connectionNeedsReconnect ? (
-            <p
-              className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
-              data-testid="social-post-needs-reconnect"
-              role="status"
-            >
-              <span className="inline-flex items-center gap-1">
-                <AlertTriangle className="size-3" aria-hidden />
-                {t("needsReconnect")}
-              </span>
-              {accounts !== undefined ? (
-                <button
-                  className="font-medium underline-offset-4 hover:underline"
-                  onClick={() => showTab("accounts")}
-                  type="button"
-                >
-                  {t("needsReconnectLink")}
-                </button>
-              ) : (
-                <Link
-                  className="font-medium underline-offset-4 hover:underline"
-                  href={accountsHref}
-                >
-                  {t("needsReconnectLink")}
-                </Link>
-              )}
-            </p>
-          ) : null}
+          {renderReconnectWarning(post)}
           {post.status === "PUBLISHED" ? (
             <SocialPostMetrics statistics={post.statistics} compact />
           ) : null}
@@ -779,8 +831,21 @@ export function ProjectSocialPosts({
                   value={section}
                 >
                   {sectionPosts.length > 0 ? (
-                    <ul className="grid gap-2">
-                      {sectionPosts.map(renderPost)}
+                    <ul
+                      className={
+                        section === "drafts"
+                          ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                          : "grid gap-2"
+                      }
+                      data-testid={
+                        section === "drafts"
+                          ? "social-posts-drafts-grid"
+                          : undefined
+                      }
+                    >
+                      {sectionPosts.map(
+                        section === "drafts" ? renderDraft : renderPost,
+                      )}
                     </ul>
                   ) : cursor ? null : (
                     <EmptyState
@@ -895,9 +960,9 @@ export function ProjectSocialPosts({
       >
         <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("cancelDialog.title")}</AlertDialogTitle>
+            <AlertDialogTitle>{t(`${cancelCopy}.title`)}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("cancelDialog.description")}
+              {t(`${cancelCopy}.description`)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -911,7 +976,7 @@ export function ProjectSocialPosts({
                 void handleConfirmCancel();
               }}
             >
-              {t("cancelDialog.confirm")}
+              {t(`${cancelCopy}.confirm`)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

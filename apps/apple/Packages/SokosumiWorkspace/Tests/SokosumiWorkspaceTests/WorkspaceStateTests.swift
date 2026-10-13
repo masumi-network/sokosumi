@@ -285,7 +285,7 @@ struct WorkspaceStateTests {
     for _ in 0 ..< 1000 where !transport.operationIDs.contains(operation) {
       await Task.yield()
     }
-    #expect(joining ? state.joiningChannel : state.creatingChannel)
+    #expect(state.runningMutation == (joining ? .joinChannel : .createChannel))
     #expect(try await submit() == false)
     if action == "reset" {
       state.reset()
@@ -299,7 +299,7 @@ struct WorkspaceStateTests {
       #expect(try await request.value)
     }
     await waitForTranscriptIdle(state)
-    #expect(!state.creatingChannel && !state.joiningChannel)
+    #expect(state.runningMutation == nil)
     #expect(state.transcriptRoomId == (action == "stay" ? target : nil))
     #expect(state.rooms.contains { $0.id == target } == (action != "reset"))
     #expect(transport.operationIDs.filter { $0 == operation }.count == 1)
@@ -322,7 +322,7 @@ struct WorkspaceStateTests {
     draft.setName("Design renamed")
     let context = state.compositionContext
     #expect(try await state.updateChannel(draft, roomId: edited, context: context))
-    #expect(!state.updatingRoom)
+    #expect(state.runningMutation == nil)
     #expect(state.transcriptRoomId == opened)
     #expect(state.rooms.count == 2)
     #expect(state.rooms.first { $0.id == edited }?.name == "Design renamed")
@@ -361,7 +361,7 @@ struct WorkspaceStateTests {
     await #expect(throws: ChatServiceError.unprocessable(statusCode: 400, message: "You are the last member of this room.")) {
       try await state.leaveChannel(roomId: design, context: context)
     }
-    #expect(state.channelLifecycle == nil)
+    #expect(state.runningMutation == nil)
     #expect(state.transcriptRoomId == design)
 
     // Leaving the open room drops it like a revoke; nothing else is forced open.
@@ -476,7 +476,7 @@ struct WorkspaceStateTests {
     for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms") {
       await Task.yield()
     }
-    #expect(state.openingDirect == .coworker("peer"))
+    #expect(state.runningMutation == .openDirect(.coworker("peer")))
     // A second click while opening must not create another request.
     #expect(try await state.openParticipantDirect(.coworker("peer")) == false)
     if action == "reset" {
@@ -486,7 +486,7 @@ struct WorkspaceStateTests {
     }
     transport.releasePausedRequest()
     #expect(try await request.value == (action != "reset"))
-    #expect(state.openingDirect == nil)
+    #expect(state.runningMutation == nil)
     if action == "reset" {
       #expect(try await state.openDirect(recipients, context: context) == false)
     }
@@ -566,7 +566,7 @@ struct WorkspaceStateTests {
     transport.releasePausedRequest()
     #expect(try await request.value == false)
     #expect(!state.rooms.contains { $0.id == target })
-    #expect(state.openingDirect == nil)
+    #expect(state.runningMutation == nil)
     #expect(try await state.openDirect(selection, context: context) == false)
   }
 
@@ -1411,7 +1411,7 @@ struct WorkspaceStateTests {
     #expect(state.room.outbox.shells[0].status == .failed)
     #expect(state.displayedTranscript.map(\.content) == ["@peer:peer"])
     let turnId = try #require(state.room.outbox.shells.first?.clientTurnId)
-    state.retryOutbound(clientTurnId: turnId)
+    state.room.outbox.retry(turnId)
     await waitForOutboundIdle(state)
     #expect(state.room.outbox.shells.isEmpty)
     #expect(state.transcriptMessages.map(\.id) == [confirmedID])
@@ -1456,7 +1456,7 @@ struct WorkspaceStateTests {
     #expect(shell.status == .failed)
     #expect(shell.errorMessage?.contains("Could not attach the skill: skills.sh is unavailable") == true)
     #expect(state.displayedTranscript.last?.skills == [skill])
-    state.retryOutbound(clientTurnId: shell.clientTurnId)
+    state.room.outbox.retry(shell.clientTurnId)
     await waitForOutboundIdle(state)
     #expect(state.room.outbox.shells.isEmpty)
     let posts = zip(transport.operationIDs, transport.bodies).compactMap { id, body -> [String: Any]? in
@@ -1493,7 +1493,7 @@ struct WorkspaceStateTests {
     state.sendMessage("hello")
     await waitForOutboundIdle(state)
     let turnId = try #require(state.room.outbox.shells.first?.clientTurnId)
-    state.removeOutbound(clientTurnId: turnId)
+    state.room.outbox.remove(turnId)
     #expect(state.room.outbox.shells.isEmpty)
     #expect(state.displayedTranscript.isEmpty)
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/messages" }.count == 1)
@@ -2871,14 +2871,14 @@ extension WorkspaceStateTests {
     await #expect(throws: ChatServiceError.unprocessable(statusCode: 404, message: "Invitation not found")) {
       try await state.acceptInvitation(id: "inv-1", context: context)
     }
-    #expect(state.invitationResponse == nil && state.pendingInvitations.invitations.count == 2)
+    #expect(state.runningMutation == nil && state.pendingInvitations.invitations.count == 2)
 
     #expect(try await state.acceptInvitation(id: "inv-1", context: context))
     await waitForTranscriptIdle(state)
     #expect(state.pendingInvitations.invitations.map(\.id) == ["inv-2"])
     #expect(state.rooms.map(\.id) == [general, partners])
     #expect(state.transcriptRoomId == partners)
-    #expect(state.invitationResponse == nil)
+    #expect(state.runningMutation == nil)
 
     #expect(try await state.declineInvitation(id: "inv-2", context: context))
     #expect(state.pendingInvitations.invitations.isEmpty)
@@ -3015,7 +3015,7 @@ extension WorkspaceStateTests {
     await #expect(throws: ChatServiceError.unprocessable(statusCode: 400, message: "This invite link has expired.")) {
       try await state.acceptGuestInviteLink(token: "tok", context: context)
     }
-    #expect(state.invitationResponse == nil)
+    #expect(state.runningMutation == nil)
     #expect(try await state.acceptGuestInviteLink(token: "tok", context: context))
     await waitForTranscriptIdle(state)
     #expect(state.rooms.map(\.id) == [general, partners])
@@ -3124,7 +3124,7 @@ extension WorkspaceStateTests {
     #expect(state.rooms.first { $0.id == partners }?.coworkerMembers.isEmpty == true)
     #expect(try await state.removeChannelMember(.human("user_guest"), roomId: partners, context: UUID()) == false)
     #expect(try await state.removeChannelMember(.human("user_guest"), roomId: partners, context: context))
-    #expect(!state.updatingRoom && state.transcriptRoomId == general)
+    #expect(state.runningMutation == nil && state.transcriptRoomId == general)
     #expect(state.rooms.first { $0.id == partners }?.userMembers.map(\.id) == ["user_1"])
     #expect(state.rooms.first { $0.id == partners }?.sokoBotMembers.map(\.id) == ["bot_me"])
     #expect(transport.operationIDs.suffix(3) == [

@@ -63,7 +63,7 @@
       @Test func aReplyShowsTheChosenProjectAsAChip() async throws {
         var opened: [URL] = []
         let reply = Self.reply(#"Use project "Books" (project ID: \#(Self.books))."#)
-        let row = MessageRowView(message: reply, row: transcriptRow(reply), outbound: nil, onRetry: nil, onRemove: nil)
+        let row = MessageRowView(message: reply, row: transcriptRow(reply), outbound: nil)
           .environment(\.openURL, OpenURLAction { opened.append($0)
             return .handled
           })
@@ -174,7 +174,7 @@
           let size = NSSize(width: 520, height: 120)
           let reply = Self.reply(#"Use project "Books" (project ID: \#(Self.books))."#)
           try await columns.append([
-            Helpers.draw(MessageRowView(message: reply, row: transcriptRow(reply), outbound: nil, onRetry: nil, onRemove: nil).padding(12),
+            Helpers.draw(MessageRowView(message: reply, row: transcriptRow(reply), outbound: nil).padding(12),
                          size: size, dark: dark, until: "Selected project"),
             Helpers.draw(ResultPreviewCardView(item: .available(card), select: { _, _ in }).padding(12),
                          size: size, dark: dark, until: "Choose a project"),

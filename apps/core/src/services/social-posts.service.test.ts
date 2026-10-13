@@ -1329,6 +1329,48 @@ describe("social posts service", () => {
     expect(post).toMatchObject({ status: "CANCELED", revision: 1 });
   });
 
+  it.each(["FAILED", "MISSED"] as const)(
+    "cancels a %s post",
+    async (status) => {
+      socialPostFindFirstMock
+        .mockResolvedValueOnce({
+          ...scheduledPost,
+          status,
+          lastError: "X rejected the post",
+        })
+        .mockResolvedValueOnce({
+          ...scheduledPost,
+          status: "CANCELED",
+          canceledAt: NOW,
+          revision: 2,
+        });
+      const { cancelSocialPost } = await loadService();
+
+      const post = await cancelSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        postId: POST_ID,
+        revision: 1,
+      });
+
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: POST_ID, revision: 1 },
+        data: {
+          status: "CANCELED",
+          canceledAt: NOW,
+          revision: { increment: 1 },
+        },
+      });
+      expect(post).toMatchObject({
+        status: "CANCELED",
+        canEdit: false,
+        canSchedule: false,
+        canCancel: false,
+      });
+    },
+  );
+
   it("refuses to cancel a published post", async () => {
     socialPostFindFirstMock.mockResolvedValue({
       ...draftPost,

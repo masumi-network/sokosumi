@@ -40,10 +40,10 @@
       let beating = try shell(id: "beating", metadata: ["streaming": true, "mention_id": "mention_2", "reasoning": beats, "thought_timing_ms": ["start": 1_788_868_800_000]])
       let failed = try shell(id: "failed", metadata: ["mention_id": "mention_3", "mention_failed": true, "in_reply_to_message_id": "source"])
       let content = VStack(alignment: .leading, spacing: 12) {
-        MessageRowView(message: thinking, row: transcriptRow(thinking), outbound: nil, onRetry: nil, onRemove: nil)
-        MessageRowView(message: beating, row: transcriptRow(beating), outbound: nil, onRetry: nil, onRemove: nil)
-        MessageRowView(message: failed, row: transcriptRow(failed), outbound: nil, onRetry: nil, onRemove: nil, onRetryMention: {})
-        MessageRowView(message: failed, row: transcriptRow(failed), outbound: nil, onRetry: nil, onRemove: nil, onQuote: {}, onToggleReaction: { _ in false })
+        MessageRowView(message: thinking, row: transcriptRow(thinking), outbound: nil)
+        MessageRowView(message: beating, row: transcriptRow(beating), outbound: nil)
+        MessageRowView(message: failed, row: transcriptRow(failed), outbound: nil, perform: { _ in nil }, canRetryMention: true)
+        MessageRowView(message: failed, row: transcriptRow(failed), outbound: nil, perform: { _ in nil })
       }
       .padding(20)
       .frame(width: 520, alignment: .leading)

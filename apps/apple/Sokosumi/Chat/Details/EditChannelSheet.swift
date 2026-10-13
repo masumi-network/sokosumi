@@ -27,7 +27,7 @@ struct EditChannelSheet: ViewModifier {
           }, requestArchive: {
             lifecycle = .init(context: presentation.id, roomId: room.id, name: room.name, action: .archive)
           })
-          .disabled(workspaces.channelLifecycle != nil)
+          .disabled(workspaces.runningMutation?.lifecycleRoomId != nil)
           // Web closes the settings dialog once the channel is gone for this user.
           .modifier(ChannelLifecycleConfirmation(request: $lifecycle) { self.presentation = nil })
         } else {

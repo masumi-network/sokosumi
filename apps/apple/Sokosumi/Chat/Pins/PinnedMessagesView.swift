@@ -85,7 +85,7 @@ struct PinnedMessagesView: View {
         case .opened:
           close()
         case .unavailable:
-          actionError = "This message is no longer available."
+          actionError = messageUnavailableText
         case .superseded:
           break
         }

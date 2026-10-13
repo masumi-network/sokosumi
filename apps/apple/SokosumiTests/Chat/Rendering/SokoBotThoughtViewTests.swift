@@ -80,8 +80,8 @@
       }
 
       private static func row(_ message: Components.Schemas.ChatRoomMessage, retry: Bool = false) -> MessageRowView {
-        MessageRowView(message: message, row: transcriptRow(message), outbound: nil, onRetry: nil, onRemove: nil,
-                       onRetryMention: retry ? {} : nil, horizontalInset: 12)
+        MessageRowView(message: message, row: transcriptRow(message), outbound: nil,
+                       perform: { _ in nil }, canRetryMention: retry, horizontalInset: 12)
       }
 
       private static func host(_ content: some View, dark: Bool) -> NSHostingView<AnyView> {

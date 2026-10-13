@@ -62,8 +62,8 @@
       ])
       let chain = try #require(SokoBotChainMetadata(message: hop))
       let content = VStack(alignment: .leading, spacing: 12) {
-        MessageRowView(message: waiting, row: transcriptRow(waiting), outbound: nil, onRetry: nil, onRemove: nil)
-        MessageRowView(message: hop, row: transcriptRow(hop), outbound: nil, onRetry: nil, onRemove: nil, onQuote: {})
+        MessageRowView(message: waiting, row: transcriptRow(waiting), outbound: nil)
+        MessageRowView(message: hop, row: transcriptRow(hop), outbound: nil, perform: { _ in nil })
         HStack(spacing: 8) {
           SokoBotChainBadge(chain: chain)
           Text(chain.summary).font(.caption).foregroundStyle(.secondary)

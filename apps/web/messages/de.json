@@ -2477,6 +2477,7 @@
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Aus Drive hinzufügen",
+            "drop": "Dateien zum Anhängen ablegen",
             "upload": "Hochladen",
             "remove": "{name} entfernen",
             "unsupported": "Verwende ein Dateiformat, das {provider} akzeptiert.",
@@ -2554,11 +2555,17 @@
           "description": "Der Beitrag wird nicht veröffentlicht. Das lässt sich nicht rückgängig machen.",
           "confirm": "Beitrag abbrechen"
         },
+        "dismissDialog": {
+          "title": "Diesen Beitrag verwerfen?",
+          "description": "Er verschwindet aus Braucht Aufmerksamkeit.",
+          "confirm": "Verwerfen"
+        },
         "toasts": {
           "created": "{count, plural, one {Entwurf gespeichert.} other {# Entwürfe gespeichert.}}",
           "scheduled": "{count, plural, one {Beitrag geplant.} other {# Beiträge geplant.}}",
           "updated": "Beitrag aktualisiert.",
           "canceled": "Beitrag abgebrochen.",
+          "dismissed": "Beitrag verworfen.",
           "conflict": "Dieser Beitrag wurde an anderer Stelle geändert. Die neueste Version wird geladen.",
           "failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
           "offline": "Du bist offline. Versuche es erneut.",
@@ -2577,7 +2584,8 @@
         "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
         "actions": {
           "publishNow": "Jetzt veröffentlichen",
-          "retry": "Erneut versuchen"
+          "retry": "Erneut versuchen",
+          "dismiss": "Verwerfen"
         },
         "publishDialog": {
           "title": "Diesen Beitrag jetzt veröffentlichen?",

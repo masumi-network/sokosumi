@@ -30,7 +30,7 @@ public extension WorkspaceState {
   func acceptInvitation(id: String, context: UUID) async throws -> Bool {
     let sourceRoom = transcriptRoomId
     let slug = selection?.workspace.organizationSlug
-    return try await runInvitationResponse(.accept, id: id, context: context) {
+    return try await exclusive(.respondToInvitation(.accept, id: id), context: context) {
       let invitation = try await workspaceOperation(context: context) { client in
         try await service.acceptInvitation(client: client, id: id, organizationSlug: slug)
       }
@@ -42,7 +42,7 @@ public extension WorkspaceState {
   @discardableResult
   func declineInvitation(id: String, context: UUID) async throws -> Bool {
     let slug = selection?.workspace.organizationSlug
-    return try await runInvitationResponse(.decline, id: id, context: context) {
+    return try await exclusive(.respondToInvitation(.decline, id: id), context: context) {
       _ = try await workspaceOperation(context: context) { client in
         try await service.declineInvitation(client: client, id: id, organizationSlug: slug)
       }
@@ -61,7 +61,7 @@ public extension WorkspaceState {
   func acceptGuestInviteLink(token: String, context: UUID) async throws -> Bool {
     let sourceRoom = transcriptRoomId
     let slug = selection?.workspace.organizationSlug
-    return try await runInvitationResponse(.accept, id: token, context: context) {
+    return try await exclusive(.respondToInvitation(.accept, id: token), context: context) {
       let joined = try await workspaceOperation(context: context) { client in
         try await service.acceptGuestInviteLink(client: client, token: token, organizationSlug: slug)
       }
@@ -88,17 +88,5 @@ public extension WorkspaceState {
     await refreshRooms()
     guard context == compositionContext, rooms.contains(where: { $0.id == roomId }), transcriptRoomId == sourceRoom else { return }
     selectRoom(roomId)
-  }
-
-  private func runInvitationResponse(_ action: InvitationAction, id: String, context: UUID, perform: () async throws -> Void) async throws -> Bool {
-    guard canStartMutation(context: context) else { return false }
-    invitationResponse = .init(invitationId: id, action: action)
-    defer {
-      if context == compositionContext {
-        invitationResponse = nil
-      }
-    }
-    try await perform()
-    return true
   }
 }

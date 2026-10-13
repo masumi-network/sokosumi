@@ -352,7 +352,7 @@
         let mark = landed ? JumpMark(messageId: "Ben", landedAt: Date().addingTimeInterval(-1)) : nil
         let rows = VStack(alignment: .leading, spacing: 0) {
           ForEach(messages, id: \.id) { message in
-            let row = MessageRowView(message: message, row: transcriptRow(message), outbound: nil, onRetry: nil, onRemove: nil,
+            let row = MessageRowView(message: message, row: transcriptRow(message), outbound: nil,
                                      jumpMark: mark?.messageId == message.id ? mark : nil, horizontalInset: 12)
             if spotlight {
               row.jumpSpotlightRow(messageId: message.id)

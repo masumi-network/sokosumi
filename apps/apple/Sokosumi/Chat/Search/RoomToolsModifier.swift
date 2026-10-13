@@ -265,7 +265,7 @@ import SwiftUI
               destination = nil
             }
           case .unavailable:
-            jumpError = "This message is no longer available."
+            jumpError = messageUnavailableText
           case .superseded:
             break
           }
