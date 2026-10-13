@@ -1,5 +1,6 @@
 #if os(macOS)
   @testable import Sokosumi
+  import SokosumiChat
   import SwiftUI
   import Testing
 
