@@ -39,7 +39,12 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   private var roomHealth: RoomRealtimeHealth?
   private var removeHealthListeners: (() -> Void)?
 
-  public init() {}
+  /// Paces the gated channels' retry after a failed token mint; tests pass a clock they drive.
+  private let sleep: @Sendable (Duration) async throws -> Void
+
+  public init(sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
+    self.sleep = sleep
+  }
 
   public func connect(
     userId: String,
@@ -90,7 +95,7 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       controlChannel = control
       membershipSubscriptions = RoomMembershipSubscriptions(realtime: realtime, onEvent: onEvent)
       presence = OrgPresenceChannel(realtime: realtime, onEvent: onEvent)
-      typing = RoomTypingChannel(realtime: realtime, userId: userId, onEvent: onEvent)
+      typing = RoomTypingChannel(realtime: realtime, userId: userId, onEvent: onEvent, sleep: sleep)
     }
   }
 
