@@ -28,7 +28,10 @@ struct TranscriptRowTests {
       ada("m3", "Tuesday", at: "2026-09-08T09:00:00.000Z")
     ])
     let session = TranscriptSession()
-    let rows = messages.indices.map { session.row(at: $0, of: messages, context: context, streamBusy: false, now: now) }
+    var utc = Calendar(identifier: .gregorian)
+    utc.timeZone = try #require(TimeZone(identifier: "UTC"))
+    // The day pill depends on the reader's calendar; pin it, or a reader east of UTC+12 sees another day.
+    let rows = messages.indices.map { session.row(at: $0, of: messages, context: context, streamBusy: false, now: now, calendar: utc) }
     #expect(rows.map(\.dayLabel) == ["Yesterday", nil, "Today"])
     #expect(rows[1].content == .status)
     #expect(rows.allSatisfy { $0.gap == nil })
@@ -76,6 +79,34 @@ struct TranscriptRowTests {
     #expect(thinking(false, reply) == false, "Nothing is working once the stream ended.")
     reply.content = "Done."
     #expect(thinking(true, reply) == false)
+  }
+
+  /// The bubble carries the Transcript's own state for its message: the send it still owns and a jump's mark.
+  @Test func aBubbleCarriesItsSendAndItsJumpMark() async throws {
+    let landed = Date(timeIntervalSince1970: 1_788_868_000)
+    let session = TranscriptSession(now: { landed })
+    let shell = OutboundShell(clientTurnId: "turn_1", roomId: testRoomId, content: "On its way", createdAt: landed,
+                              sender: .init(id: "ada", name: "Ada", email: "ada@example.com", presence: .online))
+    // A send that never answers keeps its shell in the outbox for the whole test.
+    session.outbox.enqueue(shell, send: { try await Task.sleep(for: .seconds(3600))
+      throw CancellationError()
+    },
+    confirmed: { _ in }, failed: { _ in })
+    let pending = chatRoomMessage(from: shell)
+    let stored = try #require(try await fetchTestMessages([ada("m1", "Stored", at: testTimestamp)]).first)
+    session.timeline.messages = [stored]
+    session.markCovered("m1")
+    let messages = [stored, pending]
+    func bubble(_ index: Int) -> TranscriptRow.Bubble? {
+      guard case let .bubble(bubble) = session.row(at: index, of: messages, context: context, streamBusy: false, now: now).content else {
+        return nil
+      }
+      return bubble
+    }
+    #expect(bubble(0)?.jumpMark == JumpMark(messageId: "m1", landedAt: landed))
+    #expect(bubble(0)?.outbound == nil)
+    #expect(bubble(1)?.outbound == shell)
+    #expect(bubble(1)?.jumpMark == nil)
   }
 
   @Test func onlyTheNewestRowIsMarkedNewest() async throws {

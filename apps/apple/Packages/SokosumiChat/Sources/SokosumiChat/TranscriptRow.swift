@@ -40,12 +40,13 @@ public extension TranscriptSession {
     context: TranscriptContext,
     streamBusy: Bool,
     newestId: String? = nil,
-    now: Date
+    now: Date,
+    calendar: Calendar = .current
   ) -> TranscriptRow {
     let message = messages[index]
     let previous = index > 0 ? messages[index - 1] : nil
     let gap = timeline.historyGapMessageIds.contains(message.id) ? timeline.boundaryLoads.status(of: message.id) : nil
-    let dayLabel = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt, now: now)
+    let dayLabel = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt, now: now, calendar: calendar)
     let outbound = outbox.shells.first { $0.id == message.id }
     guard MessageKind(message, outbound: outbound) != .statusRow else {
       return TranscriptRow(gap: gap, dayLabel: dayLabel, content: .status)
