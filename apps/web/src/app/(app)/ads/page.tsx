@@ -6,6 +6,7 @@ import type { SearchParams } from "nuqs/server";
 import { Suspense } from "react";
 
 import { ProjectScopePicker } from "@/app/components/project-scope/project-scope-picker";
+import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
 import { adsService } from "@/lib/services/ads.service";
 import { projectService } from "@/lib/services/project.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
@@ -14,7 +15,6 @@ import { loadAdsSearchParams, selectAccount } from "./ads-query";
 import { AdsCampaignsSection } from "./components/ads-campaigns-section";
 import { AdsCampaignsToolbar } from "./components/ads-campaigns-toolbar";
 import { AdsMarketSection } from "./components/ads-market-section";
-import { AdsPageShell } from "./components/ads-page-shell";
 import { AdsRowsSkeleton } from "./components/ads-skeleton";
 import { AdsTabs } from "./components/ads-tabs";
 
@@ -51,7 +51,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
 
   if (!project) {
     return (
-      <AdsPageShell title={t("title")}>
+      <WorkspacePageShell title={t("title")}>
         <ProjectScopePicker
           action={t("pickAction")}
           // Not `notFound()` for a lost id: it came from a switchable scope,
@@ -60,7 +60,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
           testId="ads-no-project"
           title={t("pickTitle")}
         />
-      </AdsPageShell>
+      </WorkspacePageShell>
     );
   }
 
@@ -100,13 +100,13 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
     ) : null;
 
   return (
-    <AdsPageShell title={t("title")}>
+    <WorkspacePageShell title={t("title")}>
       <AdsTabs
         accounts={accounts}
         campaigns={campaigns}
         market={market}
         projectId={project.id}
       />
-    </AdsPageShell>
+    </WorkspacePageShell>
   );
 }

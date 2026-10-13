@@ -2,14 +2,14 @@ import { getTranslations } from "next-intl/server";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { AdsPageShell } from "./components/ads-page-shell";
+import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
 
 /** Ads' shape while the project loads: the tab row and one empty-state block. */
 export default async function AdsLoading() {
   const t = await getTranslations("App.Ads");
 
   return (
-    <AdsPageShell title={t("title")}>
+    <WorkspacePageShell title={t("title")}>
       <div
         aria-busy="true"
         aria-live="polite"
@@ -23,6 +23,6 @@ export default async function AdsLoading() {
           <Skeleton className="mx-auto h-40 w-full max-w-md" />
         </div>
       </div>
-    </AdsPageShell>
+    </WorkspacePageShell>
   );
 }
