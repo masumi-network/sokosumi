@@ -3386,7 +3386,6 @@
           "language": "Language",
           "languagePlaceholder": "Choose a language",
           "submit": "Save market",
-          "saving": "Saving…",
           "cancel": "Cancel",
           "success": "Market saved successfully",
           "errors": {

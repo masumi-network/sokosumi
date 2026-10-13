@@ -1,4 +1,5 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { err, ok, type Result } from "neverthrow";
 
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 
@@ -6,9 +7,7 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 export type AdsLoadError = "unavailable" | "failed";
 
 /** What a section loaded: its data, or the error to show in its place. */
-export type AdsLoad<T> =
-  | { data: T; error?: undefined }
-  | { data?: undefined; error: AdsLoadError };
+export type AdsLoad<T> = Result<T, AdsLoadError>;
 
 /**
  * What a failed Ads load shows, by Core's error kind (a provider that is not
@@ -25,8 +24,8 @@ export function toAdsLoadError(error: unknown): AdsLoadError {
 /** Waits for a load, turning a Core failure into the error to show. */
 export async function settleAdsLoad<T>(load: Promise<T>): Promise<AdsLoad<T>> {
   try {
-    return { data: await load };
+    return ok(await load);
   } catch (error) {
-    return { error: toAdsLoadError(error) };
+    return err(toAdsLoadError(error));
   }
 }

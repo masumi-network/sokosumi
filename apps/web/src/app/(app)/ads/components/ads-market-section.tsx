@@ -25,7 +25,7 @@ export async function AdsMarketSection({ projectId }: AdsMarketSectionProps) {
   const locale = await getLocale();
   const loaded = await settleAdsLoad(adsService.getMarketProfile(projectId));
 
-  if (loaded.error) {
+  if (loaded.isErr()) {
     return (
       <AdsErrorState
         failedTitle={t("errors.failed.profile")}
@@ -35,7 +35,7 @@ export async function AdsMarketSection({ projectId }: AdsMarketSectionProps) {
     );
   }
 
-  const { profile } = loaded.data;
+  const { profile } = loaded.value;
   return (
     <div className="flex flex-col gap-10">
       <AdsMarketProfile

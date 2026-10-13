@@ -3386,7 +3386,6 @@
           "language": "Sprache",
           "languagePlaceholder": "Sprache wählen",
           "submit": "Markt speichern",
-          "saving": "Wird gespeichert…",
           "cancel": "Abbrechen",
           "success": "Markt erfolgreich gespeichert",
           "errors": {

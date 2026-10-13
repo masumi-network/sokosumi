@@ -155,8 +155,8 @@ function MarketProfileForm({
   }
 
   const submit = (
-    <Button disabled={form.formState.isSubmitting} type="submit">
-      {form.formState.isSubmitting ? t("saving") : t("submit")}
+    <Button loading={form.formState.isSubmitting} type="submit">
+      {t("submit")}
     </Button>
   );
 

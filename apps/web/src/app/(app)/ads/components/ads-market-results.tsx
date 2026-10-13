@@ -33,7 +33,7 @@ export async function AdsMarketResults({ projectId }: AdsMarketResultsProps) {
     adsService.listMarketKeywords(projectId),
   );
 
-  if (keywords.error === "unavailable") {
+  if (keywords.isErr() && keywords.error === "unavailable") {
     // Nothing waits on the ads now; a rejection must not go unhandled.
     ads.catch(() => undefined);
     return (
@@ -79,7 +79,7 @@ export function AdsMarketKeywords({
 }) {
   const t = useTranslations("App.Ads.market");
 
-  if (result.error) {
+  if (result.isErr()) {
     return (
       <AdsErrorState
         failedTitle={t("errors.failed.keywords")}
@@ -88,7 +88,7 @@ export function AdsMarketKeywords({
       />
     );
   }
-  if (result.data.keywords.length === 0) {
+  if (result.value.keywords.length === 0) {
     return (
       <EmptyState
         description={t("keywords.emptyBody")}
@@ -96,7 +96,7 @@ export function AdsMarketKeywords({
       />
     );
   }
-  return <AdsMarketKeywordList {...result.data} />;
+  return <AdsMarketKeywordList {...result.value} />;
 }
 
 /**
@@ -114,7 +114,7 @@ export function AdsMarketAds({
   const t = useTranslations("App.Ads.market");
   const loaded = use(result);
 
-  if (loaded.error) {
+  if (loaded.isErr()) {
     return (
       <AdsErrorState
         failedTitle={t("errors.failed.ads")}
@@ -124,7 +124,7 @@ export function AdsMarketAds({
     );
   }
 
-  const { status, ads, fetchedAt } = loaded.data;
+  const { status, ads, fetchedAt } = loaded.value;
   const gathering = status === "gathering";
   const notice = {
     ready: undefined,

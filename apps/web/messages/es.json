@@ -3386,7 +3386,6 @@
           "language": "Idioma",
           "languagePlaceholder": "Elige un idioma",
           "submit": "Guardar mercado",
-          "saving": "Guardando…",
           "cancel": "Cancelar",
           "success": "Mercado guardado correctamente",
           "errors": {

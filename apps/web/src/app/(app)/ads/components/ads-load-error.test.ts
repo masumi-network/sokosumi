@@ -1,3 +1,4 @@
+import { err, ok } from "neverthrow";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/clients/core.client", async () => {
@@ -40,9 +41,7 @@ describe("toAdsLoadError", () => {
 
 describe("settleAdsLoad", () => {
   it("hands back the data", async () => {
-    await expect(settleAdsLoad(Promise.resolve([1]))).resolves.toEqual({
-      data: [1],
-    });
+    await expect(settleAdsLoad(Promise.resolve([1]))).resolves.toEqual(ok([1]));
   });
 
   it("hands back the error to show for a Core failure", async () => {
@@ -50,7 +49,7 @@ describe("settleAdsLoad", () => {
       settleAdsLoad(
         Promise.reject(new CoreApiRequestError("x", { status: 502 })),
       ),
-    ).resolves.toEqual({ error: "failed" });
+    ).resolves.toEqual(err("failed"));
   });
 
   it("rejects for anything else", async () => {

@@ -3,6 +3,7 @@ import type {
   ListAdMarketAdsResponse,
 } from "@sokosumi/core-client";
 import { act, render, screen } from "@testing-library/react";
+import { ok } from "neverthrow";
 import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -191,9 +192,9 @@ describe("AdsMarketAds", () => {
     status: ListAdMarketAdsResponse["status"],
     ads: AdMarketAd[] = [],
   ) {
-    const result = Promise.resolve({
-      data: { status, ads, fetchedAt: ads.length ? fetchedAt : null },
-    });
+    const result = Promise.resolve(
+      ok({ status, ads, fetchedAt: ads.length ? fetchedAt : null }),
+    );
     return act(async () => {
       render(
         <NextIntlClientProvider locale="en" messages={messages}>

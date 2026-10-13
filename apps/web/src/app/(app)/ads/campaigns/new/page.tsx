@@ -46,8 +46,10 @@ async function loadGoogleSetup(projectId: string, accountId: string) {
     adsService.listLanguages(projectId, accountId),
   );
   // The location needs only the profile, so it does not wait for the languages.
-  const locationLoad = profileLoad.then(({ data }) => {
-    const locationId = data?.profile?.locationId;
+  const locationLoad = profileLoad.then((profileResult) => {
+    const locationId = profileResult.isOk()
+      ? profileResult.value.profile?.locationId
+      : undefined;
     return locationId
       ? settleAdsLoad(
           adsService.getLocationById(projectId, accountId, locationId),
@@ -60,13 +62,15 @@ async function loadGoogleSetup(projectId: string, accountId: string) {
     languagesLoad,
     locationLoad,
   ]);
-  const profile = profileResult.data?.profile ?? null;
+  const profile = profileResult.isOk() ? profileResult.value.profile : null;
   return {
     hasMarketProfile: !!profile,
     targeting: toGoogleTargeting({
       profile,
-      languages: languagesResult.data?.languages ?? null,
-      locations: locationResult?.data?.locations ?? [],
+      languages: languagesResult.isOk()
+        ? languagesResult.value.languages
+        : null,
+      locations: locationResult?.isOk() ? locationResult.value.locations : [],
     }),
   };
 }
