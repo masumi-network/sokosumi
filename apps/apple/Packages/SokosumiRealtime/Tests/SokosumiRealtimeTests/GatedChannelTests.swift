@@ -190,7 +190,17 @@ struct GatedChannelTests {
     #expect(policy.events.last == "attach a")
   }
 
-  @Test func stopCancelsTheRetryAndIgnoresALateAnswer() async {
+  @Test func aMintAnsweredAfterStopAttachesNothing() {
+    engine.setTarget("a")
+    settle()
+    #expect(host.mintCount == 1)
+    engine.stop()
+    host.answer(0, granting: "a")
+    settle()
+    #expect(policy.events == ["detach", "detach"], "The answer lands on a stopped channel.")
+  }
+
+  @Test func stopCancelsTheRetry() async {
     engine.setTarget("a")
     settle()
     host.answer(0, granting: nil, failed: true)
