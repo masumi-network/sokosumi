@@ -3154,7 +3154,6 @@
           "title": "Change daily budget",
           "description": "{name} spends up to this amount per day.",
           "save": "Save budget",
-          "saving": "Saving…",
           "change": "Daily budget changes from {old} to {new}.",
           "notSet": "not set"
         },

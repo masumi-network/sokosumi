@@ -124,8 +124,10 @@ function StatusDialog({
 }: DialogProps & { nextStatus: "ACTIVE" | "PAUSED" }) {
   const t = useTranslations("App.Ads.campaigns");
   const copy = nextStatus === "PAUSED" ? "pauseDialog" : "resumeDialog";
+  const [pending, setPending] = useState(false);
 
   async function handleConfirm(): Promise<void> {
+    setPending(true);
     try {
       const result = await updateAdCampaign({
         projectId,
@@ -135,11 +137,14 @@ function StatusDialog({
       });
       if (result.ok) {
         toast.success(t("success.updated"));
+        onClose();
       } else {
         toast.error(t("errors.update"));
       }
     } catch {
       toast.error(t("errors.update"));
+    } finally {
+      setPending(false);
     }
   }
 
@@ -160,8 +165,16 @@ function StatusDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-          <AlertDialogAction onClick={() => void handleConfirm()}>
+          <AlertDialogCancel disabled={pending}>
+            {t("cancel")}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            loading={pending}
+            onClick={(event) => {
+              event.preventDefault();
+              void handleConfirm();
+            }}
+          >
             {t(`${copy}.confirm`)}
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -288,10 +301,11 @@ function BudgetDialog({
                 {tCampaigns("cancel")}
               </Button>
               <Button
-                disabled={form.formState.isSubmitting || isUnchanged}
+                disabled={isUnchanged}
+                loading={form.formState.isSubmitting}
                 type="submit"
               >
-                {form.formState.isSubmitting ? t("saving") : t("save")}
+                {t("save")}
               </Button>
             </DialogFooter>
           </form>

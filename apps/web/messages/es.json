@@ -3154,7 +3154,6 @@
           "title": "Cambiar presupuesto diario",
           "description": "{name} gasta como máximo esta cantidad al día.",
           "save": "Guardar presupuesto",
-          "saving": "Guardando…",
           "change": "El presupuesto diario cambia de {old} a {new}.",
           "notSet": "sin definir"
         },

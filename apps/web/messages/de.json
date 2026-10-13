@@ -3154,7 +3154,6 @@
           "title": "Tagesbudget ändern",
           "description": "{name} gibt pro Tag höchstens diesen Betrag aus.",
           "save": "Budget speichern",
-          "saving": "Wird gespeichert…",
           "change": "Das Tagesbudget ändert sich von {old} auf {new}.",
           "notSet": "nicht festgelegt"
         },

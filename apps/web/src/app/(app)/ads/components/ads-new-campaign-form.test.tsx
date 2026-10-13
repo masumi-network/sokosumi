@@ -1933,5 +1933,24 @@ describe("AdsNewCampaignForm", () => {
       );
       expect(createMock.mock.calls[0]?.[0]).not.toHaveProperty("google");
     });
+
+    it("maps 422 to the budget field in our words, never Core's text", async () => {
+      createMock.mockResolvedValue(
+        refused(422, "dailyBudget has too many decimals"),
+      );
+      const user = await renderForm({ provider: "meta_ads" });
+      await user.type(nameInput(), "Spring sale");
+      await user.type(budgetInput(), "10");
+      await user.click(screen.getByRole("combobox", { name: "Objective" }));
+      await user.click(screen.getByRole("option", { name: "Leads" }));
+
+      await user.click(submit());
+
+      expect(
+        await screen.findByText("Use at most 2 decimal places for USD."),
+      ).toBeVisible();
+      expect(screen.queryByText(/dailyBudget/)).toBeNull();
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
   });
 });

@@ -96,17 +96,26 @@ interface BasicsValues {
   dailyBudget: string;
 }
 
+type CreateOutcome = "ok" | "budget_refused" | "shown";
+
 /**
  * Creates the campaign and follows the outcome. Core creates it paused and
  * the action revalidates the list, so nothing updates optimistically.
+ *
+ * `budgetPrecisionOn422`: Meta create maps 422 to the budget field (our
+ * precision copy). Google keeps Core's/Google's message in the alert.
  */
-function useCreateCampaign({ accountId, projectId }: CampaignFormProps) {
+function useCreateCampaign({
+  accountId,
+  projectId,
+  budgetPrecisionOn422 = false,
+}: CampaignFormProps & { budgetPrecisionOn422?: boolean }) {
   const t = useTranslations("App.Ads.newCampaign");
   const router = useRouter();
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [created, setCreated] = useState(false);
 
-  async function create(details: CampaignDetails): Promise<void> {
+  async function create(details: CampaignDetails): Promise<CreateOutcome> {
     setRefusal(null);
     const attempt = (refusal?.attempt ?? 0) + 1;
     try {
@@ -119,16 +128,27 @@ function useCreateCampaign({ accountId, projectId }: CampaignFormProps) {
         toast.success(t("success"));
         setCreated(true);
         router.push(campaignsHref(projectId, accountId));
-      } else if (result.error.status === 422 && result.error.message) {
-        setRefusal({ attempt, kind: "refused", message: result.error.message });
-      } else {
-        setRefusal({
-          attempt,
-          kind: result.error.status === 409 ? "reconnect" : "failed",
-        });
+        return "ok";
       }
+      if (result.error.status === 422) {
+        if (budgetPrecisionOn422) return "budget_refused";
+        if (result.error.message) {
+          setRefusal({
+            attempt,
+            kind: "refused",
+            message: result.error.message,
+          });
+          return "shown";
+        }
+      }
+      setRefusal({
+        attempt,
+        kind: result.error.status === 409 ? "reconnect" : "failed",
+      });
+      return "shown";
     } catch {
       setRefusal({ attempt, kind: "failed" });
+      return "shown";
     }
   }
 
@@ -308,7 +328,7 @@ function NameAndBudgetFields({
 /** A Meta campaign: a name, a budget and one objective. */
 export function MetaCampaignForm(props: CampaignFormProps) {
   const t = useTranslations("App.Ads.newCampaign");
-  const creation = useCreateCampaign(props);
+  const creation = useCreateCampaign({ ...props, budgetPrecisionOn422: true });
   const { budget, shape } = useBasics(props.currency);
   const form = useForm({
     resolver: zodResolver(
@@ -326,14 +346,21 @@ export function MetaCampaignForm(props: CampaignFormProps) {
       <CampaignFormFrame
         {...props}
         creation={creation}
-        onSubmit={form.handleSubmit(({ name, dailyBudget, objective }) =>
-          creation.create({
-            name,
-            dailyBudget: Number(dailyBudget),
-            objective: AD_CAMPAIGN_OBJECTIVES.find(
-              (candidate) => candidate === objective,
-            ),
-          }),
+        onSubmit={form.handleSubmit(
+          async ({ name, dailyBudget, objective }) => {
+            const outcome = await creation.create({
+              name,
+              dailyBudget: Number(dailyBudget),
+              objective: AD_CAMPAIGN_OBJECTIVES.find(
+                (candidate) => candidate === objective,
+              ),
+            });
+            if (outcome === "budget_refused") {
+              form.setError("dailyBudget", {
+                message: budget.precisionMessage,
+              });
+            }
+          },
         )}
         submitting={form.formState.isSubmitting}
       >
@@ -544,16 +571,16 @@ export function GoogleCampaignForm({
         <CampaignFormFrame
           {...props}
           creation={creation}
-          onSubmit={form.handleSubmit((values) =>
-            creation.create({
+          onSubmit={form.handleSubmit(async (values) => {
+            await creation.create({
               name: values.name.trim(),
               dailyBudget: Number(values.dailyBudget),
               google:
                 values.type === "SEARCH"
                   ? toGoogleSearchSpec(values)
                   : toGoogleDisplaySpec(values),
-            }),
-          )}
+            });
+          })}
           submitting={form.formState.isSubmitting}
           uploading={uploading}
         >
