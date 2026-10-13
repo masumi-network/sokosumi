@@ -76,7 +76,7 @@ public extension WorkspaceState {
       return loaded
     }
     do {
-      return try await ChatService().getMessage(client: client, roomId: roomId, messageId: id, organizationSlug: organizationSlug)
+      return try await service.getMessage(client: client, roomId: roomId, messageId: id, organizationSlug: organizationSlug)
     } catch {
       if let failure = error as? ChatServiceError {
         switch failure {
@@ -216,6 +216,6 @@ public extension WorkspaceState {
     if let parent = room.timeline.messages.first(where: { $0.id == id }) ?? thread.parent.flatMap({ $0.id == id ? $0 : nil }) {
       return parent
     }
-    return try await ChatService().getThread(client: client, roomId: roomId, parentMessageId: id, organizationSlug: organizationSlug).parentMessage
+    return try await service.getThread(client: client, roomId: roomId, parentMessageId: id, organizationSlug: organizationSlug).parentMessage
   }
 }

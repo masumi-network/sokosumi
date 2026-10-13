@@ -508,7 +508,9 @@ export function SocialPostStatistics(
             key={days}
             size="sm"
             type="button"
-            className={preset === days ? undefined : "text-foreground"}
+            className={
+              preset === days ? "h-11 md:h-8" : "text-foreground h-11 md:h-8"
+            }
             variant={preset === days ? "default" : "outline"}
             aria-pressed={preset === days}
             onClick={() => handlePreset(days)}
