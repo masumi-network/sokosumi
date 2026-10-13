@@ -75,16 +75,6 @@ struct ChatRootView: View {
     } message: {
       Text(workspaces.readAttention.errorMessage ?? "")
     }
-    .onChange(of: auth.isSignedIn) { _, signedIn in
-      // Hop off this view update: startIfNeeded/reset publish WorkspaceState.
-      Task { @MainActor in
-        if signedIn {
-          workspaces.startIfNeeded()
-        } else {
-          workspaces.reset()
-        }
-      }
-    }
   }
 
   @ViewBuilder

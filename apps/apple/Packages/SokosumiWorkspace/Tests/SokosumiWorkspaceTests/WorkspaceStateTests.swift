@@ -1153,6 +1153,23 @@ struct WorkspaceStateTests {
     ])
   }
 
+  /// The workspace follows sign-in itself, once for all windows: a restored session waits for a window to start it,
+  /// and signing out drops what the account loaded.
+  @Test func signingOutResetsTheWorkspace() async throws {
+    let store = InMemoryTokenStore()
+    try store.save(OAuthTokens(accessToken: "access", refreshToken: "refresh", expiresAt: .distantFuture))
+    let configuration = try OAuthConfiguration(issuerBaseURL: #require(URL(string: "https://app.sokosumi.com")), clientID: "client")
+    let auth = AuthState(configuration: configuration, store: store, browser: StubOAuthBrowser(), restoreSession: true)
+    #expect(auth.isSignedIn)
+    let state = WorkspaceState(auth: auth)
+    await Task.yield()
+    #expect(state.phase == .idle, "A restored session does not load before a window asks.")
+    state.rooms = [generalChannel(id: "room")]
+    await auth.signOut().value
+    await waitWhile { !state.rooms.isEmpty }
+    #expect(state.rooms.isEmpty)
+  }
+
   @Test func hiddenHistoryDefersReadUntilWindowBecomesVisible() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440033"
     let (state, auth, transport, _) = try ephemeralState([
