@@ -94,7 +94,7 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       self.notificationsListener = notificationsListener
       controlChannel = control
       membershipSubscriptions = RoomMembershipSubscriptions(realtime: realtime, onEvent: onEvent)
-      presence = OrgPresenceChannel(realtime: realtime, onEvent: onEvent)
+      presence = OrgPresenceChannel(realtime: realtime, onEvent: onEvent, sleep: sleep)
       typing = RoomTypingChannel(realtime: realtime, userId: userId, onEvent: onEvent, sleep: sleep)
     }
   }
