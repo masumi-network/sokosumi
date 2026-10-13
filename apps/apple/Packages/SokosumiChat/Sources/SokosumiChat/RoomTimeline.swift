@@ -283,29 +283,3 @@ public final class RoomTimeline: ObservableObject {
     )
   }
 }
-
-/// Reader intent, independent of scroll-view APIs. Content growth must not
-/// unpin a reader who was already following the latest message.
-public struct TimelineScrollIntent: Equatable, Sendable {
-  public private(set) var followsLatest = true
-
-  public init() {}
-
-  public mutating func userScrolled(isNearBottom: Bool) {
-    followsLatest = isNearBottom
-  }
-
-  public mutating func beginAutomaticOlderPage(userIsScrolling: Bool, isNearTop: Bool, hasMore: Bool, isLoading: Bool) -> Bool {
-    guard userIsScrolling, isNearTop, hasMore, !isLoading else { return false }
-    readOlder()
-    return true
-  }
-
-  public mutating func readOlder() {
-    followsLatest = false
-  }
-
-  public mutating func followLatest() {
-    followsLatest = true
-  }
-}

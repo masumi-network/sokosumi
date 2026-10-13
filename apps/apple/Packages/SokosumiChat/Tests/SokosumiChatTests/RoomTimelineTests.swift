@@ -217,32 +217,6 @@ struct RoomTimelineTests {
     #expect(timeline.messages.isEmpty)
   }
 
-  @Test func resizingAndExhaustedHistoryDoNotUnpinLatest() {
-    var intent = TimelineScrollIntent()
-    let resizeLoads = intent.beginAutomaticOlderPage(userIsScrolling: false, isNearTop: true, hasMore: true, isLoading: false)
-    #expect(!resizeLoads)
-    #expect(intent.followsLatest)
-    let exhaustedLoads = intent.beginAutomaticOlderPage(userIsScrolling: true, isNearTop: true, hasMore: false, isLoading: false)
-    #expect(!exhaustedLoads)
-    #expect(intent.followsLatest)
-    let scrollLoads = intent.beginAutomaticOlderPage(userIsScrolling: true, isNearTop: true, hasMore: true, isLoading: false)
-    #expect(scrollLoads)
-    #expect(!intent.followsLatest)
-  }
-
-  @Test func scrollIntentPreservesReadingPositionUntilExplicitReturn() {
-    var intent = TimelineScrollIntent()
-    #expect(intent.followsLatest)
-    intent.userScrolled(isNearBottom: false)
-    #expect(!intent.followsLatest)
-    intent.followLatest()
-    #expect(intent.followsLatest)
-    intent.readOlder()
-    #expect(!intent.followsLatest)
-    intent.userScrolled(isNearBottom: true)
-    #expect(intent.followsLatest)
-  }
-
   @Test func historicalJumpKeepsHeadAndFillsGap() async throws {
     let transport = TestTransport([
       (200, testMessagesPageBody(messages: [row("z", content: "Latest")], nextCursor: "z")),
