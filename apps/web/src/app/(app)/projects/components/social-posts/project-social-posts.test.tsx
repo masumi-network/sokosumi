@@ -96,6 +96,7 @@ const MESSAGES: Record<string, string> = {
   attempts: "{count} attempts",
   "actions.publishNow": "Publish now",
   "actions.retry": "Retry",
+  "actions.dismiss": "Dismiss",
   "sections.calendar": "Calendar",
   "sections.drafts": "Drafts",
   "sections.attention": "Needs attention",
@@ -189,6 +190,9 @@ const MESSAGES: Record<string, string> = {
   "cancelDialog.description":
     "The post will not be published. This cannot be undone.",
   "cancelDialog.confirm": "Cancel post",
+  "dismissDialog.title": "Dismiss this post?",
+  "dismissDialog.description": "It leaves Needs attention.",
+  "dismissDialog.confirm": "Dismiss",
   "publishDialog.title": "Publish this post now?",
   "publishDialog.description":
     "The post goes out to X right away instead of waiting for its scheduled time.",
@@ -202,6 +206,7 @@ const MESSAGES: Record<string, string> = {
   "toasts.scheduled": "Post scheduled.",
   "toasts.updated": "Post updated.",
   "toasts.canceled": "Post canceled.",
+  "toasts.dismissed": "Post dismissed.",
   "toasts.conflict":
     "This post was changed elsewhere. Reloading the latest version.",
   "toasts.failed": "Something went wrong. Try again.",
@@ -424,7 +429,7 @@ const FAILED_POST = buildPost({
   revision: 5,
   canEdit: false,
   canSchedule: true,
-  canCancel: false,
+  canCancel: true,
   canPublishNow: true,
 });
 
@@ -2634,6 +2639,12 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getByRole("menuitem", { name: "Reschedule" })).toHaveClass(
       "min-h-11",
     );
+    expect(screen.getByRole("menuitem", { name: "Dismiss" })).toHaveClass(
+      "min-h-11",
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Cancel post" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "Retry" }),
     ).not.toBeInTheDocument();
@@ -2642,6 +2653,62 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "Edit" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("dismisses a FAILED post after confirmation and leaves Needs attention", async () => {
+    const user = userEvent.setup();
+    vi.mocked(cancelProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: {
+        ...FAILED_POST,
+        status: "CANCELED",
+        canceledAt: new Date("2026-09-15T12:00:00.000Z"),
+        revision: 6,
+        canEdit: false,
+        canSchedule: false,
+        canCancel: false,
+        canPublishNow: false,
+      },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[FAILED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    await openRowMenu(user, "post-failed");
+    await user.click(screen.getByRole("menuitem", { name: "Dismiss" }));
+    expect(cancelProjectSocialPost).not.toHaveBeenCalled();
+
+    const alert = screen.getByRole("alertdialog");
+    expect(
+      within(alert).getByRole("heading", { name: "Dismiss this post?" }),
+    ).toBeVisible();
+    expect(within(alert).getByText("It leaves Needs attention.")).toBeVisible();
+    expect(
+      within(alert).queryByRole("heading", { name: "Cancel this post?" }),
+    ).not.toBeInTheDocument();
+    await user.click(within(alert).getByRole("button", { name: "Dismiss" }));
+
+    await waitFor(() => {
+      expect(cancelProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-failed",
+        revision: 5,
+      });
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Post dismissed.");
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: /^Needs attention/ }),
+    ).not.toBeInTheDocument();
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.queryByTestId("social-post-post-failed"),
     ).not.toBeInTheDocument();
   });
 
