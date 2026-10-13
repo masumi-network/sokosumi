@@ -79,35 +79,22 @@ import SwiftUI
     let row: MessageRow
     let outbound: OutboundShell?
     var sentAt: Date?
-    let onRetry: (() -> Void)?
-    let onRemove: (() -> Void)?
+    /// The transcript's answer to this row's actions (`TranscriptRowActions.perform`): nil from a local action, the
+    /// request's task otherwise. `row.actions` decides which the row offers.
+    var perform: ((MessageRowAction) -> Task<Void, any Error>?)?
     /// Mentioner-only retry of a failed coworker mention shell.
-    var onRetryMention: (() async throws -> Void)?
-    var onReply: (() -> Void)?
-    var onQuote: (() -> Void)?
-    var onEdit: (() -> Void)?
+    var canRetryMention = false
     /// The mark a jump left on this row, while it lasts (row 25b1).
     var jumpMark: JumpMark?
     var isPinned = false
     var isUpdatingPin = false
-    var onTogglePin: (() async throws -> Void)?
-    var onDelete: (() async throws -> Void)?
-    var onRemoveUnfurl: ((String) async throws -> Void)?
-    /// Returns whether the requests this tap started left the viewer's reaction on the message.
-    var onToggleReaction: ((String) async throws -> Bool)?
     var editing: MessageEditing?
-    var onQuoteJump: ((String) -> Void)?
-    /// Send to yourself. Absent inside the Self Direct and for rows that are not durable.
+    /// Send to yourself, offered where `row.actions.canSendToSelf`.
     var onSendToSelf: (() async throws -> Components.Schemas.ChatRoomMessage)?
     /// The Soko Bot turn's useful / not useful thumbs, on a row that carries them (row 38b).
     var sokoBotFeedback: SokoBotFeedback?
-    var onSokoBotFeedback: ((Bool) async throws -> Void)?
     /// Reads the message's recorded result cards (row 38e1); the room and the Thread pass it.
     var loadResultPreviews: (() async throws -> [Components.Schemas.ChatResultPreview])?
-    /// Answers a project question among those cards (row 38h1): the card's id and the picked project's.
-    var selectProject: ((String, String) async throws -> Void)?
-    /// Accepts or rejects a decision among those cards (row 38h2): the decision's id and the resolution.
-    var resolveDecision: ((String, SokoBotDecision.Resolution) async throws -> Void)?
     var horizontalInset: CGFloat = 0
     var streamThinking = false
     /// Who has read this far: set on the room transcript's newest message only (row 31b1).
@@ -177,15 +164,16 @@ import SwiftUI
       return { emoji in toggleReaction(emoji) }
     }
 
+    /// Runs `action` and awaits its request, if it starts one.
+    private func run(_ action: MessageRowAction) async throws {
+      try await perform?(action)?.value
+    }
+
     private func toggleReaction(_ emoji: String) {
-      guard let onToggleReaction else { return }
+      guard perform != nil else { return }
       Task { @MainActor in
         do {
-          // Match web: adding teaches quick reactions; removing does not. Taps
-          // absorbed by a running request answer false, so on/off/on counts once.
-          if try await onToggleReaction(emoji) {
-            ReactionEmojiHistory().record(emoji)
-          }
+          try await run(.toggleReaction(emoji))
         } catch {
           failure = Failure(title: "Couldn’t update reaction", message: friendlyMessage(for: error))
         }
@@ -193,11 +181,11 @@ import SwiftUI
     }
 
     private func deleteMessage() {
-      guard !isDeleting, let onDelete else { return }
+      guard !isDeleting, perform != nil else { return }
       isDeleting = true
       Task { @MainActor in
         defer { isDeleting = false }
-        do { try await onDelete() } catch {
+        do { try await run(.delete) } catch {
           failure = Failure(title: "Couldn’t delete message", message: friendlyMessage(for: error))
         }
       }
@@ -206,18 +194,18 @@ import SwiftUI
     /// Retry state lives on the row: optimistic thinking unmounts the failed
     /// shell, and a child alert would die with it.
     private func retryMention() {
-      guard !isRetryingMention, let onRetryMention else { return }
+      guard !isRetryingMention, canRetryMention else { return }
       isRetryingMention = true
       Task { @MainActor in
         defer { isRetryingMention = false }
-        do { try await onRetryMention() } catch {
+        do { try await run(.retryMention) } catch {
           failure = Failure(title: "Couldn’t retry the mention", message: friendlyMessage(for: error))
         }
       }
     }
 
     private var mentionRetryHandler: (() -> Void)? {
-      guard onRetryMention != nil else { return nil }
+      guard canRetryMention, perform != nil else { return nil }
       return retryMention
     }
 
@@ -305,12 +293,13 @@ import SwiftUI
               MessageSkillChipsView(skills: row.skills)
             }
             ForEach(row.unfurls, id: \.url) { preview in
-              MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
+              MessageUnfurlView(preview: preview, remove: row.actions.canEdit && perform != nil ? { try await run(.removeUnfurl(preview.url)) } : nil)
                 .id(preview.url + (preview.imageUrl ?? ""))
             }
             if let loadResultPreviews, !row.resultPreviewIds.isEmpty {
-              MessageResultPreviewsView(descriptorIds: row.resultPreviewIds, footer: row.sokoBotFooter, load: loadResultPreviews, select: selectProject,
-                                        resolveDecision: resolveDecision)
+              MessageResultPreviewsView(descriptorIds: row.resultPreviewIds, footer: row.sokoBotFooter, load: loadResultPreviews,
+                                        select: perform.map { _ in { try await run(.selectProject(previewId: $0, projectId: $1)) } },
+                                        resolveDecision: perform.map { _ in { try await run(.resolveDecision($0, $1)) } })
             } else if let sokoBotFooter = row.sokoBotFooter {
               SokoBotMessageFooterView(turn: sokoBotFooter)
             }
@@ -321,8 +310,8 @@ import SwiftUI
           if row.showsReactions {
             MessageReactionsView(reactions: message.reactions, toggle: reactionAction)
           }
-          if let onReply, let bar = row.threadReplyBar {
-            ThreadReplyBarButton(bar: bar, open: onReply)
+          if let perform, let bar = row.threadReplyBar {
+            ThreadReplyBarButton(bar: bar) { _ = perform(.reply) }
               .padding(.top, 4)
           }
           if let outbound, outbound.status == .failed {
@@ -332,11 +321,9 @@ import SwiftUI
                 .foregroundStyle(.secondary)
             }
             HStack(spacing: 12) {
-              if let onRetry {
-                Button("Retry", action: onRetry)
-              }
-              if let onRemove {
-                Button("Remove", role: .destructive, action: onRemove)
+              if let perform {
+                Button("Retry") { _ = perform(.retrySend) }
+                Button("Remove", role: .destructive) { _ = perform(.removeSend) }
               }
             }
             .buttonStyle(.borderless)
@@ -474,10 +461,10 @@ import SwiftUI
           messageAction("React", symbol: "face.smiling", focus: .react, compact: compact) { showsReactionPicker = true }
         }
         if row.actions.canReply {
-          messageAction("Reply", symbol: "text.bubble", focus: .reply, compact: compact) { onReply?() }
+          messageAction("Reply", symbol: "text.bubble", focus: .reply, compact: compact) { _ = perform?(.reply) }
         }
         if row.actions.canQuote {
-          messageAction("Quote", symbol: "quote.opening", focus: .quote, compact: compact) { onQuote?() }
+          messageAction("Quote", symbol: "quote.opening", focus: .quote, compact: compact) { _ = perform?(.quote) }
         }
         let actions = row.actions
         if actions.canEdit || actions.canDelete || actions.canPin || actions.canCopyLink || actions.canSendToSelf {
@@ -500,7 +487,7 @@ import SwiftUI
         }
 
         if row.actions.canEdit {
-          Button("Edit message", systemImage: "pencil") { onEdit?() }
+          Button("Edit message", systemImage: "pencil") { _ = perform?(.edit) }
         }
         if row.actions.canEdit, row.actions.canDelete {
           Divider()
@@ -573,7 +560,7 @@ import SwiftUI
                            iconSize: actionIconSize, height: replyActionHeight)
       }
       .buttonStyle(.plain)
-      .disabled(feedback.isLocked || onSokoBotFeedback == nil)
+      .disabled(feedback.isLocked || perform == nil)
       // The label's resolved foreground does not dim with `.disabled`.
       .opacity(feedback.isLocked ? 0.5 : 1)
       .onHover { hoveredAction = $0 ? focus : nil }
@@ -585,8 +572,8 @@ import SwiftUI
 
     /// Web drops a rejected rating without a word: the thumbs simply unlock.
     private func rateSokoBotTurn(useful: Bool) {
-      guard let onSokoBotFeedback, sokoBotFeedback?.isLocked == false else { return }
-      Task { @MainActor in try? await onSokoBotFeedback(useful) }
+      guard perform != nil, sokoBotFeedback?.isLocked == false else { return }
+      Task { @MainActor in try? await run(.rate(useful: useful)) }
     }
 
     private var pendingSince: Date? {
@@ -631,7 +618,7 @@ import SwiftUI
     /// A quote sent to yourself from another room follows its Message link; same-room quotes scroll.
     private func quoteJump(for quote: Components.Schemas.ChatRoomMessageQuote) -> ((String) -> Void)? {
       guard let url = quoteSourceURL(quote, inRoom: message.roomId, webBaseURL: CoreSettings.webBaseURL) else {
-        return onQuoteJump
+        return perform.map { perform in { _ = perform(.jumpToQuote($0)) } }
       }
       return { _ in openURL(url) }
     }
@@ -644,7 +631,7 @@ import SwiftUI
     private func togglePin() {
       Task { @MainActor in
         do {
-          try await onTogglePin?()
+          try await run(.togglePin)
         } catch {
           failure = Failure(title: "Couldn’t update pin", message: friendlyMessage(for: error))
         }
@@ -679,9 +666,9 @@ import SwiftUI
       case .copySelection: break // The menu item sends `copy:` to the text view itself.
       case .useful, .notUseful: rateSokoBotTurn(useful: action == .useful)
       case .addReaction: showsReactionPicker = true
-      case .edit: onEdit?()
-      case .quote: onQuote?()
-      case .reply: onReply?()
+      case .edit: _ = perform?(.edit)
+      case .quote: _ = perform?(.quote)
+      case .reply: _ = perform?(.reply)
       case .pin, .unpin: togglePin()
       case .copyLink: copyMessageLink()
       case .sendToSelf: sendToSelf()
@@ -739,11 +726,11 @@ import SwiftUI
       VStack(alignment: .leading, spacing: 0) {
         DaySeparatorRow(label: "Today")
         MessageRowView(message: first, row: MessageRow(first, in: context, previous: nil, isNewest: false),
-                       outbound: nil, onRetry: nil, onRemove: nil)
+                       outbound: nil)
         MessageRowView(message: second, row: MessageRow(second, in: context, previous: first, isNewest: false),
-                       outbound: nil, onRetry: nil, onRemove: nil)
+                       outbound: nil)
         MessageRowView(message: edited, row: MessageRow(edited, in: context, previous: second, isNewest: true),
-                       outbound: nil, onRetry: nil, onRemove: nil)
+                       outbound: nil)
         RoomStatusRow(text: Text(verbatim: "Bob joined"))
         RoomStatusRow(text: groupNameChangeText(.named(actor: "Ada", name: "Launch crew")))
       }

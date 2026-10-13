@@ -55,9 +55,8 @@
 
       private static func renderRow(_ content: String, seenBy: SeenBy?, dark: Bool) async throws -> NSBitmapImageRep {
         let message = message(content)
-        let (host, window) = host(MessageRowView(message: message, row: transcriptRow(message), outbound: nil, onRetry: nil,
-                                                 onRemove: nil, horizontalInset: 12, seenBy: seenBy)
-            .padding(.vertical, 8), width: 520, dark: dark)
+        let (host, window) = host(MessageRowView(message: message, row: transcriptRow(message), outbound: nil, horizontalInset: 12, seenBy: seenBy)
+          .padding(.vertical, 8), width: 520, dark: dark)
         window.orderFront(nil)
         defer { window.orderOut(nil) }
         for _ in 0 ..< 8 {
