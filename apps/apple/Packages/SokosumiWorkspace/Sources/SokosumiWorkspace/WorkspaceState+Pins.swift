@@ -24,13 +24,12 @@ public extension WorkspaceState {
   }
 
   func setPinned(_ pinned: Bool, messageId: String) async throws {
-    guard canUsePins, let roomId = transcriptRoomId, !openRoom.pendingPins.contains(messageId) else { return }
+    guard canUsePins, let roomId = transcriptRoomId, openRoom.startPinChange(messageId) else { return }
     let generation = openRoom.pins.roomGeneration
     let revision = openRoom.pins.revision
-    openRoom.pendingPins.insert(messageId)
     defer {
       if generation == openRoom.pins.roomGeneration {
-        openRoom.pendingPins.remove(messageId)
+        openRoom.finishPinChange(messageId)
       }
     }
     do {

@@ -37,7 +37,7 @@ public final class OpenRoomSession: ObservableObject {
   @Published public private(set) var messageJump: MessageJump?
   @Published public private(set) var threadOverviewRequest: ThreadOverviewRequest?
   /// Pins whose change is in flight.
-  @Published public var pendingPins: Set<String> = []
+  @Published public private(set) var pendingPins: Set<String> = []
   /// The newest message navigation; opening or closing the room supersedes it.
   public private(set) var navigationRequest = UUID()
   /// Whether the socket reports the room's live updates as healthy, which lets recovery poll less.
@@ -63,15 +63,15 @@ public final class OpenRoomSession: ObservableObject {
       .store(in: &observations)
   }
 
-  /// Opens `room` for `userId` in the workspace `organizationId`. Reopening the open room keeps its live health and
-  /// a Thread overview request for it; opening any other room drops both.
-  public func open(_ room: Components.Schemas.ChatRoom, userId: String, organizationId: String?) {
-    let reopening = self.room.timeline.roomId == room.id
-    resetVisit(keepingOverviewFor: room.id)
-    directStream.reset(room: room, userId: userId, organizationId: organizationId)
+  /// Opens `chatRoom` for `userId` in the workspace `organizationId`. Reopening the open room keeps its live health
+  /// and a Thread overview request for it; opening any other room drops both.
+  public func open(_ chatRoom: Components.Schemas.ChatRoom, userId: String, organizationId: String?) {
+    let reopening = room.timeline.roomId == chatRoom.id
+    resetVisit(keepingOverviewFor: chatRoom.id)
+    directStream.reset(room: chatRoom, userId: userId, organizationId: organizationId)
     realtimeHealthy = reopening && realtimeHealthy
-    pins.reset(roomId: room.id)
-    self.room.open(roomId: room.id)
+    pins.reset(roomId: chatRoom.id)
+    room.open(roomId: chatRoom.id)
   }
 
   /// Forgets the room: nothing is open afterwards.
@@ -122,6 +122,15 @@ public final class OpenRoomSession: ObservableObject {
     if threadOverviewRequest?.requestId == requestId {
       threadOverviewRequest = nil
     }
+  }
+
+  /// Marks a pin change for `messageId` in flight; false when one already is.
+  public func startPinChange(_ messageId: String) -> Bool {
+    pendingPins.insert(messageId).inserted
+  }
+
+  public func finishPinChange(_ messageId: String) {
+    pendingPins.remove(messageId)
   }
 
   public func setRealtimeHealthy(_ healthy: Bool) {

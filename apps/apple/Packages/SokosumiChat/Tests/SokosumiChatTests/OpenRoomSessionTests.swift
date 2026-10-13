@@ -28,7 +28,7 @@ struct OpenRoomSessionTests {
     session.requestJump(to: "parent")
     session.requestThreadOverview(roomId: "a")
     session.setRealtimeHealthy(true)
-    session.pendingPins = ["parent"]
+    _ = session.startPinChange("parent")
     return session
   }
 
@@ -92,6 +92,15 @@ struct OpenRoomSessionTests {
     #expect(session.directStream.roomId == "direct")
     session.open(room("channel"), userId: "me", organizationId: nil)
     #expect(session.directStream.roomId == nil)
+  }
+
+  @Test func aPinTakesOneChangeAtATime() {
+    let session = OpenRoomSession()
+    session.open(room("a"), userId: "me", organizationId: nil)
+    #expect(session.startPinChange("m1"))
+    #expect(!session.startPinChange("m1"), "A second change waits for the first.")
+    session.finishPinChange("m1")
+    #expect(session.startPinChange("m1"))
   }
 
   @Test func aJumpIsConsumedOnlyByItsOwnRequest() {
