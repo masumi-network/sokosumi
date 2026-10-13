@@ -2399,7 +2399,7 @@
           "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe den Zugriff in deinen Kontoeinstellungen."
         },
         "errors": {
-          "facebookPage": "Für das Veröffentlichen auf Facebook braucht das Konto genau eine verwaltete Seite. Verwende ein Konto mit einer einzigen verwaltbaren Seite.",
+          "facebookPage": "Facebook braucht ein Konto, das genau eine Seite verwaltet.",
           "inFlight": "Eine andere Kontoaktion läuft bereits.",
           "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
           "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
