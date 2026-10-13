@@ -257,21 +257,20 @@ import SwiftUI
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
             }
-            let gaps = workspaces.room.timeline.historyGapMessageIds
             let rowContext = TranscriptContext(
               room: transcriptRoom, viewerId: workspaces.currentUserId, allowsPins: workspaces.canUsePins, allowsThreads: true,
               outbound: workspaces.room.outbox.shells, editingMessageId: workspaces.messageEditing.source?.id
             )
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
-              let previous = index > 0 ? messages[index - 1] : nil
-              let hasGap = gaps.contains(message.id)
+              let row = workspaces.room.row(at: index, of: messages, context: rowContext, streamBusy: workspaces.directStream.isBusy,
+                                            newestId: newestMessageId, now: Date())
               // Unary row: a top-level if (day pill) plus the bubble made the
               // lazy path reserve blank slots. One container per message id.
               VStack(alignment: .leading, spacing: 0) {
-                if hasGap {
+                if let gap = row.gap {
                   // Web's `useLoadWhenVisible`: the row loads itself once it scrolls into
                   // view; a failure stays on it with Try again, never in the jump alert.
-                  PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.room.timeline.boundaryLoads.status(of: message.id)) {
+                  PageBoundaryRow(copy: .transcript(isGap: true), status: gap) {
                     workspaces.loadHistoryGap(before: message.id)
                   }
                   .onScrollVisibilityChange(threshold: 0.01) { visible in
@@ -280,23 +279,25 @@ import SwiftUI
                     }
                   }
                 }
-                if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt, now: Date()) {
+                if let label = row.dayLabel {
                   DaySeparatorRow(label: label)
                 }
-                if let status = roomStatusText(message) {
-                  RoomStatusRow(text: status)
-                    .padding(.horizontal, 12)
-                    .jumpSpotlightRow(messageId: message.id)
-                } else {
-                  let outbound = workspaces.room.outbox.shells.first { $0.id == message.id }
+                switch row.content {
+                case .status:
+                  if let status = roomStatusText(message) {
+                    RoomStatusRow(text: status)
+                      .padding(.horizontal, 12)
+                      .jumpSpotlightRow(messageId: message.id)
+                  }
+                case let .bubble(bubble):
                   MessageRowView(channels: channels, room: transcriptRoom, preparedDocument: preparedTranscript?.document(for: message),
                                  message: message,
-                                 row: MessageRow(message, in: rowContext, previous: hasGap ? nil : previous, isNewest: message.id == newestMessageId),
-                                 outbound: outbound,
-                                 sentAt: workspaces.room.outbox.sentAt[message.id],
+                                 row: bubble.row,
+                                 outbound: bubble.outbound,
+                                 sentAt: bubble.sentAt,
                                  perform: { rowActions.perform($0, on: message) },
                                  canRetryMention: workspaces.canRetryMention(message),
-                                 jumpMark: jumpMark?.messageId == message.id ? jumpMark : nil,
+                                 jumpMark: bubble.jumpMark,
                                  isPinned: workspaces.canUsePins && workspaces.isPinned(message),
                                  isUpdatingPin: workspaces.isUpdatingPin(message.id),
                                  editing: workspaces.messageEditing,
@@ -304,7 +305,7 @@ import SwiftUI
                                  sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
                                  loadResultPreviews: { try await workspaces.messageResultPreviews(message) },
                                  horizontalInset: 12,
-                                 streamThinking: isCoworkerStreamOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
+                                 streamThinking: bubble.thinking,
                                  seenBy: readReceipts.seenBy(messageId: message.id, createdAt: message.createdAt, newestMessageId: newestMessageId))
                     .jumpSpotlightRow(messageId: message.id)
                 }
