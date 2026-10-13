@@ -47,7 +47,7 @@
 
     private func commit() -> Bool {
       switch editing.commitAction {
-      case .save: Task { await workspaces.saveMessageEdit() }
+      case .save: Task { await workspaces.openRoom.saveEdit() }
       case .cancel: editing.cancel()
       case .keepEditing: break
       }

@@ -42,7 +42,7 @@ struct PinnedMessagesView: View {
           ForEach(pins.items, id: \.messageId) { item in
             PinnedMessageCard(item: item, room: room, channels: workspaces.composerChannels,
                               isJumping: jumpingId == item.messageId,
-                              isUpdating: workspaces.isUpdatingPin(item.messageId),
+                              isUpdating: workspaces.openRoom.isUpdatingPin(item.messageId),
                               jump: { performJump(item.messageId) },
                               unpin: { Task {
                                 do {
@@ -67,7 +67,7 @@ struct PinnedMessagesView: View {
   private func load(older: Bool = false) async {
     actionError = nil
     do {
-      try await workspaces.loadPins(older: older)
+      try await workspaces.openRoom.loadPins(older: older)
     } catch {
       if !Task.isCancelled {
         actionError = friendlyMessage(for: error)

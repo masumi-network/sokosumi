@@ -97,8 +97,6 @@ public final class WorkspaceState: ObservableObject {
     workspaceSession.currentUser?.image
   }
 
-  /// Failed mention shells whose retry POST is in flight; see `WorkspaceState+Mentions`.
-  @Published var pendingMentionRetries: Set<MentionRetryRequest> = []
   /// Soko Bot turns rated in this session, by turn id; see `WorkspaceState+SokoBot`.
   @Published public internal(set) var sokoBotFeedback: [String: Bool] = [:]
   @Published var pendingSokoBotFeedback: Set<String> = []
@@ -643,6 +641,13 @@ public final class WorkspaceState: ObservableObject {
       await self?.syncThreadAttention()
     }, isForeground: { [weak self] in
       self?.readAttention.isVisible ?? false
+    }, listedRoom: { [weak self] in
+      guard let self else { return nil }
+      return rooms.first { $0.id == transcriptRoomId }
+    }, viewerId: { [weak self] in
+      self?.currentUserId ?? ""
+    }, organizationId: { [weak self] in
+      self?.selection?.workspace.organizationId
     })
   }
 

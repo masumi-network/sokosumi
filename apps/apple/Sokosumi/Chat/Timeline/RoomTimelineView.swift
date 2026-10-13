@@ -163,7 +163,7 @@ import SwiftUI
         }
         .task(id: roomId) {
           if room?.kind == .channel {
-            try? await workspaces.loadPins()
+            try? await workspaces.openRoom.loadPins()
           }
         }
         .alert("Couldn’t load message", isPresented: Binding(get: { jumpError != nil }, set: {
@@ -258,7 +258,7 @@ import SwiftUI
                 .padding(.horizontal, 12)
             }
             let rowContext = TranscriptContext(
-              room: transcriptRoom, viewerId: workspaces.currentUserId, allowsPins: workspaces.canUsePins, allowsThreads: true,
+              room: transcriptRoom, viewerId: workspaces.currentUserId, allowsPins: workspaces.openRoom.canUsePins, allowsThreads: true,
               outbound: workspaces.openRoom.room.outbox.shells, editingMessageId: workspaces.openRoom.messageEditing.source?.id
             )
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
@@ -296,10 +296,10 @@ import SwiftUI
                                  outbound: bubble.outbound,
                                  sentAt: bubble.sentAt,
                                  perform: { rowActions.perform($0, on: message) },
-                                 canRetryMention: workspaces.canRetryMention(message),
+                                 canRetryMention: workspaces.openRoom.canRetryMention(message),
                                  jumpMark: bubble.jumpMark,
-                                 isPinned: workspaces.canUsePins && workspaces.isPinned(message),
-                                 isUpdatingPin: workspaces.isUpdatingPin(message.id),
+                                 isPinned: workspaces.openRoom.canUsePins && workspaces.openRoom.isPinned(message),
+                                 isUpdatingPin: workspaces.openRoom.isUpdatingPin(message.id),
                                  editing: workspaces.openRoom.messageEditing,
                                  onSendToSelf: { try await workspaces.sendMessageToSelf(message) },
                                  sokoBotFeedback: workspaces.sokoBotFeedback(for: message),

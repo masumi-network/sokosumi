@@ -18,7 +18,7 @@
     }
 
     private var enabled: Bool {
-      workspaces.canAttachFiles(roomId: roomId) && uploads.uploadingName == nil
+      workspaces.openRoom.canAttachFiles(roomId: roomId) && uploads.uploadingName == nil
     }
 
     func body(content: Content) -> some View {
@@ -41,10 +41,10 @@
           try? FileManager.default.removeItem(at: scratch)
           return
         }
-        uploads.upload(files, cleanupDirectory: scratch) { file in try await workspaces.uploadAttachment(file, roomId: roomId) }
+        uploads.upload(files, cleanupDirectory: scratch) { file in try await workspaces.openRoom.uploadAttachment(file, roomId: roomId) }
       }, image: { data in
         guard enabled else { return }
-        uploads.upload(data, filename: "image.png", using: { file in try await workspaces.uploadAttachment(file, roomId: roomId) })
+        uploads.upload(data, filename: "image.png", using: { file in try await workspaces.openRoom.uploadAttachment(file, roomId: roomId) })
       }, failure: uploads.report)
     }
   }

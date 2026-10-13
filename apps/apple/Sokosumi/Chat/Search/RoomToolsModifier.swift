@@ -85,7 +85,7 @@ import SwiftUI
           guard destination == .search else { search.reset()
             return
           }
-          await workspaces.searchMessages(query, roomId: roomId, search: search)
+          await workspaces.openRoom.searchMessages(query, roomId: roomId, search: search)
         }
         .onChange(of: scope) { _, _ in
           cancelJump()

@@ -28,7 +28,7 @@ struct OpenRoomSessionTests {
     session.requestJump(to: "parent")
     session.requestThreadOverview(roomId: "a")
     session.applyRealtimeHealth(true, continuityLost: false)
-    _ = session.startPinChange("parent")
+    session.pendingPins = ["parent"]
     return session
   }
 
@@ -94,15 +94,6 @@ struct OpenRoomSessionTests {
     #expect(session.directStream.roomId == nil)
   }
 
-  @Test func aPinTakesOneChangeAtATime() {
-    let session = OpenRoomSession()
-    session.open(room("a"), userId: "me", organizationId: nil)
-    #expect(session.startPinChange("m1"))
-    #expect(!session.startPinChange("m1"), "A second change waits for the first.")
-    session.finishPinChange("m1")
-    #expect(session.startPinChange("m1"))
-  }
-
   @Test func aJumpIsConsumedOnlyByItsOwnRequest() {
     let session = OpenRoomSession()
     session.open(room("a"), userId: "me", organizationId: nil)
@@ -125,7 +116,8 @@ struct OpenRoomSessionTests {
     session.hooks = .init(access: { (client, nil) }, failed: { error in
       rejected(error)
       return false
-    }, pageLanded: {}, lookBeforeThread: {}, isForeground: { false })
+    }, pageLanded: {}, lookBeforeThread: {}, isForeground: { false }, listedRoom: { [self] in room(testRoomId) },
+    viewerId: { "me" }, organizationId: { nil })
     return session
   }
 
@@ -225,5 +217,65 @@ struct OpenRoomSessionTests {
     let here = try #require(try await fetchTestMessages([testMessageJSON(id: "m2", content: "Hi", sender: ada)]).first)
     session.apply(eventType: .create, message: here, roomId: testRoomId)
     #expect(session.room.timeline.messages.map(\.id) == ["m2"])
+  }
+
+  // MARK: - The runner
+
+  /// Core answering after the room changed answers a visit that is over: neither its result nor its failure lands.
+  @Test func anAnswerForAnEarlierVisitIsDropped() async throws {
+    var failures = 0
+    let session = try connected(TestTransport([(200, testMessagesPageBody(messages: [], nextCursor: nil))]), rejected: { _ in failures += 1 })
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    let value = try await session.request(signIn: "Log in.") { _, _, _ in
+      session.open(room("b"), userId: "me", organizationId: nil)
+      return 1
+    }
+    #expect(value == nil)
+    let failure = try await session.request(signIn: "Log in.") { _, _, _ -> Int in
+      session.open(room("c"), userId: "me", organizationId: nil)
+      throw ChatServiceError.unauthorized("Expired")
+    }
+    #expect(failure == nil, "Not rethrown to a view that moved on.")
+    #expect(failures == 1, "A rejected session still signs out.")
+  }
+
+  /// A Pending reaction is not the visit's: its answer still lands after the room changed.
+  @Test func workOutlivingTheVisitKeepsItsAnswer() async throws {
+    let session = try connected(TestTransport([(200, testMessagesPageBody(messages: [], nextCursor: nil))]))
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    let value = try await session.request(signIn: "Log in.", outlivingTheVisit: true) { _, _, _ in
+      session.open(room("b"), userId: "me", organizationId: nil)
+      return 1
+    }
+    #expect(value == 1)
+  }
+
+  @Test func aCurrentFailureReachesTheCaller() async throws {
+    let session = try connected(TestTransport([(200, testMessagesPageBody(messages: [], nextCursor: nil))]))
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    await #expect(throws: ChatServiceError.self) {
+      _ = try await session.request(signIn: "Log in.") { _, _, _ -> Int in throw ChatServiceError.unexpectedResponse("boom") }
+    }
+  }
+
+  @Test func withoutAClientTheRequestAsksToSignIn() async throws {
+    let session = OpenRoomSession()
+    session.open(room("a"), userId: "me", organizationId: nil)
+    await #expect(throws: ChatServiceError.unauthorized("Log in to delete messages.")) {
+      _ = try await session.request(signIn: "Log in to delete messages.") { _, _, _ in 1 }
+    }
+  }
+
+  /// A pin change reports the room's new count for the sidebar and marks the row.
+  @Test func aPinChangeReportsTheRoomsCount() async throws {
+    let session = try connected(TestTransport([
+      (200, testMessagesPageBody(messages: [testMessageJSON(id: "m1", content: "Hi", sender: ada)], nextCursor: nil)),
+      (200, #"{"data":{"messageId":"m1","pinnedMessageCount":3},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#)
+    ]))
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    _ = await session.room.loadTask?.value
+    #expect(try await session.setPinned(true, messageId: "m1") == 3)
+    #expect(try session.isPinned(#require(session.room.timeline.messages.first)))
+    #expect(!session.isUpdatingPin("m1"))
   }
 }

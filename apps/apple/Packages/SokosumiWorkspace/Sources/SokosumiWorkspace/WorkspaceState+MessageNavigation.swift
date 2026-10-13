@@ -58,7 +58,7 @@ public extension WorkspaceState {
           return try await navigateReply(message, request: request, marksParent: marksThreadParent)
         }
       }
-      guard try await jumpToMessage(messageId),
+      guard try await openRoom.jumpToMessage(messageId),
             isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
       openRoom.thread.close()
       openRoom.requestJump(to: messageId)
