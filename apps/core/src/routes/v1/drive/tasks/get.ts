@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { Prisma, TaskStatus } from "@sokosumi/database";
+import { Prisma } from "@sokosumi/database";
 
 import {
   requireCoworkerCapability,
@@ -10,6 +10,10 @@ import {
   driveFileTypeFamily,
   driveFileTypeFamilyRank,
 } from "@/helpers/drive-file-type-family";
+import {
+  driveActorProjectPageParams,
+  driveActorTaskWhere,
+} from "@/helpers/drive-task-actor-visibility";
 import { fetchProjectTasksPage } from "@/helpers/drive-tasks-project-list";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import { badRequest, forbidden, unprocessableEntity } from "@/helpers/error";
@@ -23,10 +27,6 @@ import {
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import {
-  buildHumanTaskVisibilityWhere,
-  buildSokoBotOwnerTaskVisibilityWhere,
-} from "@/helpers/task-visibility";
-import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
@@ -35,7 +35,7 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
+import { isCoworkerAuthContext } from "@/middleware/auth";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   type DriveListSort,
@@ -240,22 +240,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       files: {
         some: DRIVE_TASK_FILE_WHERE,
       },
+      ...driveActorTaskWhere(authContext, userContext.userId),
     };
-
-    if (
-      !isCoworkerAuthContext(authContext) &&
-      !isSokoBotAuthContext(authContext)
-    ) {
-      baseTaskWhere.AND = [buildHumanTaskVisibilityWhere(userContext.userId)];
-    }
-
-    if (isSokoBotAuthContext(authContext) && authContext.userId !== null) {
-      baseTaskWhere.assigneeSokoBotId = authContext.sokoBotId;
-      baseTaskWhere.status = { not: TaskStatus.DRAFT };
-      baseTaskWhere.AND = [
-        buildSokoBotOwnerTaskVisibilityWhere(authContext.userId),
-      ];
-    }
 
     let coworkerAccess:
       | {
@@ -644,17 +630,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         workspaceId,
         projectId: projectId === "null" ? null : projectId,
         ...(assigneeId ? { assigneeId } : {}),
-        ...(isSokoBotAuthContext(authContext) && authContext.userId !== null
-          ? {
-              assigneeSokoBotId: authContext.sokoBotId,
-              sokoBotOwnerUserId: authContext.userId,
-            }
-          : {}),
+        ...driveActorProjectPageParams(authContext, userContext.userId),
         ...(coworkerAccess ? { coworkerAccess } : {}),
-        ...(!isCoworkerAuthContext(authContext) &&
-        !isSokoBotAuthContext(authContext)
-          ? { readerUserId: userContext.userId }
-          : {}),
         ...(cursor ? { cursor } : {}),
         take,
         sort,
