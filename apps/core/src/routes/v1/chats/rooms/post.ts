@@ -13,7 +13,7 @@ import {
 } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
-  isSokoBotAuthContext,
+  isPersonalSokoBotAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
 import {
@@ -94,7 +94,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return direct.created ? created(c, direct.room) : ok(c, direct.room);
     }
 
-    if (isSokoBotAuthContext(authContext)) {
+    if (isPersonalSokoBotAuthContext(authContext)) {
       const direct = await createOrGetSokoBotOriginatedDirect({
         sokoBotId: authContext.sokoBotId,
         ownerUserId: authContext.userId,

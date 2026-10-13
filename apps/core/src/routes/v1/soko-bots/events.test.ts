@@ -37,6 +37,7 @@ function createApp(actor: "sokoBot" | "user") {
       actor === "sokoBot"
         ? {
             actor,
+            scope: "personal",
             sokoBotId: BOT_ID,
             userId: "owner_1",
             workspaceId: WORKSPACE_ID,

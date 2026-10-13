@@ -34,7 +34,11 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  isPersonalSokoBotAuthContext,
+  isSokoBotAuthContext,
+} from "@/middleware/auth";
 import {
   driveRecentsListSchema,
   driveRecentsQuerySchema,
@@ -126,7 +130,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       baseTaskWhere.AND = [buildHumanTaskVisibilityWhere(userContext.userId)];
     }
 
-    if (isSokoBotAuthContext(authContext)) {
+    if (isPersonalSokoBotAuthContext(authContext)) {
       baseTaskWhere.assigneeSokoBotId = authContext.sokoBotId;
       baseTaskWhere.status = { not: TaskStatus.DRAFT };
       baseTaskWhere.AND = [

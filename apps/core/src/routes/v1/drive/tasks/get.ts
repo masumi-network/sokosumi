@@ -249,7 +249,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       baseTaskWhere.AND = [buildHumanTaskVisibilityWhere(userContext.userId)];
     }
 
-    if (isSokoBotAuthContext(authContext)) {
+    if (isSokoBotAuthContext(authContext) && authContext.userId !== null) {
       baseTaskWhere.assigneeSokoBotId = authContext.sokoBotId;
       baseTaskWhere.status = { not: TaskStatus.DRAFT };
       baseTaskWhere.AND = [
@@ -644,7 +644,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         workspaceId,
         projectId: projectId === "null" ? null : projectId,
         ...(assigneeId ? { assigneeId } : {}),
-        ...(isSokoBotAuthContext(authContext)
+        ...(isSokoBotAuthContext(authContext) && authContext.userId !== null
           ? {
               assigneeSokoBotId: authContext.sokoBotId,
               sokoBotOwnerUserId: authContext.userId,

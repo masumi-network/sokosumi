@@ -11,7 +11,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvVariables } from "@/lib/hono";
 import type {
   CoworkerAuthenticationContext,
-  SokoBotAuthenticationContext,
+  PersonalSokoBotAuthenticationContext,
+  SharedSokoBotAuthenticationContext,
   UserAuthenticationContext,
 } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -139,8 +140,9 @@ function createCoworkerContext(
 }
 
 const workspaceId = "11111111-1111-7111-8111-111111111111";
-const sokoBotAuthContext: SokoBotAuthenticationContext = {
+const sokoBotAuthContext: PersonalSokoBotAuthenticationContext = {
   actor: "sokoBot",
+  scope: "personal",
   sokoBotId: "22222222-2222-7222-8222-222222222222",
   userId: "user_123",
   workspaceId,
@@ -2502,5 +2504,56 @@ describe("buildCoworkerUsableInWorkspaceWhere", () => {
       ]),
     );
     expect(where.archivedAt).toBeNull();
+  });
+});
+
+describe("shared Soko Bot collaboration", () => {
+  const sharedSokoBotAuthContext: SharedSokoBotAuthenticationContext = {
+    actor: "sokoBot",
+    scope: "workspace",
+    sokoBotId: "33333333-3333-7333-8333-333333333333",
+    userId: null,
+    workspaceId,
+    organizationId: "org_123",
+    projectId: null,
+  };
+  const vars: EnvVariables["Variables"] = {
+    isAuthenticated: true,
+    authContext: sharedSokoBotAuthContext,
+    workspaceContext: null,
+  };
+
+  it.each([
+    [
+      "requireTaskCollaboration",
+      (tx: Prisma.TransactionClient) =>
+        requireTaskCollaboration(sharedSokoBotAuthContext, "tsk_123", tx),
+    ],
+    [
+      "requireJobCollaboration",
+      (tx: Prisma.TransactionClient) =>
+        requireJobCollaboration(sharedSokoBotAuthContext, "job_123", tx),
+    ],
+    [
+      "requireTaskCommentAccess",
+      (tx: Prisma.TransactionClient) =>
+        requireTaskCommentAccess(vars, "tsk_123", tx),
+    ],
+    [
+      "requireTaskReadForRouteVars",
+      (tx: Prisma.TransactionClient) =>
+        requireTaskReadForRouteVars(vars, "tsk_123", tx),
+    ],
+    [
+      "requireJobReadForRouteVars",
+      (tx: Prisma.TransactionClient) =>
+        requireJobReadForRouteVars(vars, "job_123", tx),
+    ],
+  ])("%s answers 403 before any read", async (_, call) => {
+    const tx = createTransactionClient();
+
+    await expect(call(tx)).rejects.toMatchObject({ status: 403 });
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
+    expect(tx.job.findFirst).not.toHaveBeenCalled();
   });
 });

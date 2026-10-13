@@ -693,6 +693,7 @@ describe("POST /{id}/events", () => {
     { actor: "coworker", coworkerId: "cow_123", vendorId: "vendor_123" },
     {
       actor: "sokoBot",
+      scope: "personal",
       sokoBotId: "bot_123",
       userId: USER_ID,
       workspaceId: "ws_123",

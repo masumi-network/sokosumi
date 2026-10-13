@@ -342,6 +342,7 @@ describeWithDb("Self Direct through chat HTTP handlers with Postgres", () => {
       "Soko Bot",
       {
         actor: "sokoBot",
+        scope: "personal",
         sokoBotId,
         workspaceId: workspaceIds[0]!,
         userId: ownerId,

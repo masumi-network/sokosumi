@@ -13,7 +13,7 @@ import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   type CoworkerAuthenticationContext,
-  isSokoBotAuthContext,
+  isPersonalSokoBotAuthContext,
   isUserAuthContext,
   requireCoworkerAuthContext,
   requireUserContext,
@@ -698,7 +698,7 @@ export async function requireTaskCollaboration(
     return task;
   }
 
-  if (isSokoBotAuthContext(authContext)) {
+  if (isPersonalSokoBotAuthContext(authContext)) {
     const task = await requireSokoBotTaskRead(
       authContext.sokoBotId,
       authContext.userId,
@@ -754,7 +754,7 @@ export async function requireTaskCommentAccess(
     return task;
   }
 
-  if (isSokoBotAuthContext(authContext)) {
+  if (isPersonalSokoBotAuthContext(authContext)) {
     const task = await requireSokoBotTaskRead(
       authContext.sokoBotId,
       authContext.userId,
@@ -911,7 +911,7 @@ export async function requireTaskReadForRouteVars(
     );
   }
 
-  if (isSokoBotAuthContext(authContext)) {
+  if (isPersonalSokoBotAuthContext(authContext)) {
     if (include) {
       return await requireSokoBotTaskRead(
         authContext.sokoBotId,
@@ -1151,7 +1151,7 @@ export async function requireJobReadForRouteVars(
     );
   }
 
-  if (isSokoBotAuthContext(authContext)) {
+  if (isPersonalSokoBotAuthContext(authContext)) {
     const job = await tx.job.findFirst({
       where: { id: jobId, workspaceId: authContext.workspaceId },
     });
@@ -1230,7 +1230,7 @@ export async function requireJobCollaboration(
     return job;
   }
 
-  if (isSokoBotAuthContext(authContext)) {
+  if (isPersonalSokoBotAuthContext(authContext)) {
     const job = await tx.job.findFirst({
       where: { id: jobId, workspaceId: authContext.workspaceId },
     });

@@ -247,6 +247,7 @@ const coworkerAuthContext: AuthVariables["authContext"] = {
 
 const sokoBotAuthContext: AuthVariables["authContext"] = {
   actor: "sokoBot",
+  scope: "personal",
   sokoBotId: SOKO_BOT_ID,
   userId: USER_ID,
   workspaceId: "01960001-0001-7001-8001-000000000088",

@@ -96,6 +96,7 @@ import { createAgentJobForUser } from "@/helpers/job";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { jsonInput } from "@/helpers/prisma-json";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
+import { personalSokoBotAuthContext } from "@/helpers/soko-bot-auth-context";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { activeOwnedSokoBotWhere } from "@/helpers/soko-bot-owned-bot-where";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
@@ -4199,13 +4200,7 @@ export class SokoBotRuntimeService {
       where: { id: authorized.turn.workspaceId },
     });
     const actor = await resolveTableActor(
-      {
-        actor: "sokoBot",
-        sokoBotId: authorized.turn.sokoBotId,
-        userId: authorized.turn.userId,
-        workspaceId: workspace.id,
-        organizationId: workspace.organizationId,
-      },
+      personalSokoBotAuthContext(authorized.turn, workspace),
       workspace.id,
     );
     const { taskId } = z
