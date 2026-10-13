@@ -101,6 +101,15 @@ function effect(overrides = {}) {
     ...overrides,
   };
 }
+function botRow(overrides = {}) {
+  return {
+    id: "bot",
+    userId: "owner",
+    archivedAt: null,
+    workspace: { organizationId: "org" },
+    ...overrides,
+  };
+}
 function message(overrides = {}) {
   return {
     id: "message",
@@ -126,7 +135,7 @@ beforeEach(() => {
   mocks.update.mockResolvedValue({ count: 1 });
   mocks.find.mockResolvedValue(effect());
   mocks.workspace.mockResolvedValue({ id: "workspace" });
-  mocks.bot.mockResolvedValue({ id: "bot" });
+  mocks.bot.mockResolvedValue(botRow());
   mocks.message.mockResolvedValue(message());
   mocks.mentions.mockResolvedValue([]);
 });
@@ -184,6 +193,51 @@ describe("committed effect outbox", () => {
       });
     },
   );
+  it("asks for the turn's bot as the turn's member at both checks", async () => {
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
+    expect(mocks.bot).toHaveBeenCalledTimes(2);
+    for (const [args] of mocks.bot.mock.calls) {
+      expect(args.where).toEqual({
+        id: "bot",
+        workspaceId: "workspace",
+        deletedAt: null,
+        workspace: {
+          id: "workspace",
+          OR: [
+            { userId: "owner" },
+            { organization: { members: { some: { userId: "owner" } } } },
+          ],
+        },
+      });
+    }
+  });
+  it("publishes a shared bot's effect for its member", async () => {
+    mocks.bot.mockResolvedValue(botRow({ userId: null }));
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
+    expect(mocks.publish).toHaveBeenCalled();
+  });
+  it.each([
+    ["another user's personal bot", botRow({ userId: "someone-else" })],
+    ["an archived bot", botRow({ archivedAt: new Date() })],
+    [
+      "a shared bot outside an Organization workspace",
+      botRow({ userId: null, workspace: { organizationId: null } }),
+    ],
+  ])("suppresses the effect for %s", async (_label, bot) => {
+    mocks.bot.mockResolvedValue(bot);
+    expect(await deliverSokoBotEffect("effect")).toBe(false);
+    expect(mocks.publish).not.toHaveBeenCalled();
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
+      reason: "AUTHORITY_REVOKED",
+    });
+  });
+  it("revokes a shared bot's effect between the two checks", async () => {
+    mocks.bot
+      .mockResolvedValueOnce(botRow({ userId: null }))
+      .mockResolvedValueOnce(null);
+    expect(await deliverSokoBotEffect("effect")).toBe(false);
+    expect(mocks.publish).not.toHaveBeenCalled();
+  });
   it("suppresses changed audience rather than redirecting", async () => {
     const current = message();
     current.room.userMembers.push({ userId: "new-reader" });

@@ -565,6 +565,34 @@ const SCOPE = {
 };
 const DECISION_ID = "01960001-0001-7001-8001-000000000005";
 
+/** How every runtime site asks for the turn's bot: by id, as the turn's member. */
+const TURN_BOT_WHERE = {
+  id: SCOPE.sokoBotId,
+  workspaceId: SCOPE.workspaceId,
+  deletedAt: null,
+  workspace: {
+    id: SCOPE.workspaceId,
+    OR: [
+      { userId: SCOPE.userId },
+      { organization: { members: { some: { userId: SCOPE.userId } } } },
+    ],
+  },
+};
+
+/** The turn's bot as the resolver reads it: the turn member's personal bot. */
+function botRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: SCOPE.sokoBotId,
+    userId: SCOPE.userId,
+    workspaceId: SCOPE.workspaceId,
+    archivedAt: null,
+    adminPausedAt: null,
+    status: "RUNNING",
+    workspace: { organizationId: "org_1" },
+    ...overrides,
+  };
+}
+
 function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== "object") {
     return JSON.stringify(value);
@@ -688,6 +716,7 @@ describe("SokoBotRuntimeService authorization", () => {
     botUpdateManyMock.mockResolvedValue({ count: 1 });
     transactionTurnUpdateManyMock.mockResolvedValue({ count: 1 });
     transactionBotUpdateManyMock.mockResolvedValue({ count: 1 });
+    transactionBotFindFirstMock.mockResolvedValue(botRow());
     transactionTurnFindFirstMock.mockResolvedValue({
       id: SCOPE.turnId,
       eveSessionId: null,
@@ -1006,13 +1035,11 @@ describe("SokoBotRuntimeService authorization", () => {
         data: { eveSessionId: SCOPE.sessionId },
       }),
     );
+    expect(transactionBotFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: TURN_BOT_WHERE }),
+    );
     expect(transactionBotUpdateManyMock).toHaveBeenCalledWith({
-      where: expect.objectContaining({
-        id: SCOPE.sokoBotId,
-        adminPausedAt: null,
-        archivedAt: null,
-        status: { not: "PAUSED" },
-      }),
+      where: { id: SCOPE.sokoBotId },
       data: { eveSessionId: SCOPE.sessionId },
     });
     expect(turnUpdateManyMock).not.toHaveBeenCalled();
@@ -2603,7 +2630,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
     transactionTurnFindFirstMock.mockResolvedValue({ id: SCOPE.turnId });
     decisionFindFirstMock.mockResolvedValue(hireDecision());
     decisionUpdateManyMock.mockResolvedValue({ count: 1 });
-    botFindFirstMock.mockResolvedValue({ id: SCOPE.sokoBotId });
+    botFindFirstMock.mockResolvedValue(botRow());
     workspaceFindFirstMock.mockResolvedValue({
       id: SCOPE.workspaceId,
       organizationId: null,
@@ -2617,7 +2644,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
     delegationUpdateManyMock.mockResolvedValue({ count: 1 });
     localJobDelegationUpdateManyMock.mockResolvedValue({ count: 1 });
     transactionDelegationUpdateManyMock.mockResolvedValue({ count: 1 });
-    transactionBotFindFirstMock.mockResolvedValue({ id: SCOPE.sokoBotId });
+    transactionBotFindFirstMock.mockResolvedValue(botRow());
     createAgentClientMock.mockReturnValue({
       provideJobInput: provideJobInputMock,
     });
@@ -2781,9 +2808,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
       sellerStartMock.mock.invocationCallOrder[0] ?? 0,
     );
     expect(transactionBotFindFirstMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ status: { not: "PAUSED" } }),
-      }),
+      expect.objectContaining({ where: TURN_BOT_WHERE }),
     );
     expect(localJobDelegationUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -3424,6 +3449,235 @@ describe("SokoBotRuntimeService hire decisions", () => {
         data: expect.objectContaining({ status: "EXPIRED" }),
       }),
     );
+  });
+
+  describe("who may reach the turn's bot", () => {
+    const resolve = () =>
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+      );
+
+    it("asks every decision site for the bot as the decision's member", async () => {
+      await expect(resolve()).resolves.toMatchObject({ status: "ACCEPTED" });
+      const calls = [
+        ...botFindFirstMock.mock.calls,
+        ...transactionBotFindFirstMock.mock.calls,
+      ];
+      expect(calls).toHaveLength(3);
+      for (const [args] of calls) {
+        expect(args).toMatchObject({ where: TURN_BOT_WHERE });
+      }
+    });
+
+    it("accepts a shared bot's decision for its member", async () => {
+      botFindFirstMock.mockResolvedValue(botRow({ userId: null }));
+      transactionBotFindFirstMock.mockResolvedValue(botRow({ userId: null }));
+      await expect(resolve()).resolves.toMatchObject({ status: "ACCEPTED" });
+      expect(createAgentJobForUserMock).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+      ["another user's personal bot", botRow({ userId: "someone-else" })],
+      ["a bot the member no longer reaches", null],
+      [
+        "a shared bot outside an Organization workspace",
+        botRow({ userId: null, workspace: { organizationId: null } }),
+      ],
+      ["a paused bot", botRow({ status: "PAUSED" })],
+    ])("refuses %s before the decision runs", async (_label, bot) => {
+      botFindFirstMock.mockResolvedValue(bot);
+      await expect(resolve()).rejects.toThrow(
+        "Soko Bot is paused or unavailable",
+      );
+      expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["another user's personal bot", botRow({ userId: "someone-else" })],
+      ["a shared bot whose member left", null],
+    ])("refuses %s at the seller fence", async (_label, bot) => {
+      transactionBotFindFirstMock.mockResolvedValueOnce(bot);
+      await expect(resolve()).rejects.toThrow(
+        "Soko Bot is paused or unavailable",
+      );
+      expect(localJobDelegationUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses at the approved mutation check when the member lost the bot", async () => {
+      transactionBotFindFirstMock
+        .mockResolvedValueOnce(botRow({ userId: null }))
+        .mockResolvedValueOnce(null);
+      await expect(resolve()).rejects.toThrow(
+        "Soko Bot is paused or unavailable",
+      );
+      expect(localJobDelegationUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("asks the job input fence as the decision's member", async () => {
+      decisionFindFirstMock.mockResolvedValue(provideInputDecision());
+      jobEventFindFirstMock.mockResolvedValue({
+        id: "event_1",
+        input: null,
+        inputSchema: { input_data: [] },
+        job: {
+          id: "job_1",
+          agentJobId: "seller-job-1",
+          agentBlockchainIdentifier: null,
+          agentApiBaseUrl: null,
+          agent: {
+            id: "agent_1",
+            name: "Agent",
+            blockchainIdentifier: "seller-agent-1",
+            apiBaseUrl: "https://agent.example.com",
+            metadataOverride: null,
+          },
+        },
+      });
+      transactionBotFindFirstMock
+        .mockResolvedValueOnce(botRow())
+        .mockResolvedValueOnce(botRow({ userId: "someone-else" }));
+      await expect(resolve()).rejects.toThrow(
+        "Soko Bot is paused or unavailable",
+      );
+      expect(provideJobInputMock).not.toHaveBeenCalled();
+      expect(transactionBotFindFirstMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ where: TURN_BOT_WHERE }),
+      );
+    });
+  });
+});
+
+describe("SokoBotRuntimeService turn session attachment by member", () => {
+  function pendingTurn() {
+    return {
+      userMessage: "Check the tasks",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: null,
+      status: "STARTING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { adminPausedAt: null, archivedAt: null, status: "RUNNING" },
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    turnFindUniqueMock.mockResolvedValue(pendingTurn());
+    transactionTurnFindFirstMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      eveSessionId: null,
+    });
+    transactionWorkspaceFindFirstMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: "org_1",
+    });
+    transactionTurnUpdateManyMock.mockResolvedValue({ count: 1 });
+    transactionBotUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  const attach = () =>
+    new SokoBotRuntimeService().authorize({
+      ...SCOPE,
+      capability: "get_task_status",
+    });
+
+  it("attaches a shared bot's turn for its member", async () => {
+    transactionBotFindFirstMock.mockResolvedValue(botRow({ userId: null }));
+    await expect(attach()).resolves.toMatchObject({
+      turn: { eveSessionId: SCOPE.sessionId, userId: SCOPE.userId },
+    });
+    expect(transactionBotFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: TURN_BOT_WHERE }),
+    );
+  });
+
+  it.each([
+    ["another user's personal bot", botRow({ userId: "someone-else" })],
+    ["a shared bot whose member left", null],
+    ["an administrator-paused bot", botRow({ adminPausedAt: new Date() })],
+  ])("refuses %s without binding the session", async (_label, bot) => {
+    transactionBotFindFirstMock.mockResolvedValue(bot);
+    await expect(attach()).rejects.toThrow(
+      "Soko Bot runtime session attachment became stale",
+    );
+    expect(transactionBotUpdateManyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("SokoBotRuntimeService table actor", () => {
+  const authorized = {
+    turn: {
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      source: "CHAT",
+      chainDepth: 0,
+    },
+    askedByKind: "OWNER",
+  };
+
+  async function tableActorAuth(bot: unknown) {
+    const { resolveTableActor } = await import("@/helpers/data-table");
+    vi.mocked(resolveTableActor).mockReset();
+    vi.mocked(resolveTableActor).mockResolvedValue({
+      workspaceId: SCOPE.workspaceId,
+      userId: SCOPE.userId,
+      actorId: SCOPE.sokoBotId,
+      actorKind: "sokoBot",
+    });
+    botFindUniqueMock.mockResolvedValue(bot);
+    const service = new SokoBotRuntimeService();
+    await service["tableActor"](authorized as never, {});
+    return vi.mocked(resolveTableActor).mock.calls[0]?.[0];
+  }
+
+  it("acts as the owner for a personal bot", async () => {
+    expect(
+      await tableActorAuth({
+        userId: SCOPE.userId,
+        projectId: null,
+        workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
+      }),
+    ).toMatchObject({ scope: "personal", userId: SCOPE.userId });
+  });
+
+  it("acts as the shared bot itself, never as the member", async () => {
+    expect(
+      await tableActorAuth({
+        userId: null,
+        projectId: "project_1",
+        workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
+      }),
+    ).toEqual({
+      actor: "sokoBot",
+      scope: "project",
+      sokoBotId: SCOPE.sokoBotId,
+      userId: null,
+      workspaceId: SCOPE.workspaceId,
+      organizationId: "org_1",
+      projectId: "project_1",
+    });
+  });
+
+  it("refuses a bot that does not fit the turn", async () => {
+    await expect(
+      tableActorAuth({
+        userId: "someone-else",
+        projectId: null,
+        workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
+      }),
+    ).rejects.toThrow("Soko Bot is unavailable");
   });
 });
 

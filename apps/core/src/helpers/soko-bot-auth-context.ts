@@ -2,6 +2,7 @@ import type { Prisma } from "@sokosumi/database";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import type {
   PersonalSokoBotAuthenticationContext,
+  SharedSokoBotAuthenticationContext,
   SokoBotAuthenticationContext,
 } from "@/middleware/auth";
 import {
@@ -38,6 +39,22 @@ export function personalSokoBotAuthContext(
     userId: bot.userId,
     workspaceId: workspace.id,
     organizationId: workspace.organizationId,
+  };
+}
+
+/** The context a shared bot acts in: itself, in its Organization workspace. */
+export function sharedSokoBotAuthContext(
+  bot: { sokoBotId: string; projectId: string | null },
+  workspace: { id: string; organizationId: string },
+): SharedSokoBotAuthenticationContext {
+  return {
+    actor: "sokoBot",
+    scope: bot.projectId === null ? "workspace" : "project",
+    sokoBotId: bot.sokoBotId,
+    userId: null,
+    workspaceId: workspace.id,
+    organizationId: workspace.organizationId,
+    projectId: bot.projectId,
   };
 }
 
@@ -95,13 +112,8 @@ export function buildSokoBotKeyAuthContext(
     return null;
   }
 
-  return {
-    actor: "sokoBot",
-    scope: bot.projectId === null ? "workspace" : "project",
-    sokoBotId,
-    userId: null,
-    workspaceId: bot.workspaceId,
-    organizationId: workspace.organizationId,
-    projectId: bot.projectId,
-  };
+  return sharedSokoBotAuthContext(
+    { sokoBotId, projectId: bot.projectId },
+    { id: bot.workspaceId, organizationId: workspace.organizationId },
+  );
 }

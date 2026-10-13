@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { z } from "zod";
 
+import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 
@@ -113,15 +114,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
       },
       select: { id: true },
     });
-    const bot = await prisma.sokoBot.findFirst({
-      where: {
-        id: turn.sokoBotId,
-        userId: turn.userId,
-        workspaceId: turn.workspaceId,
-        archivedAt: null,
-      },
-      select: { id: true },
-    });
+    const bot = await sokoBotForTurnMember(turn, "notArchived");
     if (!workspace || !bot || effect.receipt.status !== "COMPLETED")
       return suppress("AUTHORITY_REVOKED");
     if (effect.purpose === "TASK_EVENT") {
@@ -194,15 +187,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
           data: { leaseUntil: new Date(Date.now() + 120_000) },
         });
         if (fence.count !== 1) return { message: null, reason: null };
-        const authority = await tx.sokoBot.findFirst({
-          where: {
-            id: turn.sokoBotId,
-            userId: turn.userId,
-            workspaceId: turn.workspaceId,
-            archivedAt: null,
-          },
-          select: { id: true },
-        });
+        const authority = await sokoBotForTurnMember(turn, "notArchived", tx);
         const workspace = await tx.workspace.findFirst({
           where: {
             id: turn.workspaceId,

@@ -96,9 +96,9 @@ import { createAgentJobForUser } from "@/helpers/job";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { jsonInput } from "@/helpers/prisma-json";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
-import { personalSokoBotAuthContext } from "@/helpers/soko-bot-auth-context";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
-import { activeOwnedSokoBotWhere } from "@/helpers/soko-bot-owned-bot-where";
+import { loadSokoBotTurnAuthContext } from "@/helpers/soko-bot-turn-auth-context";
+import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
@@ -860,17 +860,21 @@ export class SokoBotRuntimeService {
             );
           }
         }
-        const boundBot = await tx.sokoBot.updateMany({
-          where: {
-            ...activeOwnedSokoBotWhere(turn.sokoBotId, turn.userId),
-            adminPausedAt: null,
-          },
-          // The bot retains the prior completed turn's session for diagnostics.
-          // Bot + turn locks and the attachable active-turn check above provide
-          // the single-flight fence, so the new turn safely replaces that id.
-          data: { eveSessionId: input.sessionId },
-        });
-        if (boundBot.count !== 1) {
+        const runnable = await sokoBotForTurnMember(
+          turn,
+          "runningNotAdminPaused",
+          tx,
+        );
+        // The bot retains the prior completed turn's session for diagnostics.
+        // Bot + turn locks and the attachable active-turn check above provide
+        // the single-flight fence, so the new turn safely replaces that id.
+        const boundBot = runnable
+          ? await tx.sokoBot.updateMany({
+              where: { id: runnable.id },
+              data: { eveSessionId: input.sessionId },
+            })
+          : null;
+        if (boundBot?.count !== 1) {
           throw new SokoBotRuntimeAuthorizationError(
             "Soko Bot runtime session attachment became stale",
           );
@@ -3626,16 +3630,11 @@ export class SokoBotRuntimeService {
       authorized.turn.workspaceId,
     );
     if (approved) {
-      const activeBot = await tx.sokoBot.findFirst({
-        where: {
-          ...activeOwnedSokoBotWhere(
-            authorized.turn.sokoBotId,
-            authorized.turn.userId,
-          ),
-          adminPausedAt: null,
-        },
-        select: { id: true },
-      });
+      const activeBot = await sokoBotForTurnMember(
+        authorized.turn,
+        "runningNotAdminPaused",
+        tx,
+      );
       if (!activeBot) {
         throw new SokoBotRuntimeAuthorizationError(
           "Soko Bot is paused or unavailable",
@@ -4196,13 +4195,10 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     rawInput: unknown,
   ) {
-    const workspace = await prisma.workspace.findUniqueOrThrow({
-      where: { id: authorized.turn.workspaceId },
-    });
-    const actor = await resolveTableActor(
-      personalSokoBotAuthContext(authorized.turn, workspace),
-      workspace.id,
-    );
+    const auth = await loadSokoBotTurnAuthContext(authorized.turn);
+    if (!auth)
+      throw new SokoBotRuntimeAuthorizationError("Soko Bot is unavailable");
+    const actor = await resolveTableActor(auth, auth.workspaceId);
     const { taskId } = z
       .object({ taskId: z.string().max(200).optional() })
       .parse(rawInput);
@@ -5481,16 +5477,14 @@ export class SokoBotRuntimeService {
     let failureDisposition: "restore" | "retain" = "restore";
     let sellerReservationMarker: SellerReservationMarker | null = null;
     try {
-      const [activeBot, workspace] = await prisma.$transaction([
-        prisma.sokoBot.findFirst({
-          where: activeOwnedSokoBotWhere(decision.sokoBotId, userId),
-          select: { id: true },
-        }),
-        prisma.workspace.findFirst({
-          where: sokoBotWorkspaceAccessWhere(userId, decision.workspaceId),
-          select: { id: true, organizationId: true },
-        }),
-      ]);
+      const activeBot = await sokoBotForTurnMember(
+        actionContext.turn,
+        "running",
+      );
+      const workspace = await prisma.workspace.findFirst({
+        where: sokoBotWorkspaceAccessWhere(userId, decision.workspaceId),
+        select: { id: true, organizationId: true },
+      });
       if (!activeBot) {
         throw new SokoBotRuntimeAuthorizationError(
           "Soko Bot is paused or unavailable",
@@ -5568,10 +5562,11 @@ export class SokoBotRuntimeService {
                 WHERE "id" = ${decision.sokoBotId}::uuid
                 FOR UPDATE
               `;
-              const activeBot = await tx.sokoBot.findFirst({
-                where: activeOwnedSokoBotWhere(decision.sokoBotId, userId),
-                select: { id: true },
-              });
+              const activeBot = await sokoBotForTurnMember(
+                actionContext.turn,
+                "running",
+                tx,
+              );
               if (!activeBot) {
                 throw new SokoBotRuntimeAuthorizationError(
                   "Soko Bot is paused or unavailable",
@@ -5728,10 +5723,11 @@ export class SokoBotRuntimeService {
               WHERE "id" = ${decision.sokoBotId}::uuid
               FOR UPDATE
             `;
-            const activeBot = await tx.sokoBot.findFirst({
-              where: activeOwnedSokoBotWhere(decision.sokoBotId, userId),
-              select: { id: true },
-            });
+            const activeBot = await sokoBotForTurnMember(
+              actionContext.turn,
+              "running",
+              tx,
+            );
             if (!activeBot) {
               throw new SokoBotRuntimeAuthorizationError(
                 "Soko Bot is paused or unavailable",

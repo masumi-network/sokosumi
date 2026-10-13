@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthorizedSokoBotRuntime } from "../soko-bot-runtime.service";
 
 const mocks = vi.hoisted(() => ({
-  workspace: vi.fn(),
+  bot: vi.fn(),
   turn: vi.fn(),
   actor: vi.fn(),
   create: vi.fn(),
@@ -19,7 +19,7 @@ vi.mock("@/lib/db/prisma", () => ({
       update: mocks.update,
       count: vi.fn().mockResolvedValue(1),
     },
-    workspace: { findUniqueOrThrow: mocks.workspace },
+    sokoBot: { findUnique: mocks.bot },
     sokoBotTurn: { findUnique: mocks.turn },
   },
 }));
@@ -80,9 +80,10 @@ const actor = { userId, workspaceId, actorId: sokoBotId, actorKind: "sokoBot" };
 describe("Soko Bot table dispatch", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mocks.workspace.mockResolvedValue({
-      id: workspaceId,
-      organizationId: null,
+    mocks.bot.mockResolvedValue({
+      userId,
+      projectId: null,
+      workspace: { id: workspaceId, organizationId: null },
     });
     mocks.actor.mockResolvedValue(actor);
     mocks.child.mockImplementation(async ({ create }) => ({

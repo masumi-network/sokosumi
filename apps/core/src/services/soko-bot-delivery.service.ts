@@ -4,6 +4,7 @@ import type { Prisma } from "@sokosumi/database";
 import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
+import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { persistSokoBotChatTurn } from "./soko-bot-chat.service";
@@ -96,15 +97,7 @@ async function destinationStillAuthorized(
     turn.source === "CHAT"
       ? (turn.requestedByUserId ?? turn.userId)
       : turn.userId;
-  const bot = await tx.sokoBot.findFirst({
-    where: {
-      id: turn.sokoBotId,
-      userId: turn.userId,
-      workspaceId: turn.workspaceId,
-      archivedAt: null,
-    },
-    select: { id: true },
-  });
+  const bot = await sokoBotForTurnMember(turn, "notArchived", tx);
   if (!bot) return false;
   const workspace = await tx.workspace.findFirst({
     where: {
