@@ -3,6 +3,23 @@ import type { DriveFileRef } from "@/helpers/drive-file-ref";
 export const AD_RANGES = ["LAST_7_DAYS", "LAST_30_DAYS"] as const;
 export type AdRange = (typeof AD_RANGES)[number];
 
+/** Inclusive UTC calendar window of the last N complete days, excluding today. */
+export function completeDaysRange(
+  range: AdRange,
+  now: Date = new Date(),
+): { since: string; until: string } {
+  const days = range === "LAST_7_DAYS" ? 7 : 30;
+  const until = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1),
+  );
+  const since = new Date(until);
+  since.setUTCDate(since.getUTCDate() - (days - 1));
+  return {
+    since: since.toISOString().slice(0, 10),
+    until: until.toISOString().slice(0, 10),
+  };
+}
+
 export const AD_CAMPAIGN_STATUSES = [
   "ACTIVE",
   "PAUSED",

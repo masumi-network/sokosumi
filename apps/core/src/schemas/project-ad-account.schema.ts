@@ -156,7 +156,8 @@ export const adCampaignSchema = z
       description: "spend / clicks; null without clicks",
     }),
     conversions: z.number().nullable().openapi({
-      description: "Null when the provider does not report conversions (Meta)",
+      description:
+        "Over the range; null only when the provider omits the metric",
     }),
   })
   .openapi("AdCampaign");
@@ -189,7 +190,7 @@ export const updateAdCampaignRequestSchema = z
     status: z.enum(AD_CAMPAIGN_SETTABLE_STATUSES).optional(),
     dailyBudget: z.number().positive().optional().openapi({
       description:
-        "Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)",
+        "Decimal in the account currency, greater than 0. Core rejects budgets with more fraction digits than the currency allows (JPY 0, USD 2) with 422",
       example: 25.5,
     }),
   })

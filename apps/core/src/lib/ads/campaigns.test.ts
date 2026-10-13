@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { buildAdCampaign, fromMinorUnits, sumAdMetrics } from "./campaigns";
+import {
+  buildAdCampaign,
+  completeDaysRange,
+  fromMinorUnits,
+  sumAdMetrics,
+} from "./campaigns";
+
+describe("completeDaysRange", () => {
+  it("returns the last N complete UTC days, excluding today", () => {
+    const now = new Date("2026-10-13T15:30:00.000Z");
+    expect(completeDaysRange("LAST_7_DAYS", now)).toEqual({
+      since: "2026-10-06",
+      until: "2026-10-12",
+    });
+    expect(completeDaysRange("LAST_30_DAYS", now)).toEqual({
+      since: "2026-09-13",
+      until: "2026-10-12",
+    });
+  });
+});
 
 describe("fromMinorUnits", () => {
   it.each([

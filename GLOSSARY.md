@@ -188,8 +188,8 @@ _Avoid_: Integration, Social connection
 A provider ad account (Google customer, Meta `act_…`) that a Project chose to manage through an Ad connection.
 _Avoid_: Social account, advertiser
 
-**Campaign**:
-A provider ad campaign inside an Ad account. Sokosumi manages Campaigns only, not ad sets or ads. New Campaigns are always created paused.
+**Ad campaign**:
+A provider ad campaign inside an Ad account. Sokosumi manages Ad campaigns only, not ad sets or ads. New Ad campaigns are always created paused.
 _Avoid_: Ad, Task, Job
 
 **Market profile**:

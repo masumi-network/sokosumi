@@ -11,6 +11,7 @@ import {
   type AdCampaignUpdate,
   type AdRange,
   buildAdCampaign,
+  completeDaysRange,
   fromMinorUnits,
   type MetaCampaignObjective,
   noAdMetrics,
@@ -37,10 +38,6 @@ const UPDATE_CAMPAIGN = "METAADS_UPDATE_CAMPAIGN";
 const CREATE_CAMPAIGN = "METAADS_CREATE_CAMPAIGN";
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
-const DATE_PRESETS = {
-  LAST_7_DAYS: "last_7d",
-  LAST_30_DAYS: "last_30d",
-} as const satisfies Record<AdRange, string>;
 const META_STATUSES: Record<string, AdCampaignStatus> = {
   ACTIVE: "ACTIVE",
   PAUSED: "PAUSED",
@@ -95,11 +92,22 @@ const metaCampaignSchema = z.object({
   daily_budget: z.coerce.number().nullish(),
 });
 
+/** Insights `conversions` is a number or a list of `{ value }` rows. */
+const metaConversionsSchema = z
+  .union([z.coerce.number(), z.array(z.object({ value: z.coerce.number() }))])
+  .nullish()
+  .transform((value) => {
+    if (value == null) return 0;
+    if (typeof value === "number") return value;
+    return value.reduce((sum, row) => sum + row.value, 0);
+  });
+
 const metaInsightSchema = z.object({
   campaign_id: z.coerce.string().min(1),
   spend: z.coerce.number().nullish(),
   impressions: z.coerce.number().nullish(),
   clicks: z.coerce.number().nullish(),
+  conversions: metaConversionsSchema,
 });
 
 /** The `after` cursor of the next page. */
@@ -135,9 +143,10 @@ async function listAllRows(
 }
 
 /**
- * Campaigns of an ad account with spend and clicks over the range. Meta only
- * returns archived and deleted campaigns when asked, which we do not.
- * Conversions are not reported.
+ * Campaigns of an ad account with spend, clicks and conversions over the
+ * range. Meta only returns archived and deleted campaigns when asked, which
+ * we do not. The metrics window is complete UTC days excluding today, matching
+ * the Google Ads `LAST_*_DAYS` presets.
  */
 export async function listMetaCampaigns(
   input: AdsConnectedAccount & {
@@ -147,6 +156,7 @@ export async function listMetaCampaigns(
   },
 ): Promise<AdCampaign[]> {
   const { adAccountId, currency, range, ...connected } = input;
+  const timeRange = completeDaysRange(range);
   const [campaignRows, insightRows] = await withAdsToolSession(
     {
       ...connected,
@@ -179,8 +189,16 @@ export async function listMetaCampaigns(
             // Graph aggregates an `act_` object's insights per campaign at this
             // level. Verify against a live account.
             level: "campaign",
-            fields: ["campaign_id", "spend", "impressions", "clicks"],
-            date_preset: DATE_PRESETS[range],
+            fields: [
+              "campaign_id",
+              "spend",
+              "impressions",
+              "clicks",
+              "conversions",
+            ],
+            // Explicit window so Meta matches Google's complete-days presets
+            // instead of a relative `date_preset` that can include today.
+            time_range: timeRange,
           },
           "list Meta campaign insights",
         ),
@@ -201,7 +219,7 @@ export async function listMetaCampaigns(
       spend: row.spend ?? 0,
       impressions: row.impressions ?? 0,
       clicks: row.clicks ?? 0,
-      conversions: null,
+      conversions: row.conversions,
     })),
   );
   return campaigns.map((campaign) =>
@@ -218,7 +236,7 @@ export async function listMetaCampaigns(
             ? null
             : fromMinorUnits(campaign.daily_budget, currency),
       },
-      totals.get(campaign.id) ?? noAdMetrics(null),
+      totals.get(campaign.id) ?? noAdMetrics(0),
     ),
   );
 }
@@ -280,8 +298,8 @@ export async function updateMetaCampaign(
 
       const result = await execute(UPDATE_CAMPAIGN, {
         campaign_id: campaignId,
-        status,
-        daily_budget: dailyBudget,
+        ...(status !== undefined ? { status } : {}),
+        ...(dailyBudget !== undefined ? { daily_budget: dailyBudget } : {}),
       });
       if (!updateResultSchema.safeParse(result).success) {
         throw new ComposioToolError({
