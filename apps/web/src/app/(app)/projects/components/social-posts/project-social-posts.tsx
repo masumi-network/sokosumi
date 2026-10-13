@@ -28,7 +28,7 @@ import { SocialPostComposerDialog } from "@/app/projects/components/social-posts
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
 import { EmptyState } from "@/components/common/empty-state";
-import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
+import { AccountChipMark } from "@/components/social-account-chip-mark";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -546,9 +546,18 @@ export function ProjectSocialPosts({
       >
         <span
           aria-hidden
-          className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border"
+          className="flex size-9 shrink-0 items-center justify-center"
         >
-          <SocialPostProviderIcon provider={post.provider} className="size-5" />
+          <AccountChipMark
+            avatarUrl={
+              connections.find(
+                (connection) => connection.id === post.socialConnection?.id,
+              )?.avatarUrl ??
+              post.socialConnection?.avatarUrl ??
+              null
+            }
+            provider={post.provider}
+          />
         </span>
         <div className="min-w-48 flex-1 space-y-1.5">
           <p className="text-muted-foreground flex min-h-9 flex-wrap items-center gap-x-2 gap-y-1 text-sm">

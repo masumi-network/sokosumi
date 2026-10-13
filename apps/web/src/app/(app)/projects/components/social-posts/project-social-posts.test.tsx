@@ -1864,6 +1864,143 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps the platform logo on a draft row without a photo", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({
+            socialConnection: {
+              id: "connection-1",
+              externalHandle: "sokosumi",
+              displayName: null,
+              avatarUrl: null,
+              status: "active",
+            },
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const row = screen.getByTestId("social-post-post-draft");
+    expect(within(row).getByTestId("social-post-account-logo")).toBeVisible();
+    expect(
+      within(row).queryByTestId("social-post-account-photo"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(row).queryByTestId("social-post-account-logo-badge"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the account photo with a platform logo badge on a draft row", async () => {
+    const restore = stubLoadedImage();
+    const photo =
+      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect width='8' height='8' fill='%23111'/></svg>";
+    try {
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection({ avatarUrl: photo })]}
+          posts={[
+            buildPost({
+              socialConnection: {
+                id: "connection-1",
+                externalHandle: "sokosumi",
+                displayName: null,
+                avatarUrl: photo,
+                status: "active",
+              },
+            }),
+          ]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      const row = screen.getByTestId("social-post-post-draft");
+      await waitFor(() => {
+        expect(
+          within(row).getByTestId("social-post-account-photo"),
+        ).toHaveAttribute("src", photo);
+      });
+      expect(within(row).getByTestId("social-post-account-logo")).toBeVisible();
+      expect(
+        within(row).getByTestId("social-post-account-logo-badge"),
+      ).toBeVisible();
+    } finally {
+      restore();
+    }
+  });
+
+  it("uses the live account photo when the draft snapshot is missing one", async () => {
+    const restore = stubLoadedImage();
+    const photo =
+      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect width='8' height='8' fill='%23111'/></svg>";
+    try {
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection({ avatarUrl: photo })]}
+          posts={[
+            buildPost({
+              socialConnection: {
+                id: "connection-1",
+                externalHandle: "sokosumi",
+                displayName: null,
+                avatarUrl: null,
+                status: "active",
+              },
+            }),
+          ]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      const row = screen.getByTestId("social-post-post-draft");
+      await waitFor(() => {
+        expect(
+          within(row).getByTestId("social-post-account-photo"),
+        ).toHaveAttribute("src", photo);
+      });
+      expect(
+        within(row).getByTestId("social-post-account-logo-badge"),
+      ).toBeVisible();
+    } finally {
+      restore();
+    }
+  });
+
+  it("falls back to the platform logo when a draft row photo fails", async () => {
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection({ avatarUrl: "https://example.invalid/missing.png" }),
+        ]}
+        posts={[
+          buildPost({
+            socialConnection: {
+              id: "connection-1",
+              externalHandle: "sokosumi",
+              displayName: null,
+              avatarUrl: "https://example.invalid/missing.png",
+              status: "active",
+            },
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const row = screen.getByTestId("social-post-post-draft");
+    await waitFor(() => {
+      expect(
+        within(row).queryByTestId("social-post-account-photo"),
+      ).not.toBeInTheDocument();
+    });
+    expect(within(row).getByTestId("social-post-account-logo")).toBeVisible();
+    expect(
+      within(row).queryByTestId("social-post-account-logo-badge"),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders media thumbnails in a linked post preview", () => {
     render(
       <ProjectSocialPosts
