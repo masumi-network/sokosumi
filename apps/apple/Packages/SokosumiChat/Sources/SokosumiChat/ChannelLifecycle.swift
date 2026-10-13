@@ -6,17 +6,6 @@ public enum ChannelLifecycleAction: Sendable {
   case leave, archive, restore, delete
 }
 
-/// One lifecycle request at a time, per workspace.
-public struct ChannelLifecycleRequest: Equatable, Sendable {
-  public let roomId: String
-  public let action: ChannelLifecycleAction
-
-  public init(roomId: String, action: ChannelLifecycleAction) {
-    self.roomId = roomId
-    self.action = action
-  }
-}
-
 public extension ChannelEditPermissions {
   /// Web `rooms-client.tsx`: archiving shares the owner/admin settings gate.
   var canArchive: Bool {

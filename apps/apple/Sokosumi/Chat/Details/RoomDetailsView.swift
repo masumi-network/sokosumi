@@ -183,14 +183,14 @@ struct RoomDetailsView: View {
             }
           }
         } label: {
-          if workspaces.openingDirect == member.id {
+          if workspaces.runningMutation == .openDirect(member.id) {
             ProgressView().controlSize(.mini)
           } else {
             Image(systemName: "bubble.left")
           }
         }
         .buttonStyle(.borderless)
-        .disabled(workspaces.openingDirect != nil)
+        .disabled(workspaces.roomMutationInFlight)
         .help("Message \(member.profile.name)")
         .accessibilityLabel("Message \(member.profile.name)")
       }

@@ -6,17 +6,6 @@ public enum InvitationAction: Sendable {
   case accept, decline
 }
 
-/// One invitation response at a time, like web's single `respondingInvitation` across the External rows.
-public struct InvitationResponse: Equatable, Sendable {
-  public let invitationId: String
-  public let action: InvitationAction
-
-  public init(invitationId: String, action: InvitationAction) {
-    self.invitationId = invitationId
-    self.action = action
-  }
-}
-
 /// Web `organization-chat-list.client.tsx` External section: pending rows above joined external rooms, refreshed on
 /// mount and recovery in every workspace. Loads fail soft; a local accept/decline wins over an older response.
 @MainActor

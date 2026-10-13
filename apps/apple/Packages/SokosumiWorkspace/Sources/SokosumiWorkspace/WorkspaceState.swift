@@ -50,19 +50,15 @@ public final class WorkspaceState: ObservableObject {
   public let messageEditing = MessageEditing()
   public let directStream: DirectStreamSession
   private var threadObservations: Set<AnyCancellable> = []
-  private var workspaceGeneration = 0
-  @Published public private(set) var openingDirect: DirectRecipient?
-  @Published public private(set) var creatingChannel = false
-  @Published public private(set) var joiningChannel = false
-  @Published public internal(set) var updatingRoom = false
-  @Published public private(set) var channelLifecycle: ChannelLifecycleRequest?
-  @Published public internal(set) var invitationResponse: InvitationResponse?
+  /// The Channel, Direct or invitation change in flight, if any.
+  @Published public private(set) var runningMutation: WorkspaceMutation?
   public let archivedChannels = ArchivedChannels()
   public let pendingInvitations = PendingInvitations()
+  /// The workspace context: a reset, reload or switch renews it, and work started under an older one turns stale.
   @Published public private(set) var compositionContext = UUID()
   /// Channel/Direct mutations are single-flight across the workspace, matching web's one open dialog at a time.
   public var roomMutationInFlight: Bool {
-    creatingChannel || joiningChannel || updatingRoom || openingDirect != nil || channelLifecycle != nil || invitationResponse != nil
+    runningMutation != nil
   }
 
   public var phase: Phase {
@@ -332,14 +328,7 @@ public final class WorkspaceState: ObservableObject {
     hasLoaded = false
     workspaceLoadTask?.cancel()
     workspaceLoadTask = nil
-    workspaceGeneration += 1
-    compositionContext = UUID()
-    openingDirect = nil
-    creatingChannel = false
-    joiningChannel = false
-    updatingRoom = false
-    channelLifecycle = nil
-    invitationResponse = nil
+    renewContext()
     loaded.clearPendingReactions()
     sokoBotFeedback = [:]
     pendingSokoBotFeedback = []
@@ -394,61 +383,44 @@ public final class WorkspaceState: ObservableObject {
   }
 
   public func createChannel(_ draft: ChannelDraft, roster: ChatRecipientRoster, context: UUID) async throws -> Bool {
-    guard canStartMutation(context: context) else { return false }
     let sourceRoom = transcriptRoomId
-    creatingChannel = true
-    defer {
-      if context == compositionContext {
-        creatingChannel = false
+    return try await exclusive(.createChannel, context: context) {
+      let room = try await channelOperation(context: context) { client, _, slug in
+        try await service.createChannel(client: client, draft: draft, roster: roster, currentUserId: self.currentUserId, organizationSlug: slug)
       }
+      acceptCreatedRoom(room, sourceRoom: sourceRoom)
     }
-    let room = try await channelOperation(context: context) { client, _, slug in
-      try await service.createChannel(client: client, draft: draft, roster: roster, currentUserId: self.currentUserId, organizationSlug: slug)
-    }
-    acceptCreatedRoom(room, sourceRoom: sourceRoom)
-    return true
   }
 
   /// Settings edits reconcile the room in place and never navigate: the sidebar row and any open transcript keep their identity.
   public func updateChannel(_ draft: ChannelEditDraft, roomId: String, context: UUID) async throws -> Bool {
-    guard canStartMutation(context: context), draft.isValid, rooms.contains(where: { $0.id == roomId }) else { return false }
-    updatingRoom = true
-    defer {
-      if context == compositionContext {
-        updatingRoom = false
+    guard draft.isValid, rooms.contains(where: { $0.id == roomId }) else { return false }
+    let request = draft.updateRequest
+    return try await exclusive(.updateRoom, context: context) {
+      let room = try await channelOperation(context: context) { client, _, slug in
+        try await service.updateRoom(client: client, roomId: roomId, request: request, organizationSlug: slug)
+      }
+      // A list read already in flight predates this settings edit.
+      sidebar.invalidateRefresh()
+      if let index = rooms.firstIndex(where: { $0.id == room.id }) {
+        rooms[index] = room
       }
     }
-    let request = draft.updateRequest
-    let room = try await channelOperation(context: context) { client, _, slug in
-      try await service.updateRoom(client: client, roomId: roomId, request: request, organizationSlug: slug)
-    }
-    // A list read already in flight predates this settings edit.
-    sidebar.invalidateRefresh()
-    if let index = rooms.firstIndex(where: { $0.id == room.id }) {
-      rooms[index] = room
-    }
-    return true
   }
 
   /// Names or clears a group Direct's Group name (ADR-0040) in any workspace, then takes Core's room in place like `updateChannel`.
   public func nameGroup(_ draft: GroupNameDraft, roomId: String, context: UUID) async throws -> Bool {
-    guard canStartMutation(context: context) else { return false }
-    updatingRoom = true
-    defer {
-      if context == compositionContext {
-        updatingRoom = false
+    let slug = selection?.workspace.organizationSlug
+    return try await exclusive(.updateRoom, context: context) {
+      let room = try await workspaceOperation(context: context) { client in
+        try await service.updateRoom(client: client, roomId: roomId, request: draft.updateRequest, organizationSlug: slug)
+      }
+      // A list read already in flight predates this rename.
+      sidebar.invalidateRefresh()
+      if let index = rooms.firstIndex(where: { $0.id == room.id }) {
+        rooms[index] = room
       }
     }
-    let slug = selection?.workspace.organizationSlug
-    let room = try await workspaceOperation(context: context) { client in
-      try await service.updateRoom(client: client, roomId: roomId, request: draft.updateRequest, organizationSlug: slug)
-    }
-    // A list read already in flight predates this rename.
-    sidebar.invalidateRefresh()
-    if let index = rooms.firstIndex(where: { $0.id == room.id }) {
-      rooms[index] = room
-    }
-    return true
   }
 
   public func browseChannels(query: String, context: UUID) async throws -> [Components.Schemas.DiscoverableChatRoom] {
@@ -458,20 +430,13 @@ public final class WorkspaceState: ObservableObject {
   }
 
   public func joinChannel(roomId: String, context: UUID) async throws -> Bool {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching,
-          !roomMutationInFlight else { return false }
     let sourceRoom = transcriptRoomId
-    joiningChannel = true
-    defer {
-      if context == compositionContext {
-        joiningChannel = false
+    return try await exclusive(.joinChannel, context: context) {
+      let room = try await channelOperation(context: context) { client, _, slug in
+        try await service.joinChannel(client: client, roomId: roomId, organizationSlug: slug)
       }
+      acceptCreatedRoom(room, sourceRoom: sourceRoom)
     }
-    let room = try await channelOperation(context: context) { client, _, slug in
-      try await service.joinChannel(client: client, roomId: roomId, organizationSlug: slug)
-    }
-    acceptCreatedRoom(room, sourceRoom: sourceRoom)
-    return true
   }
 
   func channelOperation<Value: Sendable>(context: UUID, operation: (Client, String, String) async throws -> Value) async throws -> Value {
@@ -481,9 +446,24 @@ public final class WorkspaceState: ObservableObject {
     }
   }
 
-  /// Channel, Direct and invitation mutations start only for the live composition context, outside a switch, one at a time.
-  func canStartMutation(context: UUID) -> Bool {
-    context == compositionContext && phase == .ready && !workspaceSession.isSwitching && !roomMutationInFlight
+  /// Runs `perform` as the workspace's one running mutation. It starts only for the live composition context, outside
+  /// a switch, while no other runs; returns false when it could not start.
+  func exclusive(_ mutation: WorkspaceMutation, context: UUID, _ perform: () async throws -> Void) async throws -> Bool {
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, !roomMutationInFlight else { return false }
+    runningMutation = mutation
+    defer {
+      if context == compositionContext {
+        runningMutation = nil
+      }
+    }
+    try await perform()
+    return true
+  }
+
+  /// A reset, reload or switch: work started under the old context turns stale and no mutation counts as running.
+  private func renewContext() {
+    compositionContext = UUID()
+    runningMutation = nil
   }
 
   /// Runs an authenticated request for the current composition context; a workspace change or reset turns its result into cancellation.
@@ -518,7 +498,7 @@ public final class WorkspaceState: ObservableObject {
 
   /// Leaving drops the room like a membership revoke: the open transcript clears and no other room is forced open.
   public func leaveChannel(roomId: String, context: UUID) async throws -> Bool {
-    try await runChannelLifecycle(.leave, roomId: roomId, context: context) {
+    try await exclusive(.channelLifecycle(.leave, roomId: roomId), context: context) {
       let slug = selection?.workspace.organizationSlug
       try await workspaceOperation(context: context) { client in
         try await service.leaveChannel(client: client, roomId: roomId, organizationSlug: slug)
@@ -529,7 +509,7 @@ public final class WorkspaceState: ObservableObject {
 
   /// Archiving hides the channel for everyone; it moves into the Archived section.
   public func archiveChannel(roomId: String, context: UUID) async throws -> Bool {
-    try await runChannelLifecycle(.archive, roomId: roomId, context: context) {
+    try await exclusive(.channelLifecycle(.archive, roomId: roomId), context: context) {
       try await channelOperation(context: context) { client, _, slug in
         try await service.archiveChannel(client: client, roomId: roomId, organizationSlug: slug)
       }
@@ -543,7 +523,7 @@ public final class WorkspaceState: ObservableObject {
   /// Restoring returns the live room and opens it (web navigates to it) unless the user moved on meanwhile.
   public func restoreChannel(roomId: String, context: UUID) async throws -> Bool {
     let sourceRoom = transcriptRoomId
-    return try await runChannelLifecycle(.restore, roomId: roomId, context: context) {
+    return try await exclusive(.channelLifecycle(.restore, roomId: roomId), context: context) {
       let room = try await channelOperation(context: context) { client, _, slug in
         try await service.restoreChannel(client: client, roomId: roomId, organizationSlug: slug)
       }
@@ -553,24 +533,12 @@ public final class WorkspaceState: ObservableObject {
   }
 
   public func deleteChannel(roomId: String, context: UUID) async throws -> Bool {
-    try await runChannelLifecycle(.delete, roomId: roomId, context: context) {
+    try await exclusive(.channelLifecycle(.delete, roomId: roomId), context: context) {
       try await channelOperation(context: context) { client, _, slug in
         try await service.deleteChannel(client: client, roomId: roomId, organizationSlug: slug)
       }
       archivedChannels.remove(roomId: roomId)
     }
-  }
-
-  private func runChannelLifecycle(_ action: ChannelLifecycleAction, roomId: String, context: UUID, perform: () async throws -> Void) async throws -> Bool {
-    guard canStartMutation(context: context) else { return false }
-    channelLifecycle = .init(roomId: roomId, action: action)
-    defer {
-      if context == compositionContext {
-        channelLifecycle = nil
-      }
-    }
-    try await perform()
-    return true
   }
 
   public func canOpenDirect(_ recipient: DirectRecipient) -> Bool {
@@ -611,27 +579,24 @@ public final class WorkspaceState: ObservableObject {
 
   @discardableResult
   public func openDirect(_ recipients: DirectConversationSelection, context: UUID) async throws -> Bool {
-    guard canStartMutation(context: context),
-          let first = recipients.recipients.first, let client = resolveClient() else { return false }
+    guard let first = recipients.recipients.first, let client = resolveClient() else { return false }
     let sourceRoom = transcriptRoomId
-    openingDirect = first
-    defer {
-      if context == compositionContext {
-        openingDirect = nil
+    var opened = false
+    _ = try await exclusive(.openDirect(first), context: context) {
+      do {
+        let room = try await service.openDirect(client: client, selection: recipients, organizationSlug: selection?.workspace.organizationSlug)
+        guard !Task.isCancelled, context == compositionContext, phase == .ready else { return }
+        acceptCreatedRoom(room, sourceRoom: sourceRoom)
+        opened = true
+      } catch {
+        guard context == compositionContext else { return }
+        if let error = error as? ChatServiceError {
+          signOutIfUnauthorized(error)
+        }
+        throw error
       }
     }
-    do {
-      let room = try await service.openDirect(client: client, selection: recipients, organizationSlug: selection?.workspace.organizationSlug)
-      guard !Task.isCancelled, context == compositionContext, phase == .ready else { return false }
-      acceptCreatedRoom(room, sourceRoom: sourceRoom)
-      return true
-    } catch {
-      guard context == compositionContext else { return false }
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
-      throw error
-    }
+    return opened
   }
 
   private func applyRoomSelection(_ id: String?) {
@@ -1162,17 +1127,10 @@ public final class WorkspaceState: ObservableObject {
   func reload() async {
     guard !Task.isCancelled else { return }
     sidebar.reset()
-    workspaceGeneration += 1
-    compositionContext = UUID()
-    openingDirect = nil
-    creatingChannel = false
-    joiningChannel = false
-    updatingRoom = false
-    channelLifecycle = nil
-    invitationResponse = nil
+    renewContext()
     archivedChannels.reset()
     pendingInvitations.reset()
-    let generation = workspaceGeneration
+    let context = compositionContext
     rooms = []
     switchError = nil
     selectedRoomId = nil
@@ -1181,39 +1139,33 @@ public final class WorkspaceState: ObservableObject {
     crossRoomThreads.reset()
     guard let client = resolveClient() else { return }
     do {
-      guard let loaded = try await workspaceSession.load(client: client), generation == workspaceGeneration else { return }
+      guard let loaded = try await workspaceSession.load(client: client), context == compositionContext else { return }
       rooms = loaded
       startRealtimeIfNeeded()
       startSidebarRecovery()
       ensureRoomSelection()
     } catch {
-      guard generation == workspaceGeneration else { return }
+      guard context == compositionContext else { return }
       handleWorkspaceError(error)
     }
   }
 
   func switchRooms(option: WorkspaceOption) async {
-    compositionContext = UUID()
-    openingDirect = nil
-    creatingChannel = false
-    joiningChannel = false
-    updatingRoom = false
-    channelLifecycle = nil
-    invitationResponse = nil
+    renewContext()
     roomsRefreshTask?.cancel()
     roomsRefreshTask = nil
     roomsRefreshID = UUID()
     sidebar.invalidateRefresh()
-    let generation = workspaceGeneration
+    let context = compositionContext
     roomsLoading = true
     defer {
-      if generation == workspaceGeneration {
+      if context == compositionContext {
         roomsLoading = false
       }
     }
     guard let client = resolveClient() else { return }
     do {
-      guard let loaded = try await workspaceSession.select(option, client: client), generation == workspaceGeneration else { return }
+      guard let loaded = try await workspaceSession.select(option, client: client), context == compositionContext else { return }
       sidebar.dropPendingActions()
       archivedChannels.reset()
       pendingInvitations.reset()
@@ -1228,10 +1180,10 @@ public final class WorkspaceState: ObservableObject {
       startRealtimeIfNeeded()
       syncPresenceOrganization()
       startSidebarRecovery()
-      guard generation == workspaceGeneration else { return }
+      guard context == compositionContext else { return }
       ensureRoomSelection()
     } catch {
-      guard generation == workspaceGeneration else { return }
+      guard context == compositionContext else { return }
       switchError = workspaceSession.errorMessage
       handleWorkspaceError(error)
     }
