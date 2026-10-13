@@ -198,7 +198,12 @@ async function launch(sessionId: string, input: RuntimeTurnInput) {
       ...(drive ? { mounts: { [SANDBOX_WORKSPACE]: drive } } : {}),
       tags: { app: "soko-bot", bot: input.sokoBotId },
     });
-    if (!drive) await sandbox.mkDir(SANDBOX_WORKSPACE);
+    // mkDir is not recursive and its parent may not exist yet.
+    if (!drive)
+      await sandbox.runCommand({
+        cmd: "mkdir",
+        args: ["-p", SANDBOX_WORKSPACE],
+      });
     await sandbox.writeFiles([
       { path: RUNNER_PATH, content: await loadRunner() },
     ]);
