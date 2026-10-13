@@ -25,7 +25,7 @@ import { fetchChatSkills } from "./fetch-chat-skills";
 export const MAX_SKILLS_PER_MESSAGE = 3;
 const SEARCH_DEBOUNCE_MS = 200;
 
-export function skillChipFromCatalog(
+function skillChipFromCatalog(
   item: ChatSkillCatalogItem,
 ): ChatRoomMessageSkill {
   return {
