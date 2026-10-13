@@ -25,7 +25,7 @@ import { buildAuthorizedResourceSql } from "@/lib/files/evidence-scope";
  * that is what it is.
  */
 
-export const CANDIDATE_BUDGET_EXACT_NAME = 20;
+const CANDIDATE_BUDGET_EXACT_NAME = 20;
 /**
  * How many *documents* full-text retrieval may return.
  *
@@ -44,7 +44,7 @@ export const CANDIDATE_BUDGET_EXACT_NAME = 20;
  */
 export const CANDIDATE_BUDGET_FTS_DOCUMENTS = 120;
 
-export const CANDIDATE_BUDGET_METADATA = 40;
+const CANDIDATE_BUDGET_METADATA = 40;
 /** The bounded window everything downstream operates on. */
 export const RESULT_WINDOW_LIMIT = 120;
 /** Reciprocal-rank-fusion constant. A tuning default, not a measurement. */

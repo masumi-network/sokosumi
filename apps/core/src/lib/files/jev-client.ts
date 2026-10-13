@@ -69,7 +69,7 @@ import {
 const GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh/v1";
 const EVALUATION_TIMEOUT_MS = 2_000;
 
-export const JEV_SCORE_MIN = 0;
+const JEV_SCORE_MIN = 0;
 
 interface JevEvaluationOutcome {
   ok: boolean;
