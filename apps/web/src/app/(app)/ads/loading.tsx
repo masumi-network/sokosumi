@@ -1,8 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
-import { Skeleton } from "@/components/ui/skeleton";
-
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /** Ads' shape while the project loads: the tab row and one empty-state block. */
 export default async function AdsLoading() {
