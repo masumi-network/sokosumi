@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { refreshProjectSocialAccountStatistics } from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
@@ -88,6 +89,35 @@ function utcPreset(days: 7 | 30 | 90) {
     from: from.toISOString().slice(0, 10),
     until: until.toISOString().slice(0, 10),
   };
+}
+
+function PerformanceQuerySkeleton({ label }: { label: string }) {
+  return (
+    <div
+      aria-busy="true"
+      className="space-y-6"
+      data-testid="social-statistics-loading"
+      role="status"
+    >
+      <span className="sr-only">{label}</span>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {Array.from({ length: 3 }, (_, card) => (
+          <div
+            key={card}
+            className="border-border space-y-3 rounded-lg border p-4"
+          >
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-8 w-16" />
+            <Skeleton className="h-3 w-full" />
+          </div>
+        ))}
+      </div>
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    </div>
+  );
 }
 
 function accountName(account: Account) {
@@ -332,10 +362,10 @@ export function SocialPostStatistics(
       data-testid="social-statistics"
       aria-label={t("title")}
     >
-      <div role="status" className="text-muted-foreground text-sm">
-        {query.isPending ? t("loading") : ""}
-      </div>
-      {query.isError ? (
+      {query.isPending ? (
+        <PerformanceQuerySkeleton label={t("loading")} />
+      ) : null}
+      {query.isPending ? null : query.isError ? (
         <div role="alert" className="flex flex-wrap items-center gap-3">
           <p className="text-sm">{t("loadFailed")}</p>
           <Button
@@ -502,178 +532,184 @@ export function SocialPostStatistics(
           ) : null}
         </section>
       ) : null}
-      <div className="flex flex-wrap gap-2">
-        {(["7", "30", "90"] as const).map((days) => (
-          <Button
-            key={days}
-            size="sm"
-            type="button"
-            className={
-              preset === days ? "h-11 md:h-8" : "text-foreground h-11 md:h-8"
-            }
-            variant={preset === days ? "default" : "outline"}
-            aria-pressed={preset === days}
-            onClick={() => handlePreset(days)}
-          >
-            {t("performance.lastDays", { days: Number(days) })}
-          </Button>
-        ))}
-      </div>
-      <details className="group">
-        <summary className="text-muted-foreground flex w-fit cursor-pointer items-center gap-2 rounded-sm py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
-          {t("performance.moreFilters")}
-          {advancedFilterCount ? (
-            <span className="text-foreground text-xs">
-              {t("performance.activeFilters", {
-                count: advancedFilterCount,
-              })}
-            </span>
-          ) : null}
-        </summary>
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="statistics-from">{t("publishedFrom")}</Label>
-            <Input
-              id="statistics-from"
-              type="date"
-              value={filters.publishedFrom ?? (publishedFrom || "")}
-              onChange={(event) =>
-                void setFilters({
-                  publishedFrom: event.target.value || null,
-                  performanceRange: null,
-                })
-              }
-            />
+      {query.isPending ? null : (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {(["7", "30", "90"] as const).map((days) => (
+              <Button
+                key={days}
+                size="sm"
+                type="button"
+                className={
+                  preset === days
+                    ? "h-11 md:h-8"
+                    : "text-foreground h-11 md:h-8"
+                }
+                variant={preset === days ? "default" : "outline"}
+                aria-pressed={preset === days}
+                onClick={() => handlePreset(days)}
+              >
+                {t("performance.lastDays", { days: Number(days) })}
+              </Button>
+            ))}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="statistics-until">{t("publishedUntil")}</Label>
-            <Input
-              id="statistics-until"
-              type="date"
-              value={filters.publishedUntil ?? (publishedUntil || "")}
-              min={filters.publishedFrom ?? undefined}
-              aria-invalid={!validRange}
-              onChange={(event) =>
-                void setFilters({
-                  publishedUntil: event.target.value || null,
-                  performanceRange: null,
-                })
-              }
-            />
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              void setFilters({
-                statisticsProvider: null,
-                statisticsAccount: null,
-                publishedFrom: null,
-                publishedUntil: null,
-                performanceRange: null,
-              })
-            }
-          >
-            {t("clearFilters")}
-          </Button>
-        </div>
-      </details>
-      {!validRange ? (
-        <p role="alert" className="text-semantic-destructive text-sm">
-          {t("invalidRange")}
-        </p>
-      ) : null}
-      {headline ? (
-        <SocialPerformanceOverview
-          headline={headline}
-          impressionBased={impressionBased}
-        />
-      ) : null}
-      {headline?.daily.length ? (
-        <PerformanceTrendChart
-          days={headline.daily}
-          impressionBased={impressionBased}
-        />
-      ) : null}
-      {consistency ? (
-        <PostingConsistency
-          days={consistency.daily.map((day) => ({
-            date:
-              day.date instanceof Date
-                ? day.date.toISOString().slice(0, 10)
-                : day.date,
-            posts: day.postCount,
-            engagement: day.interactions,
-          }))}
-          selectedFrom={filters.publishedFrom}
-          selectedUntil={filters.publishedUntil}
-        />
-      ) : null}
-      <section className="space-y-4" aria-label={t("postsTitle")}>
-        <h3 className="text-sm font-semibold">{t("postsTitle")}</h3>
-        {!query.isPending &&
-        !query.isError &&
-        validRange &&
-        posts.length === 0 ? (
-          <p className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
-            {t("empty")}
-          </p>
-        ) : null}
-        <ul className="space-y-3">
-          {posts.map((post) => (
-            <li key={post.id} className="space-y-3 rounded-lg border p-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="font-medium">
-                  {accountsById.get(post.connectionId)?.displayName ??
-                    accountsById.get(post.connectionId)?.externalHandle ??
-                    SOCIAL_PROVIDERS.find(
-                      (provider) => provider.id === post.provider,
-                    )?.name ??
-                    post.provider}
-                </p>
-                <p className="text-muted-foreground text-xs">
-                  {post.publishedAt
-                    ? formatDate(post.publishedAt)
-                    : t("dateUnavailable")}
-                </p>
-              </div>
-              <p className="text-sm whitespace-pre-wrap break-words">
-                {post.text || t("mediaPost")}
-              </p>
-              {post.url ? (
-                <a
-                  className="inline-block text-sm underline underline-offset-4"
-                  href={post.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  {t("openPost")}
-                </a>
+          <details className="group">
+            <summary className="text-muted-foreground flex w-fit cursor-pointer items-center gap-2 rounded-sm py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+              {t("performance.moreFilters")}
+              {advancedFilterCount ? (
+                <span className="text-foreground text-xs">
+                  {t("performance.activeFilters", {
+                    count: advancedFilterCount,
+                  })}
+                </span>
               ) : null}
-              <SocialPostMetrics
-                statistics={{
-                  metrics: post.metrics,
-                  fetchedAt: post.fetchedAt,
-                  refreshAttemptedAt: null,
-                  error: null,
-                }}
-              />
-              {post.additionalMetrics.length
-                ? renderMetrics(post.additionalMetrics)
-                : null}
-            </li>
-          ))}
-        </ul>
-        {query.hasNextPage && validRange ? (
-          <Button
-            variant="outline"
-            loading={query.isFetchingNextPage}
-            onClick={() => void query.fetchNextPage()}
-          >
-            {t("loadMore")}
-          </Button>
-        ) : null}
-      </section>
+            </summary>
+            <div className="mt-4 flex flex-wrap items-end gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="statistics-from">{t("publishedFrom")}</Label>
+                <Input
+                  id="statistics-from"
+                  type="date"
+                  value={filters.publishedFrom ?? (publishedFrom || "")}
+                  onChange={(event) =>
+                    void setFilters({
+                      publishedFrom: event.target.value || null,
+                      performanceRange: null,
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="statistics-until">{t("publishedUntil")}</Label>
+                <Input
+                  id="statistics-until"
+                  type="date"
+                  value={filters.publishedUntil ?? (publishedUntil || "")}
+                  min={filters.publishedFrom ?? undefined}
+                  aria-invalid={!validRange}
+                  onChange={(event) =>
+                    void setFilters({
+                      publishedUntil: event.target.value || null,
+                      performanceRange: null,
+                    })
+                  }
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  void setFilters({
+                    statisticsProvider: null,
+                    statisticsAccount: null,
+                    publishedFrom: null,
+                    publishedUntil: null,
+                    performanceRange: null,
+                  })
+                }
+              >
+                {t("clearFilters")}
+              </Button>
+            </div>
+          </details>
+          {!validRange ? (
+            <p role="alert" className="text-semantic-destructive text-sm">
+              {t("invalidRange")}
+            </p>
+          ) : null}
+          {headline ? (
+            <SocialPerformanceOverview
+              headline={headline}
+              impressionBased={impressionBased}
+            />
+          ) : null}
+          {headline?.daily.length ? (
+            <PerformanceTrendChart
+              days={headline.daily}
+              impressionBased={impressionBased}
+            />
+          ) : null}
+          {consistency ? (
+            <PostingConsistency
+              days={consistency.daily.map((day) => ({
+                date:
+                  day.date instanceof Date
+                    ? day.date.toISOString().slice(0, 10)
+                    : day.date,
+                posts: day.postCount,
+                engagement: day.interactions,
+              }))}
+              selectedFrom={filters.publishedFrom}
+              selectedUntil={filters.publishedUntil}
+            />
+          ) : null}
+          <section className="space-y-4" aria-label={t("postsTitle")}>
+            <h3 className="text-sm font-semibold">{t("postsTitle")}</h3>
+            {!query.isPending &&
+            !query.isError &&
+            validRange &&
+            posts.length === 0 ? (
+              <p className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
+                {t("empty")}
+              </p>
+            ) : null}
+            <ul className="space-y-3">
+              {posts.map((post) => (
+                <li key={post.id} className="space-y-3 rounded-lg border p-4">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="font-medium">
+                      {accountsById.get(post.connectionId)?.displayName ??
+                        accountsById.get(post.connectionId)?.externalHandle ??
+                        SOCIAL_PROVIDERS.find(
+                          (provider) => provider.id === post.provider,
+                        )?.name ??
+                        post.provider}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {post.publishedAt
+                        ? formatDate(post.publishedAt)
+                        : t("dateUnavailable")}
+                    </p>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap break-words">
+                    {post.text || t("mediaPost")}
+                  </p>
+                  {post.url ? (
+                    <a
+                      className="inline-block text-sm underline underline-offset-4"
+                      href={post.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                    >
+                      {t("openPost")}
+                    </a>
+                  ) : null}
+                  <SocialPostMetrics
+                    statistics={{
+                      metrics: post.metrics,
+                      fetchedAt: post.fetchedAt,
+                      refreshAttemptedAt: null,
+                      error: null,
+                    }}
+                  />
+                  {post.additionalMetrics.length
+                    ? renderMetrics(post.additionalMetrics)
+                    : null}
+                </li>
+              ))}
+            </ul>
+            {query.hasNextPage && validRange ? (
+              <Button
+                variant="outline"
+                loading={query.isFetchingNextPage}
+                onClick={() => void query.fetchNextPage()}
+              >
+                {t("loadMore")}
+              </Button>
+            ) : null}
+          </section>
+        </>
+      )}
     </section>
   );
 }
