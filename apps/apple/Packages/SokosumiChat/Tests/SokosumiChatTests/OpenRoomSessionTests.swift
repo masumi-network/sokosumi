@@ -169,6 +169,22 @@ struct OpenRoomSessionTests {
     #expect(failures == 1)
   }
 
+  /// A draft the room refuses leaves a jumped-to page where it is.
+  @Test func aRefusedDraftKeepsTheJumpedToPage() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [], nextCursor: nil)),
+      (200, testMessagesPageBody(messages: [testMessageJSON(id: "m1", content: "Old", sender: ada)], nextCursor: "m1"))
+    ])
+    let session = try connected(transport)
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    _ = await session.room.loadTask?.value
+    _ = try await session.room.timeline.loadPage(.around("m1"), client: makeTestClient(transport), organizationSlug: nil,
+                                                 generation: session.room.timeline.generation)
+    try #require(session.room.timeline.historicalAnchor == "m1")
+    #expect(!session.send(ComposerContent(" \n"), sender: viewer, mentions: []))
+    #expect(session.room.timeline.historicalAnchor == "m1")
+  }
+
   /// The room's latest page carries the newer copy of an open Thread's parent.
   @Test func theRoomsLatestPageRefreshesTheThreadsParent() async throws {
     let session = try connected(TestTransport([

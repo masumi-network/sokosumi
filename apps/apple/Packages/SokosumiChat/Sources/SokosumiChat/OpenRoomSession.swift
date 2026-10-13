@@ -251,15 +251,15 @@ public final class OpenRoomSession: ObservableObject {
     return draft.canSend(quoted: quoted && directStream.roomId != roomId)
   }
 
-  /// Queues a local shell at once, then posts in order; in a coworker Direct the stream answers instead. The room
-  /// follows the latest page, so a jumped-to page ends.
+  /// Queues a local shell at once, then posts in order; in a coworker Direct the stream answers instead. A draft
+  /// `canSend` refuses changes nothing; otherwise the room follows the latest page, so a jumped-to page ends.
   @discardableResult
   public func send(
     _ draft: ComposerContent, sender: Components.Schemas.ChatRoomUserParticipant, mentions: [ComposerMention],
     attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil,
     skills: [Components.Schemas.ChatRoomMessageSkill] = []
   ) -> Bool {
-    guard let roomId = room.timeline.roomId, let access = hooks.access() else { return false }
+    guard canSend(draft, quoted: quote != nil), let roomId = room.timeline.roomId, let access = hooks.access() else { return false }
     room.timeline.followLatest()
     if directStream.roomId == roomId {
       return directStream.send(draft.text, client: access.client, organizationSlug: access.organizationSlug, attachments: attachments,
