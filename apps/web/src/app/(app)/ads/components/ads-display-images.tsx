@@ -17,7 +17,6 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import type { ImageSize } from "@/hooks/use-remembered-image-size";
 import type { GoogleDisplayFormValues } from "@/lib/ads/google-display";
 import {
   addDisplayImage,
@@ -36,6 +35,7 @@ import {
   type MinSize,
   missingDisplayImages,
 } from "@/lib/ads/google-display-images";
+import type { ImageSize } from "@/lib/ads/image-size";
 import { readFileImageSize, readImageSize } from "@/lib/ads/image-size.client";
 import { useSession } from "@/lib/auth/auth.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
@@ -115,11 +115,11 @@ function ImageSlot({ slot }: ImageSlotProps) {
     out: string[],
   ): void {
     const added = addDisplayImage(form.getValues("images"), image);
-    if (!added.ok) {
-      refuse(added.reason, image.name, out);
+    if (added.isErr()) {
+      refuse(added.error, image.name, out);
       return;
     }
-    form.setValue("images", added.images, {
+    form.setValue("images", added.value, {
       shouldDirty: true,
       shouldValidate: form.formState.isSubmitted,
     });
@@ -139,21 +139,21 @@ function ImageSlot({ slot }: ImageSlotProps) {
       return null;
     }
     const role = imageRoleForSize(size.width, size.height, slot);
-    if (!role.ok) {
-      refuse(role.reason, name, out);
+    if (role.isErr()) {
+      refuse(role.error, name, out);
       return null;
     }
-    if (!hasRoomForDisplayImage(form.getValues("images"), role.role)) {
+    if (!hasRoomForDisplayImage(form.getValues("images"), role.value)) {
       refuse("full", name, out);
       return null;
     }
-    return role.role;
+    return role.value;
   }
 
   async function addUpload(file: File, out: string[]): Promise<void> {
     const checked = checkDisplayImageFile(file);
-    if (!checked.ok) {
-      refuse(checked.reason, file.name, out);
+    if (checked.isErr()) {
+      refuse(checked.error, file.name, out);
       return;
     }
     const role = await roleFor(readFileImageSize(file), file.name, out);
@@ -167,7 +167,7 @@ function ImageSlot({ slot }: ImageSlotProps) {
           fileUrl: uploaded.fileUrl,
           name: file.name,
           size: file.size,
-          mimeType: checked.mimeType,
+          mimeType: checked.value,
           role,
         },
         out,
@@ -183,8 +183,8 @@ function ImageSlot({ slot }: ImageSlotProps) {
 
   async function addDriveFile(file: DriveFile, out: string[]): Promise<void> {
     const checked = checkDisplayImageFileByName(file);
-    if (!checked.ok) {
-      refuse(checked.reason, file.name, out);
+    if (checked.isErr()) {
+      refuse(checked.error, file.name, out);
       return;
     }
     const role = await roleFor(readImageSize(file.fileUrl), file.name, out);
@@ -195,7 +195,7 @@ function ImageSlot({ slot }: ImageSlotProps) {
         fileUrl: file.fileUrl,
         name: file.name,
         size: file.size,
-        mimeType: checked.mimeType,
+        mimeType: checked.value,
         role,
       },
       out,

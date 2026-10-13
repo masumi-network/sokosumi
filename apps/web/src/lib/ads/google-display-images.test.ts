@@ -1,4 +1,5 @@
 import type { GoogleDisplayImage } from "@sokosumi/core-client";
+import { err, ok } from "neverthrow";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -44,10 +45,7 @@ describe("imageRoleForSize", () => {
     ["a square plus 1%", 505, 500, "SQUARE"],
     ["a square less 1%", 495, 500, "SQUARE"], // 0.99
   ] as const)("takes %s as %s", (_name, width, height, role) => {
-    expect(imageRoleForSize(width, height, "images")).toEqual({
-      ok: true,
-      role,
-    });
+    expect(imageRoleForSize(width, height, "images")).toEqual(ok(role));
   });
 
   it.each([
@@ -60,81 +58,49 @@ describe("imageRoleForSize", () => {
     ["a portrait", 600, 900],
     ["a wide banner", 1600, 400],
   ])("refuses %s by its ratio", (_name, width, height) => {
-    expect(imageRoleForSize(width, height, "images")).toEqual({
-      ok: false,
-      reason: "ratio",
-    });
+    expect(imageRoleForSize(width, height, "images")).toEqual(err("ratio"));
   });
 
   it("refuses a landscape or a square under its minimum size", () => {
-    expect(imageRoleForSize(599, 314, "images")).toEqual({
-      ok: false,
-      reason: "landscapeTooSmall",
-    });
-    expect(imageRoleForSize(600, 313, "images")).toEqual({
-      ok: false,
-      reason: "landscapeTooSmall",
-    });
-    expect(imageRoleForSize(299, 299, "images")).toEqual({
-      ok: false,
-      reason: "squareTooSmall",
-    });
+    expect(imageRoleForSize(599, 314, "images")).toEqual(
+      err("landscapeTooSmall"),
+    );
+    expect(imageRoleForSize(600, 313, "images")).toEqual(
+      err("landscapeTooSmall"),
+    );
+    expect(imageRoleForSize(299, 299, "images")).toEqual(err("squareTooSmall"));
   });
 
   describe("in the logo slot", () => {
     it("takes a square, even one a marketing square would refuse", () => {
-      expect(imageRoleForSize(128, 128, "logo")).toEqual({
-        ok: true,
-        role: "LOGO",
-      });
-      expect(imageRoleForSize(1024, 1024, "logo")).toEqual({
-        ok: true,
-        role: "LOGO",
-      });
-      expect(imageRoleForSize(505, 500, "logo")).toEqual({
-        ok: true,
-        role: "LOGO",
-      });
+      expect(imageRoleForSize(128, 128, "logo")).toEqual(ok("LOGO"));
+      expect(imageRoleForSize(1024, 1024, "logo")).toEqual(ok("LOGO"));
+      expect(imageRoleForSize(505, 500, "logo")).toEqual(ok("LOGO"));
     });
 
     it("refuses anything that is not square, a landscape included", () => {
-      expect(imageRoleForSize(1200, 628, "logo")).toEqual({
-        ok: false,
-        reason: "logoRatio",
-      });
-      expect(imageRoleForSize(506, 500, "logo")).toEqual({
-        ok: false,
-        reason: "logoRatio",
-      });
+      expect(imageRoleForSize(1200, 628, "logo")).toEqual(err("logoRatio"));
+      expect(imageRoleForSize(506, 500, "logo")).toEqual(err("logoRatio"));
     });
 
     it("refuses a logo under 128 x 128", () => {
-      expect(imageRoleForSize(127, 127, "logo")).toEqual({
-        ok: false,
-        reason: "logoTooSmall",
-      });
+      expect(imageRoleForSize(127, 127, "logo")).toEqual(err("logoTooSmall"));
     });
   });
 });
 
 describe("checkDisplayImageFile", () => {
-  it.each([["image/jpeg"], ["image/png"], ["image/gif"]])(
+  it.each([["image/jpeg"], ["image/png"], ["image/gif"]] as const)(
     "takes the browser's type %s",
     (type) => {
-      expect(checkDisplayImageFile({ type, size: 1000 })).toEqual({
-        ok: true,
-        mimeType: type,
-      });
+      expect(checkDisplayImageFile({ type, size: 1000 })).toEqual(ok(type));
     },
   );
 
   it.each([["image/webp"], ["image/svg+xml"], ["application/pdf"], [""]])(
     "refuses %j by its type",
     (type) => {
-      expect(checkDisplayImageFile({ type, size: 1000 })).toEqual({
-        ok: false,
-        reason: "type",
-      });
+      expect(checkDisplayImageFile({ type, size: 1000 })).toEqual(err("type"));
     },
   );
 
@@ -144,12 +110,12 @@ describe("checkDisplayImageFile", () => {
         type: "image/png",
         size: DISPLAY_IMAGE_MAX_BYTES + 1,
       }),
-    ).toEqual({ ok: false, reason: "tooLarge" });
+    ).toEqual(err("tooLarge"));
     expect(
       checkDisplayImageFile({
         type: "image/png",
         size: DISPLAY_IMAGE_MAX_BYTES,
-      }).ok,
+      }).isOk(),
     ).toBe(true);
   });
 });
@@ -160,20 +126,18 @@ describe("checkDisplayImageFileByName", () => {
     ["a.jpg", "image/jpeg"],
     ["photo.png", "image/png"],
     ["a.gif", "image/gif"],
-  ])("reads %s as %s from its extension", (name, mimeType) => {
-    expect(checkDisplayImageFileByName({ name, size: 1000 })).toEqual({
-      ok: true,
-      mimeType,
-    });
+  ] as const)("reads %s as %s from its extension", (name, mimeType) => {
+    expect(checkDisplayImageFileByName({ name, size: 1000 })).toEqual(
+      ok(mimeType),
+    );
   });
 
   it.each([["a.webp"], ["a.svg"], ["a.pdf"], ["noextension"]])(
     "refuses %s by its extension",
     (name) => {
-      expect(checkDisplayImageFileByName({ name, size: 1000 })).toEqual({
-        ok: false,
-        reason: "type",
-      });
+      expect(checkDisplayImageFileByName({ name, size: 1000 })).toEqual(
+        err("type"),
+      );
     },
   );
 
@@ -183,7 +147,7 @@ describe("checkDisplayImageFileByName", () => {
         name: "a.png",
         size: DISPLAY_IMAGE_MAX_BYTES + 1,
       }),
-    ).toEqual({ ok: false, reason: "tooLarge" });
+    ).toEqual(err("tooLarge"));
   });
 });
 
@@ -214,18 +178,14 @@ describe("addDisplayImage", () => {
   it("adds an image after the others", () => {
     const first = image("LANDSCAPE");
     const second = image("SQUARE");
-    expect(addDisplayImage([first], second)).toEqual({
-      ok: true,
-      images: [first, second],
-    });
+    expect(addDisplayImage([first], second)).toEqual(ok([first, second]));
   });
 
   it("refuses a file that is already in, in any role", () => {
     const first = image("LANDSCAPE", "same.png");
-    expect(addDisplayImage([first], image("LOGO", "same.png"))).toEqual({
-      ok: false,
-      reason: "duplicate",
-    });
+    expect(addDisplayImage([first], image("LOGO", "same.png"))).toEqual(
+      err("duplicate"),
+    );
   });
 
   it("stops at 6 landscape and square images, but still takes logos", () => {
@@ -233,19 +193,15 @@ describe("addDisplayImage", () => {
       ...[1, 2, 3].map((n) => image("LANDSCAPE", `wide-${n}.png`)),
       ...[1, 2, 3].map((n) => image("SQUARE", `square-${n}.png`)),
     ];
-    expect(addDisplayImage(six, image("SQUARE", "more.png"))).toEqual({
-      ok: false,
-      reason: "full",
-    });
-    expect(addDisplayImage(six, image("LOGO", "logo.png")).ok).toBe(true);
+    expect(addDisplayImage(six, image("SQUARE", "more.png"))).toEqual(
+      err("full"),
+    );
+    expect(addDisplayImage(six, image("LOGO", "logo.png")).isOk()).toBe(true);
   });
 
   it("stops at 2 logos", () => {
     const two = [image("LOGO", "a.png"), image("LOGO", "b.png")];
-    expect(addDisplayImage(two, image("LOGO", "c.png"))).toEqual({
-      ok: false,
-      reason: "full",
-    });
-    expect(addDisplayImage(two, image("SQUARE", "d.png")).ok).toBe(true);
+    expect(addDisplayImage(two, image("LOGO", "c.png"))).toEqual(err("full"));
+    expect(addDisplayImage(two, image("SQUARE", "d.png")).isOk()).toBe(true);
   });
 });

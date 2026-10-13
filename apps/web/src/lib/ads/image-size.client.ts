@@ -1,6 +1,6 @@
 "use client";
 
-import type { ImageSize } from "@/hooks/use-remembered-image-size";
+import type { ImageSize } from "@/lib/ads/image-size";
 
 /** The picture's own size in pixels, read by loading it in the browser. */
 export function readImageSize(src: string): Promise<ImageSize> {

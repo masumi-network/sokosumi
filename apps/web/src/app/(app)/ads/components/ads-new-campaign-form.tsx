@@ -372,13 +372,33 @@ export function MetaCampaignForm(props: CampaignFormProps) {
 const GOOGLE_TYPES = ["SEARCH", "DISPLAY"] as const;
 type GoogleType = (typeof GOOGLE_TYPES)[number];
 
+/** Fields that belong only to Search; cleared when switching to Display. */
+const SEARCH_ONLY_FIELDS = [
+  "keywords",
+  "path1",
+  "path2",
+  "headlines",
+  "descriptions",
+  "sitelinks",
+  "callouts",
+] as const;
+
+/** Fields that belong only to Display; cleared when switching to Search. */
+const DISPLAY_ONLY_FIELDS = [
+  "businessName",
+  "displayHeadlines",
+  "longHeadline",
+  "displayDescriptions",
+  "images",
+] as const;
+
 function blankTexts(count: number): string[] {
   return Array.from({ length: count }, () => "");
 }
 
 /** What a Google form starts with: the fields of both types, one shown. */
 const EMPTY_GOOGLE_VALUES = {
-  type: "SEARCH" as const,
+  type: "SEARCH" as GoogleType,
   name: "",
   dailyBudget: "",
   startDate: "",
@@ -401,7 +421,7 @@ const EMPTY_GOOGLE_VALUES = {
 /** Search or Display. Switching keeps what both share and swaps the rest. */
 function GoogleTypePicker() {
   const t = useTranslations("App.Ads.newCampaign");
-  const form = useFormContext<{ type: GoogleType }>();
+  const form = useFormContext<typeof EMPTY_GOOGLE_VALUES>();
 
   return (
     <AdsFormSection id="new-campaign-type" title={t("sections.type")}>
@@ -414,8 +434,10 @@ function GoogleTypePicker() {
             const type = GOOGLE_TYPES.find((candidate) => candidate === value);
             if (type) {
               form.setValue("type", type);
-              // The other type's refusals are not this form's.
-              form.clearErrors();
+              // Spec: clear the other type's refusals; keep shared Basics.
+              form.clearErrors(
+                type === "DISPLAY" ? SEARCH_ONLY_FIELDS : DISPLAY_ONLY_FIELDS,
+              );
             }
           }}
           type="single"

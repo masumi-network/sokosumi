@@ -121,26 +121,25 @@ function refineAcrossFields(
     ctx.addIssue({ code: "custom", path: ["images"], message });
   const missing = missingDisplayImages(value.images);
   if (missing) {
-    issue(
-      messages.imagesMissing?.(missing) ??
-        "Add at least one landscape and one square image",
-    );
+    // Form always passes translated messages. The server action re-check
+    // without them keeps a machine code, never English product copy.
+    issue(messages.imagesMissing?.(missing) ?? `images.missing.${missing}`);
   }
   if (marketing > DISPLAY_IMAGE_RULES.maxMarketing) {
     issue(
       messages.imagesTooMany?.(DISPLAY_IMAGE_RULES.maxMarketing) ??
-        `Use at most ${DISPLAY_IMAGE_RULES.maxMarketing} images`,
+        `images.tooMany.${DISPLAY_IMAGE_RULES.maxMarketing}`,
     );
   }
   if (logo > DISPLAY_IMAGE_RULES.maxLogos) {
     issue(
       messages.logosTooMany?.(DISPLAY_IMAGE_RULES.maxLogos) ??
-        `Use at most ${DISPLAY_IMAGE_RULES.maxLogos} logos`,
+        `images.logosTooMany.${DISPLAY_IMAGE_RULES.maxLogos}`,
     );
   }
   const paths = value.images.map(({ pathname }) => pathname);
   if (new Set(paths).size < paths.length) {
-    issue(messages.imageRepeated ?? "Use each image file once");
+    issue(messages.imageRepeated ?? "images.repeated");
   }
 }
 
@@ -195,9 +194,15 @@ export function googleDisplayFormSchema(messages: OptionalMessages = {}) {
     .object({
       ...googleSharedFormShape(messages),
       businessName: businessName(messages),
-      displayHeadlines: z.array(headline(messages)),
+      displayHeadlines: z
+        .array(headline(messages))
+        .min(HEADLINES.min)
+        .max(HEADLINES.max),
       longHeadline: longHeadline(messages),
-      displayDescriptions: z.array(description(messages)),
+      displayDescriptions: z
+        .array(description(messages))
+        .min(DESCRIPTIONS.min)
+        .max(DESCRIPTIONS.max),
       images: z.array(imageSchema),
     })
     .superRefine((value, ctx) =>

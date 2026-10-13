@@ -1,5 +1,6 @@
 import type { GoogleDisplayImage } from "@sokosumi/core-client";
 import { GoogleDisplayImageSchema } from "@sokosumi/core-client/schemas";
+import { err, ok, type Result } from "neverthrow";
 
 const image = GoogleDisplayImageSchema.properties;
 
@@ -70,26 +71,22 @@ function isMimeType(type: string): type is DisplayImageMimeType {
 /** Why a file cannot be an ad image, found without reading its pixels. */
 type DisplayImageFileIssue = "type" | "tooLarge";
 
-type DisplayImageFileCheck =
-  | { ok: true; mimeType: DisplayImageMimeType }
-  | { ok: false; reason: DisplayImageFileIssue };
-
 function checkMimeTypeAndSize(
   mimeType: DisplayImageMimeType | undefined,
   size: number,
-): DisplayImageFileCheck {
-  if (!mimeType) return { ok: false, reason: "type" };
+): Result<DisplayImageMimeType, DisplayImageFileIssue> {
+  if (!mimeType) return err("type");
   if (size > DISPLAY_IMAGE_MAX_BYTES) {
-    return { ok: false, reason: "tooLarge" };
+    return err("tooLarge");
   }
-  return { ok: true, mimeType };
+  return ok(mimeType);
 }
 
 /** The type and size checks for a file the browser has typed, which need no pixels. */
 export function checkDisplayImageFile(file: {
   type: string;
   size: number;
-}): DisplayImageFileCheck {
+}): Result<DisplayImageMimeType, DisplayImageFileIssue> {
   return checkMimeTypeAndSize(
     isMimeType(file.type) ? file.type : undefined,
     file.size,
@@ -100,7 +97,7 @@ export function checkDisplayImageFile(file: {
 export function checkDisplayImageFileByName(file: {
   name: string;
   size: number;
-}): DisplayImageFileCheck {
+}): Result<DisplayImageMimeType, DisplayImageFileIssue> {
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
   return checkMimeTypeAndSize(EXTENSION_MIME_TYPES[extension], file.size);
 }
@@ -130,9 +127,7 @@ export function imageRoleForSize(
   width: number,
   height: number,
   slot: DisplayImageSlot,
-):
-  | { ok: true; role: DisplayImageRole }
-  | { ok: false; reason: DisplayImageSizeIssue } {
+): Result<DisplayImageRole, DisplayImageSizeIssue> {
   const ratio = width / height;
   const { landscape, square, logo } = DISPLAY_IMAGE_RULES;
   function big(min: MinSize): boolean {
@@ -140,22 +135,16 @@ export function imageRoleForSize(
   }
 
   if (slot === "logo") {
-    if (!isNear(ratio, logo.ratio)) return { ok: false, reason: "logoRatio" };
-    return big(logo)
-      ? { ok: true, role: "LOGO" }
-      : { ok: false, reason: "logoTooSmall" };
+    if (!isNear(ratio, logo.ratio)) return err("logoRatio");
+    return big(logo) ? ok("LOGO") : err("logoTooSmall");
   }
   if (isNear(ratio, landscape.ratio)) {
-    return big(landscape)
-      ? { ok: true, role: "LANDSCAPE" }
-      : { ok: false, reason: "landscapeTooSmall" };
+    return big(landscape) ? ok("LANDSCAPE") : err("landscapeTooSmall");
   }
   if (isNear(ratio, square.ratio)) {
-    return big(square)
-      ? { ok: true, role: "SQUARE" }
-      : { ok: false, reason: "squareTooSmall" };
+    return big(square) ? ok("SQUARE") : err("squareTooSmall");
   }
-  return { ok: false, reason: "ratio" };
+  return err("ratio");
 }
 
 /** How many images hold each role. */
@@ -200,13 +189,11 @@ type DisplayImageAddIssue = "duplicate" | "full";
 export function addDisplayImage(
   images: readonly GoogleDisplayImage[],
   added: GoogleDisplayImage,
-):
-  | { ok: true; images: GoogleDisplayImage[] }
-  | { ok: false; reason: DisplayImageAddIssue } {
+): Result<GoogleDisplayImage[], DisplayImageAddIssue> {
   if (images.some(({ pathname }) => pathname === added.pathname)) {
-    return { ok: false, reason: "duplicate" };
+    return err("duplicate");
   }
   return hasRoomForDisplayImage(images, added.role)
-    ? { ok: true, images: [...images, added] }
-    : { ok: false, reason: "full" };
+    ? ok([...images, added])
+    : err("full");
 }

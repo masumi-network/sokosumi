@@ -1311,10 +1311,13 @@ describe("AdsNewCampaignForm", () => {
         const user = await renderForm({ targeting: DISPLAY_TARGETING });
         await user.click(submit());
         expect(await screen.findByText("Enter a name.")).toBeVisible();
+        expect(screen.getByText("Add at least one keyword.")).toBeVisible();
 
         await chooseDisplay(user);
 
-        expect(screen.queryByText("Enter a name.")).toBeNull();
+        expect(screen.queryByText("Add at least one keyword.")).toBeNull();
+        // Shared Basics refusals stay; only the other type's are cleared.
+        expect(screen.getByText("Enter a name.")).toBeVisible();
       });
     });
 
