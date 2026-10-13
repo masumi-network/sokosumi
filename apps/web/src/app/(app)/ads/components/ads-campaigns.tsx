@@ -27,18 +27,27 @@ const NUMERIC_COLUMNS = [
   "conversions",
 ] as const;
 
-/** Labels for known Meta objectives; unknown Google enums fall back to words. */
-type ObjectiveLabels = {
-  (key: string): string;
-  has(key: string): boolean;
-};
+/** Meta objectives with copy under `App.Ads.newCampaign.objectives`. */
+const KNOWN_OBJECTIVES = [
+  "OUTCOME_TRAFFIC",
+  "OUTCOME_AWARENESS",
+  "OUTCOME_ENGAGEMENT",
+  "OUTCOME_LEADS",
+  "OUTCOME_SALES",
+] as const;
+
+type KnownObjective = (typeof KNOWN_OBJECTIVES)[number];
+
+function isKnownObjective(value: string): value is KnownObjective {
+  return (KNOWN_OBJECTIVES as readonly string[]).includes(value);
+}
 
 /** Prefer the translated Meta objective; otherwise turn "OUTCOME_TRAFFIC" into "Traffic". */
 export function formatObjective(
   objective: string,
-  labels: ObjectiveLabels,
+  labels: (key: KnownObjective) => string,
 ): string {
-  if (labels.has(objective)) {
+  if (isKnownObjective(objective)) {
     return labels(objective);
   }
   const words = objective

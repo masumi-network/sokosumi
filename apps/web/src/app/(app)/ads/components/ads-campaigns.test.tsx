@@ -172,7 +172,7 @@ describe("AdsCampaigns", () => {
 });
 
 describe("formatObjective", () => {
-  const labels = createTranslator({
+  const tObjectives = createTranslator({
     locale: "en",
     messages,
     namespace: "App.Ads.newCampaign.objectives",
@@ -185,6 +185,8 @@ describe("formatObjective", () => {
     ["PERFORMANCE_MAX", "Performance max"],
     ["Something new", "Something new"],
   ])("shows %s as %s", (objective, expected) => {
-    expect(formatObjective(objective, labels)).toBe(expected);
+    expect(formatObjective(objective, (key) => tObjectives(key))).toBe(
+      expected,
+    );
   });
 });
