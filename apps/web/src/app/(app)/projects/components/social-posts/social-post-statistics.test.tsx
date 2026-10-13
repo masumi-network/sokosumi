@@ -197,6 +197,11 @@ describe("SocialPostStatistics account history", () => {
       "h-11",
       "md:h-8",
     );
+    for (const days of [7, 30, 90]) {
+      expect(
+        screen.getByRole("button", { name: `Last ${days} days` }),
+      ).toHaveClass("h-11", "md:h-8");
+    }
     expect(
       screen.getByRole("heading", { name: "Posting consistency" }),
     ).toBeVisible();

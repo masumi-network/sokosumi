@@ -2267,6 +2267,12 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(dialog).getByRole("button", { name: "Preview as @sokosumi" }),
     ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(dialog).getByRole("button", { name: "Preview as @sokosumi" }),
+    ).toHaveClass("h-11", "md:h-8");
+    expect(
+      within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),
+    ).toHaveClass("h-11", "md:h-8");
 
     await user.click(
       within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),
