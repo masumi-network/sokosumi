@@ -113,7 +113,7 @@ const MESSAGES: Record<string, string> = {
   "reconnectPrompt.action": "Reconnect",
   selectedPost: "Selected post",
   "empty.drafts": "No drafts yet.",
-  "emptyHint.drafts": "Save a post as a draft to finish it later.",
+  "emptyHint.drafts": "Save a draft to finish later.",
   "status.DRAFT": "Draft",
   "status.SCHEDULED": "Scheduled",
   "status.PUBLISHING": "Publishing…",
@@ -917,7 +917,7 @@ describe("ProjectSocialPosts", () => {
       within(drafts).getByRole("heading", { name: "No drafts yet." }),
     ).toBeVisible();
     expect(
-      within(drafts).getByText("Save a post as a draft to finish it later."),
+      within(drafts).getByText("Save a draft to finish later."),
     ).toBeVisible();
     expect(
       screen.queryByRole("tab", { name: /^Needs attention/ }),

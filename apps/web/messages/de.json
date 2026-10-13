@@ -2451,7 +2451,7 @@
           "drafts": "Noch keine Entwürfe."
         },
         "emptyHint": {
-          "drafts": "Speichere einen Beitrag als Entwurf, um ihn später fertigzustellen."
+          "drafts": "Speichere einen Entwurf für später."
         },
         "status": {
           "DRAFT": "Entwurf",

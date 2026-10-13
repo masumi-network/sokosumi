@@ -2451,7 +2451,7 @@
           "drafts": "Aún no hay borradores."
         },
         "emptyHint": {
-          "drafts": "Guarda una publicación como borrador para terminarla más tarde."
+          "drafts": "Guarda un borrador para más tarde."
         },
         "status": {
           "DRAFT": "Borrador",
