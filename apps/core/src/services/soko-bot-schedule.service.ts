@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
+import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 
@@ -132,14 +133,12 @@ export async function createSokoBotSchedule(
       "Schedule name and prompt are required",
     );
   }
-  const bot = await db.sokoBot.findFirst({
-    where: {
-      userId: input.userId,
-      workspaceId: input.workspaceId,
-      archivedAt: null,
-    },
-    select: { id: true },
-  });
+  const bot = await memberSokoBot(
+    input.userId,
+    input.workspaceId,
+    ME_SOKO_BOT,
+    db,
+  );
   if (!bot) throw new SokoBotScheduleNotFoundError("Soko Bot not found");
   const workspace = await db.workspace.findFirst({
     where: {
