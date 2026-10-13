@@ -39,8 +39,8 @@ public struct ResultTaskCard: Equatable, Sendable {
   }
 
   /// Web's `TaskCard` keeps two tags and a `+N` for the rest, and three faces with a `+N`.
-  public static let visibleTagLimit = 2
-  public static let visibleFaceLimit = 3
+  private static let visibleTagLimit = 2
+  private static let visibleFaceLimit = 3
 
   public let id: String
   public let name: String

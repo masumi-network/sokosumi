@@ -624,7 +624,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   schedule_social_post:
     "Schedule or reschedule a Social post on any connected provider for an ISO timestamp with a UTC offset and optional IANA timezone. First read get_social_post and pass its current revision. Only schedule when the owner explicitly requests it; respect instructions to wait or seek approval. Use list_project_social_accounts for the intended account; a human must reconnect inactive accounts in Project Social.",
   cancel_social_post:
-    "Cancel a Social post's scheduled publication only as the owner requested. First read get_social_post and pass its current revision; reload on conflict. Cancellation does not delete a published post from the provider.",
+    "Cancel a draft or scheduled Social post, or dismiss a failed or missed one, only as the owner requested. First read get_social_post and pass its current revision; reload on conflict. Cancellation does not delete a published post from the provider.",
   publish_social_post:
     "Publish a Social post now on its connected provider, externally and immediately. Only call when the owner explicitly requests immediate publication; drafting or scheduling is not permission to publish now. First read get_social_post and pass its current revision; reload on conflict. Respect instructions to wait or seek approval, asking in chat when needed. Human OAuth connection or reconnection happens in Project Social.",
   web_search:

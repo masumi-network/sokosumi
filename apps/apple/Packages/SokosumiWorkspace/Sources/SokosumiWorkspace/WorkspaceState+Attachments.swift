@@ -9,30 +9,24 @@ public extension WorkspaceState {
     transcriptRoomId == roomId && !transcriptLoading && roomTakesNewMessages(rooms.first { $0.id == roomId })
   }
 
-  func driveItems(folder: String, query: String, roomId: String, auth: AuthState) async throws -> [Components.Schemas.DriveItem] {
-    guard canAttachFiles(roomId: roomId), let client = resolveClient(auth: auth) else {
+  func driveItems(folder: String, query: String, roomId: String) async throws -> [Components.Schemas.DriveItem] {
+    guard canAttachFiles(roomId: roomId) else {
       throw ChatServiceError.unexpectedResponse("Attachments are not available in this conversation.")
     }
-    let generation = timeline.generation
-    do {
-      let items = try await ChatService().driveItems(client: client, organizationId: selection?.workspace.organizationId, folder: folder, query: query)
+    let generation = room.timeline.generation
+    return try await request(signIn: "Attachments are not available in this conversation.") { service, client, _ in
+      let items = try await service.driveItems(client: client, organizationId: selection?.workspace.organizationId, folder: folder, query: query)
       try Task.checkCancellation()
-      guard generation == timeline.generation else { throw CancellationError() }
+      guard generation == room.timeline.generation else { throw CancellationError() }
       return items
-    } catch let error as ChatServiceError {
-      if !Task.isCancelled, generation == timeline.generation {
-        _ = signOutIfUnauthorized(error, auth: auth)
-      }
-      throw error
     }
   }
 
-  func uploadAttachment(_ file: URL, roomId: String, auth: AuthState) async throws -> ComposeAttachment {
-    guard canAttachFiles(roomId: roomId), let client = resolveClient(auth: auth) else {
+  func uploadAttachment(_ file: URL, roomId: String) async throws -> ComposeAttachment {
+    guard canAttachFiles(roomId: roomId) else {
       throw ChatServiceError.unexpectedResponse("Attachments are not available in this conversation.")
     }
-    let generation = timeline.generation
-    let slug = selection?.workspace.organizationSlug
+    let generation = room.timeline.generation
     let scoped = file.startAccessingSecurityScopedResource()
     defer {
       if scoped {
@@ -43,16 +37,20 @@ public extension WorkspaceState {
     guard resource.isRegularFile == true, let size = resource.fileSize else { throw AttachmentUpload.Failure.invalidFile }
     try AttachmentUpload.validate(size: size)
     let contentType = try AttachmentUpload.contentType(filename: file.lastPathComponent)
-    do {
-      let grant = try await ChatService().attachmentGrant(client: client, roomId: roomId, file: .init(filename: file.lastPathComponent, contentType: contentType, size: size), organizationSlug: slug)
+    return try await request(signIn: "Attachments are not available in this conversation.") { service, client, slug in
+      let grant = try await service.attachmentGrant(client: client, roomId: roomId, file: .init(filename: file.lastPathComponent, contentType: contentType, size: size), organizationSlug: slug)
       try Task.checkCancellation()
-      guard generation == timeline.generation else { throw CancellationError() }
+      guard generation == room.timeline.generation else { throw CancellationError() }
       return try await AttachmentUpload.put(file: file, filename: file.lastPathComponent, contentType: contentType, size: size, grant: grant)
-    } catch let error as ChatServiceError {
-      if !Task.isCancelled, generation == timeline.generation {
-        _ = signOutIfUnauthorized(error, auth: auth)
-      }
-      throw error
+    }
+  }
+}
+
+public extension WorkspaceState {
+  /// The composer's skill picker search (row 42): Core's skills.sh catalog for `query`, the top skills when empty.
+  func searchSkills(_ query: String) async throws -> [Components.Schemas.ChatSkillCatalogItem] {
+    try await request(signIn: "Sign-in is not configured.") { service, client, _ in
+      try await service.searchSkills(client: client, query: query)
     }
   }
 }

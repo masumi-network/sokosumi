@@ -98,22 +98,17 @@ public extension ChatService {
   }
 
   private func chatCoworkers(client: Client, organizationSlug: String?) async throws -> [ChatRecipientTarget] {
-    let response = try await client.getCoworkers(.init(
-      query: .init(scope: .available, capability: [.chat]),
-      headers: .init(xOrganizationSlug: organizationSlug)
-    ))
-    switch response {
-    case let .ok(value):
-      return try value.body.json.data.filter {
-        $0.archivedAt == nil && $0.capabilities.contains(.chat)
-          && !($0.baseURL ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-      }.map {
-        ChatRecipientTarget(id: .coworker($0.id), name: $0.name, detail: $0.caption ?? "@\($0.slug)", imageURL: $0.image, slug: $0.slug)
-      }
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .unprocessableContent(value): throw try rejected(status: 422, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
+    let value = try await call {
+      try await client.getCoworkers(.init(
+        query: .init(scope: .available, capability: [.chat]),
+        headers: .init(xOrganizationSlug: organizationSlug)
+      ))
+    }.ok
+    return try value.body.json.data.filter {
+      $0.archivedAt == nil && $0.capabilities.contains(.chat)
+        && !($0.baseURL ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }.map {
+      ChatRecipientTarget(id: .coworker($0.id), name: $0.name, detail: $0.caption ?? "@\($0.slug)", imageURL: $0.image, slug: $0.slug)
     }
   }
 
@@ -128,19 +123,20 @@ public extension ChatService {
 
   private func chatMembers(client: Client, organizationId: String?) async throws -> ChatRecipientRoster {
     guard let organizationId else { return .init(targets: []) }
-    let response = try await client.getOrganizationsIdMembers(.init(path: .init(id: organizationId)))
-    try Task.checkCancellation()
-    switch response {
-    case let .ok(value):
-      let targets = try value.body.json.data.map {
+    do {
+      let members = try await call { try await client.getOrganizationsIdMembers(.init(path: .init(id: organizationId))) }.ok.body.json.data
+      try Task.checkCancellation()
+      return .init(targets: members.map {
         ChatRecipientTarget(
           id: .human($0.user.id), name: $0.user.name.isEmpty ? $0.user.email : $0.user.name,
           detail: $0.user.email, imageURL: $0.user.image
         )
+      })
+    } catch let error as ChatServiceError {
+      try Task.checkCancellation()
+      if case .unauthorized = error {
+        throw error
       }
-      return .init(targets: targets)
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case .forbidden, .notFound, .internalServerError, .undocumented:
       return .init(targets: [], membersLoadFailed: true)
     }
   }

@@ -19,9 +19,9 @@
     @MainActor struct RoomToolsThreadsCountTests {
       @Test func anAttentionBumpRefetchesTheTriggerCountOnce() async throws {
         let transport = ThreadsCountTransport(counts: [3, 1])
-        let client = try Client.connecting(to: #require(URL(string: "https://threads-count.invalid/v1")), transport: transport)
+        let client = try Client.core(baseURL: #require(URL(string: "https://threads-count.invalid/v1")), transport: transport)
         let state = WorkspaceState(clientProvider: { _ in client })
-        state.timeline.reset(roomId: "room")
+        state.room.timeline.reset(roomId: "room")
         let auth = AuthState()
         let renders = RenderCount()
         let content = NavigationStack {
@@ -48,7 +48,7 @@
 
         // Mark all, as the overview's button runs it: Core accepts, the room bumps the revision.
         let revision = state.threadAttentionRevision
-        await state.updateThreadOverview(.markAllRead, roomId: "room", auth: auth)
+        await state.updateThreadOverview(.markAllRead, roomId: "room")
         try #require(state.threadAttentionRevision == revision + 1, "Mark all bumps the Threads attention revision.")
 
         try await waitUntil("the re-count after the bump; \(Self.describe(transport, state))", in: host) {

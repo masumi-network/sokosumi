@@ -354,7 +354,13 @@ export function ProjectSocialPosts({
         handleActionError(result.error);
         return;
       }
-      toast.success(t("toasts.canceled"));
+      toast.success(
+        t(
+          RETRY_STATUSES.includes(target.status)
+            ? "toasts.dismissed"
+            : "toasts.canceled",
+        ),
+      );
       handleSaved(result.value);
     } catch (error) {
       handleActionError(toActionRejectionError(error), error);
@@ -499,7 +505,7 @@ export function ProjectSocialPosts({
                     setCancelTarget(post);
                   }}
                 >
-                  {t("composer.cancel")}
+                  {isRetry ? t("actions.dismiss") : t("composer.cancel")}
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuContent>
@@ -513,6 +519,10 @@ export function ProjectSocialPosts({
     publishTarget && RETRY_STATUSES.includes(publishTarget.status)
       ? "retryDialog"
       : "publishDialog";
+  const cancelCopy =
+    cancelTarget && RETRY_STATUSES.includes(cancelTarget.status)
+      ? "dismissDialog"
+      : "cancelDialog";
 
   function renderPost(post: SocialPost) {
     const handle = formatHandle(post.socialConnection?.externalHandle ?? null);
@@ -895,9 +905,9 @@ export function ProjectSocialPosts({
       >
         <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("cancelDialog.title")}</AlertDialogTitle>
+            <AlertDialogTitle>{t(`${cancelCopy}.title`)}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("cancelDialog.description")}
+              {t(`${cancelCopy}.description`)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -911,7 +921,7 @@ export function ProjectSocialPosts({
                 void handleConfirmCancel();
               }}
             >
-              {t("cancelDialog.confirm")}
+              {t(`${cancelCopy}.confirm`)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

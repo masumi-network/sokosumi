@@ -6,7 +6,6 @@ import SwiftUI
 struct ParticipantDetailsView: View {
   let profile: ChatParticipantProfile
   @EnvironmentObject private var workspaces: WorkspaceState
-  @EnvironmentObject private var auth: AuthState
   @Environment(\.dismiss) private var dismiss
   @State private var errorMessage: String?
 
@@ -40,13 +39,13 @@ struct ParticipantDetailsView: View {
           errorMessage = nil
           Task { @MainActor in
             do {
-              if try await workspaces.openParticipantDirect(profile.recipient, auth: auth) {
+              if try await workspaces.openParticipantDirect(profile.recipient) {
                 dismiss()
               }
             } catch { errorMessage = friendlyMessage(for: error) }
           }
         }
-        .disabled(workspaces.openingDirect != nil)
+        .disabled(workspaces.roomMutationInFlight)
       }
     }
     .padding()

@@ -155,7 +155,7 @@ struct RoomReadAttentionTests {
     let transport = PausedAttentionTransport(response: """
     {"data":{"parentMessageId":"root","lastReadAt":"\(testTimestamp)"},"meta":{"timestamp":"\(testTimestamp)","requestId":"test"}}
     """)
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example.com/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example.com/v1")), transport: transport)
     let task = Task {
       try await state.readIfNeeded(room: room, content: .init(messages: [], parentMessageId: "root"),
                                    historyReadable: true, client: client, organizationSlug: nil)
@@ -172,7 +172,7 @@ struct RoomReadAttentionTests {
     let state = RoomReadAttention()
     state.setVisible(true, window: UUID())
     let transport = PausedAttentionTransport(response: attentionBody(unread: 2))
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example.com/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example.com/v1")), transport: transport)
     let task = Task { try await state.readAfterThreadLook(room: room, client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     #expect(state.applying(to: [room]).first?.unreadCount == room.unreadCount)
@@ -226,7 +226,7 @@ struct RoomReadAttentionTests {
     state.setVisible(true, window: UUID())
     let revision = state.beginRefresh()
     let transport = PausedAttentionTransport()
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task { try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     #expect(state.reconcile([room], requestRevision: revision)[0].unreadCount == 0)
@@ -241,7 +241,7 @@ struct RoomReadAttentionTests {
     let state = RoomReadAttention()
     state.setVisible(true, window: UUID())
     let transport = PausedAttentionTransport()
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task { try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     state.reset()
@@ -255,7 +255,7 @@ struct RoomReadAttentionTests {
     let state = RoomReadAttention()
     state.setVisible(true, window: UUID())
     let transport = PausedAttentionTransport()
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task { try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     state.roomChanged()
@@ -273,7 +273,7 @@ struct RoomReadAttentionTests {
     let state = RoomReadAttention(now: { time })
     state.setVisible(true, window: UUID())
     let transport = PausedAttentionTransport()
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task { try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     time = time.addingTimeInterval(31)
@@ -324,7 +324,7 @@ struct RoomReadAttentionTests {
     state.setVisible(true, window: UUID())
     let olderPoll = state.beginRefresh()
     let transport = PausedAttentionTransport(response: Self.splitRoomBody(channel: 0, thread: 3, mentions: 0, threads: 2))
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task { try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     for pending in [state.applying(to: [room])[0], state.reconcile([room], requestRevision: olderPoll)[0]] {

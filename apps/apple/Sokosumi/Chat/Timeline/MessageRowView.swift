@@ -75,44 +75,28 @@ import SwiftUI
     var room: Components.Schemas.ChatRoom?
     var preparedDocument: MessageMarkdown?
     let message: Components.Schemas.ChatRoomMessage
-    let isContinuation: Bool
+    /// What the transcript decided for this message: its actions and the parts it draws.
+    let row: MessageRow
     let outbound: OutboundShell?
     var sentAt: Date?
-    let onRetry: (() -> Void)?
-    let onRemove: (() -> Void)?
+    /// The transcript's answer to this row's actions (`TranscriptRowActions.perform`): nil from a local action, the
+    /// request's task otherwise. `row.actions` decides which the row offers.
+    var perform: ((MessageRowAction) -> Task<Void, any Error>?)?
     /// Mentioner-only retry of a failed coworker mention shell.
-    var onRetryMention: (() async throws -> Void)?
-    var onReply: (() -> Void)?
-    var onQuote: (() -> Void)?
-    var onEdit: (() -> Void)?
+    var canRetryMention = false
     /// The mark a jump left on this row, while it lasts (row 25b1).
     var jumpMark: JumpMark?
     var isPinned = false
     var isUpdatingPin = false
-    var onTogglePin: (() async throws -> Void)?
-    var onDelete: (() async throws -> Void)?
-    var onRemoveUnfurl: ((String) async throws -> Void)?
-    /// Returns whether the requests this tap started left the viewer's reaction on the message.
-    var onToggleReaction: ((String) async throws -> Bool)?
     var editing: MessageEditing?
-    var onQuoteJump: ((String) -> Void)?
-    /// Send to yourself. Absent inside the Self Direct and for rows that are not durable.
+    /// Send to yourself, offered where `row.actions.canSendToSelf`.
     var onSendToSelf: (() async throws -> Components.Schemas.ChatRoomMessage)?
     /// The Soko Bot turn's useful / not useful thumbs, on a row that carries them (row 38b).
     var sokoBotFeedback: SokoBotFeedback?
-    var onSokoBotFeedback: ((Bool) async throws -> Void)?
     /// Reads the message's recorded result cards (row 38e1); the room and the Thread pass it.
     var loadResultPreviews: (() async throws -> [Components.Schemas.ChatResultPreview])?
-    /// Answers a project question among those cards (row 38h1): the card's id and the picked project's.
-    var selectProject: ((String, String) async throws -> Void)?
-    /// Accepts or rejects a decision among those cards (row 38h2): the decision's id and the resolution.
-    var resolveDecision: ((String, SokoBotDecision.Resolution) async throws -> Void)?
     var horizontalInset: CGFloat = 0
     var streamThinking = false
-    /// The room transcript's newest message, whose body ends in a run of files (row 31b3, web
-    /// `newestEndsInAttachment`). Known before the read state, so the corner the faces need is there from the
-    /// first layout and nothing moves when they arrive.
-    var newestEndsInAttachment = false
     /// Who has read this far: set on the room transcript's newest message only (row 31b1).
     var seenBy: SeenBy?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -171,94 +155,25 @@ import SwiftUI
       isHovered || isReplyHovered || showsActions
     }
 
-    /// Persisted mention shell (thinking or failed); nil for ordinary rows.
-    private var mentionShell: MentionThoughtShell? {
-      MentionThoughtShell(message: message)
-    }
-
-    /// Web `isDurableRoomMessage`: no link while the shell is still thinking.
-    private var canCopyMessageLink: Bool {
-      message.deletedAt == nil
-        && !isOutboundLocalMessage(message)
-        && !message.id.hasPrefix("stream:")
-        && mentionShell?.isThinking != true
-    }
-
-    /// Hop badge on a message one assistant wrote to another; web shows it in the hover pill.
-    private var sokoBotChain: SokoBotChainMetadata? {
-      SokoBotChainMetadata(message: message)
-    }
-
-    private var showsActionChrome: Bool {
-      message.deletedAt == nil
-        && mentionShell?.isThinking != true
-        && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil
-          || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink || onSendToSelf != nil || sokoBotChain != nil
-          || sokoBotFeedback != nil)
-    }
-
-    private var isEditingThisRow: Bool {
-      editing?.source?.id == message.id
-    }
-
-    private var showsReactions: Bool {
-      message.deletedAt == nil && outbound == nil && !message.reactions.isEmpty
-    }
-
-    /// Link previews and the Soko Bot footer follow a settled body only.
-    private var showsBodyExtras: Bool {
-      outbound == nil && mentionShell == nil
-    }
-
-    private var unfurls: [Components.Schemas.ChatRoomMessageUnfurl] {
-      showsBodyExtras ? message.unfurls ?? [] : []
-    }
-
-    /// Web renders the Soko Bot footer only once the turn's answer is in the row, and only with approvals or Tasks.
-    private var sokoBotFooter: SokoBotTurnMetadata? {
-      guard showsBodyExtras, let turn = SokoBotTurnMetadata(message: message), turn.hasFooter else { return nil }
-      return turn
-    }
-
-    /// The recorded results a settled row reads (row 38e1, web `ResultPreviews`), with the footer after them.
-    private var resultPreviewIds: [String] {
-      showsBodyExtras ? MessageResultPreviews.descriptorIds(of: message) : []
-    }
-
-    /// Web `MessageSkillChips` under the body (row 42), the pending shell's too; not while the row is edited or
-    /// stands in for a coworker's mention.
-    private var skills: [Components.Schemas.ChatRoomMessageSkill] {
-      message.deletedAt == nil && mentionShell == nil && !isEditingThisRow ? message.skills ?? [] : []
-    }
-
-    private var threadReplyBar: ThreadReplyBar? {
-      onReply == nil ? nil : ThreadReplyBar(message: message)
-    }
-
-    /// Web `keepsSeenByCornerClear` (row 31b3): the newest message's body ends in attachments and nothing is drawn
-    /// after it — no reactions, Thread bar, skill chips, link preview, result cards, Soko Bot footer or failed send,
-    /// and it is not being edited. The faces then sit under the attachment instead of beside it, so the column never
-    /// narrows for them.
-    private var keepsSeenByCornerClear: Bool {
-      newestEndsInAttachment && message.deletedAt == nil && mentionShell == nil && !isEditingThisRow && !showsReactions
-        && threadReplyBar == nil && skills.isEmpty && unfurls.isEmpty && resultPreviewIds.isEmpty && sokoBotFooter == nil
-        && outbound?.status != .failed
+    private var isContinuation: Bool {
+      row.isContinuation
     }
 
     private var reactionAction: ((String) -> Void)? {
-      guard onToggleReaction != nil else { return nil }
+      guard row.actions.canReact else { return nil }
       return { emoji in toggleReaction(emoji) }
     }
 
+    /// Runs `action` and awaits its request, if it starts one.
+    private func run(_ action: MessageRowAction) async throws {
+      try await perform?(action)?.value
+    }
+
     private func toggleReaction(_ emoji: String) {
-      guard let onToggleReaction else { return }
+      guard perform != nil else { return }
       Task { @MainActor in
         do {
-          // Match web: adding teaches quick reactions; removing does not. Taps
-          // absorbed by a running request answer false, so on/off/on counts once.
-          if try await onToggleReaction(emoji) {
-            ReactionEmojiHistory().record(emoji)
-          }
+          try await run(.toggleReaction(emoji))
         } catch {
           failure = Failure(title: "Couldn’t update reaction", message: friendlyMessage(for: error))
         }
@@ -266,11 +181,11 @@ import SwiftUI
     }
 
     private func deleteMessage() {
-      guard !isDeleting, let onDelete else { return }
+      guard !isDeleting, perform != nil else { return }
       isDeleting = true
       Task { @MainActor in
         defer { isDeleting = false }
-        do { try await onDelete() } catch {
+        do { try await run(.delete) } catch {
           failure = Failure(title: "Couldn’t delete message", message: friendlyMessage(for: error))
         }
       }
@@ -279,18 +194,18 @@ import SwiftUI
     /// Retry state lives on the row: optimistic thinking unmounts the failed
     /// shell, and a child alert would die with it.
     private func retryMention() {
-      guard !isRetryingMention, let onRetryMention else { return }
+      guard !isRetryingMention, canRetryMention else { return }
       isRetryingMention = true
       Task { @MainActor in
         defer { isRetryingMention = false }
-        do { try await onRetryMention() } catch {
+        do { try await run(.retryMention) } catch {
           failure = Failure(title: "Couldn’t retry the mention", message: friendlyMessage(for: error))
         }
       }
     }
 
     private var mentionRetryHandler: (() -> Void)? {
-      guard onRetryMention != nil else { return nil }
+      guard canRetryMention, perform != nil else { return nil }
       return retryMention
     }
 
@@ -342,9 +257,9 @@ import SwiftUI
               }
             }
           }
-          let mentionShell = mentionShell
+          let mentionShell = row.mentionShell
           // Web draws it at the top of a settled body, above the Thought and the text; not while the row is edited (row 38c).
-          if let sourceLabel = SokoBotSourceLabel(message: message), editing?.source?.id != message.id {
+          if let sourceLabel = SokoBotSourceLabel(message: message), !row.isEditing {
             SokoBotSourceLabelView(label: sourceLabel)
           }
           if case .failed? = mentionShell {
@@ -365,7 +280,7 @@ import SwiftUI
               MessageQuoteView(quote: quote, room: room, channels: channels, jump: quoteJump(for: quote))
                 .id(quote.messageId + quote.snippet)
             }
-            if let editing, isEditingThisRow {
+            if let editing, row.isEditing {
               MessageEditComposer(editing: editing).id(message.id)
             } else if mentionShell == nil, let reply = ProjectSelectionReply(content: message.content) {
               // A project question's answer (row 38h1) is the chosen project, not its raw sentence and id.
@@ -374,28 +289,29 @@ import SwiftUI
               // Mention shells render their own state; Send to yourself posts only a quote, so there is no body to render.
               MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: preparedDocument)
             }
-            if !skills.isEmpty {
-              MessageSkillChipsView(skills: skills)
+            if !row.skills.isEmpty {
+              MessageSkillChipsView(skills: row.skills)
             }
-            ForEach(unfurls, id: \.url) { preview in
-              MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
+            ForEach(row.unfurls, id: \.url) { preview in
+              MessageUnfurlView(preview: preview, remove: row.actions.canEdit && perform != nil ? { try await run(.removeUnfurl(preview.url)) } : nil)
                 .id(preview.url + (preview.imageUrl ?? ""))
             }
-            if let loadResultPreviews, !resultPreviewIds.isEmpty {
-              MessageResultPreviewsView(descriptorIds: resultPreviewIds, footer: sokoBotFooter, load: loadResultPreviews, select: selectProject,
-                                        resolveDecision: resolveDecision)
-            } else if let sokoBotFooter {
+            if let loadResultPreviews, !row.resultPreviewIds.isEmpty {
+              MessageResultPreviewsView(descriptorIds: row.resultPreviewIds, footer: row.sokoBotFooter, load: loadResultPreviews,
+                                        select: perform.map { _ in { try await run(.selectProject(previewId: $0, projectId: $1)) } },
+                                        resolveDecision: perform.map { _ in { try await run(.resolveDecision($0, $1)) } })
+            } else if let sokoBotFooter = row.sokoBotFooter {
               SokoBotMessageFooterView(turn: sokoBotFooter)
             }
             if isContinuation, message.editedAt != nil {
               Text("Edited").help(message.editedAt.map { timeFormat.edited($0) } ?? "").font(.caption).foregroundStyle(.secondary)
             }
           }
-          if showsReactions {
+          if row.showsReactions {
             MessageReactionsView(reactions: message.reactions, toggle: reactionAction)
           }
-          if let onReply, let bar = threadReplyBar {
-            ThreadReplyBarButton(bar: bar, open: onReply)
+          if let perform, let bar = row.threadReplyBar {
+            ThreadReplyBarButton(bar: bar) { _ = perform(.reply) }
               .padding(.top, 4)
           }
           if let outbound, outbound.status == .failed {
@@ -405,11 +321,9 @@ import SwiftUI
                 .foregroundStyle(.secondary)
             }
             HStack(spacing: 12) {
-              if let onRetry {
-                Button("Retry", action: onRetry)
-              }
-              if let onRemove {
-                Button("Remove", role: .destructive, action: onRemove)
+              if let perform {
+                Button("Retry") { _ = perform(.retrySend) }
+                Button("Remove", role: .destructive) { _ = perform(.removeSend) }
               }
             }
             .buttonStyle(.borderless)
@@ -419,8 +333,8 @@ import SwiftUI
         // The faces sit in the corner, out of the text flow; the column gives up their width so no line runs under
         // them. A newest body ending in attachments keeps their height under it instead, from the first layout, with
         // the 4 pt they keep from the row's edge between them and the attachment.
-        .padding(.trailing, keepsSeenByCornerClear ? 0 : seenBy.map { SeenByFaces.width(for: $0) + 8 } ?? 0)
-        .padding(.bottom, keepsSeenByCornerClear ? SeenByFaces.faceDiameter + 4 : 0)
+        .padding(.trailing, row.keepsSeenByCornerClear ? 0 : seenBy.map { SeenByFaces.width(for: $0) + 8 } ?? 0)
+        .padding(.bottom, row.keepsSeenByCornerClear ? SeenByFaces.faceDiameter + 4 : 0)
         .frame(maxWidth: .infinity, alignment: .leading)
       }
       .padding(.vertical, 4)
@@ -429,7 +343,7 @@ import SwiftUI
       .background {
         if let jumpMark {
           JumpMarkBackground(mark: jumpMark)
-        } else if showsHoverChrome, showsActionChrome {
+        } else if showsHoverChrome, row.showsActionBar {
           Color.primary.opacity(0.04)
         }
       }
@@ -441,7 +355,7 @@ import SwiftUI
         }
       }
       .overlay(alignment: .topTrailing) {
-        if showsActionChrome, buildsActionBar {
+        if row.showsActionBar, buildsActionBar {
           ViewThatFits(in: .horizontal) {
             actionControls(compact: false)
             actionControls(compact: true)
@@ -472,7 +386,7 @@ import SwiftUI
           quickReactions = ReactionEmojiHistory().quickReactions
         }
       }
-      .onChange(of: onToggleReaction != nil) { _, canReact in
+      .onChange(of: row.actions.canReact) { _, canReact in
         if !canReact {
           showsReactionPicker = false
         }
@@ -521,7 +435,7 @@ import SwiftUI
       .overlay { menuArea }
       .accessibilityElement(children: .contain)
       .accessibilityActions {
-        ForEach(menuAvailability.sections(hasSelection: false).joined().filter { !menuBusy.contains($0) }, id: \.self) { action in
+        ForEach(row.actions.menuSections(hasSelection: false, isPinned: isPinned).joined().filter { !menuBusy.contains($0) }, id: \.self) { action in
           Button(action.title, role: action == .delete ? .destructive : nil) { performMenuAction(action) }
         }
       }
@@ -531,7 +445,7 @@ import SwiftUI
 
     private func actionControls(compact: Bool) -> some View {
       HStack(spacing: 2) {
-        if let sokoBotChain {
+        if let sokoBotChain = row.sokoBotChain {
           SokoBotChainBadge(chain: sokoBotChain)
             .padding(.horizontal, 4)
         }
@@ -540,19 +454,20 @@ import SwiftUI
           sokoBotFeedbackButton(sokoBotFeedback, useful: true)
           sokoBotFeedbackButton(sokoBotFeedback, useful: false)
         }
-        if onToggleReaction != nil {
+        if row.actions.canReact {
           ForEach(Array(quickReactions.enumerated()), id: \.element.id) { index, emoji in
             quickReactionButton(emoji, position: index)
           }
           messageAction("React", symbol: "face.smiling", focus: .react, compact: compact) { showsReactionPicker = true }
         }
-        if let onReply {
-          messageAction("Reply", symbol: "text.bubble", focus: .reply, compact: compact, action: onReply)
+        if row.actions.canReply {
+          messageAction("Reply", symbol: "text.bubble", focus: .reply, compact: compact) { _ = perform?(.reply) }
         }
-        if let onQuote {
-          messageAction("Quote", symbol: "quote.opening", focus: .quote, compact: compact, action: onQuote)
+        if row.actions.canQuote {
+          messageAction("Quote", symbol: "quote.opening", focus: .quote, compact: compact) { _ = perform?(.quote) }
         }
-        if onEdit != nil || onDelete != nil || onTogglePin != nil || canCopyMessageLink || onSendToSelf != nil {
+        let actions = row.actions
+        if actions.canEdit || actions.canDelete || actions.canPin || actions.canCopyLink || actions.canSendToSelf {
           moreActions
         }
       }
@@ -561,23 +476,23 @@ import SwiftUI
 
     private var moreActions: some View {
       Menu {
-        if onTogglePin != nil {
+        if row.actions.canPin {
           pinButton
         }
-        if canCopyMessageLink {
+        if row.actions.canCopyLink {
           copyLinkButton
         }
-        if onSendToSelf != nil {
+        if row.actions.canSendToSelf {
           sendToSelfButton
         }
 
-        if let onEdit {
-          Button("Edit message", systemImage: "pencil", action: onEdit)
+        if row.actions.canEdit {
+          Button("Edit message", systemImage: "pencil") { _ = perform?(.edit) }
         }
-        if onEdit != nil, onDelete != nil {
+        if row.actions.canEdit, row.actions.canDelete {
           Divider()
         }
-        if onDelete != nil {
+        if row.actions.canDelete {
           Button("Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
         }
       } label: {
@@ -645,7 +560,7 @@ import SwiftUI
                            iconSize: actionIconSize, height: replyActionHeight)
       }
       .buttonStyle(.plain)
-      .disabled(feedback.isLocked || onSokoBotFeedback == nil)
+      .disabled(feedback.isLocked || perform == nil)
       // The label's resolved foreground does not dim with `.disabled`.
       .opacity(feedback.isLocked ? 0.5 : 1)
       .onHover { hoveredAction = $0 ? focus : nil }
@@ -657,8 +572,8 @@ import SwiftUI
 
     /// Web drops a rejected rating without a word: the thumbs simply unlock.
     private func rateSokoBotTurn(useful: Bool) {
-      guard let onSokoBotFeedback, sokoBotFeedback?.isLocked == false else { return }
-      Task { @MainActor in try? await onSokoBotFeedback(useful) }
+      guard perform != nil, sokoBotFeedback?.isLocked == false else { return }
+      Task { @MainActor in try? await run(.rate(useful: useful)) }
     }
 
     private var pendingSince: Date? {
@@ -703,7 +618,7 @@ import SwiftUI
     /// A quote sent to yourself from another room follows its Message link; same-room quotes scroll.
     private func quoteJump(for quote: Components.Schemas.ChatRoomMessageQuote) -> ((String) -> Void)? {
       guard let url = quoteSourceURL(quote, inRoom: message.roomId, webBaseURL: CoreSettings.webBaseURL) else {
-        return onQuoteJump
+        return perform.map { perform in { _ = perform(.jumpToQuote($0)) } }
       }
       return { _ in openURL(url) }
     }
@@ -716,7 +631,7 @@ import SwiftUI
     private func togglePin() {
       Task { @MainActor in
         do {
-          try await onTogglePin?()
+          try await run(.togglePin)
         } catch {
           failure = Failure(title: "Couldn’t update pin", message: friendlyMessage(for: error))
         }
@@ -724,24 +639,9 @@ import SwiftUI
     }
 
     private var menuArea: some View {
-      MessageContextMenuArea(availability: menuAvailability, busy: menuBusy, perform: performMenuAction)
+      MessageContextMenuArea(actions: row.actions, isPinned: isPinned, sokoBotFeedback: sokoBotFeedback, busy: menuBusy,
+                             perform: performMenuAction)
         .accessibilityHidden(true)
-    }
-
-    /// What the right-click menu and the accessibility actions offer.
-    var menuAvailability: MessageMenuAvailability {
-      let live = message.deletedAt == nil
-      return MessageMenuAvailability(
-        sokoBotFeedback: sokoBotFeedback,
-        canReact: onToggleReaction != nil && live,
-        canEdit: onEdit != nil,
-        canQuote: onQuote != nil,
-        canReply: onReply != nil && live,
-        pinned: onTogglePin == nil ? nil : isPinned,
-        canCopyLink: canCopyMessageLink,
-        canSendToSelf: onSendToSelf != nil,
-        canDelete: onDelete != nil && live
-      )
     }
 
     private var menuBusy: Set<MessageMenuAction> {
@@ -766,9 +666,9 @@ import SwiftUI
       case .copySelection: break // The menu item sends `copy:` to the text view itself.
       case .useful, .notUseful: rateSokoBotTurn(useful: action == .useful)
       case .addReaction: showsReactionPicker = true
-      case .edit: onEdit?()
-      case .quote: onQuote?()
-      case .reply: onReply?()
+      case .edit: _ = perform?(.edit)
+      case .quote: _ = perform?(.quote)
+      case .reply: _ = perform?(.reply)
       case .pin, .unpin: togglePin()
       case .copyLink: copyMessageLink()
       case .sendToSelf: sendToSelf()
@@ -819,29 +719,18 @@ import SwiftUI
     }
 
     #Preview("Message rows") {
+      let context = TranscriptContext(room: nil, viewerId: "", allowsPins: false, allowsThreads: true)
+      let first = previewMessage(id: "m1", content: "Morning all — the tracer renders web-style rows now.", name: "Ada", minutesAfterNoon: 0)
+      let second = previewMessage(id: "m2", content: "Same burst, so no second header.", name: "Ada", minutesAfterNoon: 1)
+      let edited = previewMessage(id: "m3", content: "Edited after the fact.", name: "Ada", minutesAfterNoon: 30, edited: true)
       VStack(alignment: .leading, spacing: 0) {
         DaySeparatorRow(label: "Today")
-        MessageRowView(
-          message: previewMessage(id: "m1", content: "Morning all — the tracer renders web-style rows now.", name: "Ada", minutesAfterNoon: 0),
-          isContinuation: false,
-          outbound: nil,
-          onRetry: nil,
-          onRemove: nil
-        )
-        MessageRowView(
-          message: previewMessage(id: "m2", content: "Same burst, so no second header.", name: "Ada", minutesAfterNoon: 1),
-          isContinuation: true,
-          outbound: nil,
-          onRetry: nil,
-          onRemove: nil
-        )
-        MessageRowView(
-          message: previewMessage(id: "m3", content: "Edited after the fact.", name: "Ada", minutesAfterNoon: 30, edited: true),
-          isContinuation: false,
-          outbound: nil,
-          onRetry: nil,
-          onRemove: nil
-        )
+        MessageRowView(message: first, row: MessageRow(first, in: context, previous: nil, isNewest: false),
+                       outbound: nil)
+        MessageRowView(message: second, row: MessageRow(second, in: context, previous: first, isNewest: false),
+                       outbound: nil)
+        MessageRowView(message: edited, row: MessageRow(edited, in: context, previous: second, isNewest: true),
+                       outbound: nil)
         RoomStatusRow(text: Text(verbatim: "Bob joined"))
         RoomStatusRow(text: groupNameChangeText(.named(actor: "Ada", name: "Launch crew")))
       }

@@ -3,38 +3,27 @@ import SokosumiAuth
 import SokosumiChat
 
 public extension WorkspaceState {
-  func deleteMessage(_ source: Components.Schemas.ChatRoomMessage, auth: AuthState) async throws {
+  func deleteMessage(_ source: Components.Schemas.ChatRoomMessage) async throws {
     guard source.roomId == transcriptRoomId, source.deletedAt == nil else { return }
-    guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Log in to delete messages.")
-    }
-    let generation = timeline.generation
+    let generation = room.timeline.generation
     let parentId = source.parentMessageId
     let parentCount = parentId.flatMap { id in
-      thread.parent?.id == id ? thread.parent?.threadReplyCount : timeline.messages.first { $0.id == id }?.threadReplyCount
+      thread.parent?.id == id ? thread.parent?.threadReplyCount : room.timeline.messages.first { $0.id == id }?.threadReplyCount
     }
     do {
-      let message = try await ChatService().deleteMessage(client: client, roomId: source.roomId, messageId: source.id,
-                                                          organizationSlug: selection?.workspace.organizationSlug)
-      guard generation == timeline.generation, message.roomId == transcriptRoomId, !Task.isCancelled else { return }
-      thread.apply(eventType: .delete, message: message)
-      timeline.messages = applyRealtimeFullEvent(messages: timeline.messages, shells: [], eventType: .delete, message: message).messages
+      let message = try await request(signIn: "Log in to delete messages.") { service, client, slug in
+        try await service.deleteMessage(client: client, roomId: source.roomId, messageId: source.id, organizationSlug: slug)
+      }
+      guard generation == room.timeline.generation, message.roomId == transcriptRoomId, !Task.isCancelled else { return }
+      loaded.apply(eventType: .delete, message: message)
       if messageEditing.source?.id == message.id {
         messageEditing.reset()
       }
       if message.deletedAt != nil, let parentId, let parentCount {
-        timeline.messages = timeline.messages.map { parent in
-          applyingReplyDeletion(to: parent, parentId: parentId, previousReplyCount: parentCount)
-        }
-        if let parent = thread.parent, parent.id == parentId {
-          thread.apply(eventType: .update, message: applyingReplyDeletion(to: parent, parentId: parentId, previousReplyCount: parentCount))
-        }
+        loaded.update(parentId) { applyingReplyDeletion(to: $0, parentId: parentId, previousReplyCount: parentCount) }
       }
     } catch {
-      guard generation == timeline.generation else { return }
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
-      }
+      guard generation == room.timeline.generation else { return }
       throw error
     }
   }
