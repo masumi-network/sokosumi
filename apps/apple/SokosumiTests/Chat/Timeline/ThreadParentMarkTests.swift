@@ -28,7 +28,7 @@
         let auth = AuthState()
         let host = NSHostingView(rootView: AnyView(RoomNavigationStack(room: room)
             .background(.background)
-            .overlay { JumpMarkViewTests.hoverBlocker }
+            .withoutRowHover()
             .environment(\.jumpMarkClock, clock)
             .environmentObject(state).environmentObject(auth)))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
