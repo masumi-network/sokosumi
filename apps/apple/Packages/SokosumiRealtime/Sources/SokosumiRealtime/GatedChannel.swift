@@ -108,12 +108,19 @@ final class GatedChannel<Policy: GatedChannelPolicy>: @unchecked Sendable {
     queue.async { [self] in
       guard active, scope.target != target else { return }
       policy.detach()
-      retry?.cancel()
-      retry = nil
+      cancelRetry()
       scope.setTarget(target)
       if target != nil {
         synchronize()
       }
+    }
+  }
+
+  /// Runs `body` on the queue unless the channel has stopped.
+  func whileActive(_ body: @escaping @Sendable () -> Void) {
+    queue.async { [self] in
+      guard active else { return }
+      body()
     }
   }
 
@@ -150,8 +157,7 @@ final class GatedChannel<Policy: GatedChannelPolicy>: @unchecked Sendable {
   func stop() {
     queue.sync { [self] in
       active = false
-      retry?.cancel()
-      retry = nil
+      cancelRetry()
       if let connectionListener {
         host.removeListener(connectionListener)
       }
@@ -163,8 +169,7 @@ final class GatedChannel<Policy: GatedChannelPolicy>: @unchecked Sendable {
 
   private func synchronize() {
     guard active, host.canAuthorize else { return }
-    retry?.cancel()
-    retry = nil
+    cancelRetry()
     guard let id = scope.requestAuthorization() else { return }
     host.authorize { [weak self] capability, failed in
       self?.queue.async { [weak self] in

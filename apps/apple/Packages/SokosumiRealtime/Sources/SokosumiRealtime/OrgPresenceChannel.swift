@@ -31,7 +31,7 @@ final class OrgPresenceChannel: @unchecked Sendable {
   /// Latest presence data; sent now when the channel is granted, otherwise
   /// kept for the enter that follows authorization.
   func publish(_ data: ChatPresenceMemberData) {
-    engine.queue.async { [policy] in policy.publish(data) }
+    engine.whileActive { [policy] in policy.publish(data) }
   }
 
   /// Synchronous so `disconnect` can close after leave is issued, not before.

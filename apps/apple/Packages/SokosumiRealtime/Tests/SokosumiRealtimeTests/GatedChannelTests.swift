@@ -267,6 +267,17 @@ struct GatedChannelTests {
     #expect(ran.values.isEmpty)
   }
 
+  /// Presence keeps its latest data while not granted, but a stopped channel keeps nothing.
+  @Test func aStoppedChannelRunsNoMoreWork() {
+    let ran = Ran()
+    engine.whileActive { ran.append("before") }
+    settle()
+    engine.stop()
+    engine.whileActive { ran.append("after") }
+    settle()
+    #expect(ran.values == ["before"])
+  }
+
   @Test func onlyAGrantedChannelRunsItsWork() {
     let ran = Ran()
     engine.setTarget("a")
