@@ -2382,7 +2382,7 @@
         },
         "replaceDialog": {
           "title": "¿Reemplazar {account}?",
-          "description": "Todos los borradores y las publicaciones programadas de esta cuenta pasarán a la nueva. Si quieres conservarlas aquí, añade otra cuenta en lugar de reemplazarla.",
+          "description": "Los borradores y las publicaciones programadas pasan a la cuenta nueva.",
           "confirm": "Reemplazar cuenta"
         },
         "disconnectDialog": {

@@ -2382,7 +2382,7 @@
         },
         "replaceDialog": {
           "title": "Replace {account}?",
-          "description": "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
+          "description": "Drafts and scheduled posts move to the new account.",
           "confirm": "Replace account"
         },
         "disconnectDialog": {
