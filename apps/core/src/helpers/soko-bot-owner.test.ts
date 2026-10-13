@@ -98,8 +98,8 @@ describe("sokoBotTurnAudience", () => {
   it.each([
     ["TEAMMATE", "TEAMMATE"],
     ["ASSISTANT", "ASSISTANT"],
-    ["unknown", undefined],
-  ] as const)("keeps a shared bot's narrower %s audience", (kind, expected) => {
+    ["garbage", "TEAMMATE"],
+  ] as const)("reads a shared bot's %s packet as %s", (kind, expected) => {
     expect(
       sokoBotTurnAudience({
         sokoBot: { userId: null },
@@ -108,9 +108,24 @@ describe("sokoBotTurnAudience", () => {
     ).toBe(expected);
   });
 
-  it("stays unclassified without a snapshot", () => {
+  it("reads a shared bot with no snapshot or no audience as TEAMMATE", () => {
     expect(
       sokoBotTurnAudience({ sokoBot: { userId: null }, contextSnapshot: null }),
+    ).toBe("TEAMMATE");
+    expect(
+      sokoBotTurnAudience({
+        sokoBot: { userId: null },
+        contextSnapshot: { packet: {} },
+      }),
+    ).toBe("TEAMMATE");
+  });
+
+  it("keeps a personal bot's missing audience unclassified", () => {
+    expect(
+      sokoBotTurnAudience({
+        sokoBot: { userId: "user-1" },
+        contextSnapshot: null,
+      }),
     ).toBeUndefined();
   });
 });

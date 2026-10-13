@@ -13,10 +13,14 @@ import { describe, expect, it } from "vitest";
  * branch the caller has to write.
  *
  * The check scans every Core source file for a `where: { ... }` object whose
- * body reads `<something>Bot.userId` or `<something>bot.userId`. Blind spots:
- * a where built in a variable first (`const own = { ownerId: bot.userId }`),
- * a renamed value (`const ownerId = bot.userId`), and raw SQL. Those still
- * need review.
+ * body reads `<something>Bot.userId` or `<something>bot.userId`. It is not
+ * full coverage. It does not catch:
+ * - a where returned by a helper (`where: helper(bot.userId)`);
+ * - a where or part of one built first (`const where = { ownerId: bot.userId }`);
+ * - the owner under another variable name (`const ownerId = bot.userId`,
+ *   `owner.userId`, `row.userId`);
+ * - raw SQL.
+ * Those still need review.
  *
  * KNOWN lists the reads that exist today and belong to a later layer of the
  * shared bots stack. The count per file must match exactly: a new read fails,

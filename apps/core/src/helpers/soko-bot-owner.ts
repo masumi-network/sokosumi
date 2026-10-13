@@ -61,18 +61,16 @@ export function sokoBotOwnerName(bot: SokoBotOwnerNameSource): string | null {
 
 /**
  * The audience a turn answers, read from its context packet. A shared bot has
- * no owner, so a packet that says OWNER is read as TEAMMATE: it never opens
- * anyone's private view. The other audiences are already narrower and stay
- * as they are.
+ * no owner, so it answers as TEAMMATE unless the packet says ASSISTANT: an
+ * OWNER, missing or malformed audience never opens an owner path.
  */
 export function sokoBotTurnAudience(turn: {
   sokoBot: { userId: string | null };
   contextSnapshot: { packet: unknown } | null;
 }): SokoBotPacketAudience | undefined {
   const audience = readSokoBotPacketAudience(turn.contextSnapshot?.packet);
-  return turn.sokoBot.userId === null && audience === "OWNER"
-    ? "TEAMMATE"
-    : audience;
+  if (turn.sokoBot.userId !== null) return audience;
+  return audience === "ASSISTANT" ? "ASSISTANT" : "TEAMMATE";
 }
 
 /** How another bot's Task event is signed in a packet. */
