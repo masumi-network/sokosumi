@@ -52,10 +52,10 @@
     "@hono/node-server": "2.1.4",
     "@hono/zod-openapi": "1.6.3",
     "@openrouter/ai-sdk-provider": "3.1.0",
-    "@scalar/hono-api-reference": "0.12.11",
-    "@scalar/openapi-to-markdown": "1.5.3",
-    "@sentry/node": "11.6.0",
-    "@sentry/profiling-node": "11.6.0",
+    "@scalar/hono-api-reference": "0.12.12",
+    "@scalar/openapi-to-markdown": "1.5.4",
+    "@sentry/node": "11.7.0",
+    "@sentry/profiling-node": "11.7.0",
     "@sokosumi/ai-provider": "workspace:*",
     "@sokosumi/database": "workspace:*",
     "@sokosumi/email": "workspace:*",
@@ -66,9 +66,9 @@
     "@vercel/blob": "2.8.1",
     "@vercel/functions": "3.9.11",
     "@vercel/related-projects": "1.1.1",
-    "@vercel/sandbox": "3.6.1",
+    "@vercel/sandbox": "3.7.0",
     "ably": "2.29.0",
-    "ai": "7.0.137",
+    "ai": "7.0.138",
     "better-auth": "1.7.7",
     "cron-parser": "5.10.2",
     "dotenv": "18.0.7",
@@ -86,8 +86,8 @@
     "slugify": "1.6.9",
     "stripe": "23.0.0",
     "uuid": "14.0.3",
-    "viem": "2.57.4",
-    "zod": "4.6.6"
+    "viem": "2.57.5",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@evlog/cli": "0.10.0",
@@ -97,6 +97,6 @@
     "tsup": "8.5.1",
     "tsx": "4.23.15",
     "typescript": "7.0.2",
-    "vitest": "5.0.3"
+    "vitest": "5.0.4"
   }
 }
