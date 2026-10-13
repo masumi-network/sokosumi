@@ -53,6 +53,7 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | GET | `/ads/accounts` | Connected ad accounts |
 | POST | `/ads/connections/initiate` `{provider}` | Composio link → `{redirectUrl, connectionId}` |
 | POST | `/ads/connections/finalize` `{connectionId}` | Store connection, return `availableAccounts[]`; a grant with no ad accounts is revoked and returns `connection: null` |
+| DELETE | `/ads/connections/{adConnectionId}` | Discard a finalized connection with no attached accounts (picker closed without attaching); 409 if any account is still attached; revoke Composio then delete |
 | POST | `/ads/accounts` `{adConnectionId, externalAccountIds[]}` | Attach chosen accounts; already attached accounts are returned unchanged |
 | DELETE | `/ads/accounts/{accountId}` | Detach; revoke the Composio account when its last ad account goes |
 | GET | `/ads/accounts/{accountId}/campaigns?range=LAST_7_DAYS\|LAST_30_DAYS` | Campaigns + spend, impressions, clicks, CTR, CPC, conversions |
