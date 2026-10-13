@@ -85,7 +85,10 @@ export function PostingConsistency({
           <Button
             type="button"
             size="sm"
-            className={mode === "posts" ? undefined : "text-foreground"}
+            className={cn(
+              "h-11 md:h-8",
+              mode === "posts" ? undefined : "text-foreground",
+            )}
             variant={mode === "posts" ? "default" : "outline"}
             aria-pressed={mode === "posts"}
             onClick={() => setMode("posts")}
@@ -95,7 +98,10 @@ export function PostingConsistency({
           <Button
             type="button"
             size="sm"
-            className={mode === "engagement" ? undefined : "text-foreground"}
+            className={cn(
+              "h-11 md:h-8",
+              mode === "engagement" ? undefined : "text-foreground",
+            )}
             variant={mode === "engagement" ? "default" : "outline"}
             aria-pressed={mode === "engagement"}
             onClick={() => setMode("engagement")}

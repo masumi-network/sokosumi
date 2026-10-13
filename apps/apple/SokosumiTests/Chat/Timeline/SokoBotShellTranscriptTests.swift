@@ -70,7 +70,7 @@
         let rows = try displayedTranscript(messages: Self.persisted(), shells: [])
         let content = VStack(alignment: .leading, spacing: 12) {
           ForEach(rows, id: \.id) { row in
-            MessageRowView(message: row, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+            MessageRowView(message: row, row: transcriptRow(row), outbound: nil, onRetry: nil, onRemove: nil,
                            onRetryMention: row.id == "failed" ? {} : nil, horizontalInset: 12)
           }
         }

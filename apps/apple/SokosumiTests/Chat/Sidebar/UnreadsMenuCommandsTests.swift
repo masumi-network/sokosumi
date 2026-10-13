@@ -13,7 +13,7 @@
     /// SOK-1201: the View menu's Unreads commands (⌘⇧U and Mark all as read) read and call the same state the
     /// sidebar's rows do. The menu wiring itself is SwiftUI and stays untested, as ever; these drive what the
     /// commands are built from: the Toggle's `setUnreadsFilter`, Mark all's enablement `showsMarkAll`, and its
-    /// action `markAllUnreadRead(auth:)`.
+    /// action `markAllUnreadRead()`.
     @MainActor struct UnreadsMenuCommandsTests {
       private static let fixedDate = Date(timeIntervalSince1970: 1_790_000_000)
 
@@ -46,14 +46,14 @@
 
       @Test func markAllIsNotOfferedWhileOneRuns() async throws {
         let transport = ReadsTransport(holdsReads: true)
-        let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+        let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
         let state = WorkspaceState(clientProvider: { _ in client })
         state.rooms = [Self.room("launch", channel: 2)]
         state.sidebar.readAttention.setVisible(true, window: UUID())
         state.sidebar.setUnreadsFilter(true)
         #expect(state.offersMarkAllUnreadRead(isSignedIn: true))
 
-        let marking = Task { await state.markAllUnreadRead(auth: AuthState()) }
+        let marking = Task { await state.markAllUnreadRead() }
         while await transport.operationIDs.isEmpty {
           await Task.yield()
         }
@@ -65,13 +65,13 @@
 
       @Test func markAllRunsTheCommandAction() async throws {
         let transport = ReadsTransport()
-        let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+        let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
         let state = WorkspaceState(clientProvider: { _ in client })
         state.rooms = [Self.room("launch", channel: 2)]
         state.sidebar.readAttention.setVisible(true, window: UUID())
         state.sidebar.setUnreadsFilter(true)
 
-        await state.markAllUnreadRead(auth: AuthState())
+        await state.markAllUnreadRead()
 
         // The state is not `phase == .ready`, so the rooms re-read that follows
         // a Mark all stays away and the transport sees the read alone.

@@ -8,7 +8,6 @@ import SwiftUI
 /// mounted under the Thread, so a jump can put it on the Thread's parent while the Thread covers it (row 25c).
 /// The room's title bar header comes from its toolbar owner, `RoomToolsModifier` (row 31c).
 struct RoomNavigationStack: View {
-  @EnvironmentObject private var auth: AuthState
   @EnvironmentObject private var workspaces: WorkspaceState
   let room: Components.Schemas.ChatRoom
 
@@ -28,7 +27,7 @@ struct RoomNavigationStack: View {
     }
     .task(id: workspaces.streamingThreadToOpen?.id) {
       if let parent = workspaces.streamingThreadToOpen {
-        workspaces.openThread(parent, auth: auth)
+        workspaces.openThread(parent)
       }
     }
   }

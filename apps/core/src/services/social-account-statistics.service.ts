@@ -31,8 +31,9 @@ import { recordSocialPerformanceSnapshot } from "@/services/social-performance-s
 import { socialSyncReadModel } from "@/services/social-sync-read";
 
 interface AccountStatisticsScope {
-  projectId: string;
   workspaceId: string;
+  /** When omitted, every connected account in the workspace is in scope. */
+  projectId?: string;
 }
 interface ListSocialAccountStatisticsInput extends AccountStatisticsScope {
   provider?: string;
@@ -95,9 +96,55 @@ const EMPTY_STATISTICS: SocialAccountStatistics = {
   consecutiveFailures: 0,
 };
 
+type StatisticsConnection = Prisma.ProjectSocialConnectionGetPayload<{
+  include: { _count: { select: { accountPosts: true } } };
+}>;
+
+function accountFromRecord(record: StatisticsConnection) {
+  if (!isProjectSocialProvider(record.provider)) return null;
+  const statistics =
+    socialAccountStatisticsSchema.safeParse(record.statistics).data ?? null;
+  return socialAccountStatisticsAccountSchema.parse({
+    id: record.id,
+    provider: record.provider,
+    externalHandle: record.externalHandle,
+    displayName: record.displayName,
+    avatarUrl: record.avatarUrl,
+    status: record.status,
+    connectedAt: record.connectedAt,
+    disconnectedAt: record.disconnectedAt,
+    statistics,
+    postCount: record._count.accountPosts,
+    sync: socialSyncReadModel({
+      status: record.status,
+      performanceHeadFetchedAt: record.performanceHeadFetchedAt,
+      performanceRefreshAttemptedAt: record.performanceRefreshAttemptedAt,
+      performanceRefreshRequestedAt: record.performanceRefreshRequestedAt,
+      statistics,
+    }),
+  });
+}
+
 /** Reuse the connected-account Project/workspace guard; raw credentials never leave Core. */
 async function scopedConnections(input: AccountStatisticsScope) {
-  const summaries = await listProjectSocialConnections(input);
+  if (!input.projectId) {
+    const records = await prisma.projectSocialConnection.findMany({
+      where: {
+        project: { workspaceId: input.workspaceId },
+        status: { not: "disconnected" },
+      },
+      include: { _count: { select: { accountPosts: true } } },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    return records.flatMap((record) => {
+      const account = accountFromRecord(record);
+      return account ? [{ record, account }] : [];
+    });
+  }
+  const summaries = await listProjectSocialConnections({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+  });
   const records = await prisma.projectSocialConnection.findMany({
     where: {
       id: { in: summaries.map((account) => account.id) },
@@ -109,48 +156,35 @@ async function scopedConnections(input: AccountStatisticsScope) {
   });
   return records.flatMap((record) => {
     const summary = summaries.find((account) => account.id === record.id);
-    const statistics =
-      socialAccountStatisticsSchema.safeParse(record.statistics).data ?? null;
-    return summary
-      ? [
-          {
-            record,
-            account: socialAccountStatisticsAccountSchema.parse({
-              ...summary,
-              statistics,
-              postCount: record._count.accountPosts,
-              sync: socialSyncReadModel({
-                status: record.status,
-                performanceHeadFetchedAt: record.performanceHeadFetchedAt,
-                performanceRefreshAttemptedAt:
-                  record.performanceRefreshAttemptedAt,
-                performanceRefreshRequestedAt:
-                  record.performanceRefreshRequestedAt,
-                statistics,
-              }),
-            }),
-          },
-        ]
-      : [];
+    const account = accountFromRecord(record);
+    return summary && account ? [{ record, account }] : [];
   });
 }
 
-/** Cached provider history only. Account totals are independent of the post page/date range. */
-export async function listSocialAccountStatistics(
-  input: ListSocialAccountStatisticsInput,
+function selectedConnections(
+  allAccounts: Awaited<ReturnType<typeof scopedConnections>>,
+  input: Pick<ListSocialAccountStatisticsInput, "provider" | "connectionId">,
 ) {
-  const allAccounts = await scopedConnections(input);
   if (
     input.connectionId &&
     !allAccounts.some(({ account }) => account.id === input.connectionId)
   )
     throw notFound("Project social connection not found");
-  const selected = allAccounts.filter(
+  return allAccounts.filter(
     ({ account }) =>
       (!input.provider || account.provider === input.provider) &&
       (!input.connectionId || account.id === input.connectionId),
   );
-  const where: Prisma.SocialAccountPostWhereInput = {
+}
+
+function statisticsPostWhere(
+  selected: Awaited<ReturnType<typeof selectedConnections>>,
+  input: Pick<
+    ListSocialAccountStatisticsInput,
+    "publishedFrom" | "publishedUntil"
+  >,
+): Prisma.SocialAccountPostWhereInput {
+  return {
     connectionId: { in: selected.map(({ account }) => account.id) },
     ...(input.publishedFrom || input.publishedUntil
       ? {
@@ -161,6 +195,24 @@ export async function listSocialAccountStatistics(
         }
       : {}),
   };
+}
+
+function accountLabel(account: {
+  displayName: string | null;
+  externalHandle: string | null;
+  provider: string;
+  id: string;
+}) {
+  return account.displayName ?? account.externalHandle ?? account.provider;
+}
+
+/** Cached provider history only. Account totals are independent of the post page/date range. */
+export async function listSocialAccountStatistics(
+  input: ListSocialAccountStatisticsInput,
+) {
+  const allAccounts = await scopedConnections(input);
+  const selected = selectedConnections(allAccounts, input);
+  const where = statisticsPostWhere(selected, input);
   const { cursor, take, skip } = parseCursorPagination(input);
   if (
     cursor &&
@@ -230,9 +282,44 @@ export async function listSocialAccountStatistics(
   });
 }
 
+/** Every matching cached post, unpaged, for a download. Does not refresh providers. */
+export async function exportSocialAccountStatistics(
+  input: Omit<ListSocialAccountStatisticsInput, "cursor" | "limit">,
+) {
+  const allAccounts = await scopedConnections(input);
+  const selected = selectedConnections(allAccounts, input);
+  const where = statisticsPostWhere(selected, input);
+  const rows = selected.length
+    ? await prisma.socialAccountPost.findMany({
+        where,
+        include: { connection: { select: { provider: true } } },
+        orderBy: [
+          { publishedAt: { sort: "desc", nulls: "last" } },
+          { id: "desc" },
+        ],
+      })
+    : [];
+  const names = new Map(
+    selected.map(({ account }) => [account.id, accountLabel(account)]),
+  );
+  return {
+    posts: rows.map((row) =>
+      socialAccountPostSchema.parse({
+        ...row,
+        provider: row.connection.provider,
+      }),
+    ),
+    accountName: (connectionId: string) =>
+      names.get(connectionId) ?? connectionId,
+    publishedFrom: input.publishedFrom,
+    publishedUntil: input.publishedUntil,
+  };
+}
+
 /** One provider page per request; continuations use only the server's cached cursor. */
 export async function refreshSocialAccountStatistics(
   input: AccountStatisticsScope & {
+    projectId: string;
     userId: string;
     connectionId: string;
     continueHistory?: boolean;

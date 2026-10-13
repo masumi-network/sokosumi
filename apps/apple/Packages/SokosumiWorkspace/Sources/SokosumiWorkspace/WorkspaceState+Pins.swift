@@ -9,24 +9,24 @@ public extension WorkspaceState {
 
   func isPinned(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
     guard message.deletedAt == nil else { return false }
-    return timeline.pinOverrides[message.id] ?? (message.pinnedAt != nil)
+    return room.timeline.pinOverrides[message.id] ?? (message.pinnedAt != nil)
   }
 
   func isUpdatingPin(_ messageId: String) -> Bool {
     pendingPins.contains(messageId)
   }
 
-  func loadPins(auth: AuthState, older: Bool = false) async throws {
+  func loadPins(older: Bool = false) async throws {
     guard canUsePins else { return }
-    guard let client = resolveClient(auth: auth) else {
+    guard let client = resolveClient() else {
       throw ChatServiceError.unauthorized("Log in to view pinned messages.")
     }
     try await pins.load(client: client, organizationSlug: selection?.workspace.organizationSlug, older: older)
   }
 
-  func setPinned(_ pinned: Bool, messageId: String, auth: AuthState) async throws {
+  func setPinned(_ pinned: Bool, messageId: String) async throws {
     guard canUsePins, let roomId = transcriptRoomId, !pendingPins.contains(messageId) else { return }
-    guard let client = resolveClient(auth: auth) else {
+    guard let client = resolveClient() else {
       throw ChatServiceError.unauthorized("Log in to update pinned messages.")
     }
     let generation = pins.roomGeneration
@@ -46,41 +46,34 @@ public extension WorkspaceState {
       guard revision == pins.revision else { pins.invalidate()
         return
       }
-      timeline.applyPin(roomId: roomId, messageId: messageId, isPinned: pinned)
-      if let index = rooms.firstIndex(where: { $0.id == roomId }) {
-        rooms[index].pinnedMessageCount = response.pinnedMessageCount
-      }
-      if pinned {
-        pins.invalidate()
-      } else {
-        pins.remove(messageId: messageId)
-      }
+      // The same change a live pin event makes (one reducer for both).
+      applyPin(roomId: roomId, messageId: messageId, isPinned: pinned, count: response.pinnedMessageCount)
     } catch {
       guard generation == pins.roomGeneration, !Task.isCancelled else { return }
       if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
+        signOutIfUnauthorized(error)
       }
       throw error
     }
   }
 
-  func jumpToMessage(_ messageId: String, auth: AuthState) async throws -> Bool {
+  func jumpToMessage(_ messageId: String) async throws -> Bool {
     if displayedTranscript.contains(where: { $0.id == messageId }) {
       return true
     }
-    guard let client = resolveClient(auth: auth) else {
+    guard resolveClient() != nil else {
       throw ChatServiceError.unauthorized("Log in to view this message.")
     }
-    return try await timeline.loadPage(.around(messageId), client: client,
-                                       organizationSlug: selection?.workspace.organizationSlug, generation: timeline.generation)
+    connectRoomTranscript()
+    return try await room.loadAround(messageId)
   }
 
-  func returnToLatest(auth: AuthState) async throws -> Bool {
-    guard timeline.historicalAnchor != nil else { return true }
-    guard let client = resolveClient(auth: auth) else {
+  func returnToLatest() async throws -> Bool {
+    guard room.timeline.historicalAnchor != nil else { return true }
+    guard resolveClient() != nil else {
       throw ChatServiceError.unauthorized("Log in to load messages.")
     }
-    return try await timeline.loadPage(.returnToLatest, client: client,
-                                       organizationSlug: selection?.workspace.organizationSlug, generation: timeline.generation)
+    connectRoomTranscript()
+    return try await room.returnToLatest()
   }
 }

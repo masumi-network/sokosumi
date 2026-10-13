@@ -902,6 +902,59 @@ describe("ProjectSocialPosts", () => {
     );
   });
 
+  it.each([
+    [
+      "instagram",
+      "sokosumi.ig",
+      "Instagram requires at least one image or video.",
+    ],
+    ["tiktok", "sokosumi.tt", "TikTok requires a video."],
+    ["youtube", "sokosumi.yt", "YouTube requires a video."],
+  ] as const)(
+    "saves a %s draft without media and keeps the Post now hint",
+    async (provider, handle, hint) => {
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[
+            buildConnection({
+              provider,
+              externalHandle: handle,
+            }),
+          ]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      await user.type(within(dialog).getByLabelText("Text"), "Hello");
+      const saveDraft = within(dialog).getByRole("button", {
+        name: "Save draft",
+      });
+      const postNow = within(dialog).getByRole("button", { name: "Post now" });
+      expect(saveDraft).toBeEnabled();
+      expect(postNow).toBeDisabled();
+
+      const trigger = postNow.parentElement;
+      if (!trigger) throw new Error("Post now has no tooltip trigger");
+      trigger.focus();
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(hint);
+
+      await user.click(saveDraft);
+      await waitFor(() => {
+        expect(createProjectSocialPost).toHaveBeenCalledWith(
+          expect.objectContaining({
+            text: "Hello",
+            media: [],
+            socialConnectionId: "connection-1",
+          }),
+        );
+      });
+    },
+  );
+
   it("hides the Post now hint once the draft can post", async () => {
     const user = userEvent.setup();
     render(
@@ -2237,6 +2290,12 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(dialog).getByRole("button", { name: "Preview as @sokosumi" }),
     ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(dialog).getByRole("button", { name: "Preview as @sokosumi" }),
+    ).toHaveClass("h-11", "md:h-8");
+    expect(
+      within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),
+    ).toHaveClass("h-11", "md:h-8");
 
     await user.click(
       within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),

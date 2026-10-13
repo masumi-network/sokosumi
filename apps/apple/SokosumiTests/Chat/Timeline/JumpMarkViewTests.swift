@@ -82,12 +82,12 @@
       /// whatever the pointer does; a test that drags the scroller has to reach it and passes false.
       static func landing(thread: Bool, blocksHover: Bool = true) async throws -> JumpLanding {
         let clock = thread ? nil : ManualJumpMarkClock()
-        let state = try TranscriptScrollingTests.fixtureState(thread: thread, media: false)
+        let state = try TranscriptScrollingTests.fixtureState(thread: thread, media: false, clock: clock)
         let auth = AuthState()
         if thread {
-          state.thread.requestJump(to: Self.landedId)
+          state.thread.transcript.requestJump(to: Self.landedId)
         } else {
-          #expect(try await state.openMessage(Self.landedId, auth: auth) == .opened)
+          #expect(try await state.openMessage(Self.landedId) == .opened)
         }
         let host = NSHostingView(rootView: AnyView(Group {
           if thread {
@@ -233,10 +233,10 @@
         let (state, host, window) = (landing.state, landing.host, landing.window)
         defer { window.orderOut(nil) }
         try await Task.sleep(for: .seconds(1))
-        #expect(state.thread.jumpTarget?.messageId == Self.landedId, "Still held a second in.")
-        try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.jumpTarget == nil }
+        #expect(state.thread.transcript.jumpTarget?.messageId == Self.landedId, "Still held a second in.")
+        try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.transcript.jumpTarget == nil }
         let gone = requested.duration(to: ContinuousClock.now)
-        #expect(state.thread.jumpTarget == nil, "The hold is over.")
+        #expect(state.thread.transcript.jumpTarget == nil, "The hold is over.")
         #expect(gone >= .milliseconds(4500), "Held for the whole hold: gone after \(gone).")
       }
 
@@ -253,8 +253,8 @@
         defer { window.orderOut(nil) }
         let full: CGFloat
         if thread {
-          try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.jumpTarget?.mark.map { $0.stage(at: Date()) == .full } == true }
-          #expect(state.thread.jumpTarget?.mark?.stage(at: Date()) == .full)
+          try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.transcript.jumpTarget?.mark.map { $0.stage(at: Date()) == .full } == true }
+          #expect(state.thread.transcript.jumpTarget?.mark?.stage(at: Date()) == .full)
           full = 0
         } else {
           // Past the 450 ms opening, so a paused frame there cannot pass for full strength.
@@ -276,10 +276,10 @@
         let wheeled = ContinuousClock.now
         try Self.wheel(scroll, host: host)
         if thread {
-          try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.jumpTarget?.mark?.leftAt != nil || state.thread.jumpTarget == nil }
-          #expect(state.thread.jumpTarget?.mark?.leftAt != nil, "Fading, not cut.")
-          try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.jumpTarget == nil }
-          #expect(state.thread.jumpTarget == nil, "The fade is over.")
+          try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.transcript.jumpTarget?.mark?.leftAt != nil || state.thread.transcript.jumpTarget == nil }
+          #expect(state.thread.transcript.jumpTarget?.mark?.leftAt != nil, "Fading, not cut.")
+          try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.transcript.jumpTarget == nil }
+          #expect(state.thread.transcript.jumpTarget == nil, "The fade is over.")
         } else {
           var partial = false
           try await Self.poll(host, diagnosis: landing.diagnosis) {
@@ -331,8 +331,8 @@
           try await Task.sleep(for: .milliseconds(20))
         }
         #expect(scroll.contentView.bounds.minY - before > 50, "The drag moved the thread: \(before) to \(scroll.contentView.bounds.minY)")
-        #expect(state.thread.jumpTarget?.messageId == Self.landedId)
-        let mark = try #require(state.thread.jumpTarget?.mark)
+        #expect(state.thread.transcript.jumpTarget?.messageId == Self.landedId)
+        let mark = try #require(state.thread.transcript.jumpTarget?.mark)
         #expect(mark.leftAt == nil, "The mark stands.")
       }
 
@@ -352,7 +352,7 @@
         let mark = landed ? JumpMark(messageId: "Ben", landedAt: Date().addingTimeInterval(-1)) : nil
         let rows = VStack(alignment: .leading, spacing: 0) {
           ForEach(messages, id: \.id) { message in
-            let row = MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+            let row = MessageRowView(message: message, row: transcriptRow(message), outbound: nil, onRetry: nil, onRemove: nil,
                                      jumpMark: mark?.messageId == message.id ? mark : nil, horizontalInset: 12)
             if spotlight {
               row.jumpSpotlightRow(messageId: message.id)

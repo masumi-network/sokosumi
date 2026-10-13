@@ -112,8 +112,12 @@ vi.mock("./components/social-all-projects-tabs", () => ({
     actions: React.ReactNode;
     calendar: React.ReactNode;
     notice?: string;
+    workspaceId: string;
   }) => (
-    <div data-testid="social-all-projects-tabs">
+    <div
+      data-testid="social-all-projects-tabs"
+      data-workspace={props.workspaceId}
+    >
       {props.actions}
       {props.calendar}
       <div data-testid="social-no-project">
@@ -271,7 +275,10 @@ describe("SocialPage", () => {
     );
     // The same tab row a project gets; accounts belong to a project, so
     // their tab says so instead.
-    expect(screen.getByTestId("social-all-projects-tabs")).toBeInTheDocument();
+    expect(screen.getByTestId("social-all-projects-tabs")).toHaveAttribute(
+      "data-workspace",
+      "workspace-1",
+    );
     expect(screen.getByTestId("social-no-project")).toBeInTheDocument();
     expect(screen.queryByTestId("social-posts")).not.toBeInTheDocument();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();

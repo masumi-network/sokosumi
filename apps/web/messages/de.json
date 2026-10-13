@@ -2691,7 +2691,10 @@
             "dayEngagementUnavailable": "{date}: Interaktionen nicht verfügbar",
             "dayOutside": "{date}: außerhalb der erfassten Historie",
             "legendNone": "Keine",
-            "legendMore": "Mehr"
+            "legendMore": "Mehr",
+            "moreActions": "Weitere Aktionen",
+            "exportCsv": "CSV exportieren",
+            "exportXlsx": "Tabelle exportieren"
           },
           "accountsTitle": "Verbundene Konten",
           "postsTitle": "Veröffentlichte Kontobeiträge",
@@ -3103,10 +3106,6 @@
       "pickProject": "Projekt auswählen",
       "platforms": {
         "label": "Social-Media-Plattformen"
-      },
-      "statisticsNeedProject": {
-        "title": "Wähle ein Projekt, um die Leistung zu sehen",
-        "body": "Die Kontoleistung gehört zu einem Projekt. Wähle eines, um seine verbundenen Konten und veröffentlichten Inhalte zu bewerten."
       }
     },
     "Error": {

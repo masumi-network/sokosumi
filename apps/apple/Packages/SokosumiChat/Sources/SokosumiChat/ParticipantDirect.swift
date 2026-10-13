@@ -55,22 +55,17 @@ public extension ChatService {
     body: Components.Schemas.CreateChatRoomRequest,
     organizationSlug: String?
   ) async throws -> Components.Schemas.ChatRoom {
-    let response = try await client.postChatsRooms(.init(headers: .init(xOrganizationSlug: organizationSlug), body: .json(body)))
-    switch response {
-    case let .ok(value): return try value.body.json.data
-    case let .created(value): return try value.body.json.data
-    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
-    case let .conflict(value):
-      let error = try value.body.json
-      if case .case1 = body, error.kind == "channel_slug_taken" {
+    do {
+      let response = try await call { try await client.postChatsRooms(.init(headers: .init(xOrganizationSlug: organizationSlug), body: .json(body))) }
+      switch response {
+      case let .created(value): return try value.body.json.data
+      default: return try response.ok.body.json.data
+      }
+    } catch let error as ChatServiceError {
+      if case .case1 = body, case let .unprocessable(409, _, kind) = error, kind == "channel_slug_taken" {
         throw ChannelCreationError.slugTaken
       }
-      throw ChatServiceError.unprocessable(statusCode: 409, message: error.message)
-    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
+      throw error
     }
   }
 }

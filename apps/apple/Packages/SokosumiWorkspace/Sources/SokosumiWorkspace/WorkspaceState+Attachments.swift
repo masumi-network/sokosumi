@@ -9,29 +9,29 @@ public extension WorkspaceState {
     transcriptRoomId == roomId && !transcriptLoading && roomTakesNewMessages(rooms.first { $0.id == roomId })
   }
 
-  func driveItems(folder: String, query: String, roomId: String, auth: AuthState) async throws -> [Components.Schemas.DriveItem] {
-    guard canAttachFiles(roomId: roomId), let client = resolveClient(auth: auth) else {
+  func driveItems(folder: String, query: String, roomId: String) async throws -> [Components.Schemas.DriveItem] {
+    guard canAttachFiles(roomId: roomId), let client = resolveClient() else {
       throw ChatServiceError.unexpectedResponse("Attachments are not available in this conversation.")
     }
-    let generation = timeline.generation
+    let generation = room.timeline.generation
     do {
       let items = try await ChatService().driveItems(client: client, organizationId: selection?.workspace.organizationId, folder: folder, query: query)
       try Task.checkCancellation()
-      guard generation == timeline.generation else { throw CancellationError() }
+      guard generation == room.timeline.generation else { throw CancellationError() }
       return items
     } catch let error as ChatServiceError {
-      if !Task.isCancelled, generation == timeline.generation {
-        _ = signOutIfUnauthorized(error, auth: auth)
+      if !Task.isCancelled, generation == room.timeline.generation {
+        _ = signOutIfUnauthorized(error)
       }
       throw error
     }
   }
 
-  func uploadAttachment(_ file: URL, roomId: String, auth: AuthState) async throws -> ComposeAttachment {
-    guard canAttachFiles(roomId: roomId), let client = resolveClient(auth: auth) else {
+  func uploadAttachment(_ file: URL, roomId: String) async throws -> ComposeAttachment {
+    guard canAttachFiles(roomId: roomId), let client = resolveClient() else {
       throw ChatServiceError.unexpectedResponse("Attachments are not available in this conversation.")
     }
-    let generation = timeline.generation
+    let generation = room.timeline.generation
     let slug = selection?.workspace.organizationSlug
     let scoped = file.startAccessingSecurityScopedResource()
     defer {
@@ -46,11 +46,11 @@ public extension WorkspaceState {
     do {
       let grant = try await ChatService().attachmentGrant(client: client, roomId: roomId, file: .init(filename: file.lastPathComponent, contentType: contentType, size: size), organizationSlug: slug)
       try Task.checkCancellation()
-      guard generation == timeline.generation else { throw CancellationError() }
+      guard generation == room.timeline.generation else { throw CancellationError() }
       return try await AttachmentUpload.put(file: file, filename: file.lastPathComponent, contentType: contentType, size: size, grant: grant)
     } catch let error as ChatServiceError {
-      if !Task.isCancelled, generation == timeline.generation {
-        _ = signOutIfUnauthorized(error, auth: auth)
+      if !Task.isCancelled, generation == room.timeline.generation {
+        _ = signOutIfUnauthorized(error)
       }
       throw error
     }

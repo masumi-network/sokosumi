@@ -167,7 +167,7 @@ struct ConversationActionsTests {
   @Test func pendingPinSurvivesRefreshAndPreventsOtherActions() async throws {
     let state = try await sidebar()
     let transport = PausedSidebarTransport()
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     #expect(state.rooms[0].starredAt != nil)
@@ -188,7 +188,7 @@ struct ConversationActionsTests {
   func failedPinRollsBackOnlyPin(status: Int) async throws {
     let state = try await sidebar()
     let transport = PausedSidebarTransport(status: status, response: actionFailureBody)
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     state.rooms[0].unreadCount = 8
@@ -205,7 +205,7 @@ struct ConversationActionsTests {
   func workspaceResetDiscardsOldAction(status: Int) async throws {
     let state = try await sidebar()
     let transport = PausedSidebarTransport(status: status, response: status == 200 ? actionBody(pinned: true) : actionFailureBody)
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     let original = try #require(state.rooms.first)
@@ -222,7 +222,7 @@ struct ConversationActionsTests {
   @Test func markUnreadUsesSharedOverlayAndRestoresOnFailure() async throws {
     let state = try await sidebar()
     let transport = PausedSidebarTransport(status: 403, response: actionFailureBody)
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task { try await state.perform(.markUnread, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     #expect(state.partitioned.channels.first?.markedUnread == true)
@@ -237,7 +237,7 @@ struct ConversationActionsTests {
   @Test func failedWorkspaceSwitchKeepsInFlightPin() async throws {
     let state = try await sidebar()
     let transport = PausedSidebarTransport()
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     state.invalidateRefresh()
@@ -252,7 +252,7 @@ struct ConversationActionsTests {
   @Test func otherRoomRevokeKeepsInFlightPin() async throws {
     let state = try await twoRoomSidebar()
     let transport = PausedSidebarTransport()
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     state.rollbackPendingAction(roomId: peerRoomId)
@@ -268,7 +268,7 @@ struct ConversationActionsTests {
     let pinned = try await twoRoomSidebar()
     #expect(pinned.partitioned.channels.map(\.id) == [testRoomId, peerRoomId])
     let pinTransport = PausedSidebarTransport()
-    let pinClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: pinTransport)
+    let pinClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: pinTransport)
     let pinTask = Task { try await pinned.perform(.pin, roomId: peerRoomId, client: pinClient, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await pinTransport.waitForRequest()
     #expect(pinned.partitioned.pinned.map(\.id) == [peerRoomId])
@@ -280,7 +280,7 @@ struct ConversationActionsTests {
 
     let muted = try await twoRoomSidebar()
     let muteTransport = PausedSidebarTransport(response: actionBody(muted: true))
-    let muteClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: muteTransport)
+    let muteClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: muteTransport)
     let muteTask = Task { try await muted.perform(.mute, roomId: testRoomId, client: muteClient, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await muteTransport.waitForRequest()
     #expect(muted.partitioned.channels.map(\.id) == [peerRoomId, testRoomId])
@@ -294,7 +294,7 @@ struct ConversationActionsTests {
     let now = Date(timeIntervalSince1970: 1_788_868_800)
     let token = try #require(UUID(uuidString: "550e8400-e29b-41d4-a716-446655440999"))
     let transport = PausedSidebarTransport()
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task {
       try await state.perform(
         .pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: now, makeId: { token })
@@ -309,7 +309,7 @@ struct ConversationActionsTests {
   @Test func actionSettlementDoesNotEndWorkspaceSwitchLoading() async throws {
     let state = try await sidebar()
     let transport = PausedSidebarTransport()
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     state.invalidateRefresh()
@@ -323,7 +323,7 @@ struct ConversationActionsTests {
   @Test func removedRoomIsNotReinsertedWhenPinCompletes() async throws {
     let state = try await sidebar()
     let transport = PausedSidebarTransport()
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     state.rooms = []
@@ -335,7 +335,7 @@ struct ConversationActionsTests {
   @Test func refreshStartedBeforeSettlementCannotUndoPin() async throws {
     let state = try await sidebar()
     let transport = PausedSidebarTransport(response: testMessagesPageBody(messages: [actionRoomJSON()], nextCursor: nil))
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let refresh = Task { try await state.refresh(client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     try await state.perform(.pin, roomId: testRoomId, client: makeTestClient(TestTransport([(200, actionBody(pinned: true))])), organizationSlug: nil, clock: (now: Date(), makeId: UUID.init))

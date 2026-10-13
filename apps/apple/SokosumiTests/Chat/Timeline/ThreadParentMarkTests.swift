@@ -19,7 +19,8 @@
 
       /// The room's detail pane as the app composes it, the room loaded at its newest message.
       private static func hostedRoom(dark: Bool, clock: any JumpMarkClock = SystemJumpMarkClock()) async throws -> JumpLanding {
-        let state = try TranscriptScrollingTests.fixtureState(thread: false, media: false)
+        // The room's mark lands on its Transcript's clock and holds on the view's, so both read the test's clock.
+        let state = try TranscriptScrollingTests.fixtureState(thread: false, media: false, clock: clock as? ManualJumpMarkClock)
         let room = Components.Schemas.ChatRoom(id: "fixture", name: "General", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
                                                createdByUserId: "person", createdAt: .now, updatedAt: .now, unreadCount: 0,
                                                unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
@@ -45,19 +46,19 @@
       /// (`openMessageReply`, which loads nothing here). Returns once the Thread has landed on the reply and the
       /// room has marked the parent behind it.
       private static func jumpToReply(_ state: WorkspaceState, host: NSView) async throws {
-        let parent = try #require(state.timeline.messages.first { $0.id == Self.parentId })
+        let parent = try #require(state.room.timeline.messages.first { $0.id == Self.parentId })
         state.thread.open(parent)
-        state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
-        state.thread.timeline.messages = (0 ..< 30).map { index in
-          var reply = state.timeline.messages[index + 50]
+        state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
+        state.thread.transcript.timeline.messages = (0 ..< 30).map { index in
+          var reply = state.room.timeline.messages[index + 50]
           reply.id = "reply-\(index)"
           reply.parentMessageId = parent.id
           return reply
         }
-        let hit = try #require(state.thread.timeline.messages.first { $0.id == Self.replyId })
-        #expect(try await state.openMessageReply(hit, auth: AuthState()) == .opened)
-        try await JumpMarkViewTests.poll(host) { state.thread.jumpTarget?.mark != nil && state.messageJump == nil }
-        #expect(state.thread.jumpTarget?.mark?.messageId == Self.replyId, "The Thread landed on the reply.")
+        let hit = try #require(state.thread.transcript.timeline.messages.first { $0.id == Self.replyId })
+        #expect(try await state.openMessageReply(hit) == .opened)
+        try await JumpMarkViewTests.poll(host) { state.thread.transcript.jumpTarget?.mark != nil && state.messageJump == nil }
+        #expect(state.thread.transcript.jumpTarget?.mark?.messageId == Self.replyId, "The Thread landed on the reply.")
         #expect(state.messageJump == nil, "The room took the parent's jump.")
       }
 
@@ -118,7 +119,7 @@
         #expect(try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) == 0, "On the jump's clock: gone 4.6 s after the jump.")
 
         // Centred where a room jump to the parent centres it: that jump barely moves the room.
-        #expect(try await state.openMessage(Self.parentId, auth: AuthState()) == .opened)
+        #expect(try await state.openMessage(Self.parentId) == .opened)
         try await Self.advanceUntilMarked(clock, host: host, scroll: scroll)
         let centred = try await Self.settledOffset(of: scroll, host: host)
         #expect(abs(centred - landed) < 40, "Already centred on the parent: a jump to it moved the room from \(landed) to \(centred).")
@@ -144,7 +145,7 @@
         let diagnosis = JumpDiagnosis(state: state, host: host, scroll: scroll)
         diagnosis.snap("closed")
 
-        #expect(try await state.openMessage(Self.parentId, auth: AuthState()) == .opened)
+        #expect(try await state.openMessage(Self.parentId) == .opened)
         try await Self.advanceUntilMarked(clock, host: host, scroll: scroll)
         let centred = try await Self.settledOffset(of: scroll, host: host)
         #expect(abs(centred - closed) < 40, "Already on the parent: a jump to it moved the room from \(closed) to \(centred).")
@@ -161,9 +162,9 @@
         let (state, host) = (room.state, room.host)
         defer { room.window.orderOut(nil) }
         try await Self.jumpToReply(state, host: host)
-        let parent = try #require(state.timeline.messages.first { $0.id == Self.parentId })
-        let loaded = state.timeline.messages
-        state.timeline.messages = loaded.filter { $0.id != Self.parentId }
+        let parent = try #require(state.room.timeline.messages.first { $0.id == Self.parentId })
+        let loaded = state.room.timeline.messages
+        state.room.timeline.messages = loaded.filter { $0.id != Self.parentId }
         state.thread.close()
 
         let scroll = try await loadedTranscriptScrollView(in: host)
@@ -171,10 +172,10 @@
         try await JumpMarkViewTests.poll(host) { Date() >= settled }
         #expect(TranscriptScrollingTests.distanceFromBottom(scroll) < 40, "Nothing to land on: the room stays at its newest message.")
 
-        state.timeline.messages = loaded
-        let other = try #require(state.timeline.messages.first { $0.id == "fixture-60" })
+        state.room.timeline.messages = loaded
+        let other = try #require(state.room.timeline.messages.first { $0.id == "fixture-60" })
         state.thread.open(other)
-        state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
+        state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
         settled = Date().addingTimeInterval(0.5)
         try await JumpMarkViewTests.poll(host) { Date() >= settled }
         state.thread.close()

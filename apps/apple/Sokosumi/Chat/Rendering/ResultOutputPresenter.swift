@@ -13,10 +13,9 @@ protocol ResultOutputLoading: Sendable {
 /// The coordinator's client and open workspace, as every other chat request.
 struct WorkspaceResultOutputLoader: ResultOutputLoading {
   let workspaces: WorkspaceState
-  let auth: AuthState
 
   func file(_ source: ResultOutputSource, named fileName: String) async throws -> ResultOutputFile {
-    try await workspaces.resultOutput(source, fileName: fileName, auth: auth)
+    try await workspaces.resultOutput(source, fileName: fileName)
   }
 }
 

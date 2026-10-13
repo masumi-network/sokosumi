@@ -22,29 +22,29 @@ public extension WorkspaceState {
   /// Success merges the returned source message (mentions reset to pending);
   /// the shell's own progress returns over realtime. Any failure restores the
   /// failed shell and rethrows so the row can show Core's reason.
-  func retryMention(_ shell: Components.Schemas.ChatRoomMessage, auth: AuthState, now: Date) async throws {
+  func retryMention(_ shell: Components.Schemas.ChatRoomMessage, now: Date) async throws {
     guard shell.roomId == transcriptRoomId,
           case let .failed(mentionId, sourceMessageId?) = MentionThoughtShell(message: shell) else { return }
-    let request = MentionRetryRequest(generation: timeline.generation, shellId: shell.id)
+    let request = MentionRetryRequest(generation: room.timeline.generation, shellId: shell.id)
     guard !pendingMentionRetries.contains(request) else { return }
-    guard let client = resolveClient(auth: auth) else {
+    guard let client = resolveClient() else {
       throw ChatServiceError.unauthorized("Log in to retry mentions.")
     }
     pendingMentionRetries.insert(request)
     defer { pendingMentionRetries.remove(request) }
-    replaceLoadedMessage(MentionThoughtShell.retrying(shell, startedAt: now))
+    replaceLoaded(MentionThoughtShell.retrying(shell, startedAt: now))
     do {
       let source = try await ChatService().retryMention(
         client: client, roomId: shell.roomId, messageId: sourceMessageId, mentionId: mentionId,
         organizationSlug: selection?.workspace.organizationSlug
       )
-      guard request.generation == timeline.generation, !Task.isCancelled else { return }
-      replaceLoadedMessage(source)
+      guard request.generation == room.timeline.generation, !Task.isCancelled else { return }
+      replaceLoaded(source)
     } catch {
-      guard request.generation == timeline.generation, !Task.isCancelled else { return }
-      replaceLoadedMessage(shell)
+      guard request.generation == room.timeline.generation, !Task.isCancelled else { return }
+      replaceLoaded(shell)
       if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
+        signOutIfUnauthorized(error)
       }
       throw error
     }
@@ -53,18 +53,11 @@ public extension WorkspaceState {
 
 private extension WorkspaceState {
   var mentionRetrySources: [Components.Schemas.ChatRoomMessage] {
-    transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.timeline.messages
+    loaded.all
   }
 
   /// Update-only: a row that is not loaded stays absent, unlike a realtime create.
-  func replaceLoadedMessage(_ message: Components.Schemas.ChatRoomMessage) {
-    if message.parentMessageId == nil {
-      transcriptMessages = transcriptMessages.map { $0.id == message.id ? message : $0 }
-      if thread.parent?.id == message.id {
-        thread.apply(eventType: .update, message: message)
-      }
-    } else if thread.parent?.id == message.parentMessageId {
-      thread.timeline.messages = thread.timeline.messages.map { $0.id == message.id ? message : $0 }
-    }
+  func replaceLoaded(_ message: Components.Schemas.ChatRoomMessage) {
+    loaded.update(message.id) { _ in message }
   }
 }

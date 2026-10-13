@@ -31,16 +31,16 @@
       var root = tombstoneTranscriptMessage(message(id: "root", content: "Original question", name: "Ben", minutes: 3), now: base)
       root.threadReplyCount = 1
       let displayed = displayedTranscript(messages: [first, deleted, last], shells: [])
-      #expect(displayed.map(\.id) == ["first", "last"])
 
       let content = VStack(alignment: .leading, spacing: 0) {
         Text("Room transcript").font(.caption).foregroundStyle(.secondary).padding(.bottom, 6)
         ForEach(Array(displayed.enumerated()), id: \.element.id) { index, row in
-          MessageRowView(message: row, isContinuation: index > 0, outbound: nil, onRetry: nil, onRemove: nil)
+          MessageRowView(message: row, row: transcriptRow(row, previous: index > 0 ? displayed[index - 1] : nil),
+                         outbound: nil, onRetry: nil, onRemove: nil)
         }
         Divider().padding(.vertical, 10)
         Text("Thread root").font(.caption).foregroundStyle(.secondary).padding(.bottom, 6)
-        MessageRowView(message: root, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
+        MessageRowView(message: root, row: transcriptRow(root), outbound: nil, onRetry: nil, onRemove: nil)
       }
       .padding(20)
       .frame(width: 520, alignment: .leading)

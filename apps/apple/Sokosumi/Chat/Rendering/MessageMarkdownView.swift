@@ -14,7 +14,6 @@ struct MessageMarkdownView: View {
   var diagrams = true
   @EnvironmentObject private var workspaces: WorkspaceState
   @Environment(\.openURL) private var openURL
-  @EnvironmentObject private var auth: AuthState
   @State private var selectedProfile: ChatParticipantProfile?
   var body: some View {
     MessageMarkdownContent(source: source, room: room, channels: channels, preparedDocument: preparedDocument, diagrams: diagrams)
@@ -24,7 +23,7 @@ struct MessageMarkdownView: View {
         if url.scheme == "sokosumi-channel" {
           if let id = MessageChannels.roomId(for: url, channels: workspaces.composerChannels) {
             Task { @MainActor in
-              workspaces.selectRoom(id, auth: auth)
+              workspaces.selectRoom(id)
             }
           }
           return .handled

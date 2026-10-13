@@ -2691,7 +2691,10 @@
             "dayEngagementUnavailable": "{date}: interacciones no disponibles",
             "dayOutside": "{date}: fuera del historial recopilado",
             "legendNone": "Ninguna",
-            "legendMore": "Más"
+            "legendMore": "Más",
+            "moreActions": "Más acciones",
+            "exportCsv": "Exportar CSV",
+            "exportXlsx": "Exportar hoja de cálculo"
           },
           "accountsTitle": "Cuentas conectadas",
           "postsTitle": "Publicaciones de las cuentas",
@@ -3103,10 +3106,6 @@
       "pickProject": "Elegir un proyecto",
       "platforms": {
         "label": "Plataformas de redes sociales"
-      },
-      "statisticsNeedProject": {
-        "title": "Elige un proyecto para ver el rendimiento",
-        "body": "El rendimiento de las cuentas pertenece a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
       }
     },
     "Error": {

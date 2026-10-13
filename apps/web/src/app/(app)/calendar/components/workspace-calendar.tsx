@@ -729,11 +729,14 @@ function CalendarView({
             const start = eventInfo.event.start;
             if (item.kind === "socialPost")
               return (
-                <SocialPostCalendarEvent
-                  item={item}
-                  timeZone={timeZone}
-                  variant={socialPostVariant}
-                />
+                <div className="w-full max-w-full min-w-0 overflow-hidden">
+                  <SocialPostCalendarEvent
+                    item={item}
+                    showThumb={socialOnly && view === "week"}
+                    timeZone={timeZone}
+                    variant={socialPostVariant}
+                  />
+                </div>
               );
             return (
               <CalendarEvent
@@ -1454,7 +1457,9 @@ export function WorkspaceCalendar({
           onDateClick={handleDateClick}
           runHandlers={runHandlers}
           socialOnly={socialOnly}
-          socialPostVariant={socialPostsOnly ? "preview" : "compact"}
+          socialPostVariant={
+            socialPostsOnly && view !== "week" ? "preview" : "compact"
+          }
           sources={sources}
           timeZone={timeZone}
           view={view}

@@ -17,7 +17,7 @@ import {
 } from "./coworker-workspace-access";
 
 /** Personal owners and organization owners/admins can enable their own Vendor's Coworker. */
-export async function userCanGrantCoworkerWorkspaceAccess(
+async function userCanGrantCoworkerWorkspaceAccess(
   userId: string,
   workspaceId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -39,7 +39,7 @@ export async function userCanGrantCoworkerWorkspaceAccess(
   );
 }
 
-export interface UpsertCoworkerWorkspaceAccessParams {
+interface UpsertCoworkerWorkspaceAccessParams {
   coworkerId: string;
   workspaceId: string;
   actorUserId: string;
@@ -79,13 +79,13 @@ async function upsertGrantedAccess(
   return access;
 }
 
-export interface PendingCoworkerAccessNotify {
+interface PendingCoworkerAccessNotify {
   coworkerId: string;
   workspaceId: string;
   accessId: string;
 }
 
-export interface UpsertCoworkerWorkspaceAccessResult {
+interface UpsertCoworkerWorkspaceAccessResult {
   access: CoworkerWorkspaceAccessWithCoworker;
   /**
    * Set only when this call created a new PENDING row. Callers should notify

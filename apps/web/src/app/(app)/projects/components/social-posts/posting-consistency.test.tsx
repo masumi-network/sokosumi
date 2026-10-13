@@ -42,8 +42,13 @@ describe("PostingConsistency", () => {
     expect(
       screen.getByRole("heading", { name: "Posting consistency" }),
     ).toBeVisible();
-    expect(screen.getByText("Posts per day")).toBeVisible();
-    expect(screen.getByText("Engagement per day")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Posts per day" })).toHaveClass(
+      "h-11",
+      "md:h-8",
+    );
+    expect(
+      screen.getByRole("button", { name: "Engagement per day" }),
+    ).toHaveClass("h-11", "md:h-8");
     expect(screen.getByText("Current streak")).toBeVisible();
     expect(screen.getByText("Longest streak")).toBeVisible();
     expect(screen.getByText("None")).toBeVisible();
