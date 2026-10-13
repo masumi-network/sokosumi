@@ -17,6 +17,7 @@ import {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_CAPABILITIES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRuntime,
@@ -662,6 +663,21 @@ const TURN_CHAT_ATTRIBUTION_INCLUDE = {
     },
   },
 } as const;
+
+/**
+ * Whether the turn was for a change. Chat turns a person asked for carry every
+ * tool, so the tools alone no longer say so; the route Jev read does.
+ */
+function actionRequested(
+  route: string | null,
+  capabilityNames: readonly string[],
+): boolean {
+  return (
+    route !== "DIRECT_RESPONSE" &&
+    route !== "CLARIFY" &&
+    capabilityNames.some((capability) => ACTION_CAPABILITIES.has(capability))
+  );
+}
 
 /** A turn the bot decided to take rather than one a person asked for. */
 function unpromptedTurn(turn: { source: string; chainDepth: number }): boolean {
@@ -1815,9 +1831,7 @@ export class SokoBotControlPlane {
               tx,
               input.turnId,
               turn.finalAnswer ?? "",
-              (turn.capabilityNames ?? []).some((capability) =>
-                ACTION_CAPABILITIES.has(capability),
-              ),
+              actionRequested(turn.route, turn.capabilityNames ?? []),
               turn.responseContract &&
                 typeof turn.responseContract === "object" &&
                 !Array.isArray(turn.responseContract)
@@ -2377,6 +2391,20 @@ export class SokoBotControlPlane {
         candidateTaskIds: classifierContext.namedTaskIds,
       };
     }
+    // A person asking in chat — owner or teammate — gets every tool. Jev's
+    // route is a hint for the bot and the record, not a gate: a misread
+    // "yes, go ahead" must not leave the bot saying it cannot create the
+    // table it just offered. Only turns nobody typed — schedules, events,
+    // ingest, another assistant — stay scoped to their route.
+    const personAsked =
+      source === "CHAT" &&
+      !input.presetRoute &&
+      !input.chat?.askedByBot &&
+      (input.chat?.chainDepth ?? 0) === 0;
+    if (personAsked) {
+      const { unsureRoute: _unsure, ...hint } = classification.classification;
+      classification.classification = hint;
+    }
     if (source === "SCHEDULE" && classification.failed) {
       throw new SokoBotRetryableStartError(
         "Soko Bot classifier unavailable for scheduled turn",
@@ -2439,7 +2467,11 @@ export class SokoBotControlPlane {
       classification.classification,
     );
     const routeCapabilities = (
-      writes ? limitSokoBotWrites(classified, writes) : classified
+      personAsked
+        ? SOKO_BOT_CAPABILITIES
+        : writes
+          ? limitSokoBotWrites(classified, writes)
+          : classified
     ).filter(
       (capability) =>
         !input.presetRoute ||

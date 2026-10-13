@@ -442,13 +442,15 @@ describe("SokoBotControlPlane lifecycle", () => {
   });
 
   it.each([
-    { capability: "create_schedule", guarded: true },
-    { capability: "post_chat", guarded: true },
-    { capability: "update_memory", guarded: true },
-    { capability: "read_memory", guarded: false },
+    { capability: "create_schedule", route: "MANAGE_WORK", guarded: true },
+    { capability: "post_chat", route: "DELEGATE_TASK", guarded: true },
+    { capability: "update_memory", route: "MANAGE_WORK", guarded: true },
+    { capability: "read_memory", route: "MANAGE_WORK", guarded: false },
+    // A person's question carries every tool; the route says nothing was asked.
+    { capability: "create_task", route: "DIRECT_RESPONSE", guarded: false },
   ])(
-    "uses actual granted capability $capability at settlement",
-    async ({ capability, guarded }) => {
+    "uses actual granted capability $capability on $route at settlement",
+    async ({ capability, route, guarded }) => {
       turnFindUniqueMock.mockResolvedValueOnce({
         sokoBotId: BOT_ID,
         userId: "user_1",
@@ -457,7 +459,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         costUsdMicros: 0n,
         status: "RUNNING",
         finalAnswer: "Unsupported success claim",
-        route: "DIRECT_RESPONSE",
+        route,
         capabilityNames: [capability],
         leaseToken: null,
         cancellationRequestedAt: null,
@@ -739,14 +741,13 @@ describe("SokoBotControlPlane lifecycle", () => {
   );
 
   it.each([
-    ["Remember my preference for short replies", "MEMORY", "update_memory"],
-    ["Remind me tomorrow", "SCHEDULE", "create_schedule"],
-    ["Send a message to the team", "CHAT", "post_chat"],
-    ["Upload the file to Drive", "FILE", "upload_file"],
-    ["Send an email to Nina", "INTEGRATION", "run_integration_tool"],
+    ["Remember my preference for short replies", "MEMORY"],
+    ["Remind me tomorrow", "SCHEDULE"],
+    ["yes", "INTEGRATION"],
+    ["Send an email to Nina", "INTEGRATION"],
   ] as const)(
-    "persists narrowed runtime authority for %s",
-    async (message, writeScope, allowed) => {
+    "grants a person's chat turn every tool whatever Jev reads: %s",
+    async (message, writeScope) => {
       jevEvaluate.mockResolvedValue(jevRoute("MANAGE_WORK", { writeScope }));
       botFindFirstMock.mockResolvedValue(adminBot());
       botFindUniqueMock.mockResolvedValue(adminBot());
@@ -777,18 +778,15 @@ describe("SokoBotControlPlane lifecycle", () => {
       });
       const capabilities =
         turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames;
-      expect(capabilities).toContain(allowed);
-      // The owner asked: the sandbox comes with every owner route.
-      expect(capabilities).toContain("bash");
-      expect(capabilities).toContain("web_search");
-      for (const denied of [
-        "create_task",
-        "update_task",
-        "archive_task",
-        "assign_task",
-        "hire_agent",
-      ])
-        expect(capabilities).not.toContain(denied);
+      expect(capabilities).toEqual(
+        expect.arrayContaining([
+          "create_table",
+          "write_table_rows",
+          "search_inbox",
+          "create_task",
+          "bash",
+        ]),
+      );
       expect(result.capabilities).toEqual(capabilities);
     },
   );
