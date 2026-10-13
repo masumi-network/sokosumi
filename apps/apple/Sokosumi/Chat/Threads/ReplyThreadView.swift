@@ -306,39 +306,38 @@ import SwiftUI
       room: Components.Schemas.ChatRoom?,
       rowContext: TranscriptContext
     ) -> some View {
-      let gaps = workspaces.thread.transcript.timeline.historyGapMessageIds
+      let transcript = workspaces.thread.transcript
       return ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
-        let hasGap = gaps.contains(message.id)
-        let previous = index > 0 && !hasGap ? messages[index - 1] : nil
-        let streaming = isCoworkerStreamOverlay(message)
-        let thinking = streaming && message.content.isEmpty && workspaces.directStream.isBusy
-        let outbox = workspaces.thread.transcript.outbox
-        let shell = outbox.shells.first { $0.id == message.id }
+        let row = transcript.row(at: index, of: messages, context: rowContext, streamBusy: workspaces.directStream.isBusy, now: Date())
         VStack(alignment: .leading, spacing: 0) {
-          if hasGap {
+          if let gap = row.gap {
             // Web's thread panel has no gap row (a reply jump is Apple's), so this stays a
             // tap; the row and its failure follow the room's gap row.
-            PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.thread.transcript.timeline.boundaryLoads.status(of: message.id)) {
+            PageBoundaryRow(copy: .transcript(isGap: true), status: gap) {
               workspaces.loadThreadPage(.boundary(message.id))
             }
           }
-          if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt, now: Date()) {
+          if let label = row.dayLabel {
             DaySeparatorRow(label: label)
           }
-          if let status = roomStatusText(message) {
-            RoomStatusRow(text: status)
-              .jumpSpotlightRow(messageId: message.id)
-          } else {
-            MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.document(for: message), message: message, row: MessageRow(message, in: rowContext, previous: previous, isNewest: false),
-                           outbound: shell, sentAt: outbox.sentAt[message.id],
+          switch row.content {
+          case .status:
+            if let status = roomStatusText(message) {
+              RoomStatusRow(text: status)
+                .jumpSpotlightRow(messageId: message.id)
+            }
+          case let .bubble(bubble):
+            MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.document(for: message), message: message,
+                           row: bubble.row,
+                           outbound: bubble.outbound, sentAt: bubble.sentAt,
                            perform: { rowActions.perform($0, on: message) },
                            canRetryMention: workspaces.canRetryMention(message),
-                           jumpMark: workspaces.thread.transcript.jumpTarget.flatMap { $0.messageId == message.id ? $0.mark : nil },
+                           jumpMark: bubble.jumpMark,
                            editing: workspaces.messageEditing,
                            onSendToSelf: { try await workspaces.sendMessageToSelf(message) },
                            sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
                            loadResultPreviews: { try await workspaces.messageResultPreviews(message) },
-                           streamThinking: thinking)
+                           streamThinking: bubble.thinking)
               .jumpSpotlightRow(messageId: message.id)
           }
         }
