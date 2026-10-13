@@ -9,16 +9,10 @@ public extension WorkspaceState {
   }
 
   func saveMessageEdit() async {
-    guard let client = resolveClient() else { return }
     let generation = room.timeline.generation
-    do {
-      guard let message = try await messageEditing.save(client: client, organizationSlug: selection?.workspace.organizationSlug),
-            generation == room.timeline.generation, message.roomId == transcriptRoomId else { return }
-      loaded.apply(eventType: .update, message: message)
-    } catch {
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
-    }
+    // The editor keeps its own failure to show; a rejected session also signs out.
+    guard let message = try? await request({ _, client, slug in try await messageEditing.save(client: client, organizationSlug: slug) }),
+          generation == room.timeline.generation, message.roomId == transcriptRoomId else { return }
+    loaded.apply(eventType: .update, message: message)
   }
 }

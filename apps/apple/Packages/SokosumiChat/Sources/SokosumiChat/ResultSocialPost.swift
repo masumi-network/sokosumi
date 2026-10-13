@@ -47,7 +47,7 @@ public struct ResultSocialPost: Equatable, Sendable {
   }
 
   /// Web's grid shows at most four pictures (`PreviewMediaGrid`).
-  public static let visibleMediaLimit = 4
+  private static let visibleMediaLimit = 4
   /// LinkedIn folds after three lines or 210 characters, Instagram after two lines or 125.
   public static let linkedInFold = (maxChars: 210, maxLines: 3)
   public static let instagramFold = (maxChars: 125, maxLines: 2)

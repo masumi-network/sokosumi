@@ -10,22 +10,13 @@ public extension WorkspaceState {
 
   /// Quotes the message into the caller's Self Direct and returns the saved message there.
   func sendMessageToSelf(_ message: Components.Schemas.ChatRoomMessage) async throws -> Components.Schemas.ChatRoomMessage {
-    guard let client = resolveClient() else {
-      throw ChatServiceError.unauthorized("Log in to send messages to yourself.")
+    let saved = try await request(signIn: "Log in to send messages to yourself.") { service, client, slug in
+      try await service.sendMessageToSelf(client: client, roomId: message.roomId, messageId: message.id, organizationSlug: slug)
     }
-    do {
-      let saved = try await ChatService().sendMessageToSelf(client: client, roomId: message.roomId, messageId: message.id,
-                                                            organizationSlug: selection?.workspace.organizationSlug)
-      // Open uses openRoomLink, which only selects listed rooms; Core's chat_rooms_changed for the Self Direct may land after the alert.
-      if !rooms.contains(where: { $0.id == saved.roomId }) {
-        await refreshRooms()
-      }
-      return saved
-    } catch {
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
-      throw error
+    // Open uses openRoomLink, which only selects listed rooms; Core's chat_rooms_changed for the Self Direct may land after the alert.
+    if !rooms.contains(where: { $0.id == saved.roomId }) {
+      await refreshRooms()
     }
+    return saved
   }
 }

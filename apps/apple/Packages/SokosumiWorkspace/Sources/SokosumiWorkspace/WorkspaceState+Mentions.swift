@@ -27,25 +27,19 @@ public extension WorkspaceState {
           case let .failed(mentionId, sourceMessageId?) = MentionThoughtShell(message: shell) else { return }
     let request = MentionRetryRequest(generation: room.timeline.generation, shellId: shell.id)
     guard !pendingMentionRetries.contains(request) else { return }
-    guard let client = resolveClient() else {
-      throw ChatServiceError.unauthorized("Log in to retry mentions.")
-    }
     pendingMentionRetries.insert(request)
     defer { pendingMentionRetries.remove(request) }
     replaceLoaded(MentionThoughtShell.retrying(shell, startedAt: now))
     do {
-      let source = try await ChatService().retryMention(
-        client: client, roomId: shell.roomId, messageId: sourceMessageId, mentionId: mentionId,
-        organizationSlug: selection?.workspace.organizationSlug
-      )
+      let source = try await self.request(signIn: "Log in to retry mentions.") { service, client, slug in
+        try await service.retryMention(client: client, roomId: shell.roomId, messageId: sourceMessageId, mentionId: mentionId,
+                                       organizationSlug: slug)
+      }
       guard request.generation == room.timeline.generation, !Task.isCancelled else { return }
       replaceLoaded(source)
     } catch {
       guard request.generation == room.timeline.generation, !Task.isCancelled else { return }
       replaceLoaded(shell)
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
       throw error
     }
   }
