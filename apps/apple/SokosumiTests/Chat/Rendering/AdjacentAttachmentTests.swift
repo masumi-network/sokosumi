@@ -93,7 +93,7 @@
         let shot = try bitmap(host)
         #expect(host.fittingSize.height < 580, "The first two images share a compact tile row.")
         let data = try #require(shot.representation(using: .png, properties: [:]))
-        try Attachment.record(data, named: "adjacent-attachments-\(dark ? "dark" : "light").png")
+        Attachment.record(data, named: "adjacent-attachments-\(dark ? "dark" : "light").png")
       }
 
       /// Row 15c (web's own test texts): a file link inside a sentence is a link in that line of text, while the
