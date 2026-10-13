@@ -269,7 +269,7 @@ struct WorkspaceStateTests {
   @Test(arguments: ["stay", "leave", "reset"], [false, true])
   func channelMembershipRespectsNavigation(action: String, joining: Bool) async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -316,7 +316,7 @@ struct WorkspaceStateTests {
 
   @Test func channelUpdateReplacesRoomWithoutNavigating() async throws {
     let edited = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, roomsBody(names: ["general", "design"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -344,7 +344,7 @@ struct WorkspaceStateTests {
   @Test func channelLifecycleMovesRoomsBetweenSidebarAndArchive() async throws {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let design = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, auth, transport) = try lifecycleFixture(general: general, design: design)
+    let (state, _, transport) = try lifecycleFixture(general: general, design: design)
     await state.reload()
     await waitForTranscriptIdle(state)
     #expect(state.transcriptRoomId == general)
@@ -407,7 +407,7 @@ struct WorkspaceStateTests {
     }
     let unavailable = #"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/users/me/organizations/org_1/member","method":"GET"}}"#
     let owner = envelope(#"{"id":"member-me","userId":"user_1","organizationId":"org_1","role":"owner","seatAssignedAt":null,"createdAt":"2026-01-01T00:00:00.000Z"}"#)
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -435,7 +435,7 @@ struct WorkspaceStateTests {
   @Test func channelLifecycleWaitsForOtherChannelMutations() async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
     let general = "550e8400-e29b-41d4-a716-446655440000"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -461,7 +461,7 @@ struct WorkspaceStateTests {
 
   @Test(arguments: ["stay", "leave", "reset"], [true, false]) func participantDirectRespectsNavigation(action: String, fromPicker: Bool) async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -516,7 +516,7 @@ struct WorkspaceStateTests {
       .replacingOccurrences(of: "\"isSelfDirect\":false", with: "\"isSelfDirect\":true")
       .replacingOccurrences(of: "\"userMembers\":[]",
                             with: #""userMembers":[{"id":"user_1","name":"Me","email":"me@example.com","image":null,"presence":"online"}]"#)
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -548,7 +548,7 @@ struct WorkspaceStateTests {
 
   @Test func failedWorkspaceSwitchDiscardsPendingDirect() async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -596,7 +596,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func reloadReadySelectsPersonalDefaultAndLoadsRooms() async throws {
-    let (state, auth, transport, defaults) = try ephemeralState([
+    let (state, _, transport, defaults) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -625,7 +625,7 @@ struct WorkspaceStateTests {
     } else {
       (200, #"{"data":[\#(order)],"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
     }
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["a", "b", "c"], pinned: true)),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -665,7 +665,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func sidebarRefreshFailureThenRetryPreservesOpenTranscript() async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -692,7 +692,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func reloadBlockedGateLoadsNoRooms() async throws {
-    let (state, auth, transport, _) = try ephemeralState([(200, noWorkspacesBody)])
+    let (state, _, transport, _) = try ephemeralState([(200, noWorkspacesBody)])
     await state.reload()
     #expect(state.phase == .blocked(gate: .identityOnboarding))
     #expect(state.rooms.isEmpty)
@@ -700,7 +700,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func switchSuccessCommitsSelectionAndRooms() async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -729,7 +729,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func switchFailureKeepsOldSelectionAndRooms() async throws {
-    let (state, auth, _, _) = try ephemeralState([
+    let (state, _, _, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -751,7 +751,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func selectWhileLoadingIgnoresSecondSwitch() async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -778,7 +778,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func resetClearsEverything() async throws {
-    let (state, auth, _, _) = try ephemeralState([
+    let (state, _, _, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -805,7 +805,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func switchRoomsListFailureRestoresPreviousPreference() async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -842,7 +842,7 @@ struct WorkspaceStateTests {
 
   @Test func openRoomReplacesListUnreadWithReadDTO() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440030"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, unreadRoomsBody(id: roomID, unread: 3)),
@@ -879,7 +879,7 @@ struct WorkspaceStateTests {
     let historyFailure = (500, """
     {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms/\(roomID)/messages","method":"GET"}}
     """)
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, unreadRoomsBody(id: roomID, unread: 3)),
@@ -902,7 +902,7 @@ struct WorkspaceStateTests {
 
   @Test func savedRoomRestoredOnReload() async throws {
     let savedID = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, auth, _, defaults) = try ephemeralState([
+    let (state, _, _, defaults) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general", "random"])),
@@ -917,7 +917,7 @@ struct WorkspaceStateTests {
 
   @Test func staleSavedRoomFallsBackToFirst() async throws {
     let firstID = "550e8400-e29b-41d4-a716-446655440000"
-    let (state, auth, _, defaults) = try ephemeralState([
+    let (state, _, _, defaults) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -932,7 +932,7 @@ struct WorkspaceStateTests {
 
   @Test func selectRoomPersistsAndOpensTranscript() async throws {
     let secondID = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, auth, _, defaults) = try ephemeralState([
+    let (state, _, _, defaults) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general", "random"])),
@@ -957,7 +957,7 @@ struct WorkspaceStateTests {
 
   @Test func selectRoomNilKeepsOpenTranscript() async throws {
     let selected = "550e8400-e29b-41d4-a716-446655440000"
-    let (state, auth, _, _) = try ephemeralState([
+    let (state, _, _, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -983,7 +983,7 @@ struct WorkspaceStateTests {
   @Test func changingRoomDropsPendingOutbound() async throws {
     let firstID = "550e8400-e29b-41d4-a716-446655440000"
     let secondID = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general", "random"])),
@@ -1021,7 +1021,6 @@ struct WorkspaceStateTests {
 
   @Test func missingThreadClientEndsInitialLoading() async throws {
     let (state, _, _, _) = try ephemeralState([])
-    let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     state.clientResolver = nil
     #expect(state.resolveClient() == nil)
     state.thread.transcript.timeline.reset(roomId: "room", parentMessageId: "parent")
@@ -1034,7 +1033,7 @@ struct WorkspaceStateTests {
   }
 
   @Test(arguments: ["Me", ""]) func outboundSenderUsesEmailForEmptyName(name: String) async throws {
-    let (state, auth, _, _) = try ephemeralState([
+    let (state, _, _, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody.replacingOccurrences(of: "\"name\":\"Me\"", with: "\"name\":\"\(name)\"")),
       (200, roomsBody(names: []))
     ])
@@ -1065,7 +1064,7 @@ struct WorkspaceStateTests {
     responses.append((200, transcriptPageBody(messages: [reply], nextCursor: "older-replies")))
     // The landed replies change what the reader sees: the Thread is Looked again and the room read.
     responses += attention
-    let (state, auth, transport, _) = try ephemeralState(responses)
+    let (state, _, transport, _) = try ephemeralState(responses)
     await state.reload()
     await waitForTranscriptIdle(state)
     if olderRoomFailure {
@@ -1105,7 +1104,7 @@ struct WorkspaceStateTests {
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(rootID)\"")
     let later = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440036", roomId: roomID, content: "Later")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(rootID)\"")
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [root], nextCursor: nil)),
@@ -1138,7 +1137,7 @@ struct WorkspaceStateTests {
 
   @Test func failedReadKeepsResolvedHistory() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440035"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, unreadRoomsBody(id: roomID, unread: 2)),
@@ -1167,7 +1166,7 @@ struct WorkspaceStateTests {
 
   @Test func hiddenHistoryDefersReadUntilWindowBecomesVisible() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440033"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody),
       (200, unreadRoomsBody(id: roomID, unread: 2)),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -1188,7 +1187,7 @@ struct WorkspaceStateTests {
     let messageID = "550e8400-e29b-41d4-a716-446655440034"
     let page = transcriptPageBody(messages: [transcriptMessage(id: messageID, roomId: roomID, content: "first")], nextCursor: nil)
     let updatedPage = transcriptPageBody(messages: [transcriptMessage(id: messageID, roomId: roomID, content: "updated")], nextCursor: nil)
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody),
       (200, unreadRoomsBody(id: roomID, unread: 2)),
       (200, page), (200, roomReadBody(id: roomID, unread: 0)),
@@ -1215,7 +1214,7 @@ struct WorkspaceStateTests {
 
   @Test func failedOlderPageKeepsResolvedHistory() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440033"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, unreadRoomsBody(id: roomID, unread: 1)),
@@ -1252,7 +1251,7 @@ struct WorkspaceStateTests {
     var gate: CheckedContinuation<Void, Never>?
     var failures = 0
     var retainedByJob: NSObject? = NSObject()
-    weak var jobLifetime = retainedByJob
+    weak let jobLifetime = retainedByJob
     outbox.enqueue(shell, send: { [retainedByJob] in
       _ = retainedByJob
       await withCheckedContinuation { gate = $0 }
@@ -1337,7 +1336,7 @@ struct WorkspaceStateTests {
     let confirmedID = "550e8400-e29b-41d4-a716-446655440501"
     let historical = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440500", roomId: roomID, content: "earlier")
     let confirmed = transcriptMessage(id: confirmedID, roomId: roomID, content: "hello")
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: historyIncludesSend ? [historical, confirmed] : [historical], nextCursor: nil)),
@@ -1370,7 +1369,7 @@ struct WorkspaceStateTests {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let confirmedID = "550e8400-e29b-41d4-a716-446655440501"
     let sentAt = Date(timeIntervalSince1970: 1_788_868_800)
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -1404,7 +1403,7 @@ struct WorkspaceStateTests {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let confirmedID = "550e8400-e29b-41d4-a716-446655440502"
     let roster = roomsBody(names: ["general"]).replacingOccurrences(of: "\"userMembers\":[]", with: #""userMembers":[{"id":"peer","name":"Peer","email":"peer@example.com","presence":"online"}]"#)
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roster),
@@ -1445,7 +1444,7 @@ struct WorkspaceStateTests {
   @Test func skillsRideTheSendAndItsRetry() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let confirmedID = "550e8400-e29b-41d4-a716-446655440505"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -1480,7 +1479,7 @@ struct WorkspaceStateTests {
 
   /// Row 42: the composer's skill picker reads Core's catalog through the signed-in client.
   @Test func theSkillPickerSearchesCoresCatalog() async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, #"{"data":[{"id":"a/b/c","name":"c","source":"a/b","description":null,"installs":5}],"meta":{"timestamp":"\#(timestamp)","requestId":"req-1"}}"#)
     ], visible: false)
     let skills = try await state.searchSkills("  c ")
@@ -1490,7 +1489,7 @@ struct WorkspaceStateTests {
 
   @Test func failedSendRemoveDropsLocalShellOnly() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -1514,7 +1513,7 @@ struct WorkspaceStateTests {
   @Test func inFlightSendQueuesASecond() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let confirmedID = "550e8400-e29b-41d4-a716-446655440503"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -1543,7 +1542,7 @@ struct WorkspaceStateTests {
   @Test func failedSwitchDuringSendSettlesOutboundAndFreesSlot() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let confirmedID = "550e8400-e29b-41d4-a716-446655440504"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -1579,7 +1578,7 @@ struct WorkspaceStateTests {
   @Test func directSendUsesStreamAndSettlesHistoryWithoutClassicOutbox() async throws {
     let roomId = "550e8400-e29b-41d4-a716-446655440000"
     let stream = "data: {\"type\":\"start\",\"messageId\":\"answer\"}\n\ndata: {\"type\":\"text-start\",\"id\":\"text\"}\n\ndata: {\"type\":\"text-delta\",\"id\":\"text\",\"delta\":\"Answer\"}\n\ndata: {\"type\":\"text-end\",\"id\":\"text\"}\n\ndata: {\"type\":\"finish\"}\n\ndata: [DONE]\n\n"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, stream),
       (200, transcriptPageBody(messages: [transcriptMessage(id: "persisted", roomId: roomId, content: "Answer")], nextCursor: nil))
@@ -1626,7 +1625,7 @@ struct WorkspaceStateTests {
       (200, transcriptPageBody(messages: [root], nextCursor: nil)),
       (200, transcriptPageBody(messages: [reply], nextCursor: nil))
     ]
-    let (state, auth, transport, _) = try ephemeralState(responses, visible: false)
+    let (state, _, transport, _) = try ephemeralState(responses, visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
     let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender], formerUserMembers: [], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.room.timeline.reset(roomId: roomId)
@@ -1656,7 +1655,7 @@ struct WorkspaceStateTests {
     let stream = "data: {\"type\":\"start\",\"messageId\":\"answer\"}\n\ndata: {\"type\":\"text-start\",\"id\":\"text\"}\n\ndata: {\"type\":\"text-delta\",\"id\":\"text\",\"delta\":\"Answer\"}\n\ndata: {\"type\":\"text-end\",\"id\":\"text\"}\n\ndata: {\"type\":\"finish\"}\n\ndata: [DONE]\n\n"
     let root = transcriptMessage(id: "root", roomId: roomId, content: "Parent")
     let updatedRoot = transcriptMessage(id: "root", roomId: roomId, content: "Parent edited")
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [root], nextCursor: nil)),
       (200, stream),
       (200, transcriptPageBody(messages: [updatedRoot], nextCursor: nil)),
@@ -1699,7 +1698,7 @@ struct WorkspaceStateTests {
   @Test func olderHistoryDoesNotLoadWhileDirectStreamIsBusy() async throws {
     let roomId = "550e8400-e29b-41d4-a716-446655440000"
     let stream = "data: {\"type\":\"start\",\"messageId\":\"answer\"}\n\ndata: {\"type\":\"finish\"}\n\ndata: [DONE]\n\n"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "newest", roomId: roomId, content: "newest")], nextCursor: "older")),
       (200, stream),
       (200, transcriptPageBody(messages: [transcriptMessage(id: "persisted", roomId: roomId, content: "Answer")], nextCursor: nil))
@@ -1921,7 +1920,7 @@ extension WorkspaceStateTests {
     let response = createdMessageBody(id: messageId, roomId: roomId, content: "Changed")
       .replacingOccurrences(of: "\"editedAt\":null", with: "\"editedAt\":\"2026-01-02T00:00:00.000Z\"")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: reply ? "\"parentMessageId\":\"parent\"" : "\"parentMessageId\":null")
-    let (state, auth, _, _) = try ephemeralState([(200, response)], visible: false)
+    let (state, _, _, _) = try ephemeralState([(200, response)], visible: false)
     var source = chatRoomMessage(from: .init(clientTurnId: "edit", roomId: roomId, content: "Original",
                                              createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
@@ -1992,7 +1991,7 @@ extension WorkspaceStateTests {
     let response = createdMessageBody(id: messageId, roomId: roomId, content: "")
       .replacingOccurrences(of: "\"deletedAt\":null", with: "\"deletedAt\":\"2026-01-02T00:00:00.000Z\"")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: reply ? "\"parentMessageId\":\"parent\"" : "\"parentMessageId\":null")
-    let (state, auth, _, _) = try ephemeralState([(200, response)], visible: false)
+    let (state, _, _, _) = try ephemeralState([(200, response)], visible: false)
     var source = chatRoomMessage(from: .init(clientTurnId: "delete", roomId: roomId, content: "Original",
                                              createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
@@ -2032,7 +2031,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func failedDeletionLeavesMessageAndDraftIntact() async throws {
-    let (state, auth, _, _) = try ephemeralState([(403, "{\"message\":\"Deletion denied\"}")], visible: false)
+    let (state, _, _, _) = try ephemeralState([(403, "{\"message\":\"Deletion denied\"}")], visible: false)
     var source = chatRoomMessage(from: .init(clientTurnId: "delete", roomId: "room", content: "Original",
                                              createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
@@ -2055,7 +2054,7 @@ extension WorkspaceStateTests {
     let response = createdMessageBody(id: "reply", roomId: "room", content: "")
       .replacingOccurrences(of: "\"deletedAt\":null", with: "\"deletedAt\":\"2026-01-02T00:00:00.000Z\"")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
-    let (state, auth, transport, _) = try ephemeralState([(200, response)], visible: false)
+    let (state, _, transport, _) = try ephemeralState([(200, response)], visible: false)
     var parent = chatRoomMessage(from: .init(clientTurnId: "parent", roomId: "room", content: "Parent",
                                              createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
@@ -2121,7 +2120,7 @@ extension WorkspaceStateTests {
 
   @Test(arguments: [false, true])
   func reactionShowsBeforeCoreAnswersAndPreservesNewerContent(reply: Bool) async throws {
-    let (state, auth, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs, reply: reply))], visible: false)
+    let (state, _, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs, reply: reply))], visible: false)
     var source = reactionSource()
     state.room.timeline.reset(roomId: "room")
     if reply {
@@ -2161,7 +2160,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func lastReactionTapWinsWithOneRequestAtATime() async throws {
-    let (state, auth, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs)), (200, reactionBody(""))], visible: false)
+    let (state, _, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs)), (200, reactionBody(""))], visible: false)
     let source = reactionSource()
     state.room.timeline.reset(roomId: "room")
     state.room.timeline.messages = [source]
@@ -2190,7 +2189,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func reversedTapsEndingOnTheSentIntentSendNothingMore() async throws {
-    let (state, auth, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs))], visible: false)
+    let (state, _, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs))], visible: false)
     let source = reactionSource()
     state.room.timeline.reset(roomId: "room")
     state.room.timeline.messages = [source]
@@ -2206,7 +2205,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func pendingReactionStaysOnTopOfRealtimePatchAndFailureRollsBackOnlyThatEmoji() async throws {
-    let (state, auth, transport, _) = try ephemeralState([(500, "{\"message\":\"Could not update reaction.\"}"), (200, reactionBody(""))], visible: false)
+    let (state, _, transport, _) = try ephemeralState([(500, "{\"message\":\"Could not update reaction.\"}"), (200, reactionBody(""))], visible: false)
     var source = reactionSource()
     source.reactions = [.init(emoji: "🎉", count: 1, reactedByCurrentUser: true, reactors: [])]
     state.room.timeline.reset(roomId: "room")
@@ -2236,7 +2235,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func reactionRequestOutlivesLeavingTheRoom() async throws {
-    let (state, auth, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs))], visible: false)
+    let (state, _, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs))], visible: false)
     let source = reactionSource()
     state.room.timeline.reset(roomId: "room")
     state.room.timeline.messages = [source]
@@ -2256,7 +2255,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func failedReactionAfterLeavingTheRoomStillReportsAndClears() async throws {
-    let (state, auth, transport, _) = try ephemeralState([(403, "{\"message\":\"Denied\"}")], visible: false)
+    let (state, _, transport, _) = try ephemeralState([(403, "{\"message\":\"Denied\"}")], visible: false)
     let source = reactionSource()
     state.room.timeline.reset(roomId: "room")
     state.room.timeline.messages = [source]
@@ -2275,7 +2274,7 @@ extension WorkspaceStateTests {
   @Test func messagePinStatusDoesNotDependOnLoadedPinPages() async throws {
     let body = transcriptMessage(id: "pin", roomId: "room", content: "Pinned")
       .replacingOccurrences(of: "\"editedAt\":null", with: "\"editedAt\":null,\"pinnedAt\":\"\(timestamp)\"")
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [body], nextCursor: nil))
     ], visible: false)
     state.room.timeline.reset(roomId: "room")
@@ -2301,7 +2300,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func pinMutationsUpdateOnlyAfterSuccess() async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, #"{"data":{"messageId":"message","pinnedMessageCount":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#),
       (403, #"{"message":"Denied"}"#)
     ], visible: false)
@@ -2323,7 +2322,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func oldPinMutationCannotUpdateNewRoom() async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, #"{"data":{"messageId":"message","pinnedMessageCount":0},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#)
     ], visible: false)
     let room = generalChannel()
@@ -2345,7 +2344,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func historicalWindowRetainsLiveHeadWithoutMarkingRead() async throws {
-    let (state, auth, _, _) = try ephemeralState([
+    let (state, _, _, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "old", roomId: "room", content: "Old")], nextCursor: nil))
     ], visible: false)
     state.room.timeline.reset(roomId: "room")
@@ -2366,7 +2365,7 @@ extension WorkspaceStateTests {
   @Test func returningToLatestReadsTheRoom() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440033"
     let latest = transcriptPageBody(messages: [transcriptMessage(id: "new", roomId: roomID, content: "New")], nextCursor: "c")
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody),
       (200, unreadRoomsBody(id: roomID, unread: 2)),
       (200, latest), (200, roomReadBody(id: roomID, unread: 0)),
@@ -2387,7 +2386,7 @@ extension WorkspaceStateTests {
 
   @Test func directSendFromHistoryReturnsToLatestBeforeStreaming() async throws {
     let room = coworkerDirect(roomId: "room")
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "old", roomId: room.id, content: "Old")], nextCursor: nil)),
       (500, #"{"message":"Unavailable"}"#),
       (500, #"{"message":"Unavailable"}"#)
@@ -2428,7 +2427,7 @@ extension WorkspaceStateTests {
 
   @Test func sendingFromHistoryPreservesLoadedRowsAndPendingPinMutation() async throws {
     let roomId = "550e8400-e29b-41d4-a716-446655440000"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "old", roomId: roomId, content: "Old")], nextCursor: nil)),
       (200, #"{"data":{"messageId":"old","pinnedMessageCount":0},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#),
       (500, #"{"message":"Unavailable"}"#),
@@ -2462,7 +2461,7 @@ extension WorkspaceStateTests {
   @Test(arguments: ["success", "failure", "switch"])
   func unfurlRemovalPreservesCurrentMessage(outcome: String) async throws {
     let response = transcriptMessage(id: "message", roomId: "room", content: "Old content")
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: [])),
       (outcome == "failure" ? 403 : 200, outcome == "failure" ? #"{"message":"Denied"}"# : "{\"data\":\(response),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}")
@@ -2519,7 +2518,7 @@ extension WorkspaceStateTests {
     let parentRow = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
     let recent = transcriptMessage(id: "recent", roomId: "room", content: "Recent").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
     let older = transcriptMessage(id: "old", roomId: "room", content: "Old").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [parentRow], nextCursor: nil)),
       (200, transcriptPageBody(messages: [recent], nextCursor: "before-recent")),
       (200, transcriptPageBody(messages: [older], nextCursor: "before-old"))
@@ -2544,7 +2543,7 @@ extension WorkspaceStateTests {
     let deleted = transcriptMessage(id: "old", roomId: "room", content: "")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
       .replacingOccurrences(of: "\"deletedAt\":null", with: "\"deletedAt\":\"2026-01-02T00:00:00.000Z\"")
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [parentRow], nextCursor: nil)),
       (200, transcriptPageBody(messages: [deleted], nextCursor: nil))
     ], visible: false)
@@ -2564,7 +2563,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func searchReplyCannotOpenAfterRoomSwitch() async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "parent", roomId: "room", content: "Parent")], nextCursor: nil)),
       (200, """
       {"data":{"parentMessage":\(transcriptMessage(id: "parent", roomId: "room", content: "Parent")),"replyCount":1,"lastReplyAt":"\(timestamp)","unreadReplyCount":0,"lastUnreadReplyAt":null,"hasLooked":true},"meta":{"timestamp":"\(timestamp)","requestId":"test"}}
@@ -2592,7 +2591,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func messageLinkLoadsRoomContextAndRequestsHighlight() async throws {
-    let (state, auth, _, _) = try ephemeralState([
+    let (state, _, _, _) = try ephemeralState([
       (200, createdMessageBody(id: "old", roomId: "room", content: "Old")),
       (200, transcriptPageBody(messages: [transcriptMessage(id: "old", roomId: "room", content: "Old")], nextCursor: nil))
     ], visible: false)
@@ -2607,7 +2606,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func messageLinkDoesNotNavigateAfterRoomSwitch() async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, createdMessageBody(id: "old", roomId: "room", content: "Old"))
     ], visible: false)
     defer { state.reset() }
@@ -2625,7 +2624,7 @@ extension WorkspaceStateTests {
   }
 
   @Test(arguments: [403, 404]) func unreadableMessageLinkStopsWithoutContextRequest(status: Int) async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (status, #"{"error":"Not Found","message":"Not found","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/messages","method":"GET"}}"#)
     ], visible: false)
     defer { state.reset() }
@@ -2639,7 +2638,7 @@ extension WorkspaceStateTests {
   @Test func deletedMessageLinkIsUnavailableWithoutContextRequest() async throws {
     let deleted = createdMessageBody(id: "gone", roomId: "room", content: "")
       .replacingOccurrences(of: "\"deletedAt\":null", with: "\"deletedAt\":\"2026-01-02T00:00:00.000Z\"")
-    let (state, auth, transport, _) = try ephemeralState([(200, deleted)], visible: false)
+    let (state, _, transport, _) = try ephemeralState([(200, deleted)], visible: false)
     defer { state.reset() }
     state.room.timeline.reset(roomId: "room")
     #expect(try await state.openMessage("gone") == .unavailable)
@@ -2668,7 +2667,7 @@ extension WorkspaceStateTests {
     let parent = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
     let reply = transcriptMessage(id: "reply", roomId: "room", content: "Reply").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
     let lookup = createdMessageBody(id: "reply", roomId: "room", content: "Reply").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
-    let (state, auth, _, _) = try ephemeralState([
+    let (state, _, _, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [parent], nextCursor: nil)),
       (200, lookup),
       (200, transcriptPageBody(messages: [reply], nextCursor: nil))
@@ -2686,7 +2685,7 @@ extension WorkspaceStateTests {
   @Test func aReplyJumpMarksItsParentInTheRoom() async throws {
     let parent = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
     let reply = transcriptMessage(id: "reply", roomId: "room", content: "Reply").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [parent], nextCursor: nil)),
       (200, transcriptPageBody(messages: [reply], nextCursor: nil))
     ], visible: false)
@@ -2710,7 +2709,7 @@ extension WorkspaceStateTests {
   @Test func aReplyWindowThatFailsStillMarksTheParent() async throws {
     let parent = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
     let recent = transcriptMessage(id: "recent", roomId: "room", content: "Recent").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
-    let (state, auth, _, _) = try ephemeralState([
+    let (state, _, _, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [parent], nextCursor: nil)),
       (200, transcriptPageBody(messages: [recent], nextCursor: "before-recent")),
       (500, #"{"error":"Internal","message":"Something went wrong","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/messages","method":"GET"}}"#)
@@ -2733,7 +2732,7 @@ extension WorkspaceStateTests {
   @Test func aSameRoomQuoteOfAReplyMarksNoParent() async throws {
     let parent = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
     let reply = transcriptMessage(id: "reply", roomId: "room", content: "Reply").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
-    let (state, auth, _, _) = try ephemeralState([
+    let (state, _, _, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [parent], nextCursor: nil)),
       (200, transcriptPageBody(messages: [reply], nextCursor: nil))
     ], visible: false)
@@ -2754,7 +2753,7 @@ extension WorkspaceStateTests {
     let parent = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
     let recent = transcriptMessage(id: "recent", roomId: "room", content: "Recent").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
     let older = transcriptMessage(id: "old", roomId: "room", content: "Old").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [parent], nextCursor: nil)),
       (200, transcriptPageBody(messages: [recent], nextCursor: "before-recent")),
       (200, transcriptPageBody(messages: [older], nextCursor: nil))
@@ -2784,7 +2783,7 @@ extension WorkspaceStateTests {
   @Test func aParentOutsideTheLoadedRoomIsLeftAlone() async throws {
     let other = transcriptMessage(id: "other", roomId: "room", content: "Other")
     let reply = transcriptMessage(id: "reply", roomId: "room", content: "Reply").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [other], nextCursor: nil)),
       (200, """
       {"data":{"parentMessage":\(transcriptMessage(id: "parent", roomId: "room", content: "Parent")),"replyCount":1,"lastReplyAt":"\(timestamp)","unreadReplyCount":0,"lastUnreadReplyAt":null,"hasLooked":true},"meta":{"timestamp":"\(timestamp)","requestId":"test"}}
@@ -2804,7 +2803,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func newerMessageTargetWinsOverPausedLookup() async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "new", roomId: "room", content: "New")], nextCursor: nil)),
       (200, createdMessageBody(id: "old", roomId: "room", content: "Old"))
     ], visible: false)
@@ -2826,7 +2825,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func unknownRoomLinkDoesNotChangeSelectionOrLoadHistory() async throws {
-    let (state, auth, transport, _) = try ephemeralState([], visible: false)
+    let (state, _, transport, _) = try ephemeralState([], visible: false)
     defer { state.reset() }
     let base = try #require(URL(string: "https://example.com"))
     let url = try #require(URL(string: "https://example.com/chat/rooms/unknown?message=old"))
@@ -2837,7 +2836,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func chatLinkSelectsRoomAndWaitsForInitialHistory() async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "target", roomId: "destination", content: "Target")], nextCursor: nil))
     ], visible: false)
     defer { state.reset() }
@@ -2854,7 +2853,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func chatLinkRoomSwitchIsSupersededNotUnavailable() async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "target", roomId: "destination", content: "Target")], nextCursor: nil))
     ], visible: false)
     defer { state.reset() }
@@ -2877,7 +2876,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func transientMessageLookupFallsBackToRoomContext() async throws {
-    let (state, auth, _, _) = try ephemeralState([
+    let (state, _, _, _) = try ephemeralState([
       (500, #"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/messages","method":"GET"}}"#),
       (200, transcriptPageBody(messages: [transcriptMessage(id: "target", roomId: "room", content: "Target")], nextCursor: nil))
     ], visible: false)
@@ -2905,7 +2904,7 @@ extension WorkspaceStateTests {
   @Test func invitationAcceptListsRoomsAndOpensJoinedRoom() async throws {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let partners = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -2959,7 +2958,7 @@ extension WorkspaceStateTests {
   @Test func invitationOpenChannelReListsMissingRoom() async throws {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let partners = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -2994,7 +2993,7 @@ extension WorkspaceStateTests {
   @Test func invitationAcceptRespectsNavigation() async throws {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let partners = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general", "design"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -3025,7 +3024,7 @@ extension WorkspaceStateTests {
 
   @Test func invitationResponseWaitsForOtherChannelMutations() async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -3053,7 +3052,7 @@ extension WorkspaceStateTests {
   @Test func guestLinkJoinOpensRoom() async throws {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let partners = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -3118,7 +3117,7 @@ extension WorkspaceStateTests {
     let partners = "550e8400-e29b-41d4-a716-446655440001"
     let invitation = invitationEnvelope(#"{"id":"inv-1","roomId":"\#(partners)","roomName":"partners","organizationId":"org_1","organizationName":"Acme","email":"guest2@example.com","status":"pending","inviter":{"id":"user_1","name":"Me"},"expiresAt":"\#(timestamp)","createdAt":"\#(timestamp)"}"#)
     let link = invitationEnvelope(#"{"token":"tok","url":"https://app.sokosumi.com/chat/join/tok","roomId":"\#(partners)","createdAt":"\#(timestamp)","expiresAt":null,"revokedAt":null,"maxUses":null,"useCount":0}"#)
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, externalRoomsBody(general: general, partners: partners)),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -3160,7 +3159,7 @@ extension WorkspaceStateTests {
     let withCoworker = externalRoomJSON(partners, name: "partners", discoverability: "external", members: externalMembers, coworkers: coworker,
                                         sokoBots: externalSokoBots)
     let withoutCoworker = externalRoomJSON(partners, name: "partners", discoverability: "external", members: externalMembers, sokoBots: externalSokoBots)
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, externalRoomsBody(general: general, partners: partners)),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -3197,7 +3196,7 @@ extension WorkspaceStateTests {
   @Test func memberRemovalBeatsAnInFlightRoomList() async throws {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let partners = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, externalRoomsBody(general: general, partners: partners)),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -3227,7 +3226,7 @@ extension WorkspaceStateTests {
     let partners = "550e8400-e29b-41d4-a716-446655440001"
     let renamed = externalRoomJSON(partners, name: "partners", discoverability: "external", members: externalMembers, sokoBots: externalSokoBots)
       .replacingOccurrences(of: #""groupName":null"#, with: #""groupName":"Launch crew""#)
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, externalRoomsBody(general: general, partners: partners)),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -3357,7 +3356,7 @@ extension WorkspaceStateTests {
 
   @Test(arguments: [false, true])
   func retryMentionFlipsTheShellThenMergesTheSource(reply: Bool) async throws {
-    let (state, auth, transport) = try await mentionRetryFixture(retryResponses: [(200, envelope(mentionSourceJSON(id: "source", senderId: "user_1", status: "pending")))])
+    let (state, _, transport) = try await mentionRetryFixture(retryResponses: [(200, envelope(mentionSourceJSON(id: "source", senderId: "user_1", status: "pending")))])
     let source = try #require(state.room.timeline.messages.first)
     var shell = try #require(state.room.timeline.messages.last)
     if reply {
@@ -3398,7 +3397,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func rejectedRetryRestoresTheFailedShellWithCoreReason() async throws {
-    let (state, auth, transport) = try await mentionRetryFixture(retryResponses: [(409, coreRejection(status: "Conflict", message: "Mention is not failed"))])
+    let (state, _, transport) = try await mentionRetryFixture(retryResponses: [(409, coreRejection(status: "Conflict", message: "Mention is not failed"))])
     let shell = try #require(state.room.timeline.messages.last)
     transport.pauseMentionRetry = true
     let retry = Task { try await state.retryMention(shell, now: Date()) }
@@ -3416,7 +3415,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func retryResultAfterRoomChangeIsDropped() async throws {
-    let (state, auth, transport) = try await mentionRetryFixture(retryResponses: [(403, coreRejection(status: "Forbidden", message: "You can only retry mentions you authored"))])
+    let (state, _, transport) = try await mentionRetryFixture(retryResponses: [(403, coreRejection(status: "Forbidden", message: "You can only retry mentions you authored"))])
     let shell = try #require(state.room.timeline.messages.last)
     transport.pauseMentionRetry = true
     let retry = Task { try await state.retryMention(shell, now: Date()) }
@@ -3434,7 +3433,7 @@ extension WorkspaceStateTests {
   /// Row 38d: a Soko Bot's failed shell stays in the room's transcript like a coworker's (web #5617), offers
   /// the mentioner the same Retry, and keeps its row while the retry flips it back to Thinking.
   @Test func aSokoBotShellStaysDisplayedThroughItsRetry() async throws {
-    let (state, auth, transport) = try await mentionRetryFixture(target: .sokoBot, retryResponses: [
+    let (state, _, transport) = try await mentionRetryFixture(target: .sokoBot, retryResponses: [
       (200, envelope(mentionSourceJSON(id: "source", senderId: "user_1", status: "pending", target: .sokoBot)))
     ])
     defer { state.reset() }
@@ -3458,7 +3457,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func retryIsHiddenFromOtherMembers() async throws {
-    let (state, auth, transport) = try await mentionRetryFixture(sourceSenderId: "user_2", retryResponses: [])
+    let (state, _, transport) = try await mentionRetryFixture(sourceSenderId: "user_2", retryResponses: [])
     let shell = try #require(state.room.timeline.messages.last)
     #expect(!state.canRetryMention(shell))
     #expect(MentionThoughtShell(message: shell) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
@@ -3507,7 +3506,7 @@ extension WorkspaceStateTests {
   @Test func sendToSelfListsANewlyCreatedSelfDirectWithoutLeavingTheSourceRoom() async throws {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let you = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -3539,7 +3538,7 @@ extension WorkspaceStateTests {
   @Test func sendToSelfSkipsRoomRefreshWhenSelfDirectIsAlreadyListed() async throws {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let you = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general", "You"])),
@@ -3587,7 +3586,7 @@ private func sokoBotFeedbackFixture(_ responses: [(Int, String)]) async throws -
 extension WorkspaceStateTests {
   @Test(arguments: [true, false])
   func sokoBotFeedbackIsSentOncePerTurn(useful: Bool) async throws {
-    let (state, auth, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":\#(useful)}"#))])
+    let (state, _, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":\#(useful)}"#))])
     #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == nil)
     transport.pauseSokoBotFeedback = true
     let send = Task { try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: useful) }
@@ -3614,7 +3613,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func rejectedSokoBotFeedbackLeavesTheTurnUnrated() async throws {
-    let (state, auth, transport) = try await sokoBotFeedbackFixture([
+    let (state, _, transport) = try await sokoBotFeedbackFixture([
       (404, #"{"error":"Not Found","message":"Turn not found","meta":{"timestamp":"\#(timestamp)","requestId":"req-1","path":"/soko-bots/me/turns/x/feedback","method":"POST"}}"#),
       (200, envelope(#"{"useful":true}"#))
     ])
@@ -3632,7 +3631,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func sokoBotFeedbackResultAfterSignOutIsDropped() async throws {
-    let (state, auth, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":true}"#))])
+    let (state, _, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":true}"#))])
     transport.pauseSokoBotFeedback = true
     let send = Task { try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: true) }
     while !transport.operationIDs.contains(sokoBotFeedbackOperation) {
@@ -3647,7 +3646,7 @@ extension WorkspaceStateTests {
 
   /// The toolbar's thumbs (row 38b): unrated, locked while the POST runs, then locked on the stored rating.
   @Test func aMessagesThumbsFollowItsTurnThroughARating() async throws {
-    let (state, auth, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":false}"#))])
+    let (state, _, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":false}"#))])
     var reply = durableRoomMessage(roomId: "room_1")
     reply.metadata = try .init(additionalProperties: ["soko_bot": OpenAPIValueContainer(unvalidatedValue: ["turn_id": sokoBotTurnId])])
     #expect(state.sokoBotFeedback(for: reply) == SokoBotFeedback(turnId: sokoBotTurnId))
@@ -3684,7 +3683,7 @@ private func chatDisplayError(status: String, message: String) -> String {
 
 extension WorkspaceStateTests {
   @Test func chatDisplayPreferenceLoadsWritesAndClearsOnReset() async throws {
-    let (state, auth, transport) = try await sokoBotFeedbackFixture([
+    let (state, _, transport) = try await sokoBotFeedbackFixture([
       (200, chatDisplayBody(showRoomUnreadCount: false)),
       (200, chatDisplayBody(showRoomUnreadCount: true)),
       (200, chatDisplayBody(showRoomUnreadCount: true))
@@ -3705,7 +3704,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func rejectedChatDisplayWriteRollsBackAndRethrows() async throws {
-    let (state, auth, transport) = try await sokoBotFeedbackFixture([
+    let (state, _, transport) = try await sokoBotFeedbackFixture([
       (200, chatDisplayBody(showRoomUnreadCount: true)),
       (403, chatDisplayError(status: "Forbidden", message: "Not allowed"))
     ])
@@ -3719,7 +3718,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func failedChatDisplayReadKeepsTheLastValue() async throws {
-    let (state, auth, _) = try await sokoBotFeedbackFixture([
+    let (state, _, _) = try await sokoBotFeedbackFixture([
       (200, chatDisplayBody(showRoomUnreadCount: true)),
       (500, chatDisplayError(status: "Internal Server Error", message: "Boom"))
     ])
@@ -3729,7 +3728,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func userPreferencesRefreshAppliesOneGetOntoBothProjections() async throws {
-    let (state, auth, transport) = try await sokoBotFeedbackFixture([
+    let (state, _, transport) = try await sokoBotFeedbackFixture([
       (200, userPreferencesBody(showRoomUnreadCount: true, pushOptIn: true))
     ])
     #expect(!state.chatDisplay.showsRoomUnreadCount && !state.notificationPreferences.isLoaded)
@@ -3742,7 +3741,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func failedUserPreferencesRefreshKeepsBothLastValues() async throws {
-    let (state, auth, _) = try await sokoBotFeedbackFixture([
+    let (state, _, _) = try await sokoBotFeedbackFixture([
       (200, userPreferencesBody(showRoomUnreadCount: true, pushOptIn: true)),
       (500, chatDisplayError(status: "Internal Server Error", message: "Boom"))
     ])
@@ -3761,7 +3760,7 @@ extension WorkspaceStateTests {
     let target = "550e8400-e29b-41d4-a716-446655440000"
     let source = "550e8400-e29b-41d4-a716-446655440001"
     let quoted = "550e8400-e29b-41d4-a716-446655440123"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       // Everyone in the target room also reads the source room, so the quote
@@ -3797,7 +3796,7 @@ extension WorkspaceStateTests {
   @Test func pastedMessageLinkStaysPlainForAReaderOutsideTheSourceRoom() async throws {
     let target = "550e8400-e29b-41d4-a716-446655440000"
     let source = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general", "random"], members: ["general": ["user_1", "outsider"], "random": ["user_1", "peer"]])),
@@ -3816,7 +3815,7 @@ extension WorkspaceStateTests {
   @MainActor
   @Test func plainTextPasteNeverReadsAMessage() async throws {
     let target = "550e8400-e29b-41d4-a716-446655440000"
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
@@ -3855,7 +3854,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func aVisibleHistoryGapLoadsItselfOnceAndAgainWhenItMoves() async throws {
-    let (state, auth, transport) = try await stateWithGap([
+    let (state, _, transport) = try await stateWithGap([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "m", roomId: "room", content: "Between")], nextCursor: "m")),
       (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned"), transcriptMessage(id: "b", roomId: "room", content: "After")], nextCursor: "a"))
     ])
@@ -3878,7 +3877,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func aFailedHistoryGapWaitsForTryAgainWithoutATranscriptError() async throws {
-    let (state, auth, transport) = try await stateWithGap([
+    let (state, _, transport) = try await stateWithGap([
       (500, "{}"),
       (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned"), transcriptMessage(id: "m", roomId: "room", content: "Between")], nextCursor: "a"))
     ])
@@ -3906,7 +3905,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func twoVisibleGapsLoadOneAfterTheOther() async throws {
-    let (state, auth, transport) = try await stateWithGap([
+    let (state, _, transport) = try await stateWithGap([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "m", roomId: "room", content: "Middle")], nextCursor: "m")),
       (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned"), transcriptMessage(id: "b", roomId: "room", content: "After")], nextCursor: "a")),
       (200, transcriptPageBody(messages: [transcriptMessage(id: "m", roomId: "room", content: "Middle"), transcriptMessage(id: "n", roomId: "room", content: "Later")], nextCursor: "m"))
@@ -3927,7 +3926,7 @@ extension WorkspaceStateTests {
 
   /// A refresh the gap page held back still hands the room's newer copy of an open Thread's parent to the Thread.
   @Test func aRefreshHeldByAGapPageRefreshesTheOpenThreadParent() async throws {
-    let (state, auth, transport) = try await stateWithGap([
+    let (state, _, transport) = try await stateWithGap([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned"), transcriptMessage(id: "m", roomId: "room", content: "Between")], nextCursor: "a")),
       (200, transcriptPageBody(messages: [transcriptMessage(id: "z", roomId: "room", content: "Latest edited")], nextCursor: "z"))
     ])
@@ -3950,7 +3949,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func leavingTheRoomForgetsTheGapRows() async throws {
-    let (state, auth, _) = try await stateWithGap([(500, "{}")])
+    let (state, _, _) = try await stateWithGap([(500, "{}")])
     defer { state.reset() }
     state.setHistoryGapVisible(before: "z", true)
     await state.room.gapTask?.value
@@ -4003,7 +4002,7 @@ extension WorkspaceStateTests {
 
   @Test(arguments: [false, true])
   func theOpenThreadReadsItsMuteOnceAndAToggleRefreshesAttention(muted: Bool) async throws {
-    let (state, auth, transport) = try await Self.openMuteThread([
+    let (state, _, transport) = try await Self.openMuteThread([
       (200, Self.threadBody(mutedAt: muted ? timestamp : nil)),
       (200, Self.threadBody(mutedAt: muted ? nil : timestamp)),
       (200, roomReadBody(id: Self.muteRoomId, unread: 1))
@@ -4028,7 +4027,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func aFailedToggleRevertsWithoutTouchingAttention() async throws {
-    let (state, auth, transport) = try await Self.openMuteThread([
+    let (state, _, transport) = try await Self.openMuteThread([
       (200, Self.threadBody(mutedAt: nil)),
       (500, #"{"error":"Internal Server Error","message":"boom","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/x/threads/y/mute","method":"POST"}}"#)
     ])
@@ -4078,7 +4077,7 @@ extension WorkspaceStateTests {
   /// A sync after the reader's content changed (a landed page, a realtime reply) writes a Look with a thread open,
   /// which lowers the room's unread-thread count.
   @Test func anAutomaticLookReCountsTheThreadsTrigger() async throws {
-    let (state, auth, transport) = try await Self.openMuteThread([
+    let (state, _, transport) = try await Self.openMuteThread([
       (200, Self.lookBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1))
     ])
     let revision = state.threadAttentionRevision
@@ -4094,7 +4093,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func markAllReadPostsTheRoomReadAndReCountsBeforeReloading() async throws {
-    let (state, auth, transport) = try await Self.openOverview([
+    let (state, _, transport) = try await Self.openOverview([
       (200, Self.markAllBody), (200, roomReadBody(id: Self.muteRoomId, unread: 0)), (200, Self.threadsPage(unread: 0))
     ])
     let revision = state.threadAttentionRevision
@@ -4112,7 +4111,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func aRefusedMarkAllTouchesNeitherTheTriggerNorTheRoom() async throws {
-    let (state, auth, transport) = try await Self.openOverview([
+    let (state, _, transport) = try await Self.openOverview([
       (500, #"{"error":"Internal Server Error","message":"boom","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/x/threads/read","method":"POST"}}"#)
     ])
     let revision = state.threadAttentionRevision
@@ -4129,7 +4128,7 @@ extension WorkspaceStateTests {
 /// answer whole — the channel half that decides bold, the Thread half and the room's unread Threads.
 extension WorkspaceStateTests {
   @Test func aThreadMuteSettlesTheRowOnCoresHalves() async throws {
-    let (state, auth, transport) = try await Self.openMuteThread([
+    let (state, _, transport) = try await Self.openMuteThread([
       (200, Self.threadBody(mutedAt: nil)),
       (200, Self.threadBody(mutedAt: timestamp)),
       (200, roomReadBody(id: Self.muteRoomId, unread: 2, split: (channel: 0, threads: 1)))
@@ -4145,7 +4144,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func markAllSettlesTheRowOnCoresHalves() async throws {
-    let (state, auth, transport) = try await Self.openOverview([
+    let (state, _, transport) = try await Self.openOverview([
       (200, Self.markAllBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1, split: (channel: 1, threads: 0))),
       (200, Self.threadsPage(unread: 0))
     ])
@@ -4163,7 +4162,7 @@ extension WorkspaceStateTests {
 /// Thread in its own room.
 extension WorkspaceStateTests {
   @Test func theThreadsViewReadsNothingInTheRoomBehindIt() async throws {
-    let (state, auth, transport) = try await Self.openMuteThread([
+    let (state, _, transport) = try await Self.openMuteThread([
       (200, Self.lookBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1))
     ])
     let written = transport.operationIDs.count
@@ -4188,7 +4187,7 @@ extension WorkspaceStateTests {
     let replyId = "550e8400-e29b-41d4-a716-446655440054"
     let reply = transcriptMessage(id: replyId, roomId: second, content: "Reply")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(parentId)\"")
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [transcriptMessage(id: parentId, roomId: second, content: "Parent")], nextCursor: nil)),
       (200, #"{"data":\#(reply),"meta":{"timestamp":"\#(timestamp)","requestId":"req-1"}}"#),
       (200, transcriptPageBody(messages: [reply], nextCursor: nil))
@@ -4212,7 +4211,7 @@ extension WorkspaceStateTests {
   /// Web's `UnreadThreadsList` asks Core nothing while the rooms already say zero, and reads the workspace's
   /// unread Threads once a room counts one.
   @Test func theUnreadGroupAsksCoreOnlyWhileTheRoomsCountAThread() async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, _, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [], nextCursor: nil))
     ], visible: false)
     defer { state.reset() }
@@ -4238,7 +4237,7 @@ extension WorkspaceStateTests {
     let page = transcriptPageBody(messages: ["""
     {"parentMessageId":"\(parent)","firstUnreadReplyId":"\(parent)-reply","parentContent":"Secret parent","unreadReplyCount":1,"roomId":"\(roomId)","lastUnreadAt":"\(timestamp)"}
     """], nextCursor: nil)
-    let (state, auth, _, _) = try ephemeralState([
+    let (state, _, _, _) = try ephemeralState([
       (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
@@ -4322,7 +4321,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func aLookSettlesTheInsetRowsOnCoresAnswer() async throws {
-    let (state, auth, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.otherRootId]))
+    let (state, _, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.otherRootId]))
     #expect(Self.insetThreads(state) == [Self.muteRootId, Self.otherRootId], "The room read lists both Threads.")
     try state.openThread(#require(state.transcriptMessages.first))
     _ = await state.thread.transcript.loadTask?.value
@@ -4332,7 +4331,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func aThreadMuteSettlesTheInsetRowsOnCoresAnswer() async throws {
-    let (state, auth, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.muteRootId, Self.otherRootId]) + [
+    let (state, _, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.muteRootId, Self.otherRootId]) + [
       (200, Self.threadBody(mutedAt: nil)), (200, Self.threadBody(mutedAt: timestamp)),
       (200, roomReadBody(id: Self.muteRoomId, unread: 1, split: (channel: 0, threads: 1), threads: [Self.otherRootId]))
     ])
@@ -4347,7 +4346,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func markAllClearsTheInsetRows() async throws {
-    let (state, auth, transport) = try await Self.openInsetRows([
+    let (state, _, transport) = try await Self.openInsetRows([
       (200, Self.threadsPage(unread: 2)), (200, Self.markAllBody),
       (200, roomReadBody(id: Self.muteRoomId, unread: 0, split: (channel: 0, threads: 0), threads: [])),
       (200, Self.threadsPage(unread: 0))
@@ -4362,7 +4361,7 @@ extension WorkspaceStateTests {
   @Test func theNextRoomListReplacesTheInsetRows() async throws {
     let listed = roomsBody(names: ["general"])
       .replacingOccurrences(of: "\"unreadCount\":0,", with: "\"unreadCount\":1,\"unreadThreadCount\":4,\(unreadThreadsJSON([Self.otherRootId]))")
-    let (state, auth, transport) = try await Self.openInsetRows([(200, listed)])
+    let (state, _, transport) = try await Self.openInsetRows([(200, listed)])
     await state.refreshRooms()
     #expect(Self.insetThreads(state) == [Self.otherRootId])
     #expect(sidebarRoomListItems(state.sidebar.partitioned.channels).last == .moreThreads(roomId: Self.muteRoomId, count: 3))
@@ -4372,7 +4371,7 @@ extension WorkspaceStateTests {
   @Test func aRoomMuteHidesTheInsetRows() async throws {
     let muted = roomReadBody(id: Self.muteRoomId, unread: 2, split: (channel: 0, threads: 2), threads: [Self.muteRootId, Self.otherRootId])
       .replacingOccurrences(of: "\"mutedAt\":null", with: "\"mutedAt\":\"\(timestamp)\"")
-    let (state, auth, transport) = try await Self.openInsetRows([(200, muted)])
+    let (state, _, transport) = try await Self.openInsetRows([(200, muted)])
     #expect(Self.insetThreads(state).count == 2)
     await state.performSidebarAction(.mute, roomId: Self.muteRoomId)
     #expect(state.rooms.first?.unreadThreads?.count == 2, "The room still holds its Threads.")
@@ -4382,7 +4381,7 @@ extension WorkspaceStateTests {
 
   /// Web's overflow row opens the room's thread list (`?threads=1`), putting an open thread away first.
   @Test func theOverflowRowOpensTheRoomsThreadOverview() async throws {
-    let (state, auth, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.muteRootId, Self.otherRootId]))
+    let (state, _, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.muteRootId, Self.otherRootId]))
     try state.openThread(#require(state.transcriptMessages.first))
     _ = await state.thread.transcript.loadTask?.value
     let written = transport.operationIDs.count
@@ -4398,7 +4397,7 @@ extension WorkspaceStateTests {
   @Test func theOverflowRowShowsItsRoomInPlaceOfTheThreadsView() async throws {
     let first = "550e8400-e29b-41d4-a716-446655440051"
     let second = "550e8400-e29b-41d4-a716-446655440052"
-    let (state, auth, _, _) = try ephemeralState([
+    let (state, _, _, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [], nextCursor: nil)), (200, transcriptPageBody(messages: [], nextCursor: nil))
     ], visible: false)
     defer { state.reset() }
@@ -4439,7 +4438,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func markAllReadsABoldRoomThenTheRooms() async throws {
-    let (state, auth, transport) = try await Self.openUnreadsFilter([
+    let (state, _, transport) = try await Self.openUnreadsFilter([
       (200, roomReadBody(id: Self.designRoomId, unread: 0, name: "design", split: (channel: 0, threads: 0))),
       (200, roomsBody(names: ["general", "design"]))
     ])
@@ -4462,7 +4461,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func markAllLooksAThreadOnlyRoomAndTheRoomsSettleIt() async throws {
-    let (state, auth, transport) = try await Self.openUnreadsFilter([
+    let (state, _, transport) = try await Self.openUnreadsFilter([
       (200, Self.markAllBody), (200, roomsBody(names: ["general", "design"]))
     ])
     let index = try #require(state.rooms.firstIndex { $0.id == Self.designRoomId })
@@ -4483,7 +4482,7 @@ extension WorkspaceStateTests {
 
   @Test func aFailedMarkAllSaysSoAndStillReadsTheRooms() async throws {
     let failure = #"{"error":"Internal Server Error","message":"Boom","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/x/read","method":"POST"}}"#
-    let (state, auth, transport) = try await Self.openUnreadsFilter([
+    let (state, _, transport) = try await Self.openUnreadsFilter([
       (500, failure), (200, roomsBody(names: ["general", "design"]))
     ])
     let index = try #require(state.rooms.firstIndex { $0.id == Self.designRoomId })
@@ -4546,7 +4545,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func theUnreadReadOwnsEveryReplyBar() async throws {
-    let (state, auth, transport) = try await Self.openBars([
+    let (state, _, transport) = try await Self.openBars([
       (200, Self.unreadCountsBody([(Self.otherRootId, 4)]))
     ])
     #expect(shownUnread(state) == [2, 1], "Until the read lands, the bars show the message list's counts.")
@@ -4559,7 +4558,7 @@ extension WorkspaceStateTests {
   @Test func aLookClearsItsBarBeforeTheReCount() async throws {
     let reply = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440035", roomId: Self.muteRoomId, content: "Reply")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(Self.muteRootId)\"")
-    let (state, auth, transport) = try await Self.openBars([
+    let (state, _, transport) = try await Self.openBars([
       (200, Self.unreadCountsBody([(Self.muteRootId, 2), (Self.otherRootId, 1)])),
       (200, Self.lookBody),
       (200, roomReadBody(id: Self.muteRoomId, unread: 1)),
@@ -4581,7 +4580,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func anAutomaticLookClearsItsBar() async throws {
-    let (state, auth, transport) = try await Self.openMuteThread([
+    let (state, _, transport) = try await Self.openMuteThread([
       (200, Self.unreadCountsBody([(Self.muteRootId, 1)])),
       (200, Self.lookBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1))
     ])
@@ -4596,7 +4595,7 @@ extension WorkspaceStateTests {
   }
 
   @Test func markAllKeepsOnlyTheMutedUnreadBars() async throws {
-    let (state, auth, transport) = try await Self.openBars([
+    let (state, _, transport) = try await Self.openBars([
       (200, Self.unreadCountsBody([(Self.muteRootId, 2), (Self.otherRootId, 1)])),
       (200, transcriptPageBody(messages: [
         Self.threadItem(id: Self.muteRootId, unread: 2, muted: true), Self.threadItem(id: Self.otherRootId, unread: 1, muted: false)
@@ -4620,7 +4619,7 @@ extension WorkspaceStateTests {
     let replyId = "550e8400-e29b-41d4-a716-446655440099"
     let reply = createdMessageBody(id: replyId, roomId: Self.muteRoomId, content: "On it")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(Self.muteRootId)\"")
-    let (state, auth, transport) = try await Self.openBars([(201, reply)])
+    let (state, _, transport) = try await Self.openBars([(201, reply)])
     #expect(state.threadOverview.unreadReplyCounts == nil && state.directStream.roomId == nil)
     let parent = try #require(state.transcriptMessages.first { $0.id == Self.muteRootId })
     #expect(parent.threadUnreadReplyCount == 2 && parent.threadReplyCount == 3)
@@ -4667,7 +4666,7 @@ extension WorkspaceStateTests {
   @Test func aMissedMessageComesBackAndIsRead() async throws {
     let missed = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440702", roomId: Self.recheckRoomId, content: "Missed")
     let clock = RecheckClock()
-    let (state, auth, transport, _) = try ephemeralState(Self.recheckOpening(read: true) + [
+    let (state, _, transport, _) = try ephemeralState(Self.recheckOpening(read: true) + [
       (200, channelUnreadRoomsBody(id: Self.recheckRoomId, channel: 1, updatedAt: Self.laterUpdate)),
       (200, transcriptPageBody(messages: [Self.recheckFirst, missed], nextCursor: nil)),
       (200, roomReadBody(id: Self.recheckRoomId, unread: 0))
@@ -4695,7 +4694,7 @@ extension WorkspaceStateTests {
   /// Web "does nothing when read attention clears the count in time": here the list stops counting before the wait ends.
   @Test func aCountClearedInTimeReadsNothing() async throws {
     let clock = RecheckClock()
-    let (state, auth, transport, _) = try ephemeralState(Self.recheckOpening(read: true) + [
+    let (state, _, transport, _) = try ephemeralState(Self.recheckOpening(read: true) + [
       (200, channelUnreadRoomsBody(id: Self.recheckRoomId, channel: 1, updatedAt: Self.laterUpdate)),
       (200, roomsBody(names: ["general"]))
     ], openRoomUnreadRecheck: OpenRoomUnreadRecheck(sleep: clock.sleep))
@@ -4716,7 +4715,7 @@ extension WorkspaceStateTests {
   /// Behind the Threads view no room is on screen (web mounts none on `/chat/threads`); back in the room, the wait starts.
   @Test func theThreadsViewHoldsTheRecheck() async throws {
     let clock = RecheckClock()
-    let (state, auth, transport, _) = try ephemeralState(Self.recheckOpening(read: true) + [
+    let (state, _, transport, _) = try ephemeralState(Self.recheckOpening(read: true) + [
       (200, channelUnreadRoomsBody(id: Self.recheckRoomId, channel: 1, updatedAt: Self.laterUpdate))
     ], openRoomUnreadRecheck: OpenRoomUnreadRecheck(sleep: clock.sleep))
     await state.reload()
@@ -4737,7 +4736,7 @@ extension WorkspaceStateTests {
   @Test func theRecheckAlsoReadsAnOpenThread() async throws {
     let clock = RecheckClock()
     let empty = transcriptPageBody(messages: [], nextCursor: nil)
-    let (state, auth, transport, _) = try ephemeralState(Self.recheckOpening(read: false) + [
+    let (state, _, transport, _) = try ephemeralState(Self.recheckOpening(read: false) + [
       (200, empty), (200, empty), (200, empty)
     ], visible: false, openRoomUnreadRecheck: OpenRoomUnreadRecheck(sleep: clock.sleep))
     await state.reload()
