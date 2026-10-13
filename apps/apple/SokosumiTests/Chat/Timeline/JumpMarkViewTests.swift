@@ -77,9 +77,9 @@
       /// the wash column from ever reading clear and the chrome added ink (row 25b2's CI follow-up).
       static let landedId = "fixture-10"
 
-      /// The room transcript, or the thread holding it, with a jump to `landedId` requested. With
-      /// `blocksHover`, a clear layer over everything takes the pointer's hover, so no row draws its hover wash
-      /// whatever the pointer does; a test that drags the scroller has to reach it and passes false.
+      /// The room transcript, or the thread holding it, with a jump to `landedId` requested. No row draws hover
+      /// chrome; with `blocksHover`, a clear layer over everything also takes the pointer's hover, and a test that
+      /// drags the scroller has to reach it and passes false.
       static func landing(thread: Bool, blocksHover: Bool = true) async throws -> JumpLanding {
         let clock = thread ? nil : ManualJumpMarkClock()
         let state = try TranscriptScrollingTests.fixtureState(thread: thread, media: false, clock: clock)
@@ -97,11 +97,7 @@
           }
         }
         .background(.background)
-        .overlay {
-          if blocksHover {
-            Self.hoverBlocker
-          }
-        }
+        .withoutRowHover(layer: blocksHover)
         .environment(\.jumpMarkClock, clock.map { $0 as any JumpMarkClock } ?? SystemJumpMarkClock())
         .environmentObject(state).environmentObject(auth)))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
@@ -156,11 +152,6 @@
           return abs(color.redComponent - reference.redComponent) + abs(color.greenComponent - reference.greenComponent)
             + abs(color.blueComponent - reference.blueComponent)
         }
-      }
-
-      /// A clear layer that is hit by the pointer, so the rows under it never hover.
-      static var hoverBlocker: some View {
-        Color.clear.contentShape(.rect)
       }
 
       /// Moves `window` off the pointer. `ignoresMouseEvents` keeps clicks out, but SwiftUI still hovers the row a
@@ -371,7 +362,7 @@
         .padding(.vertical, 12)
         .frame(width: 520, alignment: .leading)
         .background(.background)
-        .overlay { Self.hoverBlocker }
+        .withoutRowHover()
         .environmentObject(WorkspaceState()).environmentObject(AuthState())
         .environment(\.colorScheme, dark ? .dark : .light)
         let host = NSHostingView(rootView: content)
@@ -408,6 +399,22 @@
         #expect(try difference(atX: 1, row: Int(14 * scale)) < 0.02, "The first row is not marked.")
         #expect(try difference(atX: 1, row: bitmap.pixelsHigh - Int(14 * scale)) < 0.02, "The last row is not marked.")
       }
+    }
+  }
+
+  extension View {
+    /// No row draws its hover wash or action bar, whatever the pointer does: each waits an hour for the pointer to
+    /// rest. With `layer`, a clear layer over everything also takes the pointer's hover. The layer alone did not
+    /// hold: a pointer moving past a window `keepPointerOff` had parked 1 pt beside it still hovered a row, and once
+    /// the mark under that row ended, its wash filled the column the pixel reads count (ThreadParentMarkTests,
+    /// 1 in 3 full-suite runs).
+    func withoutRowHover(layer: Bool = true) -> some View {
+      overlay {
+        if layer {
+          Color.clear.contentShape(.rect)
+        }
+      }
+      .environment(\.messageHoverDelay, .seconds(3600))
     }
   }
 #endif
