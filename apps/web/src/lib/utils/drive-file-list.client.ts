@@ -8,7 +8,7 @@ import type { FilesSortBy, FilesSortOrder } from "@/lib/utils/files-sort";
 /** Core max page size — fewer round trips than the default 20. */
 export const DRIVE_FILES_PAGE_LIMIT = 100;
 /** Hard stop so a bad nextCursor cannot loop forever. */
-export const DRIVE_FILES_MAX_PAGES = 50;
+const DRIVE_FILES_MAX_PAGES = 50;
 
 export type DriveWorkspaceStore =
   | { scope: "me" }
