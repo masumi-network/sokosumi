@@ -25,7 +25,7 @@ public final class LoadedMessages: ObservableObject {
   }
 
   /// The first loaded copy, in the order of `all`.
-  public func message(_ id: String) -> Message? {
+  internal func message(_ id: String) -> Message? {
     room.timeline.messages.first { $0.id == id }
       ?? (thread.parent?.id == id ? thread.parent : nil)
       ?? thread.transcript.timeline.messages.first { $0.id == id }
