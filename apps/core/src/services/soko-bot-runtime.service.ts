@@ -97,6 +97,7 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { jsonInput } from "@/helpers/prisma-json";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
+import { activeOwnedSokoBotWhere } from "@/helpers/soko-bot-owned-bot-where";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
@@ -860,11 +861,8 @@ export class SokoBotRuntimeService {
         }
         const boundBot = await tx.sokoBot.updateMany({
           where: {
-            id: turn.sokoBotId,
-            userId: turn.userId,
+            ...activeOwnedSokoBotWhere(turn.sokoBotId, turn.userId),
             adminPausedAt: null,
-            archivedAt: null,
-            status: { not: "PAUSED" },
           },
           // The bot retains the prior completed turn's session for diagnostics.
           // Bot + turn locks and the attachable active-turn check above provide
@@ -3629,11 +3627,11 @@ export class SokoBotRuntimeService {
     if (approved) {
       const activeBot = await tx.sokoBot.findFirst({
         where: {
-          id: authorized.turn.sokoBotId,
-          userId: authorized.turn.userId,
-          archivedAt: null,
+          ...activeOwnedSokoBotWhere(
+            authorized.turn.sokoBotId,
+            authorized.turn.userId,
+          ),
           adminPausedAt: null,
-          status: { not: "PAUSED" },
         },
         select: { id: true },
       });
@@ -5490,12 +5488,7 @@ export class SokoBotRuntimeService {
     try {
       const [activeBot, workspace] = await prisma.$transaction([
         prisma.sokoBot.findFirst({
-          where: {
-            id: decision.sokoBotId,
-            userId,
-            archivedAt: null,
-            status: { not: "PAUSED" },
-          },
+          where: activeOwnedSokoBotWhere(decision.sokoBotId, userId),
           select: { id: true },
         }),
         prisma.workspace.findFirst({
@@ -5581,12 +5574,7 @@ export class SokoBotRuntimeService {
                 FOR UPDATE
               `;
               const activeBot = await tx.sokoBot.findFirst({
-                where: {
-                  id: decision.sokoBotId,
-                  userId,
-                  archivedAt: null,
-                  status: { not: "PAUSED" },
-                },
+                where: activeOwnedSokoBotWhere(decision.sokoBotId, userId),
                 select: { id: true },
               });
               if (!activeBot) {
@@ -5746,12 +5734,7 @@ export class SokoBotRuntimeService {
               FOR UPDATE
             `;
             const activeBot = await tx.sokoBot.findFirst({
-              where: {
-                id: decision.sokoBotId,
-                userId,
-                archivedAt: null,
-                status: { not: "PAUSED" },
-              },
+              where: activeOwnedSokoBotWhere(decision.sokoBotId, userId),
               select: { id: true },
             });
             if (!activeBot) {
