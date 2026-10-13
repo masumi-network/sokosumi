@@ -237,6 +237,24 @@ describe("durable delivery", () => {
     },
   );
 
+  it("delivers a background run that failed, so the owner hears it stopped", async () => {
+    mocks.turn.mockResolvedValue(
+      turn({
+        source: "CHAT",
+        status: "FAILED",
+        finalAnswer: null,
+        parentTurnId: "parent",
+        backgroundTitle: "Gmail CRM",
+      }),
+    );
+    await enqueueSokoBotDelivery(prisma, "turn");
+    expect(mocks.upsertDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ status: "PENDING", reason: null }),
+      }),
+    );
+  });
+
   it("creates one stable keyed message and records PERSISTED before transport", async () => {
     mocks.publish.mockImplementation(async () => {
       expect(mocks.update).toHaveBeenCalledWith(

@@ -49,6 +49,7 @@ import {
   sokoBotReadFileInputSchema,
   sokoBotRunIntegrationToolInputSchema,
   sokoBotSearchInboxInputSchema,
+  sokoBotStartBackgroundRunInputSchema,
   sokoBotUploadFileInputSchema,
   sokoBotArchiveTaskInputSchema as taskArchiveInputSchema,
   sokoBotAssignTaskInputSchema as taskAssignInputSchema,
@@ -4487,6 +4488,25 @@ export class SokoBotRuntimeService {
       case "cancel_social_post":
       case "publish_social_post":
         return this.executeSocialTool(input, authorized);
+      case "start_background_run":
+      case "list_background_runs":
+      case "stop_background_run": {
+        const runs = await import(
+          "@/services/soko-bot-background-runs.service"
+        );
+        if (input.capability === "list_background_runs")
+          return runs.listBackgroundRuns(authorized);
+        if (input.capability === "stop_background_run")
+          return runs.stopBackgroundRun(
+            authorized,
+            SOKO_BOT_TOOL_INPUT_SCHEMAS.stop_background_run.parse(input.input)
+              .runId,
+          );
+        return runs.startBackgroundRun(
+          authorized,
+          sokoBotStartBackgroundRunInputSchema.parse(input.input),
+        );
+      }
       case "list_tables":
       case "read_table":
       case "create_table":

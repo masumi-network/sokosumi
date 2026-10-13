@@ -19,6 +19,23 @@ const LEASE_MS = 60_000;
 const MAX_AGE_MS = 24 * 60 * 60_000;
 const RETRY_DELAYS_MS = [60_000, 300_000, 1_800_000, 7_200_000];
 
+/** What a background run that ended without an answer posts instead. */
+function backgroundStopNote(turn: {
+  backgroundTitle: string | null;
+  status: string;
+  errorKind: string | null;
+  errorDetail: string | null;
+}): string {
+  if (!turn.backgroundTitle) return "";
+  const how =
+    turn.status === "CANCELLED"
+      ? "was stopped"
+      : turn.errorKind === "turn_deadline_exceeded"
+        ? "ran out of time"
+        : "failed";
+  return `Background run "${turn.backgroundTitle}" ${how} before it could report.${turn.errorDetail ? ` (${turn.errorDetail.slice(0, 300)})` : ""}`;
+}
+
 /** Called inside the settlement transaction; no historical turn backfill. */
 export async function enqueueSokoBotDelivery(
   tx: Prisma.TransactionClient,
@@ -32,8 +49,14 @@ export async function enqueueSokoBotDelivery(
     turn.status === "COMPLETED" &&
     isSokoBotSilentAnswer(turn.finalAnswer?.trim() ?? "") &&
     (!isChat || turn.chainDepth > 0);
-  const reason =
-    turn.source === "CHAT" && !isChat
+  // A background run reports wherever it ends, failure included: the owner
+  // was told it would.
+  const background = Boolean(turn.parentTurnId);
+  const reason = background
+    ? turn.destinationRoomId
+      ? null
+      : "NO_DESTINATION"
+    : turn.source === "CHAT" && !isChat
       ? "ASSISTANT_PAGE"
       : !turn.destinationRoomId
         ? "NO_DESTINATION"
@@ -276,11 +299,14 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
             roomId: delivery.roomId,
             clientMessageId: `soko-bot:${turn.id}:${delivery.purpose === "FINAL" ? "final" : delivery.id}`,
             senderSokoBotId: turn.sokoBotId,
-            content: turn.finalAnswer?.trim() ?? "",
+            content: turn.finalAnswer?.trim() || backgroundStopNote(turn),
             metadata: {
               soko_bot: {
                 turn_id: turn.id,
                 source: turn.source,
+                ...(turn.backgroundTitle
+                  ? { background_run_title: turn.backgroundTitle }
+                  : {}),
                 // Lets the chat say where an unprompted message came from.
                 ...(turn.scheduleRun
                   ? {
