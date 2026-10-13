@@ -95,6 +95,8 @@ public extension WorkspaceState {
   func sendThreadReply(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil,
                        skills: [Components.Schemas.ChatRoomMessageSkill] = []) -> Bool {
     guard let client = resolveClient(), thread.parent?.roomId == transcriptRoomId else { return false }
+    // Like the room's send: the reply joins the latest replies, so a jumped-to page ends.
+    thread.transcript.timeline.followLatest()
     if directStream.roomId == transcriptRoomId, let parentId = thread.parent?.id {
       let generation = room.timeline.generation
       return directStream.send(content, client: client, organizationSlug: selection?.workspace.organizationSlug,

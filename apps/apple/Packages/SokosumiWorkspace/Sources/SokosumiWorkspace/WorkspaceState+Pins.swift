@@ -61,12 +61,4 @@ public extension WorkspaceState {
     }
     return try await room.loadAround(messageId)
   }
-
-  func returnToLatest() async throws -> Bool {
-    guard room.timeline.historicalAnchor != nil else { return true }
-    guard resolveClient() != nil else {
-      throw ChatServiceError.unauthorized("Log in to load messages.")
-    }
-    return try await room.returnToLatest()
-  }
 }

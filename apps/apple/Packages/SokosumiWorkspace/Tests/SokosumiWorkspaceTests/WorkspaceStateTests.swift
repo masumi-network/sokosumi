@@ -2369,6 +2369,27 @@ extension WorkspaceStateTests {
     #expect(!transport.operationIDs.contains("post/chats/rooms/{id}/messages"))
   }
 
+  /// Like the room's send, a reply from a jumped-to Thread page ends that page, so the list can follow the reply.
+  @Test func replyFromAJumpedToThreadPageLeavesIt() async throws {
+    let roomId = "room"
+    let reply = transcriptMessage(id: "reply", roomId: roomId, content: "Answer")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\"")
+    let (state, _, _, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "root", roomId: roomId, content: "Question")], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil)),
+      (500, #"{"message":"Unavailable"}"#),
+      (500, #"{"message":"Unavailable"}"#)
+    ], visible: false)
+    state.room.timeline.reset(roomId: roomId)
+    let client = try #require(state.clientResolver?())
+    _ = try await state.room.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.room.timeline.generation)
+    #expect(try state.thread.open(#require(state.transcriptMessages.first)))
+    #expect(try await state.thread.transcript.loadAround("reply"))
+    #expect(state.thread.transcript.timeline.historicalAnchor == "reply")
+    #expect(state.sendThreadReply("Follow-up"))
+    #expect(state.thread.transcript.timeline.historicalAnchor == nil)
+  }
+
   @Test func sendingFromHistoryPreservesLoadedRowsAndPendingPinMutation() async throws {
     let roomId = "550e8400-e29b-41d4-a716-446655440000"
     let (state, auth, transport, _) = try ephemeralState([

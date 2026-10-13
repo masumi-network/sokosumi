@@ -92,6 +92,13 @@ import SwiftUI
       scrollActivity.isScrolling
     }
 
+    /// The list follows the latest message again. The position the reader scrolled to is dropped first: while it names a
+    /// row, the list holds that row and a scroll to the bottom does not land.
+    private func followLatest() {
+      scrollPosition = ScrollPosition(idType: String.self)
+      scroll.followLatest()
+    }
+
     /// The room shows a jumped-to page; read live, never stored, so a page change and its anchor arrive together.
     private var anchored: Bool {
       workspaces.room.timeline.historicalAnchor != nil
@@ -129,7 +136,8 @@ import SwiftUI
             ChatComposerView(
               userId: workspaces.currentUserId,
               organizationId: workspaces.selection?.workspace.organizationId,
-              roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest
+              roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
+              onAccepted: { followLatest() }
             )
             .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
           }
@@ -387,9 +395,8 @@ import SwiftUI
             JumpToLatestButton {
               Task { @MainActor in
                 do {
-                  if try await workspaces.returnToLatest() {
-                    scrollPosition = ScrollPosition(idType: String.self)
-                    scroll.followLatest()
+                  if try await workspaces.room.returnToLatest() {
+                    followLatest()
                     workspaces.room.clearJump()
                     proxy.scrollTo("timeline-bottom", anchor: .bottom)
                   }
