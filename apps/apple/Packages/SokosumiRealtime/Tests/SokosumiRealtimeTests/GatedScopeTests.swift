@@ -6,8 +6,14 @@ import Testing
 
 private let both = #"{"chat_typing:room_a":["publish","subscribe"],"chat_rooms:room_a":["subscribe"]}"#
 
+private typealias TypingScope = GatedScope<ChatTypingGrant>
+
+private func typingScope() -> TypingScope {
+  TypingScope { capability, roomId in chatTypingGrant(in: capability, roomId: roomId) }
+}
+
 /// One settled authorization: request, then finish with `capability`.
-private func authorize(_ scope: inout RoomTypingScope, capability: String?, failed: Bool = false) throws -> RoomTypingScope.Outcome {
+private func authorize(_ scope: inout TypingScope, capability: String?, failed: Bool = false) throws -> TypingScope.Outcome {
   let request = scope.requestAuthorization()
   let id = try #require(request)
   return scope.finishAuthorization(id, capability: capability, failed: failed)
@@ -15,42 +21,42 @@ private func authorize(_ scope: inout RoomTypingScope, capability: String?, fail
 
 /// Row 36a: the typing channel is attached only under a token that grants it (web `useRoomTyping`'s
 /// `runSyncOnce` and its coalescing `sync`), and what it publishes is web's ephemeral message.
-struct RoomTypingScopeTests {
+struct GatedScopeTests {
   @Test func withoutAnOpenRoomNothingAuthorizes() {
-    var scope = RoomTypingScope()
+    var scope = typingScope()
     let beforeRoom = scope.requestAuthorization()
-    scope.setRoom(nil)
+    scope.setTarget(nil)
     let afterClosing = scope.requestAuthorization()
     #expect(beforeRoom == nil && afterClosing == nil)
-    #expect(!scope.canPublish)
+    #expect(scope.grant?.canPublish != true)
   }
 
   @Test func grantFollowsTheTokenCapability() throws {
-    var scope = RoomTypingScope()
-    scope.setRoom("a")
+    var scope = typingScope()
+    scope.setTarget("a")
     let granted = try authorize(&scope, capability: both)
-    #expect(granted == .granted(roomId: "a", canPublish: true))
-    #expect(scope.canPublish)
+    #expect(granted == .granted(target: "a", grant: .init(canPublish: true)))
+    #expect(scope.grant?.canPublish == true)
     // A reconnect may bring a narrower token: read the room, stay quiet.
     let subscribeOnly = try authorize(&scope, capability: #"{"chat_typing:room_a":["subscribe"]}"#)
-    #expect(subscribeOnly == .granted(roomId: "a", canPublish: false))
-    #expect(!scope.canPublish)
+    #expect(subscribeOnly == .granted(target: "a", grant: .init(canPublish: false)))
+    #expect(scope.grant?.canPublish != true)
     let publishOnly = try authorize(&scope, capability: #"{"chat_typing:room_a":["publish"]}"#)
-    #expect(publishOnly == .denied(roomId: "a", failed: false))
+    #expect(publishOnly == .denied(target: "a", failed: false))
     let regranted = try authorize(&scope, capability: both)
-    #expect(regranted == .granted(roomId: "a", canPublish: true))
+    #expect(regranted == .granted(target: "a", grant: .init(canPublish: true)))
     let failed = try authorize(&scope, capability: both, failed: true)
-    #expect(failed == .denied(roomId: "a", failed: true))
-    #expect(!scope.canPublish)
+    #expect(failed == .denied(target: "a", failed: true))
+    #expect(scope.grant?.canPublish != true)
     let malformed = try authorize(&scope, capability: "garbage")
-    #expect(malformed == .denied(roomId: "a", failed: false))
+    #expect(malformed == .denied(target: "a", failed: false))
     let messagesOnly = try authorize(&scope, capability: #"{"chat_rooms:room_a":["subscribe"]}"#)
-    #expect(messagesOnly == .denied(roomId: "a", failed: false))
+    #expect(messagesOnly == .denied(target: "a", failed: false))
   }
 
   @Test func roomSwitchRejectsInFlightResultAndCoalescesRequests() throws {
-    var scope = RoomTypingScope()
-    scope.setRoom("a")
+    var scope = typingScope()
+    scope.setTarget("a")
     let staleRequest = scope.requestAuthorization()
     let stale = try #require(staleRequest)
     let duplicate = scope.requestAuthorization()
@@ -58,17 +64,17 @@ struct RoomTypingScopeTests {
     let queuedOnce = scope.takeQueued()
     let queuedTwice = scope.takeQueued()
     #expect(queuedOnce && !queuedTwice)
-    scope.setRoom("b")
+    scope.setTarget("b")
     let staleOutcome = scope.finishAuthorization(stale, capability: both, failed: false)
     #expect(staleOutcome == .stale)
-    #expect(!scope.canPublish)
+    #expect(scope.grant?.canPublish != true)
     let freshRequest = scope.requestAuthorization()
     let fresh = try #require(freshRequest)
     let queuedDuringFresh = scope.requestAuthorization()
     #expect(queuedDuringFresh == nil)
     // The token was minted while room "a" was open and says nothing about "b".
     let otherRoom = scope.finishAuthorization(fresh, capability: both, failed: false)
-    #expect(otherRoom == .denied(roomId: "b", failed: false))
+    #expect(otherRoom == .denied(target: "b", failed: false))
     let queued = scope.takeQueued()
     #expect(queued)
     let repeated = scope.finishAuthorization(fresh, capability: both, failed: false)
