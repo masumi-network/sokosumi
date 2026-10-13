@@ -37,8 +37,20 @@ _Avoid_: Permission, workspace access (when meaning this)
 ### Soko Bot
 
 **Soko Bot**:
-A user-owned, first-party personal project manager. It helps one user operate Sokosumi, normally by delegating Tasks to Coworkers or hiring Agents to run Jobs. It is neither an Agent nor a Coworker.
+A first-party project manager. It helps operate Sokosumi, normally by delegating Tasks to Coworkers or hiring Agents to run Jobs. It is neither an Agent nor a Coworker. Every Soko Bot belongs to one workspace and has one Owner scope.
 _Avoid_: Hermes, orchestrator, Agent, Coworker, bot (when meaning a generic AI actor)
+
+**Owner scope**:
+Who a Soko Bot belongs to inside its workspace: **personal** (one user), **project** (one Project), or **workspace** (the whole workspace). The scope decides which Tasks, Projects and Jobs the bot can see. Project and workspace scopes exist only in Organization workspaces ([ADR-0055](docs/adr/0055-soko-bot-owner-scopes.md)).
+_Avoid_: Owner (alone, when the bot has no owning user), Organization bot (the scope is the workspace, not the Organization)
+
+**Personal Soko Bot**:
+A Soko Bot with a personal Owner scope. It helps one user, acts as that user, and is the only kind with a `me` route. At most one live per user and workspace.
+_Avoid_: Private bot, my bot (in product copy, say "your assistant")
+
+**Shared Soko Bot**:
+A Soko Bot with a project or workspace Owner scope. It is its own principal, sees only public data in its scope, and is fully visible to every Organization member: its room, memory and console carry no privacy expectation. Records it creates belong to the member who asked. Several may exist per scope.
+_Avoid_: Team bot, Organization bot, Project assistant
 
 **Delegation**:
 Creating, assigning, or managing a Task for a Coworker on the user's behalf. Distinct from hiring an Agent to start a Job.
