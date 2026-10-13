@@ -54,15 +54,6 @@ struct ChatRootView: View {
       linkTask?.cancel()
       Task { @MainActor in workspaces.setWindowVisible(false, window: windowID) }
     }
-    .onChange(of: workspaces.readContent) { _, _ in
-      Task { @MainActor in await workspaces.syncReadAttention() }
-    }
-    .onChange(of: workspaces.thread.transcript.timeline.isLoading) { _, _ in
-      Task { @MainActor in await workspaces.syncReadAttention() }
-    }
-    .onChange(of: workspaces.room.timeline.hasLoadedHistory) { _, _ in
-      Task { @MainActor in await workspaces.syncReadAttention() }
-    }
     .alert("Couldn’t update unread status", isPresented: Binding(
       get: { workspaces.readAttention.errorMessage != nil },
       set: {

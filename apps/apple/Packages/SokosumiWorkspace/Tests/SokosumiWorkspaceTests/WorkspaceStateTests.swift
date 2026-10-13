@@ -250,6 +250,15 @@ private func waitForTranscriptIdle(_ state: WorkspaceState) async {
   }
 }
 
+/// Another reply lands in the open Thread, as a realtime create would put it there.
+@MainActor
+private func landAnotherReply(in state: WorkspaceState) throws {
+  var reply = try #require(state.thread.transcript.timeline.messages.last)
+  reply.id = UUID().uuidString
+  reply.content = "Another reply"
+  state.thread.transcript.timeline.messages.append(reply)
+}
+
 private func waitForOutboundIdle(_ state: WorkspaceState) async {
   for _ in 0 ..< 1000 where state.outboundInFlight {
     await Task.yield()
@@ -1054,6 +1063,8 @@ struct WorkspaceStateTests {
     responses += attention
     responses += initialFailure ? [(503, "{}")] + attention : []
     responses.append((200, transcriptPageBody(messages: [reply], nextCursor: "older-replies")))
+    // The landed replies change what the reader sees: the Thread is Looked again and the room read.
+    responses += attention
     let (state, auth, transport, _) = try ephemeralState(responses)
     await state.reload()
     await waitForTranscriptIdle(state)
@@ -1078,11 +1089,9 @@ struct WorkspaceStateTests {
     #expect(state.thread.transcript.displayedMessages.map(\.content) == ["Reply"])
     #expect(state.transcriptMessages.map(\.content) == ["Parent"])
     #expect(state.rooms.first?.unreadCount == 2)
-    #expect(transport.operationIDs.suffix(3) == [
-      "post/chats/rooms/{id}/threads/{parentMessageId}/read",
-      "post/chats/rooms/{id}/read",
-      "get/chats/rooms/{id}/threads/{parentMessageId}/messages"
-    ])
+    let look = ["post/chats/rooms/{id}/threads/{parentMessageId}/read", "post/chats/rooms/{id}/read"]
+    #expect(Array(transport.operationIDs.suffix(5)) == look + ["get/chats/rooms/{id}/threads/{parentMessageId}/messages"] + look)
+    #expect(transport.remainingStubs == 0)
     state.thread.close()
   }
 
@@ -1104,6 +1113,9 @@ struct WorkspaceStateTests {
       (200, #"{"data":{"parentMessageId":"\#(rootID)","lastReadAt":"\#(timestamp)"},"meta":{"timestamp":"\#(timestamp)","requestId":"test"}}"#),
       (200, roomReadBody(id: roomID, unread: 2)),
       (200, transcriptPageBody(messages: [reply], nextCursor: nil)),
+      // The landed reply changes what the visible reader sees: the automatic Look and room read.
+      (200, #"{"data":{"parentMessageId":"\#(rootID)","lastReadAt":"\#(timestamp)"},"meta":{"timestamp":"\#(timestamp)","requestId":"test"}}"#),
+      (200, roomReadBody(id: roomID, unread: 2)),
       (200, transcriptPageBody(messages: [reply, later], nextCursor: nil))
     ], visible: false)
     let window = UUID()
@@ -2347,6 +2359,30 @@ extension WorkspaceStateTests {
     live.content = "Edited live"
     state.applyRealtimeMessage(roomId: "room", eventType: .update, message: live)
     #expect(state.displayedTranscript.first(where: { $0.id == "old" })?.content == "Edited live")
+  }
+
+  /// Jump pages land outside the load queue; leaving one for the latest page reads the room like any landed page,
+  /// while the jumped-to page itself reads nothing.
+  @Test func returningToLatestReadsTheRoom() async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440033"
+    let latest = transcriptPageBody(messages: [transcriptMessage(id: "new", roomId: roomID, content: "New")], nextCursor: "c")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, workspacesBody()), (200, userBody),
+      (200, unreadRoomsBody(id: roomID, unread: 2)),
+      (200, latest), (200, roomReadBody(id: roomID, unread: 0)),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "old", roomId: roomID, content: "Old")], nextCursor: nil)),
+      (200, latest), (200, roomReadBody(id: roomID, unread: 0))
+    ])
+    await state.reload()
+    await waitForTranscriptIdle(state)
+    let reads = transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count
+    #expect(try await state.jumpToMessage("old"))
+    // Something arrived meanwhile; the jumped-to page is not readable, so nothing is read yet.
+    state.rooms[0].unreadCount = 1
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == reads)
+    #expect(try await state.room.returnToLatest())
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == reads + 1)
+    #expect(transport.remainingStubs == 0)
   }
 
   @Test func directSendFromHistoryReturnsToLatestBeforeStreaming() async throws {
@@ -3953,7 +3989,10 @@ extension WorkspaceStateTests {
       (200, roomReadBody(id: muteRoomId, unread: 3)),
       (200, #"{"data":{"parentMessageId":"\#(muteRootId)","lastReadAt":"\#(timestamp)"},"meta":{"timestamp":"\#(timestamp)","requestId":"test"}}"#),
       (200, roomReadBody(id: muteRoomId, unread: 2)),
-      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil)),
+      // The landed reply changes what the reader sees: the automatic Look and room read.
+      (200, #"{"data":{"parentMessageId":"\#(muteRootId)","lastReadAt":"\#(timestamp)"},"meta":{"timestamp":"\#(timestamp)","requestId":"test"}}"#),
+      (200, roomReadBody(id: muteRoomId, unread: 2))
     ] + extra)
     await state.reload()
     await waitForTranscriptIdle(state)
@@ -4036,13 +4075,14 @@ extension WorkspaceStateTests {
     return (state, auth, transport)
   }
 
-  /// `ChatRootView` runs `syncReadAttention` when the window becomes active and whenever the read content
-  /// changes; with a thread open that writes a Look, which lowers the room's unread-thread count.
+  /// A sync after the reader's content changed (a landed page, a realtime reply) writes a Look with a thread open,
+  /// which lowers the room's unread-thread count.
   @Test func anAutomaticLookReCountsTheThreadsTrigger() async throws {
     let (state, auth, transport) = try await Self.openMuteThread([
       (200, Self.lookBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1))
     ])
     let revision = state.threadAttentionRevision
+    try landAnotherReply(in: state)
     await state.syncReadAttention()
     #expect(state.threadAttentionRevision == revision + 1, "The Threads trigger counts again.")
     #expect(transport.operationIDs.suffix(2) == ["post/chats/rooms/{id}/threads/{parentMessageId}/read", "post/chats/rooms/{id}/read"])
@@ -4132,10 +4172,11 @@ extension WorkspaceStateTests {
     await state.syncReadAttention()
     await state.syncThreadAttention()
     #expect(transport.operationIDs.count == written, "Neither the room nor its open thread is on screen.")
+    try landAnotherReply(in: state)
     await state.showRoom(Self.muteRoomId)
     #expect(!state.sidebar.showsThreadsView && state.selectedRoomId == Self.muteRoomId)
     #expect(transport.operationIDs.suffix(2) == ["post/chats/rooms/{id}/threads/{parentMessageId}/read", "post/chats/rooms/{id}/read"],
-            "Back on the room, what is on screen is read.")
+            "Back on the room, what arrived meanwhile is read.")
     #expect(transport.remainingStubs == 0)
     state.thread.close()
   }
@@ -4273,7 +4314,10 @@ extension WorkspaceStateTests {
     return [
       (200, lookBody),
       (200, roomReadBody(id: muteRoomId, unread: threads.count, split: (channel: 0, threads: threads.count), threads: threads)),
-      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil)),
+      // The landed reply changes what the reader sees: the automatic Look and room read.
+      (200, lookBody),
+      (200, roomReadBody(id: muteRoomId, unread: threads.count, split: (channel: 0, threads: threads.count), threads: threads))
     ]
   }
 
@@ -4519,7 +4563,10 @@ extension WorkspaceStateTests {
       (200, Self.unreadCountsBody([(Self.muteRootId, 2), (Self.otherRootId, 1)])),
       (200, Self.lookBody),
       (200, roomReadBody(id: Self.muteRoomId, unread: 1)),
-      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil)),
+      // The landed reply changes what the reader sees: the automatic Look and room read.
+      (200, Self.lookBody),
+      (200, roomReadBody(id: Self.muteRoomId, unread: 1))
     ])
     await state.updateThreadOverview(.count, roomId: Self.muteRoomId)
     let revision = state.threadAttentionRevision
@@ -4528,7 +4575,7 @@ extension WorkspaceStateTests {
     #expect(transport.operationIDs.contains("post/chats/rooms/{id}/threads/{parentMessageId}/read"))
     #expect(state.threadOverview.unreadReplyCounts == [Self.otherRootId: 1], "The looked Thread leaves the trigger at once.")
     #expect(shownUnread(state) == [0, 1], "Its bar untints without waiting for the re-count.")
-    #expect(state.threadAttentionRevision == revision + 1, "The trigger still counts again.")
+    #expect(state.threadAttentionRevision == revision + 2, "Each Look counts the trigger again: before the fetch, and once the reply landed.")
     #expect(transport.remainingStubs == 0)
     state.thread.close()
   }
@@ -4540,6 +4587,7 @@ extension WorkspaceStateTests {
     ])
     await state.updateThreadOverview(.count, roomId: Self.muteRoomId)
     #expect(state.threadOverview.unreadReplyCounts == [Self.muteRootId: 1], "A reply landed in the open Thread.")
+    try landAnotherReply(in: state)
     await state.syncReadAttention()
     #expect(state.threadOverview.unreadReplyCounts?.isEmpty == true)
     #expect(shownUnread(state) == [0])

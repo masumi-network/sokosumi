@@ -1137,6 +1137,38 @@ struct WorkspaceRealtimeTests {
     #expect(tokenRequest.headerFields[slugName] == nil)
   }
 
+  /// Another member's message over the socket changes what the reader sees, so the open room is read again; the
+  /// read runs beside the event loop and the next event never waits on it.
+  @Test func aLiveMessageReadsTheOpenRoom() async throws {
+    let firstId = "550e8400-e29b-41d4-a716-446655440740"
+    let fake = FakeRealtimeConnection()
+    let (state, _, transport) = try realtimeState([
+      (200, workspacesBody()),
+      (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
+      (200, realtimeReadBody(id: roomA)),
+      (200, realtimeTokenBody()),
+      (200, realtimeReadBody(id: roomA))
+    ], realtime: { fake })
+    await state.reload()
+    await waitForRealtimeIdle(state)
+    let reads = transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count
+    // A sidebar refresh counted something unread meanwhile.
+    state.rooms[0].unreadCount = 2
+    let live = try await decodeRealtimeMessages([
+      realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-446655440741", roomId: roomA, content: "over the wire",
+                          createdAt: "2026-01-01T00:00:01.000Z")
+    ])
+    fake.deliver(.message(roomId: roomA, eventType: .create, message: live[0]))
+    for _ in 0 ..< 1000 where state.realtimeReadSync == nil {
+      await Task.yield()
+    }
+    await state.realtimeReadSync?.value
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == reads + 1)
+    #expect(state.rooms.first?.unreadCount == 0)
+  }
+
   @Test func liveSocketConnectsWatchesOpenRoomAndDelivers() async throws {
     let firstId = "550e8400-e29b-41d4-a716-446655440730"
     let liveId = "550e8400-e29b-41d4-a716-446655440731"

@@ -186,6 +186,9 @@ public final class WorkspaceState: ObservableObject {
   let realtimeConnectionFactory: (@Sendable () -> (any RealtimeConnection))?
   var realtime: (any RealtimeConnection)?
   private var realtimeStreamTask: Task<Void, Never>?
+  /// The read sync realtime events scheduled; tests await it.
+  private(set) var realtimeReadSync: Task<Void, Never>?
+  private var realtimeReadSyncPending = false
   private var realtimeContinuation: AsyncStream<ResolvedRealtimeDelivery>.Continuation?
   /// Org presence map and publisher bookkeeping (ADR 0003); see `WorkspaceState+Presence`.
   public let presence = OrgPresence()
@@ -723,24 +726,17 @@ public final class WorkspaceState: ObservableObject {
   /// after its first and latest pages; the Thread reads the room after later pages, its first page's Look coming
   /// before the request (`loadThreadPage`).
   private func connectTranscripts() {
+    // Every landed page changes what the reader sees, so read attention syncs before the load ends.
     room.hooks = transcriptHooks { [weak self] page in
       guard let self else { return }
-      switch page {
-      case .initial:
-        await syncReadAttention()
-      case .latest:
-        // The room's fresh copy of an open Thread's parent is the newer one.
-        if let parent = transcriptMessages.first(where: { $0.id == thread.parent?.id }) {
-          thread.apply(eventType: .update, message: parent)
-        }
-        await syncReadAttention()
-      default:
-        break
+      // The room's fresh copy of an open Thread's parent is the newer one.
+      if page == .latest, let parent = transcriptMessages.first(where: { $0.id == thread.parent?.id }) {
+        thread.apply(eventType: .update, message: parent)
       }
-    }
-    thread.transcript.hooks = transcriptHooks { [weak self] page in
-      guard let self, page != .initial else { return }
       await syncReadAttention()
+    }
+    thread.transcript.hooks = transcriptHooks { [weak self] _ in
+      await self?.syncReadAttention()
     }
   }
 
@@ -840,6 +836,10 @@ public final class WorkspaceState: ObservableObject {
       for await event in stream {
         guard !Task.isCancelled else { break }
         handleRealtimeEvent(event)
+        switch event {
+        case .message, .patch, .envelope: syncReadAttentionAfterRealtime()
+        default: break
+        }
       }
     }
     syncPresenceOrganization()
@@ -885,6 +885,20 @@ public final class WorkspaceState: ObservableObject {
       sidebarRecovery.requestRefresh(collections)
     case let other:
       handleLiveStateEvent(other)
+    }
+  }
+
+  /// Another member's message, edit or delete changes what the reader sees. The read runs beside the event loop, so
+  /// a burst of events never waits on it; one more run follows whatever arrived while one was going.
+  private func syncReadAttentionAfterRealtime() {
+    guard !realtimeReadSyncPending else { return }
+    realtimeReadSyncPending = true
+    let previous = realtimeReadSync
+    realtimeReadSync = Task { [weak self] in
+      await previous?.value
+      guard let self else { return }
+      realtimeReadSyncPending = false
+      await syncReadAttention()
     }
   }
 
@@ -1056,7 +1070,7 @@ public final class WorkspaceState: ObservableObject {
     )
   }
 
-  public var readContent: RoomReadAttention.Content {
+  var readContent: RoomReadAttention.Content {
     .init(messages: transcriptMessages.map { .init(id: $0.id, content: $0.content) },
           parentMessageId: thread.parent?.id,
           replies: thread.transcript.timeline.messages.map { .init(id: $0.id, content: $0.content) })
