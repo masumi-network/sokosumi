@@ -108,12 +108,19 @@ final class GatedChannel<Policy: GatedChannelPolicy>: @unchecked Sendable {
     queue.async { [self] in
       guard active, scope.target != target else { return }
       policy.detach()
-      retry?.cancel()
-      retry = nil
+      cancelRetry()
       scope.setTarget(target)
       if target != nil {
         synchronize()
       }
+    }
+  }
+
+  /// Runs `body` on the queue unless the channel has stopped.
+  func whileActive(_ body: @escaping @Sendable () -> Void) {
+    queue.async { [self] in
+      guard active else { return }
+      body()
     }
   }
 
@@ -125,12 +132,32 @@ final class GatedChannel<Policy: GatedChannelPolicy>: @unchecked Sendable {
     }
   }
 
+  /// On the queue only. Runs `action` after `retryDelay` in the one retry slot, while the channel is granted and the
+  /// slot is free; a new target, a fresh authorization, `cancelRetry` and `stop` drop it.
+  func retryLater(_ action: @escaping @Sendable () -> Void) {
+    guard active, retry == nil, scope.grant != nil else { return }
+    retry = Task { [weak self, sleep] in
+      do { try await sleep(Self.retryDelay) } catch { return }
+      guard !Task.isCancelled else { return }
+      self?.queue.async { [weak self] in
+        guard let self, active else { return }
+        retry = nil
+        action()
+      }
+    }
+  }
+
+  /// On the queue only. Drops a pending retry.
+  func cancelRetry() {
+    retry?.cancel()
+    retry = nil
+  }
+
   /// Synchronous, so a socket closes only after the detach is issued.
   func stop() {
     queue.sync { [self] in
       active = false
-      retry?.cancel()
-      retry = nil
+      cancelRetry()
       if let connectionListener {
         host.removeListener(connectionListener)
       }
@@ -142,8 +169,7 @@ final class GatedChannel<Policy: GatedChannelPolicy>: @unchecked Sendable {
 
   private func synchronize() {
     guard active, host.canAuthorize else { return }
-    retry?.cancel()
-    retry = nil
+    cancelRetry()
     guard let id = scope.requestAuthorization() else { return }
     host.authorize { [weak self] capability, failed in
       self?.queue.async { [weak self] in
