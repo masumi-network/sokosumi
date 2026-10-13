@@ -15,7 +15,7 @@ public extension WorkspaceState {
     }
     // Open uses openRoomLink, which only selects listed rooms; Core's chat_rooms_changed for the Self Direct may land after the alert.
     if !rooms.contains(where: { $0.id == saved.roomId }) {
-      await refreshRooms()
+      await refreshRoomsAfterChange()
     }
     return saved
   }

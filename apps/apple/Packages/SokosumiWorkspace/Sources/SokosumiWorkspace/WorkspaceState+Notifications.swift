@@ -45,8 +45,8 @@ public extension WorkspaceState {
       guard phase == .ready else { return .unavailable }
     }
     if !rooms.contains(where: { $0.id == target.roomId }) {
-      // A room joined since the last sidebar read is not listed yet.
-      await refreshRooms()
+      // A room joined since the last sidebar read is not listed yet, nor in a read that started before the join.
+      await refreshRoomsAfterChange()
     }
     return try await openRoomLink(roomId: target.roomId, messageId: target.messageId)
   }

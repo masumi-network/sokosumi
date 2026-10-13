@@ -74,8 +74,7 @@ public extension WorkspaceState {
   func openInvitedRoom(_ roomId: String, context: UUID) async {
     guard context == compositionContext else { return }
     if !rooms.contains(where: { $0.id == roomId }) {
-      await roomsRefreshTask?.value
-      await refreshRooms()
+      await refreshRoomsAfterChange()
     }
     guard context == compositionContext, rooms.contains(where: { $0.id == roomId }) else { return }
     selectRoom(roomId)
@@ -84,8 +83,7 @@ public extension WorkspaceState {
   /// Guest rooms are listed in every workspace, so the current list gains the room; a completed request must not pull the user away from a room they selected meanwhile.
   private func openJoinedRoom(_ roomId: String, sourceRoom: String?, context: UUID) async {
     // A list refresh that started before the membership was granted cannot contain the room.
-    await roomsRefreshTask?.value
-    await refreshRooms()
+    await refreshRoomsAfterChange()
     guard context == compositionContext, rooms.contains(where: { $0.id == roomId }), transcriptRoomId == sourceRoom else { return }
     selectRoom(roomId)
   }

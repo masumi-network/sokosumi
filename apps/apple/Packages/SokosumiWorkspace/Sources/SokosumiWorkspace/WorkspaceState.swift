@@ -1122,9 +1122,7 @@ public final class WorkspaceState: ObservableObject {
     } catch ChatServiceError.unauthorized(_) {
       sidebar.clearActionError()
     } catch {
-      // A read that started before the failure may already be running; it must not stand in for the reload.
-      await roomsRefreshTask?.value
-      await refreshRooms()
+      await refreshRoomsAfterChange()
     }
   }
 
@@ -1235,6 +1233,13 @@ public final class WorkspaceState: ObservableObject {
     }
     roomsRefreshTask = task
     await task.value
+  }
+
+  /// A read already in flight may have started before a change just made on Core, so it cannot stand in for one that
+  /// shows it: wait it out, then read again.
+  func refreshRoomsAfterChange() async {
+    await roomsRefreshTask?.value
+    await refreshRooms()
   }
 
   /// Web reads Archived in organization workspaces only; the live list and the invitations in every workspace.

@@ -241,6 +241,33 @@ private func realtimeState(
   return (state, auth, transport)
 }
 
+/// Holds a room-list read in flight, runs `action` until it has sent `operation` (the change on Core) and has had
+/// time to reach its own room read, then lets the held read finish with the list it started with. Nothing observable
+/// says the action is waiting on the held read, so the yields are a budget: a run that releases too early passes
+/// without the fix, never fails with it.
+private func whileARoomListReadIsInFlight<T: Sendable>(
+  _ state: WorkspaceState,
+  _ transport: RealtimeScriptedTransport,
+  until operation: String,
+  _ action: @escaping () async throws -> T
+) async throws -> T {
+  transport.pauseNextRoomsGET = true
+  let listing = Task { await state.refreshRooms() }
+  await transport.waitForRoomsGET()
+  let acting = Task { try await action() }
+  // Bounded: an action that fails before sending `operation` surfaces its error below instead of hanging the run.
+  for _ in 0 ..< 10000 where !transport.operationIDs.contains(operation) {
+    await Task.yield()
+  }
+  #expect(transport.operationIDs.contains(operation))
+  for _ in 0 ..< 100 {
+    await Task.yield()
+  }
+  transport.releaseRoomsGET()
+  await listing.value
+  return try await acting.value
+}
+
 private func waitForRealtimeIdle(_ state: WorkspaceState) async {
   while state.sidebarRecovery.isRefreshing || state.roomsRefreshTask != nil || state.room.recovery.isRefreshing || state.room.loadTask != nil {
     await state.roomsRefreshTask?.value
@@ -1485,6 +1512,51 @@ struct WorkspaceRealtimeTests {
     let read = try #require(operations.firstIndex(of: "patch/notifications/{id}/read"))
     let lookup = try #require(operations.firstIndex(of: "get/workspaces/{id}"))
     #expect(read < lookup)
+  }
+
+  /// A room-list read that started before the notification's room was joined cannot list it; opening waits that read
+  /// out and reads again.
+  @Test func openingANotificationRereadsPastARoomListAlreadyInFlight() async throws {
+    let (state, _, transport) = try realtimeState([
+      (200, workspacesBody()), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (500, realtimeErrorBody),
+      (200, realtimeRoomsBody(ids: [roomA, roomB])),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
+    ])
+    await state.reload()
+    await waitForRealtimeIdle(state)
+    let opening = try await whileARoomListReadIsInFlight(state, transport, until: "patch/notifications/{id}/read") {
+      try await state.openNotification(.init(id: "n1", roomId: roomB))
+    }
+    await waitForRealtimeIdle(state)
+    #expect(opening == .opened && state.selectedRoomId == roomB)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms" }.count == 3)
+    state.reset()
+  }
+
+  /// The Self Direct Send to yourself just created is not in a room-list read that started before it.
+  @Test func sendToSelfRereadsPastARoomListAlreadyInFlight() async throws {
+    let source = try #require(await decodeRealtimeMessages([realtimeMessageJSON(id: "source", roomId: roomA, content: "Keep")]).first)
+    let (state, _, transport) = try realtimeState([
+      (200, workspacesBody()), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (201, realtimeCreatedBody(id: "saved", roomId: roomB, content: "")),
+      (200, realtimeRoomsBody(ids: [roomA, roomB]))
+    ])
+    await state.reload()
+    await waitForRealtimeIdle(state)
+    let saved = try await whileARoomListReadIsInFlight(state, transport, until: "post/chats/rooms/{id}/messages/{messageId}/send-to-self") {
+      try await state.sendMessageToSelf(source)
+    }
+    #expect(saved.roomId == roomB)
+    #expect(state.rooms.map(\.id) == [roomA, roomB])
+    #expect(state.selectedRoomId == roomA)
+    state.reset()
   }
 
   /// Row 36a, ADR 0033: the room composer announces on the open room's typing channel, throttled,
