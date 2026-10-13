@@ -186,6 +186,8 @@ const MESSAGES: Record<string, string> = {
   "composer.connectAccount": "Connect account",
   "composer.previewEmpty": "Your post shows here as you write.",
   now: "Now",
+  accountFallback: "Your account",
+  label: "{provider} preview",
   "cancelDialog.title": "Cancel this post?",
   "cancelDialog.description":
     "The post will not be published. This cannot be undone.",
@@ -582,13 +584,18 @@ describe("ProjectSocialPosts", () => {
 
     const drafts = screen.getByTestId("social-posts-section-drafts");
     const draftRow = within(drafts).getByTestId("social-post-post-draft");
+    expect(within(draftRow).getByTestId("social-post-preview")).toBeVisible();
     expect(within(draftRow).getByText("Draft text")).toBeVisible();
-    expect(within(draftRow).getByText("No account")).toBeVisible();
-    expect(within(draftRow).getByText("User · Alice")).toBeVisible();
-    // Every card leads with its status, the way a task card does.
     expect(
-      within(draftRow).getByTestId("social-post-status-DRAFT"),
-    ).toHaveTextContent("Draft");
+      within(draftRow).getByRole("button", { name: "Preview" }),
+    ).toBeVisible();
+    expect(
+      within(draftRow).getByRole("button", { name: "Post actions" }),
+    ).toBeVisible();
+    expect(screen.getByTestId("social-posts-drafts-grid")).toHaveClass(
+      "sm:grid-cols-2",
+      "xl:grid-cols-3",
+    );
 
     expect(
       screen.queryByTestId("social-post-post-scheduled"),
@@ -597,6 +604,109 @@ describe("ProjectSocialPosts", () => {
       screen.queryByTestId("social-post-post-published"),
     ).not.toBeInTheDocument();
     expect(screen.getAllByRole("list")).toHaveLength(1);
+  });
+
+  it("shows a draft's media in the platform preview, including a GIF badge", () => {
+    const gif: SocialPostMediaRef = {
+      pathname: "drive/users/user_1/loop.gif",
+      fileUrl:
+        "https://store.public.blob.vercel-storage.com/drive/users/user_1/loop.gif",
+      name: "loop.gif",
+      size: 1024,
+      mimeType: "image/gif",
+      kind: "gif",
+    };
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({
+            socialConnection: {
+              id: "connection-1",
+              externalHandle: "sokosumi",
+              displayName: "Sokosumi",
+              avatarUrl: null,
+              status: "active",
+            },
+            media: [IMAGE_REF, gif],
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const draft = screen.getByTestId("social-post-post-draft");
+    const preview = within(draft).getByTestId("social-post-preview");
+    expect(within(preview).getByAltText("launch.png")).toBeVisible();
+    expect(within(preview).getByAltText("loop.gif")).toBeVisible();
+    expect(
+      within(preview).getByTestId("social-post-preview-gif"),
+    ).toHaveTextContent("GIF");
+  });
+
+  it("opens the preview dialog from a draft card", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByTestId("social-post-preview-open-post-draft"));
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(
+      within(screen.getByRole("dialog")).getByText("Post preview"),
+    ).toBeVisible();
+  });
+
+  it("keeps the reconnect warning on a draft card", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({
+            socialConnection: {
+              id: "connection-1",
+              externalHandle: "sokosumi",
+              displayName: null,
+              avatarUrl: null,
+              status: "reauthorization_required",
+            },
+            connectionNeedsReconnect: true,
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const warning = within(
+      screen.getByTestId("social-post-post-draft"),
+    ).getByTestId("social-post-needs-reconnect");
+    expect(warning).toHaveTextContent("Account needs reconnecting");
+    expect(
+      within(warning).getByRole("link", { name: "Reconnect the account" }),
+    ).toHaveAttribute("href", "/social?projectId=project-1&tab=accounts");
+  });
+
+  it("keeps Needs attention as compact rows", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[FAILED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    const row = screen.getByTestId("social-post-post-failed");
+    expect(
+      within(row).queryByTestId("social-post-preview"),
+    ).not.toBeInTheDocument();
+    expect(within(row).getByText("Failed text")).toBeVisible();
+    expect(within(row).getByTestId("social-post-status-FAILED")).toBeVisible();
   });
 
   it("opens Social on its calendar, with Accounts as the last tab", async () => {
