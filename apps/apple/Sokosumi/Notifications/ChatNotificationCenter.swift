@@ -101,7 +101,7 @@ extension ChatNotificationCenter: UNUserNotificationCenterDelegate {
   }
 }
 
-/// Wires the adapter to the coordinator for the app lifetime and routes an opened banner like a chat link.
+/// Starts the adapter once a window shows (the workspace got it at launch) and routes an opened banner like a chat link.
 struct ChatNotificationLifecycleModifier: ViewModifier {
   @EnvironmentObject private var workspaces: WorkspaceState
   @State private var openError: String?
@@ -111,7 +111,6 @@ struct ChatNotificationLifecycleModifier: ViewModifier {
     content
       .onAppear {
         Task { @MainActor in
-          workspaces.notificationPresenter = ChatNotificationCenter.shared
           ChatNotificationCenter.shared.start { target in open(target) }
         }
       }
