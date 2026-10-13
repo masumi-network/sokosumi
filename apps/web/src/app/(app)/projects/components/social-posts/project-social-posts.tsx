@@ -105,6 +105,8 @@ interface ProjectSocialPostsProps {
    * The post a link names (`?postId=`), opened in a preview without changing tabs.
    */
   selectedPostId?: string;
+  /** The named post request failed, so do not pretend the link is gone. */
+  selectedPostFailed?: boolean;
 }
 
 /** Statuses whose previous attempt already ran, so the publish action reads as a retry. */
@@ -215,6 +217,7 @@ export function ProjectSocialPosts({
   nextCursors,
   projectId,
   selectedPostId,
+  selectedPostFailed = false,
   previewOnly = false,
   returnFocus,
 }: ProjectSocialPostsProps) {
@@ -806,6 +809,27 @@ export function ProjectSocialPosts({
                 {accountPrompt === "reconnect"
                   ? t("reconnectPrompt.action")
                   : t("connectPrompt.action")}
+              </Button>
+            </div>
+          ) : null}
+
+          {selectedPostFailed ? (
+            <div
+              className="space-y-3"
+              data-testid="social-selected-post-load-error"
+              role="alert"
+            >
+              <p className="text-sm">{t("selectedPostFailed")}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-11 md:h-8"
+                onClick={() => {
+                  router.refresh();
+                }}
+              >
+                {t("selectedPostRetry")}
               </Button>
             </div>
           ) : null}

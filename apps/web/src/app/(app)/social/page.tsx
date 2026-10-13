@@ -99,7 +99,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     );
   }
 
-  const [pages, connections, selectedPost, calendar, sokoBot] =
+  const [pages, connections, selectedPostResult, calendar, sokoBot] =
     await Promise.all([
       Promise.all(
         SECTION_ORDER.map((section) =>
@@ -110,14 +110,18 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
       ),
       projectService.listSocialConnections(project.id),
       query.postId
-        ? projectService.getSocialPost(project.id, query.postId)
-        : Promise.resolve(null),
+        ? projectService
+            .getSocialPost(project.id, query.postId)
+            .then((post) => ({ failed: false as const, post }))
+            .catch(() => ({ failed: true as const, post: null }))
+        : Promise.resolve({ failed: false as const, post: null }),
       loadWorkspaceCalendarPage({
         projectId: project.id,
         searchParams: Promise.resolve(withoutAgendaView(query)),
       }),
       sokoBotService.getMine().catch(() => null),
     ]);
+  const { post: selectedPost, failed: selectedPostFailed } = selectedPostResult;
   const activeConnections = connections.filter(
     (socialConnection) => socialConnection.status === "active",
   );
@@ -166,6 +170,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             )}
             posts={posts}
             projectId={project.id}
+            selectedPostFailed={selectedPostFailed}
             selectedPostId={selectedPost?.id}
           />
         </SocialComposeProvider>
