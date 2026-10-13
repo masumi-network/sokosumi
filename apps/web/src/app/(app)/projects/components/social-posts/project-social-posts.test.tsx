@@ -133,6 +133,7 @@ const MESSAGES: Record<string, string> = {
   "composer.textPlaceholder": "What do you want to post?",
   "composer.characters": "{count} / {limit}",
   "composer.media.addFromDrive": "Add from Drive",
+  "composer.media.drop": "Drop files to attach",
   "composer.media.upload": "Upload",
   "composer.media.remove": "Remove {name}",
   "composer.media.hint": "Up to 4 images, or one GIF, or one video.",
@@ -2105,10 +2106,13 @@ describe("ProjectSocialPosts", () => {
       });
     });
 
-    const dropTransfer = new DataTransfer();
-    dropTransfer.items.add(dropped);
     await act(async () => {
-      fireEvent.drop(surface, { dataTransfer: dropTransfer });
+      fireEvent.drop(surface, {
+        dataTransfer: {
+          types: ["Files"],
+          files: [dropped],
+        },
+      });
     });
     await waitFor(() => {
       expect(uploadDriveFileMock).toHaveBeenCalledTimes(2);
@@ -2116,6 +2120,25 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
     ).toHaveLength(2);
+  });
+
+  it("shows a drop hint while a file is held over the composer", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const surface = within(dialog).getByTestId("social-post-composer-surface");
+    fireEvent.dragEnter(surface, {
+      dataTransfer: { types: ["Files"], files: [] },
+    });
+    expect(within(dialog).getByText("Drop files to attach")).toBeVisible();
   });
 
   it("schedules a new post with an ISO timestamp and the viewer timezone", async () => {
