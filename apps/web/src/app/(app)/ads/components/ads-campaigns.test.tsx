@@ -91,6 +91,7 @@ describe("AdsCampaigns", () => {
       "CTR",
       "CPC",
       "Conversions",
+      "Actions",
     ]) {
       expect(
         table().getByRole("columnheader", { name: column }),
@@ -171,6 +172,12 @@ describe("AdsCampaigns", () => {
 });
 
 describe("formatObjective", () => {
+  const labels = createTranslator({
+    locale: "en",
+    messages,
+    namespace: "App.Ads.newCampaign.objectives",
+  });
+
   it.each([
     ["SEARCH", "Search"],
     ["OUTCOME_TRAFFIC", "Traffic"],
@@ -178,6 +185,6 @@ describe("formatObjective", () => {
     ["PERFORMANCE_MAX", "Performance max"],
     ["Something new", "Something new"],
   ])("shows %s as %s", (objective, expected) => {
-    expect(formatObjective(objective)).toBe(expected);
+    expect(formatObjective(objective, labels)).toBe(expected);
   });
 });

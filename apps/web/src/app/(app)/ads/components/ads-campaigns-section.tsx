@@ -1,9 +1,9 @@
 import type { ProjectAdAccount } from "@sokosumi/core-client";
 
+import { CORE_RANGE_BY_PARAM, type RangeParam } from "@/app/ads/ads-query";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { adsService } from "@/lib/services/ads.service";
 
-import { CORE_RANGE_BY_PARAM, type RangeParam } from "../ads-query";
 import { AdsCampaigns } from "./ads-campaigns";
 import {
   AdsCampaignsError,

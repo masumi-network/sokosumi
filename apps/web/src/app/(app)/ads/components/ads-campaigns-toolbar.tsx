@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 
+import {
+  adsSearchParams,
+  RANGE_PARAMS,
+  type RangeParam,
+} from "@/app/ads/ads-query";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -14,8 +19,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-
-import { adsSearchParams, RANGE_PARAMS, type RangeParam } from "../ads-query";
 
 const queryParsers = {
   account: adsSearchParams.account,

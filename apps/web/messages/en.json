@@ -3117,7 +3117,8 @@
           "clicks": "Clicks",
           "ctr": "CTR",
           "cpc": "CPC",
-          "conversions": "Conversions"
+          "conversions": "Conversions",
+          "actions": "Actions"
         },
         "status": {
           "ACTIVE": "Active",

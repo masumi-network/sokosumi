@@ -4,6 +4,7 @@ import type { ProjectAdAccount } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 
+import { ADS_TABS, adsSearchParams } from "@/app/ads/ads-query";
 import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +17,6 @@ import {
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-import { ADS_TABS, adsSearchParams } from "../ads-query";
 import { AdsAccounts } from "./ads-accounts";
 import { AdsRowsSkeleton } from "./ads-skeleton";
 

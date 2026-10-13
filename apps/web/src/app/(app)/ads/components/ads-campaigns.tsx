@@ -27,8 +27,20 @@ const NUMERIC_COLUMNS = [
   "conversions",
 ] as const;
 
-/** Provider enums read as words: "OUTCOME_TRAFFIC" becomes "Traffic". */
-export function formatObjective(objective: string): string {
+/** Labels for known Meta objectives; unknown Google enums fall back to words. */
+type ObjectiveLabels = {
+  (key: string): string;
+  has(key: string): boolean;
+};
+
+/** Prefer the translated Meta objective; otherwise turn "OUTCOME_TRAFFIC" into "Traffic". */
+export function formatObjective(
+  objective: string,
+  labels: ObjectiveLabels,
+): string {
+  if (labels.has(objective)) {
+    return labels(objective);
+  }
   const words = objective
     .replace(/^OUTCOME_/, "")
     .replaceAll("_", " ")
@@ -60,6 +72,7 @@ export async function AdsCampaigns({
   provider,
 }: AdsCampaignsProps) {
   const t = await getTranslations("App.Ads.campaigns");
+  const tObjectives = await getTranslations("App.Ads.newCampaign.objectives");
   const formatter = await getFormatter();
 
   if (campaigns.length === 0) {
@@ -152,7 +165,9 @@ export async function AdsCampaigns({
                   {t(`columns.${column}`)}
                 </TableHead>
               ))}
-              <TableHead />
+              <TableHead className="w-12">
+                <span className="sr-only">{t("columns.actions")}</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -162,7 +177,7 @@ export async function AdsCampaigns({
                   <p className="truncate font-medium">{campaign.name}</p>
                   {campaign.objective ? (
                     <p className="text-muted-foreground truncate text-xs">
-                      {formatObjective(campaign.objective)}
+                      {formatObjective(campaign.objective, tObjectives)}
                     </p>
                   ) : null}
                 </TableCell>
