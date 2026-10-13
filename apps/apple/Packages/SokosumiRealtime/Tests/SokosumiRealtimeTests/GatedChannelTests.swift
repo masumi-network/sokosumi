@@ -81,7 +81,8 @@ private final class Ran: @unchecked Sendable {
 }
 
 /// A retry clock the test fires.
-private final class ManualSleep: @unchecked Sendable {
+/// A clock the test fires by hand: each `sleep` waits until `fire` releases it.
+final class ManualSleep: @unchecked Sendable {
   private let lock = NSLock()
   private var waiters: [CheckedContinuation<Void, Never>] = []
 
