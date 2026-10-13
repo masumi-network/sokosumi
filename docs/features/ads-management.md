@@ -226,13 +226,15 @@ The suggest body is JSON, so `q` needs no character whitelist.
 
 Plain branches, each based on the one below. Draft PRs. Before every PR: `code-review` (Standards + Spec vs this spec and the Sokosumi task).
 
+**Collapse (2026-10-13):** layers **01–05** reviewed and folded into `#5528` (`ads/05-core-campaigns-create` → `main`). Closed: `#5506`, `#5521`, `#5522`, `#5526`.
+
 | # | Branch | Layer | Scope |
 |---|---|---|---|
-| 01 | `ads/01-core-schema` | Core | Prisma models + migration, env vars, ads provider config, CONTEXT.md glossary, this spec |
-| 02 | `ads/02-core-connect` | Core | Initiate / finalize / attach / list / detach ad accounts |
-| 03 | `ads/03-core-campaigns-read` | Core | List campaigns + metrics (Google GAQL, Meta insights) |
-| 04 | `ads/04-core-campaigns-update` | Core | Pause/resume, daily budget |
-| 05 | `ads/05-core-campaigns-create` | Core | Create campaign (PAUSED) |
+| 01 | `ads/01-core-schema` | Core | ~~Prisma models + migration, env vars, ads provider config, CONTEXT.md glossary, this spec~~ → folded into 05 |
+| 02 | `ads/02-core-connect` | Core | ~~Initiate / finalize / attach / list / detach ad accounts~~ → folded into 05 |
+| 03 | `ads/03-core-campaigns-read` | Core | ~~List campaigns + metrics (Google GAQL, Meta insights)~~ → folded into 05 |
+| 04 | `ads/04-core-campaigns-update` | Core | ~~Pause/resume, daily budget~~ → folded into 05 |
+| 05 | `ads/05-core-campaigns-create` | Core | Create campaign (PAUSED) + collapsed 01–04 (current bottom PR) |
 | 06 | `ads/06-core-market-keywords` | Core | Market profile + trending keywords (DataForSEO, 24h cache) |
 | 07 | `ads/07-core-market-ads` | Core | Market ads with preview images (DataForSEO, 24h cache) |
 | 08 | `ads/08-web-shell` | Web | Sidebar + You entry, `/ads` page shell, tabs, empty states, core snapshot |
