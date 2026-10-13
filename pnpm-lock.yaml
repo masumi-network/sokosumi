@@ -293,8 +293,8 @@ importers:
         specifier: 0.4.2
         version: 0.4.2
       '@composio/core':
-        specifier: 0.22.0
-        version: 0.22.0(ws@8.21.0)(zod@4.6.7)
+        specifier: 0.23.0
+        version: 0.23.0(ws@8.21.0)(zod@4.6.7)
       '@hono/node-server':
         specifier: 2.1.4
         version: 2.1.4(hono@4.13.13)
@@ -1407,18 +1407,18 @@ packages:
     resolution: {integrity: sha512-dlT1m5e/0yUL0kRNcQn7yGLVThkgbB0Ga/1AmfDDC/8ik6AIiSf2QLQO2zPYvefsHP0aFgxO93cVLCCfDp7kzQ==}
     engines: {node: '>= 20.12.0'}
 
-  '@composio/client@2.0.0-rc.8':
-    resolution: {integrity: sha512-0C0Flmblx0Y3i6iGUY/MvST4aNXn3xEmPEA4wqZd3acm9x6u61/0i1LXCgBzFTTZEveK8YBFRu8Lpo/SMZwAFQ==}
+  '@composio/client@2.0.0-rc.11':
+    resolution: {integrity: sha512-jACnskE/mH0dETIBY5C8wpbeszlr1UdPH+y5bCB+CYome2zPVXi41V5bEF+vCDOowOTXhT37y3uyWsezB8gkkw==}
     engines: {node: '>=22'}
 
-  '@composio/core@0.22.0':
-    resolution: {integrity: sha512-Inc7/yqhRQTfvU3km/VwSpewwJ9O/5mnC2FjSPDp56MfEdUfx61rwoi6+pancTUhHsHic5qe0lB4C2rHd7iioA==}
+  '@composio/core@0.23.0':
+    resolution: {integrity: sha512-ugIzIPlM7EAiVQGdkl50BZbgpZfO7vyqfJaMKiqp3MZoTQb4FSFKnjC1eLAQ5kWW/nhQysnuR79zHhsbXQWfaA==}
     engines: {node: '>=22.22.3'}
     peerDependencies:
       zod: '>=3.25.76 <5'
 
-  '@composio/json-schema-to-zod@0.3.3':
-    resolution: {integrity: sha512-QmgYo4IeK5/34Iqo1jSx6fSnLEyL++07FlW5Y6SfGFOhyb5htnY+vZPjs/tL8puJYhiEU7FV7kXdu5EAQoGrSA==}
+  '@composio/json-schema-to-zod@0.3.4':
+    resolution: {integrity: sha512-8MQUTBZ+r5ToY5lLaJCdOHLXjpqfyFKQuyruZbHnl4Mtp7LYjJP2k5KPyo521AmVSpugbyXiyNdCZWZQR2qGIw==}
     engines: {node: '>=22.22.3'}
     peerDependencies:
       zod: '>=3.25.76 <5'
@@ -8703,6 +8703,10 @@ packages:
       react: ^16.13.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.13.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
+  re2js@2.8.6:
+    resolution: {integrity: sha512-xLgQil4kIUCrAzVk9fRSkxkFNwmygLFjVxXrLc65aE1F0+Zsb8rxumFBy4XKyvgMCTL6kilDq3EZ0piE2dP/Dg==}
+    engines: {node: '>=18.0.0'}
+
   react-avatar-editor@15.1.0:
     resolution: {integrity: sha512-Zto7u9l6Wd5LPPtjeFJ+7uwoT4bs01OSgkN2kxD18lWl8IiZ0GY3nWCbKPx4qIU7Au1vENsMJm19rfVWHHayaQ==}
     peerDependencies:
@@ -10610,12 +10614,12 @@ snapshots:
       fast-wrap-ansi: 0.2.2
       sisteransi: 1.0.5
 
-  '@composio/client@2.0.0-rc.8': {}
+  '@composio/client@2.0.0-rc.11': {}
 
-  '@composio/core@0.22.0(ws@8.21.0)(zod@4.6.7)':
+  '@composio/core@0.23.0(ws@8.21.0)(zod@4.6.7)':
     dependencies:
-      '@composio/client': 2.0.0-rc.8
-      '@composio/json-schema-to-zod': 0.3.3(zod@4.6.7)
+      '@composio/client': 2.0.0-rc.11
+      '@composio/json-schema-to-zod': 0.3.4(zod@4.6.7)
       '@types/json-schema': 7.0.15
       is-fs-case-sensitive: 2.0.0
       openai: 7.23.0(undici@7.30.0)(ws@8.21.0)(zod@4.6.7)
@@ -10631,10 +10635,11 @@ snapshots:
       - '@smithy/signature-v4'
       - ws
 
-  '@composio/json-schema-to-zod@0.3.3(zod@4.6.7)':
+  '@composio/json-schema-to-zod@0.3.4(zod@4.6.7)':
     dependencies:
       '@cfworker/json-schema': 4.1.1
       dequal: 2.0.3
+      re2js: 2.8.6
       zod: 4.6.7
 
   '@date-fns/tz@1.5.0': {}
@@ -18275,6 +18280,8 @@ snapshots:
     dependencies:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
+
+  re2js@2.8.6: {}
 
   react-avatar-editor@15.1.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:
