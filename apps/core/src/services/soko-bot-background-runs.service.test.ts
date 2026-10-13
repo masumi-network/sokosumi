@@ -9,6 +9,8 @@ const { findUniqueOrThrow, findMany, findFirst, startTurn, cancelTurn } =
     cancelTurn: vi.fn(),
   }));
 
+const reconcileTurn = vi.fn().mockResolvedValue(undefined);
+vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
 vi.mock("@/lib/db/prisma", () => ({
   default: { sokoBotTurn: { findUniqueOrThrow, findMany, findFirst } },
 }));
@@ -16,7 +18,7 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
   SokoBotRuntimeValidationError: class SokoBotRuntimeValidationError extends Error {},
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
-  sokoBotControlPlane: { startTurn, cancelTurn },
+  sokoBotControlPlane: { startTurn, cancelTurn, reconcileTurn },
 }));
 
 import type { AuthorizedSokoBotRuntime } from "@/services/soko-bot-runtime.service";
@@ -60,7 +62,11 @@ describe("background runs", () => {
 
   it("starts a run beside the chat with the turn's tools, minus starting more", async () => {
     findUniqueOrThrow.mockResolvedValue(ownerParent);
-    startTurn.mockResolvedValue({ turnId: "run-1", status: "RUNNING" });
+    startTurn.mockResolvedValue({
+      turnId: "run-1",
+      status: "RUNNING",
+      reconciliationLeaseToken: "lease",
+    });
     const result = await startBackgroundRun(authorized, {
       title: "Gmail CRM",
       brief: "Go through Gmail since 2023-10-13 into table t-1.",
@@ -87,6 +93,7 @@ describe("background runs", () => {
       "list_background_runs",
     ]);
     expect(input.presetRoute.sandbox).toBe(true);
+    expect(reconcileTurn).toHaveBeenCalledWith("run-1", undefined, "lease");
   });
 
   it("refuses a run started from a run or from a teammate", async () => {

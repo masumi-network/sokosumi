@@ -3,6 +3,7 @@ import {
   isSokoBotSandboxCapability,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
+import { waitUntil } from "@vercel/functions";
 import prisma from "@/lib/db/prisma";
 import {
   type AuthorizedSokoBotRuntime,
@@ -89,6 +90,26 @@ export async function startBackgroundRun(
       destinationRoomId: parent.destinationRoomId,
     },
   });
+  // Drain it now like a chat turn; the turns sync takes over once this
+  // request's function ends.
+  if (
+    started.reconciliationLeaseToken &&
+    (started.status === "STARTING" || started.status === "RUNNING")
+  )
+    waitUntil(
+      sokoBotControlPlane
+        .reconcileTurn(
+          started.turnId,
+          undefined,
+          started.reconciliationLeaseToken,
+        )
+        .catch((error: unknown) => {
+          console.warn("Soko Bot background run reconciliation stopped", {
+            turnId: started.turnId,
+            error: error instanceof Error ? error.message : "unknown",
+          });
+        }),
+    );
   return {
     runId: started.turnId,
     title: input.title,
