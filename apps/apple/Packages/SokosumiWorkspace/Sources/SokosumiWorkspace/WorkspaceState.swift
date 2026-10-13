@@ -132,7 +132,7 @@ public final class WorkspaceState: ObservableObject {
   public let chatDisplay = ChatDisplayPreferences()
   public let notificationPreferences = ChatNotificationPreferences()
   /// App-side OS notification adapter; without it events raise no banner.
-  public var notificationPresenter: (any ChatNotificationPresenting)?
+  let notificationPresenter: (any ChatNotificationPresenting)?
   var notificationBanners = ChatNotificationBanners()
   /// The open room's main Transcript: its history, Send queue, realtime updates and recovery.
   public let room: TranscriptSession
@@ -180,10 +180,9 @@ public final class WorkspaceState: ObservableObject {
     room.outbox.isSending
   }
 
-  /// Factory for the live socket. Set by the app at launch (ably-cocoa);
-  /// nil in tests unless a fake is installed. Without one the transcript
-  /// stays HTTP-only and every realtime call below no-ops.
-  public var realtimeConnectionFactory: (@Sendable () -> (any RealtimeConnection))?
+  /// Factory for the live socket: the app's ably-cocoa connection, a fake in tests. Without one the transcript stays
+  /// HTTP-only and every realtime call below no-ops.
+  let realtimeConnectionFactory: (@Sendable () -> (any RealtimeConnection))?
   var realtime: (any RealtimeConnection)?
   private var realtimeStreamTask: Task<Void, Never>?
   private var realtimeContinuation: AsyncStream<ResolvedRealtimeDelivery>.Continuation?
@@ -236,8 +235,9 @@ public final class WorkspaceState: ObservableObject {
   let realtimeClientInstanceId: String
 
   /// Creates a workspace coordinator. The host app must inject its authenticated
-  /// client provider; the default resolves no client. `now`, `makeId` and `sleep` are the room and Thread
-  /// transcripts' clock and ids; `sleep` also paces the sidebar recovery timer.
+  /// client provider; the default resolves no client. It also passes its realtime connection and OS notification
+  /// adapter; without them the workspace stays HTTP-only and raises no banner. `now`, `makeId` and `sleep` are the
+  /// room and Thread transcripts' clock and ids; `sleep` also paces the sidebar recovery timer.
   public init(
     auth: AuthState,
     clientProvider: @escaping (AuthState) -> Client? = { _ in nil },
@@ -245,6 +245,8 @@ public final class WorkspaceState: ObservableObject {
     instanceStore: RealtimeClientInstanceIdStore = UserDefaultsRealtimeInstanceIdStore(),
     unreadsFilter: UnreadsFilterPreference = .transient,
     openRoomUnreadRecheck: OpenRoomUnreadRecheck = OpenRoomUnreadRecheck(),
+    realtimeConnectionFactory: (@Sendable () -> (any RealtimeConnection))? = nil,
+    notificationPresenter: (any ChatNotificationPresenting)? = nil,
     now: @escaping () -> Date = Date.init,
     makeId: @escaping () -> String = { UUID().uuidString },
     sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
@@ -257,6 +259,8 @@ public final class WorkspaceState: ObservableObject {
     self.auth = auth
     self.clientProvider = clientProvider
     self.openRoomUnreadRecheck = openRoomUnreadRecheck
+    self.realtimeConnectionFactory = realtimeConnectionFactory
+    self.notificationPresenter = notificationPresenter
     sidebar = ConversationSidebar(savedRoom: savedRoom, unreadsFilter: unreadsFilter)
     realtimeClientInstanceId = getOrCreateRealtimeClientInstanceId(store: instanceStore)
     for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, loaded.objectWillChange, room.objectWillChange, room.timeline.objectWillChange, room.outbox.objectWillChange, thread.objectWillChange, thread.transcript.objectWillChange, thread.transcript.timeline.objectWillChange, thread.transcript.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange, roomReads.objectWillChange] {
