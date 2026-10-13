@@ -82,9 +82,9 @@ import SwiftUI
       scrollActivity.isScrolling
     }
 
-    // shortcut: the Thread keeps following on a jumped-to page; it adopts the Room's live anchor in the next PR.
+    /// The Thread shows a jumped-to page; read live, never stored, so a page change and its anchor arrive together.
     private var anchored: Bool {
-      false
+      workspaces.thread.transcript.timeline.historicalAnchor != nil
     }
 
     var body: some View {
@@ -195,6 +195,12 @@ import SwiftUI
               scroll = next
             }
           }
+          .onChange(of: workspaces.thread.transcript.timeline.historicalAnchor) { old, new in
+            if old != nil, new == nil {
+              scroll.followLatest()
+              Task { @MainActor in workspaces.thread.transcript.clearJump() }
+            }
+          }
           .onChange(of: messages.last?.id) { _, _ in
             if scroll.followsNewMessages(anchored: anchored) {
               proxy.scrollTo("thread-bottom", anchor: .bottom)
@@ -203,12 +209,15 @@ import SwiftUI
           .overlay(alignment: .bottom) {
             if scroll.showsJumpToLatest(anchored: anchored) {
               JumpToLatestButton {
-                workspaces.thread.transcript.clearJump()
-                if workspaces.thread.transcript.timeline.historicalAnchor != nil {
-                  workspaces.loadThreadPage(.returnToLatest)
+                Task { @MainActor in
+                  do {
+                    if try await workspaces.thread.transcript.returnToLatest() {
+                      scroll.followLatest()
+                      workspaces.thread.transcript.clearJump()
+                      proxy.scrollTo("thread-bottom", anchor: .bottom)
+                    }
+                  } catch { jumpError = friendlyMessage(for: error) }
                 }
-                scroll.followLatest()
-                proxy.scrollTo("thread-bottom", anchor: .bottom)
               }
             }
           }

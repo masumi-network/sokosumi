@@ -101,6 +101,53 @@
         }
       }
 
+      /// Your own send brings the list back to the latest message, even after the reader scrolled up; the room and the
+      /// Thread follow the same rule.
+      @Test(arguments: [false, true])
+      func ownSendReturnsToLatest(thread: Bool) async throws {
+        let state = try Self.fixtureState(thread: thread, media: false)
+        let host = NSHostingView(rootView: Group {
+          if thread {
+            ReplyThreadView()
+          } else {
+            RoomTimelineView(roomId: "fixture")
+          }
+        }.environmentObject(state).environmentObject(AuthState()))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        let scroll = try await loadedTranscriptScrollView(in: host)
+        _ = try await waitForView(in: host, timeoutMessage: "The list did not start at the bottom; distance \(Self.distanceFromBottom(scroll)) pt") {
+          abs(Self.distanceFromBottom(scroll)) <= 1 ? scroll : nil
+        }
+        try await scrollAwayFromBottom(scroll, host: host)
+        try #require(Self.distanceFromBottom(scroll) > 400)
+        // A real wheel gesture ends; until it does the list counts the reader as scrolling.
+        let ended = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 0, wheel2: 0, wheel3: 0))
+        ended.setIntegerValueField(.scrollWheelEventScrollPhase, value: 4)
+        try scroll.scrollWheel(with: #require(NSEvent(cgEvent: ended)))
+        try await Task.sleep(for: .milliseconds(300))
+        let input = try #require(Self.inputView(in: host))
+        window.makeFirstResponder(input)
+        input.insertText("Sent from above", replacementRange: NSRange(location: 0, length: 0))
+        try input.keyDown(with: MessageEditComposerFixture.returnEvent())
+        let outbox = thread ? state.thread.transcript.outbox : state.room.outbox
+        _ = try await waitForView(in: host, timeoutMessage: "The composer did not send; it holds \(input.string.debugDescription)") {
+          outbox.shells.isEmpty ? nil : scroll
+        }
+        _ = try await waitForView(in: host, timeoutMessage: "The send left the list \(Self.distanceFromBottom(scroll)) pt above the bottom") {
+          Self.distanceFromBottom(scroll) < 50 ? scroll : nil
+        }
+      }
+
+      private static func inputView(in view: NSView) -> MacComposerTextInput.InputView? {
+        if let input = view as? MacComposerTextInput.InputView {
+          return input
+        }
+        return view.subviews.lazy.compactMap { inputView(in: $0) }.first
+      }
+
       /// The text Vision reads in the render, or nil where Vision cannot run at all. A missing image is a
       /// failure, not nil. Only the accurate recognizer: it is the one the assertions were written against.
       static func recognizedLines(in bitmap: NSBitmapImageRep) throws -> [String]? {
