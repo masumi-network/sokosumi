@@ -3470,8 +3470,7 @@
           "title": "Werbekonten auswählen",
           "description": "Wähle die {provider}-Konten, die in diesem Projekt verwaltet werden sollen.",
           "listLabel": "Verfügbare Werbekonten",
-          "confirm": "Auswahl verbinden",
-          "confirming": "Wird verbunden…"
+          "confirm": "Auswahl verbinden"
         },
         "success": {
           "connected": "Werbekonten erfolgreich verbunden",

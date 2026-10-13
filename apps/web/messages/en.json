@@ -3470,8 +3470,7 @@
           "title": "Choose ad accounts",
           "description": "Select the {provider} accounts to manage in this project.",
           "listLabel": "Available ad accounts",
-          "confirm": "Connect selected",
-          "confirming": "Connecting…"
+          "confirm": "Connect selected"
         },
         "success": {
           "connected": "Ad accounts connected successfully",

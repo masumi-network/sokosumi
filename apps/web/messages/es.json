@@ -3470,8 +3470,7 @@
           "title": "Elige cuentas publicitarias",
           "description": "Selecciona las cuentas de {provider} que se gestionarán en este proyecto.",
           "listLabel": "Cuentas publicitarias disponibles",
-          "confirm": "Conectar selección",
-          "confirming": "Conectando…"
+          "confirm": "Conectar selección"
         },
         "success": {
           "connected": "Cuentas publicitarias conectadas correctamente",

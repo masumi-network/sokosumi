@@ -107,12 +107,13 @@ export function AdAccountPickerDialog({
             {t("cancel")}
           </Button>
           <Button
-            disabled={selected.size === 0 || isAttaching}
+            disabled={selected.size === 0}
+            loading={isAttaching}
             onClick={() => onAttach([...selected])}
             type="button"
             variant="primary"
           >
-            {isAttaching ? t("picker.confirming") : t("picker.confirm")}
+            {t("picker.confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

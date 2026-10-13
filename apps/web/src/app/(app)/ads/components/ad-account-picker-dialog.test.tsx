@@ -101,7 +101,9 @@ describe("AdAccountPickerDialog", () => {
     expect(
       screen.getByRole("checkbox", { name: /Launch plan/ }),
     ).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Connecting…" })).toBeDisabled();
+    const confirm = screen.getByRole("button", { name: "Connect selected" });
+    expect(confirm).toHaveAttribute("aria-busy", "true");
+    expect(confirm).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
   });
 });

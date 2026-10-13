@@ -186,8 +186,11 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
         return;
       }
       toast.success(t("success.disconnected"));
-      // The row that held focus is gone, so keep it in the list.
-      sectionRef.current?.focus();
+      setDisconnectTarget(null);
+      // Dialog still traps focus until React paints the close; wait a tick.
+      setTimeout(() => {
+        sectionRef.current?.focus();
+      }, 0);
     } catch {
       toast.error(t("errors.disconnect"));
     } finally {
@@ -307,9 +310,13 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogCancel disabled={disconnectingId !== null}>
+              {t("cancel")}
+            </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
+              loading={disconnectingId !== null}
+              onClick={(event) => {
+                event.preventDefault();
                 if (disconnectTarget) void handleDisconnect(disconnectTarget);
               }}
             >
