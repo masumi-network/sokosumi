@@ -79,6 +79,7 @@ public final class WorkspaceState: ObservableObject {
   }
 
   private var attentionObservation: AnyCancellable?
+  private var signInObservation: AnyCancellable?
   private var sidebarObservation: AnyCancellable?
   public var rooms: [Components.Schemas.ChatRoom] {
     get { readAttention.applying(to: sidebar.rooms) }
@@ -281,6 +282,23 @@ public final class WorkspaceState: ObservableObject {
     }
     watchOpenRoomUnread()
     connectTranscripts()
+    watchLifecycle()
+  }
+
+  /// Sign-in follows the workspace itself, once for all windows: signing out drops the workspace and signing in
+  /// starts it. At launch a window's loading view starts it.
+  private func watchLifecycle() {
+    // `@Published` sends before it stores, so this acts after a hop, once the new status is in place.
+    signInObservation = auth.$status.map { $0 == .signedIn }.removeDuplicates().dropFirst()
+      .sink { [weak self] signedIn in
+        Task { @MainActor [weak self] in
+          if signedIn {
+            self?.startIfNeeded()
+          } else {
+            self?.reset()
+          }
+        }
+      }
   }
 
   /// The app's one sign-in, shared by every window: Core requests read its client, and a rejected session signs it out.
