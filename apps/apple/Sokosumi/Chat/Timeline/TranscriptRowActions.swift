@@ -36,7 +36,7 @@ struct TranscriptRowActions {
   /// returns its task, which the row awaits for its busy state and failure alert.
   func perform(_ action: MessageRowAction, on message: Components.Schemas.ChatRoomMessage) -> Task<Void, any Error>? {
     switch action {
-    case .reply: workspaces.openThread(message)
+    case .reply: workspaces.openRoom.openThread(message)
     case .quote: quote(message)
     case .edit: workspaces.startEditing(message)
     case .retrySend, .removeSend:

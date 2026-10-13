@@ -134,7 +134,7 @@ import SwiftUI
                 if preparedHasMore {
                   Button("Load older replies") {
                     scroll.readOlder()
-                    workspaces.loadThreadPage(.older)
+                    workspaces.openRoom.loadThreadPage(.older)
                   }
                   .buttonStyle(.link)
                   .controlSize(.small)
@@ -275,7 +275,7 @@ import SwiftUI
       let generation = timeline.generation
       Task { @MainActor in
         guard timeline.generation == generation, workspaces.openRoom.thread.transcript.loadTask == nil else { return }
-        workspaces.loadThreadPage(.older)
+        workspaces.openRoom.loadThreadPage(.older)
       }
     }
 
@@ -287,7 +287,7 @@ import SwiftUI
       } else {
         if let error = timeline.errorMessage {
           Text(error).foregroundStyle(.secondary)
-          Button("Retry") { workspaces.loadThreadPage(timeline.failedPage ?? .initial) }
+          Button("Retry") { workspaces.openRoom.loadThreadPage(timeline.failedPage ?? .initial) }
         }
         if workspaces.openRoom.directStream.parentMessageId == workspaces.openRoom.thread.parent?.id,
            let error = workspaces.openRoom.directStream.errorMessage {
@@ -314,7 +314,7 @@ import SwiftUI
             // Web's thread panel has no gap row (a reply jump is Apple's), so this stays a
             // tap; the row and its failure follow the room's gap row.
             PageBoundaryRow(copy: .transcript(isGap: true), status: gap) {
-              workspaces.loadThreadPage(.boundary(message.id))
+              workspaces.openRoom.loadThreadPage(.boundary(message.id))
             }
           }
           if let label = row.dayLabel {

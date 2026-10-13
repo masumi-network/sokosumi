@@ -105,7 +105,7 @@ import SwiftUI
           }
         case .threads:
           RoomThreadOverviewView(overview: workspaces.openRoom.threadOverview, open: {
-            workspaces.openThread($0)
+            workspaces.openRoom.openThread($0)
           }, older: { updateThreads(.older) }, markAllRead: { updateThreads(.markAllRead) },
           retry: { updateThreads(.load) }, close: { destination = nil })
         case .search:
