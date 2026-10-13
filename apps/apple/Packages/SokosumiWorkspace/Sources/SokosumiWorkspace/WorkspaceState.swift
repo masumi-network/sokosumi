@@ -781,15 +781,6 @@ public final class WorkspaceState: ObservableObject {
     }
   }
 
-  public func retryOutbound(clientTurnId: String) {
-    room.outbox.retry(clientTurnId)
-  }
-
-  /// Drops the failed local shell only. Does not delete a Core row.
-  public func removeOutbound(clientTurnId: String) {
-    room.outbox.remove(clientTurnId)
-  }
-
   // MARK: - Live realtime (SOK-976)
 
   /// Opens one socket for the signed-in client; membership owns authorization.

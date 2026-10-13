@@ -53,6 +53,16 @@
   @MainActor private final class Calls {
     var quotes = 0
     var ratings: [Bool] = []
+
+    /// The row's actions as the transcript answers them, counting quotes and ratings; nothing else runs.
+    func record(_ action: MessageRowAction) -> Task<Void, any Error>? {
+      switch action {
+      case .quote: quotes += 1
+      case let .rate(useful): ratings.append(useful)
+      default: break
+      }
+      return nil
+    }
   }
 
   /// Every item and type on a pasteboard, so a test can put back what the user had copied.
@@ -151,11 +161,10 @@
         }
         let calls = Calls()
         let row = MessageRowView(message: message, row: transcriptRow(message, viewerId: "user", allowsPins: true, editing: editingRow),
-                                 outbound: nil, onRetry: nil, onRemove: nil,
-                                 onReply: {}, onQuote: { calls.quotes += 1 }, onEdit: {},
-                                 isPinned: false, onTogglePin: {}, onDelete: {},
-                                 onToggleReaction: { _ in true }, editing: editing, onSendToSelf: { message },
-                                 sokoBotFeedback: sokoBotFeedback, onSokoBotFeedback: { calls.ratings.append($0) })
+                                 outbound: nil,
+                                 perform: { calls.record($0) },
+                                 isPinned: false, editing: editing, onSendToSelf: { message },
+                                 sokoBotFeedback: sokoBotFeedback)
         let hosted = row
           .padding(16)
           .frame(width: 520, alignment: .topLeading)
@@ -329,9 +338,8 @@
         func row(_ message: Components.Schemas.ChatRoomMessage, below previous: Components.Schemas.ChatRoomMessage?,
                  calls: Calls) -> MessageRowView {
           MessageRowView(message: message, row: transcriptRow(message, viewerId: "user", previous: previous),
-                         outbound: nil, onRetry: nil, onRemove: nil,
-                         onReply: {}, onQuote: { calls.quotes += 1 }, onEdit: {}, onDelete: {},
-                         onToggleReaction: { _ in true }, onSendToSelf: { message })
+                         outbound: nil,
+                         perform: { calls.record($0) }, onSendToSelf: { message })
         }
         let above = message("first", "The first message, above.")
         let below = message("second", "The second message, whose pill overlaps the first.")

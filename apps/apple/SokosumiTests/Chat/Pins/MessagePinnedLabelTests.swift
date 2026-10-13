@@ -23,9 +23,9 @@
                                                 sender: .init(id: "person", name: "Example Person", email: "person@example.com", presence: .offline)))
       message.id = "fixture"
       let content = VStack(alignment: .leading, spacing: 20) {
-        MessageRowView(message: message, row: transcriptRow(message), outbound: nil, onRetry: nil, onRemove: nil, isPinned: true)
-        MessageRowView(message: message, row: transcriptRow(message, previous: message), outbound: nil, onRetry: nil, onRemove: nil, isPinned: true)
-        MessageRowView(message: message, row: transcriptRow(message), outbound: nil, onRetry: nil, onRemove: nil)
+        MessageRowView(message: message, row: transcriptRow(message), outbound: nil, isPinned: true)
+        MessageRowView(message: message, row: transcriptRow(message, previous: message), outbound: nil, isPinned: true)
+        MessageRowView(message: message, row: transcriptRow(message), outbound: nil)
       }
       .padding(20)
       .frame(width: 520, alignment: .leading)

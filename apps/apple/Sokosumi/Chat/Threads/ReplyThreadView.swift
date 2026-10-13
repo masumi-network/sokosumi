@@ -67,64 +67,16 @@ import SwiftUI
     @State private var jumpError: String?
     @State private var quoteFocusRequest: String?
 
-    private func unfurlAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
-      guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
-      return { url in try await workspaces.removeUnfurl(message, url: url) }
-    }
-
     private var room: Components.Schemas.ChatRoom? {
       workspaces.rooms.first { $0.id == workspaces.room.timeline.roomId }
     }
 
-    private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
-      guard canReactToMessage(message), roomTakesNewMessages(room) else { return nil }
-      return { emoji in try await workspaces.toggleReaction(message, emoji: emoji) }
-    }
-
-    /// The turn's thumbs send through the coordinator, which keeps the rating for the session (row 38b).
-    private func sokoBotFeedbackAction(for message: Components.Schemas.ChatRoomMessage) -> ((Bool) async throws -> Void)? {
-      guard let turnId = SokoBotFeedback.turnId(for: message) else { return nil }
-      return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful) }
-    }
-
-    /// Row 38e1: the Thread's rows read their result cards as the room's do.
-    private func resultPreviewsAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> [Components.Schemas.ChatResultPreview])? {
-      guard !MessageResultPreviews.descriptorIds(of: message).isEmpty else { return nil }
-      return { try await workspaces.messageResultPreviews(message) }
-    }
-
-    /// Row 38h1: a question asked in the Thread is answered in the Thread.
-    private func selectProjectAction(for message: Components.Schemas.ChatRoomMessage) -> (String, String) async throws -> Void {
-      { previewId, projectId in try await workspaces.selectProject(projectId, preview: previewId, question: message) }
-    }
-
-    /// Row 38h2: a decision card in the Thread resolves like the room's.
-    private var resolveDecisionAction: (String, SokoBotDecision.Resolution) async throws -> Void {
-      { decisionId, resolution in try await workspaces.resolveSokoBotDecision(decisionId, resolution) }
-    }
-
-    private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
-      guard workspaces.canSendToSelf(message) else { return nil }
-      return { try await workspaces.sendMessageToSelf(message) }
-    }
-
-    private func deletionAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
-      guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
-      return { try await workspaces.deleteMessage(message) }
-    }
-
-    private func mentionRetryAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
-      guard workspaces.canRetryMention(message) else { return nil }
-      return { try await workspaces.retryMention(message, now: Date()) }
-    }
-
-    private func quoteAction(for message: Components.Schemas.ChatRoomMessage) -> (() -> Void)? {
-      // Quoting fills the composer, which a Read-only Direct lacks.
-      guard canQuoteMessage(message), roomTakesNewMessages(room) else { return nil }
-      return {
+    /// The Thread's answer to its rows: its outbox, its composer for quotes, its jump alert.
+    private var rowActions: TranscriptRowActions {
+      TranscriptRowActions(workspaces: workspaces, transcript: workspaces.thread.transcript, quote: { message in
         pendingQuote = messageQuote(from: message)
         quoteFocusRequest = UUID().uuidString
-      }
+      }, jumpFailed: { jumpError = $0 })
     }
 
     private var userIsScrolling: Bool {
@@ -164,20 +116,12 @@ import SwiftUI
             LazyVStack(alignment: .leading, spacing: 8) {
               MessageRowView(channels: channels, room: currentRoom, preparedDocument: preparedTranscript?.document(for: parent), message: parent,
                              row: MessageRow(parent, in: rowContext, previous: nil, isNewest: false),
-                             outbound: nil, onRetry: nil, onRemove: nil,
-                             onQuote: quoteAction(for: parent),
-                             onEdit: { workspaces.startEditing(parent) },
-                             onDelete: deletionAction(for: parent),
-                             onRemoveUnfurl: unfurlAction(for: parent),
-                             onToggleReaction: reactionAction(for: parent),
+                             outbound: nil,
+                             perform: { rowActions.perform($0, on: parent) },
                              editing: workspaces.messageEditing,
-                             onQuoteJump: jumpToQuote,
-                             onSendToSelf: sendToSelfAction(for: parent),
+                             onSendToSelf: { try await workspaces.sendMessageToSelf(parent) },
                              sokoBotFeedback: workspaces.sokoBotFeedback(for: parent),
-                             onSokoBotFeedback: sokoBotFeedbackAction(for: parent),
-                             loadResultPreviews: resultPreviewsAction(for: parent),
-                             selectProject: selectProjectAction(for: parent),
-                             resolveDecision: resolveDecisionAction)
+                             loadResultPreviews: { try await workspaces.messageResultPreviews(parent) })
                 .jumpSpotlightRow(messageId: parent.id)
                 .id(parent.id)
               Divider()
@@ -313,17 +257,6 @@ import SwiftUI
       }
     }
 
-    private func jumpToQuote(_ id: String) {
-      Task { @MainActor in
-        do {
-          // A quote in this room marks no Thread parent in the room, as web's same-room quote (row 25c).
-          if try await workspaces.openMessage(id, marksThreadParent: false) == .unavailable {
-            jumpError = "This message is no longer available."
-          }
-        } catch { jumpError = friendlyMessage(for: error) }
-      }
-    }
-
     private func loadOlderRepliesAutomatically() {
       let timeline = workspaces.thread.transcript.timeline
       guard timeline.errorMessage == nil, workspaces.thread.transcript.loadTask == nil,
@@ -393,22 +326,13 @@ import SwiftUI
           } else {
             MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.document(for: message), message: message, row: MessageRow(message, in: rowContext, previous: previous, isNewest: false),
                            outbound: shell, sentAt: outbox.sentAt[message.id],
-                           onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
-                           onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
-                           onRetryMention: mentionRetryAction(for: message),
-                           onQuote: quoteAction(for: message),
-                           onEdit: { workspaces.startEditing(message) },
+                           perform: { rowActions.perform($0, on: message) },
+                           canRetryMention: workspaces.canRetryMention(message),
                            jumpMark: workspaces.thread.transcript.jumpTarget.flatMap { $0.messageId == message.id ? $0.mark : nil },
-                           onDelete: deletionAction(for: message),
-                           onRemoveUnfurl: unfurlAction(for: message),
-                           onToggleReaction: reactionAction(for: message),
                            editing: workspaces.messageEditing,
-                           onQuoteJump: jumpToQuote, onSendToSelf: sendToSelfAction(for: message),
+                           onSendToSelf: { try await workspaces.sendMessageToSelf(message) },
                            sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
-                           onSokoBotFeedback: sokoBotFeedbackAction(for: message),
-                           loadResultPreviews: resultPreviewsAction(for: message),
-                           selectProject: selectProjectAction(for: message),
-                           resolveDecision: resolveDecisionAction,
+                           loadResultPreviews: { try await workspaces.messageResultPreviews(message) },
                            streamThinking: thinking)
               .jumpSpotlightRow(messageId: message.id)
           }

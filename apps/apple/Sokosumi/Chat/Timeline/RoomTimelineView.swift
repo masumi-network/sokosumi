@@ -106,51 +106,12 @@ import SwiftUI
       return target
     }
 
-    private func unfurlAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
-      guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
-      return { url in try await workspaces.removeUnfurl(message, url: url) }
-    }
-
-    private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
-      guard canReactToMessage(message), roomTakesNewMessages(room) else { return nil }
-      return { emoji in try await workspaces.toggleReaction(message, emoji: emoji) }
-    }
-
-    /// The turn's thumbs send through the coordinator, which keeps the rating for the session (row 38b).
-    private func sokoBotFeedbackAction(for message: Components.Schemas.ChatRoomMessage) -> ((Bool) async throws -> Void)? {
-      guard let turnId = SokoBotFeedback.turnId(for: message) else { return nil }
-      return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful) }
-    }
-
-    /// Row 38e1: a settled row with result descriptors reads its cards through the coordinator.
-    private func resultPreviewsAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> [Components.Schemas.ChatResultPreview])? {
-      guard !MessageResultPreviews.descriptorIds(of: message).isEmpty else { return nil }
-      return { try await workspaces.messageResultPreviews(message) }
-    }
-
-    /// Row 38h1: picking a project on the row's question card replies to the bot that asked.
-    private func selectProjectAction(for message: Components.Schemas.ChatRoomMessage) -> (String, String) async throws -> Void {
-      { previewId, projectId in try await workspaces.selectProject(projectId, preview: previewId, question: message) }
-    }
-
-    /// Row 38h2: Approve or Reject on a decision card resolves the owner's decision.
-    private var resolveDecisionAction: (String, SokoBotDecision.Resolution) async throws -> Void {
-      { decisionId, resolution in try await workspaces.resolveSokoBotDecision(decisionId, resolution) }
-    }
-
-    private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
-      guard workspaces.canSendToSelf(message) else { return nil }
-      return { try await workspaces.sendMessageToSelf(message) }
-    }
-
-    private func deletionAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
-      guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
-      return { try await workspaces.deleteMessage(message) }
-    }
-
-    private func mentionRetryAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
-      guard workspaces.canRetryMention(message) else { return nil }
-      return { try await workspaces.retryMention(message, now: Date()) }
+    /// The room's answer to its rows: its outbox, its composer for quotes, its jump alert.
+    private var rowActions: TranscriptRowActions {
+      TranscriptRowActions(workspaces: workspaces, transcript: workspaces.room, quote: { message in
+        pendingQuote = messageQuote(from: message)
+        quoteFocusRequest = UUID().uuidString
+      }, jumpFailed: { jumpError = $0 })
     }
 
     var body: some View {
@@ -322,41 +283,15 @@ import SwiftUI
                                  row: MessageRow(message, in: rowContext, previous: hasGap ? nil : previous, isNewest: message.id == newestMessageId),
                                  outbound: outbound,
                                  sentAt: workspaces.room.outbox.sentAt[message.id],
-                                 onRetry: outbound.map { shell in
-                                   { workspaces.retryOutbound(clientTurnId: shell.clientTurnId) }
-                                 },
-                                 onRemove: outbound.map { shell in
-                                   { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
-                                 },
-                                 onRetryMention: mentionRetryAction(for: message),
-                                 onReply: { workspaces.openThread(message) },
-                                 onQuote: {
-                                   pendingQuote = messageQuote(from: message)
-                                   quoteFocusRequest = UUID().uuidString
-                                 },
-                                 onEdit: { workspaces.startEditing(message) },
+                                 perform: { rowActions.perform($0, on: message) },
+                                 canRetryMention: workspaces.canRetryMention(message),
                                  jumpMark: jumpMark?.messageId == message.id ? jumpMark : nil,
                                  isPinned: workspaces.canUsePins && workspaces.isPinned(message),
                                  isUpdatingPin: workspaces.isUpdatingPin(message.id),
-                                 onTogglePin: pinAction(for: message),
-                                 onDelete: deletionAction(for: message),
-                                 onRemoveUnfurl: unfurlAction(for: message),
-                                 onToggleReaction: reactionAction(for: message),
                                  editing: workspaces.messageEditing,
-                                 onQuoteJump: { id in Task {
-                                   do {
-                                     // Same-room quote: no Thread parent marked (row 25c).
-                                     if try await workspaces.openMessage(id, marksThreadParent: false) == .unavailable {
-                                       jumpError = "This message is no longer available."
-                                     }
-                                   } catch { jumpError = friendlyMessage(for: error) }
-                                 } },
-                                 onSendToSelf: sendToSelfAction(for: message),
+                                 onSendToSelf: { try await workspaces.sendMessageToSelf(message) },
                                  sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
-                                 onSokoBotFeedback: sokoBotFeedbackAction(for: message),
-                                 loadResultPreviews: resultPreviewsAction(for: message),
-                                 selectProject: selectProjectAction(for: message),
-                                 resolveDecision: resolveDecisionAction,
+                                 loadResultPreviews: { try await workspaces.messageResultPreviews(message) },
                                  horizontalInset: 12,
                                  streamThinking: isCoworkerStreamOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
                                  seenBy: readReceipts.seenBy(messageId: message.id, createdAt: message.createdAt, newestMessageId: newestMessageId))
@@ -508,11 +443,6 @@ import SwiftUI
           }
         }
       }
-    }
-
-    private func pinAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
-      guard workspaces.canUsePins, message.parentMessageId == nil, canReactToMessage(message) else { return nil }
-      return { try await workspaces.setPinned(!workspaces.isPinned(message), messageId: message.id) }
     }
 
     /// Lands the waiting older page and puts the rows that were first back where they sat in the viewport (row 04). The
