@@ -3087,6 +3087,7 @@
     "Social": {
       "title": "Social Scheduling",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "pickFailed": "Couldn't load that project. Choose another one, or try again.",
       "newPost": {
         "label": "New post",
         "options": "New post options",

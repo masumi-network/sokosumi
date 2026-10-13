@@ -3087,6 +3087,7 @@
     "Social": {
       "title": "Programación social",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "pickFailed": "No se pudo cargar ese proyecto. Elige otro, o inténtalo de nuevo.",
       "newPost": {
         "label": "Nueva publicación",
         "options": "Opciones de nueva publicación",
