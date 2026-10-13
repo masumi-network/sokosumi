@@ -5004,7 +5004,7 @@
       },
       "LinkedAccounts": {
         "loadErrorTitle": "No se pudieron cargar los detalles de la cuenta",
-        "loadError": "No pudimos cargar los detalles de tu cuenta vinculada en este momento.",
+        "loadError": "Comprueba tu conexión e inténtalo de nuevo.",
         "retry": "Reintentar"
       },
       "Notifications": {

@@ -5040,7 +5040,7 @@
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Could not load account details",
-        "loadError": "We could not load your linked account details right now.",
+        "loadError": "Check your connection and try again.",
         "retry": "Retry"
       },
       "Notifications": {

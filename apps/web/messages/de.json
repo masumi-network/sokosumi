@@ -5004,7 +5004,7 @@
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Kontodetails konnten nicht geladen werden",
-        "loadError": "Deine verknüpften Kontodetails konnten gerade nicht geladen werden.",
+        "loadError": "Prüfe deine Verbindung und versuche es erneut.",
         "retry": "Erneut versuchen"
       },
       "Notifications": {
