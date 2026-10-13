@@ -5,7 +5,7 @@ export type CoworkerOffer = NonNullable<
   NonNullable<Coworker["metadata"]>["offers"]
 >[number];
 
-export interface CoworkerProfile {
+interface CoworkerProfile {
   llm?: string[];
   hosting?: string;
   capabilities?: string[];

@@ -85,12 +85,31 @@ export const socialAccountPostSchema = z
     fetchedAt: dateTimeSchema,
   })
   .openapi("SocialAccountPost");
+export type SocialAccountPost = z.infer<typeof socialAccountPostSchema>;
 
 export const socialAccountStatisticsQuerySchema =
   socialPostStatisticsQuerySchema.safeExtend({
     connectionId: z.uuid().optional(),
     cursor: z.uuid().optional(),
   });
+export const socialAccountStatisticsExportQuerySchema = z
+  .object({
+    provider: projectSocialProviderSchema.optional(),
+    connectionId: z.uuid().optional(),
+    publishedFrom: z.iso.datetime({ offset: true }).optional(),
+    publishedUntil: z.iso.datetime({ offset: true }).optional(),
+    format: z.enum(["csv", "xlsx"]).default("csv"),
+  })
+  .refine(
+    (query) =>
+      !query.publishedFrom ||
+      !query.publishedUntil ||
+      new Date(query.publishedFrom) <= new Date(query.publishedUntil),
+    {
+      message: "Publication start must precede publication end",
+      path: ["publishedUntil"],
+    },
+  );
 
 const headlineNumber = z.number().finite().nullable();
 export const socialPerformanceHeadlineTotalsSchema = z.object({

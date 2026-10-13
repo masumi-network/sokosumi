@@ -13,7 +13,7 @@
 
 import { deflateSync } from "node:zlib";
 
-export interface PdfFixtureOptions {
+interface PdfFixtureOptions {
   /** One string per page. An empty string gives a page with no text. */
   pages: string[];
 }

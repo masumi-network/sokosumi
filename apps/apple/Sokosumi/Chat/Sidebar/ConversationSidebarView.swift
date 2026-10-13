@@ -59,7 +59,7 @@ struct ConversationSidebarView: View {
               return
             }
             Task { @MainActor in
-              await workspaces.showRoom(id, auth: auth)
+              await workspaces.showRoom(id)
             }
           }
         }
@@ -98,7 +98,7 @@ struct ConversationSidebarView: View {
         }
         ToolbarItem {
           Button("Refresh conversations", systemImage: "arrow.clockwise") {
-            Task { await workspaces.refreshRooms(auth: auth) }
+            Task { await workspaces.refreshRooms() }
           }
           .disabled(workspaces.roomsLoading)
         }
@@ -111,7 +111,7 @@ struct ConversationSidebarView: View {
       if let error = workspaces.sidebar.errorMessage {
         VStack(alignment: .leading, spacing: 4) {
           Text(error).font(.caption).foregroundStyle(.secondary)
-          Button("Retry") { Task { await workspaces.refreshRooms(auth: auth) } }
+          Button("Retry") { Task { await workspaces.refreshRooms() } }
         }
         .padding(8)
       }
@@ -128,25 +128,25 @@ struct ConversationSidebarView: View {
     }
     .sheet(item: $startDirect) { presentation in
       StartDirectView(hasOrganization: presentation.hasOrganization, currentUserId: workspaces.currentUserId, load: {
-        try await workspaces.loadDirectRecipients(context: presentation.id, auth: auth)
+        try await workspaces.loadDirectRecipients(context: presentation.id)
       }, open: {
-        try await workspaces.openDirect($0, context: presentation.id, auth: auth)
+        try await workspaces.openDirect($0, context: presentation.id)
       })
     }
     .sheet(item: $createChannel) { presentation in
       CreateChannelView(currentUserId: workspaces.currentUserId, organizationName: workspaces.selection?.title ?? "", load: {
-        try await workspaces.loadChannelRoster(context: presentation.id, auth: auth)
+        try await workspaces.loadChannelRoster(context: presentation.id)
       }, checkSlug: {
-        try await workspaces.checkChannelSlug($0, context: presentation.id, auth: auth)
+        try await workspaces.checkChannelSlug($0, context: presentation.id)
       }, create: {
-        try await workspaces.createChannel($0, roster: $1, context: presentation.id, auth: auth)
+        try await workspaces.createChannel($0, roster: $1, context: presentation.id)
       })
     }
     .sheet(item: $browseChannels) { presentation in
       BrowseChannelsView(load: {
-        try await workspaces.browseChannels(query: $0, context: presentation.id, auth: auth)
+        try await workspaces.browseChannels(query: $0, context: presentation.id)
       }, join: {
-        try await workspaces.joinChannel(roomId: $0, context: presentation.id, auth: auth)
+        try await workspaces.joinChannel(roomId: $0, context: presentation.id)
       })
     }
     .onChange(of: workspaces.compositionContext) { _, _ in
@@ -164,8 +164,8 @@ struct ConversationSidebarView: View {
     // First load of Archived and the invitations per workspace; afterwards each recovers on its own (`sidebarRecovery`).
     .task(id: workspaces.collectionsLoadContext) {
       guard workspaces.collectionsLoadContext != nil else { return }
-      async let archived: Void = workspaces.loadArchivedChannels(auth: auth)
-      async let invitations: Void = workspaces.loadPendingInvitations(auth: auth)
+      async let archived: Void = workspaces.loadArchivedChannels()
+      async let invitations: Void = workspaces.loadPendingInvitations()
       _ = await (archived, invitations)
     }
     .navigationSplitViewColumnWidth(min: 220, ideal: 260)
@@ -226,7 +226,7 @@ struct ConversationSidebarView: View {
           ForEach(workspaces.archivedChannels.rooms, id: \.id) { room in
             ArchivedChannelRow(
               room: room,
-              pending: workspaces.channelLifecycle?.roomId == room.id,
+              pending: workspaces.runningMutation?.lifecycleRoomId == room.id,
               busy: workspaces.roomMutationInFlight,
               canDelete: workspaces.archivedChannels.canDelete
             ) { requestLifecycle($0, room: room) }
@@ -271,7 +271,7 @@ struct ConversationSidebarView: View {
         ForEach(invitations, id: \.id) { invitation in
           PendingInvitationRow(
             invitation: invitation,
-            responding: workspaces.invitationResponse?.invitationId == invitation.id ? workspaces.invitationResponse?.action : nil,
+            responding: workspaces.runningMutation?.response(to: invitation.id),
             busy: workspaces.roomMutationInFlight
           ) { respondToInvitation($0, invitation: invitation) }
         }
@@ -355,7 +355,7 @@ struct ConversationSidebarView: View {
   private var markAllButton: some View {
     let marking = workspaces.sidebar.isMarkingAllUnreadRead
     return Button {
-      Task { await workspaces.markAllUnreadRead(auth: auth) }
+      Task { await workspaces.markAllUnreadRead() }
     } label: {
       if marking {
         ProgressView()
@@ -404,8 +404,8 @@ struct ConversationSidebarView: View {
     Task { @MainActor in
       do {
         switch action {
-        case .accept: try await workspaces.acceptInvitation(id: invitation.id, context: context, auth: auth)
-        case .decline: try await workspaces.declineInvitation(id: invitation.id, context: context, auth: auth)
+        case .accept: try await workspaces.acceptInvitation(id: invitation.id, context: context)
+        case .decline: try await workspaces.declineInvitation(id: invitation.id, context: context)
         }
       } catch is CancellationError {
         // The workspace changed underneath the request; nothing to report.
@@ -502,7 +502,7 @@ struct ConversationSidebarView: View {
 
   private func reorderPinned(_ roomIds: [String], current: [Components.Schemas.ChatRoom]) {
     guard roomIds != current.map(\.id) else { return }
-    Task { @MainActor in await workspaces.reorderPinnedRooms(roomIds, auth: auth) }
+    Task { @MainActor in await workspaces.reorderPinnedRooms(roomIds) }
   }
 
   /// Workspace switcher pinned to the top of the sidebar.
@@ -510,7 +510,7 @@ struct ConversationSidebarView: View {
     Menu {
       ForEach(workspaces.options) { option in
         Button {
-          workspaces.select(option, auth: auth)
+          workspaces.select(option)
         } label: {
           HStack {
             Text(option.title)
@@ -636,7 +636,7 @@ struct ConversationSidebarView: View {
   /// the Thread labels' column.
   private func moreThreadsRow(roomId: String, count: Int) -> some View {
     Button {
-      Task { await workspaces.openThreadOverview(roomId: roomId, auth: auth) }
+      Task { await workspaces.openThreadOverview(roomId: roomId) }
     } label: {
       SidebarMoreThreadsLabel(count: count)
         .padding(.leading, Self.threadRowIndent)
@@ -736,7 +736,7 @@ struct ConversationSidebarView: View {
   private func roomStatus(_ room: Components.Schemas.ChatRoom, reorderingIn pinned: [Components.Schemas.ChatRoom]?) -> some View {
     if let pinned {
       reorderHandle(room, in: pinned)
-    } else if workspaces.sidebar.isPending(roomId: room.id) || workspaces.channelLifecycle?.roomId == room.id {
+    } else if workspaces.sidebar.isPending(roomId: room.id) || workspaces.runningMutation?.lifecycleRoomId == room.id {
       ProgressView()
         .controlSize(.mini)
         .accessibilityLabel("Updating conversation")
@@ -751,15 +751,15 @@ struct ConversationSidebarView: View {
   @ViewBuilder
   private func roomActions(_ room: Components.Schemas.ChatRoom) -> some View {
     Button("Mark as unread", systemImage: "envelope.badge") {
-      Task { @MainActor in await workspaces.performSidebarAction(.markUnread, roomId: room.id, auth: auth) }
+      Task { @MainActor in await workspaces.performSidebarAction(.markUnread, roomId: room.id) }
     }
     .disabled(!workspaces.sidebar.canPerform(.markUnread, roomId: room.id))
     Button(room.starredAt == nil ? "Pin" : "Unpin", systemImage: room.starredAt == nil ? "pin" : "pin.slash") {
-      Task { @MainActor in await workspaces.performSidebarAction(room.starredAt == nil ? .pin : .unpin, roomId: room.id, auth: auth) }
+      Task { @MainActor in await workspaces.performSidebarAction(room.starredAt == nil ? .pin : .unpin, roomId: room.id) }
     }
     .disabled(!workspaces.sidebar.canPerform(room.starredAt == nil ? .pin : .unpin, roomId: room.id))
     Button(room.mutedAt == nil ? "Mute" : "Unmute", systemImage: room.mutedAt == nil ? "bell.slash" : "bell") {
-      Task { @MainActor in await workspaces.performSidebarAction(room.mutedAt == nil ? .mute : .unmute, roomId: room.id, auth: auth) }
+      Task { @MainActor in await workspaces.performSidebarAction(room.mutedAt == nil ? .mute : .unmute, roomId: room.id) }
     }
     .disabled(!workspaces.sidebar.canPerform(room.mutedAt == nil ? .mute : .unmute, roomId: room.id))
     // Settings are for organization owners and admins; everyone else manages membership from the Members panel.

@@ -96,6 +96,7 @@ const MESSAGES: Record<string, string> = {
   attempts: "{count} attempts",
   "actions.publishNow": "Publish now",
   "actions.retry": "Retry",
+  "actions.dismiss": "Dismiss",
   "sections.calendar": "Calendar",
   "sections.drafts": "Drafts",
   "sections.attention": "Needs attention",
@@ -133,6 +134,7 @@ const MESSAGES: Record<string, string> = {
   "composer.textPlaceholder": "What do you want to post?",
   "composer.characters": "{count} / {limit}",
   "composer.media.addFromDrive": "Add from Drive",
+  "composer.media.drop": "Drop files to attach",
   "composer.media.upload": "Upload",
   "composer.media.remove": "Remove {name}",
   "composer.media.hint": "Up to 4 images, or one GIF, or one video.",
@@ -188,6 +190,9 @@ const MESSAGES: Record<string, string> = {
   "cancelDialog.description":
     "The post will not be published. This cannot be undone.",
   "cancelDialog.confirm": "Cancel post",
+  "dismissDialog.title": "Dismiss this post?",
+  "dismissDialog.description": "It leaves Needs attention.",
+  "dismissDialog.confirm": "Dismiss",
   "publishDialog.title": "Publish this post now?",
   "publishDialog.description":
     "The post goes out to X right away instead of waiting for its scheduled time.",
@@ -201,6 +206,7 @@ const MESSAGES: Record<string, string> = {
   "toasts.scheduled": "Post scheduled.",
   "toasts.updated": "Post updated.",
   "toasts.canceled": "Post canceled.",
+  "toasts.dismissed": "Post dismissed.",
   "toasts.conflict":
     "This post was changed elsewhere. Reloading the latest version.",
   "toasts.failed": "Something went wrong. Try again.",
@@ -423,7 +429,7 @@ const FAILED_POST = buildPost({
   revision: 5,
   canEdit: false,
   canSchedule: true,
-  canCancel: false,
+  canCancel: true,
   canPublishNow: true,
 });
 
@@ -900,6 +906,59 @@ describe("ProjectSocialPosts", () => {
       "Instagram requires at least one image or video.",
     );
   });
+
+  it.each([
+    [
+      "instagram",
+      "sokosumi.ig",
+      "Instagram requires at least one image or video.",
+    ],
+    ["tiktok", "sokosumi.tt", "TikTok requires a video."],
+    ["youtube", "sokosumi.yt", "YouTube requires a video."],
+  ] as const)(
+    "saves a %s draft without media and keeps the Post now hint",
+    async (provider, handle, hint) => {
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[
+            buildConnection({
+              provider,
+              externalHandle: handle,
+            }),
+          ]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      await user.type(within(dialog).getByLabelText("Text"), "Hello");
+      const saveDraft = within(dialog).getByRole("button", {
+        name: "Save draft",
+      });
+      const postNow = within(dialog).getByRole("button", { name: "Post now" });
+      expect(saveDraft).toBeEnabled();
+      expect(postNow).toBeDisabled();
+
+      const trigger = postNow.parentElement;
+      if (!trigger) throw new Error("Post now has no tooltip trigger");
+      trigger.focus();
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(hint);
+
+      await user.click(saveDraft);
+      await waitFor(() => {
+        expect(createProjectSocialPost).toHaveBeenCalledWith(
+          expect.objectContaining({
+            text: "Hello",
+            media: [],
+            socialConnectionId: "connection-1",
+          }),
+        );
+      });
+    },
+  );
 
   it("hides the Post now hint once the draft can post", async () => {
     const user = userEvent.setup();
@@ -2052,10 +2111,13 @@ describe("ProjectSocialPosts", () => {
       });
     });
 
-    const dropTransfer = new DataTransfer();
-    dropTransfer.items.add(dropped);
     await act(async () => {
-      fireEvent.drop(surface, { dataTransfer: dropTransfer });
+      fireEvent.drop(surface, {
+        dataTransfer: {
+          types: ["Files"],
+          files: [dropped],
+        },
+      });
     });
     await waitFor(() => {
       expect(uploadDriveFileMock).toHaveBeenCalledTimes(2);
@@ -2063,6 +2125,25 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
     ).toHaveLength(2);
+  });
+
+  it("shows a drop hint while a file is held over the composer", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const surface = within(dialog).getByTestId("social-post-composer-surface");
+    fireEvent.dragEnter(surface, {
+      dataTransfer: { types: ["Files"], files: [] },
+    });
+    expect(within(dialog).getByText("Drop files to attach")).toBeVisible();
   });
 
   it("schedules a new post with an ISO timestamp and the viewer timezone", async () => {
@@ -2214,6 +2295,12 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(dialog).getByRole("button", { name: "Preview as @sokosumi" }),
     ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(dialog).getByRole("button", { name: "Preview as @sokosumi" }),
+    ).toHaveClass("h-11", "md:h-8");
+    expect(
+      within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),
+    ).toHaveClass("h-11", "md:h-8");
 
     await user.click(
       within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),
@@ -2552,6 +2639,12 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getByRole("menuitem", { name: "Reschedule" })).toHaveClass(
       "min-h-11",
     );
+    expect(screen.getByRole("menuitem", { name: "Dismiss" })).toHaveClass(
+      "min-h-11",
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Cancel post" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "Retry" }),
     ).not.toBeInTheDocument();
@@ -2560,6 +2653,62 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "Edit" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("dismisses a FAILED post after confirmation and leaves Needs attention", async () => {
+    const user = userEvent.setup();
+    vi.mocked(cancelProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: {
+        ...FAILED_POST,
+        status: "CANCELED",
+        canceledAt: new Date("2026-09-15T12:00:00.000Z"),
+        revision: 6,
+        canEdit: false,
+        canSchedule: false,
+        canCancel: false,
+        canPublishNow: false,
+      },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[FAILED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    await openRowMenu(user, "post-failed");
+    await user.click(screen.getByRole("menuitem", { name: "Dismiss" }));
+    expect(cancelProjectSocialPost).not.toHaveBeenCalled();
+
+    const alert = screen.getByRole("alertdialog");
+    expect(
+      within(alert).getByRole("heading", { name: "Dismiss this post?" }),
+    ).toBeVisible();
+    expect(within(alert).getByText("It leaves Needs attention.")).toBeVisible();
+    expect(
+      within(alert).queryByRole("heading", { name: "Cancel this post?" }),
+    ).not.toBeInTheDocument();
+    await user.click(within(alert).getByRole("button", { name: "Dismiss" }));
+
+    await waitFor(() => {
+      expect(cancelProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-failed",
+        revision: 5,
+      });
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Post dismissed.");
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: /^Needs attention/ }),
+    ).not.toBeInTheDocument();
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.queryByTestId("social-post-post-failed"),
     ).not.toBeInTheDocument();
   });
 

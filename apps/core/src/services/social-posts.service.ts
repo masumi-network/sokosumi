@@ -46,7 +46,12 @@ const SCHEDULABLE_STATUSES: readonly SocialPostStatus[] = [
   "FAILED",
   "MISSED",
 ];
-const CANCELABLE_STATUSES: readonly SocialPostStatus[] = ["DRAFT", "SCHEDULED"];
+const CANCELABLE_STATUSES: readonly SocialPostStatus[] = [
+  "DRAFT",
+  "SCHEDULED",
+  "FAILED",
+  "MISSED",
+];
 const PUBLISH_NOW_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "SCHEDULED",
@@ -328,7 +333,7 @@ function requireTextWithinLimit(
   return trimmed;
 }
 
-/** Some providers refuse a post without media, or without exactly one video. */
+/** Publish and schedule refuse a post without the media the network needs. */
 function requireMediaRequirement(
   provider: SocialPostProvider,
   media: readonly SocialPostMediaRef[],
@@ -610,8 +615,10 @@ export async function createSocialPost(
     media: input.media ?? [],
   });
   const text = requireTextWithinLimit(input.text, provider, media.length > 0);
-  requireMediaRequirement(requireProvider(provider), media);
   const scheduled = input.scheduledAt !== undefined;
+  if (scheduled) {
+    requireMediaRequirement(requireProvider(provider), media);
+  }
 
   const post = await tx.socialPost.create({
     data: {
@@ -651,6 +658,9 @@ export async function updateSocialPost(
       ? {
           scheduledByUserId: input.userId,
           scheduledByCoworkerId: input.coworkerId ?? null,
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
         }
       : {};
   const currentProvider = requireProvider(post.provider);
@@ -713,7 +723,9 @@ export async function updateSocialPost(
         throw badRequest(mediaValidationMessage(provider, validation.reason));
       }
     }
-    requireMediaRequirement(provider, media);
+    if (post.status === "SCHEDULED") {
+      requireMediaRequirement(provider, media);
+    }
   }
 
   return mapSocialPost(
@@ -778,7 +790,9 @@ export async function cancelSocialPost(
     return mapSocialPost(post);
   }
   if (!CANCELABLE_STATUSES.includes(post.status)) {
-    throw conflict("Only a draft or scheduled post can be canceled");
+    throw conflict(
+      "Only a draft, scheduled, failed, or missed post can be canceled",
+    );
   }
   requireRevision(post, input.revision);
 

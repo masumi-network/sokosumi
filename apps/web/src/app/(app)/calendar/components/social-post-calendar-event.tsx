@@ -16,21 +16,33 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
+import { cn } from "@/lib/utils";
 
 /** Failed and missed posts need the word, not only a coloured mark. */
 function needsStatusLabel(status: SocialPostCalendarItem["status"]) {
   return status === "FAILED" || status === "MISSED";
 }
 
-function CalendarSocialPostStatus({ item }: { item: SocialPostCalendarItem }) {
+function CalendarSocialPostStatus({
+  item,
+  showLabel,
+  className,
+}: {
+  item: SocialPostCalendarItem;
+  /** Week chips stay icon-only so the word does not crowd the thumb. */
+  showLabel?: boolean;
+  className?: string;
+}) {
   const statuses = useTranslations("App.Projects.SocialPosts.status");
   const copy = useTranslations("App.Projects.SocialPosts");
   const label = statuses(item.status);
+  const labeled = showLabel ?? needsStatusLabel(item.status);
   const badge = (
     <SocialPostStatusBadge
+      className={className}
       status={item.status}
       label={label}
-      showLabel={needsStatusLabel(item.status)}
+      showLabel={labeled}
     />
   );
   if (!needsStatusLabel(item.status)) return badge;
@@ -53,6 +65,11 @@ function socialPostHref(item: SocialPostCalendarItem): string {
   return `/social?${query}#social-post-${encodeURIComponent(item.postId)}`;
 }
 
+function formatHandle(handle: string | null): string | null {
+  if (!handle) return null;
+  return handle.startsWith("@") ? handle : `@${handle}`;
+}
+
 /**
  * A Social post on a calendar.
  *
@@ -64,22 +81,33 @@ export function SocialPostCalendarEvent({
   item,
   timeZone,
   variant = "preview",
+  showThumb = false,
 }: {
   item: SocialPostCalendarItem;
   timeZone: string;
   variant?: "compact" | "preview";
+  /** Square media preview on Social's week chips. Workspace compact stays one line. */
+  showThumb?: boolean;
 }) {
   if (variant === "compact") {
-    return <CompactSocialPostCalendarEvent item={item} timeZone={timeZone} />;
+    return (
+      <CompactSocialPostCalendarEvent
+        item={item}
+        showThumb={showThumb}
+        timeZone={timeZone}
+      />
+    );
   }
   return <SocialPostPreviewCard item={item} timeZone={timeZone} />;
 }
 
 function CompactSocialPostCalendarEvent({
   item,
+  showThumb,
   timeZone,
 }: {
   item: SocialPostCalendarItem;
+  showThumb: boolean;
   timeZone: string;
 }) {
   const t = useTranslations("App.Calendar.socialPost");
@@ -89,24 +117,59 @@ function CompactSocialPostCalendarEvent({
     media: item.previewMedia?.kind ?? "none",
     count: item.attachmentCount,
   });
+  const media = showThumb ? item.previewMedia : null;
+  const time = (
+    <span className="text-muted-foreground shrink-0 tabular-nums">
+      {formatter.dateTime(item.scheduledAt, "time", { timeZone })}
+    </span>
+  );
+  const status = (
+    <CalendarSocialPostStatus
+      className={showThumb ? "size-4" : undefined}
+      item={item}
+      showLabel={showThumb ? false : undefined}
+    />
+  );
+  const logo = (
+    <SocialPostProviderIcon
+      provider={item.provider}
+      aria-hidden
+      className="size-3 shrink-0"
+    />
+  );
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo"
+          className={cn(
+            "bg-background text-foreground press hover:bg-muted border-border flex w-full max-w-full min-w-0 cursor-pointer select-none overflow-hidden rounded border text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring-halo focus-visible:ring-2 focus-visible:outline-none",
+            showThumb
+              ? "@container items-center gap-1 px-1 py-1"
+              : "items-center gap-1 px-1.5 py-1",
+          )}
           data-testid="calendar-social-post"
         >
-          <SocialPostProviderIcon
-            provider={item.provider}
-            aria-hidden
-            className="size-3 shrink-0"
-          />
-          <span className="text-muted-foreground shrink-0 tabular-nums">
-            {formatter.dateTime(item.scheduledAt, "time", { timeZone })}
-          </span>
-          <span className="min-w-0 flex-1 truncate">{label}</span>
-          <CalendarSocialPostStatus item={item} />
+          {showThumb ? (
+            <>
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="flex flex-nowrap items-center gap-0.5">
+                  {logo}
+                  {time}
+                  <span className="shrink-0">{status}</span>
+                </span>
+                <span className="w-full min-w-0 truncate">{label}</span>
+              </span>
+              {media ? <CompactSocialPostThumb media={media} /> : null}
+            </>
+          ) : (
+            <>
+              {logo}
+              {time}
+              <span className="min-w-0 flex-1 truncate">{label}</span>
+              {status}
+            </>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-1.5">
@@ -130,9 +193,8 @@ function SocialPostPreviewCard({
     name: item.scheduledByName ?? t("unknownScheduler"),
   });
   const providerLabel = socialPostProviderLabel(item.provider);
-  const account = item.externalHandle
-    ? `${providerLabel} · @${item.externalHandle}`
-    : providerLabel;
+  const handle = formatHandle(item.externalHandle);
+  const account = handle ? `${providerLabel} · ${handle}` : providerLabel;
   const className =
     "bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-stretch gap-1 overflow-hidden rounded-md p-1.5 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo";
   const content = (
@@ -150,7 +212,7 @@ function SocialPostPreviewCard({
           />
         </span>
         <span aria-hidden className="min-w-0 flex-1 truncate">
-          {item.externalHandle ? `@${item.externalHandle}` : providerLabel}
+          {handle ?? providerLabel}
         </span>
         <span className="text-muted-foreground shrink-0 tabular-nums">
           {formatter.dateTime(item.scheduledAt, "time", { timeZone })}
@@ -217,20 +279,53 @@ function SocialPostPreviewCard({
   );
 }
 
-/**
- * The post's first attachment, as the reader will see it in the feed. It is
- * decorative here: the text and status already name the post, and the whole
- * card is the link.
- */
-function SocialPostCalendarPreview({
+/** Square first-frame on a week chip. Absent when the post has no media. */
+function CompactSocialPostThumb({
   media,
 }: {
   media: NonNullable<SocialPostCalendarItem["previewMedia"]>;
 }) {
   return (
     <span
+      className="bg-muted border-border relative size-7 shrink-0 overflow-hidden rounded-md border @max-[6.875rem]:hidden"
+      data-testid="calendar-social-post-thumb"
+    >
+      <span aria-hidden className="absolute inset-0">
+        <SocialPostCalendarPreview media={media} fill />
+      </span>
+      {media.kind === "gif" ? (
+        <span
+          aria-hidden
+          className="bg-scrim-strong text-on-media absolute start-0 bottom-0 rounded-se px-0.5 text-2xs font-semibold leading-none"
+          data-testid="social-post-preview-gif"
+        >
+          GIF
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/**
+ * The post's first attachment, as the reader will see it in the feed. It is
+ * decorative here: the text and status already name the post, and the whole
+ * card is the link.
+ */
+function SocialPostCalendarPreview({
+  fill = false,
+  media,
+}: {
+  fill?: boolean;
+  media: NonNullable<SocialPostCalendarItem["previewMedia"]>;
+}) {
+  return (
+    <span
       aria-hidden
-      className="bg-muted relative block aspect-video w-full overflow-hidden rounded"
+      className={
+        fill
+          ? "absolute inset-0"
+          : "bg-muted relative block aspect-video w-full overflow-hidden rounded"
+      }
     >
       {media.kind === "video" ? (
         <>
@@ -241,8 +336,13 @@ function SocialPostCalendarPreview({
             preload="metadata"
             src={media.fileUrl}
           />
-          <span className="bg-background text-foreground absolute inset-0 m-auto flex size-6 items-center justify-center rounded-full">
-            <Play className="size-3 fill-current" />
+          <span
+            className={cn(
+              "bg-background text-foreground absolute inset-0 m-auto flex items-center justify-center rounded-full",
+              fill ? "size-3" : "size-6",
+            )}
+          >
+            <Play className={cn("fill-current", fill ? "size-2" : "size-3")} />
           </span>
         </>
       ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { Download, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
@@ -8,6 +9,12 @@ import { useRef, useState } from "react";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -123,7 +130,18 @@ function accountName(account: Account) {
   );
 }
 
-export function SocialPostStatistics({ projectId }: { projectId: string }) {
+export function SocialPostStatistics(
+  props: { projectId: string } | { workspaceId: string },
+) {
+  const projectId = "projectId" in props ? props.projectId : undefined;
+  const workspaceId = "workspaceId" in props ? props.workspaceId : undefined;
+  const scopeId = projectId ?? workspaceId ?? "";
+  const statisticsPath = projectId
+    ? `/api/projects/${encodeURIComponent(projectId)}/social-statistics`
+    : `/api/workspaces/${encodeURIComponent(workspaceId ?? "")}/social-statistics`;
+  const accountsHref = projectId
+    ? `/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`
+    : "/social?tab=accounts";
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const formatter = useFormatter();
   const { data: session } = useSession();
@@ -154,7 +172,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
     "social-account-statistics",
     session?.user.id,
     session?.session.activeOrganizationId ?? null,
-    projectId,
+    scopeId,
   ];
   const query = useInfiniteQuery({
     queryKey: [...queryScope, filters, publishedFrom, publishedUntil],
@@ -170,10 +188,10 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       if (publishedUntil)
         params.set("publishedUntil", `${publishedUntil}T23:59:59.999Z`);
       if (pageParam) params.set("cursor", pageParam);
-      const response = await fetch(
-        `/api/projects/${encodeURIComponent(projectId)}/social-statistics?${params}`,
-        { signal, cache: "no-store" },
-      );
+      const response = await fetch(`${statisticsPath}?${params}`, {
+        signal,
+        cache: "no-store",
+      });
       if (!response.ok) throw new Error(t("loadFailed"));
       const page: StatisticsPage = await response.json();
       if (
@@ -225,6 +243,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       for (const account of targets) {
         setEnqueueingId(account.id);
         try {
+          if (!projectId) return;
           const result = await refreshProjectSocialAccountStatistics({
             projectId,
             connectionId: account.id,
@@ -297,6 +316,19 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       </dl>
     );
   }
+  function exportHref(format: "csv" | "xlsx") {
+    const params = new URLSearchParams({ format });
+    if (filters.statisticsProvider)
+      params.set("provider", filters.statisticsProvider);
+    if (filters.statisticsAccount)
+      params.set("connectionId", filters.statisticsAccount);
+    if (typeof publishedFrom === "string")
+      params.set("publishedFrom", `${publishedFrom}T00:00:00.000Z`);
+    if (typeof publishedUntil === "string")
+      params.set("publishedUntil", `${publishedUntil}T23:59:59.999Z`);
+    return `${statisticsPath}/export?${params}`;
+  }
+
   function formatDate(value: string | Date) {
     return formatter.dateTime(new Date(value), "dateTime", {
       timeZone: "UTC",
@@ -348,10 +380,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       {!query.isPending && !query.isError && accounts.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           {t("noAccounts")}{" "}
-          <Link
-            className="underline underline-offset-4"
-            href={`/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`}
-          >
+          <Link className="underline underline-offset-4" href={accountsHref}>
             {t("manageAccounts")}
           </Link>
         </p>
@@ -403,40 +432,83 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
                 )}
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              className="h-11 md:h-8"
-              variant="outline"
-              loading={Boolean(enqueueingId)}
-              disabled={
-                Boolean(enqueueingId) ||
-                (selectedAccount
-                  ? selectedAccount.status !== "active"
-                  : !accounts.some((account) => account.status === "active"))
-              }
-              onClick={() =>
-                void handleSync(
-                  selectedAccount
-                    ? [selectedAccount]
-                    : accounts.filter((account) => account.status === "active"),
-                )
-              }
-            >
-              {statusSnapshot?.historyNextCursor &&
-              !statusSnapshot.historyComplete
-                ? t("resumeSync")
-                : selectedAccount || accounts.length === 1
-                  ? t("syncAccount")
-                  : t("syncAll")}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {projectId ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-11 md:h-8"
+                  variant="outline"
+                  loading={Boolean(enqueueingId)}
+                  disabled={
+                    Boolean(enqueueingId) ||
+                    (selectedAccount
+                      ? selectedAccount.status !== "active"
+                      : !accounts.some(
+                          (account) => account.status === "active",
+                        ))
+                  }
+                  onClick={() =>
+                    void handleSync(
+                      selectedAccount
+                        ? [selectedAccount]
+                        : accounts.filter(
+                            (account) => account.status === "active",
+                          ),
+                    )
+                  }
+                >
+                  {statusSnapshot?.historyNextCursor &&
+                  !statusSnapshot.historyComplete
+                    ? t("resumeSync")
+                    : selectedAccount || accounts.length === 1
+                      ? t("syncAccount")
+                      : t("syncAll")}
+                </Button>
+              ) : null}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-11 md:h-8"
+                    variant="outline"
+                    aria-label={t("performance.moreActions")}
+                  >
+                    <MoreVertical className="size-4" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {(["csv", "xlsx"] as const).map((exportFormat) => {
+                    const label = t(
+                      exportFormat === "csv"
+                        ? "performance.exportCsv"
+                        : "performance.exportXlsx",
+                    );
+                    return validRange ? (
+                      <DropdownMenuItem key={exportFormat} asChild>
+                        <a href={exportHref(exportFormat)} download>
+                          <Download className="size-4" aria-hidden />
+                          {label}
+                        </a>
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem key={exportFormat} disabled>
+                        <Download className="size-4" aria-hidden />
+                        {label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
           {statusAccount?.status && statusAccount.status !== "active" ? (
             <p className="text-semantic-warning text-sm">
               {t("reconnectHint")}{" "}
               <Link
                 className="underline underline-offset-4"
-                href={`/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`}
+                href={accountsHref}
               >
                 {t("manageAccounts")}
               </Link>
@@ -468,7 +540,11 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
                 key={days}
                 size="sm"
                 type="button"
-                className={preset === days ? undefined : "text-foreground"}
+                className={
+                  preset === days
+                    ? "h-11 md:h-8"
+                    : "text-foreground h-11 md:h-8"
+                }
                 variant={preset === days ? "default" : "outline"}
                 aria-pressed={preset === days}
                 onClick={() => handlePreset(days)}

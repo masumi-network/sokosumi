@@ -1,0 +1,6 @@
+// The Mac app's marketing version, the base configuration of the app target.
+// Release Please bumps the marked line in the Release PR (release-please-config.json);
+// the build number is the Apple workflow's run number, passed on the command line.
+// x-release-please-start-version
+MARKETING_VERSION = 1.0.0
+// x-release-please-end

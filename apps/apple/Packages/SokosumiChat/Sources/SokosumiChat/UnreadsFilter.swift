@@ -129,7 +129,7 @@ func unreadsFilterList(
 /// Web remembers the filter per browser, one value for every workspace (`chat_unreads_filter` cookie, #5158).
 /// On Apple it belongs to this install. `transient` remembers nothing: tests and previews.
 public struct UnreadsFilterPreference: @unchecked Sendable {
-  public static let defaultsKey = "sokosumi.chat-unreads-filter.v1"
+  private static let defaultsKey = "sokosumi.chat-unreads-filter.v1"
   private let defaults: UserDefaults?
 
   public init(defaults: UserDefaults?) {

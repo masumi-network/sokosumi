@@ -31,7 +31,7 @@
       let rows = try #require(String(bytes: encoder.encode(threads), encoding: .utf8))
       let transport = ThreadOverviewFixtureTransport(body: "{\"data\":\(rows),\"meta\":{\"timestamp\":\"2026-09-15T12:00:00.000Z\",\"requestId\":\"fixture\",\"pagination\":{\"cursor\":null,\"limit\":50,\"total\":2,\"nextCursor\":null}}}")
       let overview = RoomThreadOverview()
-      try await overview.load(client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport), roomId: "room", organizationSlug: nil)
+      try await overview.load(client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport), roomId: "room", organizationSlug: nil)
       try #require(overview.items.count == 2)
       let content = RoomThreadOverviewView(overview: overview, open: { _ in }, older: {}, markAllRead: {}, retry: {}, close: {})
         .frame(width: 280, height: 420).background(.background)
