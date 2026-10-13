@@ -242,7 +242,9 @@ private func realtimeState(
 }
 
 /// Holds a room-list read in flight, runs `action` until it has sent `operation` (the change on Core) and has had
-/// time to reach its own room read, then lets the held read finish with the list it started with.
+/// time to reach its own room read, then lets the held read finish with the list it started with. Nothing observable
+/// says the action is waiting on the held read, so the yields are a budget: a run that releases too early passes
+/// without the fix, never fails with it.
 private func whileARoomListReadIsInFlight<T: Sendable>(
   _ state: WorkspaceState,
   _ transport: RealtimeScriptedTransport,
@@ -253,9 +255,11 @@ private func whileARoomListReadIsInFlight<T: Sendable>(
   let listing = Task { await state.refreshRooms() }
   await transport.waitForRoomsGET()
   let acting = Task { try await action() }
-  while !transport.operationIDs.contains(operation) {
+  // Bounded: an action that fails before sending `operation` surfaces its error below instead of hanging the run.
+  for _ in 0 ..< 10000 where !transport.operationIDs.contains(operation) {
     await Task.yield()
   }
+  #expect(transport.operationIDs.contains(operation))
   for _ in 0 ..< 100 {
     await Task.yield()
   }
