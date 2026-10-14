@@ -2369,8 +2369,10 @@
         "account": "Cuenta de {provider}",
         "connect": "Conectar cuenta de {provider}",
         "connectAccount": "Conectar cuenta",
+        "projectClosed": "Este proyecto está cerrado.",
         "actions": "Acciones de {account}",
         "reconnect": "Volver a conectar",
+        "startOver": "Empezar de nuevo",
         "replace": "Reemplazar",
         "disconnect": "Desconectar",
         "unknownHandle": "Cuenta desconocida",
@@ -4984,8 +4986,10 @@
         }
       },
       "SocialAccounts": {
-        "connected": "está conectado",
-        "notConnected": "no está conectado",
+        "title": "Inicio de sesión",
+        "description": "Usa estas cuentas para iniciar sesión.",
+        "connected": "{provider} está conectado",
+        "notConnected": "{provider} no está conectado",
         "success": "Cuenta conectada correctamente",
         "error": "No se pudo conectar {provider}",
         "loadErrorTitle": "No se pudieron cargar las cuentas conectadas",
