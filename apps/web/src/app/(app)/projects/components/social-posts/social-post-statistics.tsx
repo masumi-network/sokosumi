@@ -635,19 +635,19 @@ export function SocialPostStatistics(
               {t("invalidRange")}
             </p>
           ) : null}
-          {headline ? (
+          {validRange && headline ? (
             <SocialPerformanceOverview
               headline={headline}
               impressionBased={impressionBased}
             />
           ) : null}
-          {headline?.daily.length ? (
+          {validRange && headline?.daily.length ? (
             <PerformanceTrendChart
               days={headline.daily}
               impressionBased={impressionBased}
             />
           ) : null}
-          {consistency ? (
+          {validRange && consistency ? (
             <PostingConsistency
               days={consistency.daily.map((day) => ({
                 date:
