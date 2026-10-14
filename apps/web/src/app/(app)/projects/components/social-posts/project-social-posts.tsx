@@ -135,6 +135,13 @@ interface BulkRetryResult {
   ok: boolean;
   error?: string;
 }
+type LoadMoreErrorKind = "offline" | "timeout" | "failed";
+
+const LOAD_MORE_ERROR_COPY = {
+  offline: "loadMoreOffline",
+  timeout: "loadMoreTimeout",
+  failed: "loadMoreError",
+} as const;
 
 function timeOf(value: Date | null): number {
   return value ? new Date(value).getTime() : 0;
@@ -279,7 +286,10 @@ export function ProjectSocialPosts({
   const [posts, setPosts] = useState(initialPosts);
   const [cursors, setCursors] = useState(nextCursors ?? {});
   const [loadingSection, setLoadingSection] = useState<SectionKey | null>(null);
-  const [loadMoreError, setLoadMoreError] = useState<SectionKey | null>(null);
+  const [loadMoreError, setLoadMoreError] = useState<{
+    section: SectionKey;
+    kind: LoadMoreErrorKind;
+  } | null>(null);
   const [tabParam, setTabParam] = useQueryState(
     "tab",
     parseAsStringLiteral(SOCIAL_TABS),
@@ -429,8 +439,15 @@ export function ProjectSocialPosts({
       if (sourceRef.current !== source) return;
       setPosts((current) => page.posts.reduce(upsertPost, current));
       setCursors((current) => ({ ...current, [section]: page.nextCursor }));
-    } catch {
-      setLoadMoreError(section);
+    } catch (error) {
+      setLoadMoreError({
+        section,
+        kind: isBrowserOffline()
+          ? "offline"
+          : isTimeoutRejection(error)
+            ? "timeout"
+            : "failed",
+      });
     } finally {
       setLoadingSection(null);
     }
@@ -1143,13 +1160,13 @@ export function ProjectSocialPosts({
                   )}
                   {cursor ? (
                     <div className="space-y-2">
-                      {loadMoreError === section ? (
+                      {loadMoreError?.section === section ? (
                         <p
                           className="text-destructive text-sm"
                           data-testid="social-load-more-error"
                           role="alert"
                         >
-                          {t("loadMoreError")}
+                          {t(LOAD_MORE_ERROR_COPY[loadMoreError.kind])}
                         </p>
                       ) : null}
                       <Button
