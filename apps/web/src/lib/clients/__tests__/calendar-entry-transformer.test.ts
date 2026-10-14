@@ -1,10 +1,31 @@
 import {
   getProjectsByIdCalendarResponseTransformer,
   getWorkspacesCalendarResponseTransformer,
+  getWorkspacesCalendarSourcesResponseTransformer,
 } from "@sokosumi/core-client/transformers";
 import { describe, expect, it } from "vitest";
 
 describe("calendar entry dates", () => {
+  it("transforms optional Social horizon dates on calendar sources", async () => {
+    const result = await getWorkspacesCalendarSourcesResponseTransformer({
+      data: [
+        { sourceId: "workspace:workspace-1" },
+        { sourceId: "project:empty", latestScheduledSocialPostAt: null },
+        {
+          sourceId: "project:scheduled",
+          latestScheduledSocialPostAt: "2027-02-15T12:00:00.000Z",
+        },
+      ],
+      meta: { timestamp: "2026-01-10T12:00:00.000Z" },
+    });
+
+    expect(result.data[0]?.latestScheduledSocialPostAt).toBeUndefined();
+    expect(result.data[1]?.latestScheduledSocialPostAt).toBeNull();
+    expect(result.data[2]?.latestScheduledSocialPostAt).toEqual(
+      new Date("2027-02-15T12:00:00.000Z"),
+    );
+  });
+
   it.each([
     getWorkspacesCalendarResponseTransformer,
     getProjectsByIdCalendarResponseTransformer,
