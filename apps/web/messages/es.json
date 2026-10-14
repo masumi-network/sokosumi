@@ -2440,7 +2440,8 @@
         "loading": "Cargando…",
         "title": "Publicaciones sociales",
         "newPost": "Nueva publicación",
-        "moreActions": "Acciones de la publicación",
+        "moreActionsNamed": "Acciones de la publicación para {handle}",
+        "thisDraft": "este borrador",
         "noAccount": "Sin cuenta",
         "outcomes": {
           "authorizationRevoked": "Se revocó el acceso de programación del Coworker. Reprograma esta publicación para publicarla.",
@@ -2650,6 +2651,7 @@
           "now": "ahora",
           "accountFallback": "Tu cuenta",
           "open": "Vista previa",
+          "openNamed": "Vista previa de {handle}",
           "accounts": "Cuenta de vista previa",
           "as": "Vista previa como {provider} {handle}",
           "dialogTitle": "Vista previa de la publicación",

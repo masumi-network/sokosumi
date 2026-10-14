@@ -2440,7 +2440,8 @@
         "loading": "Loading…",
         "title": "Social posts",
         "newPost": "New post",
-        "moreActions": "Post actions",
+        "moreActionsNamed": "Post actions for {handle}",
+        "thisDraft": "this draft",
         "noAccount": "No account",
         "outcomes": {
           "authorizationRevoked": "Coworker scheduling access was revoked. Reschedule this post to publish it.",
@@ -2650,6 +2651,7 @@
           "now": "now",
           "accountFallback": "Your account",
           "open": "Preview",
+          "openNamed": "Preview {handle}",
           "accounts": "Preview account",
           "as": "Preview as {provider} {handle}",
           "dialogTitle": "Post preview",

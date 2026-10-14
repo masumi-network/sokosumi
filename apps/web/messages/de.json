@@ -2440,7 +2440,8 @@
         "loading": "Wird geladen…",
         "title": "Social-Media-Beiträge",
         "newPost": "Neuer Beitrag",
-        "moreActions": "Beitragsaktionen",
+        "moreActionsNamed": "Beitragsaktionen für {handle}",
+        "thisDraft": "diesen Entwurf",
         "noAccount": "Kein Konto",
         "outcomes": {
           "authorizationRevoked": "Der Planungszugriff des Coworkers wurde widerrufen. Plane diesen Beitrag neu, um ihn zu veröffentlichen.",
@@ -2650,6 +2651,7 @@
           "now": "jetzt",
           "accountFallback": "Dein Konto",
           "open": "Vorschau",
+          "openNamed": "Vorschau für {handle}",
           "accounts": "Vorschaukonto",
           "as": "Vorschau als {provider} {handle}",
           "dialogTitle": "Beitragsvorschau",
