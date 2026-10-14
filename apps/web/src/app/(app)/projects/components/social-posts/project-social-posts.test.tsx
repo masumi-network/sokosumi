@@ -239,6 +239,16 @@ const MESSAGES: Record<string, string> = {
   "preview.dialogTitle": "Post preview",
   "outcomes.authorizationRevoked":
     "Coworker scheduling access was revoked. Reschedule this post to publish it.",
+  "outcomes.connectionInactive": "Account disconnected. Reconnect to retry.",
+  "outcomes.missed": "Missed the scheduled time.",
+  "failures.rateLimited": "Rate limited. Try again later.",
+  "failures.timeout": "Timed out. Try again.",
+  "failures.unauthorized": "Reconnect the account.",
+  "failures.unavailable": "The platform is down. Try again later.",
+  "failures.rejected": "The platform rejected this post.",
+  "failures.mediaMissing": "A file is missing.",
+  "failures.mediaType": "That file type is not allowed.",
+  "failures.generic": "Couldn't publish. Open the post for details.",
 };
 
 vi.mock("next-intl", async () => {
@@ -1630,9 +1640,12 @@ describe("ProjectSocialPosts", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "Publishing failed: X rejected the post",
+        "Publishing failed: The platform rejected this post.",
       );
     });
+    expect(toastErrorMock).not.toHaveBeenCalledWith(
+      "Publishing failed: X rejected the post",
+    );
     expect(getTab("Needs attention")).toHaveAttribute("aria-selected", "true");
   });
 
