@@ -17,6 +17,7 @@ import {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_CAPABILITIES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRuntime,
@@ -104,6 +105,11 @@ import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-p
 import { enqueueSokoBotDelivery } from "./soko-bot-delivery.service";
 
 const TURN_DEADLINE_MS = 15 * 60 * 1_000;
+/**
+ * A person can ask for work that takes a while — three years of mail into a
+ * CRM table. The turn still ends the moment the bot answers.
+ */
+const PERSON_TURN_DEADLINE_MS = 60 * 60 * 1_000;
 const TURN_LEASE_MS = 16 * 60 * 1_000;
 const RECONCILER_HEARTBEAT_MS = 15_000;
 export const SOKO_BOT_START_RECOVERY_GRACE_MS = 120_000;
@@ -662,6 +668,21 @@ const TURN_CHAT_ATTRIBUTION_INCLUDE = {
     },
   },
 } as const;
+
+/**
+ * Whether the turn was for a change. Chat turns a person asked for carry every
+ * tool, so the tools alone no longer say so; the route Jev read does.
+ */
+function actionRequested(
+  route: string | null,
+  capabilityNames: readonly string[],
+): boolean {
+  return (
+    route !== "DIRECT_RESPONSE" &&
+    route !== "CLARIFY" &&
+    capabilityNames.some((capability) => ACTION_CAPABILITIES.has(capability))
+  );
+}
 
 /** A turn the bot decided to take rather than one a person asked for. */
 function unpromptedTurn(turn: { source: string; chainDepth: number }): boolean {
@@ -1815,9 +1836,7 @@ export class SokoBotControlPlane {
               tx,
               input.turnId,
               turn.finalAnswer ?? "",
-              (turn.capabilityNames ?? []).some((capability) =>
-                ACTION_CAPABILITIES.has(capability),
-              ),
+              actionRequested(turn.route, turn.capabilityNames ?? []),
               turn.responseContract &&
                 typeof turn.responseContract === "object" &&
                 !Array.isArray(turn.responseContract)
@@ -2377,6 +2396,20 @@ export class SokoBotControlPlane {
         candidateTaskIds: classifierContext.namedTaskIds,
       };
     }
+    // A person asking in chat — owner or teammate — gets every tool. Jev's
+    // route is a hint for the bot and the record, not a gate: a misread
+    // "yes, go ahead" must not leave the bot saying it cannot create the
+    // table it just offered. Only turns nobody typed — schedules, events,
+    // ingest, another assistant — stay scoped to their route.
+    const personAsked =
+      source === "CHAT" &&
+      !input.presetRoute &&
+      !input.chat?.askedByBot &&
+      (input.chat?.chainDepth ?? 0) === 0;
+    if (personAsked) {
+      const { unsureRoute: _unsure, ...hint } = classification.classification;
+      classification.classification = hint;
+    }
     if (source === "SCHEDULE" && classification.failed) {
       throw new SokoBotRetryableStartError(
         "Soko Bot classifier unavailable for scheduled turn",
@@ -2439,7 +2472,13 @@ export class SokoBotControlPlane {
       classification.classification,
     );
     const routeCapabilities = (
-      writes ? limitSokoBotWrites(classified, writes) : classified
+      personAsked
+        ? SOKO_BOT_CAPABILITIES
+        : input.presetRoute?.capabilities
+          ? input.presetRoute.capabilities
+          : writes
+            ? limitSokoBotWrites(classified, writes)
+            : classified
     ).filter(
       (capability) =>
         !input.presetRoute ||
@@ -2454,7 +2493,9 @@ export class SokoBotControlPlane {
         ? [...SOKO_BOT_BOT_TO_BOT_CAPABILITIES]
         : routeCapabilities) as readonly SokoBotCapability[],
     ) as readonly SokoBotCapability[];
-    const deadlineAt = new Date(Date.now() + TURN_DEADLINE_MS);
+    const deadlineAt = new Date(
+      Date.now() + (personAsked ? PERSON_TURN_DEADLINE_MS : TURN_DEADLINE_MS),
+    );
     const leaseToken = randomUUID();
     const leaseExpiresAt = new Date(Date.now() + TURN_LEASE_MS);
     // Eve only offers create-operation idempotency. A fresh session per Core

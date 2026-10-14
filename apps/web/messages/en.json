@@ -2371,6 +2371,7 @@
         "connectAccount": "Connect account",
         "actions": "Actions for {account}",
         "reconnect": "Reconnect",
+        "syncNow": "Sync now",
         "replace": "Replace",
         "disconnect": "Disconnect",
         "unknownHandle": "Unknown account",
@@ -2393,7 +2394,8 @@
         "cancel": "Cancel",
         "success": {
           "connected": "{account} connected.",
-          "disconnected": "{account} disconnected."
+          "disconnected": "{account} disconnected.",
+          "syncStarted": "Sync started."
         },
         "warning": {
           "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings."
@@ -2411,7 +2413,8 @@
           "reconnectMismatch": "Reconnect the same account that is already linked to this project.",
           "finalize": "We could not finish connecting this account. Try again.",
           "disconnect": "We could not disconnect this account. Try again.",
-          "notConfigured": "This integration is not configured yet. Contact support to enable it."
+          "notConfigured": "This integration is not configured yet. Contact support to enable it.",
+          "sync": "Couldn't start sync."
         },
         "comingSoon": "Coming soon",
         "connectComingSoon": "{provider} (coming soon)",
@@ -2546,6 +2549,10 @@
           "noAccountsTitle": "No account connected yet",
           "connectAccount": "Connect account",
           "dismiss": "Cancel",
+          "discardTitle": "Discard changes?",
+          "discardDescription": "Your changes will be lost.",
+          "discard": "Discard",
+          "keepEditing": "Keep editing",
           "previewEmpty": "Your post shows here as you write.",
           "pickAccount": "Pick an account to post to.",
           "tooLong": "Text length is over the limit."
@@ -2574,6 +2581,7 @@
           "unauthenticatedAction": "Log in",
           "published": "Post published.",
           "publishFailed": "Publishing failed: {error}",
+          "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}"
         },
         "needsReconnect": "Account needs reconnecting",
@@ -2662,9 +2670,11 @@
           "empty": "No imported posts match these filters. Sync an account or clear the filters.",
           "refresh": "Refresh statistics",
           "loadMore": "Load more posts",
+          "loadMoreError": "Couldn't load more.",
           "unavailable": "Unavailable",
           "notFetched": "Statistics have not been fetched.",
           "updatedAt": "Updated {date}",
+          "updating": "Updating…",
           "metrics": {
             "views": "Views",
             "impressions": "Impressions",

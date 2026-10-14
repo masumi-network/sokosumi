@@ -5183,6 +5183,7 @@ export class SokoBotRuntimeService {
                     {
                       ...scope,
                       ...createScheduleInputSchema.parse(input.input),
+                      capabilityNames: authorized.grant.capabilities,
                     },
                     tx,
                   )

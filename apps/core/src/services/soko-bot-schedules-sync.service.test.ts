@@ -98,6 +98,7 @@ const dueSchedule = {
   prompt: "Review active work",
   nextRunAt: scheduledFor,
   consecutiveFailures: 0,
+  capabilityNames: [] as string[],
 };
 const claimedRun = {
   id: "01960001-0001-7001-8001-000000000003",
@@ -209,6 +210,24 @@ describe("SokoBotSchedulesSyncService", () => {
       },
       data: { status: "RUNNING" },
     });
+  });
+
+  it("runs a follow-up the bot wrote with its writing turn's tools", async () => {
+    dueScheduleFindFirstMock.mockResolvedValue({
+      ...dueSchedule,
+      capabilityNames: ["create_table", "write_table_rows", "bash"],
+    });
+    await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+    });
+    expect(startTurnMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        presetRoute: expect.objectContaining({
+          capabilities: ["create_table", "write_table_rows", "bash"],
+          sandbox: true,
+        }),
+      }),
+    );
   });
 
   it("completes a quiet built-in rhythm without starting a turn", async () => {
