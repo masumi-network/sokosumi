@@ -10,7 +10,9 @@ struct MarkdownBareDomains {
   }
 
   func linkified() -> String {
-    let links = inlineLinks()
+    // `![](url)` and `[](url)` have no label, so the web scanner skips them. Rewriting the
+    // destination nests a new link inside the image (`![]([https://…](https://…))`).
+    let links = inlineLinks(allowEmptyLabel: true)
     var result = ""
     var index = 0
     var linkIndex = 0
@@ -83,7 +85,9 @@ struct MarkdownBareDomains {
       hostEnd += 1
     }
     let labels = String(text[(start + 4) ..< hostEnd]).split(separator: ".", omittingEmptySubsequences: false)
-    guard labels.first?.isEmpty == false, !labels.suffix(2).contains(where: { $0.contains("_") }) else { return nil }
+    // GFM: the domain after `www.` needs a period, and its last two labels contain no `_`.
+    guard labels.count >= 2, labels.first?.isEmpty == false,
+          !labels.suffix(2).contains(where: { $0.contains("_") }) else { return nil }
     let end = pathEnd(from: start)
     return end > start + 4 ? end : nil
   }
@@ -363,7 +367,8 @@ struct MarkdownBareDomains {
   }
 
   /// Match the web's inline-link scanner, including optional double-quoted titles.
-  private func inlineLinks() -> [Range<Int>] {
+  /// Web rejects an empty label. Pass `allowEmptyLabel` only from the display rewrite.
+  private func inlineLinks(allowEmptyLabel: Bool = false) -> [Range<Int>] {
     var links: [Range<Int>] = []
     var cursor = 0
     while cursor < text.count, let open = text[cursor...].firstIndex(of: "[") {
@@ -371,7 +376,7 @@ struct MarkdownBareDomains {
       while labelEnd < text.count, !"][\n".contains(text[labelEnd]) {
         labelEnd += 1
       }
-      guard labelEnd > open + 1, labelEnd + 1 < text.count,
+      guard allowEmptyLabel || labelEnd > open + 1, labelEnd + 1 < text.count,
             text[labelEnd] == "]", text[labelEnd + 1] == "("
       else { cursor = open + 1
         continue

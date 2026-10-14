@@ -31,11 +31,14 @@ struct MarkdownBareDomainsTests {
     let fixtures = [
       "[google.com](https://example.com \"Docs\")", "[docs](https://example.com/path)",
       "foo.bar", "report.pdf?x=1 photo.png#a",
-      "www.", "x.www.foo", "www.foo_bar.com", "foo@bar", "user@host-", "/user@google.com",
+      "www.", "www.example", "www.com", "x.www.foo", "www.foo_bar.com", "foo@bar", "user@host-", "/user@google.com",
       "`google.com`", "``google.com``", "`user@google.com`",
       "```\ngoogle.com\n```", "~~~\ngoogle.com\n~~~", "```\ngoogle.com",
       "192.168.1.1 localhost:3000 v1.2.3 i.e.", "report.pdf photo.png", "hello world",
-      "<https://example.com>", "<span title='example.com'>", "_example.com", "/example.com"
+      "<https://example.com>", "<span title='example.com'>", "_example.com", "/example.com",
+      "![](https://example.com/a.png)", "![](https://example.com/a.png \"shot\")",
+      "[](https://example.com)", "![](www.example.com/a.png)", "![](name@example.com)",
+      "`https://example.com`", "<img src=\"https://example.com/a.png\">"
     ]
     for source in fixtures {
       #expect(MarkdownBareDomains(source).linkified() == source)
@@ -57,6 +60,15 @@ struct MarkdownBareDomainsTests {
       #expect(text.runs.compactMap(\.link).map(\.absoluteString) == [url], "\(source)")
       #expect(String(text.characters) == source, "The visible text stays the source: \(String(text.characters))")
     }
+  }
+
+  /// An empty alt is how pasted images are stored. The destination must stay a Markdown image.
+  @Test func emptyLabelImageStaysAnImage() throws {
+    let source = "![](https://example.com/a.png)"
+    let text = try #require(MessageMarkdown(source).blocks.first?.text)
+    #expect(String(text.characters) == "https://example.com/a.png")
+    #expect(text.runs.compactMap(\.link).map(\.absoluteString) == ["https://example.com/a.png"])
+    #expect(text.runs.contains { $0[MessageAttachmentKindAttribute.self] == .image })
   }
 
   @Test func nativeParsingKeepsLinksAndTaskSourcePositions() throws {
