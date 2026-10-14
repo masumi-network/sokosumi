@@ -49,6 +49,7 @@ import {
   sokoBotReadFileInputSchema,
   sokoBotRunIntegrationToolInputSchema,
   sokoBotSearchInboxInputSchema,
+  sokoBotStartBackgroundRunInputSchema,
   sokoBotUploadFileInputSchema,
   sokoBotArchiveTaskInputSchema as taskArchiveInputSchema,
   sokoBotAssignTaskInputSchema as taskAssignInputSchema,
@@ -219,7 +220,7 @@ import {
   activeIntegrationsForBot,
   fetchCalendarEvents,
   fetchInboxMessage,
-  fetchInboxMessages,
+  fetchInboxPage,
   listIntegrationTools,
   listSokoBotIntegrations,
   runIntegrationTool,
@@ -4487,6 +4488,25 @@ export class SokoBotRuntimeService {
       case "cancel_social_post":
       case "publish_social_post":
         return this.executeSocialTool(input, authorized);
+      case "start_background_run":
+      case "list_background_runs":
+      case "stop_background_run": {
+        const runs = await import(
+          "@/services/soko-bot-background-runs.service"
+        );
+        if (input.capability === "list_background_runs")
+          return runs.listBackgroundRuns(authorized);
+        if (input.capability === "stop_background_run")
+          return runs.stopBackgroundRun(
+            authorized,
+            SOKO_BOT_TOOL_INPUT_SCHEMAS.stop_background_run.parse(input.input)
+              .runId,
+          );
+        return runs.startBackgroundRun(
+          authorized,
+          sokoBotStartBackgroundRunInputSchema.parse(input.input),
+        );
+      }
       case "list_tables":
       case "read_table":
       case "create_table":
@@ -5019,6 +5039,13 @@ export class SokoBotRuntimeService {
           parsed.provider,
         );
         const limit = parsed.limit ?? 20;
+        // A token belongs to one mailbox; across several, a merged page cut
+        // to the limit would skip mail the token has already moved past.
+        if (parsed.pageToken && integrations.length !== 1)
+          throw new SokoBotRuntimeValidationError(
+            "pageToken needs the provider of the page it came from",
+          );
+        let nextPageToken: string | null = null;
         const result = await readSokoBotSource({
           source: "MAIL",
           filters: {
@@ -5026,15 +5053,17 @@ export class SokoBotRuntimeService {
             since: parsed.since ?? "",
             unreadOnly: String(parsed.unreadOnly ?? false),
           },
-          queries: integrations.map(
-            (integration) => () =>
-              fetchInboxMessages(integration, {
-                query: parsed.query,
-                since: parsed.since ? new Date(parsed.since) : undefined,
-                unreadOnly: parsed.unreadOnly,
-                limit,
-              }),
-          ),
+          queries: integrations.map((integration) => async () => {
+            const page = await fetchInboxPage(integration, {
+              query: parsed.query,
+              since: parsed.since ? new Date(parsed.since) : undefined,
+              unreadOnly: parsed.unreadOnly,
+              limit,
+              pageToken: parsed.pageToken,
+            });
+            if (integrations.length === 1) nextPageToken = page.nextPageToken;
+            return page.messages;
+          }),
         });
         return {
           coverage: {
@@ -5047,6 +5076,7 @@ export class SokoBotRuntimeService {
           messages: result.rows
             .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
             .slice(0, limit),
+          nextPageToken,
         };
       }
       case "read_email": {

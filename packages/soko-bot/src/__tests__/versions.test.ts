@@ -83,10 +83,21 @@ describe("versions", () => {
     const prompt = composeSystemPrompt(
       getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
     );
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v23");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v24");
     expect(prompt).toMatch(/Instagram/);
     expect(prompt).toMatch(/TikTok/);
     expect(prompt).not.toMatch(/X only/);
+  });
+
+  it("teaches the default to take on bulk work instead of declining it", () => {
+    const prompt = composeSystemPrompt(
+      getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
+    );
+    expect(prompt).toContain("start_background_run");
+    expect(prompt).toContain("nextPageToken");
+    expect(composeSystemPrompt(getSokoBotVersion("v23"))).not.toContain(
+      "# Long and bulk work",
+    );
   });
 
   it("tell owners what a version change means for them", () => {

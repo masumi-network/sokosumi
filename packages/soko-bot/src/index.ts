@@ -111,6 +111,7 @@ export {
   sokoBotScheduleIdInputSchema,
   sokoBotSearchInboxInputSchema,
   sokoBotSearchInputSchema,
+  sokoBotStartBackgroundRunInputSchema,
   sokoBotTaskIdInputSchema,
   sokoBotUpdateAssignedTaskInputSchema,
   sokoBotUpdateScheduleInputSchema,
