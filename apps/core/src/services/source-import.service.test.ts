@@ -305,27 +305,41 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
     );
   });
 
-  it("captures exceptions and continues processing other URLs", async () => {
-    const errorUrl = "https://example.com/error.pdf";
-    const validUrl = "https://example.com/valid.pdf";
+  it("rethrows the first taskFile failure and does not upsert later URLs", async () => {
+    const failure = new Error("Database error");
+    mockTaskFileClient.taskFile.findFirst.mockRejectedValueOnce(failure);
 
-    mockTaskFileClient.taskFile.findFirst
-      .mockRejectedValueOnce(new Error("Database error"))
-      .mockResolvedValueOnce(null);
+    await expect(
+      sourceImportService.enqueueTaskOutputsFromMarkdown(
+        "task_1",
+        [
+          "[error](https://example.com/error.pdf)",
+          "[valid](https://example.com/valid.pdf)",
+        ].join("\n"),
+        mockTaskFileClient,
+      ),
+    ).rejects.toBe(failure);
 
-    await sourceImportService.enqueueTaskOutputsFromMarkdown(
-      "task_1",
-      [`[error](${errorUrl})`, `[valid](${validUrl})`].join("\n"),
-      mockTaskFileClient,
-    );
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(mockTaskFileClient.taskFile.findFirst).toHaveBeenCalledTimes(1);
+    expect(mockTaskFileClient.taskFile.upsert).not.toHaveBeenCalled();
+  });
 
-    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
-    expect(mockTaskFileClient.taskFile.upsert).toHaveBeenCalledTimes(1);
-    expect(mockTaskFileClient.taskFile.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        create: expect.objectContaining({ sourceUrl: validUrl }),
-      }),
-    );
+  it("rethrows a P2034 upsert failure instead of capturing it", async () => {
+    const failure = Object.assign(new Error("Transaction failed"), {
+      code: "P2034",
+    });
+    mockTaskFileClient.taskFile.upsert.mockRejectedValueOnce(failure);
+
+    await expect(
+      sourceImportService.enqueueTaskOutputsFromMarkdown(
+        "task_1",
+        "[file](https://example.com/result.pdf)",
+        mockTaskFileClient,
+      ),
+    ).rejects.toBe(failure);
+
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
   it("skips when markdown contains no file links", async () => {
