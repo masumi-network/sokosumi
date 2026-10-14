@@ -2670,7 +2670,8 @@
           "loadMoreError": "No se pudieron cargar más.",
           "unavailable": "No disponible",
           "notFetched": "Todavía no se han obtenido estadísticas.",
-          "updatedAt": "Actualizadas el {date}",
+          "updatedAt": "Actualizado {date}",
+          "updating": "Actualizando…",
           "metrics": {
             "views": "Visualizaciones",
             "impressions": "Impresiones",

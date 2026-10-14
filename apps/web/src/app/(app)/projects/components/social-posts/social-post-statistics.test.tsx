@@ -27,11 +27,16 @@ vi.mock("@/lib/actions/project/action", () => ({
 }));
 vi.mock("next-intl", async () => {
   const { createTestFormatter } = await import("@/test/intl-formatter");
-  const { createTranslator } =
+  const { createFormatter, createTranslator } =
     await vi.importActual<typeof import("next-intl")>("next-intl");
   return {
-    useFormatter: () =>
-      createTestFormatter({ timeZone: "America/Los_Angeles" }),
+    useFormatter: () => ({
+      ...createTestFormatter({ timeZone: "America/Los_Angeles" }),
+      relativeTime: createFormatter({
+        locale: "en",
+        now: new Date("2026-10-14T08:00:00Z"),
+      }).relativeTime,
+    }),
     useTranslations: () =>
       createTranslator({
         locale: "en",
@@ -207,6 +212,58 @@ describe("SocialPostStatistics account history", () => {
     expect(await screen.findByText(post.text)).toBeVisible();
   });
 
+  it("shows a quiet Updating line while a background sync is queued", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [
+          {
+            ...account,
+            sync: { status: "queued", mayAutoRequest: false },
+          },
+          secondAccount,
+        ],
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText("Updating…")).toBeVisible();
+    expect(screen.getByText(post.text)).toBeVisible();
+    expect(
+      screen.queryByText(/Launch account.*queued/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Sync now|Refresh Launch/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the reconnect hint and a relative Updated line when data is fresh", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [
+          {
+            ...account,
+            status: "reauthorization_required",
+            sync: { status: "reauth_required", mayAutoRequest: false },
+          },
+        ],
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    const header = screen
+      .getByRole("combobox", { name: "Connected accounts" })
+      .closest("section");
+    expect(header).toBeTruthy();
+    expect(within(header as HTMLElement).getByText(/^Updated /)).toBeVisible();
+    expect(
+      screen.getByText(/Reconnect this account before syncing statistics/),
+    ).toBeVisible();
+    expect(screen.queryByText("Updating…")).not.toBeInTheDocument();
+  });
+
   it("shows headline metrics and imported posts without the old account-card grid", async () => {
     renderStatistics();
     expect(await screen.findByText(post.text)).toBeVisible();
@@ -289,8 +346,8 @@ describe("SocialPostStatistics account history", () => {
     });
     renderStatistics();
     expect(await screen.findByText(post.text)).toBeVisible();
-    expect(screen.getByText("Updated Oct 8, 2026")).toBeVisible();
-    expect(screen.queryByText("Updated Oct 1, 2026")).not.toBeInTheDocument();
+    expect(screen.getByText("Updated 6 days ago")).toBeVisible();
+    expect(screen.queryByText("Updated 13 days ago")).not.toBeInTheDocument();
   });
   it("keeps Impressions on All accounts when an X account is connected", async () => {
     mocks.fetch.mockResolvedValue({
@@ -683,7 +740,7 @@ describe("SocialPostStatistics account history", () => {
   it("keeps the single Updated line and Sync control", async () => {
     renderStatistics();
     await screen.findByText(post.text);
-    expect(screen.getByText("Updated Oct 8, 2026")).toBeVisible();
+    expect(screen.getByText("Updated 6 days ago")).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Sync all accounts" }),
     ).toBeVisible();
