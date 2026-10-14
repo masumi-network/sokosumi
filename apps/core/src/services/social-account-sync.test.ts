@@ -240,6 +240,42 @@ describe("requestSocialAccountRefresh", () => {
     expect(mocks.updateMany).not.toHaveBeenCalled();
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
+
+  it("does not treat a refresh as queued when the active row is gone", async () => {
+    mocks.updateMany.mockResolvedValueOnce({ count: 0 });
+    mocks.findFirst.mockResolvedValueOnce({
+      status: "disconnected",
+      performanceHeadFetchedAt: staleHead,
+      performanceRefreshAttemptedAt: staleHead,
+      performanceRefreshRequestedAt: null,
+      statistics: null,
+    });
+    const result = await requestSocialAccountRefresh({
+      projectId,
+      workspaceId,
+      connectionId,
+      trigger: "manual",
+    });
+    expect(result.isErr()).toBe(true);
+    if (result.isOk()) return;
+    expect(result.error).toEqual({ code: "reauth_required", connectionId });
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
+  it("reports not_found when the account row is gone after the write misses", async () => {
+    mocks.updateMany.mockResolvedValueOnce({ count: 0 });
+    mocks.findFirst.mockResolvedValueOnce(null);
+    const result = await requestSocialAccountRefresh({
+      projectId,
+      workspaceId,
+      connectionId,
+      trigger: "manual",
+    });
+    expect(result.isErr()).toBe(true);
+    if (result.isOk()) return;
+    expect(result.error).toEqual({ code: "not_found", connectionId });
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
 });
 
 describe("runDueSocialAccountSync", () => {
