@@ -10,19 +10,19 @@ import {
 import { asRecord } from "../api/models/parse-helpers.js";
 import { renderOAuthCallbackPage } from "./oauth-callback-page.js";
 
-export interface OAuthTokenCredentials {
+interface OAuthTokenCredentials {
   authToken: string;
   refreshToken: string | null;
   tokenType: string;
   expiresAt: string | null;
 }
 
-export interface PkcePair {
+interface PkcePair {
   verifier: string;
   challenge: string;
 }
 
-export interface OAuthAuthorizationUrlOptions {
+interface OAuthAuthorizationUrlOptions {
   authBaseUrl: string;
   clientId: string;
   redirectUri: string;
@@ -31,7 +31,7 @@ export interface OAuthAuthorizationUrlOptions {
   scope?: string;
 }
 
-export interface OAuthTokenRequestOptions {
+interface OAuthTokenRequestOptions {
   authBaseUrl: string;
   clientId: string;
   clientSecret?: string;
@@ -39,13 +39,13 @@ export interface OAuthTokenRequestOptions {
   signal?: AbortSignal;
 }
 
-export interface OAuthCodeExchangeOptions extends OAuthTokenRequestOptions {
+interface OAuthCodeExchangeOptions extends OAuthTokenRequestOptions {
   redirectUri: string;
   code: string;
   codeVerifier: string;
 }
 
-export interface OAuthRefreshOptions extends OAuthTokenRequestOptions {
+interface OAuthRefreshOptions extends OAuthTokenRequestOptions {
   refreshToken: string;
 }
 

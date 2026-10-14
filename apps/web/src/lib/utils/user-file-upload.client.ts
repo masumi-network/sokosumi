@@ -49,7 +49,7 @@ function extractMaxSizeFromMessage(message: string): number | null {
   return maxSize ?? null;
 }
 
-export function toUserFileUploadError(error: unknown): UserFileUploadError {
+function toUserFileUploadError(error: unknown): UserFileUploadError {
   if (error instanceof UserFileUploadError) {
     return error;
   }
