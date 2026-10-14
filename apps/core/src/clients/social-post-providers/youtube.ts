@@ -1,12 +1,12 @@
 import { socialPostProviderLabel } from "@sokosumi/utils";
 
-import { deleteProjectSocialSession } from "@/clients/composio.client";
+import { deleteComposioToolSession } from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import {
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
-  createSocialPostToolSession,
-  executeSocialPostTool,
+  createComposioToolSession,
+  executeComposioTool,
   guardSocialCreateOutcome,
   stageSocialPublishFile,
 } from "@/clients/social-post-providers/tools";
@@ -57,7 +57,7 @@ export async function publishYouTubeVideo(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("youtube");
-  const sessionId = await createSocialPostToolSession({
+  const sessionId = await createComposioToolSession({
     toolkitSlug: "youtube",
     connectedAccountId: context.connectedAccountId,
     executorUserId: context.executorUserId,
@@ -82,7 +82,7 @@ export async function publishYouTubeVideo(
       signal: context.signal,
     });
     const uploaded = await guardSocialCreateOutcome(label, () =>
-      executeSocialPostTool({
+      executeComposioTool({
         sessionId,
         toolSlug: YOUTUBE_UPLOAD_TOOL_SLUG,
         arguments: {
@@ -116,7 +116,7 @@ export async function publishYouTubeVideo(
       toolSlug: YOUTUBE_UPLOAD_TOOL_SLUG,
     };
   } finally {
-    await deleteProjectSocialSession(
+    await deleteComposioToolSession(
       sessionId,
       "delete Project YouTube publish session",
     );
