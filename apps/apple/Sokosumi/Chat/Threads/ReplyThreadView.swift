@@ -19,7 +19,7 @@ import SwiftUI
     private var preparationInput: PreparedTranscript.Input {
       let room = workspaces.rooms.first { $0.id == workspaces.openRoom.room.timeline.roomId }
       return .init(scope: threadPreparationScope(workspaces),
-                   messages: (workspaces.displayedThreadParent.map { [$0] } ?? []) + workspaces.displayedThreadReplies,
+                   messages: (workspaces.openRoom.displayedThreadParent.map { [$0] } ?? []) + workspaces.openRoom.displayedThreadReplies,
                    mentions: room.map(MessageMentions.init), channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
     }
 
