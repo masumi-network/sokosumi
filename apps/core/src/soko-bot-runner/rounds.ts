@@ -1,0 +1,25 @@
+/**
+ * A background run keeps working until it says it is done. Cheaper models end
+ * the loop with a progress note after the first batch ("this is only a
+ * partial start…") although hours remain; each note is answered with this
+ * nudge instead of being taken as the report.
+ */
+export const KEEP_GOING_PROMPT =
+  "Check the brief against what you have actually finished. If anything is left — date ranges not searched, pages not followed (nextPageToken), rows not written, Jobs not checked — keep working on it now with your tools; do not report yet. Only when all of it is done, or the rest is impossible, write your final report and start it with DONE:";
+
+/** Most nudges a run gets; the step and time budgets usually end it first. */
+export const MAX_KEEP_GOING_ROUNDS = 40;
+
+/** Stop nudging when less than this is left: the report needs time too. */
+export const MIN_ROUND_TIME_MS = 3 * 60 * 1_000;
+
+const DONE_PREFIX = /^\s*\**\s*DONE\s*\**\s*:?\s*\**\s*/i;
+
+export function isFinalReport(text: string): boolean {
+  return DONE_PREFIX.test(text);
+}
+
+/** The report as the owner should read it, without the marker. */
+export function reportText(text: string): string {
+  return text.replace(DONE_PREFIX, "").trim();
+}
