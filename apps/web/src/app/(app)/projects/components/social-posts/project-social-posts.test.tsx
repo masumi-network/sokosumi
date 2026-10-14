@@ -2730,6 +2730,38 @@ describe("ProjectSocialPosts", () => {
     expect(updateProjectSocialPost).not.toHaveBeenCalled();
   });
 
+  it("names a time that is too soon next to When", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          {
+            ...SCHEDULED_POST,
+            scheduledAt: new Date(NOW.getTime() + 30_000),
+          },
+        ]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
+      />,
+    );
+
+    await openRowMenu(user, "post-scheduled");
+    await user.click(screen.getByRole("menuitem", { name: "Reschedule" }));
+    const dialog = screen.getByRole("dialog");
+    const when = within(dialog)
+      .getByRole("heading", { name: "When" })
+      .closest("section");
+    if (!when) throw new Error("When section missing");
+    expect(
+      within(when).getByTestId("social-post-scheduled-too-soon"),
+    ).toHaveTextContent("Choose a time at least one minute from now.");
+    expect(
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
+    ).toBeDisabled();
+  });
+
   it("saves edited media before rescheduling a scheduled post", async () => {
     freezeClock();
     const user = userEvent.setup();

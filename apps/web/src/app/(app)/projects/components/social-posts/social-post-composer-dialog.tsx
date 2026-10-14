@@ -778,11 +778,7 @@ export function SocialPostComposerDialog({
     onOpenChange(nextOpen);
   }
 
-  const footerMessage = scheduledAtTooSoon ? (
-    <p id={scheduledAtErrorId} className="text-destructive">
-      {t("composer.scheduledAtTooSoon")}
-    </p>
-  ) : overLimit ? (
+  const footerMessage = overLimit ? (
     <p className="text-destructive" data-testid="social-post-too-long">
       {t("composer.tooLong")}
     </p>
@@ -1098,6 +1094,15 @@ export function SocialPostComposerDialog({
                   onChange={setScheduledAt}
                   value={scheduledAt}
                 />
+                {scheduledAtTooSoon ? (
+                  <p
+                    className="text-destructive text-sm"
+                    data-testid="social-post-scheduled-too-soon"
+                    id={scheduledAtErrorId}
+                  >
+                    {t("composer.scheduledAtTooSoon")}
+                  </p>
+                ) : null}
                 <div
                   className="text-muted-foreground space-y-0.5 text-xs"
                   data-testid="social-post-timezone"
