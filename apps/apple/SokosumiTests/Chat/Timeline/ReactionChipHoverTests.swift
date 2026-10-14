@@ -13,7 +13,9 @@
     /// (`delayDuration = 0`), and a chip that takes a tap fills on hover (web `hover:bg-muted`). The native `.help`
     /// tooltip waited a second or more. The test host builds no accessibility tree, so both are read from pixels: the
     /// band above the chip, where only the label draws, and the chip's padding left of its emoji, which only the fill
-    /// changes.
+    /// changes. Keyboard focus also shows the label, but no test here drives it: the host is never active or key, and a
+    /// chip takes focus only with Keyboard navigation on, which `NSApp.isFullKeyboardAccessEnabled` reads from the
+    /// global setting alone (a volatile `AppleKeyboardUIMode` changes nothing), so Tab never reaches it.
     @MainActor struct ReactionChipHoverTests {
       private static let top: CGFloat = 40
       private static let leading: CGFloat = 12
