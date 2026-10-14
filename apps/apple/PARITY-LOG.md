@@ -5061,7 +5061,7 @@ Reported by the user on 2026-10-14: pasting a copied image into the composer did
 
 ## 21 fix — an older Pins page shows no Loading line
 
-Web's pinned messages panel shows "Loading pinned messages…" while the first page loads (`isLoading`) and only disables "Load older" while an older page loads (`isLoadingOlder`, `pinned-messages-panel.tsx`). Apple showed the Loading line for both. `PinnedMessages.isLoadingFirstPage` now drives the line; `isLoading` still holds the button. Test: `PinnedMessageTests.onlyTheFirstPageIsTheListsLoading`.
+Web's pinned messages panel shows "Loading pinned messages…" while the first page loads (`isLoading`) and only disables "Load older" while an older page loads (`isLoadingOlder`, `pinned-messages-panel.tsx`). Apple showed the Loading line for both. `PinnedMessages.isLoadingFirstPage` now drives the line; `isLoading` still holds the button. Test: `PinnedMessageTests.onlyTheFirstPageShowsTheLoadingLine`.
 ## 26b deviation — the mention badge stays native at 99+
 
 Web moved its sidebar mention counts to `MentionCountPill` ([mention-count-pill.tsx](<../web/src/components/chat/mention-count-pill.tsx>)), a tinted pill with an `@` glyph that caps the number at 9 ("@ 9+"), on room rows, Thread rows and the Threads entry (`RowCountMark`). Its comment gives the reason: the pill shares a 28px hole with the row's menu and the `@` takes its share. Apple draws the count with the native List `.badge`, which has no glyph and no such hole, and caps at 99+ as row 26b recorded from web's earlier rule. The user decided on 2026-10-14 to keep the native badge at 99+. The spoken forms are unchanged and match web: "N mentions", "More than 99 mentions" for a room (`MentionAnnouncement`), and an uncapped "N mentions" for a Thread row.

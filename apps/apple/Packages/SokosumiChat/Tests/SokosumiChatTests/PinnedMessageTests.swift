@@ -38,7 +38,7 @@ private func pinsBody(_ ids: [String], next: String?) -> String {
 
 @MainActor struct PinnedMessageTests {
   /// Web shows "Loading pinned messages…" for the first page only; an older page just holds its button.
-  @Test func onlyTheFirstPageIsTheListsLoading() async throws {
+  @Test func onlyTheFirstPageShowsTheLoadingLine() async throws {
     let pins = PinnedMessages()
     pins.reset(roomId: testRoomId)
     let first = PausedPinTransport()
