@@ -651,7 +651,13 @@ export function ImageStudio({
           onSelect={selectAsset}
           onUseAsReference={(asset) => {
             setCheckedIds([asset.id]);
+            setPrompt("");
+            setTarget((current) => ({
+              ...current,
+              settings: { ...settingsOf(asset), seed: null },
+            }));
             setViewing(null);
+            requestAnimationFrame(() => promptRef.current?.focus());
           }}
           siblings={state.assets}
         />
