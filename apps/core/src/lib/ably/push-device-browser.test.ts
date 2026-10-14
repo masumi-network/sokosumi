@@ -14,8 +14,8 @@ vi.mock("./client", () => ({
     },
   }),
 }));
-vi.mock("./notification-channel-environment", () => ({
-  getNotificationChannelEnvironment: () => ({
+vi.mock("./realtime-channel-environment", () => ({
+  getRealtimeChannelEnvironment: () => ({
     network: "all",
     vercelEnv: "production",
   }),
