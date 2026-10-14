@@ -79,9 +79,13 @@ export function SocialPostPreview({
 function usePreviewTime(timestamp: Date | null) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const formatter = useFormatter();
-  return timestamp
-    ? formatter.dateTime(timestamp, { month: "short", day: "numeric" })
-    : t("now");
+  if (!timestamp) return t("now");
+  const now = new Date();
+  const diffMs = timestamp.getTime() - now.getTime();
+  const diffDay = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
+  if (Math.abs(diffMs) < 60_000) return t("now");
+  if (diffDay < 7) return formatter.relativeTime(timestamp, now);
+  return formatter.dateTime(timestamp, { month: "short", day: "numeric" });
 }
 
 /**
