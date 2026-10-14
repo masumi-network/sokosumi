@@ -163,6 +163,35 @@ export interface GoogleCampaignCreate extends AdCampaignCreate {
   google: GoogleCampaignSpec;
 }
 
+/** An image the ad already has, kept in the slot `role` names. */
+export interface GoogleKeptDisplayImage {
+  /** Asset id of the ad's current image. */
+  assetId: string;
+  role: GoogleDisplayImageRole;
+}
+
+/** A Display spec of an edit: its images are kept ones or new Drive ones. */
+export interface GoogleDisplayEditSpec
+  extends Omit<GoogleDisplayCampaignSpec, "images"> {
+  images: (GoogleDisplayImage | GoogleKeptDisplayImage)[];
+}
+
+/** The create spec of a campaign type, with kept images allowed on Display. */
+export type GoogleCampaignEditSpec =
+  | GoogleSearchCampaignSpec
+  | GoogleDisplayEditSpec;
+
+/** The new settings of an editable Google campaign; it replaces every field of the spec. */
+export interface GoogleCampaignEdit extends AdCampaignCreate {
+  google: GoogleCampaignEditSpec;
+}
+
+export function isNewDisplayImage(
+  image: GoogleDisplayImage | GoogleKeptDisplayImage,
+): image is GoogleDisplayImage {
+  return "pathname" in image;
+}
+
 export interface AdCampaignMetrics {
   spend: number;
   impressions: number;

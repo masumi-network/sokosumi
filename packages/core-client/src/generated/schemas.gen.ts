@@ -21574,20 +21574,7 @@ export const UpdateAdCampaignRequestSchema = {
     }
 } as const;
 
-export const CreateAdCampaignResponseSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            description: 'Provider campaign id'
-        }
-    },
-    required: [
-        'id'
-    ]
-} as const;
-
-export const CreateAdCampaignRequestSchema = {
+export const UpdateAdCampaignDetailsRequestSchema = {
     type: 'object',
     properties: {
         name: {
@@ -21602,45 +21589,35 @@ export const CreateAdCampaignRequestSchema = {
             description: 'Decimal in the account currency, greater than 0, with at most the currency\'s decimal places (JPY 0, USD 2)',
             example: 25.5
         },
-        objective: {
-            type: 'string',
-            enum: [
-                'OUTCOME_TRAFFIC',
-                'OUTCOME_AWARENESS',
-                'OUTCOME_ENGAGEMENT',
-                'OUTCOME_LEADS',
-                'OUTCOME_SALES'
-            ],
-            description: 'Required for Meta ad accounts; 422 for Google'
-        },
         google: {
-            $ref: '#/components/schemas/GoogleCampaignSpec'
+            $ref: '#/components/schemas/GoogleCampaignEditSpec'
         }
     },
     required: [
         'name',
-        'dailyBudget'
+        'dailyBudget',
+        'google'
     ],
-    description: 'There is no status: a new campaign is always created paused'
+    description: 'Edit of a Google campaign that is editable (see `campaign.editable` of the details). The status is not part of it; use the status/budget update'
 } as const;
 
-export const GoogleCampaignSpecSchema = {
+export const GoogleCampaignEditSpecSchema = {
     oneOf: [
         {
             $ref: '#/components/schemas/GoogleSearchCampaignSpec'
         },
         {
-            $ref: '#/components/schemas/GoogleDisplayCampaignSpec'
+            $ref: '#/components/schemas/GoogleDisplayCampaignEditSpec'
         }
     ],
     discriminator: {
         propertyName: 'type',
         mapping: {
             SEARCH: '#/components/schemas/GoogleSearchCampaignSpec',
-            DISPLAY: '#/components/schemas/GoogleDisplayCampaignSpec'
+            DISPLAY: '#/components/schemas/GoogleDisplayCampaignEditSpec'
         }
     },
-    description: 'Required for Google ad accounts; 422 for Meta'
+    description: 'The campaign\'s settings after the edit; it replaces every field, and only what differs from the campaign is changed. `type` must be the campaign\'s type, and the start date cannot change once the campaign started'
 } as const;
 
 export const GoogleSearchCampaignSpecSchema = {
@@ -21818,6 +21795,264 @@ export const GoogleSitelinkSchema = {
     ]
 } as const;
 
+export const GoogleDisplayCampaignEditSpecSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'DISPLAY'
+            ]
+        },
+        startDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign starts at 00:00:00 of this day in the account\'s time zone'
+        },
+        endDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign ends at 23:59:59 of this day in the account\'s time zone; not before startDate'
+        },
+        locationIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^\\d{1,20}$'
+            },
+            maxItems: 25,
+            description: 'Geo target constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        languageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^\\d{1,20}$'
+            },
+            maxItems: 25,
+            description: 'Language constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        finalUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri',
+            example: 'https://example.com/spring'
+        },
+        businessName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 25
+        },
+        headlines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 30
+            },
+            minItems: 1,
+            maxItems: 5
+        },
+        longHeadline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 90
+        },
+        descriptions: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 90
+            },
+            minItems: 1,
+            maxItems: 5
+        },
+        images: {
+            type: 'array',
+            items: {
+                anyOf: [
+                    {
+                        $ref: '#/components/schemas/GoogleDisplayImage'
+                    },
+                    {
+                        $ref: '#/components/schemas/GoogleKeptDisplayImage'
+                    }
+                ]
+            },
+            maxItems: 8,
+            description: 'The ad\'s images after the edit: `{assetId, role}` keeps a current image, a Drive file (as in a create) uploads a new one. 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each image once'
+        }
+    },
+    required: [
+        'type',
+        'locationIds',
+        'languageIds',
+        'finalUrl',
+        'businessName',
+        'headlines',
+        'longHeadline',
+        'descriptions',
+        'images'
+    ]
+} as const;
+
+export const GoogleDisplayImageSchema = {
+    type: 'object',
+    properties: {
+        pathname: {
+            type: 'string',
+            minLength: 1,
+            example: 'drive/users/user_123/launch.png',
+            description: 'Drive blob pathname; must belong to the active workspace'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+            description: 'Public Blob URL of the Drive file'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            example: 'launch.png'
+        },
+        size: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 5242880,
+            description: 'Bytes; at most 5120 KB',
+            example: 240000
+        },
+        mimeType: {
+            type: 'string',
+            enum: [
+                'image/jpeg',
+                'image/png',
+                'image/gif'
+            ]
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'LANDSCAPE',
+                'SQUARE',
+                'LOGO'
+            ],
+            description: 'LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional square (1:1, at least 128x128) logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit'
+        }
+    },
+    required: [
+        'pathname',
+        'fileUrl',
+        'name',
+        'size',
+        'mimeType',
+        'role'
+    ]
+} as const;
+
+export const GoogleKeptDisplayImageSchema = {
+    type: 'object',
+    properties: {
+        assetId: {
+            type: 'string',
+            pattern: '^\\d{1,20}$',
+            description: 'Asset id of one of the ad\'s current images, as the campaign details report it'
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'LANDSCAPE',
+                'SQUARE',
+                'LOGO'
+            ],
+            description: 'The slot the image fills; see GoogleDisplayImage'
+        }
+    },
+    required: [
+        'assetId',
+        'role'
+    ]
+} as const;
+
+export const CreateAdCampaignResponseSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Provider campaign id'
+        }
+    },
+    required: [
+        'id'
+    ]
+} as const;
+
+export const CreateAdCampaignRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'Spring sale'
+        },
+        dailyBudget: {
+            type: 'number',
+            exclusiveMinimum: 0,
+            description: 'Decimal in the account currency, greater than 0, with at most the currency\'s decimal places (JPY 0, USD 2)',
+            example: 25.5
+        },
+        objective: {
+            type: 'string',
+            enum: [
+                'OUTCOME_TRAFFIC',
+                'OUTCOME_AWARENESS',
+                'OUTCOME_ENGAGEMENT',
+                'OUTCOME_LEADS',
+                'OUTCOME_SALES'
+            ],
+            description: 'Required for Meta ad accounts; 422 for Google'
+        },
+        google: {
+            $ref: '#/components/schemas/GoogleCampaignSpec'
+        }
+    },
+    required: [
+        'name',
+        'dailyBudget'
+    ],
+    description: 'There is no status: a new campaign is always created paused'
+} as const;
+
+export const GoogleCampaignSpecSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/GoogleSearchCampaignSpec'
+        },
+        {
+            $ref: '#/components/schemas/GoogleDisplayCampaignSpec'
+        }
+    ],
+    discriminator: {
+        propertyName: 'type',
+        mapping: {
+            SEARCH: '#/components/schemas/GoogleSearchCampaignSpec',
+            DISPLAY: '#/components/schemas/GoogleDisplayCampaignSpec'
+        }
+    },
+    description: 'Required for Google ad accounts; 422 for Meta'
+} as const;
+
 export const GoogleDisplayCampaignSpecSchema = {
     type: 'object',
     properties: {
@@ -21918,61 +22153,6 @@ export const GoogleDisplayCampaignSpecSchema = {
         'longHeadline',
         'descriptions',
         'images'
-    ]
-} as const;
-
-export const GoogleDisplayImageSchema = {
-    type: 'object',
-    properties: {
-        pathname: {
-            type: 'string',
-            minLength: 1,
-            example: 'drive/users/user_123/launch.png',
-            description: 'Drive blob pathname; must belong to the active workspace'
-        },
-        fileUrl: {
-            type: 'string',
-            format: 'uri',
-            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
-            description: 'Public Blob URL of the Drive file'
-        },
-        name: {
-            type: 'string',
-            minLength: 1,
-            example: 'launch.png'
-        },
-        size: {
-            type: 'integer',
-            minimum: 1,
-            maximum: 5242880,
-            description: 'Bytes; at most 5120 KB',
-            example: 240000
-        },
-        mimeType: {
-            type: 'string',
-            enum: [
-                'image/jpeg',
-                'image/png',
-                'image/gif'
-            ]
-        },
-        role: {
-            type: 'string',
-            enum: [
-                'LANDSCAPE',
-                'SQUARE',
-                'LOGO'
-            ],
-            description: 'LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional square (1:1, at least 128x128) logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit'
-        }
-    },
-    required: [
-        'pathname',
-        'fileUrl',
-        'name',
-        'size',
-        'mimeType',
-        'role'
     ]
 } as const;
 

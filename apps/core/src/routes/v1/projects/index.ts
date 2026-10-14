@@ -1,6 +1,7 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import mountGetProjectAdCampaign from "./[id]/ads/accounts/[accountId]/campaigns/[campaignId]/get.js";
 import mountUpdateProjectAdCampaign from "./[id]/ads/accounts/[accountId]/campaigns/[campaignId]/patch.js";
+import mountEditProjectAdCampaign from "./[id]/ads/accounts/[accountId]/campaigns/[campaignId]/put.js";
 import mountListProjectAdCampaigns from "./[id]/ads/accounts/[accountId]/campaigns/get.js";
 import mountCreateProjectAdCampaign from "./[id]/ads/accounts/[accountId]/campaigns/post.js";
 import mountDeleteProjectAdAccount from "./[id]/ads/accounts/[accountId]/delete.js";
@@ -92,6 +93,7 @@ mountDiscardProjectAdConnection(app);
 mountListProjectAdCampaigns(app);
 mountGetProjectAdCampaign(app);
 mountUpdateProjectAdCampaign(app);
+mountEditProjectAdCampaign(app);
 mountCreateProjectAdCampaign(app);
 mountSearchProjectAdLocations(app);
 mountListProjectAdLanguages(app);

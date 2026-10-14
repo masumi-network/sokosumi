@@ -59,6 +59,7 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | GET | `/ads/accounts/{accountId}/campaigns?range=LAST_7_DAYS\|LAST_30_DAYS` | Campaigns + spend, impressions, clicks, CTR, CPC, conversions |
 | GET | `/ads/accounts/{accountId}/campaigns/{campaignId}?range=LAST_7_DAYS\|LAST_30_DAYS` | One Google campaign's details (Meta account, unknown or removed campaign: 404). See [Campaign details](#campaign-details) |
 | PATCH | `/ads/accounts/{accountId}/campaigns/{campaignId}` `{status?: ACTIVE\|PAUSED, dailyBudget?}` | Pause/resume, budget |
+| PUT | `/ads/accounts/{accountId}/campaigns/{campaignId}` `{name, dailyBudget, google}` | Edit an editable Google campaign in one atomic call → 204 (also when nothing changed). See [Editing](#editing) |
 | POST | `/ads/accounts/{accountId}/campaigns` `{name, dailyBudget, objective? (Meta, required), google? (Google, required)}` | Create, always PAUSED → 201 `{id}`. Google: `google` spec, `objective` is 422; Meta: `google` is 422. See [Google campaign builder](#google-campaign-builder) |
 | GET | `/ads/accounts/{accountId}/targeting/locations?q=<1-80>` or `?ids=2276,2840` | Google only (Meta is 404): `{locations: {id, name, canonicalName, targetType, countryCode}[]}`, enabled Google locations. Send exactly one of `q` (a place name, any characters) or `ids` (1-25 digit ids), else 422. See [Targeting lookups](#targeting-lookups) |
 | GET | `/ads/accounts/{accountId}/targeting/languages` | Google only (Meta is 404): `{languages: {id, code, name}[]}`, targetable languages sorted by name |
@@ -191,6 +192,7 @@ The suggest body is JSON, so `q` needs no character whitelist.
 
 - A Google validation or policy failure (the Composio tool error carries a `GoogleAdsFailure`, e.g. "Too long.", "Destination not working") is **422 with Google's first error message**. The message is read from the tool error text (Core keeps its first 2000 characters, enough for Google's envelope), matched on the text because a long failure can still be cut. Authentication, authorization, quota, internal and transient (concurrent modification, database) failures stay provider errors (502).
 - Authentication, authorization, quota and internal Google errors, and transport errors, keep the usual mapping (502, 503 for missing configuration). Other routes are unchanged.
+- The status/budget `PATCH` maps Google failures the same way: a validation or policy failure on its budget or status write is 422 with Google's message, not 502.
 - A Display image outside the active Workspace's Drive is 403 / 422 / 400 (see [Display images](#display-images)); one that cannot be downloaded or has the wrong served type is 422 naming the file.
 - Account rules (422): Google account without `google`, Google account with `objective`, Meta account with `google`, Meta account without `objective`.
 
@@ -217,6 +219,28 @@ Read with `GOOGLEADS_SEARCH_STREAM_GAQL` in one session. Queries 1, 2, 4-6, 8 an
 7. Only with display images: `asset` (resource name, id, `image_asset.full_size` url / width / height) `WHERE resource_name IN (…)`.
 8. `campaign_asset` (`field_type IN ('SITELINK', 'CALLOUT')`, `status = 'ENABLED'`) with the asset's link text, descriptions, final URLs, callout text and approval status.
 9. `campaign` with `segments.date`, cost, impressions, clicks, conversions `DURING LAST_7_DAYS | LAST_30_DAYS`; days without a row are zero.
+
+### Editing
+
+`PUT /ads/accounts/{accountId}/campaigns/{campaignId}` `{name, dailyBudget, google}` edits a Google campaign that is `editable` (see above) to match the request. `google` is the create spec (`GoogleCampaignEditSpec`, same limits and refinements) except that Display `images[]` items may also be `{assetId, role}`: keep that image of the ad (a Drive file, as in a create, uploads a new one). Role counts and "each image once" apply to the combined list. It replaces every field; only what differs from the campaign's current state is sent. Status is not part of it (use the `PATCH`). The status `PAUSED` / `ENABLED` stays as it is; Search sitelinks and callouts that the request omits are unlinked.
+
+Responses: 204, also when nothing differs (then no mutate call is made). 404: Meta account (checked before the connection), unknown or REMOVED campaign. 409 `Campaign can't be edited here` when the current campaign is not editable (re-checked at save time), or `This campaign uses a shared budget; change it in Google Ads` when the amount would change on a shared budget; 409 for an inactive connection as elsewhere. 422: validation; `google.type` is not the campaign's type; the start date differs while `started` (`The start date can't change after the campaign started`); a kept `assetId` is not one of the ad's current images; a Google validation or policy failure (Google's first message, as in a create). Other provider failures are 502. All refusals except Google's happen before the first write.
+
+Core reads the campaign with the details queries (same session, no metrics query; the campaign query also reads `campaign.campaign_budget` and `campaign_budget.explicitly_shared`, the criteria query `criterion_id`), refuses, uploads new Display images (one `BATCH_MUTATE` call each, as in a create), then sends ONE `GOOGLEADS_BATCH_MUTATE` (`partial_failure: false`) with the operations below, ordered removals, updates, creations. Compared exactly (strings, ordered lists) unless noted; `X` = campaign id, `C` = customer id.
+
+| What | Operation |
+| --- | --- |
+| Name | `campaign_operation.update` `{resource_name: customers/C/campaigns/X, name}`, `update_mask: "name"` |
+| Start / end date | same operation, `start_date_time` `YYYY-MM-DD 00:00:00`, `end_date_time` `YYYY-MM-DD 23:59:59` (as in a create); mask `startDateTime` / `endDateTime`. A removed end date is in the mask only, which clears it. Masks list only changed fields |
+| Budget | `campaign_budget_operation.update` `{resource_name: campaign.campaign_budget, amount_micros}`, mask `amountMicros` (409 on a shared budget) |
+| Locations, languages | immutable: removed ids `campaign_criterion_operation.remove` `customers/C/campaignCriteria/X~<criterionId>`; added ids created as in a create. Matched by constant id; a repeated id counts once |
+| Keywords (Search) | immutable: removed `ad_group_criterion_operation.remove` `customers/C/adGroupCriteria/<adGroupId>~<criterionId>`; added created as in a create. Key = match type + lower-cased trimmed text (the create dedupe) |
+| Ad | `ad_operation.update` `{resource_name: customers/C/ads/<adId>, final_urls?, responsive_search_ad? \| responsive_display_ad?}` with a mask of the changed fields only, e.g. `finalUrls,responsiveSearchAd.headlines`. Repeated fields are replaced whole; a removed `path1` / `path2` is in the mask only. Display images: `marketingImages`, `squareMarketingImages`, `squareLogoImages` as `[{asset: customers/C/assets/<id>}]` from the kept and the newly uploaded ones, per role |
+| Sitelinks, callouts | assets cannot be removed and a shared asset would change other campaigns, so they are matched by content (sitelink: text, final URL, both descriptions; callout: text; case-sensitive). Unchanged: nothing. Current one missing from the request: `campaign_asset_operation.remove` `customers/C/campaignAssets/X~<assetId>~SITELINK\|CALLOUT`. New or changed: `asset_operation.create` under a temporary id, then `campaign_asset_operation.create`, as in a create |
+
+`update_mask` is a comma-separated FieldMask in Google's JSON form (lowerCamelCase, dots for nested fields). Field values in `update` keep snake_case keys, as in the create operations.
+
+Images uploaded for an edit stay unused in the account when the update then fails (assets cannot be removed); an edit repeated after a failure uploads them again.
 
 ## Web (`apps/web/src/app/(app)/ads`)
 

@@ -6265,37 +6265,26 @@ export type UpdateAdCampaignRequest = {
     dailyBudget?: number;
 };
 
-export type CreateAdCampaignResponse = {
-    /**
-     * Provider campaign id
-     */
-    id: string;
-};
-
 /**
- * There is no status: a new campaign is always created paused
+ * Edit of a Google campaign that is editable (see `campaign.editable` of the details). The status is not part of it; use the status/budget update
  */
-export type CreateAdCampaignRequest = {
+export type UpdateAdCampaignDetailsRequest = {
     name: string;
     /**
      * Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)
      */
     dailyBudget: number;
-    /**
-     * Required for Meta ad accounts; 422 for Google
-     */
-    objective?: 'OUTCOME_TRAFFIC' | 'OUTCOME_AWARENESS' | 'OUTCOME_ENGAGEMENT' | 'OUTCOME_LEADS' | 'OUTCOME_SALES';
-    google?: GoogleCampaignSpec;
+    google: GoogleCampaignEditSpec;
 };
 
 /**
- * Required for Google ad accounts; 422 for Meta
+ * The campaign's settings after the edit; it replaces every field, and only what differs from the campaign is changed. `type` must be the campaign's type, and the start date cannot change once the campaign started
  */
-export type GoogleCampaignSpec = ({
+export type GoogleCampaignEditSpec = ({
     type: 'SEARCH';
 } & GoogleSearchCampaignSpec) | ({
     type: 'DISPLAY';
-} & GoogleDisplayCampaignSpec);
+} & GoogleDisplayCampaignEditSpec);
 
 export type GoogleSearchCampaignSpec = {
     type: 'SEARCH';
@@ -6346,6 +6335,99 @@ export type GoogleSitelink = {
     description2?: string;
 };
 
+export type GoogleDisplayCampaignEditSpec = {
+    type: 'DISPLAY';
+    /**
+     * Campaign starts at 00:00:00 of this day in the account's time zone
+     */
+    startDate?: string;
+    /**
+     * Campaign ends at 23:59:59 of this day in the account's time zone; not before startDate
+     */
+    endDate?: string;
+    /**
+     * Geo target constant ids (0-25); none targets all
+     */
+    locationIds: Array<string>;
+    /**
+     * Language constant ids (0-25); none targets all
+     */
+    languageIds: Array<string>;
+    finalUrl: string;
+    businessName: string;
+    headlines: Array<string>;
+    longHeadline: string;
+    descriptions: Array<string>;
+    /**
+     * The ad's images after the edit: `{assetId, role}` keeps a current image, a Drive file (as in a create) uploads a new one. 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each image once
+     */
+    images: Array<GoogleDisplayImage | GoogleKeptDisplayImage>;
+};
+
+export type GoogleDisplayImage = {
+    /**
+     * Drive blob pathname; must belong to the active workspace
+     */
+    pathname: string;
+    /**
+     * Public Blob URL of the Drive file
+     */
+    fileUrl: string;
+    name: string;
+    /**
+     * Bytes; at most 5120 KB
+     */
+    size: number;
+    mimeType: 'image/jpeg' | 'image/png' | 'image/gif';
+    /**
+     * LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional square (1:1, at least 128x128) logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit
+     */
+    role: 'LANDSCAPE' | 'SQUARE' | 'LOGO';
+};
+
+export type GoogleKeptDisplayImage = {
+    /**
+     * Asset id of one of the ad's current images, as the campaign details report it
+     */
+    assetId: string;
+    /**
+     * The slot the image fills; see GoogleDisplayImage
+     */
+    role: 'LANDSCAPE' | 'SQUARE' | 'LOGO';
+};
+
+export type CreateAdCampaignResponse = {
+    /**
+     * Provider campaign id
+     */
+    id: string;
+};
+
+/**
+ * There is no status: a new campaign is always created paused
+ */
+export type CreateAdCampaignRequest = {
+    name: string;
+    /**
+     * Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)
+     */
+    dailyBudget: number;
+    /**
+     * Required for Meta ad accounts; 422 for Google
+     */
+    objective?: 'OUTCOME_TRAFFIC' | 'OUTCOME_AWARENESS' | 'OUTCOME_ENGAGEMENT' | 'OUTCOME_LEADS' | 'OUTCOME_SALES';
+    google?: GoogleCampaignSpec;
+};
+
+/**
+ * Required for Google ad accounts; 422 for Meta
+ */
+export type GoogleCampaignSpec = ({
+    type: 'SEARCH';
+} & GoogleSearchCampaignSpec) | ({
+    type: 'DISPLAY';
+} & GoogleDisplayCampaignSpec);
+
 export type GoogleDisplayCampaignSpec = {
     type: 'DISPLAY';
     /**
@@ -6373,27 +6455,6 @@ export type GoogleDisplayCampaignSpec = {
      * Drive images: 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each file once
      */
     images: Array<GoogleDisplayImage>;
-};
-
-export type GoogleDisplayImage = {
-    /**
-     * Drive blob pathname; must belong to the active workspace
-     */
-    pathname: string;
-    /**
-     * Public Blob URL of the Drive file
-     */
-    fileUrl: string;
-    name: string;
-    /**
-     * Bytes; at most 5120 KB
-     */
-    size: number;
-    mimeType: 'image/jpeg' | 'image/png' | 'image/gif';
-    /**
-     * LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional square (1:1, at least 128x128) logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit
-     */
-    role: 'LANDSCAPE' | 'SQUARE' | 'LOGO';
 };
 
 export type ListGoogleLocationsResponse = {
@@ -44495,6 +44556,160 @@ export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse
 };
 
 export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse = PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses[keyof PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses];
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
+    body: UpdateAdCampaignDetailsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+        /**
+         * Provider campaign id (1-20 digits)
+         */
+        campaignId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}';
+};
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdError = PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors[keyof PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors];
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses = {
+    /**
+     * Campaign edited, or nothing to change
+     */
+    204: void;
+};
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse = PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses[keyof PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses];
 
 export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData = {
     body?: never;

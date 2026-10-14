@@ -3,7 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ComposioConfigError } from "@/clients/composio.client";
-import { notFound } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import type { AdCampaignUpdate } from "@/lib/ads/campaigns";
 
 const m = vi.hoisted(() => {
@@ -24,6 +24,7 @@ const m = vi.hoisted(() => {
     googleLocations: vi.fn(),
     googleLanguages: vi.fn(),
     googleDetails: vi.fn(),
+    googleEdit: vi.fn(),
     requireScopedProject: vi.fn(),
     requireLockedOpenProject: vi.fn(),
     intentFindUnique: vi.fn(),
@@ -89,6 +90,7 @@ vi.mock("@/lib/ads/google-ads", () => ({
   searchGoogleLocations: m.googleLocations,
   listGoogleLanguages: m.googleLanguages,
   getGoogleCampaignDetails: m.googleDetails,
+  updateGoogleCampaignDetails: m.googleEdit,
 }));
 vi.mock("@/lib/ads/meta-ads", () => ({
   listMetaAdAccounts: m.listMeta,
@@ -123,6 +125,7 @@ import {
   revokeProjectAdConnectionForClose,
   searchProjectAdLocations,
   updateProjectAdCampaign,
+  updateProjectAdCampaignDetails,
 } from "./project-ad-accounts.service";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
@@ -645,6 +648,131 @@ describe("project ad accounts service", () => {
       m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
       m.googleDetails.mockRejectedValue(notFound("Campaign not found"));
       await expect(details()).rejects.toMatchObject({ status: 404 });
+    });
+  });
+
+  describe("edit campaign", () => {
+    const BLOB = "https://store.public.blob.vercel-storage.com";
+    const google = {
+      type: "DISPLAY" as const,
+      locationIds: [],
+      languageIds: [],
+      finalUrl: "https://example.com",
+      businessName: "Acme",
+      headlines: ["Run faster"],
+      longHeadline: "Run faster in the lightest shoes",
+      descriptions: ["Shoes for every runner."],
+      images: [
+        { assetId: "1", role: "LANDSCAPE" as const },
+        {
+          pathname: "drive/users/user_123/square.png",
+          fileUrl: `${BLOB}/drive/users/user_123/square.png`,
+          name: "square.png",
+          size: 1000,
+          mimeType: "image/png" as const,
+          role: "SQUARE" as const,
+        },
+      ],
+    };
+    const edit = (
+      changes: Partial<
+        Parameters<typeof updateProjectAdCampaignDetails>[0]
+      > = {},
+    ) =>
+      updateProjectAdCampaignDetails({
+        ...scope,
+        accountId: ACCOUNT_UUID,
+        campaignId: "42",
+        userId: "user_123",
+        organizationId: null,
+        name: "Spring sale",
+        dailyBudget: 12.5,
+        google,
+        ...changes,
+      });
+
+    it("edits the campaign inside the attached customer, keeping kept images as they are", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      await expect(edit()).resolves.toBeUndefined();
+      expect(m.googleEdit).toHaveBeenCalledWith({
+        connectedAccountId: "ca_1",
+        executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+        customerId: "111",
+        campaignId: "42",
+        name: "Spring sale",
+        dailyBudget: 12.5,
+        google,
+      });
+    });
+
+    it("normalizes the file URL of a new image", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      const spaced = {
+        ...google.images[1],
+        pathname: "drive/users/user_123/my square.png",
+        fileUrl: `${BLOB}/drive/users/user_123/my%20square.png`,
+      };
+      await edit({ google: { ...google, images: [google.images[0], spaced] } });
+      expect(m.googleEdit.mock.calls[0]?.[0].google.images[1].fileUrl).toBe(
+        `${BLOB}/drive/users/user_123/my%20square.png`,
+      );
+    });
+
+    it("rejects a new image outside the Workspace's Drive before calling Google", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      const foreign = {
+        ...google.images[1],
+        pathname: "drive/users/user_999/square.png",
+        fileUrl: `${BLOB}/drive/users/user_999/square.png`,
+      };
+      await expect(
+        edit({ google: { ...google, images: [google.images[0], foreign] } }),
+      ).rejects.toMatchObject({ status: 422 });
+      expect(m.googleEdit).not.toHaveBeenCalled();
+    });
+
+    it("rejects a budget with more decimals than the currency has", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      await expect(edit({ dailyBudget: 12.345 })).rejects.toMatchObject({
+        status: 422,
+      });
+      expect(m.googleEdit).not.toHaveBeenCalled();
+    });
+
+    it("returns 404 for a Meta account, also when its connection is not active", async () => {
+      m.accountFindFirst.mockResolvedValue(
+        accountRow("meta_ads", "act_9", "disconnected"),
+      );
+      await expect(edit()).rejects.toMatchObject({
+        status: 404,
+        message: expect.stringContaining("Google Ads"),
+      });
+      expect(m.googleEdit).not.toHaveBeenCalled();
+    });
+
+    it("returns 404 for an account of another Project", async () => {
+      m.accountFindFirst.mockResolvedValue(null);
+      await expect(edit()).rejects.toMatchObject({ status: 404 });
+    });
+
+    it("returns 409 when the connection is not active", async () => {
+      m.accountFindFirst.mockResolvedValue(
+        accountRow("google_ads", "111", "disconnected"),
+      );
+      await expect(edit()).rejects.toMatchObject({ status: 409 });
+      expect(m.googleEdit).not.toHaveBeenCalled();
+    });
+
+    it("does not touch the provider when the Project is not in the Workspace", async () => {
+      m.requireScopedProject.mockRejectedValue(notFound("Project not found"));
+      await expect(edit()).rejects.toMatchObject({ status: 404 });
+      expect(m.googleEdit).not.toHaveBeenCalled();
+    });
+
+    it("passes on the provider's refusal", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      m.googleEdit.mockRejectedValue(conflict("Campaign can't be edited here"));
+      await expect(edit()).rejects.toMatchObject({ status: 409 });
     });
   });
 

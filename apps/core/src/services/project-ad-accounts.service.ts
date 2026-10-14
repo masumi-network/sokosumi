@@ -32,8 +32,11 @@ import {
   type AdCampaignUpdate,
   type AdRange,
   currencyFractionDigits,
+  type GoogleCampaignEdit,
+  type GoogleCampaignEditSpec,
   type GoogleCampaignSpec,
   type GoogleLocationLookup,
+  isNewDisplayImage,
   type MetaCampaignObjective,
 } from "@/lib/ads/campaigns";
 import type {
@@ -51,6 +54,7 @@ import {
   listGoogleLanguages,
   searchGoogleLocations,
   updateGoogleCampaign,
+  updateGoogleCampaignDetails,
 } from "@/lib/ads/google-ads";
 import {
   createMetaCampaign,
@@ -584,18 +588,59 @@ export async function createProjectAdCampaign(
   };
 }
 
-/** A Display spec with every image pinned to a file of the active Workspace's Drive; other specs unchanged. */
+/**
+ * Edits a Google campaign of an attached ad account to the given name, budget
+ * and spec (see `updateGoogleCampaignDetails`). Only Google accounts can be
+ * edited: a Meta account is 404 before its connection is checked. New Drive
+ * images of a Display spec must belong to the active Workspace's Drive
+ * (`userId`, `organizationId`). All refusals happen before the first write.
+ */
+export async function updateProjectAdCampaignDetails(
+  input: ProjectScope &
+    GoogleCampaignEdit & {
+      accountId: string;
+      campaignId: string;
+      userId: string;
+      /** Active Workspace owner: null for a personal Workspace. */
+      organizationId: string | null;
+    },
+): Promise<void> {
+  const account = await requireActiveAdAccount(input, {
+    provider: "google_ads",
+    notFound: "Campaign editing is only available for Google Ads accounts",
+  });
+  requireBudgetPrecision(input.dailyBudget, account.currency);
+  await updateGoogleCampaignDetails({
+    ...account.connected,
+    customerId: account.externalAccountId,
+    campaignId: input.campaignId,
+    name: input.name,
+    dailyBudget: input.dailyBudget,
+    google: pinDisplayImagesToDrive(input, input.google),
+  });
+}
+
+/** A Display spec with every new image pinned to a file of the active Workspace's Drive; kept images and other specs unchanged. */
 function pinDisplayImagesToDrive(
   workspace: Pick<UserContext, "userId" | "organizationId">,
   google: GoogleCampaignSpec,
-): GoogleCampaignSpec {
+): GoogleCampaignSpec;
+function pinDisplayImagesToDrive(
+  workspace: Pick<UserContext, "userId" | "organizationId">,
+  google: GoogleCampaignEditSpec,
+): GoogleCampaignEditSpec;
+function pinDisplayImagesToDrive(
+  workspace: Pick<UserContext, "userId" | "organizationId">,
+  google: GoogleCampaignEditSpec,
+): GoogleCampaignEditSpec {
   if (google.type !== "DISPLAY") return google;
   return {
     ...google,
-    images: google.images.map((image) => ({
-      ...image,
-      fileUrl: requireWorkspaceDriveFileUrl(workspace, image),
-    })),
+    images: google.images.map((image) =>
+      isNewDisplayImage(image)
+        ? { ...image, fileUrl: requireWorkspaceDriveFileUrl(workspace, image) }
+        : image,
+    ),
   };
 }
 

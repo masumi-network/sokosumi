@@ -19,6 +19,7 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import mountGetCampaign from "./accounts/[accountId]/campaigns/[campaignId]/get.js";
 import mountUpdateCampaign from "./accounts/[accountId]/campaigns/[campaignId]/patch.js";
+import mountEditCampaign from "./accounts/[accountId]/campaigns/[campaignId]/put.js";
 import mountListCampaigns from "./accounts/[accountId]/campaigns/get.js";
 import mountCreateCampaign from "./accounts/[accountId]/campaigns/post.js";
 import mountDeleteAccount from "./accounts/[accountId]/delete.js";
@@ -44,6 +45,7 @@ const m = vi.hoisted(() => ({
   locations: vi.fn(),
   languages: vi.fn(),
   campaignDetails: vi.fn(),
+  editCampaign: vi.fn(),
 }));
 
 vi.mock("@/helpers/social-beta-access", () => ({
@@ -62,6 +64,7 @@ vi.mock("@/services/project-ad-accounts.service", () => ({
   searchProjectAdLocations: m.locations,
   listProjectAdLanguages: m.languages,
   getProjectAdCampaignDetails: m.campaignDetails,
+  updateProjectAdCampaignDetails: m.editCampaign,
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
@@ -215,6 +218,7 @@ function createApp(
   mountListCampaigns(app);
   mountGetCampaign(app);
   mountUpdateCampaign(app);
+  mountEditCampaign(app);
   mountCreateCampaign(app);
   mountSearchLocations(app);
   mountListLanguages(app);
@@ -640,6 +644,206 @@ describe("Project ads routes", () => {
       const response = await patch({ status: "PAUSED" });
       expect(response.status).toBe(403);
       expect(m.updateCampaign).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("edit campaign", () => {
+    const campaignUrl = (campaignId = "42") =>
+      `http://localhost/${PROJECT_ID}/ads/accounts/${ACCOUNT_UUID}/campaigns/${campaignId}`;
+    const put = (body: unknown, campaignId?: string) =>
+      createApp().request(campaignUrl(campaignId), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+    const searchSpec = {
+      type: "SEARCH",
+      startDate: "2026-10-01",
+      locationIds: ["2276"],
+      languageIds: ["1001"],
+      finalUrl: "https://example.com/spring",
+      keywords: [{ text: "running shoes", matchType: "BROAD" }],
+      headlines: ["One", "Two", "Three"],
+      descriptions: ["First description", "Second description"],
+    };
+    const body = (google: Record<string, unknown> = searchSpec) => ({
+      name: "Spring",
+      dailyBudget: 5,
+      google,
+    });
+    const BLOB = "https://store.public.blob.vercel-storage.com";
+    const driveImage = (role: "LANDSCAPE" | "SQUARE" | "LOGO", n: number) => ({
+      pathname: `drive/users/${USER_ID}/${role.toLowerCase()}-${n}.png`,
+      fileUrl: `${BLOB}/drive/users/${USER_ID}/${role.toLowerCase()}-${n}.png`,
+      name: `${role.toLowerCase()}-${n}.png`,
+      size: 240_000,
+      mimeType: "image/png",
+      role,
+    });
+    const displaySpec = (images: unknown[]) => ({
+      type: "DISPLAY",
+      locationIds: [],
+      languageIds: [],
+      finalUrl: "https://example.com/spring",
+      businessName: "Acme Shoes",
+      headlines: ["Run faster"],
+      longHeadline: "Run faster in the lightest shoes",
+      descriptions: ["Shoes for every runner."],
+      images,
+    });
+
+    it("edits the campaign and returns 204 with the Workspace", async () => {
+      const response = await put(body());
+      expect(response.status).toBe(204);
+      expect(m.editCampaign).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        accountId: ACCOUNT_UUID,
+        campaignId: "42",
+        userId: USER_ID,
+        organizationId: null,
+        ...body(),
+      });
+    });
+
+    it("trims the name and the ad texts", async () => {
+      await put({
+        name: "  Spring ",
+        dailyBudget: 5,
+        google: { ...searchSpec, headlines: [" One ", "Two", "Three"] },
+      });
+      expect(m.editCampaign.mock.calls[0]?.[0]).toMatchObject({
+        name: "Spring",
+        google: { headlines: ["One", "Two", "Three"] },
+      });
+    });
+
+    it("accepts kept and new images together and hands both on", async () => {
+      const images = [
+        { assetId: "1", role: "LANDSCAPE" },
+        driveImage("SQUARE", 0),
+        { assetId: "3", role: "LOGO" },
+      ];
+      const response = await put(body(displaySpec(images)));
+      expect(response.status).toBe(204);
+      expect(m.editCampaign.mock.calls[0]?.[0].google.images).toEqual(images);
+    });
+
+    it.each([
+      ["no name", { dailyBudget: 5, google: searchSpec }],
+      ["an empty name", { ...body(), name: " " }],
+      ["no budget", { name: "Spring", google: searchSpec }],
+      ["a zero budget", { ...body(), dailyBudget: 0 }],
+      ["no google spec", { name: "Spring", dailyBudget: 5 }],
+      ["an unknown campaign type", body({ ...searchSpec, type: "VIDEO" })],
+      [
+        "an end date before the start date",
+        body({ ...searchSpec, endDate: "2026-09-01" }),
+      ],
+      ["a Search spec without keywords", body({ ...searchSpec, keywords: [] })],
+      [
+        "a kept image without LANDSCAPE among the combined images",
+        body(
+          displaySpec([
+            { assetId: "2", role: "SQUARE" },
+            driveImage("SQUARE", 0),
+          ]),
+        ),
+      ],
+      [
+        "too many images together",
+        body(
+          displaySpec([
+            ...[1, 2, 3, 4].map((n) => ({
+              assetId: String(n),
+              role: "LANDSCAPE",
+            })),
+            driveImage("LANDSCAPE", 0),
+            driveImage("LANDSCAPE", 1),
+            driveImage("SQUARE", 0),
+          ]),
+        ),
+      ],
+      [
+        "the same kept image twice",
+        body(
+          displaySpec([
+            { assetId: "1", role: "LANDSCAPE" },
+            { assetId: "1", role: "SQUARE" },
+          ]),
+        ),
+      ],
+      [
+        "a kept image with an asset id that is not digits",
+        body(
+          displaySpec([
+            { assetId: "1; DROP", role: "LANDSCAPE" },
+            driveImage("SQUARE", 0),
+          ]),
+        ),
+      ],
+    ])("rejects %s", async (_name, requestBody) => {
+      const response = await put(requestBody);
+      expect(response.status).toBe(422);
+      expect(m.editCampaign).not.toHaveBeenCalled();
+    });
+
+    it("has no status input: a requested status never reaches the service", async () => {
+      const response = await put({ ...body(), status: "ACTIVE" });
+      expect(response.status).toBe(204);
+      expect(m.editCampaign.mock.calls[0]?.[0]).not.toHaveProperty("status");
+    });
+
+    it.each(["abc", "1; DROP", "-1", "1.5"])(
+      "rejects campaign id %s",
+      async (campaignId) => {
+        const response = await put(body(), campaignId);
+        expect(response.status).toBe(422);
+        expect(m.editCampaign).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ["foreign account or campaign", notFound("Campaign not found"), 404],
+      ["not editable campaign", conflict("Campaign can't be edited here"), 409],
+      ["disconnected connection", conflict("Ad connection is not active"), 409],
+      [
+        "start date change",
+        unprocessableEntity("The start date can't change"),
+        422,
+      ],
+      [
+        "Composio tool error",
+        new ComposioToolError({ message: "secret detail" }),
+        502,
+      ],
+      ["missing Composio configuration", new ComposioConfigError("nope"), 503],
+    ])("maps %s to %i", async (_name, error, status) => {
+      m.editCampaign.mockRejectedValue(error);
+      const response = await put(body());
+      expect(response.status).toBe(status);
+      expect(await response.text()).not.toContain("secret detail");
+    });
+
+    it("denies users outside the beta before any work", async () => {
+      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
+      const response = await put(body());
+      expect(response.status).toBe(403);
+      expect(m.editCampaign).not.toHaveBeenCalled();
+    });
+
+    it("rejects a user API key", async () => {
+      const response = await createApp({
+        ...SESSION_AUTH,
+        authenticationMethod: "api_key",
+      }).request(campaignUrl(), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body()),
+      });
+      expect(response.status).toBe(403);
+      expect(m.editCampaign).not.toHaveBeenCalled();
     });
   });
 

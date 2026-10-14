@@ -17,6 +17,7 @@ import {
   GOOGLE_DISPLAY_IMAGE_ROLES,
   GOOGLE_KEYWORD_MATCH_TYPES,
   GOOGLE_MAX_IDS,
+  type GoogleDisplayImageRole,
   type GoogleLocationLookup,
   META_CAMPAIGN_OBJECTIVES,
 } from "@/lib/ads/campaigns";
@@ -344,57 +345,113 @@ const googleDisplayImageSchema = z
   })
   .openapi("GoogleDisplayImage");
 
-const googleDisplayCampaignSpecSchema = z
+// An image the ad already has, kept by its asset id (edits only).
+const googleKeptDisplayImageSchema = z
   .object({
-    type: z.literal("DISPLAY"),
-    ...googleCampaignSpecShape,
-    businessName: googleTextSchema(25),
-    headlines: googleAdTextsSchema(1, 5, 30).refine(uniqueIgnoringCase, {
-      message: "Headlines must be unique (ignoring case)",
-    }),
-    longHeadline: googleTextSchema(90),
-    descriptions: googleAdTextsSchema(1, 5, 90),
-    images: z.array(googleDisplayImageSchema).max(8).openapi({
+    assetId: googleIdSchema.openapi({
       description:
-        "Drive images: 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each file once",
+        "Asset id of one of the ad's current images, as the campaign details report it",
+    }),
+    role: z.enum(GOOGLE_DISPLAY_IMAGE_ROLES).openapi({
+      description: "The slot the image fills; see GoogleDisplayImage",
     }),
   })
-  .superRefine(({ images }, ctx) => {
-    const count = (role: (typeof GOOGLE_DISPLAY_IMAGE_ROLES)[number]) =>
-      images.filter((image) => image.role === role).length;
-    const marketing = count("LANDSCAPE") + count("SQUARE");
-    const issue = (message: string) =>
-      ctx.addIssue({ code: "custom", message, path: ["images"] });
-    if (count("LANDSCAPE") < 1) issue("Add at least one LANDSCAPE image");
-    if (count("SQUARE") < 1) issue("Add at least one SQUARE image");
-    if (marketing > 6) issue("Use at most 6 LANDSCAPE and SQUARE images");
-    if (count("LOGO") > 2) issue("Use at most 2 LOGO images");
-    if (new Set(images.map(({ pathname }) => pathname)).size < images.length) {
-      issue("Use each image file once");
-    }
-  })
-  .openapi("GoogleDisplayCampaignSpec");
+  .openapi("GoogleKeptDisplayImage");
+
+// A Display spec whose images are `image` items. A create takes Drive images
+// only; an edit also keeps the ad's current ones.
+function googleDisplayCampaignSpec<
+  Image extends z.ZodType<{ role: GoogleDisplayImageRole }>,
+>(
+  image: Image,
+  imagesDescription: string,
+  key: (image: z.infer<Image>) => string,
+) {
+  return z
+    .object({
+      type: z.literal("DISPLAY"),
+      ...googleCampaignSpecShape,
+      businessName: googleTextSchema(25),
+      headlines: googleAdTextsSchema(1, 5, 30).refine(uniqueIgnoringCase, {
+        message: "Headlines must be unique (ignoring case)",
+      }),
+      longHeadline: googleTextSchema(90),
+      descriptions: googleAdTextsSchema(1, 5, 90),
+      images: z.array(image).max(8).openapi({ description: imagesDescription }),
+    })
+    .superRefine(({ images }, ctx) => {
+      const count = (role: GoogleDisplayImageRole) =>
+        images.filter((item) => item.role === role).length;
+      const marketing = count("LANDSCAPE") + count("SQUARE");
+      const issue = (message: string) =>
+        ctx.addIssue({ code: "custom", message, path: ["images"] });
+      if (count("LANDSCAPE") < 1) issue("Add at least one LANDSCAPE image");
+      if (count("SQUARE") < 1) issue("Add at least one SQUARE image");
+      if (marketing > 6) issue("Use at most 6 LANDSCAPE and SQUARE images");
+      if (count("LOGO") > 2) issue("Use at most 2 LOGO images");
+      if (new Set(images.map(key)).size < images.length) {
+        issue("Use each image once");
+      }
+    });
+}
+
+const googleDisplayCampaignSpecSchema = googleDisplayCampaignSpec(
+  googleDisplayImageSchema,
+  "Drive images: 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each file once",
+  ({ pathname }) => pathname,
+).openapi("GoogleDisplayCampaignSpec");
+
+const googleDisplayCampaignEditSpecSchema = googleDisplayCampaignSpec(
+  z.union([googleDisplayImageSchema, googleKeptDisplayImageSchema]),
+  "The ad's images after the edit: `{assetId, role}` keeps a current image, a Drive file (as in a create) uploads a new one. 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each image once",
+  (image) => ("assetId" in image ? `asset:${image.assetId}` : image.pathname),
+).openapi("GoogleDisplayCampaignEditSpec");
+
+const datesInOrder = ({
+  startDate,
+  endDate,
+}: {
+  startDate?: string;
+  endDate?: string;
+}) => startDate === undefined || endDate === undefined || endDate >= startDate;
+const datesInOrderIssue = {
+  message: "endDate must not be before startDate",
+  path: ["endDate"],
+};
 
 export const googleCampaignSpecSchema = z
   .discriminatedUnion("type", [
     googleSearchCampaignSpecSchema,
     googleDisplayCampaignSpecSchema,
   ])
-  .refine(
-    ({ startDate, endDate }) =>
-      startDate === undefined || endDate === undefined || endDate >= startDate,
-    { message: "endDate must not be before startDate", path: ["endDate"] },
-  )
+  .refine(datesInOrder, datesInOrderIssue)
   .openapi("GoogleCampaignSpec");
+
+export const googleCampaignEditSpecSchema = z
+  .discriminatedUnion("type", [
+    googleSearchCampaignSpecSchema,
+    googleDisplayCampaignEditSpecSchema,
+  ])
+  .refine(datesInOrder, datesInOrderIssue)
+  .openapi("GoogleCampaignEditSpec");
+
+const adCampaignNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(255)
+  .openapi({ example: "Spring sale" });
+
+const adCampaignDailyBudgetSchema = z.number().positive().openapi({
+  description:
+    "Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)",
+  example: 25.5,
+});
 
 export const createAdCampaignRequestSchema = z
   .object({
-    name: z.string().trim().min(1).max(255).openapi({ example: "Spring sale" }),
-    dailyBudget: z.number().positive().openapi({
-      description:
-        "Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)",
-      example: 25.5,
-    }),
+    name: adCampaignNameSchema,
+    dailyBudget: adCampaignDailyBudgetSchema,
     objective: z.enum(META_CAMPAIGN_OBJECTIVES).optional().openapi({
       description: "Required for Meta ad accounts; 422 for Google",
     }),
@@ -404,6 +461,20 @@ export const createAdCampaignRequestSchema = z
   })
   .openapi("CreateAdCampaignRequest", {
     description: "There is no status: a new campaign is always created paused",
+  });
+
+export const updateAdCampaignDetailsRequestSchema = z
+  .object({
+    name: adCampaignNameSchema,
+    dailyBudget: adCampaignDailyBudgetSchema,
+    google: googleCampaignEditSpecSchema.openapi({
+      description:
+        "The campaign's settings after the edit; it replaces every field, and only what differs from the campaign is changed. `type` must be the campaign's type, and the start date cannot change once the campaign started",
+    }),
+  })
+  .openapi("UpdateAdCampaignDetailsRequest", {
+    description:
+      "Edit of a Google campaign that is editable (see `campaign.editable` of the details). The status is not part of it; use the status/budget update",
   });
 
 export const createAdCampaignResponseSchema = z
