@@ -3109,7 +3109,7 @@
         "title": "Drafts",
         "body": "Choose a project to see and finish its drafts."
       },
-      "loading": "Loading Social…",
+      "loading": "Loading…",
       "pickProject": "Choose a project",
       "platforms": {
         "label": "Social platforms"

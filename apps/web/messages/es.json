@@ -3109,7 +3109,7 @@
         "title": "Borradores",
         "body": "Elige un proyecto para ver y terminar sus borradores."
       },
-      "loading": "Cargando Social…",
+      "loading": "Cargando…",
       "pickProject": "Elegir un proyecto",
       "platforms": {
         "label": "Plataformas de redes sociales"
