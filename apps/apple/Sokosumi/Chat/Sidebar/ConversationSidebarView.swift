@@ -31,6 +31,15 @@ struct ConversationSidebarView: View {
     let hasOrganization: Bool
   }
 
+  private var commands: SokosumiChat.SidebarCommands {
+    SokosumiChat.SidebarCommands(
+      phase: workspaces.phase,
+      roomsLoading: workspaces.roomsLoading,
+      mutationInFlight: workspaces.roomMutationInFlight,
+      hasOrganization: workspaces.selection?.workspace.organizationId != nil
+    )
+  }
+
   var body: some View {
     let partitioned = workspaces.sidebar.partitioned
     // Web lists pending invitations above joined external rooms, in every workspace.
@@ -86,21 +95,21 @@ struct ConversationSidebarView: View {
           Button("New chat", systemImage: "square.and.pencil") {
             startDirect = .init(id: workspaces.compositionContext, hasOrganization: workspaces.selection?.workspace.organizationId != nil)
           }
-          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.roomMutationInFlight)
+          .disabled(!commands.newChat)
           .help("New chat")
         }
         ToolbarItem {
           Button("Create channel", systemImage: "number") {
             createChannel = .init(id: workspaces.compositionContext, hasOrganization: true)
           }
-          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.roomMutationInFlight)
+          .disabled(!commands.createChannel)
           .help("Create channel")
         }
         ToolbarItem {
           Button("Refresh conversations", systemImage: "arrow.clockwise") {
             Task { await workspaces.refreshRooms() }
           }
-          .disabled(workspaces.roomsLoading)
+          .disabled(!commands.refresh)
         }
       }
       if workspaces.roomsLoading {
@@ -211,7 +220,7 @@ struct ConversationSidebarView: View {
               .foregroundStyle(.secondary)
           }
           ForEach(sidebarRoomListItems(partitioned.channels)) { item in
-            sidebarItem(item) { roomRow($0, icon: ChannelMark($0.discoverability).systemImage) }
+            sidebarItem(item) { roomRow($0) }
           }
         }
       }
@@ -242,7 +251,7 @@ struct ConversationSidebarView: View {
             .foregroundStyle(.secondary)
         }
         ForEach(sidebarRoomListItems(partitioned.directMessages)) { item in
-          sidebarItem(item) { roomRow($0, icon: "person", showsDirectAvatars: true) }
+          sidebarItem(item) { roomRow($0) }
         }
       }
     }
@@ -276,7 +285,7 @@ struct ConversationSidebarView: View {
           ) { respondToInvitation($0, invitation: invitation) }
         }
         ForEach(sidebarRoomListItems(rooms)) { item in
-          sidebarItem(item) { roomRow($0, icon: ChannelMark.globe.systemImage) }
+          sidebarItem(item) { roomRow($0) }
         }
       }
     }
@@ -297,7 +306,7 @@ struct ConversationSidebarView: View {
           groupLabel("Read just now")
         }
         ForEach(sidebarRoomListItems(filter.rooms)) { item in
-          sidebarItem(item) { kindRow($0, dimmed: filter.isDimmed($0.id)) }
+          sidebarItem(item) { roomRow($0, dimmed: filter.isDimmed($0.id)) }
         }
       }
     }
@@ -308,7 +317,7 @@ struct ConversationSidebarView: View {
       Section {
         groupLabel("Pinned")
         ForEach(sidebarRoomListItems(filter.pinned)) { item in
-          sidebarItem(item) { kindRow($0, dimmed: filter.isDimmed($0.id)) }
+          sidebarItem(item) { roomRow($0, dimmed: filter.isDimmed($0.id)) }
         }
       }
     }
@@ -319,6 +328,7 @@ struct ConversationSidebarView: View {
   /// while the filter lists anything a read would still change.
   private func unreadsRow(_ filter: UnreadsFilterList?) -> some View {
     let isOn = filter != nil
+    let emphasis = SidebarEmphasis.navRow(isActive: isOn, hasUnread: false)
     return HStack(spacing: 6) {
       Button {
         workspaces.sidebar.setUnreadsFilter(!isOn)
@@ -326,12 +336,12 @@ struct ConversationSidebarView: View {
         Label {
           Text("Unreads")
             .lineLimit(1)
-            .fontWeight(isOn ? .medium : .regular)
+            .fontWeight(emphasis == .active ? .medium : .regular)
             // Off, it rests muted like the Threads row (web's `THREADS_ROW_CLASS`).
-            .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            .foregroundStyle(emphasis.textStyle)
         } icon: {
           Image(systemName: "tray")
-            .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            .foregroundStyle(emphasis.textStyle)
             .frame(width: DirectRoomAvatarStack.faceSize, height: DirectRoomAvatarStack.faceSize)
         }
         .labelStyle(RoomRowLabelStyle())
@@ -382,7 +392,7 @@ struct ConversationSidebarView: View {
         .frame(width: DirectRoomAvatarStack.faceSize, height: DirectRoomAvatarStack.faceSize)
     }
     .labelStyle(RoomRowLabelStyle())
-    .foregroundStyle(.secondary)
+    .foregroundStyle(SidebarEmphasis.atRest.textStyle)
     // No `listRowInsets`, so it stands on the room rows' column (see `unreadsRow`).
     .selectionDisabled()
   }
@@ -420,6 +430,7 @@ struct ConversationSidebarView: View {
   private func sectionHeader(_ title: String, section: ConversationSidebar.Section, closedAttention: SectionAttention? = nil) -> some View {
     let collapsed = workspaces.sidebar.collapsedSections.contains(section)
     let attention = collapsed ? closedAttention : nil
+    let emphasis = SidebarEmphasis.header(attention: attention)
     return HStack {
       Button {
         workspaces.sidebar.setExpanded(
@@ -428,8 +439,8 @@ struct ConversationSidebarView: View {
       } label: {
         HStack(spacing: 4) {
           Text(title)
-            .fontWeight(attention == nil ? .semibold : .bold)
-            .foregroundStyle(attention == nil ? .secondary : .primary)
+            .fontWeight(emphasis == .attention ? .bold : .semibold)
+            .foregroundStyle(emphasis.textStyle)
           Image(systemName: collapsed ? "chevron.right" : "chevron.down")
             .font(.caption)
         }
@@ -458,7 +469,7 @@ struct ConversationSidebarView: View {
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
         .frame(width: 20)
-        .disabled(workspaces.phase != .ready || workspaces.roomMutationInFlight)
+        .disabled(!commands.browseChannels)
         .help("Browse channels")
       }
     }
@@ -479,18 +490,7 @@ struct ConversationSidebarView: View {
 
   /// A pinned row keeps the leading mark of the section it left.
   private func pinnedRow(_ room: Components.Schemas.ChatRoom, in pinned: [Components.Schemas.ChatRoom]) -> some View {
-    kindRow(room, reorderingIn: workspaces.sidebar.pinnedReorderMode ? pinned : nil)
-  }
-
-  /// A row outside its own section (Pinned, the Unreads filter) keeps that section's leading mark.
-  private func kindRow(
-    _ room: Components.Schemas.ChatRoom, reorderingIn pinned: [Components.Schemas.ChatRoom]? = nil, dimmed: Bool = false
-  ) -> some View {
-    switch sidebarRoomKind(room) {
-    case .channel: roomRow(room, icon: ChannelMark(room.discoverability).systemImage, reorderingIn: pinned, dimmed: dimmed)
-    case .external: roomRow(room, icon: ChannelMark.globe.systemImage, reorderingIn: pinned, dimmed: dimmed)
-    case .direct: roomRow(room, icon: "person", showsDirectAvatars: true, reorderingIn: pinned, dimmed: dimmed)
-    }
+    roomRow(room, reorderingIn: workspaces.sidebar.pinnedReorderMode ? pinned : nil)
   }
 
   /// `List` reports the drop during its own update; hop before publishing the optimistic order.
@@ -535,21 +535,22 @@ struct ConversationSidebarView: View {
     .padding(.vertical, 4)
   }
 
+  /// A room row. The leading mark follows the kind the room lists under, so a pinned row or one in the Unreads
+  /// filter keeps the mark of the section it left; `pinned` is the Pinned list while reorder mode is on.
   private func roomRow(
     _ room: Components.Schemas.ChatRoom,
-    icon: String,
-    showsDirectAvatars: Bool = false,
     reorderingIn pinned: [Components.Schemas.ChatRoom]? = nil,
     dimmed: Bool = false
   ) -> some View {
-    let attention = resolveRoomAttention(room, showUnreadCount: workspaces.chatDisplay.showsRoomUnreadCount)
+    let row = SidebarRoomRow(room: room, context: rowContext(room, reordering: pinned != nil, dimmed: dimmed))
+    let showsDirectAvatars = row.mark == .directAvatars
     return Label {
       HStack(spacing: 6) {
         VStack(alignment: .leading, spacing: 2) {
           Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
             .lineLimit(1)
-            .fontWeight(attention.bold ? .bold : .regular)
-            .foregroundStyle(room.mutedAt != nil && room.id != workspaces.selectedRoomId ? .secondary : .primary)
+            .fontWeight(row.emphasis == .attention ? .bold : .regular)
+            .foregroundStyle(row.emphasis.textStyle)
           if room.myAccess.value1 == .guest, let organization = room.organizationName, !organization.isEmpty {
             Text(organization)
               .font(.caption)
@@ -562,17 +563,17 @@ struct ConversationSidebarView: View {
         // edge where the mention badge would stand, as on the Threads row. Without it the status keeps its
         // centred 20 pt column.
         HStack(spacing: 4) {
-          if attention.unreadTextCount > 0 {
-            RoomUnreadCountLabel(count: attention.unreadTextCount)
+          if let unreadCount = row.unreadCount {
+            RoomUnreadCountLabel(count: unreadCount)
           }
-          roomStatus(room, reorderingIn: pinned)
+          roomStatus(row.status, room: room, reorderingIn: pinned)
         }
-        .frame(minWidth: 20, alignment: attention.unreadTextCount > 0 ? .trailing : .center)
+        .frame(minWidth: 20, alignment: row.unreadCount == nil ? .center : .trailing)
       }
     } icon: {
       RoomLeadingIcon(
         room: room,
-        icon: icon,
+        icon: row.mark.systemImage,
         currentUserId: workspaces.currentUserId,
         showsDirectAvatars: showsDirectAvatars,
         livePresence: workspaces.presence.byUserId
@@ -581,14 +582,12 @@ struct ConversationSidebarView: View {
     .presenceAccessibilityValue(directPresence(room, showsDirectAvatars: showsDirectAvatars))
     .labelStyle(RoomRowLabelStyle())
     // The Unreads filter dims a room read in its pass (web: 60 %).
-    .opacity(dimmed ? 0.6 : 1)
+    .opacity(row.isDimmed ? 0.6 : 1)
     .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
-    .badge(mentionBadge(attention))
+    .badge(row.badge?.text)
     .contextMenu {
-      // Reorder mode: the handle stands where the status does and the row menu is not offered.
-      if pinned == nil {
-        roomActions(room)
-      }
+      // Reorder mode: the handle stands where the status does and the menu is empty.
+      roomActions(row.menu, room: room)
     }
     // Outermost, so the List reads it as the row's selection value.
     .tag(SidebarDestination.room(room.id))
@@ -621,15 +620,9 @@ struct ConversationSidebarView: View {
         .padding(.leading, Self.threadRowIndent)
     }
     .buttonStyle(.plain)
-    .badge(threadMentionBadge(row))
+    // A Thread naming the reader draws the room rows' mention badge in place of its reply count.
+    .badge(SidebarBadge.thread(row)?.text)
     .selectionDisabled()
-  }
-
-  /// A Thread naming the reader draws the room rows' mention badge in place of its reply count.
-  private func threadMentionBadge(_ row: SidebarThreadRow) -> Text? {
-    guard row.mentionCount > 0 else { return nil }
-    return Text(verbatim: roomCountLabel(row.mentionCount))
-      .accessibilityLabel(row.mentionCount == 1 ? "1 mention" : "\(row.mentionCount) mentions")
   }
 
   /// Web's "N more unread threads": what Core's cap of three left out. Opens the room's thread overview, on
@@ -654,12 +647,13 @@ struct ConversationSidebarView: View {
   /// VoiceOver hears web's words for both.
   private var threadsRow: some View {
     let attention = resolveUnreadThreadsAttention(workspaces.rooms)
+    let emphasis = SidebarEmphasis.navRow(isActive: false, hasUnread: attention.isUnread)
     return Label {
       HStack(spacing: 6) {
         Text("Threads")
           .lineLimit(1)
-          .fontWeight(attention.isUnread ? .bold : .regular)
-          .foregroundStyle(attention.isUnread ? .primary : .secondary)
+          .fontWeight(emphasis == .attention ? .bold : .regular)
+          .foregroundStyle(emphasis.textStyle)
         Spacer(minLength: 0)
         if attention.mentionCount == 0, attention.isUnread {
           Text(roomCountLabel(attention.threadCount))
@@ -675,25 +669,11 @@ struct ConversationSidebarView: View {
     }
     .labelStyle(RoomRowLabelStyle())
     .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
-    .badge(threadsMentionBadge(attention))
+    // The mention badge, drawn like a room's, spoken as web's "N mentions, N unread threads".
+    .badge(SidebarBadge.threadsEntry(attention)?.text)
     // With a badge, the badge speaks for the row; otherwise the row carries web's words for its count.
     .accessibilityValue(attention.mentionCount > 0 ? "" : attention.accessibilityLabel)
     .tag(SidebarDestination.threads)
-  }
-
-  /// The Threads row's mention badge, drawn like a room's, spoken as web's "N mentions, N unread threads".
-  private func threadsMentionBadge(_ attention: UnreadThreadsAttention) -> Text? {
-    guard attention.mentionCount > 0 else { return nil }
-    return Text(verbatim: roomCountLabel(attention.mentionCount)).accessibilityLabel(attention.accessibilityLabel)
-  }
-
-  /// The mention badge as text, so it caps at "99+" like every other chat count. `nil` draws no
-  /// badge, as the zero `Int` badge did; VoiceOver hears web's spoken form, not "99 plus".
-  private func mentionBadge(_ attention: RoomAttention) -> Text? {
-    guard let label = attention.badgeLabel, let spoken = attention.badgeAccessibilityLabel else {
-      return nil
-    }
-    return Text(verbatim: label).accessibilityLabel(spoken)
   }
 
   /// Web's handle takes the drag and the Up/Down keys. `List` drags the whole row natively, so the
@@ -732,60 +712,77 @@ struct ConversationSidebarView: View {
     return peer.isAI ? .online : workspaces.presence(forUser: peer.id, fallback: peer.presence)
   }
 
+  /// The status slot's content: the reorder handle, a spinner while the room changes, or the muted bell. The
+  /// handle needs the Pinned list for its moves, which only the reorder-mode caller has.
   @ViewBuilder
-  private func roomStatus(_ room: Components.Schemas.ChatRoom, reorderingIn pinned: [Components.Schemas.ChatRoom]?) -> some View {
-    if let pinned {
-      reorderHandle(room, in: pinned)
-    } else if workspaces.sidebar.isPending(roomId: room.id) || workspaces.runningMutation?.lifecycleRoomId == room.id {
+  private func roomStatus(
+    _ status: SidebarRoomRow.Status, room: Components.Schemas.ChatRoom, reorderingIn pinned: [Components.Schemas.ChatRoom]?
+  ) -> some View {
+    switch status {
+    case .reorderHandle:
+      if let pinned {
+        reorderHandle(room, in: pinned)
+      }
+    case .updating:
       ProgressView()
         .controlSize(.mini)
         .accessibilityLabel("Updating conversation")
-    } else if room.mutedAt != nil {
+    case .muted:
       Image(systemName: "bell.slash")
         .font(.caption)
         .foregroundStyle(.secondary)
         .accessibilityLabel("Muted")
+    case .none:
+      EmptyView()
     }
   }
 
+  /// What `SidebarRoomRow` needs to know about the workspace for one row.
+  private func rowContext(_ room: Components.Schemas.ChatRoom, reordering: Bool, dimmed: Bool) -> SidebarRoomRow.Context {
+    .init(
+      selectedRoomId: workspaces.selectedRoomId,
+      showsUnreadCount: workspaces.chatDisplay.showsRoomUnreadCount,
+      reorderingPinned: reordering,
+      dimmed: dimmed,
+      isPending: workspaces.sidebar.isPending(roomId: room.id),
+      lifecycleRoomId: workspaces.runningMutation?.lifecycleRoomId,
+      mutationInFlight: workspaces.roomMutationInFlight,
+      isOwnerOrAdmin: workspaces.isOrganizationOwnerOrAdmin
+    )
+  }
+
+  /// The room menu: the package decides which entries stand, in which order and which are enabled.
   @ViewBuilder
-  private func roomActions(_ room: Components.Schemas.ChatRoom) -> some View {
-    Button("Mark as unread", systemImage: "envelope.badge") {
-      Task { @MainActor in await workspaces.performSidebarAction(.markUnread, roomId: room.id) }
+  private func roomActions(_ menu: RoomMenu, room: Components.Schemas.ChatRoom) -> some View {
+    ForEach(menu.quick, id: \.command) { entry in
+      roomMenuButton(entry, room: room)
     }
-    .disabled(!workspaces.sidebar.canPerform(.markUnread, roomId: room.id))
-    Button(room.starredAt == nil ? "Pin" : "Unpin", systemImage: room.starredAt == nil ? "pin" : "pin.slash") {
-      Task { @MainActor in await workspaces.performSidebarAction(room.starredAt == nil ? .pin : .unpin, roomId: room.id) }
-    }
-    .disabled(!workspaces.sidebar.canPerform(room.starredAt == nil ? .pin : .unpin, roomId: room.id))
-    Button(room.mutedAt == nil ? "Mute" : "Unmute", systemImage: room.mutedAt == nil ? "bell.slash" : "bell") {
-      Task { @MainActor in await workspaces.performSidebarAction(room.mutedAt == nil ? .mute : .unmute, roomId: room.id) }
-    }
-    .disabled(!workspaces.sidebar.canPerform(room.mutedAt == nil ? .mute : .unmute, roomId: room.id))
-    // Settings are for organization owners and admins; everyone else manages membership from the Members panel.
-    let managesSettings = ChannelEditPermissions(room: room, isOwnerOrAdmin: workspaces.isOrganizationOwnerOrAdmin).canManageSettings
-    if managesSettings || ChannelEditPermissions.canLeave(room) || GroupNameDraft.canName(room) {
+    if !menu.manage.isEmpty {
       Divider()
     }
-    if GroupNameDraft.canName(room) {
-      Button {
+    ForEach(menu.manage, id: \.command) { entry in
+      roomMenuButton(entry, room: room)
+    }
+  }
+
+  private func roomMenuButton(_ entry: RoomMenuEntry, room: Components.Schemas.ChatRoom) -> some View {
+    Button {
+      switch entry.command {
+      case .nameGroup:
         roomEditSheets?.nameGroup = .init(id: workspaces.compositionContext, roomId: room.id)
-      } label: {
-        NameGroupLabel()
-      }
-      .disabled(workspaces.roomMutationInFlight)
-    }
-    if managesSettings {
-      Button("Channel settings…", systemImage: "gearshape") {
+      case .channelSettings:
         roomEditSheets?.editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
-      }
-    }
-    if ChannelEditPermissions.canLeave(room) {
-      Button("Leave channel…", systemImage: "rectangle.portrait.and.arrow.right") {
+      case .leave:
         lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: .leave)
+      case .markUnread, .pin, .unpin, .mute, .unmute:
+        if let action = entry.command.sidebarAction {
+          Task { @MainActor in await workspaces.performSidebarAction(action, roomId: room.id) }
+        }
       }
-      .disabled(workspaces.roomMutationInFlight)
+    } label: {
+      RoomMenuEntryLabel(command: entry.command)
     }
+    .disabled(!entry.isEnabled)
   }
 
   private func requestLifecycle(_ action: ChannelLifecycleAction, room: Components.Schemas.ChatRoom) {
@@ -831,6 +828,36 @@ struct ConversationSidebarView: View {
     }
     .buttonStyle(.plain)
     .accessibilityValue(presenceLabel(workspaces.presence.selfPresence))
+  }
+}
+
+private extension SidebarEmphasis {
+  /// A label's colour: muted at rest, the accent tint while a mode is on, full strength otherwise. Weight stays with
+  /// each row type.
+  var textStyle: AnyShapeStyle {
+    switch self {
+    case .atRest: AnyShapeStyle(.secondary)
+    case .active: AnyShapeStyle(.tint)
+    case .attention, .normal: AnyShapeStyle(.primary)
+    }
+  }
+}
+
+private extension SidebarBadge {
+  /// Drawn as text, so it caps at "99+" like every other chat count; VoiceOver hears the spoken form.
+  var text: Text {
+    Text(verbatim: label).accessibilityLabel(spokenLabel)
+  }
+}
+
+private extension SidebarRoomRow.Mark {
+  /// The leading symbol; a Direct draws its participants' faces instead and keeps this as its fallback.
+  var systemImage: String {
+    switch self {
+    case let .channel(mark): mark.systemImage
+    case .external: ChannelMark.globe.systemImage
+    case .directAvatars: "person"
+    }
   }
 }
 
