@@ -18,14 +18,19 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
+  type SocialAccountMetric,
   type SocialAccountStatistics,
+  socialAccountMetricSchema,
   socialAccountPostSchema,
   socialAccountStatisticsAccountSchema,
   socialAccountStatisticsPageSchema,
   socialAccountStatisticsProviderPageSchema,
   socialAccountStatisticsSchema,
 } from "@/schemas/social-account-statistics.schema";
-import { socialPostMetricsSchema } from "@/schemas/social-post-statistics.schema";
+import {
+  type SocialPostMetrics,
+  socialPostMetricsSchema,
+} from "@/schemas/social-post-statistics.schema";
 import {
   listProjectSocialConnections,
   projectExecutorUserId,
@@ -84,6 +89,55 @@ function mapAccountPosts(
       },
     ];
   });
+}
+
+function parseStoredPostMetrics(
+  value: Prisma.JsonValue,
+): SocialPostMetrics | null {
+  return socialPostMetricsSchema.safeParse(value).data ?? null;
+}
+
+function parseStoredAdditionalMetrics(
+  value: Prisma.JsonValue,
+): SocialAccountMetric[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((metric) => {
+    const parsed = socialAccountMetricSchema.safeParse(metric).data;
+    return parsed ? [parsed] : [];
+  });
+}
+
+/** Null means "not measured this fetch". Zero is a real measurement. */
+function mergePostMetrics(
+  incoming: SocialPostMetrics,
+  previous: SocialPostMetrics | null,
+): Prisma.InputJsonObject {
+  return {
+    views: incoming.views ?? previous?.views ?? null,
+    impressions: incoming.impressions ?? previous?.impressions ?? null,
+    likes: incoming.likes ?? previous?.likes ?? null,
+    comments: incoming.comments ?? previous?.comments ?? null,
+    shares: incoming.shares ?? previous?.shares ?? null,
+    saves: incoming.saves ?? previous?.saves ?? null,
+  };
+}
+
+function mergeAdditionalMetrics(
+  incoming: SocialAccountMetric[],
+  previous: SocialAccountMetric[],
+): Prisma.InputJsonValue[] {
+  const merged = new Map<string, SocialAccountMetric>();
+  for (const metric of previous) merged.set(metric.key, metric);
+  for (const metric of incoming) {
+    const stored = merged.get(metric.key);
+    merged.set(metric.key, {
+      key: metric.key,
+      value: metric.value ?? stored?.value ?? null,
+      period: metric.period ?? stored?.period ?? null,
+      unit: metric.unit ?? stored?.unit ?? null,
+    });
+  }
+  return [...merged.values()].map((metric) => ({ ...metric }));
 }
 
 const EMPTY_STATISTICS: SocialAccountStatistics = {
@@ -481,15 +535,37 @@ export async function refreshSocialAccountStatistics(
         "Account statistics changed during refresh. Reload the account.",
       );
     const fetchedAt = new Date(snapshot.historyFetchedAt ?? attemptedAt);
+    const storedPosts =
+      posts.length === 0
+        ? []
+        : await tx.socialAccountPost.findMany({
+            where: {
+              connectionId: record.id,
+              externalId: { in: posts.map((post) => post.externalId) },
+            },
+            select: {
+              externalId: true,
+              metrics: true,
+              additionalMetrics: true,
+            },
+          });
+    const storedByExternalId = new Map(
+      storedPosts.map((row) => [row.externalId, row]),
+    );
     for (const post of posts) {
+      const stored = storedByExternalId.get(post.externalId);
       const data = {
         text: post.text,
         publishedAt: post.publishedAt ? new Date(post.publishedAt) : null,
         url: post.url,
-        metrics: { ...post.metrics },
-        additionalMetrics: post.additionalMetrics.map((metric) => ({
-          ...metric,
-        })),
+        metrics: mergePostMetrics(
+          post.metrics,
+          stored ? parseStoredPostMetrics(stored.metrics) : null,
+        ),
+        additionalMetrics: mergeAdditionalMetrics(
+          post.additionalMetrics,
+          stored ? parseStoredAdditionalMetrics(stored.additionalMetrics) : [],
+        ),
         fetchedAt,
       };
       await tx.socialAccountPost.upsert({
@@ -504,7 +580,8 @@ export async function refreshSocialAccountStatistics(
           connectionId: record.id,
           externalId: post.externalId,
         },
-        // Partial insights must not erase measured counters or their original age.
+        // All-null insights keep stored counters and their original age.
+        // Partial insights keep any stored counter the fetch did not measure.
         update: preservePostMetrics.has(post.externalId)
           ? { text: data.text, publishedAt: data.publishedAt, url: data.url }
           : data,
