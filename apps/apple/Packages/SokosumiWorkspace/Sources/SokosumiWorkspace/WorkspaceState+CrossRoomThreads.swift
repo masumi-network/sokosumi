@@ -1,6 +1,5 @@
 import CoreAPI
 import Foundation
-import SokosumiAuth
 import SokosumiChat
 
 /// The chat-level Threads view (row 24f1, web `/chat/threads`). It takes the detail column in place of the

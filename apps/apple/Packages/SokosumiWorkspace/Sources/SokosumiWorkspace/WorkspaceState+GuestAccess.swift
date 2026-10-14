@@ -1,6 +1,5 @@
 import CoreAPI
 import Foundation
-import SokosumiAuth
 import SokosumiChat
 
 /// Host-side guest access for external channels (web `guest-invite-section.tsx`, the members panel's Invite from
