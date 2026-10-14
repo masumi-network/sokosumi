@@ -2,7 +2,9 @@
   import AppKit
   import CoreAPI
   @testable import Sokosumi
+  import SokosumiAuth
   import SokosumiChat
+  import SokosumiWorkspace
   import SwiftUI
   import Testing
 
@@ -21,9 +23,8 @@
         emoji: "👍", count: 2, reactedByCurrentUser: false, reactors: [.init(id: "u1", name: "Ada"), .init(id: "u2", name: "Bob")]
       )
 
-      private static func host(toggle: ((String) -> Void)?, scrolling: Bool = false) async throws -> (NSHostingView<AnyView>, NSWindow) {
-        let activity = TranscriptScrollActivity()
-        activity.isScrolling = scrolling
+      private static func host(toggle: ((String) -> Void)?, activity: TranscriptScrollActivity = TranscriptScrollActivity()) async throws
+        -> (NSHostingView<AnyView>, NSWindow) {
         let host = NSHostingView(rootView: AnyView(MessageReactionsView(reactions: [reaction], toggle: toggle)
             .whoReactedLabel()
             .padding(.top, top)
@@ -107,12 +108,72 @@
 
       /// M8: a chip carried under a resting pointer by a scroll stays plain, as the row's chrome does.
       @Test func nothingShowsWhileTheTranscriptScrolls() async throws {
-        let (host, window) = try await Self.host(toggle: { _ in }, scrolling: true)
+        let activity = TranscriptScrollActivity()
+        activity.isScrolling = true
+        let (host, window) = try await Self.host(toggle: { _ in }, activity: activity)
         defer { window.orderOut(nil) }
         let plain = try Self.draw(host)
         try await hover(Self.chip, in: host, window: window)
         let seen = try Self.chrome(Self.draw(host), plain: plain)
         #expect(!seen.label && !seen.fill, "Nothing shows while scrolling: \(seen)")
+      }
+
+      /// A scroll that starts under a pointer already resting on the chip takes the label and fill at once.
+      @Test func aScrollStartingUnderThePointerHidesTheLabel() async throws {
+        let activity = TranscriptScrollActivity()
+        let (host, window) = try await Self.host(toggle: { _ in }, activity: activity)
+        defer { window.orderOut(nil) }
+        let plain = try Self.draw(host)
+        try await hover(Self.chip, in: host, window: window)
+        let shown = try Self.chrome(Self.draw(host), plain: plain)
+        try #require(shown.label && shown.fill, "The label showed before scrolling: \(shown)")
+        activity.isScrolling = true
+        let scrolling = try Self.chrome(Self.draw(host), plain: plain)
+        #expect(!scrolling.label && !scrolling.fill, "Scrolling hides both: \(scrolling)")
+      }
+
+      /// The product path: `MessageRowView` draws the label over its own body, where a removed `whoReactedLabel()`
+      /// on the row would leave the chip's preference unread. The bar waits a minute, so only the label can change
+      /// the band above the chip. The chip is found in the plain drawing: the lowest drawn line under the text column.
+      @Test func theRowDrawsTheLabelOverItsBody() async throws {
+        var message = chatRoomMessage(from: .init(clientTurnId: "chip", roomId: "room_1", content: "Hello",
+                                                  createdAt: Date(timeIntervalSince1970: 1_790_251_200),
+                                                  sender: .init(id: "user_2", name: "Phil", email: "phil@example.com", presence: .online)))
+        message.id = "message_1"
+        message.reactions = [Self.reaction]
+        let row = MessageRowView(message: message, row: transcriptRow(message), outbound: nil, perform: { _ in nil }, horizontalInset: 12)
+        let host = NSHostingView(rootView: AnyView(row
+            .environment(\.messageHoverDelay, .seconds(60))
+            .padding(.vertical, 8)
+            .frame(width: Self.width, alignment: .topLeading)
+            .background(.background)
+            .environmentObject(WorkspaceState()).environmentObject(AuthState())
+            .environment(\.colorScheme, .light)
+            .environment(\.locale, Locale(identifier: "en_US"))))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 120), styleMask: [.titled], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .aqua)
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil) }
+        for _ in 0 ..< 8 {
+          host.layoutSubtreeIfNeeded()
+          try await Task.sleep(for: .milliseconds(20))
+        }
+        let plain = try Self.draw(host)
+        let scale = CGFloat(plain.pixelsWide) / Self.width
+        // The text column starts at 12 inset + 28 avatar + 14 spacing.
+        let columns = Int(54 * scale) ..< Int(120 * scale)
+        let chipBottom = try #require((0 ..< plain.pixelsHigh).reversed().first { line in
+          columns.contains { Self.luminance(plain, $0, line) < 0.9 }
+        }, "The chip is drawn")
+        let chipTop = CGFloat(chipBottom) / scale - 24
+        try await hover(NSPoint(x: 74, y: chipTop + 12), in: host, window: window)
+        let drawn = try Self.draw(host)
+        let band = Int((chipTop - 26) * scale) ..< Int((chipTop - 2) * scale)
+        let label = columns.contains { column in
+          band.contains { abs(Self.luminance(drawn, column, $0) - Self.luminance(plain, column, $0)) > 0.06 }
+        }
+        #expect(label, "The row draws who reacted above the chip, over its body")
       }
     }
   }
