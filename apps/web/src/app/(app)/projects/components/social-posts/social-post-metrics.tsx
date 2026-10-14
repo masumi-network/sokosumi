@@ -30,16 +30,17 @@ export function SocialPostMetrics({
             : "grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6"
         }
       >
-        {SOCIAL_METRIC_KEYS.map((key) => {
+        {SOCIAL_METRIC_KEYS.flatMap((key) => {
           const value = statistics?.metrics[key];
-          return (
+          if (!compact && value == null) return [];
+          return [
             <div key={key} className={compact ? "flex gap-1" : "space-y-1"}>
               <dt className="text-muted-foreground">{t(`metrics.${key}`)}</dt>
               <dd className="font-medium tabular-nums">
                 {value == null ? t("unavailable") : formatter.number(value)}
               </dd>
-            </div>
-          );
+            </div>,
+          ];
         })}
       </dl>
       <p className="text-muted-foreground text-xs">
