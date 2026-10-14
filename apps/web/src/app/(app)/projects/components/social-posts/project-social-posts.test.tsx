@@ -256,6 +256,7 @@ vi.mock("next-intl", async () => {
   const { createTestFormatter } = await import("@/test/intl-formatter");
   return {
     useFormatter: () => createTestFormatter(),
+    useLocale: () => "en",
     useTranslations:
       () => (key: string, values?: Record<string, string | number>) => {
         const message = MESSAGES[key] ?? key;
@@ -488,6 +489,16 @@ const IN_AN_HOUR = new Date(2026, 8, 20, 11, 15);
 function freezeClock(now: Date = NOW) {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(now);
+}
+
+function zoneLabel(timezone: string, at: Date = new Date()): string {
+  const nameFor = (timeZoneName: "longGeneric" | "long") =>
+    new Intl.DateTimeFormat("en", { timeZone: timezone, timeZoneName })
+      .formatToParts(at)
+      .find((part) => part.type === "timeZoneName")?.value;
+  const generic = nameFor("longGeneric");
+  if (generic && !/^(?:GMT|UTC)[+-]/.test(generic)) return generic;
+  return nameFor("long") ?? timezone.replaceAll("_", " ");
 }
 
 async function pickInAnHour(
@@ -3595,9 +3606,7 @@ describe("ProjectSocialPosts", () => {
   it("names the viewer's time zone and the time a post goes out", async () => {
     freezeClock();
     const user = userEvent.setup();
-    const zone = Intl.DateTimeFormat()
-      .resolvedOptions()
-      .timeZone.replaceAll("_", " ");
+    const zone = zoneLabel(Intl.DateTimeFormat().resolvedOptions().timeZone);
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
@@ -3613,7 +3622,7 @@ describe("ProjectSocialPosts", () => {
 
     await pickInAnHour(user, dialog);
     expect(line).toHaveTextContent(
-      `Goes out ${createTestFormatter().dateTime(IN_AN_HOUR, "dateTimeWithYear")}, your time (${zone}).`,
+      `Goes out ${createTestFormatter().dateTime(IN_AN_HOUR, "dateTimeWithYear")}, your time (${zoneLabel(Intl.DateTimeFormat().resolvedOptions().timeZone, IN_AN_HOUR)}).`,
     );
   });
 
@@ -3636,7 +3645,9 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("menuitem", { name: "Reschedule" }));
     expect(
       within(screen.getByRole("dialog")).getByTestId("social-post-timezone"),
-    ).toHaveTextContent(`in ${otherZone.replaceAll("_", " ")}.`);
+    ).toHaveTextContent(
+      `in ${zoneLabel(otherZone, SCHEDULED_POST.scheduledAt ?? new Date())}.`,
+    );
   });
 
   it("schedules from the date and time pickers", async () => {
