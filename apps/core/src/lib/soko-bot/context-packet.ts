@@ -760,8 +760,18 @@ export class ContextPacketBuilder {
             input.askedByUserId && input.askedByUserId !== input.userId
               ? input.askedByUserId
               : null,
+          // A background run reports into the room it was started from, so
+          // the conversation there includes what it found.
           ...(input.roomId
-            ? { chatMention: { message: { roomId: input.roomId } } }
+            ? {
+                OR: [
+                  { chatMention: { message: { roomId: input.roomId } } },
+                  {
+                    parentTurnId: { not: null },
+                    destinationRoomId: input.roomId,
+                  },
+                ],
+              }
             : { chatMentionId: null }),
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],

@@ -1777,6 +1777,93 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
   });
 
+  it("starts a background run beside a busy chat without taking its session", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    // The chat is mid-turn: a foreground start would be refused.
+    turnFindFirstMock.mockResolvedValue({ id: "chat-turn" });
+    turnCountMock.mockResolvedValue(0);
+    turnCreateMock.mockResolvedValue({ id: "run-turn", leaseToken: "l" });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "run-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "background:parent:key",
+      message: "Background run: Gmail CRM",
+      presetRoute: {
+        route: "DELEGATE_TASK",
+        reason: "Background run",
+        capabilities: ["search_inbox", "write_table_rows"],
+      },
+      background: {
+        parentTurnId: "parent",
+        title: "Gmail CRM",
+        destinationRoomId: "room-owner",
+      },
+    });
+    const data = turnCreateMock.mock.calls[0]?.[0]?.data;
+    expect(data).toMatchObject({
+      parentTurnId: "parent",
+      backgroundTitle: "Gmail CRM",
+      destinationRoomId: "room-owner",
+    });
+    expect(data.deadlineAt.getTime() - Date.now()).toBeGreaterThan(
+      5 * 60 * 60 * 1_000,
+    );
+    for (const [call] of botUpdateManyMock.mock.calls) {
+      expect(call.data).not.toHaveProperty("eveSessionId");
+      expect(call.data).not.toHaveProperty("status");
+    }
+  });
+
+  it("refuses a fourth background run", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCountMock.mockResolvedValue(3);
+    const runtime = runtimeWithReset(vi.fn());
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await expect(
+      new SokoBotControlPlane(
+        runtime,
+        builder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "background:parent:other",
+        message: "Background run: more",
+        presetRoute: {
+          route: "DELEGATE_TASK",
+          reason: "Background run",
+          capabilities: ["search_inbox"],
+        },
+        background: {
+          parentTurnId: "parent",
+          title: "more",
+          destinationRoomId: "room-owner",
+        },
+      }),
+    ).rejects.toThrow(/background runs are already working/);
+    expect(turnCreateMock).not.toHaveBeenCalled();
+  });
+
   it("opens the owner's chat for a proactive turn when there is none", async () => {
     // Bots whose owner never opened their chat dead-lettered every stand-up,
     // wrap and inbox check with "no destination", and looked dead for days.

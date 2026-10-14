@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 
 import { taskEventDataSchema } from "@/lib/ably/schema";
 
@@ -31,23 +32,26 @@ function TaskStatusRealtimeListenerBody({
     };
   }, [refreshRoute]);
 
-  useChannel(makeUserTasksChannelName(userId), (message) => {
-    const parsedResult = taskEventDataSchema.safeParse(message.data);
-    if (!parsedResult.success) {
-      console.error(
-        "Failed to parse TaskEventData from message",
-        message,
-        parsedResult.error,
-      );
-      return;
-    }
+  useChannel(
+    makeUserTasksChannelName(userId, getRealtimeChannelEnvironment()),
+    (message) => {
+      const parsedResult = taskEventDataSchema.safeParse(message.data);
+      if (!parsedResult.success) {
+        console.error(
+          "Failed to parse TaskEventData from message",
+          message,
+          parsedResult.error,
+        );
+        return;
+      }
 
-    if (parsedResult.data.taskId !== taskId) {
-      return;
-    }
+      if (parsedResult.data.taskId !== taskId) {
+        return;
+      }
 
-    refreshRoute();
-  });
+      refreshRoute();
+    },
+  );
 
   return null;
 }
@@ -57,7 +61,12 @@ export function TaskStatusRealtimeListener(
 ) {
   return (
     <LazyAblyProvider>
-      <ChannelProvider channelName={makeUserTasksChannelName(props.userId)}>
+      <ChannelProvider
+        channelName={makeUserTasksChannelName(
+          props.userId,
+          getRealtimeChannelEnvironment(),
+        )}
+      >
         <TaskStatusRealtimeListenerBody {...props} />
       </ChannelProvider>
     </LazyAblyProvider>

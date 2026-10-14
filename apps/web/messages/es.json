@@ -1623,6 +1623,7 @@
           "standup": "Stand-up diario",
           "weeklyWrap": "Resumen semanal",
           "scheduled": "Programado: {name}",
+          "background": "Trabajo en segundo plano: {name}",
           "taskUpdate": "Actualización de tarea"
         }
       }

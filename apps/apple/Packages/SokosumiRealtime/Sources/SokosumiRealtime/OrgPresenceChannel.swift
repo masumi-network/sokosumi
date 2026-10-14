@@ -64,16 +64,17 @@ private final class OrgPresencePolicy: GatedChannelPolicy, @unchecked Sendable {
     self.onEvent = onEvent
   }
 
-  func grant(in capability: String?, target: String) -> Bool? {
-    (organizationIds(grantedPresenceIn: capability) ?? []).contains(target) ? true : nil
+  /// The granted channel's name: Core scopes it outside production (ADR 0055).
+  func grant(in capability: String?, target: String) -> String? {
+    orgPresenceChannelNames(grantedPresenceIn: capability)?[target]
   }
 
-  func attach(_ organizationId: String, grant _: Bool) {
+  func attach(_ organizationId: String, grant channelName: String) {
     let subscription: Subscription
     if let existing = self.subscription {
       subscription = existing
     } else {
-      let channel = realtime.channels.get(orgPresenceChannelName(organizationId: organizationId))
+      let channel = realtime.channels.get(channelName)
       let id = UUID()
       // Ably objects are not Sendable: reduce each message to a value before hopping queues.
       let listener = channel.presence.subscribe { [weak self] message in

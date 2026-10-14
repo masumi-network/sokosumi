@@ -1,4 +1,5 @@
 import {
+  makeAgentJobsCapabilityResourceName,
   makeChatRoomChannelName,
   makeChatTypingChannelName,
   makeOrgPresenceChannelName,
@@ -7,7 +8,7 @@ import {
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
   makeWorkspaceCalendarChannelName,
-  type NotificationChannelEnvironment,
+  type RealtimeChannelEnvironment,
 } from "@sokosumi/utils";
 
 type AblyClientCapabilityOp =
@@ -33,7 +34,7 @@ export interface BuildAblyClientCapabilityInput {
   roomIds: readonly string[];
   organizationIds: readonly string[];
   workspaceIds: readonly string[];
-  notificationChannelEnvironment: NotificationChannelEnvironment;
+  channelEnvironment: RealtimeChannelEnvironment;
 }
 
 /**
@@ -54,36 +55,46 @@ export function buildAblyClientCapability({
   roomIds,
   organizationIds,
   workspaceIds,
-  notificationChannelEnvironment,
+  channelEnvironment,
 }: BuildAblyClientCapabilityInput): AblySubscribeCapabilityMap {
   const capability: AblySubscribeCapabilityMap = {
     // Jobs channels use agent_id in the middle segment; wildcard keeps job pages working.
-    [`agent_jobs:*:user_${userId}`]: ["subscribe"],
-    [makeUserTasksChannelName(userId)]: ["subscribe"],
-    [makeUserNotificationsChannelName(userId, notificationChannelEnvironment)]:
-      ["subscribe", "presence", "push-subscribe"],
-    [makeUserChatControlChannelName(userId)]: ["subscribe"],
-    [makeUserCalendarControlChannelName(userId)]: ["subscribe"],
+    [makeAgentJobsCapabilityResourceName(userId, channelEnvironment)]: [
+      "subscribe",
+    ],
+    [makeUserTasksChannelName(userId, channelEnvironment)]: ["subscribe"],
+    [makeUserNotificationsChannelName(userId, channelEnvironment)]: [
+      "subscribe",
+      "presence",
+      "push-subscribe",
+    ],
+    [makeUserChatControlChannelName(userId, channelEnvironment)]: ["subscribe"],
+    [makeUserCalendarControlChannelName(userId, channelEnvironment)]: [
+      "subscribe",
+    ],
   };
 
   for (const roomId of roomIds) {
-    capability[makeChatRoomChannelName(roomId)] = ["subscribe"];
+    capability[makeChatRoomChannelName(roomId, channelEnvironment)] = [
+      "subscribe",
+    ];
     // Typing gets its own channel so `publish` never lands on the message
     // channel, where a member could forge a chat_room_message (ADR-0033).
-    capability[makeChatTypingChannelName(roomId)] = ["publish", "subscribe"];
+    capability[makeChatTypingChannelName(roomId, channelEnvironment)] = [
+      "publish",
+      "subscribe",
+    ];
   }
 
   for (const organizationId of organizationIds) {
-    capability[makeOrgPresenceChannelName(organizationId)] = [
-      "presence",
-      "subscribe",
-    ];
+    capability[makeOrgPresenceChannelName(organizationId, channelEnvironment)] =
+      ["presence", "subscribe"];
   }
 
   for (const workspaceId of workspaceIds) {
-    capability[makeWorkspaceCalendarChannelName(workspaceId, userId)] = [
-      "subscribe",
-    ];
+    capability[
+      makeWorkspaceCalendarChannelName(workspaceId, userId, channelEnvironment)
+    ] = ["subscribe"];
   }
 
   return capability;

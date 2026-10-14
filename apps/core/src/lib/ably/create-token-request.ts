@@ -5,7 +5,7 @@ import {
 import type { TokenRequest } from "ably";
 
 import { getSubscribeRestClient } from "./client";
-import { getNotificationChannelEnvironment } from "./notification-channel-environment";
+import { getRealtimeChannelEnvironment } from "./realtime-channel-environment";
 import { buildAblyClientCapability } from "./subscribe-capability";
 
 /**
@@ -40,7 +40,7 @@ export async function createAblyClientTokenRequest({
     roomIds,
     organizationIds,
     workspaceIds,
-    notificationChannelEnvironment: getNotificationChannelEnvironment(),
+    channelEnvironment: getRealtimeChannelEnvironment(),
   });
 
   return client.auth.createTokenRequest({

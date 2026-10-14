@@ -30,7 +30,10 @@ describe("parseAblyCapabilityMap", () => {
 });
 
 describe("capabilityGrants", () => {
-  const typingChannel = makeChatTypingChannelName("room-a");
+  const typingChannel = makeChatTypingChannelName("room-a", {
+    network: "Mainnet",
+    vercelEnv: "production",
+  });
 
   it("sees a granted operation on the exact channel", () => {
     expect(
