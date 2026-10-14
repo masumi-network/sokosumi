@@ -39,6 +39,10 @@ import {
 
 const trimmedId = z.string().trim().min(1);
 
+/** What a campaign is created or edited with. */
+const campaignName = z.string().trim().min(1).max(AD_CAMPAIGN_NAME_MAX_LENGTH);
+const campaignBudget = z.number().positive();
+
 /**
  * An ads action: input validated against `schema`, then `run` against Core.
  * Core's errors keep their `kind` (for example "integration_not_configured"),
@@ -135,7 +139,7 @@ export const discardAdConnection = adsAction(
   },
 );
 
-/** Pauses or resumes a campaign, or changes its daily budget, in one call. */
+/** Pauses or resumes a campaign, or changes its daily budget (the list and the menu). */
 export const updateAdCampaign = adsAction(
   z
     .object({
@@ -170,8 +174,8 @@ export const createAdCampaign = adsAction(
   z.object({
     projectId: trimmedId,
     accountId: trimmedId,
-    name: z.string().trim().min(1).max(AD_CAMPAIGN_NAME_MAX_LENGTH),
-    dailyBudget: z.number().positive(),
+    name: campaignName,
+    dailyBudget: campaignBudget,
     objective: z.enum(AD_CAMPAIGN_OBJECTIVES).optional(),
     google: z
       .discriminatedUnion("type", [
@@ -193,7 +197,8 @@ export const createAdCampaign = adsAction(
 );
 
 /**
- * Edits a Google campaign from its details page. The spec is the create one,
+ * Edits all of a Google campaign's settings (the edit page; `updateAdCampaign`
+ * only pauses, resumes or changes the budget). The spec is the create one,
  * except that Display images may also be kept ones. Core answers 204 (also
  * when nothing changed), and 422 with Google's own message for what it
  * dislikes, which reaches the UI.
@@ -203,8 +208,8 @@ export const editAdCampaign = adsAction(
     projectId: trimmedId,
     accountId: trimmedId,
     campaignId: trimmedId,
-    name: z.string().trim().min(1).max(AD_CAMPAIGN_NAME_MAX_LENGTH),
-    dailyBudget: z.number().positive(),
+    name: campaignName,
+    dailyBudget: campaignBudget,
     google: z.discriminatedUnion("type", [
       googleSearchSpecSchema(),
       googleDisplayEditSpecSchema(),

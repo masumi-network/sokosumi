@@ -36,6 +36,7 @@ import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
   AD_CAMPAIGN_NAME_MAX_LENGTH,
   AD_CAMPAIGN_OBJECTIVES,
+  CORE_CAMPAIGN_NOT_EDITABLE,
 } from "@/lib/ads/campaign";
 import {
   GOOGLE_DISPLAY_LIMITS,
@@ -43,6 +44,7 @@ import {
   toGoogleDisplayEditSpec,
   toGoogleDisplaySpec,
 } from "@/lib/ads/google-display";
+import { driveImagesOnly } from "@/lib/ads/google-display-images";
 import {
   EMPTY_GOOGLE_VALUES,
   type GoogleFormValues,
@@ -55,6 +57,7 @@ import {
 import {
   GOOGLE_SEARCH_LIMITS,
   googleSearchFormSchema,
+  toGoogleSearchEditSpec,
   toGoogleSearchSpec,
 } from "@/lib/ads/google-search";
 import type { GoogleTargeting } from "@/lib/ads/targeting";
@@ -75,15 +78,6 @@ interface CampaignFormProps {
 }
 
 interface GoogleCampaignFormProps extends CampaignFormProps {
-  /** Present when an existing campaign is edited instead of a new one made. */
-  edit?: {
-    campaignId: string;
-    /** Where the details page of the campaign is, to go back to. */
-    detailsHref: string;
-    /** Its start date can no longer change. */
-    started: boolean;
-    initialValues: GoogleFormValues;
-  };
   /** Whether the project has a Market profile, which "Add from Market" reads. */
   hasMarketProfile: boolean;
   /** The languages to pick from and the Market profile's suggestions. */
@@ -106,14 +100,12 @@ interface BasicsValues {
 type SaveOutcome = "ok" | "budget_refused" | "shown";
 
 interface SaveCampaignOptions {
-  projectId: string;
   /** Where a saved campaign leads, and what the toast says. */
-  successHref: string;
-  successMessage: string;
+  success: { href: string; message: string };
   /** Meta create maps 422 to the budget field (our precision copy). */
   budgetPrecisionOn422?: boolean;
-  /** Said for a 409 instead of asking to reconnect (an edit has another cause). */
-  conflictMessage?: string;
+  /** Words for a refusal Core's own text does not serve (an edit's 409). */
+  explain?: (error: ActionError) => string | undefined;
   /** Takes the form back to its start after a save, once Next shows it again. */
   onStartOver: () => void;
 }
@@ -126,11 +118,9 @@ interface SaveCampaignOptions {
  * Google keeps Core's/Google's message for a 422 in the alert.
  */
 function useSaveCampaign({
-  projectId,
-  successHref,
-  successMessage,
+  success,
   budgetPrecisionOn422 = false,
-  conflictMessage,
+  explain,
   onStartOver,
 }: SaveCampaignOptions) {
   const router = useRouter();
@@ -156,10 +146,10 @@ function useSaveCampaign({
     try {
       const result = await send();
       if (result.ok) {
-        toast.success(successMessage);
+        toast.success(success.message);
         savedRef.current = true;
         setSaved(true);
-        router.push(successHref);
+        router.push(success.href);
         return "ok";
       }
       if (result.error.status === 422) {
@@ -173,8 +163,9 @@ function useSaveCampaign({
           return "shown";
         }
       }
-      if (result.error.status === 409 && conflictMessage) {
-        setRefusal({ attempt, kind: "refused", message: conflictMessage });
+      const explanation = explain?.(result.error);
+      if (explanation) {
+        setRefusal({ attempt, kind: "refused", message: explanation });
         return "shown";
       }
       setRefusal({
@@ -390,9 +381,10 @@ export function MetaCampaignForm(props: CampaignFormProps) {
     defaultValues: { name: "", dailyBudget: "", objective: "" },
   });
   const saving = useSaveCampaign({
-    projectId: props.projectId,
-    successHref: campaignsHref(props.projectId, props.accountId),
-    successMessage: t("success"),
+    success: {
+      href: campaignsHref(props.projectId, props.accountId),
+      message: t("success"),
+    },
     budgetPrecisionOn422: true,
     onStartOver: () => form.reset(),
   });
@@ -427,7 +419,7 @@ export function MetaCampaignForm(props: CampaignFormProps) {
         )}
         submitting={form.formState.isSubmitting}
       >
-        <AdsSection id="new-campaign-basics" title={t("sections.basics")}>
+        <AdsSection id="campaign-form-basics" title={t("sections.basics")}>
           <NameAndBudgetFields budget={budget} />
           <FormField
             control={form.control}
@@ -492,7 +484,7 @@ function GoogleTypePicker({ locked }: { locked: boolean }) {
   if (locked) {
     const type = form.getValues("type");
     return (
-      <AdsSection id="new-campaign-type" title={t("sections.type")}>
+      <AdsSection id="campaign-form-type" title={t("sections.type")}>
         <div className="grid gap-1">
           <p className="text-sm font-medium">{t(`types.${type}`)}</p>
           <p className="text-muted-foreground text-sm">
@@ -504,7 +496,7 @@ function GoogleTypePicker({ locked }: { locked: boolean }) {
   }
 
   return (
-    <AdsSection id="new-campaign-type" title={t("sections.type")}>
+    <AdsSection id="campaign-form-type" title={t("sections.type")}>
       <div className="grid gap-2">
         <ToggleGroup
           aria-label={t("sections.type")}
@@ -538,21 +530,10 @@ function GoogleTypePicker({ locked }: { locked: boolean }) {
   );
 }
 
-/**
- * A Google campaign, Search or Display: the type is picked at the top, and the
- * name, budget, dates, targeting and final URL stay when it changes. Core's
- * rules per type are the Search keywords and responsive search ad, or the
- * Display images and responsive display ad.
- */
-export function GoogleCampaignForm({
-  edit,
-  hasMarketProfile,
-  targeting,
-  ...props
-}: GoogleCampaignFormProps) {
+/** The form's schema, which judges only the chosen type, and the budget's words. */
+function useGoogleFormSchema(currency: string) {
   const t = useTranslations("App.Ads.newCampaign");
-  const tEdit = useTranslations("App.Ads.editCampaign");
-  const { budget, shape } = useBasics(props.currency);
+  const { budget, shape } = useBasics(currency);
   const common = {
     finalUrl: t("errors.finalUrl"),
     headlineRequired: t("errors.headlineRequired"),
@@ -606,23 +587,58 @@ export function GoogleCampaignForm({
       imageRepeated: t("ad.images.errors.repeated"),
     }).safeExtend({ ...shape, type: z.literal("DISPLAY") }),
   ]);
+  return { budget, schema };
+}
+
+/** What the Google form submits once its fields are judged. */
+type GoogleFormOutput = z.output<
+  ReturnType<typeof useGoogleFormSchema>["schema"]
+>;
+
+/**
+ * What a Google campaign form does differently when it makes a campaign and
+ * when it edits one. Each form below decides it once; the body just follows it.
+ */
+interface GoogleFormSetup {
+  defaultValues: GoogleFormValues;
+  /** An edit shows the campaign's type; a new campaign picks it. */
+  typeLocked: boolean;
+  /** Set once the start date can no longer change: why. */
+  startDateHint?: string;
+  cancelHref: string;
+  failedTitle: string;
+  submitLabel: string;
+  /** A note above the actions. */
+  note?: string;
+  save: Pick<SaveCampaignOptions, "success" | "explain">;
+  send: (campaign: {
+    name: string;
+    dailyBudget: number;
+    values: GoogleFormOutput;
+  }) => Promise<ActionResultDto<unknown, ActionError>>;
+}
+
+/**
+ * A Google campaign, Search or Display: the type is picked at the top, and the
+ * name, budget, dates, targeting and final URL stay when it changes. Core's
+ * rules per type are the Search keywords and responsive search ad, or the
+ * Display images and responsive display ad.
+ */
+function GoogleCampaignFormBody({
+  hasMarketProfile,
+  setup,
+  targeting,
+  ...props
+}: GoogleCampaignFormProps & { setup: GoogleFormSetup }) {
+  const t = useTranslations("App.Ads.newCampaign");
+  const { budget, schema } = useGoogleFormSchema(props.currency);
   const form = useForm({
     resolver: zodResolver(schema),
     mode: "onTouched",
-    // An edit starts from the campaign; a new one from the Market profile's
-    // suggestions, which the reader may remove.
-    defaultValues: edit?.initialValues ?? {
-      ...EMPTY_GOOGLE_VALUES,
-      locations: targeting.defaultLocations,
-      languages: targeting.defaultLanguages,
-    },
+    defaultValues: setup.defaultValues,
   });
   const saving = useSaveCampaign({
-    projectId: props.projectId,
-    successHref:
-      edit?.detailsHref ?? campaignsHref(props.projectId, props.accountId),
-    successMessage: edit ? tEdit("success") : t("success"),
-    conflictMessage: edit ? tEdit("errors.conflict") : undefined,
+    ...setup.save,
     onStartOver: () => form.reset(),
   });
   const [uploading, setUploading] = useState(false);
@@ -632,59 +648,31 @@ export function GoogleCampaignForm({
     <Form {...form}>
       <ImageUploadContext value={{ uploading, setUploading }}>
         <CampaignFormFrame
-          cancelHref={
-            edit?.detailsHref ?? campaignsHref(props.projectId, props.accountId)
-          }
-          failedTitle={edit ? tEdit("errors.failed") : t("errors.failed")}
-          note={edit ? tEdit("reviewNote") : undefined}
+          cancelHref={setup.cancelHref}
+          failedTitle={setup.failedTitle}
+          note={setup.note}
           projectId={props.projectId}
           saving={saving}
-          submitLabel={edit ? tEdit("submit") : t("submit")}
+          submitLabel={setup.submitLabel}
           onSubmit={form.handleSubmit(async (values) => {
-            const name = values.name.trim();
-            const dailyBudget = Number(values.dailyBudget);
-            const base = {
-              projectId: props.projectId,
-              accountId: props.accountId,
-              name,
-              dailyBudget,
-            };
-            if (edit) {
-              // A started campaign keeps its start date: leave it out, and
-              // Core keeps it.
-              const sent = edit.started ? { ...values, startDate: "" } : values;
-              await saving.save(() =>
-                editAdCampaign({
-                  ...base,
-                  campaignId: edit.campaignId,
-                  google:
-                    sent.type === "SEARCH"
-                      ? toGoogleSearchSpec(sent)
-                      : toGoogleDisplayEditSpec(sent),
-                }),
-              );
-              return;
-            }
             await saving.save(() =>
-              createAdCampaign({
-                ...base,
-                google:
-                  values.type === "SEARCH"
-                    ? toGoogleSearchSpec(values)
-                    : toGoogleDisplaySpec(values),
+              setup.send({
+                name: values.name.trim(),
+                dailyBudget: Number(values.dailyBudget),
+                values,
               }),
             );
           })}
           submitting={form.formState.isSubmitting}
           uploading={uploading}
         >
-          <GoogleTypePicker locked={!!edit} />
-          <AdsSection id="new-campaign-basics" title={t("sections.basics")}>
+          <GoogleTypePicker locked={setup.typeLocked} />
+          <AdsSection id="campaign-form-basics" title={t("sections.basics")}>
             <NameAndBudgetFields budget={budget} />
-            <AdsGoogleDateFields startDateLocked={edit?.started ?? false} />
+            <AdsGoogleDateFields startDateHint={setup.startDateHint} />
           </AdsSection>
           <AdsSection
-            id="new-campaign-targeting"
+            id="campaign-form-targeting"
             title={t("sections.targeting")}
           >
             <AdsGoogleTargetingFields
@@ -704,5 +692,106 @@ export function GoogleCampaignForm({
         </CampaignFormFrame>
       </ImageUploadContext>
     </Form>
+  );
+}
+
+/** Makes a Google campaign, starting from the Market profile's suggestions. */
+export function NewGoogleCampaignForm({
+  targeting,
+  ...props
+}: GoogleCampaignFormProps) {
+  const t = useTranslations("App.Ads.newCampaign");
+  const { accountId, projectId } = props;
+  const campaignsUrl = campaignsHref(projectId, accountId);
+
+  return (
+    <GoogleCampaignFormBody
+      {...props}
+      setup={{
+        // The reader may remove the suggestions.
+        defaultValues: {
+          ...EMPTY_GOOGLE_VALUES,
+          locations: targeting.defaultLocations,
+          languages: targeting.defaultLanguages,
+        },
+        typeLocked: false,
+        cancelHref: campaignsUrl,
+        failedTitle: t("errors.failed"),
+        submitLabel: t("submit"),
+        save: { success: { href: campaignsUrl, message: t("success") } },
+        send: ({ name, dailyBudget, values }) =>
+          createAdCampaign({
+            projectId,
+            accountId,
+            name,
+            dailyBudget,
+            google:
+              values.type === "SEARCH"
+                ? toGoogleSearchSpec(values)
+                : toGoogleDisplaySpec({
+                    ...values,
+                    images: driveImagesOnly(values.images),
+                  }),
+          }),
+      }}
+      targeting={targeting}
+    />
+  );
+}
+
+interface EditGoogleCampaignFormProps extends GoogleCampaignFormProps {
+  campaignId: string;
+  /** Where the campaign's details page is, to go back to. */
+  detailsHref: string;
+  /** Its start date can no longer change. */
+  started: boolean;
+  /** The campaign as it is now. */
+  initialValues: GoogleFormValues;
+}
+
+/** Edits a Google campaign, starting from what it is now. */
+export function EditGoogleCampaignForm({
+  campaignId,
+  detailsHref,
+  initialValues,
+  started,
+  ...props
+}: EditGoogleCampaignFormProps) {
+  const t = useTranslations("App.Ads.editCampaign");
+  const { accountId, projectId } = props;
+
+  return (
+    <GoogleCampaignFormBody
+      {...props}
+      setup={{
+        defaultValues: initialValues,
+        typeLocked: true,
+        startDateHint: started ? t("startDateLocked") : undefined,
+        cancelHref: detailsHref,
+        failedTitle: t("errors.failed"),
+        submitLabel: t("submit"),
+        note: t("reviewNote"),
+        save: {
+          success: { href: detailsHref, message: t("success") },
+          // Core's 409 is also an inactive connection, which asks to reconnect.
+          explain: ({ message, status }) =>
+            status === 409 && message === CORE_CAMPAIGN_NOT_EDITABLE
+              ? t("errors.conflict")
+              : undefined,
+        },
+        send: ({ name, dailyBudget, values }) =>
+          editAdCampaign({
+            projectId,
+            accountId,
+            campaignId,
+            name,
+            dailyBudget,
+            google:
+              values.type === "SEARCH"
+                ? toGoogleSearchEditSpec(values, { started })
+                : toGoogleDisplayEditSpec(values, { started }),
+          }),
+      }}
+    />
   );
 }

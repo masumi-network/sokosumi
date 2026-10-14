@@ -26,6 +26,21 @@ export function isKeptImage(
   return "assetId" in image;
 }
 
+/**
+ * The Drive files among the form's images, for a create. A new campaign has
+ * no kept images, so one here is a bug: it is refused, never dropped.
+ */
+export function driveImagesOnly(
+  images: readonly FormDisplayImage[],
+): GoogleDisplayImage[] {
+  return images.map((image) => {
+    if (isKeptImage(image)) {
+      throw new Error("A new campaign has no kept images");
+    }
+    return image;
+  });
+}
+
 /** What tells one image from another: a kept one's asset, a Drive file's path. */
 export function displayImageKey(
   image: { assetId: string } | { pathname: string },

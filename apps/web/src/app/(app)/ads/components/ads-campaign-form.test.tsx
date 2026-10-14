@@ -12,7 +12,7 @@ import {
 } from "@/lib/actions/ads/action";
 import type { GoogleTargeting } from "@/lib/ads/targeting";
 import messages from "../../../../../messages/en.json";
-import { GoogleCampaignForm, MetaCampaignForm } from "./ads-new-campaign-form";
+import { MetaCampaignForm, NewGoogleCampaignForm } from "./ads-campaign-form";
 
 const {
   pushMock,
@@ -133,7 +133,7 @@ async function renderForm({
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       {provider === "google_ads" ? (
-        <GoogleCampaignForm
+        <NewGoogleCampaignForm
           {...props}
           hasMarketProfile={hasMarketProfile}
           targeting={targeting}
@@ -1138,7 +1138,7 @@ describe("AdsNewCampaignForm", () => {
           const page = (mode: "visible" | "hidden") => (
             <NextIntlClientProvider locale="en" messages={messages}>
               <Activity mode={mode}>
-                <GoogleCampaignForm
+                <NewGoogleCampaignForm
                   accountId="account-1"
                   currency="USD"
                   hasMarketProfile={false}

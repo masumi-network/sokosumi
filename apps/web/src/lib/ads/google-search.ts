@@ -17,6 +17,7 @@ import {
   limitedText,
   refineGoogleCampaign,
   toGoogleSharedSpec,
+  withoutStartDate,
 } from "./google-campaign";
 import {
   GOOGLE_KEYWORD_LIMIT,
@@ -372,6 +373,18 @@ export function toGoogleSearchSpec(
     ...(sitelinks.length > 0 ? { sitelinks } : {}),
     ...(callouts.length > 0 ? { callouts } : {}),
   };
+}
+
+/**
+ * The Search spec of an edit. A campaign that started keeps its start date, so
+ * the spec leaves it out; a cleared end date is left out too, which removes it.
+ */
+export function toGoogleSearchEditSpec(
+  values: GoogleSearchFormValues,
+  { started }: { started: boolean },
+): GoogleSearchCampaignSpec {
+  const spec = toGoogleSearchSpec(values);
+  return started ? withoutStartDate(spec) : spec;
 }
 
 /**

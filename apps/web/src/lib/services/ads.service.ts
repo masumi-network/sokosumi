@@ -112,6 +112,7 @@ export const adsService = (() => {
     return result.data;
   }
 
+  /** Pauses, resumes or changes the budget (the list and the menu). */
   async function updateCampaign(
     projectId: string,
     accountId: string,
@@ -137,7 +138,7 @@ export const adsService = (() => {
     return result.data;
   }
 
-  /** Replaces an editable Google campaign's settings; Core changes what differs. */
+  /** Replaces all of an editable Google campaign's settings (the edit page); Core changes what differs. */
   async function editCampaign(
     projectId: string,
     accountId: string,

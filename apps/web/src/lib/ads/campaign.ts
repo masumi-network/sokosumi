@@ -30,3 +30,6 @@ export function hasValidPrecision(value: number, digits: number): boolean {
   const scaled = value * 10 ** digits;
   return Math.abs(scaled - Math.round(scaled)) < 1e-9;
 }
+
+/** What Core says (409) when the campaign can no longer be edited, as opposed to an inactive connection. */
+export const CORE_CAMPAIGN_NOT_EDITABLE = "Campaign can't be edited here";

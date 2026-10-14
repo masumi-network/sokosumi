@@ -1,22 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
 import {
   CORE_RANGE_BY_PARAM,
   campaignDetailsHref,
   campaignsHref,
-  loadCampaignDetailsSearchParams,
 } from "@/app/ads/ads-query";
 import { campaignLoadFailure } from "@/app/ads/campaigns/campaign-load-failure";
+import { loadGoogleCampaignPage } from "@/app/ads/campaigns/google-campaign-page";
 import { AdsCampaignBreadcrumb } from "@/app/ads/components/ads-campaign-breadcrumb";
 import { AdsCampaignDetails } from "@/app/ads/components/ads-campaign-details";
 import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
 import { adsService } from "@/lib/services/ads.service";
-import { projectService } from "@/lib/services/project.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 import { cn } from "@/lib/utils";
 
 // Wait for the current session and project access before rendering.
@@ -43,26 +39,10 @@ export default async function AdsCampaignDetailsPage({
   params,
   searchParams,
 }: AdsCampaignDetailsPageProps) {
-  await connection();
-  if (!(await hasCurrentUserSocialBetaAccess())) {
-    notFound();
-  }
-
-  const { campaignId } = await params;
-  const query = await loadCampaignDetailsSearchParams(searchParams);
-  const projectId = query.projectId?.trim();
-  const project = projectId
-    ? await projectService.getProjectById(projectId)
-    : null;
-  if (!project) {
-    notFound();
-  }
-
-  const accounts = await adsService.listAccounts(project.id);
-  const account = accounts.find(({ id }) => id === query.accountId);
-  if (!account || account.provider !== "google_ads") {
-    notFound();
-  }
+  const { campaignId, query, project, account } = await loadGoogleCampaignPage(
+    params,
+    searchParams,
+  );
 
   const t = await getTranslations("App.Ads.campaignDetails");
 

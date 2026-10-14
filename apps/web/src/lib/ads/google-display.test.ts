@@ -10,6 +10,7 @@ import {
   toGoogleDisplayEditSpec,
   toGoogleDisplaySpec,
 } from "./google-display";
+import { driveImagesOnly } from "./google-display-images";
 
 const image = (
   role: GoogleDisplayImage["role"],
@@ -259,7 +260,7 @@ describe("toGoogleDisplaySpec", () => {
   });
 
   it("leaves out dates that are empty", () => {
-    const sent = toGoogleDisplaySpec(form);
+    const sent = toGoogleDisplaySpec({ ...form, images: IMAGES });
     expect(sent).not.toHaveProperty("startDate");
     expect(sent).not.toHaveProperty("endDate");
   });
@@ -276,14 +277,30 @@ describe("editing images", () => {
     const square = image("SQUARE");
 
     expect(
-      toGoogleDisplayEditSpec({ ...form, images: [KEPT, square] }).images,
+      toGoogleDisplayEditSpec(
+        { ...form, images: [KEPT, square] },
+        { started: false },
+      ).images,
     ).toEqual([{ assetId: "a1", role: "LANDSCAPE" }, square]);
   });
 
-  it("keeps a create to Drive files", () => {
-    expect(
-      toGoogleDisplaySpec({ ...form, images: [KEPT, ...IMAGES] }).images,
-    ).toEqual(IMAGES);
+  it("leaves the start date out once the campaign started, so Core keeps it", () => {
+    const dated = { ...form, startDate: "2026-11-01", endDate: "2026-11-30" };
+
+    expect(toGoogleDisplayEditSpec(dated, { started: false })).toHaveProperty(
+      "startDate",
+      "2026-11-01",
+    );
+    const sent = toGoogleDisplayEditSpec(dated, { started: true });
+    expect(sent).not.toHaveProperty("startDate");
+    expect(sent).toHaveProperty("endDate", "2026-11-30");
+  });
+
+  it("does not turn a kept image into a create's Drive file", () => {
+    expect(driveImagesOnly(IMAGES)).toEqual(IMAGES);
+    expect(() => driveImagesOnly([KEPT, ...IMAGES])).toThrow(
+      "A new campaign has no kept images",
+    );
   });
 
   it("lets the form hold kept images and counts their roles", () => {

@@ -7,6 +7,7 @@ import {
   type GoogleSearchFormValues,
   googleSearchFormSchema,
   googleSearchSpecSchema,
+  toGoogleSearchEditSpec,
   toGoogleSearchSpec,
 } from "./google-search";
 
@@ -479,5 +480,29 @@ describe("adDisplayUrl", () => {
     ["", "", "", "example.com"],
   ])("shows %s with paths %j and %j as %s", (url, path1, path2, shown) => {
     expect(adDisplayUrl(url, path1, path2)).toBe(shown);
+  });
+});
+
+describe("toGoogleSearchEditSpec", () => {
+  const dated = { ...form, startDate: "2026-11-01", endDate: "2026-11-30" };
+
+  it("sends the dates of a campaign that has not started", () => {
+    expect(toGoogleSearchEditSpec(dated, { started: false })).toMatchObject({
+      startDate: "2026-11-01",
+      endDate: "2026-11-30",
+    });
+  });
+
+  it("leaves the start date out once the campaign started, so Core keeps it", () => {
+    const sent = toGoogleSearchEditSpec(dated, { started: true });
+
+    expect(sent).not.toHaveProperty("startDate");
+    expect(sent).toHaveProperty("endDate", "2026-11-30");
+  });
+
+  it("leaves a cleared end date out, so Core removes it", () => {
+    expect(
+      toGoogleSearchEditSpec({ ...dated, endDate: "" }, { started: false }),
+    ).not.toHaveProperty("endDate");
   });
 });

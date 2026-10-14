@@ -13,6 +13,7 @@ import {
   limitedText,
   refineGoogleCampaign,
   toGoogleSharedSpec,
+  withoutStartDate,
 } from "./google-campaign";
 import {
   DISPLAY_IMAGE_MAX_BYTES,
@@ -251,7 +252,7 @@ export function googleDisplayFormSchema(messages: OptionalMessages = {}) {
     );
 }
 
-function displayAdTexts(values: GoogleDisplayFormValues) {
+function displayAdTexts(values: Omit<GoogleDisplayFormValues, "images">) {
   return {
     type: "DISPLAY" as const,
     ...toGoogleSharedSpec(values),
@@ -262,26 +263,32 @@ function displayAdTexts(values: GoogleDisplayFormValues) {
   };
 }
 
-/** The Display spec of a new campaign: its images are all Drive files. */
+/** What a new campaign's Display part holds: its images are all Drive files. */
+export type NewGoogleDisplayFormValues = Omit<
+  GoogleDisplayFormValues,
+  "images"
+> & { images: readonly GoogleDisplayImage[] };
+
+/** The Display spec of a new campaign. */
 export function toGoogleDisplaySpec(
-  values: GoogleDisplayFormValues,
+  values: NewGoogleDisplayFormValues,
 ): GoogleDisplayCampaignSpec {
-  return {
-    ...displayAdTexts(values),
-    images: values.images.filter(
-      (image): image is GoogleDisplayImage => !isKeptImage(image),
-    ),
-  };
+  return { ...displayAdTexts(values), images: [...values.images] };
 }
 
-/** The Display spec of an edit: kept images are sent as asset and role. */
+/**
+ * The Display spec of an edit: kept images are sent as asset and role. A
+ * campaign that started keeps its start date, so the spec leaves it out.
+ */
 export function toGoogleDisplayEditSpec(
   values: GoogleDisplayFormValues,
+  { started }: { started: boolean },
 ): GoogleDisplayCampaignEditSpec {
-  return {
+  const spec = {
     ...displayAdTexts(values),
     images: values.images.map((image) =>
       isKeptImage(image) ? { assetId: image.assetId, role: image.role } : image,
     ),
   };
+  return started ? withoutStartDate(spec) : spec;
 }

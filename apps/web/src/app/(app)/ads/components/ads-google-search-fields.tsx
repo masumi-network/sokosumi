@@ -62,15 +62,15 @@ export function AdsGoogleSearchFields({
 
 /**
  * The optional dates, which close the Basics section. A campaign that has
- * started keeps its start date.
+ * started keeps its start date: `startDateHint` says why, and the field stays
+ * readable and focusable but cannot change.
  */
 export function AdsGoogleDateFields({
-  startDateLocked = false,
+  startDateHint,
 }: {
-  startDateLocked?: boolean;
+  startDateHint?: string | undefined;
 }) {
   const t = useTranslations("App.Ads.newCampaign");
-  const tEdit = useTranslations("App.Ads.editCampaign");
   const form = useFormContext<GoogleSharedFormValues>();
 
   return (
@@ -88,9 +88,12 @@ export function AdsGoogleDateFields({
                   <Input
                     type="date"
                     {...field}
-                    disabled={name === "startDate" && startDateLocked}
+                    readOnly={name === "startDate" && !!startDateHint}
                   />
                 </FormControl>
+                {name === "startDate" && startDateHint ? (
+                  <FormDescription>{startDateHint}</FormDescription>
+                ) : null}
                 <FormMessage />
               </FormItem>
             )}
@@ -98,11 +101,6 @@ export function AdsGoogleDateFields({
         ))}
       </div>
       <p className="text-muted-foreground text-sm">{t("datesHelp")}</p>
-      {startDateLocked ? (
-        <p className="text-muted-foreground text-sm">
-          {tEdit("startDateLocked")}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -132,7 +130,7 @@ function KeywordsSection({
   }
 
   return (
-    <AdsSection id="new-campaign-keywords" title={t("label")}>
+    <AdsSection id="campaign-form-keywords" title={t("label")}>
       <FormField
         control={form.control}
         name="keywords"
@@ -179,7 +177,7 @@ function AdSection() {
   const [finalUrl, path1, path2] = form.watch(["finalUrl", "path1", "path2"]);
 
   return (
-    <AdsSection id="new-campaign-ad" title={tSection("ad")}>
+    <AdsSection id="campaign-form-ad" title={tSection("ad")}>
       <AdsFinalUrlField />
       <fieldset className="grid gap-2">
         <legend className="text-sm font-medium">{t("displayPath")}</legend>

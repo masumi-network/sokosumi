@@ -10,9 +10,9 @@ import {
 } from "@/app/ads/ads-query";
 import { loadGoogleSetup } from "@/app/ads/campaigns/google-setup";
 import {
-  GoogleCampaignForm,
   MetaCampaignForm,
-} from "@/app/ads/components/ads-new-campaign-form";
+  NewGoogleCampaignForm,
+} from "@/app/ads/components/ads-campaign-form";
 import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
 import { adsService } from "@/lib/services/ads.service";
 import { projectService } from "@/lib/services/project.service";
@@ -91,7 +91,7 @@ export default async function NewAdsCampaignPage({
           </div>
         </header>
         {google ? (
-          <GoogleCampaignForm
+          <NewGoogleCampaignForm
             accountId={account.id}
             currency={account.currency}
             hasMarketProfile={google.hasMarketProfile}

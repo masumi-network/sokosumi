@@ -66,7 +66,7 @@ export function AdsGoogleDisplayFields() {
   const tSection = useTranslations("App.Ads.newCampaign.sections");
 
   return (
-    <AdsSection id="new-campaign-ad" title={tSection("ad")}>
+    <AdsSection id="campaign-form-ad" title={tSection("ad")}>
       <AdsFinalUrlField />
       <TextField max={GOOGLE_DISPLAY_LIMITS.businessName} name="businessName" />
       <AdsTextList

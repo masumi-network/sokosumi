@@ -11,7 +11,7 @@ import {
 } from "@/lib/ads/google-form-values";
 import type { GoogleTargeting } from "@/lib/ads/targeting";
 import messages from "../../../../../messages/en.json";
-import { GoogleCampaignForm } from "./ads-new-campaign-form";
+import { EditGoogleCampaignForm } from "./ads-campaign-form";
 
 const { pushMock, toastSuccessMock, uploadMock, sizes } = vi.hoisted(() => ({
   pushMock: vi.fn(),
@@ -123,17 +123,15 @@ function tree(
   return (
     <NextIntlClientProvider locale="en" messages={messages}>
       <Activity mode={mode}>
-        <GoogleCampaignForm
+        <EditGoogleCampaignForm
           accountId="account-1"
+          campaignId="42"
           currency="USD"
-          edit={{
-            campaignId: "42",
-            detailsHref: DETAILS_HREF,
-            started,
-            initialValues,
-          }}
+          detailsHref={DETAILS_HREF}
           hasMarketProfile={false}
+          initialValues={initialValues}
           projectId="project-1"
+          started={started}
           targeting={TARGETING}
         />
       </Activity>
@@ -158,7 +156,7 @@ function refused(status?: number, message = "Core text") {
   };
 }
 
-describe("GoogleCampaignForm editing", () => {
+describe("EditGoogleCampaignForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sizes.clear();
@@ -212,22 +210,27 @@ describe("GoogleCampaignForm editing", () => {
   });
 
   describe("the start date", () => {
-    it("is locked once the campaign started, with a hint", () => {
-      renderEdit(SEARCH_VALUES, true);
+    it("is read-only once the campaign started, still focusable, and says why", async () => {
+      const { user } = renderEdit(SEARCH_VALUES, true);
+      const startDate = screen.getByLabelText("Start date");
 
-      expect(screen.getByLabelText("Start date")).toBeDisabled();
-      expect(screen.getByLabelText("Start date")).toHaveValue("2026-11-01");
-      expect(
-        screen.getByText(
-          "The start date can't change once a campaign has started.",
-        ),
-      ).toBeVisible();
+      expect(startDate).toHaveAttribute("readonly");
+      expect(startDate).toBeEnabled();
+      expect(startDate).toHaveValue("2026-11-01");
+      expect(startDate).toHaveAccessibleDescription(
+        "The start date can't change once a campaign has started.",
+      );
+      await user.tab({ shift: true });
+      await user.click(startDate);
+      expect(startDate).toHaveFocus();
     });
 
     it("can change before", () => {
       renderEdit(SEARCH_VALUES, false);
 
-      expect(screen.getByLabelText("Start date")).toBeEnabled();
+      expect(screen.getByLabelText("Start date")).not.toHaveAttribute(
+        "readonly",
+      );
       expect(screen.queryByText(/can't change once/)).toBeNull();
     });
   });
@@ -314,16 +317,32 @@ describe("GoogleCampaignForm editing", () => {
       expect(pushMock).not.toHaveBeenCalled();
     });
 
-    it("says the campaign can't be edited here on 409", async () => {
-      editMock.mockResolvedValue(refused(409));
+    it("says the campaign can't be edited here when Core says it is not editable", async () => {
+      editMock.mockResolvedValue(refused(409, "Campaign can't be edited here"));
       const { user } = renderEdit(SEARCH_VALUES);
 
       await user.click(save());
 
-      expect(await screen.findByRole("alert")).toHaveTextContent(
-        "This campaign can't be edited here.",
-      );
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent("This campaign can't be edited here.");
+      expect(
+        within(alert).queryByRole("link", { name: "Go to accounts" }),
+      ).toBeNull();
       expect(pushMock).not.toHaveBeenCalled();
+    });
+
+    it("asks to reconnect on any other 409, such as an inactive connection", async () => {
+      editMock.mockResolvedValue(refused(409, "Ad connection is not active"));
+      const { user } = renderEdit(SEARCH_VALUES);
+
+      await user.click(save());
+
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent("Reconnect this account in Accounts");
+      expect(
+        within(alert).getByRole("link", { name: "Go to accounts" }),
+      ).toHaveAttribute("href", "/ads?projectId=project-1&tab=accounts");
+      expect(alert).not.toHaveTextContent("can't be edited here");
     });
 
     it.each([[undefined], [502]])(

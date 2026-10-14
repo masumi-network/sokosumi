@@ -149,3 +149,14 @@ export function toGoogleSharedSpec(values: GoogleSharedFormValues): {
     finalUrl: values.finalUrl.trim(),
   };
 }
+
+/**
+ * An edit's spec once the campaign has started: without the start date, which
+ * Core then keeps (it refuses a changed one).
+ */
+export function withoutStartDate<T extends { startDate?: string }>(
+  spec: T,
+): Omit<T, "startDate"> {
+  const { startDate: _kept, ...rest } = spec;
+  return rest;
+}

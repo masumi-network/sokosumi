@@ -48,8 +48,8 @@ vi.mock("@/app/ads/components/ads-campaign-breadcrumb", () => ({
     return null;
   },
 }));
-vi.mock("@/app/ads/components/ads-new-campaign-form", () => ({
-  GoogleCampaignForm: (props: Record<string, unknown>) => {
+vi.mock("@/app/ads/components/ads-campaign-form", () => ({
+  EditGoogleCampaignForm: (props: Record<string, unknown>) => {
     formMock(props);
     return <div data-testid="form" />;
   },
@@ -165,17 +165,15 @@ describe("EditAdsCampaignPage", () => {
       hasMarketProfile: true,
       projectId: "project-1",
       targeting: SETUP.targeting,
-      edit: {
-        campaignId: "42",
-        detailsHref:
-          "/ads/campaigns/42?projectId=project-1&accountId=a1&range=7d",
-        started: true,
-        initialValues: expect.objectContaining({
-          type: "SEARCH",
-          name: "Spring sale",
-          dailyBudget: "25",
-        }),
-      },
+      campaignId: "42",
+      detailsHref:
+        "/ads/campaigns/42?projectId=project-1&accountId=a1&range=7d",
+      started: true,
+      initialValues: expect.objectContaining({
+        type: "SEARCH",
+        name: "Spring sale",
+        dailyBudget: "25",
+      }),
     });
     expect(
       screen.getByRole("link", { name: "App.Ads.editCampaign.back" }),

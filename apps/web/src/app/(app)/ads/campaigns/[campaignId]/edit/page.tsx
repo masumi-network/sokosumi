@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
 import {
@@ -9,17 +7,15 @@ import {
   campaignDetailsHref,
   campaignEditHref,
   campaignsHref,
-  loadCampaignDetailsSearchParams,
 } from "@/app/ads/ads-query";
 import { campaignLoadFailure } from "@/app/ads/campaigns/campaign-load-failure";
+import { loadGoogleCampaignPage } from "@/app/ads/campaigns/google-campaign-page";
 import { loadGoogleSetup } from "@/app/ads/campaigns/google-setup";
 import { AdsCampaignBreadcrumb } from "@/app/ads/components/ads-campaign-breadcrumb";
-import { GoogleCampaignForm } from "@/app/ads/components/ads-new-campaign-form";
+import { EditGoogleCampaignForm } from "@/app/ads/components/ads-campaign-form";
 import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
 import { googleFormValuesFromDetails } from "@/lib/ads/google-form-values";
 import { adsService } from "@/lib/services/ads.service";
-import { projectService } from "@/lib/services/project.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 import { cn } from "@/lib/utils";
 
 // Wait for the current session and project access before rendering.
@@ -44,26 +40,10 @@ export default async function EditAdsCampaignPage({
   params,
   searchParams,
 }: EditAdsCampaignPageProps) {
-  await connection();
-  if (!(await hasCurrentUserSocialBetaAccess())) {
-    notFound();
-  }
-
-  const { campaignId } = await params;
-  const query = await loadCampaignDetailsSearchParams(searchParams);
-  const projectId = query.projectId?.trim();
-  const project = projectId
-    ? await projectService.getProjectById(projectId)
-    : null;
-  if (!project) {
-    notFound();
-  }
-
-  const accounts = await adsService.listAccounts(project.id);
-  const account = accounts.find(({ id }) => id === query.accountId);
-  if (!account || account.provider !== "google_ads") {
-    notFound();
-  }
+  const { campaignId, query, project, account } = await loadGoogleCampaignPage(
+    params,
+    searchParams,
+  );
 
   const t = await getTranslations("App.Ads.editCampaign");
   const tDetails = await getTranslations("App.Ads.campaignDetails");
@@ -101,20 +81,18 @@ export default async function EditAdsCampaignPage({
     } else {
       const initialValues = googleFormValuesFromDetails(details);
       body = (
-        <GoogleCampaignForm
+        <EditGoogleCampaignForm
           accountId={account.id}
+          campaignId={campaign.id}
           currency={account.currency}
-          // Next keeps a visited page mounted: a campaign that changed starts a
-          // new form, instead of showing the values from before the save.
-          edit={{
-            campaignId: campaign.id,
-            detailsHref,
-            started: campaign.started,
-            initialValues,
-          }}
+          detailsHref={detailsHref}
           hasMarketProfile={google.hasMarketProfile}
+          initialValues={initialValues}
+          // Next keeps visited pages mounted, so a campaign that changed (for
+          // example by a save) must remount the form to show its new values.
           key={JSON.stringify([campaign.started, initialValues])}
           projectId={project.id}
+          started={campaign.started}
           targeting={google.targeting}
         />
       );
