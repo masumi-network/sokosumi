@@ -1158,6 +1158,11 @@ export function ProjectSocialPosts({
                       title={t(`empty.${section}`)}
                     />
                   )}
+                  {sectionPosts.length === 0 && cursor ? (
+                    <p className="text-muted-foreground text-sm">
+                      {t("empty.more")}
+                    </p>
+                  ) : null}
                   {cursor ? (
                     <div className="space-y-2">
                       {loadMoreError?.section === section ? (
