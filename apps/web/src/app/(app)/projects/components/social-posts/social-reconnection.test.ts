@@ -64,7 +64,6 @@ describe("getSocialReconnections", () => {
     ]);
   });
   it.each([
-    { connectionNeedsReconnect: true },
     { lastError: "Social connection needs reconnecting" },
     {
       lastAttempt: {
@@ -106,6 +105,62 @@ describe("getSocialReconnections", () => {
       ).toEqual([failed, scheduled]);
     },
   );
+  it.each([401, 403])(
+    "counts classified X media-upload %s failures",
+    (status) => {
+      const failed = post({
+        lastError: `upload X image failed (${status})`,
+        lastAttempt: {
+          attempt: 1,
+          trigger: "scheduler",
+          outcome: "failed_permanent",
+          errorKind: "unauthorized",
+          providerOutcome: null,
+          finishedAt: new Date("2026-10-01"),
+        },
+      });
+      expect(
+        getSocialReconnections([connection], [failed])[0]?.affectedPosts,
+      ).toEqual([failed]);
+    },
+  );
+  it("counts scheduled and unauthorized failures only on the affected account", () => {
+    const unauthorized = post({
+      lastAttempt: {
+        attempt: 1,
+        trigger: "scheduler",
+        outcome: "failed_permanent",
+        errorKind: "unauthorized",
+        providerOutcome: null,
+        finishedAt: new Date("2026-10-01"),
+      },
+    });
+    const scheduled = post({ id: "scheduled", status: "SCHEDULED" });
+    expect(
+      getSocialReconnections(
+        [{ ...connection, status: "reauthorization_required" }],
+        [
+          unauthorized,
+          scheduled,
+          post({
+            id: "bad-media",
+            connectionNeedsReconnect: true,
+            lastError: "upload X image failed (400)",
+          }),
+          post({
+            id: "missed",
+            status: "MISSED",
+            connectionNeedsReconnect: true,
+          }),
+          post({
+            id: "other-account",
+            socialConnection: { ...connection, id: "other" },
+            lastError: "Social connection needs reconnecting",
+          }),
+        ],
+      )[0]?.affectedPosts,
+    ).toEqual([unauthorized, scheduled]);
+  });
   it("ignores pending, disconnected, healthy accounts and unrelated failures", () => {
     expect(
       getSocialReconnections(

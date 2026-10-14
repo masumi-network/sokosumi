@@ -445,7 +445,8 @@ export function ProjectSocialPosts({
       ? null
       : listedAccountCount === 0
         ? "connect"
-        : connections.length === 0 && reconnections.length === 0
+        : connections.length === 0 &&
+            !(tab === "attention" && reconnections.length > 0)
           ? "reconnect"
           : null;
   const retryablePosts = postsIn("attention").filter(

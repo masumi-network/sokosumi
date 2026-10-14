@@ -725,8 +725,6 @@ describe("ProjectSocialPosts", () => {
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts
-        accountCount={1}
-        accounts={<p>Accounts panel</p>}
         projectId={PROJECT_ID}
         connections={[]}
         managedConnections={[
@@ -737,18 +735,45 @@ describe("ProjectSocialPosts", () => {
       />,
     );
     expect(getTab("Needs attention")).toHaveTextContent("Needs attention 1");
-    expect(
-      screen.queryByTestId("social-reconnect-prompt"),
-    ).not.toBeInTheDocument();
     await openTab(user, "Needs attention");
     const row = screen.getByTestId("social-reconnect-connection-1");
     expect(within(row).getByText("@sokosumi needs reconnecting")).toBeVisible();
     expect(within(row).getByText("1 posts affected")).toBeVisible();
   });
 
+  it("hides the generic banner only while per-account reconnect items render", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        projectId={PROJECT_ID}
+        connections={[]}
+        managedConnections={[
+          buildConnection({ status: "reauthorization_required" }),
+        ]}
+        accountCount={1}
+        accounts={<p>Accounts panel</p>}
+        calendar={<p>Calendar panel</p>}
+        posts={[]}
+      />,
+    );
+    expect(screen.getByTestId("social-reconnect-prompt")).toBeVisible();
+    await openTab(user, "Needs attention");
+    expect(screen.getByTestId("social-reconnect-connection-1")).toBeVisible();
+    expect(
+      screen.queryByTestId("social-reconnect-prompt"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/posts affected/)).not.toBeInTheDocument();
+    await openTab(user, "Calendar");
+    expect(screen.getByTestId("social-reconnect-prompt")).toBeVisible();
+  });
+
   it("offers retry only after successful reconnect and reuses the publish action", async () => {
     const user = userEvent.setup();
-    const failed = { ...FAILED_POST, connectionNeedsReconnect: true };
+    const failed = {
+      ...FAILED_POST,
+      connectionNeedsReconnect: true,
+      lastError: "Social connection needs reconnecting",
+    };
     vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
       ok: true,
       value: {
@@ -775,7 +800,16 @@ describe("ProjectSocialPosts", () => {
         managedConnections={[
           buildConnection({ status: "reauthorization_required" }),
         ]}
-        affectedPosts={[failed, SCHEDULED_POST]}
+        affectedPosts={[
+          failed,
+          SCHEDULED_POST,
+          {
+            ...FAILED_POST,
+            id: "bad-media",
+            lastError: "upload X image failed (400)",
+            connectionNeedsReconnect: true,
+          },
+        ]}
         posts={[failed]}
       />,
     );
@@ -800,6 +834,7 @@ describe("ProjectSocialPosts", () => {
         revision: failed.revision,
       }),
     );
+    expect(publishProjectSocialPost).toHaveBeenCalledTimes(1);
     await waitFor(() =>
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
     );

@@ -16,16 +16,26 @@ export function getSocialReconnections(
   return connections.flatMap((connection) => {
     if (connection.status === "disconnected" || connection.status === "pending")
       return [];
-    const affectedPosts = posts.filter(
+    const accountPosts = posts.filter(
+      (post) => post.socialConnection?.id === connection.id,
+    );
+    const affectedPosts = accountPosts.filter(
       (post) =>
-        post.socialConnection?.id === connection.id &&
-        (post.status === "SCHEDULED" ||
-          post.status === "FAILED" ||
-          post.status === "MISSED"),
+        post.status === "SCHEDULED" ||
+        (post.status === "FAILED" &&
+          (post.lastAttempt?.errorKind === "unauthorized" ||
+            post.lastAttempt?.outcome === "authorization_revoked" ||
+            post.lastError === "Social connection needs reconnecting")),
     );
     const broken =
       connection.status === "reauthorization_required" ||
-      affectedPosts.some((post) => {
+      accountPosts.some((post) => {
+        if (
+          post.status !== "SCHEDULED" &&
+          post.status !== "FAILED" &&
+          post.status !== "MISSED"
+        )
+          return false;
         const failureAt = post.lastAttempt?.finishedAt ?? post.lastAttemptAt;
         if (
           connection.connectedAt &&

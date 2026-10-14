@@ -146,6 +146,19 @@ describe("classifyPublishError", () => {
     },
   );
 
+  it("keeps X media-upload 400 failures out of unauthorized classification", () => {
+    expect(
+      classifyPublishError(
+        new ComposioToolError({
+          message: "upload X image failed (400)",
+          providerStatus: 400,
+          providerMessage: "Invalid image",
+        }),
+        "x",
+      ),
+    ).toMatchObject({ kind: "rejected", transient: false });
+  });
+
   it("keeps a non-authentication 403 rejection from another provider", () => {
     expect(
       classifyPublishError(
