@@ -1,5 +1,4 @@
 import CoreAPI
-import SokosumiAuth
 import SokosumiChat
 
 /// The sidebar's Unreads filter (row 24f2, web's `ChatUnreadNavRows` and `OrganizationChatList`).

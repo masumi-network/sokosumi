@@ -1,6 +1,5 @@
 import CoreAPI
 import Foundation
-import SokosumiAuth
 import SokosumiChat
 
 /// External chat invitations (web `organization-chat-list.client.tsx`, `chat-room-invitation-card.tsx`,

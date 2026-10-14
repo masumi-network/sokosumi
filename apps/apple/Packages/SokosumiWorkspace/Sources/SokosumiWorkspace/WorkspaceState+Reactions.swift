@@ -1,5 +1,4 @@
 import CoreAPI
-import SokosumiAuth
 import SokosumiChat
 
 public extension WorkspaceState {

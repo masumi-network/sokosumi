@@ -4,7 +4,6 @@
   import HTTPTypes
   import OpenAPIRuntime
   @testable import Sokosumi
-  import SokosumiAuth
   import SokosumiChat
   import SokosumiWorkspace
   import Testing

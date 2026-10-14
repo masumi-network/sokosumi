@@ -1,5 +1,4 @@
 import CoreAPI
-import SokosumiAuth
 import SokosumiChat
 import SokosumiWorkspace
 import SwiftUI

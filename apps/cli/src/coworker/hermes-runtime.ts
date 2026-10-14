@@ -14,7 +14,7 @@ export interface HermesRuntimeOptions {
   timeoutMs?: number;
 }
 
-export interface ExecuteHermesTaskOptions extends HermesRuntimeOptions {
+interface ExecuteHermesTaskOptions extends HermesRuntimeOptions {
   task: RuntimeTask;
 }
 

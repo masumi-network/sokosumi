@@ -1,6 +1,5 @@
 import CoreAPI
 import Foundation
-import SokosumiAuth
 import SokosumiChat
 
 /// The members panel's membership changes (SOK-1258). Each one shares the single-flight channel update, takes the

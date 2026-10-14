@@ -23,7 +23,7 @@ export interface TaskContextSelectionSnapshot {
   memoryEnabled: boolean;
 }
 
-export interface ParseTaskContextFromDescriptionOptions {
+interface ParseTaskContextFromDescriptionOptions {
   projectDesignMdUrl?: string | null;
   workspaceDesignMdUrl?: string | null;
   /** Pathname prefix for ad-hoc DESIGN.md blobs, e.g. `design-md/adhoc/{userId}/`. */
@@ -142,7 +142,7 @@ export function parseTaskContextFromDescription(
   };
 }
 
-export interface TaskContextAttachmentFlags {
+interface TaskContextAttachmentFlags {
   brand: {
     enabled: boolean;
     source?: "project" | "default" | "custom";
@@ -152,7 +152,7 @@ export interface TaskContextAttachmentFlags {
   contextMdEnabled: boolean;
 }
 
-export interface TaskContextAttachmentAvailability {
+interface TaskContextAttachmentAvailability {
   projectDesignMdUrl?: string | null;
   workspaceDesignMdUrl?: string | null;
   projectBriefingUrl?: string | null;
