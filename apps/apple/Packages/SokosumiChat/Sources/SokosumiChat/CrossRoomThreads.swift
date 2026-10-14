@@ -97,7 +97,8 @@ public final class CrossRoomThreads: ObservableObject {
       self[keyPath: pages].answer(request, items: page.items, nextCursor: page.nextCursor, id: parts.parent)
     } catch {
       guard self[keyPath: pages].isCurrent(request), !Task.isCancelled else { return }
-      // Web's query without data: no rows, no paging row, the error with Try again.
+      // A failed first page is web's query without data (no rows, the error with Try again); a failed older page
+      // keeps the rows and fails only its paging row.
       self[keyPath: pages].fail(request)
       throw error
     }
