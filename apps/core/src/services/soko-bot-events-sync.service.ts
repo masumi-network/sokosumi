@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { getEnv } from "@/config/env";
+import { sokoBotTurnStarter } from "@/helpers/soko-bot-turn-attribution";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
@@ -7,6 +8,7 @@ import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
 import {
   SokoBotBusyError,
+  SokoBotNotFoundError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
 import { proactiveGate } from "@/services/soko-bot-proactive.service";
@@ -54,11 +56,12 @@ interface Change {
   note: string | null;
   /** Credits charged on the Task so far, set once it has finished. */
   creditsCharged?: number;
+  /** Who the turn is for when the bot is shared; see `resolveTurnUserId`. */
+  attribution?: { taskEventUserId: string | null; taskOwnerId: string | null };
 }
 
 interface BotWork {
   sokoBotId: string;
-  userId: string;
   workspaceId: string;
   changes: Change[];
   /** Delegations whose baseline is set silently (first observation). */
@@ -163,7 +166,12 @@ export class SokoBotEventsSyncService {
               events: {
                 orderBy: [{ createdAt: "desc" }, { id: "desc" }],
                 take: 1,
-                select: { id: true, comment: true, createdAt: true },
+                select: {
+                  id: true,
+                  comment: true,
+                  createdAt: true,
+                  userId: true,
+                },
               },
             },
           },
@@ -218,6 +226,8 @@ export class SokoBotEventsSyncService {
             note: delegation.task.events[0]?.comment ?? null,
             eventId: delegation.task.events[0]?.id ?? null,
             eventAt: delegation.task.events[0]?.createdAt,
+            eventUserId: delegation.task.events[0]?.userId ?? null,
+            ownerId: delegation.task.ownerId,
           }
         : delegation.job
           ? {
@@ -227,6 +237,8 @@ export class SokoBotEventsSyncService {
               note: null,
               eventId: delegation.job.events[0]?.id ?? null,
               eventAt: delegation.job.events[0]?.createdAt,
+              eventUserId: null,
+              ownerId: delegation.job.task?.ownerId ?? null,
             }
           : null;
       if (
@@ -238,7 +250,6 @@ export class SokoBotEventsSyncService {
       }
       const work = byBot.get(delegation.turn.sokoBotId) ?? {
         sokoBotId: delegation.turn.sokoBotId,
-        userId: delegation.turn.userId,
         workspaceId: delegation.turn.workspaceId,
         changes: [],
         baselines: [],
@@ -289,6 +300,7 @@ export class SokoBotEventsSyncService {
                 createdAt: true,
                 status: true,
                 comment: true,
+                userId: true,
               },
             })
           : (
@@ -298,7 +310,7 @@ export class SokoBotEventsSyncService {
                 take: MAX_CHANGES_PER_TURN,
                 select: { id: true, createdAt: true, status: true },
               })
-            ).map((event) => ({ ...event, comment: null }));
+            ).map((event) => ({ ...event, comment: null, userId: null }));
         const actionable = events.filter(
           (event) =>
             event.status &&
@@ -323,6 +335,10 @@ export class SokoBotEventsSyncService {
             from: delegation.lastSeenStatus,
             to: event.status ?? current.status,
             note: event.comment,
+            attribution: {
+              taskEventUserId: event.userId,
+              taskOwnerId: current.ownerId,
+            },
           });
         }
         if (!actionable.length && events.length) {
@@ -368,6 +384,10 @@ export class SokoBotEventsSyncService {
         from: delegation.lastSeenStatus,
         to: current.status,
         note: current.note ?? null,
+        attribution: {
+          taskEventUserId: current.eventUserId,
+          taskOwnerId: current.ownerId,
+        },
       });
     }
 
@@ -453,8 +473,14 @@ export class SokoBotEventsSyncService {
             charged.get(change.entityId) ?? 0,
           );
       try {
+        // The earliest change woke the bot, so it names who the turn is for.
+        const starter = await sokoBotTurnStarter(
+          work.sokoBotId,
+          changes[0]?.attribution ?? {},
+        );
+        if (!starter) throw new SokoBotNotFoundError("No member to run for");
         const started = await sokoBotControlPlane.startTurn({
-          userId: work.userId,
+          ...starter,
           workspaceId: work.workspaceId,
           clientTurnId: sokoBotEventClientTurnId(changes),
           message: buildEventMessage(changes),

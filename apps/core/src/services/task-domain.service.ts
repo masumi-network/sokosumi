@@ -294,6 +294,22 @@ async function resolvePendingGrant(
 }
 
 /**
+ * A shared Soko Bot works for its whole scope, so its Tasks are always PUBLIC.
+ * Read only when PRIVATE is asked for, so other creates cost no query.
+ */
+async function isSharedSokoBotActor(
+  actor: TaskDomainActor,
+  tx: Prisma.TransactionClient,
+): Promise<boolean> {
+  if (actor.kind !== "soko_bot") return false;
+  const bot = await tx.sokoBot.findUnique({
+    where: { id: actor.sokoBotId },
+    select: { userId: true },
+  });
+  return bot !== null && bot.userId === null;
+}
+
+/**
  * Canonical Task creation operation. Authentication and workspace ownership
  * happen before this seam; Task invariants and durable side effects live here.
  */
@@ -307,7 +323,9 @@ export async function createTaskForActor(
     input.assigneeUserId,
   );
   const visibility =
-    input.visibility === "PRIVATE" && input.organizationId != null
+    input.visibility === "PRIVATE" &&
+    input.organizationId != null &&
+    !(await isSharedSokoBotActor(input.actor, tx))
       ? TaskVisibility.PRIVATE
       : TaskVisibility.PUBLIC;
 

@@ -41,6 +41,8 @@ import {
   memberSokoBot,
   type ResolvedSokoBotRow,
 } from "@/helpers/soko-bot-resolver";
+import { sokoBotTurnStarter } from "@/helpers/soko-bot-turn-attribution";
+import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import {
   sokoBotSharedScopeOf,
   sokoBotTurnReader,
@@ -56,7 +58,6 @@ import { loadClassificationContext } from "@/lib/soko-bot/classification-context
 import {
   type ClassificationResult,
   JevTurnClassifier,
-  type PresetRoute,
   presetClassificationResult,
   storedWriteScope,
   type TurnClassifier,
@@ -76,6 +77,10 @@ import {
 } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
 import { systemScheduleRoute } from "@/lib/soko-bot/system-routes";
+import type {
+  SokoBotTurnStartResult,
+  StartSokoBotTurnInput,
+} from "@/lib/soko-bot/turn-start";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
 import {
@@ -216,85 +221,6 @@ export interface CreateSokoBotInput {
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
-}
-
-export interface StartSokoBotTurnInput {
-  userId: string;
-  workspaceId: string;
-  clientTurnId: string;
-  message: string;
-  source?: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
-  /** Trusted occurrence batch supplied by the internal sync workers. */
-  eventBatch?: {
-    eventId: string;
-    entityId: string;
-    purpose: string;
-    designatedHandlerBotId: string | null;
-    delegationIds?: string[];
-    status: string;
-    taskCursorAt?: Date;
-    delegationEventAt?: Date;
-  }[];
-  /** Version override for this turn (lab); otherwise the bot's version. */
-  versionId?: string;
-  /**
-   * Route for a turn whose prompt Core wrote itself (sync workers, system
-   * rhythms, admin replays). Never set from a request body: it skips Jev.
-   */
-  presetRoute?: PresetRoute;
-  /** Set when a chat-room mention started the turn; the reply lands there. */
-  chat?: {
-    mentionId: string;
-    responseMessageId: string;
-    /** Teammate who asked; turns they trigger are read-only. */
-    requestedByUserId?: string | null;
-    /**
-     * Another bot asked. Read-only like a teammate — it answers into a room
-     * neither of them owns — and counted against the allowance for unprompted
-     * work, because no person decided this turn should happen.
-     */
-    askedByBot?: boolean;
-    /**
-     * The person's own words, without the "(a teammate, not your owner)"
-     * attribution the model sees. The route is decided on these, so who asks
-     * never tilts a plain "yes" towards a clarifying question.
-     */
-    classifyMessage?: string;
-    /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
-    chainDepth?: number;
-  };
-  scheduleReservation?: {
-    runId: string;
-    attempt: number;
-    leaseToken: string;
-  };
-  adminScheduleReservation?:
-    | {
-        kind: "TERMINAL";
-        runId: string;
-        expectedStatus: "FAILED" | "DEAD_LETTER";
-        expectedAttempt: number;
-        previousTurnId: string | null;
-        expectedPrompt: string | null;
-      }
-    | {
-        kind: "BOUND_REPLAY";
-        runId: string;
-        boundTurnId: string;
-        attempt: number;
-      };
-}
-
-export interface SokoBotTurnStartResult {
-  turnId: string;
-  sokoBotId: string;
-  sessionId: string;
-  status: string;
-  route: string;
-  capabilities: readonly SokoBotCapability[];
-  duplicate: boolean;
-  errorKind?: string | null;
-  reconciliationLeaseToken?: string;
 }
 
 /**
@@ -1944,11 +1870,12 @@ export class SokoBotControlPlane {
     ) {
       throw new SokoBotValidationError("Invalid admin schedule reservation");
     }
-    const bot = await memberSokoBot(
-      input.userId,
-      input.workspaceId,
-      ME_SOKO_BOT,
-    );
+    const bot = input.sokoBotId
+      ? await sokoBotForTurnMember(
+          { ...input, sokoBotId: input.sokoBotId },
+          "notArchived",
+        )
+      : await memberSokoBot(input.userId, input.workspaceId, ME_SOKO_BOT);
     if (!bot) throw new SokoBotNotFoundError("Create a Soko Bot first");
     if (
       evaluationBinding() &&
@@ -2070,6 +1997,13 @@ export class SokoBotControlPlane {
       input.chat?.askedByBot === true ||
       (!!input.chat?.requestedByUserId &&
         input.chat.requestedByUserId !== input.userId);
+    // A shared bot has no owner, so its turns always name their member.
+    const requestedByUserId =
+      bot.userId === null
+        ? (input.chat?.requestedByUserId ?? input.userId)
+        : requestedByTeammate
+          ? input.chat?.requestedByUserId
+          : null;
     const conversationMention = input.chat?.mentionId
       ? await prisma.chatRoomMention.findUnique({
           where: { id: input.chat.mentionId },
@@ -2153,9 +2087,7 @@ export class SokoBotControlPlane {
               createdAt: {
                 gte: new Date(Date.now() - PREVIOUS_REPLY_WINDOW_MS),
               },
-              requestedByUserId: requestedByTeammate
-                ? input.chat?.requestedByUserId
-                : null,
+              requestedByUserId,
               ...(conversationMention?.message.roomId
                 ? {
                     chatMention: {
@@ -2467,9 +2399,7 @@ export class SokoBotControlPlane {
               : undefined,
             chatMentionId: input.chat?.mentionId,
             chatResponseMessageId: input.chat?.responseMessageId,
-            requestedByUserId: requestedByTeammate
-              ? input.chat?.requestedByUserId
-              : null,
+            requestedByUserId,
             chainDepth: input.chat?.chainDepth ?? 0,
             classification: jsonInput(classification.classification),
             classifierModel: classification.model,
@@ -4312,8 +4242,12 @@ export class SokoBotControlPlane {
       try {
         const occurrencePrompt =
           scheduleRun.prompt ?? scheduleRun.schedule.prompt;
+        const starter = await sokoBotTurnStarter(bot.id, {
+          scheduleUserId: scheduleRun.schedule.userId,
+        });
+        if (!starter) throw new SokoBotNotFoundError("No member to run for");
         retry = await this.startTurn({
-          userId: bot.userId,
+          ...starter,
           workspaceId: scheduleRun.schedule.workspaceId,
           clientTurnId: retryClientTurnId,
           message: occurrencePrompt,
@@ -4392,8 +4326,12 @@ export class SokoBotControlPlane {
       }
       let retry: SokoBotTurnStartResult;
       try {
+        const starter = await sokoBotTurnStarter(bot.id, {
+          turnUserId: failed.userId,
+        });
+        if (!starter) throw new SokoBotNotFoundError("No member to run for");
         retry = await this.startTurn({
-          userId: bot.userId,
+          ...starter,
           workspaceId: failed.workspaceId,
           clientTurnId: `admin-retry:${failed.id}:${adminRetryOperationKey(operationId)}`,
           message: failed.userMessage,
@@ -4415,7 +4353,9 @@ export class SokoBotControlPlane {
           // failed depth-1 turn another assistant asked for — read-only, and
           // its message written by that assistant — into an owner-audience
           // turn holding the whole route ceiling.
-          ...(failed.chainDepth > 0 || failed.requestedByUserId
+          ...(failed.chainDepth > 0 ||
+          (failed.requestedByUserId &&
+            failed.requestedByUserId !== failed.userId)
             ? {
                 chat: {
                   mentionId: failed.chatMentionId ?? "",

@@ -25,6 +25,7 @@ const {
   botFindManyMock,
   botGroupByMock,
   botFindUniqueMock,
+  memberFindManyMock,
   botFindUniqueOrThrowMock,
   botCountMock,
   botUpdateManyMock,
@@ -78,6 +79,7 @@ const {
   botFindManyMock: vi.fn(),
   botGroupByMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
   botFindUniqueOrThrowMock: vi.fn(),
   botCountMock: vi.fn(),
   botUpdateManyMock: vi.fn(),
@@ -238,6 +240,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: adminActionFindUniqueMock,
     },
     task: { findMany: taskFindManyMock },
+    member: { findMany: memberFindManyMock },
     workspace: { findFirst: workspaceFindFirstMock },
   },
 }));
@@ -269,7 +272,10 @@ import {
   type BuiltContextPacket,
   ContextPacketBuilder,
 } from "@/lib/soko-bot/context-packet";
-import { SokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
+import {
+  SokoBotControlPlane,
+  SokoBotNotFoundError,
+} from "@/services/soko-bot-control-plane.service";
 
 const BOT_ID = "01960001-0001-7001-8001-000000000001";
 
@@ -966,6 +972,85 @@ describe("SokoBotControlPlane lifecycle", () => {
         where: expect.objectContaining({ requesterId: "user_teammate" }),
       }),
     );
+  });
+
+  it("runs a shared bot by id for its member and names them as the requester", async () => {
+    const sharedBot = adminBot({
+      userId: null,
+      workspaceId: "workspace_1",
+      projectId: null,
+      workspace: { organizationId: "org_1" },
+    });
+    botFindFirstMock.mockResolvedValue(sharedBot);
+    botFindUniqueMock.mockResolvedValue(sharedBot);
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({
+      id: "shared-turn",
+      leaseToken: "shared-lease",
+    });
+    const tx = transactionClient();
+    transactionMock.mockImplementation(async (callback) => callback(tx));
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "shared-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    await new SokoBotControlPlane(
+      runtime,
+      {
+        build: vi.fn().mockResolvedValue(builtContext()),
+      } as ContextPacketBuilder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "member_1",
+      sokoBotId: BOT_ID,
+      workspaceId: "workspace_1",
+      clientTurnId: "shared-client",
+      message: "What is open?",
+    });
+
+    expect(botFindFirstMock.mock.calls[0]?.[0]?.where).toMatchObject({
+      id: BOT_ID,
+      workspaceId: "workspace_1",
+      deletedAt: null,
+    });
+    expect(
+      turnFindFirstMock.mock.calls.find(
+        ([query]) => query?.where?.source === "CHAT",
+      )?.[0]?.where,
+    ).toMatchObject({ userId: "member_1", requestedByUserId: "member_1" });
+    expect(turnCreateMock.mock.calls[0]?.[0]?.data).toMatchObject({
+      userId: "member_1",
+      requestedByUserId: "member_1",
+    });
+  });
+
+  it("refuses to run an archived shared bot by id", async () => {
+    botFindFirstMock.mockResolvedValue(
+      adminBot({
+        userId: null,
+        archivedAt: new Date(),
+        workspaceId: "workspace_1",
+        projectId: null,
+        workspace: { organizationId: "org_1" },
+      }),
+    );
+    await expect(
+      new SokoBotControlPlane(
+        runtimeWithReset(vi.fn()),
+        { build: vi.fn() } as ContextPacketBuilder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "member_1",
+        sokoBotId: BOT_ID,
+        workspaceId: "workspace_1",
+        clientTurnId: "archived-client",
+        message: "Hello",
+      }),
+    ).rejects.toBeInstanceOf(SokoBotNotFoundError);
+    expect(turnCreateMock).not.toHaveBeenCalled();
   });
 
   it("gives a bare yes no referent when the newest turn did not complete", async () => {
@@ -3208,6 +3293,84 @@ describe("SokoBotControlPlane lifecycle", () => {
           ([argument]) => argument.data.status,
         ),
       ).toEqual(["ATTEMPTED", "FAILED"]);
+    },
+  );
+
+  it.each([
+    {
+      action: "RETRY_SCHEDULE_RUN" as const,
+      targetId: "run_1",
+      member: "schedule_member",
+    },
+    {
+      action: "RETRY_LAST_FAILED" as const,
+      targetId: "01960001-0001-7001-8001-000000000099",
+      member: "turn_member",
+    },
+  ])(
+    "replays $action on a shared bot for its member",
+    async ({ action, targetId, member }) => {
+      const controlPlane = new SokoBotControlPlane();
+      const startTurn = vi.spyOn(controlPlane, "startTurn").mockResolvedValue({
+        turnId: "turn_admin_retry",
+        sokoBotId: BOT_ID,
+        sessionId: "session_admin_retry",
+        status: "RUNNING",
+        route: "DIRECT_RESPONSE",
+        capabilities: [],
+        duplicate: false,
+      });
+      const sharedBot = adminBot({
+        userId: null,
+        createdByUserId: "creator_1",
+        workspace: { organizationId: "org_1" },
+      });
+      botFindUniqueMock.mockResolvedValue(sharedBot);
+      botFindUniqueOrThrowMock.mockResolvedValue(sharedBot);
+      adminActionFindUniqueMock.mockResolvedValue(null);
+      turnFindUniqueMock.mockResolvedValue(null);
+      memberFindManyMock.mockResolvedValue([
+        { userId: member, user: { banned: false, banExpires: null } },
+      ]);
+      scheduleRunFindFirstMock.mockResolvedValue({
+        id: "run_1",
+        status: "FAILED",
+        attempt: 1,
+        turnId: null,
+        prompt: "Occurrence prompt",
+        schedule: {
+          sokoBotId: BOT_ID,
+          userId: "schedule_member",
+          workspaceId: "workspace_1",
+          prompt: "Occurrence prompt",
+          systemKey: null,
+        },
+        turn: null,
+      });
+      turnFindFirstMock.mockResolvedValue({
+        id: targetId,
+        userId: "turn_member",
+        workspaceId: "workspace_1",
+        userMessage: "Original failed request",
+        route: null,
+        capabilityNames: [],
+        chainDepth: 0,
+        requestedByUserId: "turn_member",
+      });
+
+      await controlPlane.performAdminAction({
+        sokoBotId: BOT_ID,
+        operatorId: "admin_1",
+        action,
+        targetId,
+        reason: "Retry for the team",
+        operationId: `shared-${action}`,
+      });
+
+      const call = startTurn.mock.calls[0]?.[0];
+      expect(call).toMatchObject({ userId: member, sokoBotId: BOT_ID });
+      // The member asked for it themselves, so it is not a teammate replay.
+      expect(call?.chat).toBeUndefined();
     },
   );
 

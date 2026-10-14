@@ -6,6 +6,7 @@ import {
 import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
+import { sokoBotTurnStarter } from "@/helpers/soko-bot-turn-attribution";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import {
@@ -16,6 +17,7 @@ import { systemScheduleRoute } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotBusyError,
   SokoBotNoDestinationError,
+  SokoBotNotFoundError,
   SokoBotRetryableStartError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
@@ -492,8 +494,12 @@ export class SokoBotSchedulesSyncService {
             "Soko Bot has reached its owner's daily limit",
           );
         }
+        const starter = await sokoBotTurnStarter(schedule.sokoBotId, {
+          scheduleUserId: schedule.userId,
+        });
+        if (!starter) throw new SokoBotNotFoundError("No member to run for");
         const started = await sokoBotControlPlane.startTurn({
-          userId: schedule.userId,
+          ...starter,
           workspaceId: schedule.workspaceId,
           clientTurnId: sokoBotScheduleClientTurnId(schedule.id, scheduledFor),
           message,

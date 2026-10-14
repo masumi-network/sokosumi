@@ -53,14 +53,17 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     sokoBotTurn: { findUnique: turnFindUniqueMock },
     sokoBot: { findUnique: botFindUniqueMock },
+    member: { findMany: memberFindManyMock },
   },
 }));
-const { botFindUniqueMock } = vi.hoisted(() => ({
+const { botFindUniqueMock, memberFindManyMock } = vi.hoisted(() => ({
   botFindUniqueMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   SokoBotBusyError: class SokoBotBusyError extends Error {},
   SokoBotNoDestinationError: class SokoBotNoDestinationError extends Error {},
+  SokoBotNotFoundError: class SokoBotNotFoundError extends Error {},
   SokoBotRetryableStartError: class SokoBotRetryableStartError extends Error {},
   sokoBotControlPlane: {
     reconcileTurn: reconcileTurnMock,
@@ -98,6 +101,11 @@ const dueSchedule = {
   prompt: "Review active work",
   nextRunAt: scheduledFor,
   consecutiveFailures: 0,
+};
+const personalBot = {
+  userId: dueSchedule.userId,
+  createdByUserId: dueSchedule.userId,
+  workspace: { organizationId: null },
 };
 const claimedRun = {
   id: "01960001-0001-7001-8001-000000000003",
@@ -163,6 +171,7 @@ describe("SokoBotSchedulesSyncService", () => {
             }),
     );
     startTurnMock.mockResolvedValue({ turnId: "turn_1", status: "RUNNING" });
+    botFindUniqueMock.mockResolvedValue(personalBot);
   });
 
   it("immediately enqueues a fresh turn for reconciliation", async () => {
@@ -209,6 +218,33 @@ describe("SokoBotSchedulesSyncService", () => {
       },
       data: { status: "RUNNING" },
     });
+  });
+
+  it("runs a shared bot's schedule for its member while they are live", async () => {
+    botFindUniqueMock.mockResolvedValue({
+      userId: null,
+      createdByUserId: "creator_1",
+      workspace: { organizationId: "org_1" },
+    });
+    memberFindManyMock.mockResolvedValue([
+      { userId: dueSchedule.userId, user: { banned: false, banExpires: null } },
+    ]);
+    dueScheduleFindFirstMock.mockResolvedValue({
+      ...dueSchedule,
+      sokoBotId: "bot_1",
+    });
+
+    await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+    });
+
+    expect(startTurnMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: dueSchedule.userId,
+        sokoBotId: "bot_1",
+        source: "SCHEDULE",
+      }),
+    );
   });
 
   it("completes a quiet built-in rhythm without starting a turn", async () => {

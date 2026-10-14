@@ -37,6 +37,83 @@ describe("createTaskForActor", () => {
     expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { label: "a shared Soko Bot", botUserId: null, visibility: "PUBLIC" },
+    {
+      label: "a personal Soko Bot",
+      botUserId: "user_123",
+      visibility: "PRIVATE",
+    },
+  ])(
+    "creates $visibility when $label asks for PRIVATE",
+    async ({ botUserId, visibility }) => {
+      const taskCreateMock = vi.fn().mockResolvedValue({ id: "tsk_123" });
+      const botFindUniqueMock = vi
+        .fn()
+        .mockResolvedValue({ userId: botUserId });
+      const tx = {
+        task: { create: taskCreateMock },
+        sokoBot: { findUnique: botFindUniqueMock },
+      } as never;
+
+      await createTaskForActor(
+        {
+          actor: { kind: "soko_bot", sokoBotId: "bot_123" },
+          ownerId: "member_123",
+          organizationId: "org_123",
+          workspaceId: "workspace_123",
+          name: "Team Task",
+          status: TaskStatus.DRAFT,
+          visibility: "PRIVATE",
+        },
+        tx,
+      );
+
+      expect(botFindUniqueMock).toHaveBeenCalledWith({
+        where: { id: "bot_123" },
+        select: { userId: true },
+      });
+      expect(taskCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            ownerId: "member_123",
+            visibility,
+            creatorSokoBotId: "bot_123",
+            creatorUserId: null,
+          }),
+        }),
+      );
+    },
+  );
+
+  it("reads no bot when a Soko Bot creates a PUBLIC Task", async () => {
+    const taskCreateMock = vi.fn().mockResolvedValue({ id: "tsk_123" });
+    const botFindUniqueMock = vi.fn();
+    const tx = {
+      task: { create: taskCreateMock },
+      sokoBot: { findUnique: botFindUniqueMock },
+    } as never;
+
+    await createTaskForActor(
+      {
+        actor: { kind: "soko_bot", sokoBotId: "bot_123" },
+        ownerId: "member_123",
+        organizationId: "org_123",
+        workspaceId: "workspace_123",
+        name: "Team Task",
+        status: TaskStatus.DRAFT,
+      },
+      tx,
+    );
+
+    expect(botFindUniqueMock).not.toHaveBeenCalled();
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ visibility: "PUBLIC" }),
+      }),
+    );
+  });
+
   it("persists the requested priority", async () => {
     const taskCreateMock = vi.fn().mockResolvedValue({ id: "tsk_123" });
     const tx = { task: { create: taskCreateMock } } as never;
