@@ -89,6 +89,7 @@ import {
   type SocialTab,
 } from "./constants";
 import { accountChipLabel } from "./social-post-account-chip-label";
+import { socialPostCreatorLabel } from "./social-post-creator-label";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
@@ -852,9 +853,10 @@ export function ProjectSocialPosts({
       post.socialConnection,
       t("noAccount"),
     );
-    const creatorLabel = post.creator.name
-      ? `${t(`creator.${post.creator.kind}`)} · ${post.creator.name}`
-      : t(`creator.${post.creator.kind}`);
+    const creatorLabel = socialPostCreatorLabel(
+      post.creator,
+      t(`creator.${post.creator.kind}`),
+    );
     const failedAt = post.lastAttempt?.finishedAt ?? null;
     const leadingAt =
       post.status === "FAILED" && failedAt ? failedAt : post.scheduledAt;
