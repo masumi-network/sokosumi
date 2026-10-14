@@ -752,12 +752,10 @@ public final class WorkspaceState: ObservableObject {
       sidebarRecovery.requestRefresh([.active])
     }
     // Another member's rename retitles the open room now; other rows follow the sidebar refresh.
-    if eventType == .create, roomId == transcriptRoomId {
-      sidebar.update(roomId, invalidatingRefresh: false) { room in
-        if let renamed = room.applyingGroupNameChange(message) {
-          room = renamed
-        }
-      }
+    // Only a rename writes the list, so an ordinary message republishes nothing.
+    if eventType == .create, roomId == transcriptRoomId,
+       let renamed = sidebar.rooms.first(where: { $0.id == roomId })?.applyingGroupNameChange(message) {
+      sidebar.update(roomId, invalidatingRefresh: false) { $0 = renamed }
     }
     openRoom.apply(eventType: eventType, message: message, roomId: roomId)
   }
