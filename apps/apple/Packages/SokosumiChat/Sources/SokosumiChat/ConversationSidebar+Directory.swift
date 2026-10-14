@@ -24,9 +24,10 @@ public extension ConversationSidebar {
     return true
   }
 
-  /// A room the reader just created, joined or opened: it replaces the listed one or joins the end of the list.
-  /// A list read in flight stays, as a room it does not hold yet arrives with the next one.
+  /// A room the reader just created, joined or opened: it replaces the listed one or joins the end of the list. A
+  /// list read in flight predates it and would answer without it, so that read's late answer is dropped.
   func upsert(_ room: Components.Schemas.ChatRoom) {
+    invalidateRefresh()
     if let index = rooms.firstIndex(where: { $0.id == room.id }) {
       rooms[index] = room
     } else {
