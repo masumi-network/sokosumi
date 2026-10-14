@@ -107,39 +107,3 @@ public struct MessageRowActivity: Equatable, Sendable {
     return busy
   }
 }
-
-/// Which of a row's requests are running. A running request disables its own entry in every menu that offers it, and
-/// leaves the rest usable.
-public struct MessageRowActivity: Equatable, Sendable {
-  public var isDeleting = false
-  public var isSendingToSelf = false
-  public var isUpdatingPin = false
-  /// The Soko Bot turn's rating is being sent or already stuck.
-  public var feedbackLocked = false
-
-  public init(isDeleting: Bool = false, isSendingToSelf: Bool = false, isUpdatingPin: Bool = false,
-              feedbackLocked: Bool = false) {
-    self.isDeleting = isDeleting
-    self.isSendingToSelf = isSendingToSelf
-    self.isUpdatingPin = isUpdatingPin
-    self.feedbackLocked = feedbackLocked
-  }
-
-  /// The entries to show but not allow: pin covers pin and unpin, a locked rating covers both thumbs.
-  public var busy: Set<MessageMenuAction> {
-    var busy: Set<MessageMenuAction> = []
-    if isDeleting {
-      busy.insert(.delete)
-    }
-    if isSendingToSelf {
-      busy.insert(.sendToSelf)
-    }
-    if isUpdatingPin {
-      busy.formUnion([.pin, .unpin])
-    }
-    if feedbackLocked {
-      busy.formUnion([.useful, .notUseful])
-    }
-    return busy
-  }
-}
