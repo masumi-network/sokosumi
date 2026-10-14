@@ -132,15 +132,17 @@ struct ConversationSidebarDirectoryTests {
     #expect(state.rooms.map(\.name) == ["renamed", "second"])
   }
 
-  @Test func upsertLeavesAListReadInFlightAlone() async throws {
+  /// A room the reader just created or joined is newer than a list read already out: the read's late answer, which
+  /// does not hold it yet, must not take it away again.
+  @Test func aNewRoomOutlivesAListReadThatPredatesIt() async throws {
     let state = try await sidebar([directoryRoomJSON()])
-    let transport = HeldTransport(response: listBody([directoryRoomJSON(), directoryRoomJSON(id: otherRoomId, name: "other")]))
+    let transport = HeldTransport(response: listBody([directoryRoomJSON()]))
     let client = try heldClient(transport)
     let refresh = Task { try await state.refresh(client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     try await state.upsert(room(directoryRoomJSON(id: otherRoomId, name: "other")))
     await transport.release()
-    #expect(try await refresh.value == true)
+    #expect(try await refresh.value == false, "The read predates the room and is dropped.")
     #expect(state.rooms.map(\.id) == [testRoomId, otherRoomId])
   }
 
