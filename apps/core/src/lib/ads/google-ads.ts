@@ -1041,7 +1041,7 @@ export interface GoogleCampaignDetails {
   campaign: {
     id: string;
     name: string;
-    status: "ACTIVE" | "PAUSED";
+    status: AdCampaignStatus;
     type: GoogleCampaignType;
     /** Google's `advertising_channel_type`. */
     channelType: string;
@@ -1117,6 +1117,7 @@ const detailCampaignRowSchema = z.object({
     id: z.coerce.string().min(1),
     name: z.string(),
     status: z.string(),
+    servingStatus: z.string().nullish(),
     advertisingChannelType: z.string().nullish(),
     biddingStrategyType: z.string().nullish(),
     startDateTime: z.string().nullish(),
@@ -1157,7 +1158,8 @@ const keywordRowSchema = z.object({
     criterionId: z.coerce.string().min(1),
     keyword: z.object({
       text: z.string(),
-      matchType: z.enum(GOOGLE_KEYWORD_MATCH_TYPES),
+      // Kept as text: a match type we do not know is skipped, not a failure.
+      matchType: z.string(),
     }),
     status: z.string(),
     approvalStatus: z.string().nullish(),
@@ -1407,7 +1409,7 @@ export async function getGoogleCampaignDetails(
         dailyRows,
       ] = await Promise.all([
         search(
-          `SELECT customer.time_zone, campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type, campaign.start_date_time, campaign.end_date_time, campaign_budget.amount_micros FROM campaign WHERE ${campaignQuery} AND campaign.status != 'REMOVED'`,
+          `SELECT customer.time_zone, campaign.id, campaign.name, campaign.status, campaign.serving_status, campaign.advertising_channel_type, campaign.bidding_strategy_type, campaign.start_date_time, campaign.end_date_time, campaign_budget.amount_micros FROM campaign WHERE ${campaignQuery} AND campaign.status != 'REMOVED'`,
           detailCampaignRowSchema,
           "details",
         ),
@@ -1422,12 +1424,12 @@ export async function getGoogleCampaignDetails(
           "ad groups",
         ),
         search(
-          `SELECT ad_group_criterion.criterion_id, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.status, ad_group_criterion.approval_status FROM ad_group_criterion WHERE ${campaignQuery} AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = FALSE AND ad_group_criterion.status != 'REMOVED'`,
+          `SELECT ad_group_criterion.criterion_id, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.status, ad_group_criterion.approval_status FROM ad_group_criterion WHERE ${campaignQuery} AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = FALSE AND ad_group_criterion.status != 'REMOVED' AND ad_group.status != 'REMOVED'`,
           keywordRowSchema,
           "keywords",
         ),
         search(
-          `SELECT ad_group_ad.status, ad_group_ad.ad_strength, ad_group_ad.policy_summary.approval_status, ad_group_ad.policy_summary.review_status, ad_group_ad.ad.id, ad_group_ad.ad.type, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2, ad_group_ad.ad.responsive_display_ad.marketing_images, ad_group_ad.ad.responsive_display_ad.square_marketing_images, ad_group_ad.ad.responsive_display_ad.square_logo_images, ad_group_ad.ad.responsive_display_ad.headlines, ad_group_ad.ad.responsive_display_ad.long_headline, ad_group_ad.ad.responsive_display_ad.descriptions, ad_group_ad.ad.responsive_display_ad.business_name, ad_group.id FROM ad_group_ad WHERE ${campaignQuery} AND ad_group_ad.status != 'REMOVED'`,
+          `SELECT ad_group_ad.status, ad_group_ad.ad_strength, ad_group_ad.policy_summary.approval_status, ad_group_ad.policy_summary.review_status, ad_group_ad.ad.id, ad_group_ad.ad.type, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2, ad_group_ad.ad.responsive_display_ad.marketing_images, ad_group_ad.ad.responsive_display_ad.square_marketing_images, ad_group_ad.ad.responsive_display_ad.square_logo_images, ad_group_ad.ad.responsive_display_ad.headlines, ad_group_ad.ad.responsive_display_ad.long_headline, ad_group_ad.ad.responsive_display_ad.descriptions, ad_group_ad.ad.responsive_display_ad.business_name, ad_group.id FROM ad_group_ad WHERE ${campaignQuery} AND ad_group_ad.status != 'REMOVED' AND ad_group.status != 'REMOVED'`,
           adRowSchema,
           "ads",
         ),
@@ -1562,7 +1564,7 @@ export async function getGoogleCampaignDetails(
     campaign: {
       id: campaign.id,
       name: campaign.name,
-      status: campaign.status === "ENABLED" ? "ACTIVE" : "PAUSED",
+      status: googleStatus(campaign.status, campaign.servingStatus),
       type,
       channelType: campaign.advertisingChannelType ?? "",
       dailyBudget: round((head.campaignBudget?.amountMicros ?? 0) / MICROS, 2),
@@ -1575,16 +1577,25 @@ export async function getGoogleCampaignDetails(
       notEditableReason: reason,
     },
     targeting: { locations, languages },
-    keywords: keywords.map(
+    keywords: keywords.flatMap(
       ({
         adGroupCriterion: { criterionId, keyword, status, approvalStatus },
-      }) => ({
-        id: criterionId,
-        text: keyword.text,
-        matchType: keyword.matchType,
-        status,
-        approvalStatus: approvalStatus ?? null,
-      }),
+      }) => {
+        const matchType = GOOGLE_KEYWORD_MATCH_TYPES.find(
+          (known) => known === keyword.matchType,
+        );
+        return matchType
+          ? [
+              {
+                id: criterionId,
+                text: keyword.text,
+                matchType,
+                status,
+                approvalStatus: approvalStatus ?? null,
+              },
+            ]
+          : [];
+      },
     ),
     ad:
       adRows.length === 1 && onlyAd

@@ -191,7 +191,7 @@ const adCampaignDetailsCampaignSchema = z
   .object({
     id: z.string(),
     name: z.string(),
-    status: z.enum(["ACTIVE", "PAUSED"]),
+    status: z.enum(AD_CAMPAIGN_STATUSES),
     type: z.enum(["SEARCH", "DISPLAY", "OTHER"]),
     channelType: z.string().openapi({
       description: "Google advertising channel type",

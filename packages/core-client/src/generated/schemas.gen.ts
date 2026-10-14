@@ -21023,7 +21023,9 @@ export const AdCampaignDetailsCampaignSchema = {
             type: 'string',
             enum: [
                 'ACTIVE',
-                'PAUSED'
+                'PAUSED',
+                'ENDED',
+                'OTHER'
             ]
         },
         type: {

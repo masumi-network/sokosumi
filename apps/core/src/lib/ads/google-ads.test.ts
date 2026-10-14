@@ -2088,14 +2088,40 @@ describe("getGoogleCampaignDetails", () => {
   });
 
   it.each([
-    ["PAUSED", "PAUSED"],
-    ["UNKNOWN", "PAUSED"],
-    ["ENABLED", "ACTIVE"],
-  ])("maps Google status %s to %s", async (google, status) => {
-    mockResults({ campaign: [campaignRow({ status: google })] });
-    expect((await getGoogleCampaignDetails(detailsInput)).campaign.status).toBe(
-      status,
-    );
+    ["PAUSED", null, "PAUSED"],
+    ["ENABLED", "SERVING", "ACTIVE"],
+    ["ENABLED", "ENDED", "ENDED"],
+    ["UNKNOWN", null, "OTHER"],
+  ])(
+    "maps Google status %s (serving %s) to %s like the list",
+    async (google, serving, status) => {
+      mockResults({
+        campaign: [campaignRow({ status: google, servingStatus: serving })],
+      });
+      expect(
+        (await getGoogleCampaignDetails(detailsInput)).campaign.status,
+      ).toBe(status);
+    },
+  );
+
+  it("skips a keyword whose match type it does not know", async () => {
+    mockResults({
+      keywords: [
+        ...base.keywords!,
+        {
+          adGroupCriterion: {
+            criterionId: "12",
+            keyword: { text: "shoes", matchType: "UNKNOWN" },
+            status: "ENABLED",
+          },
+        },
+      ],
+    });
+    expect(
+      (await getGoogleCampaignDetails(detailsInput)).keywords.map(
+        ({ id }) => id,
+      ),
+    ).toEqual(["11"]);
   });
 
   describe("editable shape", () => {
@@ -2322,6 +2348,11 @@ describe("getGoogleCampaignDetails", () => {
     expect(all.find((q) => q.includes("FROM campaign_asset"))).toContain(
       "campaign_asset.campaign = 'customers/111/campaigns/42'",
     );
+    for (const from of ["FROM ad_group_criterion", "FROM ad_group_ad"]) {
+      expect(all.find((q) => q.includes(from))).toContain(
+        "ad_group.status != 'REMOVED'",
+      );
+    }
     expect(all.find((q) => q.includes("FROM geo_target_constant"))).toContain(
       "geo_target_constant.resource_name IN ('geoTargetConstants/2276')",
     );

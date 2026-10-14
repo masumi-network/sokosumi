@@ -6083,7 +6083,7 @@ export type AdCampaignDetails = {
 export type AdCampaignDetailsCampaign = {
     id: string;
     name: string;
-    status: 'ACTIVE' | 'PAUSED';
+    status: 'ACTIVE' | 'PAUSED' | 'ENDED' | 'OTHER';
     type: 'SEARCH' | 'DISPLAY' | 'OTHER';
     /**
      * Google advertising channel type
