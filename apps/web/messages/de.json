@@ -2420,6 +2420,8 @@
       },
       "SocialPosts": {
         "loadMore": "Mehr laden",
+        "listFailed": "Beiträge konnten nicht geladen werden.",
+        "listRetry": "Erneut versuchen",
         "loading": "Wird geladen…",
         "title": "Social-Media-Beiträge",
         "newPost": "Neuer Beitrag",

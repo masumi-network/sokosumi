@@ -2420,6 +2420,8 @@
       },
       "SocialPosts": {
         "loadMore": "Load more",
+        "listFailed": "Couldn't load posts.",
+        "listRetry": "Try again",
         "loading": "Loading…",
         "title": "Social posts",
         "newPost": "New post",

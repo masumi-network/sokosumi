@@ -96,6 +96,8 @@ interface ProjectSocialPostsProps {
    */
   accountCount?: number;
   posts: SocialPost[];
+  /** List tabs whose first page failed to load. */
+  failedSections?: readonly SectionKey[];
   nextCursors?: Partial<Record<SectionKey, string | null>>;
   projectId: string;
   /** Render only the post dialog and its actions for an unscoped calendar. */
@@ -212,6 +214,7 @@ export function ProjectSocialPosts({
   calendar,
   connections,
   posts: initialPosts,
+  failedSections = [],
   nextCursors,
   projectId,
   selectedPostId,
@@ -281,7 +284,8 @@ export function ProjectSocialPosts({
     return (
       candidate !== "attention" ||
       postsIn(candidate).length > 0 ||
-      Boolean(cursors[candidate])
+      Boolean(cursors[candidate]) ||
+      failedSections.includes(candidate)
     );
   });
   const tab: SocialTab =
@@ -830,7 +834,27 @@ export function ProjectSocialPosts({
                   data-testid={`social-posts-section-${section}`}
                   value={section}
                 >
-                  {sectionPosts.length > 0 ? (
+                  {failedSections.includes(section) &&
+                  sectionPosts.length === 0 ? (
+                    <div
+                      className="space-y-3"
+                      data-testid={`social-posts-load-error-${section}`}
+                      role="alert"
+                    >
+                      <p className="text-sm">{t("listFailed")}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-11 md:h-8"
+                        onClick={() => {
+                          router.refresh();
+                        }}
+                      >
+                        {t("listRetry")}
+                      </Button>
+                    </div>
+                  ) : sectionPosts.length > 0 ? (
                     <ul
                       className={
                         section === "drafts"

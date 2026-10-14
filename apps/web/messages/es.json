@@ -2420,6 +2420,8 @@
       },
       "SocialPosts": {
         "loadMore": "Cargar más",
+        "listFailed": "No se pudieron cargar las publicaciones.",
+        "listRetry": "Inténtalo de nuevo",
         "loading": "Cargando…",
         "title": "Publicaciones sociales",
         "newPost": "Nueva publicación",
