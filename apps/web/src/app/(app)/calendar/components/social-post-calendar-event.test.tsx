@@ -1,8 +1,15 @@
 import type { SocialPostCalendarItem } from "@sokosumi/core-client";
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
+import { stubLoadedImage } from "@/test/stub-pending-image-load";
 import messages from "../../../../../messages/en.json";
 import { SocialPostCalendarEvent } from "./social-post-calendar-event";
 
@@ -26,6 +33,7 @@ const item: SocialPostCalendarItem = {
   lastAttempt: null,
   text: "Launch news",
   externalHandle: "team",
+  avatarUrl: null,
   status: "SCHEDULED",
   projectName: "Launch project",
   scheduledByName: "Albina",
@@ -375,6 +383,49 @@ describe("Social post calendar event", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("@alice")).toBeVisible();
     expect(screen.queryByText("@@alice")).not.toBeInTheDocument();
+  });
+  it("keeps the platform logo on a preview card without a photo", () => {
+    renderCard();
+    const card = screen.getByTestId("calendar-social-post");
+    expect(within(card).getByTestId("social-post-account-logo")).toBeVisible();
+    expect(
+      within(card).queryByTestId("social-post-account-photo"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(card).queryByTestId("social-post-account-logo-badge"),
+    ).not.toBeInTheDocument();
+  });
+  it("shows the account photo with a platform logo badge on a preview card", async () => {
+    const restore = stubLoadedImage();
+    const photo =
+      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect width='8' height='8' fill='%23111'/></svg>";
+    try {
+      renderCard({ avatarUrl: photo });
+      const card = screen.getByTestId("calendar-social-post");
+      await waitFor(() => {
+        expect(
+          within(card).getByTestId("social-post-account-photo"),
+        ).toHaveAttribute("src", photo);
+      });
+      expect(
+        within(card).getByTestId("social-post-account-logo"),
+      ).toBeVisible();
+      expect(
+        within(card).getByTestId("social-post-account-logo-badge"),
+      ).toBeVisible();
+    } finally {
+      restore();
+    }
+  });
+  it("keeps week chips as the platform logo even when the account has a photo", () => {
+    renderCard({ avatarUrl: "https://example.com/team.png" }, "compact");
+    expect(screen.getByTestId("social-post-provider-icon")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("social-post-account-photo"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("social-post-account-logo-badge"),
+    ).not.toBeInTheDocument();
   });
   it("opens the exact post and shows the X brand, project, scheduler, and attachments", () => {
     renderCard();

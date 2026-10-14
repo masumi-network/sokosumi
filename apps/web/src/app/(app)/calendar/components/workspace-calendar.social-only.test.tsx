@@ -144,6 +144,7 @@ const POST: SocialPostCalendarItem = {
   text: "Launch news",
   status: "SCHEDULED",
   externalHandle: "team",
+  avatarUrl: null,
   projectName: "Release planning",
   scheduledByName: "Ada",
   scheduledByImage: null,
