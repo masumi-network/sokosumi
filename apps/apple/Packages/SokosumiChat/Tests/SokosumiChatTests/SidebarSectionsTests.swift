@@ -10,7 +10,7 @@ struct SidebarSectionsTests {
   private static let open: Set<ConversationSidebar.Section> = []
 
   private static func room(
-    _ id: String, unread: Int = 0, mentions: Int = 0, thread _: Bool = false
+    _ id: String, unread: Int = 0, mentions: Int = 0
   ) -> Components.Schemas.ChatRoom {
     .init(
       id: id, organizationId: "org_1", name: id, kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,

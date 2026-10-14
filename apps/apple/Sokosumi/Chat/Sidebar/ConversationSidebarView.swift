@@ -229,7 +229,9 @@ struct ConversationSidebarView: View {
     if sections.archived.isVisible {
       archivedSection(sections.archived)
     }
-    roomsSection(sections.directs)
+    if sections.directs.isVisible {
+      roomsSection(sections.directs)
+    }
   }
 
   /// Channels or Directs: the heading, its empty-state line and the rooms with their inset Threads.
