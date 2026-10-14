@@ -2790,6 +2790,14 @@
             "minutes": "minutos",
             "hours": "horas"
           }
+        },
+        "reconnection": {
+          "accounts": "Cuentas que requieren atención",
+          "title": "{account} necesita reconectarse",
+          "affected": "{count, plural, one {# publicación afectada} other {# publicaciones afectadas}}",
+          "retryTitle": "¿Reintentar las publicaciones fallidas?",
+          "retryDescription": "{count, plural, one {Tu cuenta está reconectada. ¿Reintentar # publicación fallida?} other {Tu cuenta está reconectada. ¿Reintentar # publicaciones fallidas?}}",
+          "later": "Más tarde"
         }
       },
       "Detail": {
