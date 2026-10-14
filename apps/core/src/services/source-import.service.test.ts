@@ -328,6 +328,30 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
     );
   });
 
+  it("rethrows Prisma serialization conflicts from upsert without capturing them", async () => {
+    const conflict = Object.assign(
+      new Error(
+        "Invalid `prisma.taskFile.upsert()` invocation — Transaction failed due to a write conflict or a deadlock. Please retry your transaction",
+      ),
+      { code: "P2034" },
+    );
+    mockTaskFileClient.taskFile.upsert.mockRejectedValueOnce(conflict);
+
+    await expect(
+      sourceImportService.enqueueTaskOutputsFromMarkdown(
+        "task_1",
+        [
+          "[file](https://example.com/conflict.pdf)",
+          "[other](https://example.com/other.pdf)",
+        ].join("\n"),
+        mockTaskFileClient,
+      ),
+    ).rejects.toBe(conflict);
+
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(mockTaskFileClient.taskFile.upsert).toHaveBeenCalledTimes(1);
+  });
+
   it("skips when markdown contains no file links", async () => {
     await sourceImportService.enqueueTaskOutputsFromMarkdown(
       "task_1",
