@@ -1174,9 +1174,12 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.getByTestId("social-post-character-count").className,
     ).toContain("text-destructive");
+    const tooLong = within(dialog).getByTestId("social-post-too-long");
+    expect(tooLong).toHaveTextContent("Text length is over the limit.");
     expect(
-      within(dialog).getByTestId("social-post-too-long"),
-    ).toHaveTextContent("Text length is over the limit.");
+      screen.getByTestId("social-post-character-count").parentElement,
+    ).toContainElement(tooLong);
+    expect(textarea).toHaveAttribute("aria-describedby", tooLong.id);
     expect(saveDraft).toBeDisabled();
     expect(
       within(dialog).getByRole("button", { name: "Post now" }),

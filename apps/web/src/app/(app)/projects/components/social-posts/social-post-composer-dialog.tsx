@@ -148,6 +148,7 @@ export function SocialPostComposerDialog({
   const accountsLabelId = useId();
   const scheduledAtId = useId();
   const scheduledAtErrorId = useId();
+  const tooLongId = useId();
   const publishHintId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -778,10 +779,12 @@ export function SocialPostComposerDialog({
     onOpenChange(nextOpen);
   }
 
-  const footerMessage = overLimit ? (
-    <p className="text-destructive" data-testid="social-post-too-long">
-      {t("composer.tooLong")}
+  const footerMessage = scheduledAtTooSoon ? (
+    <p id={scheduledAtErrorId} className="text-destructive">
+      {t("composer.scheduledAtTooSoon")}
     </p>
+  ) : needsAccount ? (
+    <p>{t("composer.pickAccount")}</p>
   ) : null;
   const requirementHintLines = requirementHints.map(
     ({ provider: neededBy, issue }) => ({
@@ -962,6 +965,7 @@ export function SocialPostComposerDialog({
                 <div className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8">
                   <textarea
                     id={textId}
+                    aria-describedby={overLimit ? tooLongId : undefined}
                     aria-invalid={overLimit || undefined}
                     aria-label={t("composer.text")}
                     className="placeholder:text-muted-foreground field-sizing-content min-h-40 w-full resize-none border-0 bg-transparent px-0 text-base leading-relaxed shadow-none outline-none"
@@ -1008,20 +1012,31 @@ export function SocialPostComposerDialog({
                       }}
                       type="file"
                     />
-                    <span
-                      aria-live="polite"
-                      className={cn(
-                        "ms-auto text-xs tabular-nums",
-                        overLimit
-                          ? "text-destructive"
-                          : "text-muted-foreground",
-                      )}
-                      data-testid="social-post-character-count"
-                    >
-                      {t("composer.characters", {
-                        count: text.length,
-                        limit: textLimit,
-                      })}
+                    <span className="ms-auto flex flex-col items-end gap-0.5">
+                      <span
+                        aria-live="polite"
+                        className={cn(
+                          "text-xs tabular-nums",
+                          overLimit
+                            ? "text-destructive"
+                            : "text-muted-foreground",
+                        )}
+                        data-testid="social-post-character-count"
+                      >
+                        {t("composer.characters", {
+                          count: text.length,
+                          limit: textLimit,
+                        })}
+                      </span>
+                      {overLimit ? (
+                        <p
+                          className="text-destructive text-xs"
+                          data-testid="social-post-too-long"
+                          id={tooLongId}
+                        >
+                          {t("composer.tooLong")}
+                        </p>
+                      ) : null}
                     </span>
                   </div>
                   {/* One platform: the count above already is its limit. */}
