@@ -50,6 +50,7 @@ const {
   transactionTaskCountMock,
   transactionJobCountMock,
   coworkerFindManyMock,
+  integrationListMock,
   transactionBotFindUniqueOrThrowMock,
   transactionBotUpdateMock,
   transactionMemoryRevisionCreateMock,
@@ -163,6 +164,7 @@ const {
   transactionTaskCountMock: vi.fn(),
   transactionJobCountMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
+  integrationListMock: vi.fn(),
   transactionBotFindUniqueOrThrowMock: vi.fn(),
   transactionBotUpdateMock: vi.fn(),
   transactionMemoryRevisionCreateMock: vi.fn(),
@@ -406,6 +408,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: { findMany: memberFindManyMock },
   },
+}));
+vi.mock("@/services/soko-bot-integration-list.service", () => ({
+  listSokoBotIntegrationsForBot: integrationListMock,
 }));
 vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: serializableTransactionMock.mockImplementation(
@@ -2509,6 +2514,35 @@ describe("SokoBotRuntimeService authorization", () => {
       ).rejects.toThrow("Job not found");
       expect(transactionDecisionCreateMock).not.toHaveBeenCalled();
     });
+
+    it.each([
+      ["a shared bot", PROJECT_BOT],
+      [
+        "a personal bot",
+        { ...PROJECT_BOT, userId: SCOPE.userId, projectId: null },
+      ],
+    ])(
+      "lists the turn's own bot's integrations for %s",
+      async (_label, bot) => {
+        sharedTurn("list_integrations", bot);
+        integrationListMock.mockResolvedValue({
+          configured: true,
+          integrations: [
+            { provider: "gmail", status: "ACTIVE" },
+            { provider: "slack", status: "DISCONNECTED" },
+          ],
+        });
+        await expect(
+          new SokoBotRuntimeService().executeTool({
+            ...SCOPE,
+            capability: "list_integrations",
+            toolCallId: "call_integrations",
+            input: {},
+          }),
+        ).resolves.toEqual([{ provider: "gmail", status: "ACTIVE" }]);
+        expect(integrationListMock).toHaveBeenCalledWith(SCOPE.sokoBotId);
+      },
+    );
 
     it("finds Coworkers without the member's own assignments", async () => {
       sharedTurn("find_coworkers", PROJECT_BOT);

@@ -235,13 +235,13 @@ import {
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { enqueueSokoBotEffect } from "@/services/soko-bot-effect-outbox.service";
 import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
+import { listSokoBotIntegrationsForBot } from "@/services/soko-bot-integration-list.service";
 import {
   activeIntegrationsForBot,
   fetchCalendarEvents,
   fetchInboxMessage,
   fetchInboxMessages,
   listIntegrationTools,
-  listSokoBotIntegrations,
   runIntegrationTool,
 } from "@/services/soko-bot-integrations.service";
 import { criteriaForConfirmedSokoBotAction } from "@/services/soko-bot-outcome.service";
@@ -4939,11 +4939,9 @@ export class SokoBotRuntimeService {
           sokoBotReadFileInputSchema.parse(input.input),
         );
       case "list_integrations":
-        return listSokoBotIntegrations(
-          authorized.turn.userId,
-          authorized.turn.workspaceId,
-        ).then((result) =>
-          result.integrations.filter((i) => i.status !== "DISCONNECTED"),
+        return listSokoBotIntegrationsForBot(authorized.turn.sokoBotId).then(
+          (result) =>
+            result.integrations.filter((i) => i.status !== "DISCONNECTED"),
         );
       case "search_inbox": {
         const parsed = sokoBotSearchInboxInputSchema.parse(input.input);

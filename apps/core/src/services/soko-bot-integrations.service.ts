@@ -10,7 +10,6 @@ import { Prisma } from "@sokosumi/database";
 import {
   getSokoBotIntegrationProvider,
   isSokoBotEmailProvider,
-  SOKO_BOT_INTEGRATION_PROVIDERS,
   SOKO_BOT_POPULAR_TOOLKITS,
   type SokoBotCalendarEvent,
   type SokoBotInboxMessage,
@@ -23,6 +22,7 @@ import { getEnv } from "@/config/env";
 import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
+import type { SokoBotIntegrationView } from "@/services/soko-bot-integration-list.service";
 
 export class SokoBotIntegrationError extends Error {
   constructor(
@@ -162,7 +162,7 @@ export async function searchSokoBotIntegrationCatalog(
 }
 
 /** Toolkit logos by slug from the cached catalog; empty when unreachable. */
-async function catalogLogos(): Promise<Map<string, string>> {
+export async function catalogLogos(): Promise<Map<string, string>> {
   const entries = await searchSokoBotIntegrationCatalog("", 500).catch(
     () => [] as SokoBotIntegrationCatalogEntry[],
   );
@@ -222,73 +222,6 @@ export async function requireBot(userId: string, workspaceId: string) {
   if (!bot)
     throw new SokoBotIntegrationError("Soko Bot not found", "NOT_FOUND");
   return bot;
-}
-
-const INTEGRATION_SELECT = {
-  id: true,
-  provider: true,
-  name: true,
-  logoUrl: true,
-  status: true,
-  connectedAt: true,
-  lastIngestAt: true,
-  lastError: true,
-} satisfies Prisma.SokoBotIntegrationSelect;
-
-export interface SokoBotIntegrationView {
-  provider: string;
-  name: string;
-  logoUrl: string | null;
-  kinds: readonly string[];
-  status: "DISCONNECTED" | "PENDING" | "ACTIVE" | "FAILED" | "REVOKED";
-  connectedAt: Date | null;
-  lastIngestAt: Date | null;
-  lastError: string | null;
-}
-
-/** Every provider, with the bot's connection state; disconnected ones too. */
-export async function listSokoBotIntegrations(
-  userId: string,
-  workspaceId: string,
-): Promise<{ configured: boolean; integrations: SokoBotIntegrationView[] }> {
-  const bot = await requireBot(userId, workspaceId);
-  const rows = await prisma.sokoBotIntegration.findMany({
-    where: { sokoBotId: bot.id },
-    select: INTEGRATION_SELECT,
-  });
-  const logos = await catalogLogos();
-  const connected: SokoBotIntegrationView[] = rows.map((row) => {
-    const known = getSokoBotIntegrationProvider(row.provider);
-    return {
-      provider: row.provider,
-      name: row.name ?? known?.name ?? row.provider,
-      logoUrl: row.logoUrl ?? known?.logoUrl ?? logos.get(row.provider) ?? null,
-      kinds: known?.kinds ?? [],
-      status: row.status,
-      connectedAt: row.connectedAt,
-      lastIngestAt: row.lastIngestAt,
-      lastError: row.lastError,
-    };
-  });
-  // Mail and calendar providers are always offered; everything else comes
-  // from the catalog search.
-  const featured: SokoBotIntegrationView[] =
-    SOKO_BOT_INTEGRATION_PROVIDERS.filter(
-      (provider) => !rows.some((row) => row.provider === provider.id),
-    ).map((provider) => ({
-      provider: provider.id,
-      name: provider.name,
-      logoUrl: provider.logoUrl || logos.get(provider.id) || null,
-      kinds: provider.kinds,
-      status: "DISCONNECTED",
-      connectedAt: null,
-      lastIngestAt: null,
-      lastError: null,
-    }));
-  return {
-    configured: getComposio() !== null,
-    integrations: [...connected, ...featured],
-  };
 }
 
 /** Composio-managed auth config per toolkit, created on first use. */
