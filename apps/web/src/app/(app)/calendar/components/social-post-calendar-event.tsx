@@ -62,6 +62,9 @@ function socialPostHref(item: SocialPostCalendarItem): string {
     projectId: item.sourceProjectId,
     postId: item.postId,
   });
+  if (item.status === "FAILED" || item.status === "MISSED") {
+    query.set("tab", "attention");
+  }
   return `/social?${query}#social-post-${encodeURIComponent(item.postId)}`;
 }
 
