@@ -795,11 +795,11 @@ export function SocialPostComposerDialog({
       }),
     }),
   );
-  // Post now is off because the draft still needs text or media. The
-  // disabled button ignores pointer events, so the tooltip lives on a
-  // focusable wrapper.
-  const showPublishRequirementHint =
-    primaryAction === "publish" &&
+  // Post now or Schedule is off because the draft still needs text or
+  // media. The disabled button ignores pointer events, so the tooltip
+  // lives on a focusable wrapper.
+  const showRequirementHint =
+    (primaryAction === "publish" || primaryAction === "schedule") &&
     !primaryEnabled &&
     requirementHintLines.length > 0;
   const primaryButton = (
@@ -809,7 +809,7 @@ export function SocialPostComposerDialog({
       disabled={!primaryEnabled}
       loading={pending === primaryAction}
       onClick={runPrimary}
-      aria-describedby={showPublishRequirementHint ? publishHintId : undefined}
+      aria-describedby={showRequirementHint ? publishHintId : undefined}
     >
       {primaryLabel}
       <kbd
@@ -1215,7 +1215,7 @@ export function SocialPostComposerDialog({
                   {saveLabel}
                 </Button>
               ) : null}
-              {showPublishRequirementHint ? (
+              {showRequirementHint ? (
                 <>
                   <Tooltip>
                     <TooltipTrigger asChild>
