@@ -37,7 +37,7 @@ const AUDIO_EXTENSIONS = new Set([
 ]);
 
 /** Strip parameters (`text/plain; charset=utf-8` → `text/plain`) for allowlist checks. */
-export function normalizeMediaType(mediaType?: string | null): string | null {
+function normalizeMediaType(mediaType?: string | null): string | null {
   if (!mediaType) return null;
   const base = mediaType.split(";", 1)[0]?.trim().toLowerCase();
   return base || null;

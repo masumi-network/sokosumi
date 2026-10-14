@@ -10,7 +10,7 @@ import {
  * so either domain sets it for both. Vercel Analytics is not affected.
  */
 export const INTERNAL_TRAFFIC_COOKIE = "sokosumi_internal";
-export const INTERNAL_TRAFFIC_PARAM = "internal";
+const INTERNAL_TRAFFIC_PARAM = "internal";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
 export function isInternalTraffic(): boolean {
