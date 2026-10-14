@@ -352,6 +352,23 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
     expect(mockTaskFileClient.taskFile.upsert).toHaveBeenCalledTimes(1);
   });
 
+  it("rethrows Postgres 40001 serialization failures from upsert without capturing them", async () => {
+    const conflict = new Error(
+      "Raw query failed. Code: `40001`. Message: `could not serialize access due to concurrent update`",
+    );
+    mockTaskFileClient.taskFile.upsert.mockRejectedValueOnce(conflict);
+
+    await expect(
+      sourceImportService.enqueueTaskOutputsFromMarkdown(
+        "task_1",
+        "[file](https://example.com/conflict.pdf)",
+        mockTaskFileClient,
+      ),
+    ).rejects.toBe(conflict);
+
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
   it("skips when markdown contains no file links", async () => {
     await sourceImportService.enqueueTaskOutputsFromMarkdown(
       "task_1",
