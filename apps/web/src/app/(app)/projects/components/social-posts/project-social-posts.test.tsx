@@ -704,6 +704,7 @@ describe("ProjectSocialPosts", () => {
       within(draftRow).getByRole("button", { name: "Post actions" }),
     ).toBeVisible();
     expect(screen.getByTestId("social-posts-drafts-grid")).toHaveClass(
+      "items-stretch",
       "sm:grid-cols-2",
       "xl:grid-cols-3",
     );
@@ -923,6 +924,67 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(preview).getByTestId("social-post-preview-gif"),
     ).toHaveTextContent("GIF");
+  });
+
+  it("caps tall media on a draft card and pins actions under it", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection({ provider: "linkedin" })]}
+        posts={[
+          buildPost({
+            provider: "linkedin",
+            media: [IMAGE_REF],
+            socialConnection: {
+              id: "connection-1",
+              externalHandle: "sokosumi",
+              displayName: "Sokosumi",
+              avatarUrl: null,
+              status: "active",
+            },
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const draft = screen.getByTestId("social-post-post-draft");
+    expect(draft).toHaveClass("h-full");
+    expect(
+      within(draft).getByTestId("social-post-preview-media-compact"),
+    ).toHaveClass("max-h-64");
+    expect(
+      within(draft).getByRole("button", { name: "Preview" }).parentElement
+        ?.parentElement,
+    ).toHaveClass("mt-auto");
+  });
+
+  it("opens the preview dialog from see more on a long draft", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection({ provider: "linkedin" })]}
+        posts={[
+          buildPost({
+            provider: "linkedin",
+            text: "word ".repeat(80),
+            socialConnection: {
+              id: "connection-1",
+              externalHandle: "sokosumi",
+              displayName: "Sokosumi",
+              avatarUrl: null,
+              status: "active",
+            },
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "linkedin.seeMore" }));
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(
+      within(screen.getByRole("dialog")).getByText("Post preview"),
+    ).toBeVisible();
   });
 
   it("opens the preview dialog from a draft card", async () => {
