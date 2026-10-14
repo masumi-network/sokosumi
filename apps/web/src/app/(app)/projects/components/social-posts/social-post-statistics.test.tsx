@@ -261,6 +261,28 @@ describe("SocialPostStatistics account history", () => {
       screen.getByRole("menuitem", { name: "Export spreadsheet" }),
     ).toHaveAttribute("href", expect.stringContaining("format=xlsx"));
   });
+  it("dates All accounts from the latest fetched snapshot", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [
+          {
+            ...account,
+            statistics: { ...snapshot, fetchedAt: "2026-10-01T08:00:00Z" },
+          },
+          {
+            ...secondAccount,
+            statistics: { ...snapshot, fetchedAt: "2026-10-08T08:00:00Z" },
+          },
+        ],
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(screen.getByText("Updated Oct 8, 2026")).toBeVisible();
+    expect(screen.queryByText("Updated Oct 1, 2026")).not.toBeInTheDocument();
+  });
   it("hides the trend chart when the selected period has no daily points", async () => {
     mocks.fetch.mockResolvedValue({
       ok: true,

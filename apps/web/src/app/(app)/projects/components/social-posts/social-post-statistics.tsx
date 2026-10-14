@@ -131,6 +131,16 @@ function accountName(account: Account) {
   );
 }
 
+function latestFetchedAt(accounts: Account[]) {
+  let latest: NonNullable<Account["statistics"]>["fetchedAt"] = null;
+  for (const account of accounts) {
+    const fetchedAt = account.statistics?.fetchedAt;
+    if (!fetchedAt) continue;
+    if (!latest || new Date(fetchedAt) > new Date(latest)) latest = fetchedAt;
+  }
+  return latest;
+}
+
 export function SocialPostStatistics(
   props: { projectId: string } | { workspaceId: string },
 ) {
@@ -352,6 +362,9 @@ export function SocialPostStatistics(
   }
   const statusAccount = selectedAccount ?? accounts[0];
   const statusSnapshot = statusAccount?.statistics;
+  const latestFetched = latestFetchedAt(
+    selectedAccount ? [selectedAccount] : accounts,
+  );
 
   const advancedFilterCount = [
     !preset && Boolean(filters.publishedFrom || filters.publishedUntil),
@@ -422,10 +435,10 @@ export function SocialPostStatistics(
                 </SelectContent>
               </Select>
               <div className="text-muted-foreground min-w-0 text-sm">
-                {statusSnapshot?.fetchedAt ? (
+                {latestFetched ? (
                   <p>
                     {t("updatedAt", {
-                      date: formatUpdated(statusSnapshot.fetchedAt),
+                      date: formatUpdated(latestFetched),
                     })}
                   </p>
                 ) : (
