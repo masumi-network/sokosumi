@@ -82,7 +82,8 @@ public final class OpenRoomSession: ObservableObject {
   /// The newest message navigation; opening or closing the room supersedes it.
   public private(set) var navigationRequest = UUID()
   /// Bumps whenever the room's Thread unread may have moved (a reply, lost continuity, a Look, a mute or Mark all),
-  /// so the Threads trigger counts again.
+  /// so the Threads trigger counts again. Only ever counts up, across visits: the trigger keys on it together with
+  /// the room, so opening another room needs no reset.
   @Published public private(set) var threadAttentionRevision = 0
   /// Whether the socket reports the room's live updates as healthy, which lets recovery poll less.
   public private(set) var realtimeHealthy = false
