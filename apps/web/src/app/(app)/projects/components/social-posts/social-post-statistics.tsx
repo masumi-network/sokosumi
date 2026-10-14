@@ -354,10 +354,13 @@ export function SocialPostStatistics(
     });
   }
   function formatUpdated(value: string | Date) {
-    return formatter.dateTime(new Date(value), {
-      dateStyle: "medium",
-      timeZone: "UTC",
-    });
+    return formatter.relativeTime(new Date(value));
+  }
+
+  function isSyncInFlight(account: Account | undefined) {
+    return (
+      account?.sync?.status === "queued" || account?.sync?.status === "running"
+    );
   }
   function handlePreset(days: "7" | "30" | "90") {
     const window = utcPreset(Number(days) as 7 | 30 | 90);
@@ -372,6 +375,10 @@ export function SocialPostStatistics(
   const latestFetched = latestFetchedAt(
     selectedAccount ? [selectedAccount] : accounts,
   );
+  const viewAccounts = selectedAccount ? [selectedAccount] : accounts;
+  const updating =
+    Boolean(enqueueingId) ||
+    viewAccounts.some((account) => isSyncInFlight(account));
 
   const advancedFilterCount = [
     !preset && Boolean(filters.publishedFrom || filters.publishedUntil),
@@ -442,7 +449,9 @@ export function SocialPostStatistics(
                 </SelectContent>
               </Select>
               <div className="text-muted-foreground min-w-0 text-sm">
-                {latestFetched ? (
+                {updating ? (
+                  <p>{t("updating")}</p>
+                ) : latestFetched ? (
                   <p>
                     {t("updatedAt", {
                       date: formatUpdated(latestFetched),

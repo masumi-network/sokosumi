@@ -2671,6 +2671,7 @@
           "unavailable": "Unavailable",
           "notFetched": "Statistics have not been fetched.",
           "updatedAt": "Updated {date}",
+          "updating": "Updating…",
           "metrics": {
             "views": "Views",
             "impressions": "Impressions",
