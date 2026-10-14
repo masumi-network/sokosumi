@@ -301,9 +301,10 @@ struct OpenRoomSessionTests {
     #expect(session.thread.parent == nil)
   }
 
-  /// Core refusing the lookup means the message is not the reader's to see; a rejected session also signs out.
+  /// Core refusing the lookup means the message is not the reader's to see; a rejected session reaches the caller.
+  /// Every refusal goes to the `failed` hook, where the workspace signs a rejected session out.
   @Test(arguments: [(404, false), (403, false), (401, true)])
-  func aRefusedLookupIsUnavailable(status: Int, signsOut: Bool) async throws {
+  func aRefusedLookupIsUnavailable(status: Int, reachesCaller: Bool) async throws {
     var failures = 0
     let session = try connected(TestTransport([
       (200, testMessagesPageBody(messages: [], nextCursor: nil)),
@@ -311,7 +312,7 @@ struct OpenRoomSessionTests {
     ]), rejected: { _ in failures += 1 })
     session.open(room(testRoomId), userId: "me", organizationId: nil)
     _ = await session.room.loadTask?.value
-    if signsOut {
+    if reachesCaller {
       await #expect(throws: ChatServiceError.self) { _ = try await session.openMessage("gone") }
     } else {
       #expect(try await session.openMessage("gone") == .unavailable)
