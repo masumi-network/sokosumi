@@ -78,6 +78,24 @@ describe("SocialPostPreview", () => {
     );
   });
 
+  it("keeps a wrapping angle bracket out of a shortened URL", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="See <https://www.example.com/launch>"
+        timestamp={null}
+      />,
+    );
+
+    const link = screen.getByText("example.com/launch");
+    expect(link).toHaveClass("text-social-x-link");
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "example.com/launch>",
+    );
+  });
+
   it("keeps trailing punctuation out of a shortened URL", () => {
     render(
       <SocialPostPreview
