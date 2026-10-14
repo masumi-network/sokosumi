@@ -29,7 +29,7 @@ function runMessage(title: string, brief: string): string {
   return [
     `Background run: ${title}`,
     `Report by ${reportBy.toISOString()} at the latest.`,
-    "You are working on your own, beside your chat with the owner. The brief below is everything you were given; nobody is waiting to answer questions, so decide and keep going. Work through the whole job in batches, keep your plan up to date with update_plan, and save results as you go (a Files table, Task or file) so nothing is lost if you run out of time. Your final answer is posted in the chat: say what you did, link what you made, and name anything left undone.",
+    "You are working on your own, beside your chat with the owner. The brief below is everything you were given; nobody is waiting to answer questions, so decide and keep going. Work through the whole job in batches, keep your plan up to date with update_plan, and save results as you go (a Files table, Task or file) so nothing is lost if you run out of time. Your final report is posted in the chat: start it with DONE:, say what you did, link what you made, and name anything left undone. A reply without DONE: is treated as a progress note and you will be asked to continue.",
     "",
     brief,
   ].join("\n");
