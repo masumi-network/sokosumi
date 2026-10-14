@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { readWorkspaceCalendar } from "./read";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { parseWorkspaceCalendarQuery, readWorkspaceCalendar } from "./read";
 
 const mocks = vi.hoisted(() => ({
   tasks: vi.fn(),
@@ -8,12 +8,17 @@ const mocks = vi.hoisted(() => ({
   runAtTaskCount: vi.fn(),
   posts: vi.fn(),
   postCount: vi.fn(),
+  latestPost: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     taskScheduleRun: { findMany: mocks.tasks, count: mocks.taskCount },
     task: { findMany: mocks.runAtTasks, count: mocks.runAtTaskCount },
-    socialPost: { findMany: mocks.posts, count: mocks.postCount },
+    socialPost: {
+      findMany: mocks.posts,
+      count: mocks.postCount,
+      aggregate: mocks.latestPost,
+    },
   },
 }));
 const workspaceId = "11111111-1111-7111-8111-111111111111";
@@ -77,13 +82,17 @@ const run = {
 describe("Social posts in the calendar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-01T12:00:00.000Z"));
     mocks.tasks.mockResolvedValue([]);
     mocks.taskCount.mockResolvedValue(0);
     mocks.runAtTasks.mockResolvedValue([]);
     mocks.runAtTaskCount.mockResolvedValue(0);
     mocks.posts.mockResolvedValue([post]);
     mocks.postCount.mockResolvedValue(1);
+    mocks.latestPost.mockResolvedValue({ _max: { scheduledAt: null } });
   });
+  afterEach(() => vi.useRealTimers());
   it("merges tasks and posts with stable pagination at the same timestamp", async () => {
     mocks.tasks.mockResolvedValue([run]);
     mocks.taskCount.mockResolvedValue(1);
@@ -214,4 +223,101 @@ describe("Social posts in the calendar", () => {
     });
     expect(mocks.posts).not.toHaveBeenCalled();
   });
+
+  it.each(["SCHEDULED", "PUBLISHING"])(
+    "allows the full padded month of a far-future %s post",
+    async (status) => {
+      mocks.latestPost.mockResolvedValue({
+        _max: { scheduledAt: new Date("2027-01-20T12:00:00.000Z") },
+      });
+      mocks.posts.mockResolvedValue([
+        {
+          ...post,
+          status,
+          scheduledAt: new Date("2027-01-20T12:00:00.000Z"),
+        },
+      ]);
+      const farFutureQuery = parseWorkspaceCalendarQuery({
+        from: "2026-12-26T08:00:00.000Z",
+        to: "2027-02-09T11:59:59.999Z",
+        includeSocialPosts: "true",
+        scope: "owned",
+        limit: 100,
+      });
+      await expect(
+        readWorkspaceCalendar(workspaceId, "user", farFutureQuery, {
+          projectId,
+        }),
+      ).resolves.toMatchObject({
+        items: [
+          {
+            kind: "socialPost",
+            status,
+            scheduledAt: "2027-01-20T12:00:00.000Z",
+          },
+        ],
+      });
+      expect(mocks.latestPost).toHaveBeenCalledWith({
+        where: {
+          workspaceId,
+          projectId,
+          scheduledByUserId: "user",
+          status: { in: ["SCHEDULED", "PUBLISHING"] },
+          scheduledAt: { not: null },
+        },
+        _max: { scheduledAt: true },
+      });
+    },
+  );
+
+  it("rejects ranges beyond the latest scheduled post's padded month grid", async () => {
+    mocks.latestPost.mockResolvedValue({
+      _max: { scheduledAt: new Date("2027-01-20T12:00:00.000Z") },
+    });
+    await expect(
+      readWorkspaceCalendar(workspaceId, "user", {
+        ...query,
+        from: new Date("2027-01-01T00:00:00.000Z"),
+        to: new Date("2027-02-09T12:00:00.000Z"),
+      }),
+    ).rejects.toThrow("Calendar browse range cannot extend");
+    expect(mocks.tasks).not.toHaveBeenCalled();
+  });
+
+  it("keeps the default horizon when there is no qualifying post", async () => {
+    await expect(
+      readWorkspaceCalendar(workspaceId, "user", {
+        ...query,
+        from: new Date("2027-01-01T00:00:00.000Z"),
+        to: new Date("2027-02-01T00:00:00.000Z"),
+      }),
+    ).rejects.toThrow("Calendar browse range cannot extend");
+    expect(mocks.posts).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ includeSocialPosts: false }, {}],
+    [{ assigneeId: "coworker" }, {}],
+    [{ assigneeUserId: "user" }, {}],
+    [{ status: "READY" as const }, {}],
+    [{}, { sourceId: `workspace:${workspaceId}` }],
+  ])(
+    "does not extend a calendar that excludes social posts %j",
+    async (filters, options) => {
+      await expect(
+        readWorkspaceCalendar(
+          workspaceId,
+          "user",
+          {
+            ...query,
+            ...filters,
+            from: new Date("2027-01-01T00:00:00.000Z"),
+            to: new Date("2027-02-01T00:00:00.000Z"),
+          },
+          options,
+        ),
+      ).rejects.toThrow("Calendar browse range cannot extend");
+      expect(mocks.latestPost).not.toHaveBeenCalled();
+    },
+  );
 });

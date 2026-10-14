@@ -8253,6 +8253,10 @@ export type WorkspaceCalendarSource = {
      * Whether this source may be selected as the project of a Task Schedule created through POST /v1/tasks/schedules. Unschedulable sources remain available for Calendar event display and filtering.
      */
     isSchedulable: boolean;
+    /**
+     * Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.
+     */
+    latestScheduledSocialPostAt?: Date | null;
 };
 
 export type CalendarIdentityLabels = Array<CalendarIdentityLabel>;
@@ -60229,7 +60233,16 @@ export type GetWorkspacesCalendarSourcesData = {
         'X-Context-Organization-Id'?: string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         */
+        includeSocialPosts?: 'true' | 'false';
+        /**
+         * Whether to show only the caller's tasks or the workspace
+         */
+        scope?: 'owned' | 'workspace';
+    };
     url: '/workspaces/calendar/sources';
 };
 
@@ -60283,6 +60296,21 @@ export type GetWorkspacesCalendarSourcesErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

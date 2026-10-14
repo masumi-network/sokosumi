@@ -843,7 +843,18 @@ export function WorkspaceCalendar({
     };
   });
 
-  const date = parseCalendarDate(state.date ?? initialDate, initialDate);
+  const requestedDate = parseCalendarDate(
+    state.date ?? initialDate,
+    initialDate,
+  );
+  const latestCalendarDate = latestDate
+    ? parseCalendarDate(latestDate, initialDate)
+    : null;
+  const date =
+    latestCalendarDate &&
+    startOfMonth(requestedDate) > startOfMonth(latestCalendarDate)
+      ? latestCalendarDate
+      : requestedDate;
   const timeZone = isValidTimezone(state.timezone)
     ? state.timezone
     : getDefaultTimezone();
@@ -909,9 +920,6 @@ export function WorkspaceCalendar({
     }
   }, [isMobile, state.view, setState, socialPostsOnly]);
 
-  const latestCalendarDate = latestDate
-    ? parseCalendarDate(latestDate, initialDate)
-    : null;
   const visibleItems = loadedItems
     .filter((item) => {
       // Only Social posts survive the toggle. The grid views drain every page
