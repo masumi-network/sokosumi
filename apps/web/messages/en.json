@@ -2583,14 +2583,14 @@
         "failedAt": "Failed {date}",
         "attempts": "{count, plural, one {# attempt} other {# attempts}}",
         "actions": {
-          "publishNow": "Publish now",
+          "publishNow": "Post now",
           "retry": "Retry",
           "dismiss": "Dismiss"
         },
         "publishDialog": {
-          "title": "Publish this post now?",
+          "title": "Post this now?",
           "description": "The post goes out right away instead of waiting for its scheduled time.",
-          "confirm": "Publish now"
+          "confirm": "Post now"
         },
         "retryDialog": {
           "title": "Retry this post?",

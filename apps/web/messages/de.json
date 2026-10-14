@@ -2583,14 +2583,14 @@
         "failedAt": "Fehlgeschlagen {date}",
         "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
         "actions": {
-          "publishNow": "Jetzt veröffentlichen",
+          "publishNow": "Jetzt posten",
           "retry": "Erneut versuchen",
           "dismiss": "Verwerfen"
         },
         "publishDialog": {
-          "title": "Diesen Beitrag jetzt veröffentlichen?",
+          "title": "Diesen Beitrag jetzt posten?",
           "description": "Der Beitrag wird sofort veröffentlicht, statt auf den geplanten Zeitpunkt zu warten.",
-          "confirm": "Jetzt veröffentlichen"
+          "confirm": "Jetzt posten"
         },
         "retryDialog": {
           "title": "Diesen Beitrag erneut versuchen?",
