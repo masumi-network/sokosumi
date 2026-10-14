@@ -30,7 +30,7 @@ export const jobInputSchema = z
   })
   .openapi("Job Input");
 
-export const jobEventSchema = z
+const jobEventSchema = z
   .object({
     id: z.string().openapi({ example: "event_123" }),
     createdAt: dateTimeSchema,
@@ -116,7 +116,7 @@ export const jobSummarySchema = z
 
 export const jobSummariesSchema = z.array(jobSummarySchema);
 
-export const jobDetailsAgentSchema = z.object({
+const jobDetailsAgentSchema = z.object({
   id: z.string().openapi({ example: "agent_123" }),
   name: z.string().openapi({ example: "Research Agent" }),
   overrideName: z.string().nullish().openapi({ example: "My Research Agent" }),
@@ -166,7 +166,7 @@ export const jobDetailsAgentSchema = z.object({
     .openapi({ example: "https://example.com/custom-support" }),
 });
 
-export const jobDetailsEventInputSchema = z.object({
+const jobDetailsEventInputSchema = z.object({
   id: z.string().openapi({ example: "input_123" }),
   input: z.string().openapi({
     example: '{"prompt":"How many planets are in the solar system?"}',
@@ -175,7 +175,7 @@ export const jobDetailsEventInputSchema = z.object({
   signature: z.string().nullish().openapi({ example: "signature_123" }),
 });
 
-export const jobDetailsEventSchema = z.object({
+const jobDetailsEventSchema = z.object({
   id: z.string().openapi({ example: "event_123" }),
   createdAt: dateTimeSchema,
   updatedAt: dateTimeSchema,
