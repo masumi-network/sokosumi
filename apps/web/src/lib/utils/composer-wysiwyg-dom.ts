@@ -28,7 +28,7 @@ export function isInsideComposerProtectedContext(
  * True when `range` intersects a CODE/PRE/mention element under `root`.
  * Endpoint-only checks miss a range that fully encloses a protected chip.
  */
-export function rangeIntersectsComposerProtected(
+function rangeIntersectsComposerProtected(
   range: Range,
   root: HTMLElement,
 ): boolean {
