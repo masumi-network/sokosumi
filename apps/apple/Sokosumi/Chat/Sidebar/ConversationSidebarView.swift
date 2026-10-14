@@ -328,7 +328,7 @@ struct ConversationSidebarView: View {
   /// while the filter lists anything a read would still change.
   private func unreadsRow(_ filter: UnreadsFilterList?) -> some View {
     let isOn = filter != nil
-    let isActive = SidebarEmphasis.navRow(isActive: isOn, hasUnread: false) == .active
+    let emphasis = SidebarEmphasis.navRow(isActive: isOn, hasUnread: false)
     return HStack(spacing: 6) {
       Button {
         workspaces.sidebar.setUnreadsFilter(!isOn)
@@ -336,12 +336,12 @@ struct ConversationSidebarView: View {
         Label {
           Text("Unreads")
             .lineLimit(1)
-            .fontWeight(isActive ? .medium : .regular)
+            .fontWeight(emphasis == .active ? .medium : .regular)
             // Off, it rests muted like the Threads row (web's `THREADS_ROW_CLASS`).
-            .foregroundStyle(isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            .foregroundStyle(emphasis.textStyle)
         } icon: {
           Image(systemName: "tray")
-            .foregroundStyle(isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            .foregroundStyle(emphasis.textStyle)
             .frame(width: DirectRoomAvatarStack.faceSize, height: DirectRoomAvatarStack.faceSize)
         }
         .labelStyle(RoomRowLabelStyle())
@@ -832,9 +832,14 @@ struct ConversationSidebarView: View {
 }
 
 private extension SidebarEmphasis {
-  /// A label's colour: full strength unless at rest. Weight stays with each row type.
-  var textStyle: HierarchicalShapeStyle {
-    self == .atRest ? .secondary : .primary
+  /// A label's colour: muted at rest, the accent tint while a mode is on, full strength otherwise. Weight stays with
+  /// each row type.
+  var textStyle: AnyShapeStyle {
+    switch self {
+    case .atRest: AnyShapeStyle(.secondary)
+    case .active: AnyShapeStyle(.tint)
+    case .attention, .normal: AnyShapeStyle(.primary)
+    }
   }
 }
 
