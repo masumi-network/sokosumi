@@ -19,6 +19,7 @@ import {
   GOOGLE_MAX_IDS,
   type GoogleDisplayImageRole,
   type GoogleLocationLookup,
+  isNewDisplayImage,
   META_CAMPAIGN_OBJECTIVES,
 } from "@/lib/ads/campaigns";
 import { driveFileRefShape } from "@/schemas/drive-file-ref.schema";
@@ -404,16 +405,21 @@ const googleDisplayCampaignSpecSchema = googleDisplayCampaignSpec(
 const googleDisplayCampaignEditSpecSchema = googleDisplayCampaignSpec(
   z.union([googleDisplayImageSchema, googleKeptDisplayImageSchema]),
   "The ad's images after the edit: `{assetId, role}` keeps a current image, a Drive file (as in a create) uploads a new one. 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each image once",
-  (image) => ("assetId" in image ? `asset:${image.assetId}` : image.pathname),
+  (image) =>
+    isNewDisplayImage(image) ? image.pathname : `asset:${image.assetId}`,
 ).openapi("GoogleDisplayCampaignEditSpec");
 
-const datesInOrder = ({
+function datesInOrder({
   startDate,
   endDate,
 }: {
   startDate?: string;
   endDate?: string;
-}) => startDate === undefined || endDate === undefined || endDate >= startDate;
+}): boolean {
+  return (
+    startDate === undefined || endDate === undefined || endDate >= startDate
+  );
+}
 const datesInOrderIssue = {
   message: "endDate must not be before startDate",
   path: ["endDate"],
@@ -463,16 +469,16 @@ export const createAdCampaignRequestSchema = z
     description: "There is no status: a new campaign is always created paused",
   });
 
-export const updateAdCampaignDetailsRequestSchema = z
+export const editAdCampaignRequestSchema = z
   .object({
     name: adCampaignNameSchema,
     dailyBudget: adCampaignDailyBudgetSchema,
     google: googleCampaignEditSpecSchema.openapi({
       description:
-        "The campaign's settings after the edit; it replaces every field, and only what differs from the campaign is changed. `type` must be the campaign's type, and the start date cannot change once the campaign started",
+        "The campaign's settings after the edit; it replaces every field, and only what differs from the campaign is changed. `type` must be the campaign's type. Omit `startDate` to keep the start date (it cannot change once the campaign started); omit `endDate` to remove the end date",
     }),
   })
-  .openapi("UpdateAdCampaignDetailsRequest", {
+  .openapi("EditAdCampaignRequest", {
     description:
       "Edit of a Google campaign that is editable (see `campaign.editable` of the details). The status is not part of it; use the status/budget update",
   });

@@ -258,12 +258,13 @@ function hasPartialFailure(payload: Record<string, unknown> | null): boolean {
   );
 }
 
-/** A mutation that reports no result for its operation, or a partial failure, did not apply. */
+/** A mutation that reports no result (under `key`) for its operations, or a partial failure, did not apply. */
 function requireMutated(
   payload: Record<string, unknown> | null,
+  key: "results" | "mutate_operation_responses",
   context: string,
 ): void {
-  if (toolRows(payload, "results").length === 0 || hasPartialFailure(payload)) {
+  if (toolRows(payload, key).length === 0 || hasPartialFailure(payload)) {
     throw new ComposioToolError({ message: `${context} was not applied` });
   }
 }
@@ -284,8 +285,7 @@ export async function updateGoogleCampaign(
     AdCampaignUpdate & { customerId: string; campaignId: string },
 ): Promise<void> {
   const { customerId, campaignId, status, dailyBudget, ...connected } = input;
-  if (!/^\d+$/.test(campaignId)) throw notFound("Campaign not found");
-  const campaignResourceName = `customers/${customerId}/campaigns/${campaignId}`;
+  requireCampaignId(campaignId);
   // The id is digits only, so the query cannot be altered by it.
   const lookupQuery = `SELECT campaign.id, campaign.campaign_budget, campaign_budget.explicitly_shared FROM campaign WHERE campaign.id = ${campaignId} AND campaign.status != 'REMOVED'`;
 
@@ -314,9 +314,7 @@ export async function updateGoogleCampaign(
       );
       if (!row) throw notFound("Campaign not found");
       if (dailyBudget !== undefined && row.campaignBudget.explicitlyShared) {
-        throw conflict(
-          "This campaign uses a shared budget; change it in Google Ads",
-        );
+        throw conflict(SHARED_BUDGET_MESSAGE);
       }
 
       if (dailyBudget !== undefined) {
@@ -333,6 +331,7 @@ export async function updateGoogleCampaign(
               },
             ],
           }),
+          "results",
           "change Google Ads campaign budget",
         );
       }
@@ -344,18 +343,33 @@ export async function updateGoogleCampaign(
               {
                 operation_type: "update",
                 update: {
-                  resource_name: campaignResourceName,
+                  resource_name: campaignResourceName(customerId, campaignId),
                   status: status === "ACTIVE" ? "enabled" : "paused",
                 },
               },
             ],
           }),
+          "results",
           "change Google Ads campaign status",
         );
       }
     },
   );
 }
+
+type Operation = Record<string, unknown>;
+
+/** A campaign id goes into GAQL queries, so it must be 1-20 digits. */
+function requireCampaignId(campaignId: string): void {
+  if (!/^\d{1,20}$/.test(campaignId)) throw notFound("Campaign not found");
+}
+
+function campaignResourceName(customerId: string, campaignId: string): string {
+  return `customers/${customerId}/campaigns/${campaignId}`;
+}
+
+const SHARED_BUDGET_MESSAGE =
+  "This campaign uses a shared budget; change it in Google Ads";
 
 /** The id after the last slash of a resource name. */
 function resourceId(resourceName: string): string {
@@ -415,64 +429,74 @@ function truncate(text: string, max: number): string {
   return Array.from(text).slice(0, max).join("");
 }
 
-const locationCriterion = (campaign: string, id: string) => ({
-  campaign_criterion_operation: {
-    create: {
-      campaign,
-      location: { geo_target_constant: `geoTargetConstants/${id}` },
+function locationCriterion(campaign: string, id: string): Operation {
+  return {
+    campaign_criterion_operation: {
+      create: {
+        campaign,
+        location: { geo_target_constant: `geoTargetConstants/${id}` },
+      },
     },
-  },
-});
+  };
+}
 
-const languageCriterion = (campaign: string, id: string) => ({
-  campaign_criterion_operation: {
-    create: {
-      campaign,
-      language: { language_constant: `languageConstants/${id}` },
+function languageCriterion(campaign: string, id: string): Operation {
+  return {
+    campaign_criterion_operation: {
+      create: {
+        campaign,
+        language: { language_constant: `languageConstants/${id}` },
+      },
     },
-  },
-});
+  };
+}
 
-const keywordOperation = (
+function keywordOperation(
   adGroup: string,
   { text, matchType }: GoogleKeyword,
-) => ({
-  ad_group_criterion_operation: {
-    create: {
-      ad_group: adGroup,
-      status: "ENABLED",
-      keyword: { text, match_type: matchType },
+): Operation {
+  return {
+    ad_group_criterion_operation: {
+      create: {
+        ad_group: adGroup,
+        status: "ENABLED",
+        keyword: { text, match_type: matchType },
+      },
     },
-  },
-});
+  };
+}
 
 /** A sitelink or callout asset to create, and the field type that links it to a campaign. */
 interface NewCampaignAsset {
   fieldType: "SITELINK" | "CALLOUT";
-  asset: Record<string, unknown>;
+  asset: Operation;
 }
 
-const sitelinkAsset = ({
+function sitelinkAsset({
   text,
   finalUrl,
   description1,
   description2,
-}: GoogleSitelink): NewCampaignAsset => ({
-  fieldType: "SITELINK",
-  asset: {
-    final_urls: [finalUrl],
-    sitelink_asset: {
-      link_text: text,
-      ...(description1 && { description1 }),
-      ...(description2 && { description2 }),
+}: GoogleSitelink): NewCampaignAsset {
+  return {
+    fieldType: "SITELINK",
+    asset: {
+      final_urls: [finalUrl],
+      sitelink_asset: {
+        link_text: text,
+        ...(description1 && { description1 }),
+        ...(description2 && { description2 }),
+      },
     },
-  },
-});
+  };
+}
 
-const calloutAsset = (text: string): NewCampaignAsset => ({
-  fieldType: "CALLOUT",
-  asset: { callout_asset: { callout_text: text } },
-});
+function calloutAsset(text: string): NewCampaignAsset {
+  return {
+    fieldType: "CALLOUT",
+    asset: { callout_asset: { callout_text: text } },
+  };
+}
 
 /**
  * Creates the assets under temporary ids, then links each to the campaign:
@@ -482,7 +506,7 @@ function campaignAssetOperations(
   customerId: string,
   campaign: string,
   items: readonly NewCampaignAsset[],
-): Record<string, unknown>[] {
+): Operation[] {
   const assets = items.map((item, index) => ({
     ...item,
     resourceName: `customers/${customerId}/assets/${FIRST_ASSET_TEMP_ID - index}`,
@@ -512,11 +536,11 @@ function campaignOperations(
 ): {
   campaign: string;
   adGroup: string;
-  operations: Record<string, unknown>[];
+  operations: Operation[];
 } {
   const channel = CHANNELS[google.type];
   const budget = `customers/${customerId}/campaignBudgets/${BUDGET_TEMP_ID}`;
-  const campaign = `customers/${customerId}/campaigns/${CAMPAIGN_TEMP_ID}`;
+  const campaign = campaignResourceName(customerId, `${CAMPAIGN_TEMP_ID}`);
   const adGroup = `customers/${customerId}/adGroups/${AD_GROUP_TEMP_ID}`;
   // Budget names are unique per customer; the suffix avoids clashes with
   // earlier campaigns of the same name.
@@ -589,7 +613,7 @@ function searchCampaignOperations(
   customerId: string,
   create: AdCampaignCreate,
   google: GoogleSearchCampaignSpec,
-): Record<string, unknown>[] {
+): Operation[] {
   const { campaign, adGroup, operations } = campaignOperations(
     customerId,
     create,
@@ -640,7 +664,7 @@ function displayCampaignOperations(
   create: AdCampaignCreate,
   google: GoogleDisplayCampaignSpec,
   images: readonly UploadedDisplayImage[],
-): Record<string, unknown>[] {
+): Operation[] {
   const { adGroup, operations } = campaignOperations(
     customerId,
     create,
@@ -874,7 +898,7 @@ export async function createGoogleCampaign(
       toolSlugs: [BATCH_MUTATE],
     },
     async (execute) => {
-      let operations: Record<string, unknown>[];
+      let operations: Operation[];
       if (google.type === "DISPLAY") {
         const uploaded: UploadedDisplayImage[] = [];
         for (const download of downloads) {
@@ -1409,14 +1433,14 @@ type DetailCampaign = z.infer<typeof detailCampaignRowSchema>;
  * Every GAQL read of the details in one session: the independent queries run
  * together, then the location and image lookups that need their results.
  * `campaignId` is digits only, so it cannot alter the queries. 404 when the
- * campaign is not in the customer or is removed. Without a `range` the
- * metrics are not read.
+ * campaign is not in the customer or is removed. The daily metrics are read
+ * only with a `metricsRange`.
  */
 async function readDetailRows(
   execute: ExecuteAdsTool,
   customerId: string,
   campaignId: string,
-  range: AdRange | null,
+  { metricsRange }: { metricsRange?: AdRange },
 ) {
   const search = async <T extends z.ZodType>(
     query: string,
@@ -1463,14 +1487,14 @@ async function readDetailRows(
         "ads",
       ),
       search(
-        `SELECT campaign_asset.field_type, campaign_asset.status, asset.id, asset.sitelink_asset.link_text, asset.sitelink_asset.description1, asset.sitelink_asset.description2, asset.final_urls, asset.callout_asset.callout_text, asset.policy_summary.approval_status FROM campaign_asset WHERE campaign_asset.campaign = 'customers/${customerId}/campaigns/${campaignId}' AND campaign_asset.field_type IN ('SITELINK', 'CALLOUT') AND campaign_asset.status = 'ENABLED'`,
+        `SELECT campaign_asset.field_type, campaign_asset.status, asset.id, asset.sitelink_asset.link_text, asset.sitelink_asset.description1, asset.sitelink_asset.description2, asset.final_urls, asset.callout_asset.callout_text, asset.policy_summary.approval_status FROM campaign_asset WHERE campaign_asset.campaign = '${campaignResourceName(customerId, campaignId)}' AND campaign_asset.field_type IN ('SITELINK', 'CALLOUT') AND campaign_asset.status = 'ENABLED'`,
         linkedAssetRowSchema,
         "assets",
       ),
-      range === null
+      metricsRange === undefined
         ? []
         : search(
-            `SELECT segments.date, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions FROM campaign WHERE ${campaignQuery} AND segments.date DURING ${range}`,
+            `SELECT segments.date, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions FROM campaign WHERE ${campaignQuery} AND segments.date DURING ${metricsRange}`,
             dailyRowSchema,
             "metrics",
           ),
@@ -1720,8 +1744,7 @@ export async function getGoogleCampaignDetails(
   },
 ): Promise<GoogleCampaignDetails> {
   const { customerId, campaignId, currency, range, ...connected } = input;
-  // The id goes into the queries, so it must be digits only.
-  if (!/^\d{1,20}$/.test(campaignId)) throw notFound("Campaign not found");
+  requireCampaignId(campaignId);
 
   const rows = await withAdsToolSession(
     {
@@ -1729,7 +1752,8 @@ export async function getGoogleCampaignDetails(
       toolkit: PROJECT_AD_PROVIDERS.google_ads,
       toolSlugs: [SEARCH_STREAM_GAQL],
     },
-    (execute) => readDetailRows(execute, customerId, campaignId, range),
+    (execute) =>
+      readDetailRows(execute, customerId, campaignId, { metricsRange: range }),
   );
   const type = campaignTypeOf(rows.head.campaign);
   const today = toLocalDateKey(
@@ -1752,31 +1776,37 @@ export async function getGoogleCampaignDetails(
 
 const NOT_EDITABLE = "Campaign can't be edited here";
 
-type Operation = Record<string, unknown>;
-
-/** A field to change on a resource: its snake_case path and new value; null clears the field. */
+/** A field to change on a resource: its snake_case path and the value to send; null clears the field. */
 interface FieldChange {
   path: string;
   value: unknown;
 }
 
-/** The change of a field whose `next` value differs from the `current` one; `value` is what Google gets. */
-function change(
+/**
+ * The change of a field whose `next` value differs from its `current` one,
+ * else none. `send` is what Google gets when that is not `next` itself.
+ */
+function changedField(
   path: string,
-  next: unknown,
-  current: unknown,
-  value: unknown = next,
+  field: { next: unknown; current: unknown; send?: unknown },
 ): FieldChange[] {
-  return isDeepStrictEqual(next, current) ? [] : [{ path, value }];
+  return isDeepStrictEqual(field.next, field.current)
+    ? []
+    : [{ path, value: "send" in field ? field.send : field.next }];
 }
 
-const lowerCamelCase = (path: string) =>
-  path.replace(/_([a-z])/g, (_match, letter: string) => letter.toUpperCase());
+function lowerCamelCase(path: string): string {
+  return path.replace(/_([a-z])/g, (_match, letter: string) =>
+    letter.toUpperCase(),
+  );
+}
 
 /**
  * An `update` of the changed fields with its `update_mask`, a comma-separated
- * field mask in Google's JSON form (lowerCamelCase, nested with dots). A field
- * without a value is in the mask only, which clears it. Null without changes.
+ * field mask for the changed fields only. Masks are lowerCamelCase with dots
+ * for nested fields, the proto3 JSON form (the mutate tools take it as is,
+ * while the body keeps snake_case keys as the create operations do). A field
+ * with a null value is in the mask only, which clears it. Null without changes.
  */
 function fieldUpdate(
   resourceName: string,
@@ -1814,24 +1844,20 @@ function diffByKey<C, W>(
   };
 }
 
-const UPDATE_PHASES = ["remove", "update", "create"];
-
-/** Removals come first, so a replacement never meets what it replaces; creations come last. */
-function updatePhase(operation: Operation): number {
-  const [body] = Object.values(operation);
-  return UPDATE_PHASES.findIndex(
-    (phase) => typeof body === "object" && body !== null && phase in body,
-  );
+/** Operations of one kind of resource: removals go first in an edit, creations last. */
+interface ResourceChanges {
+  removes: Operation[];
+  creates: Operation[];
 }
 
 /** Location and language criteria are immutable: removed ones go, added ones are created. */
-function targetingOperations(
+function targetingChanges(
   customerId: string,
   campaignId: string,
   { criteria }: DetailRows,
   google: GoogleCampaignEditSpec,
-): Operation[] {
-  const campaign = `customers/${customerId}/campaigns/${campaignId}`;
+): ResourceChanges {
+  const campaign = campaignResourceName(customerId, campaignId);
   const existing = (type: "LOCATION" | "LANGUAGE") =>
     criteria.flatMap(({ campaignCriterion: criterion }) => {
       const name =
@@ -1842,7 +1868,7 @@ function targetingOperations(
         ? [{ id: resourceId(name), criterionId: criterion.criterionId }]
         : [];
     });
-  return [
+  const diffs = [
     {
       current: existing("LOCATION"),
       wanted: [...new Set(google.locationIds)],
@@ -1853,72 +1879,75 @@ function targetingOperations(
       wanted: [...new Set(google.languageIds)],
       create: languageCriterion,
     },
-  ].flatMap(({ current, wanted, create }) => {
-    const { removed, added } = diffByKey(
+  ].map(({ current, wanted, create }) => ({
+    create,
+    ...diffByKey(
       current,
       wanted,
       ({ id }) => id,
       (id) => id,
-    );
-    return [
-      ...removed.map(({ criterionId }) => ({
+    ),
+  }));
+  return {
+    removes: diffs.flatMap(({ removed }) =>
+      removed.map(({ criterionId }) => ({
         campaign_criterion_operation: {
           remove: `customers/${customerId}/campaignCriteria/${campaignId}~${criterionId}`,
         },
       })),
-      ...added.map((id) => create(campaign, id)),
-    ];
-  });
+    ),
+    creates: diffs.flatMap(({ added, create }) =>
+      added.map((id) => create(campaign, id)),
+    ),
+  };
 }
 
 /** Keywords are immutable: removed ones go, added ones are created. */
-function keywordOperations(
+function keywordChanges(
   customerId: string,
   adGroupId: string,
   current: readonly GoogleCampaignKeyword[],
   google: GoogleSearchCampaignSpec,
-): Operation[] {
+): ResourceChanges {
   const { removed, added } = diffByKey(
     current,
     dedupeGoogleKeywords(google.keywords),
     keywordKey,
     keywordKey,
   );
-  return [
-    ...removed.map(({ id }) => ({
+  return {
+    removes: removed.map(({ id }) => ({
       ad_group_criterion_operation: {
         remove: `customers/${customerId}/adGroupCriteria/${adGroupId}~${id}`,
       },
     })),
-    ...added.map((keyword) =>
+    creates: added.map((keyword) =>
       keywordOperation(
         `customers/${customerId}/adGroups/${adGroupId}`,
         keyword,
       ),
     ),
-  ];
+  };
 }
 
-const sitelinkKey = ({
+function sitelinkKey({
   text,
   finalUrl,
   description1,
   description2,
-}: {
-  text: string;
-  finalUrl: string;
-  description1?: string | null;
-  description2?: string | null;
-}) =>
-  JSON.stringify([
+}: GoogleSitelink): string {
+  return JSON.stringify([
     "SITELINK",
     text,
     finalUrl,
     description1 ?? null,
     description2 ?? null,
   ]);
+}
 
-const calloutKey = (text: string) => JSON.stringify(["CALLOUT", text]);
+function calloutKey(text: string): string {
+  return JSON.stringify(["CALLOUT", text]);
+}
 
 /**
  * Sitelinks and callouts are matched by content. An asset cannot be removed
@@ -1930,12 +1959,17 @@ function campaignAssetChanges(
   campaignId: string,
   current: Pick<GoogleCampaignDetails, "sitelinks" | "callouts">,
   google: GoogleSearchCampaignSpec,
-): Operation[] {
+): ResourceChanges {
   const linked = [
     ...current.sitelinks.map((link) => ({
       assetId: link.assetId,
       fieldType: "SITELINK",
-      key: sitelinkKey(link),
+      key: sitelinkKey({
+        text: link.text,
+        finalUrl: link.finalUrl,
+        description1: link.description1 ?? undefined,
+        description2: link.description2 ?? undefined,
+      }),
     })),
     ...current.callouts.map(({ assetId, text }) => ({
       assetId,
@@ -1959,21 +1993,23 @@ function campaignAssetChanges(
     ({ key }) => key,
     ({ key }) => key,
   );
-  return [
-    ...removed.map(({ assetId, fieldType }) => ({
+  return {
+    removes: removed.map(({ assetId, fieldType }) => ({
       campaign_asset_operation: {
         remove: `customers/${customerId}/campaignAssets/${campaignId}~${assetId}~${fieldType}`,
       },
     })),
-    ...campaignAssetOperations(
+    creates: campaignAssetOperations(
       customerId,
-      `customers/${customerId}/campaigns/${campaignId}`,
+      campaignResourceName(customerId, campaignId),
       added.map(({ asset }) => asset),
     ),
-  ];
+  };
 }
 
-const texts = (list: readonly string[]) => list.map((text) => ({ text }));
+function texts(list: readonly string[]): { text: string }[] {
+  return list.map((text) => ({ text }));
+}
 
 function searchAdChanges(
   ad: GoogleCampaignAd,
@@ -1982,20 +2018,24 @@ function searchAdChanges(
   if (!ad.search) throw conflict(NOT_EDITABLE);
   const { headlines, descriptions, path1, path2 } = ad.search;
   return [
-    ...change(
-      "responsive_search_ad.headlines",
-      google.headlines,
-      headlines,
-      texts(google.headlines),
-    ),
-    ...change(
-      "responsive_search_ad.descriptions",
-      google.descriptions,
-      descriptions,
-      texts(google.descriptions),
-    ),
-    ...change("responsive_search_ad.path1", google.path1 ?? null, path1),
-    ...change("responsive_search_ad.path2", google.path2 ?? null, path2),
+    ...changedField("responsive_search_ad.headlines", {
+      next: google.headlines,
+      current: headlines,
+      send: texts(google.headlines),
+    }),
+    ...changedField("responsive_search_ad.descriptions", {
+      next: google.descriptions,
+      current: descriptions,
+      send: texts(google.descriptions),
+    }),
+    ...changedField("responsive_search_ad.path1", {
+      next: google.path1 ?? null,
+      current: path1,
+    }),
+    ...changedField("responsive_search_ad.path2", {
+      next: google.path2 ?? null,
+      current: path2,
+    }),
   ];
 }
 
@@ -2009,36 +2049,28 @@ const DISPLAY_IMAGE_FIELDS: [GoogleDisplayImageRole, string][] = [
 ];
 
 /**
- * The image assets of an edited Display ad, by slot. Kept images must be among
- * the ad's current ones (422). New Drive images are all downloaded first, so a
- * bad file fails before anything is written, then uploaded one call each.
+ * The image assets of an edited Display ad, by slot (none for Search). New
+ * Drive images are all downloaded first, so a bad file fails before anything
+ * is written, then uploaded one call each; kept images are used as they are.
  */
-async function resolveDisplayImages(
+async function uploadNewImages(
   execute: ExecuteAdsTool,
   customerId: string,
-  ad: GoogleCampaignAd,
-  images: GoogleDisplayEditSpec["images"],
+  google: GoogleCampaignEditSpec,
 ): Promise<DisplayImageIds> {
-  const currentIds = new Set(ad.display?.images.map(({ assetId }) => assetId));
-  for (const image of images) {
-    if (!isNewDisplayImage(image) && !currentIds.has(image.assetId)) {
-      throw unprocessableEntity(
-        `Image ${image.assetId} is not an image of this ad`,
-      );
-    }
-  }
+  const ids: DisplayImageIds = { LANDSCAPE: [], SQUARE: [], LOGO: [] };
+  if (google.type === "SEARCH") return ids;
   const prepared: (
     | { role: GoogleDisplayImageRole; assetId: string }
     | { role: GoogleDisplayImageRole; download: DownloadedDisplayImage }
   )[] = [];
-  for (const image of images) {
+  for (const image of google.images) {
     prepared.push(
       isNewDisplayImage(image)
         ? { role: image.role, download: await downloadDisplayImage(image) }
         : { role: image.role, assetId: image.assetId },
     );
   }
-  const ids: DisplayImageIds = { LANDSCAPE: [], SQUARE: [], LOGO: [] };
   for (const item of prepared) {
     ids[item.role].push(
       "download" in item
@@ -2061,41 +2093,196 @@ function displayAdChanges(
   if (!ad.display) throw conflict(NOT_EDITABLE);
   const { display } = ad;
   return [
-    ...change(
-      "responsive_display_ad.headlines",
-      google.headlines,
-      display.headlines,
-      texts(google.headlines),
-    ),
-    ...change(
-      "responsive_display_ad.long_headline",
-      google.longHeadline,
-      display.longHeadline,
-      { text: google.longHeadline },
-    ),
-    ...change(
-      "responsive_display_ad.descriptions",
-      google.descriptions,
-      display.descriptions,
-      texts(google.descriptions),
-    ),
-    ...change(
-      "responsive_display_ad.business_name",
-      google.businessName,
-      display.businessName,
-    ),
+    ...changedField("responsive_display_ad.headlines", {
+      next: google.headlines,
+      current: display.headlines,
+      send: texts(google.headlines),
+    }),
+    ...changedField("responsive_display_ad.long_headline", {
+      next: google.longHeadline,
+      current: display.longHeadline,
+      send: { text: google.longHeadline },
+    }),
+    ...changedField("responsive_display_ad.descriptions", {
+      next: google.descriptions,
+      current: display.descriptions,
+      send: texts(google.descriptions),
+    }),
+    ...changedField("responsive_display_ad.business_name", {
+      next: google.businessName,
+      current: display.businessName,
+    }),
     ...DISPLAY_IMAGE_FIELDS.flatMap(([role, field]) =>
-      change(
-        `responsive_display_ad.${field}`,
-        imageIds[role],
-        display.images
+      changedField(`responsive_display_ad.${field}`, {
+        next: imageIds[role],
+        current: display.images
           .filter((image) => image.role === role)
           .map(({ assetId }) => assetId),
-        imageIds[role].map((id) => ({
+        send: imageIds[role].map((id) => ({
           asset: `customers/${customerId}/assets/${id}`,
         })),
-      ),
+      }),
     ),
+  ];
+}
+
+type CampaignState = ReturnType<typeof buildCampaign>;
+
+/** What an edit starts from: the campaign as Google has it. */
+interface EditTarget {
+  rows: DetailRows;
+  campaign: CampaignState;
+  ad: GoogleCampaignAd;
+  adGroupId: string;
+}
+
+function budgetChanges(rows: DetailRows, dailyBudget: number): FieldChange[] {
+  return changedField("amount_micros", {
+    next: Math.round(dailyBudget * MICROS),
+    current: rows.head.campaignBudget?.amountMicros ?? null,
+  });
+}
+
+/**
+ * The campaign's changed settings. An omitted start date keeps the current
+ * one; an omitted end date removes it, which Google takes as its far-future
+ * date.
+ */
+function campaignChanges(
+  campaign: CampaignState,
+  { name, google }: GoogleCampaignEdit,
+): FieldChange[] {
+  const endDate = google.endDate ?? null;
+  return [
+    ...changedField("name", { next: name, current: campaign.name }),
+    ...(google.startDate === undefined
+      ? []
+      : changedField("start_date_time", {
+          next: google.startDate,
+          current: campaign.startDate,
+          send: `${google.startDate} 00:00:00`,
+        })),
+    ...changedField("end_date_time", {
+      next: endDate,
+      current: campaign.endDate,
+      send: `${endDate ?? NO_END_DATE} 23:59:59`,
+    }),
+  ];
+}
+
+/**
+ * Every refusal of an edit, before any write: 409 for a campaign that is not
+ * editable here; 422 for another campaign type, a start date change after the
+ * campaign started, a budget change on a shared budget, a kept image that is
+ * not one of the ad's.
+ */
+function refuseEdit(rows: DetailRows, request: GoogleCampaignEdit): EditTarget {
+  const { dailyBudget, google } = request;
+  const type = campaignTypeOf(rows.head.campaign);
+  const campaign = buildCampaign(
+    rows,
+    type,
+    toLocalDateKey(new Date(), rows.head.customer.timeZone ?? "UTC"),
+  );
+  const ad = buildOnlyAd(rows);
+  const adGroupId = rows.adGroups[0]?.adGroup.id;
+  if (!campaign.editable || !ad || !adGroupId) throw conflict(NOT_EDITABLE);
+  if (google.type !== type) {
+    throw unprocessableEntity("The campaign type can't change");
+  }
+  if (
+    campaign.started &&
+    google.startDate !== undefined &&
+    google.startDate !== campaign.startDate
+  ) {
+    throw unprocessableEntity(
+      "The start date can't change after the campaign started",
+    );
+  }
+  if (
+    budgetChanges(rows, dailyBudget).length > 0 &&
+    rows.head.campaignBudget?.explicitlyShared
+  ) {
+    throw unprocessableEntity(SHARED_BUDGET_MESSAGE);
+  }
+  if (google.type === "DISPLAY") {
+    const adImageIds = new Set(
+      ad.display?.images.map(({ assetId }) => assetId),
+    );
+    for (const image of google.images) {
+      if (!isNewDisplayImage(image) && !adImageIds.has(image.assetId)) {
+        throw unprocessableEntity(
+          `Image ${image.assetId} is not an image of this ad`,
+        );
+      }
+    }
+  }
+  return { rows, campaign, ad, adGroupId };
+}
+
+/**
+ * The operations that turn the campaign into the request, only what differs:
+ * removals first (so a replacement never meets what it replaces), then
+ * updates, then creations (an asset before its link).
+ */
+function editOperations(
+  customerId: string,
+  campaignId: string,
+  { rows, campaign, ad, adGroupId }: EditTarget,
+  request: GoogleCampaignEdit,
+  imageIds: DisplayImageIds,
+): Operation[] {
+  const { dailyBudget, google } = request;
+  const targeting = targetingChanges(customerId, campaignId, rows, google);
+  const none: ResourceChanges = { removes: [], creates: [] };
+  const keywords =
+    google.type === "SEARCH"
+      ? keywordChanges(
+          customerId,
+          adGroupId,
+          buildKeywords(rows, "SEARCH"),
+          google,
+        )
+      : none;
+  const assets =
+    google.type === "SEARCH"
+      ? campaignAssetChanges(
+          customerId,
+          campaignId,
+          { sitelinks: buildSitelinks(rows), callouts: buildCallouts(rows) },
+          google,
+        )
+      : none;
+
+  const budget = fieldUpdate(
+    rows.head.campaign.campaignBudget,
+    budgetChanges(rows, dailyBudget),
+  );
+  const campaignUpdate = fieldUpdate(
+    campaignResourceName(customerId, campaignId),
+    campaignChanges(campaign, request),
+  );
+  const adUpdate = fieldUpdate(`customers/${customerId}/ads/${ad.id}`, [
+    ...changedField("final_urls", {
+      next: google.finalUrl,
+      current: ad.finalUrl,
+      send: [google.finalUrl],
+    }),
+    ...(google.type === "SEARCH"
+      ? searchAdChanges(ad, google)
+      : displayAdChanges(customerId, ad, google, imageIds)),
+  ]);
+
+  return [
+    ...targeting.removes,
+    ...keywords.removes,
+    ...assets.removes,
+    ...(budget ? [{ campaign_budget_operation: budget }] : []),
+    ...(campaignUpdate ? [{ campaign_operation: campaignUpdate }] : []),
+    ...(adUpdate ? [{ ad_operation: adUpdate }] : []),
+    ...targeting.creates,
+    ...keywords.creates,
+    ...assets.creates,
   ];
 }
 
@@ -2106,26 +2293,22 @@ function displayAdChanges(
  * false`) that holds only what differs from the campaign's current state.
  * Nothing differs, nothing is sent.
  *
- * Refused before the first write: 404 for an unknown or removed campaign; 409
- * for a campaign that is not editable here or a budget change on a shared
- * budget; 422 for another campaign type, a start date change after the
- * campaign started, a kept image that is not one of the ad's. A Google
- * validation or policy failure is raised as 422 with Google's message; other
- * failures are raised unchanged.
+ * Refused before the first write: 404 for an unknown or removed campaign, and
+ * the rules of `refuseEdit`. A Google validation or policy failure is raised
+ * as 422 with Google's message; other failures are raised unchanged.
  *
  * Immutable criteria (locations, languages, keywords) are removed and created
  * again; sitelinks and callouts are unlinked and linked as new assets. New
  * Display images are uploaded first, and Google cannot remove assets, so
  * images uploaded before a failed update stay unused in the account.
  */
-export async function updateGoogleCampaignDetails(
+export async function editGoogleCampaign(
   input: AdsConnectedAccount &
     GoogleCampaignEdit & { customerId: string; campaignId: string },
 ): Promise<void> {
   const { customerId, campaignId, name, dailyBudget, google, ...connected } =
     input;
-  // The id goes into the queries, so it must be digits only.
-  if (!/^\d{1,20}$/.test(campaignId)) throw notFound("Campaign not found");
+  requireCampaignId(campaignId);
 
   await withAdsToolSession(
     {
@@ -2134,115 +2317,26 @@ export async function updateGoogleCampaignDetails(
       toolSlugs: [SEARCH_STREAM_GAQL, BATCH_MUTATE],
     },
     async (execute) => {
-      const rows = await readDetailRows(execute, customerId, campaignId, null);
-      const type = campaignTypeOf(rows.head.campaign);
-      const today = toLocalDateKey(
-        new Date(),
-        rows.head.customer.timeZone ?? "UTC",
+      const request = { name, dailyBudget, google };
+      const rows = await readDetailRows(execute, customerId, campaignId, {});
+      const target = refuseEdit(rows, request);
+      const operations = editOperations(
+        customerId,
+        campaignId,
+        target,
+        request,
+        await uploadNewImages(execute, customerId, google),
       );
-      const current = buildCampaign(rows, type, today);
-      const ad = buildOnlyAd(rows);
-      const adGroupId = rows.adGroups[0]?.adGroup.id;
-      if (!current.editable || !ad || !adGroupId) {
-        throw conflict(NOT_EDITABLE);
-      }
-      if (google.type !== type) {
-        throw unprocessableEntity("The campaign type can't change");
-      }
-      const startDate = google.startDate ?? null;
-      const endDate = google.endDate ?? null;
-      if (current.started && startDate !== current.startDate) {
-        throw unprocessableEntity(
-          "The start date can't change after the campaign started",
-        );
-      }
-
-      const budgetUpdate = fieldUpdate(
-        rows.head.campaign.campaignBudget,
-        change(
-          "amount_micros",
-          Math.round(dailyBudget * MICROS),
-          rows.head.campaignBudget?.amountMicros ?? null,
-        ),
-      );
-      if (budgetUpdate && rows.head.campaignBudget?.explicitlyShared) {
-        throw conflict(
-          "This campaign uses a shared budget; change it in Google Ads",
-        );
-      }
-      const campaignUpdate = fieldUpdate(
-        `customers/${customerId}/campaigns/${campaignId}`,
-        [
-          ...change("name", name, current.name),
-          ...change(
-            "start_date_time",
-            startDate,
-            current.startDate,
-            startDate && `${startDate} 00:00:00`,
-          ),
-          ...change(
-            "end_date_time",
-            endDate,
-            current.endDate,
-            endDate && `${endDate} 23:59:59`,
-          ),
-        ],
-      );
-
-      const operations: Operation[] = [
-        ...(budgetUpdate ? [{ campaign_budget_operation: budgetUpdate }] : []),
-        ...(campaignUpdate ? [{ campaign_operation: campaignUpdate }] : []),
-        ...targetingOperations(customerId, campaignId, rows, google),
-      ];
-      let adChanges: FieldChange[];
-      if (google.type === "SEARCH") {
-        operations.push(
-          ...keywordOperations(
-            customerId,
-            adGroupId,
-            buildKeywords(rows, type),
-            google,
-          ),
-          ...campaignAssetChanges(
-            customerId,
-            campaignId,
-            { sitelinks: buildSitelinks(rows), callouts: buildCallouts(rows) },
-            google,
-          ),
-        );
-        adChanges = searchAdChanges(ad, google);
-      } else {
-        adChanges = displayAdChanges(
-          customerId,
-          ad,
-          google,
-          await resolveDisplayImages(execute, customerId, ad, google.images),
-        );
-      }
-      const adUpdate = fieldUpdate(`customers/${customerId}/ads/${ad.id}`, [
-        ...change("final_urls", google.finalUrl, ad.finalUrl, [
-          google.finalUrl,
-        ]),
-        ...adChanges,
-      ]);
-      if (adUpdate) operations.push({ ad_operation: adUpdate });
       if (operations.length === 0) return;
-
-      const payload = await executeWrite(execute, BATCH_MUTATE, {
-        customer_id: customerId,
-        partial_failure: false,
-        mutate_operations: operations.sort(
-          (a, b) => updatePhase(a) - updatePhase(b),
-        ),
-      });
-      if (
-        toolRows(payload, "mutate_operation_responses").length === 0 ||
-        hasPartialFailure(payload)
-      ) {
-        throw new ComposioToolError({
-          message: "edit Google Ads campaign was not applied",
-        });
-      }
+      requireMutated(
+        await executeWrite(execute, BATCH_MUTATE, {
+          customer_id: customerId,
+          partial_failure: false,
+          mutate_operations: operations,
+        }),
+        "mutate_operation_responses",
+        "edit Google Ads campaign",
+      );
     },
   );
 }

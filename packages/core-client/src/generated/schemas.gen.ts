@@ -21574,7 +21574,7 @@ export const UpdateAdCampaignRequestSchema = {
     }
 } as const;
 
-export const UpdateAdCampaignDetailsRequestSchema = {
+export const EditAdCampaignRequestSchema = {
     type: 'object',
     properties: {
         name: {
@@ -21617,7 +21617,7 @@ export const GoogleCampaignEditSpecSchema = {
             DISPLAY: '#/components/schemas/GoogleDisplayCampaignEditSpec'
         }
     },
-    description: 'The campaign\'s settings after the edit; it replaces every field, and only what differs from the campaign is changed. `type` must be the campaign\'s type, and the start date cannot change once the campaign started'
+    description: 'The campaign\'s settings after the edit; it replaces every field, and only what differs from the campaign is changed. `type` must be the campaign\'s type. Omit `startDate` to keep the start date (it cannot change once the campaign started); omit `endDate` to remove the end date'
 } as const;
 
 export const GoogleSearchCampaignSpecSchema = {

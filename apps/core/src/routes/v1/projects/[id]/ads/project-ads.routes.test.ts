@@ -64,7 +64,7 @@ vi.mock("@/services/project-ad-accounts.service", () => ({
   searchProjectAdLocations: m.locations,
   listProjectAdLanguages: m.languages,
   getProjectAdCampaignDetails: m.campaignDetails,
-  updateProjectAdCampaignDetails: m.editCampaign,
+  editProjectAdCampaign: m.editCampaign,
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 

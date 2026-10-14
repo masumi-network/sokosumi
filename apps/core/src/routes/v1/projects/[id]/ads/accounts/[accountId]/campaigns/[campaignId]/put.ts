@@ -10,10 +10,10 @@ import {
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
+  editAdCampaignRequestSchema,
   projectAdCampaignParamsSchema,
-  updateAdCampaignDetailsRequestSchema,
 } from "@/schemas/project-ad-account.schema";
-import { updateProjectAdCampaignDetails } from "@/services/project-ad-accounts.service";
+import { editProjectAdCampaign } from "@/services/project-ad-accounts.service";
 
 import { mapAdsServiceError } from "../../../../route-helpers.js";
 
@@ -22,14 +22,14 @@ const route = withOrganizationSlugHeaderParameter(
     method: "put",
     path: "/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
     description:
-      "Edit a Google campaign: its name, daily budget (decimal in the account currency) and the whole google spec (the same fields as a create; Display images may also be `{assetId, role}` to keep an image of the ad). Only what differs from the campaign is changed, in one atomic call; nothing differs, nothing is sent (still 204). Only a campaign that is editable (`campaign.editable` in the details) can be edited here (409), `google.type` must be the campaign's type (422), the start date cannot change once the campaign started (422), and a kept image must be one of the ad's images (422). A shared budget cannot change its amount (409). A Google validation or policy failure is returned as 422 with Google's message. Google Ads accounts only; a Meta account, an unknown campaign and a removed campaign are 404. New Display images must belong to the active Workspace's Drive. Requires an interactive user session in the Project's Workspace.",
+      "Edit a Google campaign: its name, daily budget (decimal in the account currency) and the whole google spec (the same fields as a create; Display images may also be `{assetId, role}` to keep an image of the ad). Only what differs from the campaign is changed, in one atomic call; nothing differs, nothing is sent (still 204). Only a campaign that is editable (`campaign.editable` in the details) can be edited here (409), `google.type` must be the campaign's type (422), an omitted startDate keeps the start date, which cannot change once the campaign started (422), and an omitted endDate removes the end date, and a kept image must be one of the ad's images (422). A shared budget cannot change its amount (422). A Google validation or policy failure is returned as 422 with Google's message. Google Ads accounts only; a Meta account, an unknown campaign and a removed campaign are 404. New Display images must belong to the active Workspace's Drive. Requires an interactive user session in the Project's Workspace.",
     tags: ["Projects"],
     request: {
       params: projectAdCampaignParamsSchema,
       body: {
         required: true,
         content: {
-          "application/json": { schema: updateAdCampaignDetailsRequestSchema },
+          "application/json": { schema: editAdCampaignRequestSchema },
         },
       },
     },
@@ -57,7 +57,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const { name, dailyBudget, google } = c.req.valid("json");
 
     try {
-      await updateProjectAdCampaignDetails({
+      await editProjectAdCampaign({
         projectId,
         workspaceId: workspaceContext.workspaceId,
         accountId,

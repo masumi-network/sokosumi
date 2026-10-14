@@ -90,7 +90,7 @@ vi.mock("@/lib/ads/google-ads", () => ({
   searchGoogleLocations: m.googleLocations,
   listGoogleLanguages: m.googleLanguages,
   getGoogleCampaignDetails: m.googleDetails,
-  updateGoogleCampaignDetails: m.googleEdit,
+  editGoogleCampaign: m.googleEdit,
 }));
 vi.mock("@/lib/ads/meta-ads", () => ({
   listMetaAdAccounts: m.listMeta,
@@ -116,6 +116,7 @@ import {
   createProjectAdCampaign,
   detachProjectAdAccount,
   discardProjectAdConnection,
+  editProjectAdCampaign,
   finalizeProjectAdConnection,
   getPendingProjectAdRevocation,
   getProjectAdCampaignDetails,
@@ -125,7 +126,6 @@ import {
   revokeProjectAdConnectionForClose,
   searchProjectAdLocations,
   updateProjectAdCampaign,
-  updateProjectAdCampaignDetails,
 } from "./project-ad-accounts.service";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
@@ -675,11 +675,9 @@ describe("project ad accounts service", () => {
       ],
     };
     const edit = (
-      changes: Partial<
-        Parameters<typeof updateProjectAdCampaignDetails>[0]
-      > = {},
+      changes: Partial<Parameters<typeof editProjectAdCampaign>[0]> = {},
     ) =>
-      updateProjectAdCampaignDetails({
+      editProjectAdCampaign({
         ...scope,
         accountId: ACCOUNT_UUID,
         campaignId: "42",

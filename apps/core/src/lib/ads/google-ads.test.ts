@@ -38,13 +38,13 @@ vi.mock("@/clients/social-post-providers/tools", async (importOriginal) => ({
 
 import {
   createGoogleCampaign,
+  editGoogleCampaign,
   getGoogleCampaignDetails,
   listGoogleAdAccounts,
   listGoogleCampaigns,
   listGoogleLanguages,
   searchGoogleLocations,
   updateGoogleCampaign,
-  updateGoogleCampaignDetails,
 } from "./google-ads";
 
 const input = {
@@ -2468,7 +2468,7 @@ describe("getGoogleCampaignDetails", () => {
   });
 });
 
-describe("updateGoogleCampaignDetails", () => {
+describe("editGoogleCampaign", () => {
   const BLOB = "https://store.public.blob.vercel-storage.com/drive/users/u1";
   const driveImage = (name: string, role: "LANDSCAPE" | "SQUARE" | "LOGO") => ({
     pathname: `drive/users/u1/${name}`,
@@ -2605,7 +2605,7 @@ describe("updateGoogleCampaignDetails", () => {
   });
 
   it("reads the campaign without metrics and sends nothing when nothing changed", async () => {
-    await expect(updateGoogleCampaignDetails(edit)).resolves.toBeUndefined();
+    await expect(editGoogleCampaign(edit)).resolves.toBeUndefined();
     expect(batches()).toEqual([]);
     expect(createSessionMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -2628,12 +2628,12 @@ describe("updateGoogleCampaignDetails", () => {
       },
       applied,
     );
-    await updateGoogleCampaignDetails(withGoogle({ endDate: undefined }));
+    await editGoogleCampaign(withGoogle({ endDate: undefined }));
     expect(batches()).toEqual([]);
   });
 
   it("updates name and budget with masks of the changed fields only, in one atomic call", async () => {
-    await updateGoogleCampaignDetails({
+    await editGoogleCampaign({
       ...edit,
       name: "New name",
       dailyBudget: 20.25,
@@ -2670,7 +2670,7 @@ describe("updateGoogleCampaignDetails", () => {
       { campaign: [campaignRow({ startDateTime: "2026-11-01 00:00:00" })] },
       applied,
     );
-    await updateGoogleCampaignDetails(
+    await editGoogleCampaign(
       withGoogle({ startDate: "2026-11-05", endDate: "2027-01-31" }),
     );
     expect(sent()).toEqual([
@@ -2687,12 +2687,41 @@ describe("updateGoogleCampaignDetails", () => {
     ]);
   });
 
-  it("clears the end date with a mask entry and no value", async () => {
-    await updateGoogleCampaignDetails(withGoogle({ endDate: undefined }));
+  it("removes the end date by sending Google's far-future date", async () => {
+    await editGoogleCampaign(withGoogle({ endDate: undefined }));
     expect(sent()).toEqual([
       {
         campaign_operation: {
-          update: { resource_name: "customers/111/campaigns/42" },
+          update: {
+            resource_name: "customers/111/campaigns/42",
+            end_date_time: "2037-12-30 23:59:59",
+          },
+          update_mask: "endDateTime",
+        },
+      },
+    ]);
+  });
+
+  it("keeps the start date of a started campaign when the request omits it", async () => {
+    await editGoogleCampaign(withGoogle({ startDate: undefined }));
+    expect(batches()).toEqual([]);
+  });
+
+  it("keeps the start date of a campaign that has not started when the request omits it", async () => {
+    mockResults(
+      { campaign: [campaignRow({ startDateTime: "2026-11-01 00:00:00" })] },
+      applied,
+    );
+    await editGoogleCampaign(
+      withGoogle({ startDate: undefined, endDate: "2027-01-31" }),
+    );
+    expect(sent()).toEqual([
+      {
+        campaign_operation: {
+          update: {
+            resource_name: "customers/111/campaigns/42",
+            end_date_time: "2027-01-31 23:59:59",
+          },
           update_mask: "endDateTime",
         },
       },
@@ -2701,12 +2730,10 @@ describe("updateGoogleCampaignDetails", () => {
 
   describe("refusals before any write", () => {
     const refused = async (
-      request: Parameters<typeof updateGoogleCampaignDetails>[0],
+      request: Parameters<typeof editGoogleCampaign>[0],
       expected: Record<string, unknown>,
     ) => {
-      await expect(updateGoogleCampaignDetails(request)).rejects.toMatchObject(
-        expected,
-      );
+      await expect(editGoogleCampaign(request)).rejects.toMatchObject(expected);
       expect(batches()).toEqual([]);
       expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
       expect(deleteSessionMock).toHaveBeenCalled();
@@ -2717,10 +2744,6 @@ describe("updateGoogleCampaignDetails", () => {
         status: 422,
         message: "The start date can't change after the campaign started",
       });
-    });
-
-    it("returns 422 for a request that drops the start date of a started campaign", async () => {
-      await refused(withGoogle({ startDate: undefined }), { status: 422 });
     });
 
     it("returns 422 when the request type differs from the campaign type", async () => {
@@ -2762,12 +2785,12 @@ describe("updateGoogleCampaignDetails", () => {
 
     it("returns 404 without a call for an id that is not digits", async () => {
       await expect(
-        updateGoogleCampaignDetails({ ...edit, campaignId: "1 OR 1=1" }),
+        editGoogleCampaign({ ...edit, campaignId: "1 OR 1=1" }),
       ).rejects.toMatchObject({ status: 404 });
       expect(createSessionMock).not.toHaveBeenCalled();
     });
 
-    it("returns 409 for a budget change on a shared budget", async () => {
+    it("returns 422 for a budget change on a shared budget", async () => {
       mockResults(
         {
           campaign: [
@@ -2782,7 +2805,14 @@ describe("updateGoogleCampaignDetails", () => {
         },
         applied,
       );
-      await refused({ ...edit, dailyBudget: 30 }, { status: 409 });
+      await refused(
+        { ...edit, dailyBudget: 30 },
+        {
+          status: 422,
+          message:
+            "This campaign uses a shared budget; change it in Google Ads",
+        },
+      );
     });
 
     it("returns 422 for a kept image that is not in the ad", async () => {
@@ -2800,7 +2830,7 @@ describe("updateGoogleCampaignDetails", () => {
   });
 
   it("removes and adds locations and languages, once each, removals first", async () => {
-    await updateGoogleCampaignDetails(
+    await editGoogleCampaign(
       withGoogle({
         locationIds: ["2840", "2840"],
         languageIds: ["1002"],
@@ -2837,9 +2867,7 @@ describe("updateGoogleCampaignDetails", () => {
   });
 
   it("keeps the targeting that the request repeats", async () => {
-    await updateGoogleCampaignDetails(
-      withGoogle({ locationIds: ["2276", "2840"] }),
-    );
+    await editGoogleCampaign(withGoogle({ locationIds: ["2276", "2840"] }));
     expect(sent()).toEqual([
       {
         campaign_criterion_operation: {
@@ -2868,7 +2896,7 @@ describe("updateGoogleCampaignDetails", () => {
       },
       applied,
     );
-    await updateGoogleCampaignDetails(
+    await editGoogleCampaign(
       withGoogle({
         keywords: [
           { text: "Running Shoes", matchType: "EXACT" },
@@ -2907,7 +2935,7 @@ describe("updateGoogleCampaignDetails", () => {
 
   describe("the ad", () => {
     it("updates the changed search ad fields with a mask of them", async () => {
-      await updateGoogleCampaignDetails(
+      await editGoogleCampaign(
         withGoogle({
           finalUrl: "https://example.com/new",
           headlines: ["Buy shoes", "Run fast", "Free returns"],
@@ -2934,7 +2962,7 @@ describe("updateGoogleCampaignDetails", () => {
     });
 
     it("changes descriptions and paths, and clears a removed path", async () => {
-      await updateGoogleCampaignDetails(
+      await editGoogleCampaign(
         withGoogle({
           descriptions: ["Free shipping", "Order today"],
           path1: undefined,
@@ -2962,7 +2990,7 @@ describe("updateGoogleCampaignDetails", () => {
 
     it("replaces the changed display ad fields", async () => {
       mockResults(displayState, applied);
-      await updateGoogleCampaignDetails(
+      await editGoogleCampaign(
         displayEdit({
           businessName: "Acme Shoes",
           longHeadline: "Even better shoes",
@@ -2991,7 +3019,7 @@ describe("updateGoogleCampaignDetails", () => {
 
     it("keeps old images, uploads new ones first and sends the new image lists", async () => {
       mockResults(displayState, applied);
-      await updateGoogleCampaignDetails(
+      await editGoogleCampaign(
         displayEdit({
           images: [
             { assetId: "1", role: "LANDSCAPE" },
@@ -3037,7 +3065,7 @@ describe("updateGoogleCampaignDetails", () => {
 
     it("sends nothing for a display ad whose kept images are unchanged", async () => {
       mockResults(displayState, applied);
-      await updateGoogleCampaignDetails(displayEdit());
+      await editGoogleCampaign(displayEdit());
       expect(batches()).toEqual([]);
     });
   });
@@ -3054,12 +3082,12 @@ describe("updateGoogleCampaignDetails", () => {
     });
 
     it("leaves unchanged ones alone", async () => {
-      await updateGoogleCampaignDetails(withGoogle({}));
+      await editGoogleCampaign(withGoogle({}));
       expect(batches()).toEqual([]);
     });
 
     it("unlinks the ones the request drops, without removing assets", async () => {
-      await updateGoogleCampaignDetails(
+      await editGoogleCampaign(
         withGoogle({ sitelinks: undefined, callouts: [] }),
       );
       expect(sent()).toEqual([
@@ -3077,7 +3105,7 @@ describe("updateGoogleCampaignDetails", () => {
     });
 
     it("replaces a changed one and adds a new one: assets before their links, unlinks first", async () => {
-      await updateGoogleCampaignDetails(
+      await editGoogleCampaign(
         withGoogle({
           sitelinks: [
             {
@@ -3160,7 +3188,7 @@ describe("updateGoogleCampaignDetails", () => {
   });
 
   it("orders removals, updates and creations across resources", async () => {
-    await updateGoogleCampaignDetails({
+    await editGoogleCampaign({
       ...withGoogle({ locationIds: ["2840"], headlines: ["A", "B"] }),
       name: "Renamed",
     });
@@ -3184,7 +3212,7 @@ describe("updateGoogleCampaignDetails", () => {
         });
       });
       await expect(
-        updateGoogleCampaignDetails({ ...edit, name: "New" }),
+        editGoogleCampaign({ ...edit, name: "New" }),
       ).rejects.toMatchObject({ status: 422, message: "Too long." });
       expect(deleteSessionMock).toHaveBeenCalled();
     });
@@ -3194,9 +3222,9 @@ describe("updateGoogleCampaignDetails", () => {
       mockResults({}, () => {
         throw error;
       });
-      await expect(
-        updateGoogleCampaignDetails({ ...edit, name: "New" }),
-      ).rejects.toBe(error);
+      await expect(editGoogleCampaign({ ...edit, name: "New" })).rejects.toBe(
+        error,
+      );
     });
 
     it.each([
@@ -3211,7 +3239,7 @@ describe("updateGoogleCampaignDetails", () => {
     ])("raises a tool error for %s", async (_name, result) => {
       mockResults({}, () => result);
       await expect(
-        updateGoogleCampaignDetails({ ...edit, name: "New" }),
+        editGoogleCampaign({ ...edit, name: "New" }),
       ).rejects.toBeInstanceOf(ComposioToolError);
     });
 
@@ -3219,7 +3247,7 @@ describe("updateGoogleCampaignDetails", () => {
       mockResults(displayState, applied);
       ssrfSafeFetchMock.mockResolvedValue(new Response(null, { status: 404 }));
       await expect(
-        updateGoogleCampaignDetails(
+        editGoogleCampaign(
           displayEdit({
             images: [...display.images, driveImage("gone.png", "SQUARE")],
           }),

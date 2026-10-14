@@ -6268,7 +6268,7 @@ export type UpdateAdCampaignRequest = {
 /**
  * Edit of a Google campaign that is editable (see `campaign.editable` of the details). The status is not part of it; use the status/budget update
  */
-export type UpdateAdCampaignDetailsRequest = {
+export type EditAdCampaignRequest = {
     name: string;
     /**
      * Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)
@@ -6278,7 +6278,7 @@ export type UpdateAdCampaignDetailsRequest = {
 };
 
 /**
- * The campaign's settings after the edit; it replaces every field, and only what differs from the campaign is changed. `type` must be the campaign's type, and the start date cannot change once the campaign started
+ * The campaign's settings after the edit; it replaces every field, and only what differs from the campaign is changed. `type` must be the campaign's type. Omit `startDate` to keep the start date (it cannot change once the campaign started); omit `endDate` to remove the end date
  */
 export type GoogleCampaignEditSpec = ({
     type: 'SEARCH';
@@ -44558,7 +44558,7 @@ export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse
 export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse = PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses[keyof PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses];
 
 export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
-    body: UpdateAdCampaignDetailsRequest;
+    body: EditAdCampaignRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.

@@ -45,6 +45,7 @@ import type {
 } from "@/lib/ads/composio-tools";
 import {
   createGoogleCampaign,
+  editGoogleCampaign,
   type GoogleCampaignDetails,
   type GoogleLanguage,
   type GoogleLocation,
@@ -54,7 +55,6 @@ import {
   listGoogleLanguages,
   searchGoogleLocations,
   updateGoogleCampaign,
-  updateGoogleCampaignDetails,
 } from "@/lib/ads/google-ads";
 import {
   createMetaCampaign,
@@ -590,12 +590,12 @@ export async function createProjectAdCampaign(
 
 /**
  * Edits a Google campaign of an attached ad account to the given name, budget
- * and spec (see `updateGoogleCampaignDetails`). Only Google accounts can be
+ * and spec (see `editGoogleCampaign`). Only Google accounts can be
  * edited: a Meta account is 404 before its connection is checked. New Drive
  * images of a Display spec must belong to the active Workspace's Drive
  * (`userId`, `organizationId`). All refusals happen before the first write.
  */
-export async function updateProjectAdCampaignDetails(
+export async function editProjectAdCampaign(
   input: ProjectScope &
     GoogleCampaignEdit & {
       accountId: string;
@@ -610,7 +610,7 @@ export async function updateProjectAdCampaignDetails(
     notFound: "Campaign editing is only available for Google Ads accounts",
   });
   requireBudgetPrecision(input.dailyBudget, account.currency);
-  await updateGoogleCampaignDetails({
+  await editGoogleCampaign({
     ...account.connected,
     customerId: account.externalAccountId,
     campaignId: input.campaignId,
