@@ -672,14 +672,21 @@ export function SocialPostStatistics(
             <ul className="space-y-3">
               {posts.map((post) => (
                 <li key={post.id} className="space-y-3 rounded-lg border p-4">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="font-medium">
-                      {accountsById.get(post.connectionId)?.displayName ??
-                        accountsById.get(post.connectionId)?.externalHandle ??
-                        SOCIAL_PROVIDERS.find(
-                          (provider) => provider.id === post.provider,
-                        )?.name ??
-                        post.provider}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="flex min-w-0 items-center gap-2 font-medium">
+                      <SocialPostProviderIcon
+                        provider={post.provider}
+                        className="size-4 shrink-0"
+                        aria-hidden
+                      />
+                      <span className="truncate">
+                        {accountsById.get(post.connectionId)?.displayName ??
+                          accountsById.get(post.connectionId)?.externalHandle ??
+                          SOCIAL_PROVIDERS.find(
+                            (provider) => provider.id === post.provider,
+                          )?.name ??
+                          post.provider}
+                      </span>
                     </p>
                     <p className="text-muted-foreground text-xs">
                       {post.publishedAt

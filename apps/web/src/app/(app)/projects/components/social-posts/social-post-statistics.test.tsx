@@ -316,6 +316,16 @@ describe("SocialPostStatistics account history", () => {
     expect(within(overview).getByText("Impressions")).toBeVisible();
     expect(within(overview).queryByText("Views")).not.toBeInTheDocument();
   });
+  it("shows a platform logo on each published post row", async () => {
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    const row = screen.getByText(post.text).closest("li");
+    expect(row).not.toBeNull();
+    expect(
+      row?.querySelectorAll("[data-testid='social-post-provider-icon']"),
+    ).toHaveLength(1);
+    expect(row).toHaveTextContent("Launch account");
+  });
   it("hides the trend chart when the selected period has no daily points", async () => {
     mocks.fetch.mockResolvedValue({
       ok: true,
