@@ -364,6 +364,33 @@ describe("Project social connection routes", () => {
     });
   });
 
+  it("keeps the connection when the first stats refresh queue fails", async () => {
+    scheduleSocialAccountRefreshMock.mockRejectedValue(new Error("queue down"));
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-connections/finalize`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectionId: CONNECTION_ID }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      data: {
+        id: SOCIAL_CONNECTION_ID,
+        status: "active",
+      },
+    });
+    expect(finalizeProjectSocialConnectionMock).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      connectionId: CONNECTION_ID,
+    });
+    expect(scheduleSocialAccountRefreshMock).toHaveBeenCalled();
+  });
+
   it("returns a disconnected credential-free connection when provider revocation fails", async () => {
     disconnectProjectSocialConnectionMock.mockResolvedValue({
       connection: {
