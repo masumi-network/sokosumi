@@ -9,6 +9,7 @@ import {
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useEffect, useMemo, useRef } from "react";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 
 import {
   type ChatRoomMessageEventData,
@@ -261,7 +262,9 @@ export function useChatRoomRealtime({
         if (attached.has(roomId)) {
           continue;
         }
-        const channel = ably.channels.get(makeChatRoomChannelName(roomId));
+        const channel = ably.channels.get(
+          makeChatRoomChannelName(roomId, getRealtimeChannelEnvironment()),
+        );
         safeSubscribeChannel(
           channel,
           CHAT_ROOM_MESSAGE_EVENT_NAME,
@@ -319,7 +322,10 @@ export function useChatRoomRealtime({
     void syncMembershipChannels();
 
     const controlChannel = ably.channels.get(
-      makeUserChatControlChannelName(currentUserId),
+      makeUserChatControlChannelName(
+        currentUserId,
+        getRealtimeChannelEnvironment(),
+      ),
     );
     safeSubscribeChannel(
       controlChannel,
