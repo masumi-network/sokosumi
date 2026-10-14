@@ -86,6 +86,8 @@ xcodebuild test -workspace Sokosumi.xcworkspace -scheme Sokosumi \
 swift test --package-path Packages/SokosumiChat   # fast single-package rerun
 ```
 
+The Debug configuration is its own app, "Sokosumi Dev" (`com.sokosumi.app.dev`), so a build from Xcode never shares the installed app's sandbox container, defaults, keychain session or Launch Services entry. Release keeps `com.sokosumi.app`. Web's `apple-app-site-association` lists both IDs, so the Debug build can sign in through the same HTTPS callback.
+
 CI holds no Apple certificates for the gate job, so `Xcode test` overrides with `DEVELOPMENT_TEAM=` / `CODE_SIGN_IDENTITY=-` (ad-hoc). Keep those flags when adding steps to that job. **`Publish macOS DMG` is the exception and must stay one:** it archives with `DEVELOPMENT_TEAM=$TEAM_ID`, `CODE_SIGN_STYLE=Manual` and `CODE_SIGN_IDENTITY="Developer ID Application"`, because a downloadable build has to be genuinely signed. Do not paste the ad-hoc flags into it.
 
 ## App-Specific Testing
