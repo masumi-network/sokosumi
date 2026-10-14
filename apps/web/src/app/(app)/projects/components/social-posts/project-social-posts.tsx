@@ -751,7 +751,6 @@ export function ProjectSocialPosts({
               ) : null}
             </div>
           ) : null}
-
         </div>
         {renderPostActions(post)}
       </li>
