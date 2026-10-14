@@ -70,9 +70,12 @@ struct MarkdownBareDomains {
     return nil
   }
 
+  /// GFM's URL autolink: not glued to a preceding letter, and a host after the scheme.
   private func urlEnd(at start: Int) -> Int? {
-    guard text[start...].starts(with: Array("https://")) || text[start...].starts(with: Array("http://")) else { return nil }
-    return max(pathEnd(from: start), start + 1)
+    guard start == 0 || !Self.isLetter(text[start - 1]) else { return nil }
+    let scheme = ["https://", "http://"].first { text[start...].starts(with: Array($0)) }
+    guard let scheme, start + scheme.count < text.count, Self.isLabel(text[start + scheme.count]) else { return nil }
+    return pathEnd(from: start)
   }
 
   /// GFM's `www.` autolink: after a line start, whitespace or `*_~(`, a host whose last two labels have no `_`.

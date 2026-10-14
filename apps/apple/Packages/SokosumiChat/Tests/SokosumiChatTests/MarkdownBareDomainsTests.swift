@@ -31,7 +31,7 @@ struct MarkdownBareDomainsTests {
     let fixtures = [
       "[google.com](https://example.com \"Docs\")", "[docs](https://example.com/path)",
       "foo.bar", "report.pdf?x=1 photo.png#a",
-      "www.", "www.example", "www.com", "x.www.foo", "www.foo_bar.com", "foo@bar", "user@host-", "/user@google.com",
+      "www.", "https://", "see https:// later", "nothttps://example.com", "www.example", "www.com", "x.www.foo", "www.foo_bar.com", "foo@bar", "user@host-", "/user@google.com",
       "`google.com`", "``google.com``", "`user@google.com`",
       "```\ngoogle.com\n```", "~~~\ngoogle.com\n~~~", "```\ngoogle.com",
       "192.168.1.1 localhost:3000 v1.2.3 i.e.", "report.pdf photo.png", "hello world",
