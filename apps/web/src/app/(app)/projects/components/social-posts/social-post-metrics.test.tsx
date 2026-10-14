@@ -78,4 +78,35 @@ describe("SocialPostMetrics", () => {
       "Failed to refresh statistics",
     );
   });
+
+  it("hides missing compact counts and the not-fetched line", () => {
+    render(
+      <SocialPostMetrics
+        compact
+        statistics={{
+          metrics,
+          fetchedAt: null,
+          refreshAttemptedAt: new Date("2026-10-08T12:00:00.000Z"),
+          error: "rate limited",
+        }}
+      />,
+    );
+    expect(screen.getByText("Views").closest("div")).toHaveTextContent("0");
+    expect(screen.getByText("Impressions").closest("div")).toHaveTextContent(
+      "12",
+    );
+    expect(screen.queryByText("Likes / reactions")).not.toBeInTheDocument();
+    expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Statistics have not been fetched."),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("renders nothing compact when every count is missing", () => {
+    const { container } = render(
+      <SocialPostMetrics compact statistics={undefined} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
 });
