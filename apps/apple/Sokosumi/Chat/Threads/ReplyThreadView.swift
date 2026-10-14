@@ -26,7 +26,11 @@ import SwiftUI
     var body: some View {
       let input = preparationInput
       let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
-      ReplyThreadContent(messages: prepared?.overlaying(input.messages) ?? [], preparedTranscript: prepared,
+      // The parent leads the list, so the replies overlay apart from it: an older page of replies is then the prefix
+      // that waits for its Markdown, as the room's does. Shown at once, its rows drew a loading line, then grew by a
+      // line just above the reader, and the list's correction for that growth at times left the text 16 or 32 pt off.
+      let messages = prepared.map { Array(input.messages.prefix(1)) + $0.overlaying(Array(input.messages.dropFirst())) } ?? []
+      ReplyThreadContent(messages: messages, preparedTranscript: prepared,
                          preparationScope: input.scope, preparedHasMore: preparedHasMore)
         .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: workspaces.openRoom.room.timeline.roomId ?? "", parentMessageId: workspaces.openRoom.thread.parent?.id))
         .id([workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.openRoom.room.timeline.roomId ?? "", workspaces.openRoom.thread.parent?.id ?? ""])
