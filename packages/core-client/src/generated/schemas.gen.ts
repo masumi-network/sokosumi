@@ -20981,7 +20981,15 @@ export const AdCampaignDetailsSchema = {
             }
         },
         ad: {
-            $ref: '#/components/schemas/AdCampaignAd'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AdCampaignAd'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The campaign\'s only ad; null when it has none or several'
         },
         sitelinks: {
             type: 'array',
@@ -21237,10 +21245,7 @@ export const AdCampaignKeywordSchema = {
 } as const;
 
 export const AdCampaignAdSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         id: {
             type: 'string'
@@ -21284,8 +21289,7 @@ export const AdCampaignAdSchema = {
         'reviewStatus',
         'adStrength',
         'finalUrl'
-    ],
-    description: 'The campaign\'s only ad; null when it has none or several'
+    ]
 } as const;
 
 export const AdCampaignSearchAdSchema = {

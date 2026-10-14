@@ -705,7 +705,8 @@ export const adCampaignDetailsSchema = z
       })
       .openapi("AdCampaignTargeting"),
     keywords: z.array(adCampaignKeywordSchema),
-    ad: adCampaignAdSchema.nullable().openapi({
+    // Union-with-null, not `.nullable()`: see `finalizeProjectAdConnectionResponseSchema`.
+    ad: z.union([adCampaignAdSchema, z.null()]).openapi({
       description: "The campaign's only ad; null when it has none or several",
     }),
     sitelinks: z.array(adCampaignSitelinkSchema),

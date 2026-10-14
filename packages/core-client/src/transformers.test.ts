@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponseTransformer,
   getProjectsByIdAdsMarketAdsResponseTransformer,
   getProjectsByIdAdsMarketResponseTransformer,
   postProjectsByIdAdsConnectionsFinalizeResponseTransformer,
@@ -83,5 +84,47 @@ describe("generated response transformers keep nullable objects null-safe", () =
     });
 
     expect(result.data.fetchedAt).toBeInstanceOf(Date);
+  });
+
+  it("campaign details: ad null (none or several) stays null", async () => {
+    const result =
+      await getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponseTransformer(
+        {
+          data: {
+            campaign: {
+              id: "42",
+              name: "Brand",
+              status: "ACTIVE",
+              type: "SEARCH",
+              channelType: "SEARCH",
+              dailyBudget: 1,
+              currency: "EUR",
+              biddingStrategyType: "MAXIMIZE_CLICKS",
+              startDate: null,
+              endDate: null,
+              started: false,
+              editable: false,
+              notEditableReason: "AD_TYPE",
+            },
+            targeting: { locations: [], languages: [] },
+            keywords: [],
+            ad: null,
+            sitelinks: [],
+            callouts: [],
+            performance: {
+              totals: {
+                spend: 0,
+                impressions: 0,
+                clicks: 0,
+                conversions: 0,
+              },
+              daily: [],
+            },
+          },
+          meta,
+        },
+      );
+
+    expect(result.data.ad).toBeNull();
   });
 });

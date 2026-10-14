@@ -22,6 +22,7 @@ import {
   type AdCampaignUpdate,
   type AdRange,
   buildAdCampaign,
+  currencyFractionDigits,
   GOOGLE_DISPLAY_IMAGE_MAX_BYTES,
   GOOGLE_DISPLAY_IMAGE_MAX_LABEL,
   GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
@@ -131,8 +132,10 @@ export async function listGoogleAdAccounts(
               },
             ];
           } catch (error) {
-            // Google lists customers the user cannot query (cancelled, no access).
-            if (error instanceof ComposioToolError) return [];
+            // Google lists customers the grant cannot query; other tool
+            // failures (auth, quota, transient) must propagate so finalize
+            // does not treat them as a genuine empty grant.
+            if (isInaccessibleGoogleCustomerError(error)) return [];
             throw error;
           }
         }),
@@ -741,6 +744,24 @@ function googleValidationMessage(error: unknown): string | null {
 }
 
 /**
+ * True when Google listed a customer this grant cannot query (cancelled, no
+ * access). Auth, quota and other connection-wide failures stay false so the
+ * caller can surface them instead of an empty account list.
+ */
+function isInaccessibleGoogleCustomerError(error: unknown): boolean {
+  if (!(error instanceof ComposioToolError) || !error.providerMessage) {
+    return false;
+  }
+  const [, code] = GOOGLE_FAILURE_PATTERN.exec(error.providerMessage) ?? [];
+  if (!code) return false;
+  const normalized = code.replaceAll("_", "").toLowerCase();
+  return (
+    normalized === "authorizationerror" ||
+    normalized === "customernotenablederror"
+  );
+}
+
+/**
  * Runs a write tool. A Google validation or policy failure is raised as 422
  * with Google's message; any other error is raised unchanged.
  */
@@ -1202,7 +1223,10 @@ const imageAssetsSchema = z
   .transform((assets) => (assets ?? []).map(({ asset }) => asset));
 
 const detailCampaignRowSchema = z.object({
-  customer: z.object({ timeZone: z.string().nullish() }),
+  customer: z.object({
+    timeZone: z.string().nullish(),
+    currencyCode: z.string().min(1).nullish(),
+  }),
   campaign: z.object({
     id: z.coerce.string().min(1),
     name: z.string(),
@@ -1462,7 +1486,7 @@ async function readDetailRows(
   const [[head], criteria, adGroups, keywords, ads, linkedAssets, dailyRows] =
     await Promise.all([
       search(
-        `SELECT customer.time_zone, campaign.id, campaign.name, campaign.status, campaign.serving_status, campaign.advertising_channel_type, campaign.bidding_strategy_type, campaign.campaign_budget, campaign.start_date_time, campaign.end_date_time, campaign_budget.amount_micros, campaign_budget.explicitly_shared FROM campaign WHERE ${campaignQuery} AND campaign.status != 'REMOVED'`,
+        `SELECT customer.time_zone, customer.currency_code, campaign.id, campaign.name, campaign.status, campaign.serving_status, campaign.advertising_channel_type, campaign.bidding_strategy_type, campaign.campaign_budget, campaign.start_date_time, campaign.end_date_time, campaign_budget.amount_micros, campaign_budget.explicitly_shared FROM campaign WHERE ${campaignQuery} AND campaign.status != 'REMOVED'`,
         detailCampaignRowSchema,
         "details",
       ),
@@ -1562,17 +1586,18 @@ function buildCampaign(
   type: GoogleCampaignType,
   today: string,
 ): Omit<GoogleCampaignDetails["campaign"], "currency"> {
-  const { campaign, campaignBudget } = head;
+  const { campaign, campaignBudget, customer } = head;
   const startDate = campaign.startDateTime?.slice(0, 10) || null;
   const endDate = campaign.endDateTime?.slice(0, 10) || null;
   const reason = notEditableReason(type, adGroups.length, ads);
+  const digits = currencyFractionDigits(customer.currencyCode ?? "USD");
   return {
     id: campaign.id,
     name: campaign.name,
     status: googleStatus(campaign.status, campaign.servingStatus),
     type,
     channelType: campaign.advertisingChannelType ?? "",
-    dailyBudget: round((campaignBudget?.amountMicros ?? 0) / MICROS, 2),
+    dailyBudget: round((campaignBudget?.amountMicros ?? 0) / MICROS, digits),
     biddingStrategyType: campaign.biddingStrategyType ?? "",
     startDate,
     endDate: endDate === NO_END_DATE ? null : endDate,

@@ -17,6 +17,7 @@ const m = vi.hoisted(() => {
     snapshotFindUnique: vi.fn(),
     snapshotUpsert: vi.fn(),
     snapshotDeleteMany: vi.fn(),
+    snapshotCreateMany: vi.fn(),
     jobFindUnique: vi.fn(),
     jobCreateMany: vi.fn(),
     jobUpdateMany: vi.fn(),
@@ -32,6 +33,7 @@ const m = vi.hoisted(() => {
       findUnique: fns.snapshotFindUnique,
       upsert: fns.snapshotUpsert,
       deleteMany: fns.snapshotDeleteMany,
+      createMany: fns.snapshotCreateMany,
     },
     projectAdMarketAdsJob: {
       findUnique: fns.jobFindUnique,
@@ -135,6 +137,7 @@ describe("project ad market service", () => {
     m.postSerpTasks.mockResolvedValue(["s1", "s2"]);
     m.postAdsSearchTasks.mockResolvedValue(["a1", "a2"]);
     m.snapshotDeleteMany.mockResolvedValue({ count: 0 });
+    m.snapshotCreateMany.mockResolvedValue({ count: 1 });
     m.snapshotUpsert.mockImplementation(
       async (args: { create: { fetchedAt: Date } }) => ({
         fetchedAt: args.create.fetchedAt,
@@ -241,6 +244,16 @@ describe("project ad market service", () => {
           languageCode: "de",
         }),
       );
+      expect(m.snapshotCreateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            projectId: PROJECT_ID,
+            kind: "keywords_lease",
+            requestKey: KEY,
+          }),
+          skipDuplicates: true,
+        }),
+      );
       expect(m.snapshotFindUnique).toHaveBeenCalledWith({
         where: {
           projectId_kind_requestKey: {
@@ -262,10 +275,27 @@ describe("project ad market service", () => {
           update: { payload: [keyword], fetchedAt: NOW },
         }),
       );
+      expect(m.snapshotDeleteMany).toHaveBeenCalledWith({
+        where: {
+          projectId: PROJECT_ID,
+          kind: "keywords_lease",
+          requestKey: KEY,
+        },
+      });
       expect(result).toEqual({
         keywords: [keyword],
         fetchedAt: NOW,
       });
+    });
+
+    it("does not pay twice when another request already holds the lease", async () => {
+      m.snapshotFindUnique.mockResolvedValue(null);
+      m.snapshotCreateMany.mockResolvedValue({ count: 0 });
+      await expect(listProjectAdMarketKeywords(scope)).rejects.toMatchObject({
+        status: 409,
+      });
+      expect(m.fetchMarketKeywords).not.toHaveBeenCalled();
+      expect(m.snapshotUpsert).not.toHaveBeenCalled();
     });
 
     it("replaces the Project's other keyword snapshots with the current one", async () => {
@@ -320,9 +350,10 @@ describe("project ad market service", () => {
         languageCode: "en",
       });
       await listProjectAdMarketKeywords(scope);
-      const keys = m.snapshotFindUnique.mock.calls.map(
-        ([args]) => args.where.projectId_kind_requestKey.requestKey,
+      const keys = m.snapshotCreateMany.mock.calls.map(
+        ([args]) => args.data.requestKey as string,
       );
+      expect(keys).toHaveLength(2);
       expect(keys[0]).not.toBe(keys[1]);
     });
 
@@ -344,6 +375,13 @@ describe("project ad market service", () => {
       m.fetchMarketKeywords.mockRejectedValue(new Error("boom"));
       await expect(listProjectAdMarketKeywords(scope)).rejects.toThrow("boom");
       expect(m.snapshotUpsert).not.toHaveBeenCalled();
+      expect(m.snapshotDeleteMany).toHaveBeenCalledWith({
+        where: {
+          projectId: PROJECT_ID,
+          kind: "keywords_lease",
+          requestKey: KEY,
+        },
+      });
     });
 
     it("does not touch the profile or provider for a foreign Project", async () => {

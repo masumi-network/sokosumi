@@ -96,7 +96,22 @@ function customerResult(customerId: string): Record<string, unknown> {
         fieldMask: CUSTOMER_FIELD_MASK,
       };
     default:
-      throw new ComposioToolError({ message: "no access" });
+      // Listed but not queryable (cancelled / no access to this customer).
+      throw new ComposioToolError({
+        message: "no access",
+        providerMessage: `API Error (400): ${JSON.stringify({
+          details: [
+            {
+              errors: [
+                {
+                  errorCode: { authorizationError: "USER_PERMISSION_DENIED" },
+                  message: "User doesn't have permission to access customer.",
+                },
+              ],
+            },
+          ],
+        })}`,
+      });
   }
 }
 
@@ -190,6 +205,31 @@ describe("listGoogleAdAccounts", () => {
       /invalid response/,
     );
     expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it("propagates auth and quota tool failures instead of an empty list", async () => {
+    const refused = new ComposioToolError({
+      message: "refused",
+      providerMessage: `API Error (400): ${JSON.stringify({
+        details: [
+          {
+            errors: [
+              {
+                errorCode: { quotaError: "RESOURCE_EXHAUSTED" },
+                message: "Too many requests.",
+              },
+            ],
+          },
+        ],
+      })}`,
+    });
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) => {
+      if (call.toolSlug === "GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS") {
+        return { resourceNames: ["customers/111"] };
+      }
+      throw refused;
+    });
+    await expect(listGoogleAdAccounts(input)).rejects.toBe(refused);
   });
 });
 
@@ -1763,7 +1803,7 @@ describe("Google targeting lookups", () => {
 });
 
 const campaignRow = (overrides: Record<string, unknown> = {}) => ({
-  customer: { timeZone: "Europe/Berlin" },
+  customer: { timeZone: "Europe/Berlin", currencyCode: "EUR" },
   campaign: {
     id: "42",
     name: "Brand search",
@@ -1983,6 +2023,7 @@ describe("getGoogleCampaignDetails", () => {
       editable: true,
       notEditableReason: null,
     });
+    expect(queries().some((q) => /customer\.currency_code/.test(q))).toBe(true);
     expect(details.targeting).toEqual({
       locations: [
         {
@@ -2031,6 +2072,26 @@ describe("getGoogleCampaignDetails", () => {
     expect(details.callouts).toEqual([
       { assetId: "51", text: "Free returns", approvalStatus: null },
     ]);
+  });
+
+  it("keeps three-decimal budget precision for KWD", async () => {
+    mockResults({
+      campaign: [
+        {
+          ...campaignRow(),
+          customer: { timeZone: "Asia/Kuwait", currencyCode: "KWD" },
+          campaignBudget: {
+            amountMicros: "1234000",
+            explicitlyShared: false,
+          },
+        },
+      ],
+    });
+    const details = await getGoogleCampaignDetails({
+      ...detailsInput,
+      currency: "KWD",
+    });
+    expect(details.campaign.dailyBudget).toBe(1.234);
   });
 
   it("reads a Display ad with its images in role order, skipping a missing asset", async () => {

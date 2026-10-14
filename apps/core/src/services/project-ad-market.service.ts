@@ -8,7 +8,7 @@ import {
   type ProjectAdMarketProfile,
 } from "@sokosumi/database";
 
-import { internalServerError, notFound } from "@/helpers/error";
+import { conflict, internalServerError, notFound } from "@/helpers/error";
 import {
   competitorAds,
   fetchMarketKeywords,
@@ -50,6 +50,11 @@ const LEASE_MS = 90_000;
 const STAGE_TIMEOUT_MS = 30 * 60 * 1000;
 /** A failed job is not retried sooner, which caps what a broken lookup costs. */
 const FAILED_RETRY_MS = 60 * 60 * 1000;
+/**
+ * Row kind for the single-flight claim around a paid keyword lookup. Not a
+ * snapshot of keywords — only the winner of createMany may call DataForSEO.
+ */
+const KEYWORDS_LEASE_KIND = "keywords_lease";
 
 type SnapshotKind = "keywords" | "ads";
 
@@ -212,9 +217,45 @@ async function requireProfile(input: ProjectScope) {
 }
 
 /**
+ * Claim the right to pay for a keyword refresh. Expired leases are cleared
+ * first; createMany skipDuplicates makes the claim atomic across workers.
+ */
+async function claimKeywordRefresh(
+  projectId: string,
+  requestKey: string,
+  now: Date,
+): Promise<boolean> {
+  await prisma.projectAdMarketSnapshot.deleteMany({
+    where: {
+      projectId,
+      kind: KEYWORDS_LEASE_KIND,
+      fetchedAt: { lt: new Date(now.getTime() - LEASE_MS) },
+    },
+  });
+  const claim = await prisma.projectAdMarketSnapshot.createMany({
+    data: {
+      projectId,
+      kind: KEYWORDS_LEASE_KIND,
+      requestKey,
+      payload: {},
+      fetchedAt: now,
+    },
+    skipDuplicates: true,
+  });
+  return claim.count > 0;
+}
+
+async function releaseKeywordRefresh(projectId: string, requestKey: string) {
+  await prisma.projectAdMarketSnapshot.deleteMany({
+    where: { projectId, kind: KEYWORDS_LEASE_KIND, requestKey },
+  });
+}
+
+/**
  * Trending keywords for the Project's market profile. DataForSEO costs per
  * call, so a snapshot younger than 24h for the same profile is served as is;
- * otherwise the fetched keywords replace the Project's snapshots.
+ * otherwise the fetched keywords replace the Project's snapshots. Concurrent
+ * misses share one paid lookup via a short-lived lease row.
  */
 export async function listProjectAdMarketKeywords(
   input: ProjectScope,
@@ -222,28 +263,51 @@ export async function listProjectAdMarketKeywords(
   const profile = await requireProfile(input);
   const { projectId } = input;
   const requestKey = profileRequestKey(profile);
-  const cached = await readSnapshot({
-    projectId,
-    kind: "keywords",
-    requestKey,
-    schema: z.array(marketKeywordSchema),
-  });
+  const readKeywords = () =>
+    readSnapshot({
+      projectId,
+      kind: "keywords",
+      requestKey,
+      schema: z.array(marketKeywordSchema),
+    });
+  const cached = await readKeywords();
   if (cached && isFresh(cached.fetchedAt)) {
     return { keywords: cached.data, fetchedAt: cached.fetchedAt };
   }
 
-  const keywords = await fetchMarketKeywords(profile);
-  const fetchedAt = new Date();
-  await prisma.$transaction((tx) =>
-    writeSnapshot(tx, {
-      projectId,
-      kind: "keywords",
-      requestKey,
-      data: keywords,
-      fetchedAt,
-    }),
-  );
-  return { keywords, fetchedAt };
+  const now = new Date();
+  if (!(await claimKeywordRefresh(projectId, requestKey, now))) {
+    // Another request is fetching. Prefer its result over a second charge.
+    const again = await readKeywords();
+    if (again && isFresh(again.fetchedAt)) {
+      return { keywords: again.data, fetchedAt: again.fetchedAt };
+    }
+    throw conflict("Market keywords are refreshing. Please retry.");
+  }
+
+  try {
+    // Recheck after the claim: a winner may have finished between the miss
+    // and createMany.
+    const fresh = await readKeywords();
+    if (fresh && isFresh(fresh.fetchedAt)) {
+      return { keywords: fresh.data, fetchedAt: fresh.fetchedAt };
+    }
+
+    const keywords = await fetchMarketKeywords(profile);
+    const fetchedAt = new Date();
+    await prisma.$transaction((tx) =>
+      writeSnapshot(tx, {
+        projectId,
+        kind: "keywords",
+        requestKey,
+        data: keywords,
+        fetchedAt,
+      }),
+    );
+    return { keywords, fetchedAt };
+  } finally {
+    await releaseKeywordRefresh(projectId, requestKey);
+  }
 }
 
 const organicRanksListSchema = z.array(z.array(organicRankSchema));

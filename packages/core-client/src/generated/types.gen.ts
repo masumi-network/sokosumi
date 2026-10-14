@@ -6074,7 +6074,10 @@ export type AdCampaignDetails = {
     campaign: AdCampaignDetailsCampaign;
     targeting: AdCampaignTargeting;
     keywords: Array<AdCampaignKeyword>;
-    ad: AdCampaignAd;
+    /**
+     * The campaign's only ad; null when it has none or several
+     */
+    ad: AdCampaignAd | null;
     sitelinks: Array<AdCampaignSitelink>;
     callouts: Array<AdCampaignCallout>;
     performance: AdCampaignPerformance;
@@ -6159,9 +6162,6 @@ export type AdCampaignKeyword = {
     approvalStatus: string | null;
 };
 
-/**
- * The campaign's only ad; null when it has none or several
- */
 export type AdCampaignAd = {
     id: string;
     status: string;
@@ -6174,7 +6174,7 @@ export type AdCampaignAd = {
     finalUrl: string;
     search?: AdCampaignSearchAd;
     display?: AdCampaignDisplayAd;
-} | null;
+};
 
 /**
  * Set for a responsive search ad
