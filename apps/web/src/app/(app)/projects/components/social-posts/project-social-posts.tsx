@@ -1017,7 +1017,7 @@ export function ProjectSocialPosts({
                 }}
               />
             ) : null}
-           {actions}
+            {actions}
           </div>
 
           {accountPrompt ? (
