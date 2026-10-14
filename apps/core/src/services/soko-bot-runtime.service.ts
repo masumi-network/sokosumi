@@ -17,7 +17,6 @@ import {
   exceedsUnattendedHireBudget,
   sokoBotGenerateImageInputSchema as generateImageInputSchema,
   sokoBotGetImageInputSchema as getImageInputSchema,
-  sokoBotHireAgentInputSchema as hireAgentInputSchema,
   isSokoBotCapability,
   isSokoBotDecisionTarget,
   sokoBotJobIdInputSchema as jobIdInputSchema,
@@ -115,6 +114,7 @@ import {
   buildSokoBotReaderTaskWhere,
   type SokoBotPacketAudience,
   type SokoBotTurnReader,
+  sokoBotSharedScopeOf,
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -158,6 +158,12 @@ import {
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
 import {
+  decisionProposalTargets,
+  describeDecision,
+  parseDecisionProposal,
+  parseHireAgentInput,
+} from "@/lib/soko-bot/decision-proposal";
+import {
   assertEvaluationActor,
   assertEvaluationTool,
 } from "@/lib/soko-bot/evaluation-dispatch";
@@ -168,6 +174,11 @@ import {
 } from "@/lib/soko-bot/persisted-value";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
+import {
+  type SokoBotWriteTargets,
+  sokoBotProjectRefusal,
+  sokoBotWriteScopeRefusal,
+} from "@/lib/soko-bot/write-scope";
 import {
   BEARER_USER_SELECT,
   isActiveUser,
@@ -350,120 +361,6 @@ async function readDriveText(file: LiveResource): Promise<string | null> {
       if (attempt >= DIRECT_READ_ATTEMPTS) return null;
       await new Promise((resolve) => setTimeout(resolve, DIRECT_READ_RETRY_MS));
     }
-  }
-}
-
-function parseHireAgentInput(input: unknown) {
-  const parsed = hireAgentInputSchema.parse(input);
-  return {
-    ...parsed,
-    inputSchema: inputSchemaSchema.parse(parsed.inputSchema),
-  };
-}
-
-function parseDecisionProposal(
-  toolName: SokoBotDecisionTarget,
-  proposal: unknown,
-) {
-  switch (toolName) {
-    case "create_task":
-      return taskCreateInputSchema.parse(proposal);
-    case "update_task":
-      return taskUpdateInputSchema.parse(proposal);
-    case "archive_task":
-      return taskArchiveInputSchema.parse(proposal);
-    case "assign_task":
-      return taskAssignInputSchema.parse(proposal);
-    case "hire_agent":
-      return parseHireAgentInput(proposal);
-    case "provide_job_input":
-      return provideJobInputSchema.parse(proposal);
-  }
-}
-
-function decisionReason(
-  toolName: SokoBotDecisionTarget,
-  proposal: unknown,
-): string {
-  switch (toolName) {
-    case "create_task": {
-      const input = taskCreateInputSchema.parse(proposal);
-      return `Create ${input.status} Task`;
-    }
-    case "update_task": {
-      const input = taskUpdateInputSchema.parse(proposal);
-      return `Update Task ${input.taskId}`;
-    }
-    case "archive_task": {
-      const input = taskArchiveInputSchema.parse(proposal);
-      return `Archive Task ${input.taskId} (retain history)`;
-    }
-    case "assign_task": {
-      const input = taskAssignInputSchema.parse(proposal);
-      return `Assign Task ${input.taskId} to Coworker ${input.coworkerId}`;
-    }
-    case "hire_agent": {
-      const input = parseHireAgentInput(proposal);
-      return `Hire Agent ${input.agentId} with a maximum of ${input.maxCredits} credits`;
-    }
-    case "provide_job_input": {
-      const input = provideJobInputSchema.parse(proposal);
-      return `Send approved input to Agent Job ${input.jobId}`;
-    }
-  }
-}
-
-/**
- * Owner-facing approval text: names instead of ids where they resolve, and
- * the plain id otherwise. Names are display data, never authorization.
- */
-async function describeDecision(
-  toolName: SokoBotDecisionTarget,
-  proposal: unknown,
-): Promise<string> {
-  const quote = (name: string | null | undefined, id: string) =>
-    name?.trim() ? `"${name.trim()}"` : id;
-  try {
-    switch (toolName) {
-      case "assign_task": {
-        const input = taskAssignInputSchema.parse(proposal);
-        const [task, coworker] = await Promise.all([
-          prisma.task.findUnique({
-            where: { id: input.taskId },
-            select: { name: true },
-          }),
-          prisma.coworker.findUnique({
-            where: { id: input.coworkerId },
-            select: { name: true },
-          }),
-        ]);
-        return `Assign Task ${quote(task?.name, input.taskId)} to Coworker ${quote(coworker?.name, input.coworkerId)}${input.ready ? " and start it" : ""}`;
-      }
-      case "archive_task":
-      case "update_task": {
-        const input =
-          toolName === "archive_task"
-            ? taskArchiveInputSchema.parse(proposal)
-            : taskUpdateInputSchema.parse(proposal);
-        const task = await prisma.task.findUnique({
-          where: { id: input.taskId },
-          select: { name: true },
-        });
-        return `${toolName === "archive_task" ? "Archive" : "Update"} Task ${quote(task?.name, input.taskId)}`;
-      }
-      case "hire_agent": {
-        const input = parseHireAgentInput(proposal);
-        const agent = await prisma.agent.findUnique({
-          where: { id: input.agentId },
-          select: { name: true },
-        });
-        return `Hire Agent ${quote(agent?.name, input.agentId)} with a maximum of ${input.maxCredits} credits`;
-      }
-      default:
-        return decisionReason(toolName, proposal);
-    }
-  } catch {
-    return decisionReason(toolName, proposal);
   }
 }
 
@@ -1693,6 +1590,7 @@ export class SokoBotRuntimeService {
       throw new SokoBotRuntimeValidationError(
         `Use one of these aspect ratios: ${IMAGE_ASPECT_RATIOS.join(", ")}.`,
       );
+    this.requireImageProject(authorized, input.projectId);
     try {
       await requireProjectAccess({
         projectId: input.projectId,
@@ -1782,9 +1680,21 @@ export class SokoBotRuntimeService {
     };
   }
 
+  /** A project bot makes and reads images in its own Project only. */
+  private requireImageProject(
+    authorized: AuthorizedSokoBotRuntime,
+    projectId: string,
+  ) {
+    const refusal = sokoBotProjectRefusal(authorized.reader.sharedScope, [
+      projectId,
+    ]);
+    if (refusal) throw new SokoBotRuntimeValidationError(refusal);
+  }
+
   /** Where an image started with `generate_image` has got to. */
   private async getImage(authorized: AuthorizedSokoBotRuntime, raw: unknown) {
     const input = getImageInputSchema.parse(raw);
+    this.requireImageProject(authorized, input.projectId);
     const scope = {
       projectId: input.projectId,
       workspaceId: authorized.turn.workspaceId,
@@ -2618,6 +2528,7 @@ export class SokoBotRuntimeService {
         authorized,
         false,
         "update_assigned_task",
+        { taskIds: [input.taskId] },
       );
       const claim = await claimTaskEventAction(
         tx,
@@ -3011,7 +2922,13 @@ export class SokoBotRuntimeService {
     const proposalJson = jsonInput(parsedProposal);
     const reason = await describeDecision(toolName, parsedProposal);
     return serializableTransaction(async (tx) => {
-      await this.requireMutationAuthority(tx, authorized, false, toolName);
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        false,
+        toolName,
+        decisionProposalTargets(toolName, parsedProposal),
+      );
       // A model that retries an approval-gated call with the same input must
       // not fan out into several identical approvals for the owner.
       const existing = await tx.sokoBotPendingDecision.findFirst({
@@ -3083,6 +3000,7 @@ export class SokoBotRuntimeService {
         authorized,
         approved,
         "create_task",
+        decisionProposalTargets("create_task", input),
       );
       const triggeringTaskId =
         input.triggeringTaskId ??
@@ -3214,7 +3132,16 @@ export class SokoBotRuntimeService {
     approved: boolean,
   ) {
     return serializableTransaction(async (tx) => {
-      await this.requireMutationAuthority(tx, authorized, approved, capability);
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        approved,
+        capability,
+        {
+          taskIds: [input.taskId],
+          projectIds: input.projectId === undefined ? [] : [input.projectId],
+        },
+      );
       const claim = await claimTaskEventAction(
         tx,
         {
@@ -3449,6 +3376,7 @@ export class SokoBotRuntimeService {
         authorized,
         approved,
         "assign_task",
+        { taskIds: [input.taskId] },
       );
       const status = input.ready ? TaskStatus.READY : TaskStatus.DRAFT;
       const claim = await claimTaskEventAction(
@@ -3543,6 +3471,7 @@ export class SokoBotRuntimeService {
     authorized: SokoBotActionContext,
     approved: boolean,
     capability?: SokoBotCapability,
+    targets: SokoBotWriteTargets = {},
   ) {
     const now = new Date();
     if (approved && authorized.confirmationTurnId) {
@@ -3627,6 +3556,7 @@ export class SokoBotRuntimeService {
           "Soko Bot is paused or unavailable",
         );
       }
+      await this.requireWriteScope(tx, activeBot, targets);
       return workspace;
     }
 
@@ -3647,14 +3577,39 @@ export class SokoBotRuntimeService {
           status: { not: "PAUSED" },
         },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        sokoBot: {
+          select: {
+            id: true,
+            userId: true,
+            workspaceId: true,
+            projectId: true,
+          },
+        },
+      },
     });
     if (!writable) {
       throw new SokoBotRuntimeAuthorizationError(
         "Soko Bot turn is no longer writable",
       );
     }
+    await this.requireWriteScope(tx, writable.sokoBot, targets);
     return workspace;
+  }
+
+  /** A shared bot writes only inside its scope; a personal bot is unchanged. */
+  private async requireWriteScope(
+    tx: Prisma.TransactionClient,
+    bot: Parameters<typeof sokoBotSharedScopeOf>[0] | undefined,
+    targets: SokoBotWriteTargets,
+  ) {
+    const refusal = await sokoBotWriteScopeRefusal(
+      tx,
+      bot ? sokoBotSharedScopeOf(bot) : null,
+      targets,
+    );
+    if (refusal) throw new SokoBotRuntimeValidationError(refusal);
   }
 
   private async updateMemory(
@@ -4487,6 +4442,7 @@ export class SokoBotRuntimeService {
             authorized,
             false,
             input.capability,
+            { taskIds: [taskId] },
           );
           const table =
             input.capability === "create_table"
@@ -4676,7 +4632,16 @@ export class SokoBotRuntimeService {
               {
                 OR: [
                   { isWhitelisted: true },
-                  { assignments: { some: { userId: authorized.turn.userId } } },
+                  // A shared bot sees no member's private assignments.
+                  ...(authorized.reader.sharedScope
+                    ? []
+                    : [
+                        {
+                          assignments: {
+                            some: { userId: authorized.turn.userId },
+                          },
+                        },
+                      ]),
                   {
                     workspaceAccess: {
                       some: {
@@ -5286,7 +5251,16 @@ export class SokoBotRuntimeService {
       }),
     };
     const reserveExternalReceipt = async (tx: Prisma.TransactionClient) => {
-      await this.requireMutationAuthority(tx, actionContext, ownerConfirmed);
+      await this.requireMutationAuthority(
+        tx,
+        actionContext,
+        ownerConfirmed,
+        undefined,
+        decision.toolName === "hire_agent" ||
+          decision.toolName === "provide_job_input"
+          ? decisionProposalTargets(decision.toolName, decision.proposal)
+          : {},
+      );
       const receipt = await tx.sokoBotToolCall.findUnique({
         where: { turnId_toolCallId: receiptKey },
       });

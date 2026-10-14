@@ -47,6 +47,9 @@ const {
   toolCallUpdateManyMock,
   toolCallUpdateMock,
   transactionTaskFindFirstMock,
+  transactionTaskCountMock,
+  transactionJobCountMock,
+  coworkerFindManyMock,
   transactionBotFindUniqueOrThrowMock,
   transactionBotUpdateMock,
   transactionMemoryRevisionCreateMock,
@@ -157,6 +160,9 @@ const {
   toolCallUpdateManyMock: vi.fn(),
   toolCallUpdateMock: vi.fn(),
   transactionTaskFindFirstMock: vi.fn(),
+  transactionTaskCountMock: vi.fn(),
+  transactionJobCountMock: vi.fn(),
+  coworkerFindManyMock: vi.fn(),
   transactionBotFindUniqueOrThrowMock: vi.fn(),
   transactionBotUpdateMock: vi.fn(),
   transactionMemoryRevisionCreateMock: vi.fn(),
@@ -380,6 +386,7 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: toolCallUpdateManyMock,
     },
     agent: { findFirst: agentFindFirstMock },
+    coworker: { findMany: coworkerFindManyMock },
     task: {
       findFirst: taskFindFirstMock,
       findMany: taskFindManyMock,
@@ -439,10 +446,12 @@ vi.mock("@/lib/db/transaction", () => ({
           updateMany: transactionTurnUpdateManyMock,
         },
         task: {
+          count: transactionTaskCountMock,
           create: transactionTaskCreateMock,
           findFirst: transactionTaskFindFirstMock,
           update: transactionTaskUpdateMock,
         },
+        job: { count: transactionJobCountMock },
         taskEvent: {
           findMany: transactionTaskEventFindManyMock,
           create: transactionTaskEventCreateMock,
@@ -2332,6 +2341,188 @@ describe("SokoBotRuntimeService authorization", () => {
       expect.anything(),
       { kind: "soko_bot", sokoBotId: SCOPE.sokoBotId },
     );
+  });
+
+  describe("a shared bot's writes", () => {
+    const PROJECT_ID = "01960001-0001-7001-8001-0000000000a1";
+    const OTHER_PROJECT = "01960001-0001-7001-8001-0000000000a2";
+    const PROJECT_BOT = {
+      id: SCOPE.sokoBotId,
+      userId: null,
+      workspaceId: SCOPE.workspaceId,
+      projectId: PROJECT_ID,
+    };
+    const sharedTurn = (capability: string, sokoBot: object) => {
+      turnFindUniqueMock.mockResolvedValue({
+        id: SCOPE.turnId,
+        sokoBotId: SCOPE.sokoBotId,
+        userId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        capabilityNames: [capability],
+        contextSnapshot: {
+          id: "01960001-0001-7001-8001-000000000004",
+          packet: { memory: { version: 1 } },
+        },
+        eveSessionId: SCOPE.sessionId,
+        userMessage: "Do it",
+        classification: { confidence: 0.3 },
+        status: "RUNNING",
+        deadlineAt: new Date(Date.now() + 60_000),
+        leaseExpiresAt: new Date(Date.now() + 60_000),
+        sokoBot: { archivedAt: null, status: "RUNNING", ...sokoBot },
+      });
+      transactionTurnFindFirstMock.mockResolvedValue({
+        id: SCOPE.turnId,
+        eveSessionId: null,
+        sokoBot,
+      });
+      toolCallFindUniqueMock.mockResolvedValue(null);
+      transactionTaskFindFirstMock.mockResolvedValue({
+        id: "task_1",
+        ownerId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        status: TaskStatus.DRAFT,
+        assigneeId: null,
+        assigneeSokoBotId: SCOPE.sokoBotId,
+      });
+    };
+    const assign = () =>
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "assign_task",
+        toolCallId: "call_assign_scope",
+        input: { taskId: "task_1", coworkerId: "coworker_1", ready: true },
+      });
+
+    it("refuses a Task outside its scope, as if missing", async () => {
+      sharedTurn("assign_task", PROJECT_BOT);
+      transactionTaskCountMock.mockResolvedValue(0);
+      await expect(assign()).rejects.toThrow("Task not found");
+      expect(transactionTaskCountMock).toHaveBeenCalledWith({
+        where: {
+          AND: [
+            { id: { in: ["task_1"] } },
+            {
+              workspaceId: SCOPE.workspaceId,
+              visibility: "PUBLIC",
+              projectId: PROJECT_ID,
+            },
+          ],
+        },
+      });
+      expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("changes a public Task in its Project", async () => {
+      sharedTurn("assign_task", PROJECT_BOT);
+      transactionTaskCountMock.mockResolvedValue(1);
+      await expect(assign()).resolves.toMatchObject({ id: "task_1" });
+    });
+
+    it("leaves a personal bot's writes unscoped", async () => {
+      sharedTurn("assign_task", {
+        ...PROJECT_BOT,
+        userId: SCOPE.userId,
+        projectId: null,
+      });
+      await expect(assign()).resolves.toMatchObject({ id: "task_1" });
+      expect(transactionTaskCountMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses its own status change on a Task outside its scope", async () => {
+      sharedTurn("update_assigned_task", PROJECT_BOT);
+      transactionTaskCountMock.mockResolvedValue(0);
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "update_assigned_task",
+          toolCallId: "call_status_scope",
+          input: { taskId: "task_1", status: "RUNNING", comment: "On it" },
+        }),
+      ).rejects.toThrow("Task not found");
+    });
+
+    it.each([
+      [
+        "a Task outside its scope",
+        { taskId: "task_1", name: "B" },
+        0,
+        "Task not found",
+      ],
+      [
+        "a move into another Project",
+        { taskId: "task_1", projectId: OTHER_PROJECT },
+        1,
+        "works only in its own Project",
+      ],
+    ])("refuses to update %s", async (_label, input, visible, message) => {
+      sharedTurn("update_task", PROJECT_BOT);
+      transactionTaskCountMock.mockResolvedValue(visible);
+      await expect(
+        new SokoBotRuntimeService()["applyTaskMutation"](
+          { turn: { ...SCOPE, id: SCOPE.turnId } } as never,
+          input,
+          "call_update_scope",
+          { ...input, archive: false } as never,
+          "update_task",
+          false,
+        ),
+      ).rejects.toThrow(message);
+      expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses to create a Task outside its Project", async () => {
+      sharedTurn("create_task", PROJECT_BOT);
+      await expect(
+        new SokoBotRuntimeService()["createTask"](
+          { turn: { ...SCOPE, id: SCOPE.turnId } } as never,
+          { name: "Loose", status: "DRAFT" },
+          "call_create_loose",
+        ),
+      ).rejects.toThrow("works only in its own Project");
+      expect(transactionTaskCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses to propose a Task in another Project", async () => {
+      sharedTurn("create_task", PROJECT_BOT);
+      await expect(
+        new SokoBotRuntimeService()["createDecision"](
+          { turn: { ...SCOPE, id: SCOPE.turnId } } as never,
+          "create_task",
+          { name: "Elsewhere", status: "DRAFT", projectId: OTHER_PROJECT },
+          "call_create_scope",
+        ),
+      ).rejects.toThrow("works only in its own Project");
+      expect(transactionDecisionCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses to propose input for a Job outside its scope", async () => {
+      sharedTurn("provide_job_input", PROJECT_BOT);
+      transactionJobCountMock.mockResolvedValue(0);
+      await expect(
+        new SokoBotRuntimeService()["createDecision"](
+          { turn: { ...SCOPE, id: SCOPE.turnId } } as never,
+          "provide_job_input",
+          { jobId: "job_1", eventId: "event_1", inputData: {} },
+          "call_input_scope",
+        ),
+      ).rejects.toThrow("Job not found");
+      expect(transactionDecisionCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("finds Coworkers without the member's own assignments", async () => {
+      sharedTurn("find_coworkers", PROJECT_BOT);
+      coworkerFindManyMock.mockResolvedValue([]);
+      await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "find_coworkers",
+        toolCallId: "call_find_scope",
+        input: {},
+      });
+      expect(
+        JSON.stringify(coworkerFindManyMock.mock.calls[0]?.[0]),
+      ).not.toContain("assignments");
+    });
   });
 
   it("clears a Task's assignee when asked to unassign it", async () => {
@@ -6351,6 +6542,7 @@ describe("Drive file tools", () => {
 describe("Content Studio image tools", () => {
   const ownerChat = {
     askedByKind: "OWNER",
+    reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
     turn: {
       id: SCOPE.turnId,
       userId: SCOPE.userId,
@@ -6359,6 +6551,18 @@ describe("Content Studio image tools", () => {
       chainDepth: 0,
     },
   };
+  const projectBotChat = (projectId: string | null) => ({
+    ...ownerChat,
+    reader: {
+      userId: SCOPE.userId,
+      audience: "TEAMMATE",
+      sharedScope: {
+        sokoBotId: SCOPE.sokoBotId,
+        workspaceId: SCOPE.workspaceId,
+        projectId,
+      },
+    },
+  });
   const service = new SokoBotRuntimeService();
   const generate = (authorized: unknown, input: unknown, callId: string) =>
     service["generateImage"](authorized as never, input, callId);
@@ -6371,6 +6575,32 @@ describe("Content Studio image tools", () => {
     images.credits.mockReturnValue(4);
     images.access.mockResolvedValue({ organizationId: null });
     toolCallCountMock.mockResolvedValue(0);
+  });
+
+  it("refuses a project bot an image in another Project", async () => {
+    await expect(
+      generate(projectBotChat("project-2"), request, "call-p"),
+    ).rejects.toThrow("works only in its own Project");
+    await expect(
+      service["getImage"](projectBotChat("project-2") as never, {
+        projectId: "project-1",
+        jobId: "job-1",
+      }),
+    ).rejects.toThrow("works only in its own Project");
+    expect(images.access).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["its own Project", "project-1"],
+    ["any Project, as a workspace bot", null],
+  ])("lets a shared bot make an image in %s", async (_label, projectId) => {
+    await expect(
+      service["checkImageRequest"](
+        projectBotChat(projectId) as never,
+        request,
+        "call-q",
+      ),
+    ).resolves.toMatchObject({ credits: 4 });
   });
 
   it("stops a turn after four images, counting only ones not refused", async () => {
