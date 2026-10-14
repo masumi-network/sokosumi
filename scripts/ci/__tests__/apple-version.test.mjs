@@ -10,6 +10,9 @@ const config = JSON.parse(
   await readFile(path.join(appleDir, "release-please-config.json"), "utf8"),
 );
 const mac = config.packages["apps/apple"];
+const manifest = JSON.parse(
+  await readFile(path.join(appleDir, ".release-please-manifest.json"), "utf8"),
+);
 const pbxproj = await readFile(
   path.join(appleDir, "Sokosumi.xcodeproj/project.pbxproj"),
   "utf8",
@@ -75,10 +78,13 @@ function appTargetConfigurations() {
 describe("Mac app version", () => {
   const versionFiles = mac["extra-files"].map((file) => file.path);
 
-  it("starts at the three-part 1.0.0 Release Please can bump", async () => {
+  // Each Release PR bumps the manifest and Version.xcconfig together, so the two always agree.
+  it("is the three-part manifest version Release Please can bump", async () => {
     assert.deepEqual(versionFiles, ["Version.xcconfig"]);
     const text = await readFile(path.join(appleDir, versionFiles[0]), "utf8");
-    assert.equal(xcconfigValue(text, "MARKETING_VERSION"), "1.0.0");
+    const version = xcconfigValue(text, "MARKETING_VERSION");
+    assert.match(version, /^\d+\.\d+\.\d+$/);
+    assert.equal(version, manifest["apps/apple"]);
 
     const bumped = bumpMarkedLines(text, "1.2.3");
     assert.equal(xcconfigValue(bumped, "MARKETING_VERSION"), "1.2.3");
