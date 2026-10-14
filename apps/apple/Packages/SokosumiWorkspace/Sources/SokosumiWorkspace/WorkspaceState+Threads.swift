@@ -2,17 +2,12 @@ import CoreAPI
 import SokosumiChat
 
 public extension WorkspaceState {
-  var displayedThreadReplies: [Components.Schemas.ChatRoomMessage] {
-    let replies = openRoom.directStream.displayedMessages(persisted: openRoom.thread.transcript.displayedMessages, parentMessageId: openRoom.thread.parent?.id)
-    return openRoom.loaded.pendingReactions.overlaying(replies, viewer: reactionViewer)
-  }
-
   internal func syncThreadAttention() async {
     guard readAttention.isVisible, !sidebar.showsThreadsView, roomHistoryReadable else { return }
     let parentId = openRoom.thread.parent?.id
     _ = try? await request { _, client, slug in
       guard try await openRoom.thread.markLooked(client: client, organizationSlug: slug), readAttention.isVisible else { return }
-      clearThreadUnreadReplies { $0 == parentId }
+      openRoom.clearThreadUnreadReplies { $0 == parentId }
       try await syncRoomAttentionAfterThreadChange(client: client)
     }
   }
@@ -20,21 +15,14 @@ public extension WorkspaceState {
   /// The automatic Look inside the room read reached Core (row 24c): the Thread's reply bar and the Threads
   /// trigger drop it at once, and the trigger counts again.
   internal func threadLooked(_ parentMessageId: String?) {
-    clearThreadUnreadReplies { $0 == parentMessageId }
-    threadAttentionRevision += 1
-  }
-
-  /// Web's `clearThreadUnreadReplies`: a Look or Mark all settles the Threads trigger and the transcript's reply
-  /// bars without waiting for the re-read the caller also starts (row 24h, SOK-1151).
-  internal func clearThreadUnreadReplies(where isCleared: (String) -> Bool) {
-    openRoom.threadOverview.clearUnreadReplies(where: isCleared)
-    transcriptMessages = clearingThreadUnreadReplies(transcriptMessages, where: isCleared)
+    openRoom.clearThreadUnreadReplies { $0 == parentMessageId }
+    openRoom.threadAttentionChanged()
   }
 
   /// A Look, a mute or Mark all moved this room's thread unread: re-count the Threads trigger and let Core's
   /// room read answer with the sidebar row's attention (web `bumpThreadUnread` + `syncRoomAttentionAfterThreadLook`).
   internal func syncRoomAttentionAfterThreadChange(client: Client) async throws {
-    threadAttentionRevision += 1
+    openRoom.threadAttentionChanged()
     guard roomHistoryReadable, let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return }
     try await readAttention.readAfterThreadLook(
       room: room, client: client, organizationSlug: selection?.workspace.organizationSlug

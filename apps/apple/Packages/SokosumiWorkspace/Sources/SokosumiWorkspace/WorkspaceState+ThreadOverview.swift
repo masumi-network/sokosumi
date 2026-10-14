@@ -18,7 +18,7 @@ public extension WorkspaceState {
           // Web's `onAllThreadsLooked` voids its room read: a failed one never fails Mark all.
           guard roomId == transcriptRoomId else { return }
           let stillUnread = openRoom.threadOverview.mutedUnreadParentIds
-          clearThreadUnreadReplies { !stillUnread.contains($0) }
+          openRoom.clearThreadUnreadReplies { !stillUnread.contains($0) }
           do {
             try await syncRoomAttentionAfterThreadChange(client: client)
           } catch {

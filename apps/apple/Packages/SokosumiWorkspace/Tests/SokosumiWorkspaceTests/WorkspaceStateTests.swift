@@ -260,7 +260,7 @@ private func landAnotherReply(in state: WorkspaceState) throws {
 }
 
 private func waitForOutboundIdle(_ state: WorkspaceState) async {
-  for _ in 0 ..< 1000 where state.outboundInFlight {
+  for _ in 0 ..< 1000 where state.openRoom.room.outbox.isSending {
     await Task.yield()
   }
 }
@@ -831,8 +831,8 @@ struct WorkspaceStateTests {
     #expect(state.selectedRoomId == "550e8400-e29b-41d4-a716-446655440000")
     // The retained room keeps its transcript instead of loading forever.
     #expect(state.transcriptRoomId == "550e8400-e29b-41d4-a716-446655440000")
-    #expect(state.transcriptMessages.map(\.content) == ["kept"])
-    #expect(state.transcriptError == nil)
+    #expect(state.openRoom.room.timeline.messages.map(\.content) == ["kept"])
+    #expect(state.openRoom.room.timeline.errorMessage == nil)
     #expect(transport.operationIDs.suffix(3) == [
       "put/users/{id}/workspaces/preferred",
       "get/chats/rooms",
@@ -864,8 +864,8 @@ struct WorkspaceStateTests {
     state.enterRoom(room)
     await waitForTranscriptIdle(state)
     #expect(state.transcriptRoomId == roomID)
-    #expect(state.transcriptMessages.map(\.content) == ["hello"])
-    #expect(state.transcriptError == nil)
+    #expect(state.openRoom.room.timeline.messages.map(\.content) == ["hello"])
+    #expect(state.openRoom.room.timeline.errorMessage == nil)
     // Sidebar unread follows the POST-read DTO, not a local zero.
     #expect(state.rooms.first?.unreadCount == 0)
     #expect(transport.operationIDs.suffix(2) == [
@@ -894,8 +894,8 @@ struct WorkspaceStateTests {
     let room = try #require(state.rooms.first)
     state.enterRoom(room)
     await waitForTranscriptIdle(state)
-    #expect(state.transcriptMessages.isEmpty)
-    #expect(state.transcriptError != nil)
+    #expect(state.openRoom.room.timeline.messages.isEmpty)
+    #expect(state.openRoom.room.timeline.errorMessage != nil)
     #expect(state.rooms.first?.unreadCount == 3)
     #expect(!transport.operationIDs.contains("post/chats/rooms/{id}/read"))
   }
@@ -952,7 +952,7 @@ struct WorkspaceStateTests {
     #expect(state.selectedRoomId == secondID)
     #expect(SavedRoomSelection(defaults: defaults).load(userId: "user_1", organizationId: nil) == secondID)
     #expect(state.transcriptRoomId == secondID)
-    #expect(state.transcriptMessages.map(\.content) == ["hi"])
+    #expect(state.openRoom.room.timeline.messages.map(\.content) == ["hi"])
   }
 
   @Test func selectRoomNilKeepsOpenTranscript() async throws {
@@ -971,13 +971,13 @@ struct WorkspaceStateTests {
     await state.reload()
     await waitForTranscriptIdle(state)
     #expect(state.selectedRoomId == selected)
-    #expect(state.transcriptMessages.map(\.content) == ["kept"])
+    #expect(state.openRoom.room.timeline.messages.map(\.content) == ["kept"])
     // List emits nil when a collapsed section drops tagged rows. That is
     // not a user deselect — keep the open transcript.
     state.selectRoom(nil)
     #expect(state.selectedRoomId == selected)
     #expect(state.transcriptRoomId == selected)
-    #expect(state.transcriptMessages.map(\.content) == ["kept"])
+    #expect(state.openRoom.room.timeline.messages.map(\.content) == ["kept"])
   }
 
   @Test func changingRoomDropsPendingOutbound() async throws {
@@ -1010,7 +1010,7 @@ struct WorkspaceStateTests {
     state.selectRoom(secondID)
     await waitForTranscriptIdle(state)
     #expect(state.openRoom.room.outbox.shells.isEmpty)
-    #expect(!state.outboundInFlight)
+    #expect(!state.openRoom.room.outbox.isSending)
     transport.releasePausedRequest()
     await transport.waitForPOSTCompletion()
     await waitForOutboundIdle(state)
@@ -1072,7 +1072,7 @@ struct WorkspaceStateTests {
       _ = await state.openRoom.room.loadTask?.value
       #expect(state.openRoom.room.timeline.failedPage == .older)
     }
-    try state.openRoom.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.openRoom.room.timeline.messages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     if initialFailure {
       #expect(state.openRoom.thread.transcript.timeline.failedPage == .initial)
@@ -1086,7 +1086,7 @@ struct WorkspaceStateTests {
     #expect(state.openRoom.thread.transcript.timeline.hasMore)
     #expect(state.openRoom.thread.parent?.id == rootID)
     #expect(state.openRoom.thread.transcript.displayedMessages.map(\.content) == ["Reply"])
-    #expect(state.transcriptMessages.map(\.content) == ["Parent"])
+    #expect(state.openRoom.room.timeline.messages.map(\.content) == ["Parent"])
     #expect(state.rooms.first?.unreadCount == 2)
     let look = ["post/chats/rooms/{id}/threads/{parentMessageId}/read", "post/chats/rooms/{id}/read"]
     #expect(Array(transport.operationIDs.suffix(5)) == look + ["get/chats/rooms/{id}/threads/{parentMessageId}/messages"] + look)
@@ -1121,7 +1121,7 @@ struct WorkspaceStateTests {
     state.setWindowVisible(true, window: window)
     await state.reload()
     await waitForTranscriptIdle(state)
-    try state.openRoom.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.openRoom.room.timeline.messages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     #expect(state.openRoom.thread.transcript.displayedMessages.map(\.content) == ["Reply"])
     let writes = transport.operationIDs.filter { $0.hasPrefix("post/") }.count
@@ -1155,7 +1155,7 @@ struct WorkspaceStateTests {
     // History resolved before the read failed: it stays on screen with no
     // modal (background reads fail silently), and unread chrome is
     // untouched (no DTO to apply).
-    #expect(state.transcriptMessages.map(\.content) == ["visible"])
+    #expect(state.openRoom.room.timeline.messages.map(\.content) == ["visible"])
     #expect(state.readAttention.errorMessage == nil)
     #expect(state.rooms.first?.unreadCount == 2)
     #expect(transport.operationIDs.suffix(2) == [
@@ -1207,7 +1207,7 @@ struct WorkspaceStateTests {
     state.openRoom.refresh()
     await waitForTranscriptIdle(state)
     #expect(state.openRoom.room.timeline.failedPage == nil)
-    #expect(state.transcriptMessages.map(\.content) == ["updated"])
+    #expect(state.openRoom.room.timeline.messages.map(\.content) == ["updated"])
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == 2)
     #expect(state.rooms.first?.unreadCount == 1)
   }
@@ -1234,8 +1234,8 @@ struct WorkspaceStateTests {
     state.openRoom.loadOlder()
     await waitForTranscriptIdle(state)
     // Resolved history stays; the failure surfaces as a banner instead.
-    #expect(state.transcriptMessages.map(\.content) == ["newest"])
-    #expect(state.transcriptError != nil)
+    #expect(state.openRoom.room.timeline.messages.map(\.content) == ["newest"])
+    #expect(state.openRoom.room.timeline.errorMessage != nil)
     #expect(state.openRoom.room.timeline.hasMore)
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
   }
@@ -1282,7 +1282,7 @@ struct WorkspaceStateTests {
     #expect(try await timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: timeline.generation))
     #expect(outbox.shells.isEmpty)
     #expect((jobLifetime == nil) == failedFirst)
-    let displayed = threadReply ? state.openRoom.thread.transcript.displayedMessages : state.displayedTranscript
+    let displayed = threadReply ? state.openRoom.thread.transcript.displayedMessages : state.openRoom.displayedTranscript
     #expect(displayed.map(\.id) == [persisted.id])
     if !failedFirst {
       #expect(outbox.isSending)
@@ -1348,21 +1348,21 @@ struct WorkspaceStateTests {
     for _ in 0 ..< 1000 where !transport.operationIDs.contains("get/chats/rooms/{id}/messages") {
       await Task.yield()
     }
-    #expect(state.transcriptLoading)
+    #expect(state.openRoom.room.timeline.isLoading)
     let accepted = state.sendMessage("hello")
     #expect(accepted)
     if accepted {
-      #expect(state.displayedTranscript.map(\.content) == ["hello"])
+      #expect(state.openRoom.displayedTranscript.map(\.content) == ["hello"])
       await waitForOutboundIdle(state)
-      #expect(state.transcriptLoading)
+      #expect(state.openRoom.room.timeline.isLoading)
       #expect(state.openRoom.room.outbox.shells.isEmpty)
-      #expect(state.transcriptMessages.map(\.id) == [confirmedID])
+      #expect(state.openRoom.room.timeline.messages.map(\.id) == [confirmedID])
     }
     transport.pauseGET = false
     transport.releasePausedRequest()
     await waitForTranscriptIdle(state)
-    #expect(state.displayedTranscript.map(\.content) == ["earlier", "hello"])
-    #expect(state.transcriptMessages.filter { $0.id == confirmedID }.count == 1)
+    #expect(state.openRoom.displayedTranscript.map(\.content) == ["earlier", "hello"])
+    #expect(state.openRoom.room.timeline.messages.filter { $0.id == confirmedID }.count == 1)
   }
 
   @Test func sendPaintsPendingThenConfirmed() async throws {
@@ -1386,16 +1386,16 @@ struct WorkspaceStateTests {
     // The room's shell takes the injected id and clock, like the Thread's.
     #expect(state.openRoom.room.outbox.shells[0].clientTurnId == "turn-fixed")
     #expect(state.openRoom.room.outbox.shells[0].createdAt == sentAt)
-    #expect(state.displayedTranscript.map(\.content) == ["hello"])
-    #expect(isOutboundLocalMessage(state.displayedTranscript[0]))
+    #expect(state.openRoom.displayedTranscript.map(\.content) == ["hello"])
+    #expect(isOutboundLocalMessage(state.openRoom.displayedTranscript[0]))
     for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/messages") {
       await Task.yield()
     }
     transport.releasePausedRequest()
     await waitForOutboundIdle(state)
     #expect(state.openRoom.room.outbox.shells.isEmpty)
-    #expect(state.displayedTranscript.map(\.content) == ["hello"])
-    #expect(state.transcriptMessages.map(\.id) == [confirmedID])
+    #expect(state.openRoom.displayedTranscript.map(\.content) == ["hello"])
+    #expect(state.openRoom.room.timeline.messages.map(\.id) == [confirmedID])
     #expect(transport.operationIDs.last == "post/chats/rooms/{id}/messages")
   }
 
@@ -1420,12 +1420,12 @@ struct WorkspaceStateTests {
     await waitForOutboundIdle(state)
     #expect(state.openRoom.room.outbox.shells.count == 1)
     #expect(state.openRoom.room.outbox.shells[0].status == .failed)
-    #expect(state.displayedTranscript.map(\.content) == ["@peer:peer"])
+    #expect(state.openRoom.displayedTranscript.map(\.content) == ["@peer:peer"])
     let turnId = try #require(state.openRoom.room.outbox.shells.first?.clientTurnId)
     state.openRoom.room.outbox.retry(turnId)
     await waitForOutboundIdle(state)
     #expect(state.openRoom.room.outbox.shells.isEmpty)
-    #expect(state.transcriptMessages.map(\.id) == [confirmedID])
+    #expect(state.openRoom.room.timeline.messages.map(\.id) == [confirmedID])
     let posts = zip(transport.operationIDs, transport.bodies).compactMap { id, body -> [String: Any]? in
       guard id == "post/chats/rooms/{id}/messages" else { return nil }
       return (try? JSONSerialization.jsonObject(with: body) as? [String: Any]) ?? [:]
@@ -1461,12 +1461,12 @@ struct WorkspaceStateTests {
       id: "mattpocock/skills/grill-me", name: "grill-me", description: nil, url: "https://skills.sh/mattpocock/skills/grill-me"
     )
     #expect(state.sendMessage("Review this", skills: [skill]))
-    #expect(state.displayedTranscript.last?.skills == [skill])
+    #expect(state.openRoom.displayedTranscript.last?.skills == [skill])
     await waitForOutboundIdle(state)
     let shell = try #require(state.openRoom.room.outbox.shells.first)
     #expect(shell.status == .failed)
     #expect(shell.errorMessage?.contains("Could not attach the skill: skills.sh is unavailable") == true)
-    #expect(state.displayedTranscript.last?.skills == [skill])
+    #expect(state.openRoom.displayedTranscript.last?.skills == [skill])
     state.openRoom.room.outbox.retry(shell.clientTurnId)
     await waitForOutboundIdle(state)
     #expect(state.openRoom.room.outbox.shells.isEmpty)
@@ -1506,7 +1506,7 @@ struct WorkspaceStateTests {
     let turnId = try #require(state.openRoom.room.outbox.shells.first?.clientTurnId)
     state.openRoom.room.outbox.remove(turnId)
     #expect(state.openRoom.room.outbox.shells.isEmpty)
-    #expect(state.displayedTranscript.isEmpty)
+    #expect(state.openRoom.displayedTranscript.isEmpty)
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/messages" }.count == 1)
   }
 
@@ -1535,7 +1535,7 @@ struct WorkspaceStateTests {
     transport.pausePOST = false
     transport.releasePausedRequest()
     await waitForOutboundIdle(state)
-    #expect(state.displayedTranscript.map(\.content) == ["first", "second"])
+    #expect(state.openRoom.displayedTranscript.map(\.content) == ["first", "second"])
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/messages" }.count == 2)
   }
 
@@ -1562,7 +1562,7 @@ struct WorkspaceStateTests {
     for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/messages") {
       await Task.yield()
     }
-    #expect(state.outboundInFlight)
+    #expect(state.openRoom.room.outbox.isSending)
     #expect(state.openRoom.room.outbox.shells[0].status == .pending)
     let org = try #require(state.options.first { $0.id == "org_1" })
     await state.switchRooms(option: org)
@@ -1570,9 +1570,9 @@ struct WorkspaceStateTests {
     #expect(state.switchError != nil)
     transport.releasePausedRequest()
     await waitForOutboundIdle(state)
-    #expect(!state.outboundInFlight)
+    #expect(!state.openRoom.room.outbox.isSending)
     #expect(state.openRoom.room.outbox.shells.isEmpty)
-    #expect(state.transcriptMessages.map(\.id) == [confirmedID])
+    #expect(state.openRoom.room.timeline.messages.map(\.id) == [confirmedID])
   }
 
   @Test func directSendUsesStreamAndSettlesHistoryWithoutClassicOutbox() async throws {
@@ -1594,19 +1594,19 @@ struct WorkspaceStateTests {
     #expect(state.openRoom.room.outbox.shells.isEmpty)
     let echo = chatRoomMessage(from: .init(clientTurnId: "echo", roomId: roomId, content: "Hello", createdAt: Date(), sender: sender))
     state.applyRealtimeMessage(roomId: roomId, eventType: .create, message: echo)
-    #expect(state.transcriptMessages.isEmpty)
+    #expect(state.openRoom.room.timeline.messages.isEmpty)
     var root = echo
     root.id = "root"
-    state.transcriptMessages = [root]
+    state.openRoom.room.timeline.messages = [root]
     #expect(state.openRoom.thread.open(root))
     state.applyRealtimeEnvelope(.init(eventType: .delete, messageId: "root", roomId: roomId))
     #expect(state.openRoom.thread.parent?.deletedAt != nil)
-    #expect(state.transcriptMessages.first?.deletedAt != nil)
+    #expect(state.openRoom.room.timeline.messages.first?.deletedAt != nil)
     await state.openRoom.directStream.task?.value
     #expect(state.openRoom.directStream.overlayMessages.isEmpty)
     // Row 19a: the deleted root stays in state and as the open thread's tombstone, not in the room transcript.
-    #expect(state.displayedTranscript.map(\.id) == ["persisted"])
-    #expect(state.transcriptMessages.first { $0.id == "root" }?.deletedAt != nil)
+    #expect(state.openRoom.displayedTranscript.map(\.id) == ["persisted"])
+    #expect(state.openRoom.room.timeline.messages.first { $0.id == "root" }?.deletedAt != nil)
     #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages", "post/chats/rooms/{id}/stream", "get/chats/rooms/{id}/messages"])
     state.leaveRoom()
     #expect(state.openRoom.directStream.roomId == nil)
@@ -1632,19 +1632,19 @@ struct WorkspaceStateTests {
     let client = try #require(state.clientResolver?())
     _ = try await state.openRoom.room.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.openRoom.room.timeline.generation)
     state.openRoom.directStream.reset(room: room)
-    #expect(try state.openRoom.thread.open(#require(state.transcriptMessages.first)))
+    #expect(try state.openRoom.thread.open(#require(state.openRoom.room.timeline.messages.first)))
     #expect(state.sendThreadReply("Thread turn"))
     #expect(!state.sendMessage("Room turn"))
     #expect(state.openRoom.thread.transcript.outbox.shells.isEmpty)
-    #expect(state.displayedTranscript.map(\.id) == ["root"])
-    #expect(state.displayedThreadReplies.first?.content == "Thread turn")
+    #expect(state.openRoom.displayedTranscript.map(\.id) == ["root"])
+    #expect(state.openRoom.displayedThreadReplies.first?.content == "Thread turn")
     if closeThread {
       state.openRoom.thread.close()
       #expect(state.openRoom.streamingThreadToOpen?.id == "root")
     }
     await state.openRoom.directStream.task?.value
     #expect(state.openRoom.thread.parent?.id == "root")
-    #expect(state.displayedThreadReplies.map(\.id) == ["reply"])
+    #expect(state.openRoom.displayedThreadReplies.map(\.id) == ["reply"])
     #expect(state.openRoom.directStream.overlayMessages.isEmpty)
     #expect(transport.threadGets == 1)
     #expect(!transport.operationIDs.contains("post/chats/rooms/{id}/messages"))
@@ -1670,7 +1670,7 @@ struct WorkspaceStateTests {
     let client = try #require(state.clientResolver?())
     _ = try await state.openRoom.room.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.openRoom.room.timeline.generation)
     state.openRoom.directStream.reset(room: room)
-    let parent = try #require(state.transcriptMessages.first)
+    let parent = try #require(state.openRoom.room.timeline.messages.first)
     #expect(state.openRoom.thread.open(parent))
     state.openRoom.room.recovery.start(foreground: true, healthy: true) {
       state.openRoom.refresh()
@@ -1733,7 +1733,7 @@ struct WorkspaceStateTests {
       (200, transcriptPageBody(messages: [fixtures.reply], nextCursor: nil)),
       (200, transcriptPageBody(messages: [fixtures.reply], nextCursor: nil))
     ])
-    let parent = try #require(prepared.state.transcriptMessages.first)
+    let parent = try #require(prepared.state.openRoom.room.timeline.messages.first)
     #expect(prepared.state.openRoom.thread.open(parent))
     prepared.transport.pauseGET = true
     #expect(prepared.state.sendThreadReply("Thread turn"))
@@ -1764,7 +1764,7 @@ struct WorkspaceStateTests {
       (200, transcriptPageBody(messages: [fixtures.reply], nextCursor: nil)),
       (200, transcriptPageBody(messages: [fixtures.reply], nextCursor: nil))
     ])
-    #expect(try prepared.state.openRoom.thread.open(#require(prepared.state.transcriptMessages.first)))
+    #expect(try prepared.state.openRoom.thread.open(#require(prepared.state.openRoom.room.timeline.messages.first)))
     #expect(prepared.state.sendThreadReply("Thread turn"))
     await prepared.state.openRoom.directStream.task?.value
     prepared.state.openRoom.thread.close()
@@ -1784,7 +1784,7 @@ struct WorkspaceStateTests {
     prepared.transport.releasePausedRequest()
     await prepared.state.openRoom.directStream.task?.value
     #expect(prepared.state.openRoom.thread.parent?.id == "root")
-    #expect(prepared.state.displayedThreadReplies.map(\.id) == ["reply"])
+    #expect(prepared.state.openRoom.displayedThreadReplies.map(\.id) == ["reply"])
     #expect(prepared.state.openRoom.directStream.overlayMessages.isEmpty)
     #expect(prepared.transport.threadGets == 1)
   }
@@ -2014,15 +2014,15 @@ extension WorkspaceStateTests {
     #expect(state.openRoom.thread.parent != nil)
     if reply {
       #expect(state.openRoom.thread.transcript.timeline.messages.first?.deletedAt != nil)
-      #expect(state.displayedThreadReplies.isEmpty)
-      #expect(state.displayedTranscript.map(\.id) == ["parent"])
+      #expect(state.openRoom.displayedThreadReplies.isEmpty)
+      #expect(state.openRoom.displayedTranscript.map(\.id) == ["parent"])
       #expect(state.openRoom.room.timeline.messages.first?.content == "Original")
       #expect(state.openRoom.room.timeline.messages.first?.threadReplyCount == 0)
       #expect(state.openRoom.thread.parent?.threadReplyCount == 0)
       #expect(state.openRoom.thread.parent?.threadLastReplyAt == nil)
     } else {
       #expect(state.openRoom.room.timeline.messages.first?.deletedAt != nil)
-      #expect(state.displayedTranscript.isEmpty)
+      #expect(state.openRoom.displayedTranscript.isEmpty)
       // Web renders the deleted parent above the divider as "This message was deleted".
       #expect(state.openRoom.thread.parent?.deletedAt != nil)
     }
@@ -2038,10 +2038,10 @@ extension WorkspaceStateTests {
     state.openRoom.room.timeline.messages = [source]
     state.openRoom.messageEditing.start(source, userId: "user_1")
     state.openRoom.messageEditing.draft = "Unsaved"
-    #expect(state.displayedTranscript.map(\.id) == ["message"])
+    #expect(state.openRoom.displayedTranscript.map(\.id) == ["message"])
     await #expect(throws: (any Error).self) { try await state.openRoom.deleteMessage(source) }
     // Deletion is not optimistic (web awaits the server action too): a refusal leaves the row on screen.
-    #expect(state.displayedTranscript.map(\.id) == ["message"])
+    #expect(state.openRoom.displayedTranscript.map(\.id) == ["message"])
     #expect(state.openRoom.room.timeline.messages.first?.content == "Original")
     #expect(state.openRoom.room.timeline.messages.first?.deletedAt == nil)
     #expect(state.openRoom.messageEditing.draft == "Unsaved")
@@ -2135,13 +2135,13 @@ extension WorkspaceStateTests {
     transport.pauseReaction = true
     let toggle = Task { try await state.openRoom.toggleReaction(source, emoji: "👍") }
     await waitForRequests(1, transport)
-    let shown = reply ? state.displayedThreadReplies.first : state.displayedTranscript.first
+    let shown = reply ? state.openRoom.displayedThreadReplies.first : state.openRoom.displayedTranscript.first
     #expect(shown?.reactions.first?.count == 1)
     #expect(shown?.reactions.first?.reactedByCurrentUser == true)
     // Confirmed rows stay untouched until Core answers.
     #expect((reply ? state.openRoom.thread.transcript.timeline.messages.first : state.openRoom.room.timeline.messages.first)?.reactions.isEmpty == true)
     if !reply {
-      #expect(state.displayedThreadParent?.reactions.first?.reactedByCurrentUser == true)
+      #expect(state.openRoom.displayedThreadParent?.reactions.first?.reactedByCurrentUser == true)
     }
     transport.releasePausedRequest()
     #expect(try await toggle.value)
@@ -2151,7 +2151,7 @@ extension WorkspaceStateTests {
     #expect(updated?.reactions.first?.count == 1)
     #expect(updated?.reactions.first?.reactedByCurrentUser == true)
     #expect(state.openRoom.loaded.pendingReactions.intents.isEmpty)
-    #expect((reply ? state.displayedThreadReplies.first : state.displayedTranscript.first) == updated)
+    #expect((reply ? state.openRoom.displayedThreadReplies.first : state.openRoom.displayedTranscript.first) == updated)
     if !reply {
       #expect(state.openRoom.thread.parent?.reactions.first?.count == 1)
     }
@@ -2168,14 +2168,14 @@ extension WorkspaceStateTests {
     // On, off, on, off while the PUT is out: every tap shows at once and none sends.
     for expected in [false, true, false] {
       #expect(try await state.openRoom.toggleReaction(source, emoji: "👍") == false)
-      #expect(state.displayedTranscript.first?.reactions.isEmpty == !expected)
+      #expect(state.openRoom.displayedTranscript.first?.reactions.isEmpty == !expected)
     }
     #expect(transport.operationIDs.count == 1)
     transport.releasePausedRequest()
     await waitForRequests(2, transport)
     // The PUT is confirmed underneath, yet the row still shows the newest intent.
     #expect(state.openRoom.room.timeline.messages.first?.reactions.first?.reactedByCurrentUser == true)
-    #expect(state.displayedTranscript.first?.reactions.isEmpty == true)
+    #expect(state.openRoom.displayedTranscript.first?.reactions.isEmpty == true)
     transport.releasePausedRequest()
     #expect(try await toggle.value == false)
     #expect(transport.operationIDs == [
@@ -2199,7 +2199,7 @@ extension WorkspaceStateTests {
     transport.releasePausedRequest()
     #expect(try await toggle.value)
     #expect(transport.operationIDs.count == 1)
-    #expect(state.displayedTranscript.first?.reactions.first?.reactedByCurrentUser == true)
+    #expect(state.openRoom.displayedTranscript.first?.reactions.first?.reactedByCurrentUser == true)
   }
 
   @Test func pendingReactionStaysOnTopOfRealtimePatchAndFailureRollsBackOnlyThatEmoji() async throws {
@@ -2218,12 +2218,12 @@ extension WorkspaceStateTests {
     state.applyRealtimeMessagePatch(.init(roomId: "room", messageId: "message", parentMessageId: nil,
                                           value: .reactions([heart, source.reactions[0]])))
     #expect(state.openRoom.room.timeline.messages.first?.reactions.map(\.emoji) == ["❤️", "🎉"])
-    #expect(state.displayedTranscript.first?.reactions.map(\.emoji) == ["❤️", "👍"])
+    #expect(state.openRoom.displayedTranscript.first?.reactions.map(\.emoji) == ["❤️", "👍"])
     transport.releasePausedRequest()
     await #expect(throws: (any Error).self) { try await failing.value }
     // Only 👍 rolled back: the 🎉 removal is still shown, and confirmed rows never moved.
     #expect(state.openRoom.loaded.pendingReactions.intents == [.init(messageId: "message", emoji: "🎉", reacted: false)])
-    #expect(state.displayedTranscript.first?.reactions == [heart])
+    #expect(state.openRoom.displayedTranscript.first?.reactions == [heart])
     #expect(state.openRoom.room.timeline.messages.first?.reactions.map(\.emoji) == ["❤️", "🎉"])
     #expect(state.openRoom.room.timeline.messages.first?.content == "New content")
     transport.releasePausedRequest()
@@ -2241,11 +2241,11 @@ extension WorkspaceStateTests {
     let toggle = Task { try await state.openRoom.toggleReaction(source, emoji: "👍") }
     await waitForRequests(1, transport)
     state.openRoom.room.timeline.reset(roomId: "other")
-    #expect(state.displayedTranscript.isEmpty)
+    #expect(state.openRoom.displayedTranscript.isEmpty)
     // Back mid-request: the refreshed page predates the reaction, the intent still shows.
     state.openRoom.room.timeline.reset(roomId: "room")
     state.openRoom.room.timeline.messages = [source]
-    #expect(state.displayedTranscript.first?.reactions.first?.reactedByCurrentUser == true)
+    #expect(state.openRoom.displayedTranscript.first?.reactions.first?.reactedByCurrentUser == true)
     transport.releasePausedRequest()
     #expect(try await toggle.value)
     #expect(state.openRoom.loaded.pendingReactions.intents.isEmpty)
@@ -2351,11 +2351,11 @@ extension WorkspaceStateTests {
     var live = try #require(state.openRoom.room.timeline.messages.first)
     live.id = "new"
     state.applyRealtimeMessage(roomId: "room", eventType: .create, message: live)
-    #expect(Set(state.displayedTranscript.map(\.id)) == ["old", "new"])
+    #expect(Set(state.openRoom.displayedTranscript.map(\.id)) == ["old", "new"])
     live.id = "old"
     live.content = "Edited live"
     state.applyRealtimeMessage(roomId: "room", eventType: .update, message: live)
-    #expect(state.displayedTranscript.first(where: { $0.id == "old" })?.content == "Edited live")
+    #expect(state.openRoom.displayedTranscript.first(where: { $0.id == "old" })?.content == "Edited live")
   }
 
   /// Jump pages land outside the load queue; leaving one for the latest page reads the room like any landed page,
@@ -2416,7 +2416,7 @@ extension WorkspaceStateTests {
     state.openRoom.room.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.openRoom.room.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.openRoom.room.timeline.generation)
-    #expect(try state.openRoom.thread.open(#require(state.transcriptMessages.first)))
+    #expect(try state.openRoom.thread.open(#require(state.openRoom.room.timeline.messages.first)))
     #expect(try await state.openRoom.thread.transcript.loadAround("reply"))
     #expect(state.openRoom.thread.transcript.timeline.historicalAnchor == "reply")
     #expect(state.sendThreadReply("Follow-up"))
@@ -2524,7 +2524,7 @@ extension WorkspaceStateTests {
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
     #expect(try await state.openRoom.jumpToMessage("parent"))
-    var hit = try #require(state.transcriptMessages.first)
+    var hit = try #require(state.openRoom.room.timeline.messages.first)
     hit.id = "old"
     hit.parentMessageId = "parent"
     #expect(try await state.openRoom.openMessageReply(hit) == .opened)
@@ -2548,7 +2548,7 @@ extension WorkspaceStateTests {
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
     #expect(try await state.openRoom.jumpToMessage("parent"))
-    var hit = try #require(state.transcriptMessages.first)
+    var hit = try #require(state.openRoom.room.timeline.messages.first)
     hit.id = "old"
     hit.content = "Old"
     hit.parentMessageId = "parent"
@@ -2556,7 +2556,7 @@ extension WorkspaceStateTests {
     let loaded = try #require(state.openRoom.thread.transcript.timeline.messages.first { $0.id == "old" })
     #expect(!shouldKeepPersistedMessage(loaded))
     #expect(state.openRoom.thread.transcript.jumpTarget == nil)
-    #expect(state.displayedThreadReplies.isEmpty)
+    #expect(state.openRoom.displayedThreadReplies.isEmpty)
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/threads/{parentMessageId}/messages" }.count == 1)
   }
 
@@ -2570,7 +2570,7 @@ extension WorkspaceStateTests {
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
     #expect(try await state.openRoom.jumpToMessage("parent"))
-    var hit = try #require(state.transcriptMessages.first)
+    var hit = try #require(state.openRoom.room.timeline.messages.first)
     hit.id = "reply"
     hit.parentMessageId = "parent"
     state.openRoom.room.timeline.reset(roomId: "room")
@@ -2655,10 +2655,10 @@ extension WorkspaceStateTests {
     target.id = "target"
     state.openRoom.room.timeline.reset(roomId: "room")
     state.openRoom.room.timeline.messages = [first, target]
-    #expect(state.displayedTranscript.map(\.id) == ["first", "target"])
+    #expect(state.openRoom.displayedTranscript.map(\.id) == ["first", "target"])
     state.applyRealtimeMessage(roomId: "room", eventType: .delete, message: tombstoneTranscriptMessage(target, now: Date(timeIntervalSince1970: 1_700_000_000)))
-    #expect(state.displayedTranscript.map(\.id) == ["first"])
-    #expect(state.transcriptMessages.map(\.id) == ["first", "target"])
+    #expect(state.openRoom.displayedTranscript.map(\.id) == ["first"])
+    #expect(state.openRoom.room.timeline.messages.map(\.id) == ["first", "target"])
   }
 
   @Test func messageLinkResolvesReplyOutsideLoadedHistory() async throws {
@@ -2690,7 +2690,7 @@ extension WorkspaceStateTests {
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
     #expect(try await state.openRoom.jumpToMessage("parent"))
-    var hit = try #require(state.transcriptMessages.first)
+    var hit = try #require(state.openRoom.room.timeline.messages.first)
     hit.id = "reply"
     hit.parentMessageId = "parent"
     #expect(try await state.openRoom.openMessageReply(hit) == .opened)
@@ -2715,7 +2715,7 @@ extension WorkspaceStateTests {
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
     #expect(try await state.openRoom.jumpToMessage("parent"))
-    var hit = try #require(state.transcriptMessages.first)
+    var hit = try #require(state.openRoom.room.timeline.messages.first)
     hit.id = "old"
     hit.parentMessageId = "parent"
     await #expect(throws: (any Error).self) { try await state.openRoom.openMessageReply(hit) }
@@ -2738,7 +2738,7 @@ extension WorkspaceStateTests {
     state.openRoom.room.timeline.reset(roomId: "room")
     #expect(try await state.openRoom.jumpToMessage("parent"))
     // The quote's lookup answers from loaded rows: the reply is in the open Thread.
-    try state.openRoom.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.openRoom.room.timeline.messages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     #expect(try await state.openRoom.openMessage("reply", marksThreadParent: false) == .opened)
     #expect(state.openRoom.thread.transcript.jumpTarget?.messageId == "reply", "The quote still opens the Thread on the reply.")
@@ -2759,7 +2759,7 @@ extension WorkspaceStateTests {
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
     #expect(try await state.openRoom.jumpToMessage("parent"))
-    var hit = try #require(state.transcriptMessages.first)
+    var hit = try #require(state.openRoom.room.timeline.messages.first)
     hit.id = "old"
     hit.parentMessageId = "parent"
     transport.pauseGET = true
@@ -2791,7 +2791,7 @@ extension WorkspaceStateTests {
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
     #expect(try await state.openRoom.jumpToMessage("other"))
-    var hit = try #require(state.transcriptMessages.first)
+    var hit = try #require(state.openRoom.room.timeline.messages.first)
     hit.id = "reply"
     hit.parentMessageId = "parent"
     #expect(try await state.openRoom.openMessageReply(hit) == .opened)
@@ -3436,7 +3436,7 @@ extension WorkspaceStateTests {
     ])
     defer { state.reset() }
     let shell = try #require(state.openRoom.room.timeline.messages.last)
-    #expect(state.displayedTranscript.map(\.id) == ["source", "shell"])
+    #expect(state.openRoom.displayedTranscript.map(\.id) == ["source", "shell"])
     #expect(state.openRoom.canRetryMention(shell))
 
     transport.pauseMentionRetry = true
@@ -3445,11 +3445,11 @@ extension WorkspaceStateTests {
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
-    #expect(state.displayedTranscript.map(\.id) == ["source", "shell"])
-    #expect(try MentionThoughtShell(message: #require(state.displayedTranscript.last)) == .thinking(startedAt: now))
+    #expect(state.openRoom.displayedTranscript.map(\.id) == ["source", "shell"])
+    #expect(try MentionThoughtShell(message: #require(state.openRoom.displayedTranscript.last)) == .thinking(startedAt: now))
     transport.releasePausedRequest()
     try await retry.value
-    #expect(state.displayedTranscript.map(\.id) == ["source", "shell"])
+    #expect(state.openRoom.displayedTranscript.map(\.id) == ["source", "shell"])
     #expect(state.openRoom.room.timeline.messages.first?.mentions.first?.status == .pending)
     #expect(transport.remainingStubs == 0)
   }
@@ -3864,7 +3864,7 @@ extension WorkspaceStateTests {
     #expect(gapPages(transport) == ["cursor=z"], "Once per arming, and never twice for one in-flight request.")
     #expect(state.openRoom.room.timeline.historyGapMessageIds == ["m"], "The page stopped short of the jump window, so the gap moved to its oldest row.")
     #expect(state.openRoom.room.timeline.boundaryLoads.status(of: "z") == .idle)
-    #expect(state.transcriptError == nil)
+    #expect(state.openRoom.room.timeline.errorMessage == nil)
 
     state.setHistoryGapVisible(before: "m", true)
     await state.openRoom.room.gapTask?.value
@@ -3883,10 +3883,10 @@ extension WorkspaceStateTests {
     state.setHistoryGapVisible(before: "z", true)
     await state.openRoom.room.gapTask?.value
     #expect(state.openRoom.room.timeline.boundaryLoads.status(of: "z") == .failed)
-    #expect(state.transcriptError == nil, "No banner above the transcript and nothing for an alert to show.")
+    #expect(state.openRoom.room.timeline.errorMessage == nil, "No banner above the transcript and nothing for an alert to show.")
     #expect(state.openRoom.room.timeline.failedPage == nil)
     #expect(state.openRoom.room.timeline.historyGapMessageIds == ["z"])
-    #expect(state.transcriptMessages.map(\.id) == ["a", "z"])
+    #expect(state.openRoom.room.timeline.messages.map(\.id) == ["a", "z"])
 
     state.setHistoryGapVisible(before: "z", false)
     state.setHistoryGapVisible(before: "z", true)
@@ -3898,7 +3898,7 @@ extension WorkspaceStateTests {
     await state.openRoom.room.gapTask?.value
     #expect(gapPages(transport) == ["cursor=z", "cursor=z"])
     #expect(state.openRoom.room.timeline.historyGapMessageIds.isEmpty)
-    #expect(state.transcriptMessages.map(\.id) == ["a", "m", "z"])
+    #expect(state.openRoom.room.timeline.messages.map(\.id) == ["a", "m", "z"])
     #expect(state.openRoom.room.timeline.boundaryLoads.status(of: "z") == .idle)
   }
 
@@ -3919,7 +3919,7 @@ extension WorkspaceStateTests {
     await state.openRoom.room.gapTask?.value
     #expect(gapPages(transport) == ["cursor=m", "cursor=z"])
     #expect(state.openRoom.room.timeline.historyGapMessageIds.isEmpty)
-    #expect(state.transcriptMessages.map(\.id) == ["a", "b", "m", "n", "z"])
+    #expect(state.openRoom.room.timeline.messages.map(\.id) == ["a", "b", "m", "n", "z"])
   }
 
   /// A refresh the gap page held back still hands the room's newer copy of an open Thread's parent to the Thread.
@@ -3929,7 +3929,7 @@ extension WorkspaceStateTests {
       (200, transcriptPageBody(messages: [transcriptMessage(id: "z", roomId: "room", content: "Latest edited")], nextCursor: "z"))
     ])
     defer { state.reset() }
-    #expect(try state.openRoom.thread.open(#require(state.transcriptMessages.first { $0.id == "z" })))
+    #expect(try state.openRoom.thread.open(#require(state.openRoom.room.timeline.messages.first { $0.id == "z" })))
     transport.pauseGET = true
     state.setHistoryGapVisible(before: "z", true)
     for _ in 0 ..< 1000 where gapPages(transport).isEmpty {
@@ -3993,7 +3993,7 @@ extension WorkspaceStateTests {
     ] + extra)
     await state.reload()
     await waitForTranscriptIdle(state)
-    try state.openRoom.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.openRoom.room.timeline.messages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     return (state, auth, transport)
   }
@@ -4009,11 +4009,11 @@ extension WorkspaceStateTests {
     await state.readThreadMuteIfNeeded()
     await state.readThreadMuteIfNeeded()
     #expect(state.openRoom.thread.mute?.isMuted == muted)
-    let revision = state.threadAttentionRevision
+    let revision = state.openRoom.threadAttentionRevision
     await state.toggleThreadMute()
     #expect(state.openRoom.thread.mute?.isMuted == !muted)
     #expect(state.openRoom.thread.mute?.isPending == false)
-    #expect(state.threadAttentionRevision == revision + 1, "The Threads trigger counts again.")
+    #expect(state.openRoom.threadAttentionRevision == revision + 1, "The Threads trigger counts again.")
     #expect(state.rooms.first?.unreadCount == 1, "The room row takes Core's answer to the room read.")
     #expect(transport.operationIDs.suffix(3) == [
       "get/chats/rooms/{id}/threads/{parentMessageId}",
@@ -4030,11 +4030,11 @@ extension WorkspaceStateTests {
       (500, #"{"error":"Internal Server Error","message":"boom","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/x/threads/y/mute","method":"POST"}}"#)
     ])
     await state.readThreadMuteIfNeeded()
-    let revision = state.threadAttentionRevision
+    let revision = state.openRoom.threadAttentionRevision
     await state.toggleThreadMute()
     #expect(state.openRoom.thread.mute?.isMuted == false)
     #expect(state.openRoom.thread.mute?.failure == .mute)
-    #expect(state.threadAttentionRevision == revision)
+    #expect(state.openRoom.threadAttentionRevision == revision)
     #expect(state.rooms.first?.unreadCount == 2)
     #expect(transport.operationIDs.last == "post/chats/rooms/{id}/threads/{parentMessageId}/mute")
     #expect(transport.remainingStubs == 0)
@@ -4078,14 +4078,14 @@ extension WorkspaceStateTests {
     let (state, _, transport) = try await Self.openMuteThread([
       (200, Self.lookBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1))
     ])
-    let revision = state.threadAttentionRevision
+    let revision = state.openRoom.threadAttentionRevision
     try landAnotherReply(in: state)
     await state.syncReadAttention()
-    #expect(state.threadAttentionRevision == revision + 1, "The Threads trigger counts again.")
+    #expect(state.openRoom.threadAttentionRevision == revision + 1, "The Threads trigger counts again.")
     #expect(transport.operationIDs.suffix(2) == ["post/chats/rooms/{id}/threads/{parentMessageId}/read", "post/chats/rooms/{id}/read"])
     #expect(state.rooms.first?.unreadCount == 1)
     await state.syncReadAttention()
-    #expect(state.threadAttentionRevision == revision + 1, "Unchanged content writes no second Look.")
+    #expect(state.openRoom.threadAttentionRevision == revision + 1, "Unchanged content writes no second Look.")
     #expect(transport.remainingStubs == 0)
     state.openRoom.thread.close()
   }
@@ -4094,13 +4094,13 @@ extension WorkspaceStateTests {
     let (state, _, transport) = try await Self.openOverview([
       (200, Self.markAllBody), (200, roomReadBody(id: Self.muteRoomId, unread: 0)), (200, Self.threadsPage(unread: 0))
     ])
-    let revision = state.threadAttentionRevision
+    let revision = state.openRoom.threadAttentionRevision
     await state.updateThreadOverview(.markAllRead, roomId: Self.muteRoomId)
     #expect(transport.operationIDs.suffix(4) == [
       "get/chats/rooms/{id}/threads", "post/chats/rooms/{id}/threads/read",
       "post/chats/rooms/{id}/read", "get/chats/rooms/{id}/threads"
     ])
-    #expect(state.threadAttentionRevision == revision + 1, "The Threads trigger counts again.")
+    #expect(state.openRoom.threadAttentionRevision == revision + 1, "The Threads trigger counts again.")
     #expect(state.rooms.first?.unreadCount == 0, "The room row takes Core's answer to the room read.")
     #expect(state.openRoom.threadOverview.items.first?.unreadReplyCount == 0)
     let pages = zip(transport.operationIDs, transport.paths).filter { $0.0 == "get/chats/rooms/{id}/threads" }
@@ -4112,10 +4112,10 @@ extension WorkspaceStateTests {
     let (state, _, transport) = try await Self.openOverview([
       (500, #"{"error":"Internal Server Error","message":"boom","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/x/threads/read","method":"POST"}}"#)
     ])
-    let revision = state.threadAttentionRevision
+    let revision = state.openRoom.threadAttentionRevision
     await state.updateThreadOverview(.markAllRead, roomId: Self.muteRoomId)
     #expect(transport.operationIDs.last == "post/chats/rooms/{id}/threads/read")
-    #expect(state.threadAttentionRevision == revision)
+    #expect(state.openRoom.threadAttentionRevision == revision)
     #expect(state.rooms.first?.unreadCount == 3)
     #expect(state.openRoom.threadOverview.items.first?.unreadReplyCount == 2 && state.openRoom.threadOverview.failureMessage != nil)
     #expect(transport.remainingStubs == 0)
@@ -4321,7 +4321,7 @@ extension WorkspaceStateTests {
   @Test func aLookSettlesTheInsetRowsOnCoresAnswer() async throws {
     let (state, _, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.otherRootId]))
     #expect(Self.insetThreads(state) == [Self.muteRootId, Self.otherRootId], "The room read lists both Threads.")
-    try state.openRoom.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.openRoom.room.timeline.messages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     #expect(Self.insetThreads(state) == [Self.otherRootId], "The Look's room read drops the Thread just read.")
     #expect(transport.remainingStubs == 0)
@@ -4333,7 +4333,7 @@ extension WorkspaceStateTests {
       (200, Self.threadBody(mutedAt: nil)), (200, Self.threadBody(mutedAt: timestamp)),
       (200, roomReadBody(id: Self.muteRoomId, unread: 1, split: (channel: 0, threads: 1), threads: [Self.otherRootId]))
     ])
-    try state.openRoom.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.openRoom.room.timeline.messages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     #expect(Self.insetThreads(state) == [Self.muteRootId, Self.otherRootId])
     await state.readThreadMuteIfNeeded()
@@ -4380,7 +4380,7 @@ extension WorkspaceStateTests {
   /// Web's overflow row opens the room's thread list (`?threads=1`), putting an open thread away first.
   @Test func theOverflowRowOpensTheRoomsThreadOverview() async throws {
     let (state, _, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.muteRootId, Self.otherRootId]))
-    try state.openRoom.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.openRoom.room.timeline.messages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     let written = transport.operationIDs.count
     await state.openThreadOverview(roomId: Self.muteRoomId)
@@ -4539,7 +4539,7 @@ extension WorkspaceStateTests {
 
   /// What each bar draws: an absent count is none unread.
   private func shownUnread(_ state: WorkspaceState) -> [Int] {
-    state.displayedTranscript.map { $0.threadUnreadReplyCount ?? 0 }
+    state.openRoom.displayedTranscript.map { $0.threadUnreadReplyCount ?? 0 }
   }
 
   @Test func theUnreadReadOwnsEveryReplyBar() async throws {
@@ -4566,13 +4566,13 @@ extension WorkspaceStateTests {
       (200, roomReadBody(id: Self.muteRoomId, unread: 1))
     ])
     await state.updateThreadOverview(.count, roomId: Self.muteRoomId)
-    let revision = state.threadAttentionRevision
-    try state.openRoom.openThread(#require(state.transcriptMessages.first))
+    let revision = state.openRoom.threadAttentionRevision
+    try state.openRoom.openThread(#require(state.openRoom.room.timeline.messages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     #expect(transport.operationIDs.contains("post/chats/rooms/{id}/threads/{parentMessageId}/read"))
     #expect(state.openRoom.threadOverview.unreadReplyCounts == [Self.otherRootId: 1], "The looked Thread leaves the trigger at once.")
     #expect(shownUnread(state) == [0, 1], "Its bar untints without waiting for the re-count.")
-    #expect(state.threadAttentionRevision == revision + 2, "Each Look counts the trigger again: before the fetch, and once the reply landed.")
+    #expect(state.openRoom.threadAttentionRevision == revision + 2, "Each Look counts the trigger again: before the fetch, and once the reply landed.")
     #expect(transport.remainingStubs == 0)
     state.openRoom.thread.close()
   }
@@ -4619,16 +4619,16 @@ extension WorkspaceStateTests {
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(Self.muteRootId)\"")
     let (state, _, transport) = try await Self.openBars([(201, reply)])
     #expect(state.openRoom.threadOverview.unreadReplyCounts == nil && state.openRoom.directStream.roomId == nil)
-    let parent = try #require(state.transcriptMessages.first { $0.id == Self.muteRootId })
+    let parent = try #require(state.openRoom.room.timeline.messages.first { $0.id == Self.muteRootId })
     #expect(parent.threadUnreadReplyCount == 2 && parent.threadReplyCount == 3)
     #expect(state.openRoom.thread.open(parent))
-    state.clearThreadUnreadReplies { $0 == Self.muteRootId }
-    #expect(state.transcriptMessages.first { $0.id == Self.muteRootId }?.threadUnreadReplyCount == 0)
+    state.openRoom.clearThreadUnreadReplies { $0 == Self.muteRootId }
+    #expect(state.openRoom.room.timeline.messages.first { $0.id == Self.muteRootId }?.threadUnreadReplyCount == 0)
     #expect(state.sendThreadReply("On it"))
     for _ in 0 ..< 1000 where state.openRoom.thread.transcript.outbox.isSending {
       await Task.yield()
     }
-    let shown = try #require(state.transcriptMessages.first { $0.id == Self.muteRootId })
+    let shown = try #require(state.openRoom.room.timeline.messages.first { $0.id == Self.muteRootId })
     #expect(shown.threadUnreadReplyCount == 0, "A reply must not put back the count a Look cleared.")
     #expect(shown.threadReplyCount == 4 && shown.threadRepliers?.count == 1)
     #expect(state.openRoom.thread.parent?.threadReplyCount == 4)
@@ -4682,7 +4682,7 @@ extension WorkspaceStateTests {
     await waitWhile { state.openRoom.room.loadTask == nil }
     await waitForTranscriptIdle(state)
     #expect(Self.roomGets(transport) == 2 && Self.roomReads(transport) == 2)
-    #expect(state.transcriptMessages.map(\.content) == ["First", "Missed"])
+    #expect(state.openRoom.room.timeline.messages.map(\.content) == ["First", "Missed"])
     #expect((state.rooms.first?.channelUnreadCount ?? 0) == 0)
     await waitWhile { clock.pending == 0 }
     #expect(clock.intervals.count == 1, "The room stopped counting, so nothing waits again.")
@@ -4739,7 +4739,7 @@ extension WorkspaceStateTests {
     ], visible: false, openRoomUnreadRecheck: OpenRoomUnreadRecheck(sleep: clock.sleep))
     await state.reload()
     await waitForTranscriptIdle(state)
-    try state.openRoom.openThread(#require(state.transcriptMessages.first))
+    try state.openRoom.openThread(#require(state.openRoom.room.timeline.messages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
     await waitWhile { clock.pending == 0 }
     #expect(clock.intervals == [.seconds(4)])

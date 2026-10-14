@@ -62,7 +62,7 @@ import SwiftUI
           guard destination == .threads, workspaces.openRoom.thread.parent == nil else { return }
           await workspaces.updateThreadOverview(.load, roomId: roomId)
         }
-        .task(id: scope + [String(workspaces.threadAttentionRevision), String(destination == .threads), workspaces.openRoom.thread.parent?.id ?? ""]) {
+        .task(id: scope + [String(workspaces.openRoom.threadAttentionRevision), String(destination == .threads), workspaces.openRoom.thread.parent?.id ?? ""]) {
           do { try await Task.sleep(for: Self.threadsCountDebounce) } catch { return }
           await workspaces.updateThreadOverview(.count, roomId: roomId)
         }

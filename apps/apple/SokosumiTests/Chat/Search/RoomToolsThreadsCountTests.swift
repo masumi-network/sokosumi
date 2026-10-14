@@ -47,9 +47,9 @@
         #expect(!(window.toolbar?.items.isEmpty ?? true), "The room puts the Threads trigger in the window toolbar.")
 
         // Mark all, as the overview's button runs it: Core accepts, the room bumps the revision.
-        let revision = state.threadAttentionRevision
+        let revision = state.openRoom.threadAttentionRevision
         await state.updateThreadOverview(.markAllRead, roomId: "room")
-        try #require(state.threadAttentionRevision == revision + 1, "Mark all bumps the Threads attention revision.")
+        try #require(state.openRoom.threadAttentionRevision == revision + 1, "Mark all bumps the Threads attention revision.")
 
         try await waitUntil("the re-count after the bump; \(Self.describe(transport, state))", in: host) {
           transport.countRequests >= 2 && state.openRoom.threadOverview.unreadCount == 1

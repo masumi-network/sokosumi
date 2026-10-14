@@ -117,7 +117,7 @@ struct OpenRoomSessionTests {
       rejected(error)
       return false
     }, pageLanded: {}, lookBeforeThread: {}, isForeground: { false }, listedRoom: { [self] in room(testRoomId) },
-    viewerId: { "me" }, organizationId: { nil })
+    viewer: { ("me", "Me") }, organizationId: { nil })
     return session
   }
 
@@ -335,5 +335,62 @@ struct OpenRoomSessionTests {
     #expect(session.thread.transcript.jumpTarget?.messageId == "r1")
     #expect(session.messageJump?.messageId == "root")
     #expect(session.messageJump?.isThreadParent == true)
+  }
+
+  // MARK: - Thread attention and what the room shows
+
+  /// The Threads trigger counts again when the open room's Thread unread may have moved, and only then.
+  @Test func threadAttentionMovesForTheOpenRoomsReplies() async throws {
+    let session = try connected(TestTransport([(200, testMessagesPageBody(messages: [], nextCursor: nil))]))
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    _ = await session.room.loadTask?.value
+    let top = try #require(try await fetchTestMessages([testMessageJSON(id: "top", content: "Top", sender: ada)]).first)
+    let reply = try #require(try await fetchTestMessages([reply("r1", to: "top")]).first)
+    var revision = session.threadAttentionRevision
+    func moved() -> Bool {
+      defer { revision = session.threadAttentionRevision }
+      return session.threadAttentionRevision != revision
+    }
+    session.apply(eventType: .create, message: top, roomId: testRoomId)
+    #expect(!moved(), "A top-level message is not Thread news.")
+    session.apply(eventType: .create, message: reply, roomId: "elsewhere")
+    #expect(!moved(), "Another room's reply is that room's.")
+    session.apply(eventType: .create, message: reply, roomId: testRoomId)
+    #expect(moved())
+    session.apply(ChatRoomMessageIdEnvelope(eventType: .create, messageId: "m3", roomId: testRoomId))
+    #expect(!moved(), "A top-level envelope is not Thread news.")
+    session.apply(ChatRoomMessageIdEnvelope(eventType: .create, messageId: "r2", roomId: testRoomId, parentMessageId: "top"))
+    #expect(moved())
+    session.applyRealtimeHealth(true, continuityLost: false)
+    #expect(!moved(), "Health alone changes no Thread.")
+    session.applyRealtimeHealth(true, continuityLost: true)
+    #expect(moved(), "Lost continuity may have missed replies.")
+    session.threadAttentionChanged()
+    #expect(moved())
+  }
+
+  /// A Pending reaction lists the reader under the name the open room gives them, else their account name.
+  @Test(arguments: [("Ada in the room", "Ada in the room"), (nil, "Ada Lovelace")])
+  func aPendingReactionNamesTheReaderAsTheRoomDoes(listed: String?, expected: String) async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [testMessageJSON(id: "m1", content: "Hi", sender: ada)], nextCursor: nil)),
+      (200, #"{"data":{"messageId":"m1","emoji":"👍","reacted":true},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#)
+    ])
+    let session = try connected(transport)
+    var listedRoom = room(testRoomId)
+    listedRoom.userMembers = listed.map { [.init(id: "me", name: $0, email: "me@example.com", presence: .online)] } ?? []
+    session.hooks.listedRoom = { listedRoom }
+    session.hooks.viewer = { ("me", "Ada Lovelace") }
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    _ = await session.room.loadTask?.value
+    let message = try #require(session.room.timeline.messages.first)
+    let toggle = Task { try await session.toggleReaction(message, emoji: "👍") }
+    var reactors: [String?]?
+    for _ in 0 ..< 100 where reactors == nil {
+      await Task.yield()
+      reactors = session.displayedTranscript.first?.reactions.first { $0.emoji == "👍" }?.reactors.map(\.name)
+    }
+    #expect(reactors == [expected])
+    _ = try? await toggle.value
   }
 }
