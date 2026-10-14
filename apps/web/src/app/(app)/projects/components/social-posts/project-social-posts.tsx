@@ -4,7 +4,6 @@ import {
   type ProjectSocialConnection,
   type ProjectSocialProvider as ProjectSocialProviderValue,
   type SocialPost,
-  type SocialPostMediaRef,
   type SocialPostStatus,
 } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS, isValidTimezone } from "@sokosumi/utils";
@@ -57,7 +56,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
@@ -90,6 +88,7 @@ import {
 } from "./constants";
 import { accountChipLabel } from "./social-post-account-chip-label";
 import { socialPostCreatorLabel } from "./social-post-creator-label";
+import { SocialPostMediaThumb } from "./social-post-media-thumb";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
@@ -229,42 +228,6 @@ function previewAccountFor(
   };
 }
 
-/**
- * Compact row thumbnail. Images and GIFs reuse the shared mini preview;
- * video shows its first frame in the same 48px frame.
- */
-function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
-  if (media.kind !== "video") {
-    return (
-      <FileChipMiniPreview
-        fileName={media.name}
-        mediaType={media.mimeType}
-        size={media.size}
-        sizeClass="size-12"
-        url={media.fileUrl}
-      />
-    );
-  }
-
-  return (
-    <a
-      aria-label={media.name}
-      className="bg-card-background press hover:bg-card-background-hover focus-visible:ring-ring focus-visible:ring-2 relative block size-12 shrink-0 overflow-hidden rounded-xl border outline-none transition-[color,background-color,border-color,transform]"
-      href={media.fileUrl}
-      rel="noreferrer noopener"
-      target="_blank"
-    >
-      <video
-        className="size-full object-cover"
-        muted
-        playsInline
-        preload="metadata"
-        src={media.fileUrl}
-      />
-    </a>
-  );
-}
-
 /** Same boxes as a list row so Load more does not jump the page. */
 function SocialPostRowSkeleton() {
   return (
@@ -282,7 +245,6 @@ function SocialPostRowSkeleton() {
     </li>
   );
 }
-
 export function ProjectSocialPosts({
   accounts,
   accountCount,
