@@ -23,10 +23,16 @@ export const SOKO_BOT_ADMIN_ACTIONS = {
 
 export type SokoBotAdminAction = keyof typeof SOKO_BOT_ADMIN_ACTIONS;
 
-/** Only a member's own chat request has an asking member; every other source started itself. */
-const MEMBER_ASKED_TURN_SOURCES: ReadonlySet<SokoBotTurnSource> = new Set([
-  "CHAT",
-]);
+/**
+ * Only a member's own chat request has an asking member. Every other source,
+ * and a chat turn another bot asked for, started itself.
+ */
+export function isMemberAskedSokoBotTurn(turn: {
+  source: string | null;
+  chainDepth: number;
+}): boolean {
+  return turn.source === "CHAT" && turn.chainDepth === 0;
+}
 
 async function organizationRoleInWorkspace(
   userId: string,
@@ -75,7 +81,7 @@ export async function assertSokoBotManagement(
  */
 export async function assertSokoBotTurnAction(
   callerUserId: string,
-  turn: { userId: string; source: SokoBotTurnSource },
+  turn: { userId: string; source: SokoBotTurnSource; chainDepth: number },
   bot: ManagedSokoBot,
   client: DbClient = prisma,
 ): Promise<boolean> {
@@ -87,7 +93,7 @@ export async function assertSokoBotTurnAction(
   );
   if (role === null) return false;
   if (isOrganizationOwnerOrAdmin(role)) return true;
-  if (!MEMBER_ASKED_TURN_SOURCES.has(turn.source)) {
+  if (!isMemberAskedSokoBotTurn(turn)) {
     throw forbidden(
       "Only an organization owner or admin can act on work a shared Soko Bot started itself",
     );
@@ -102,6 +108,8 @@ export async function assertSokoBotTurnAction(
  * A pending decision the caller may answer, or `null` when it is hidden from
  * them. `ownerConfirmed: false` is the bot's own policy accepting a proposal
  * on its turn, not a member answering: it stays with the turn's member.
+ * `firstResolverUserId` is who answered first: a resumed decision keeps the
+ * resolver its PROCESSING claim recorded.
  */
 export async function findResolvableSokoBotDecision(
   callerUserId: string,
@@ -124,10 +132,18 @@ export async function findResolvableSokoBotDecision(
   const allowed = ownerConfirmed
     ? await assertSokoBotTurnAction(
         callerUserId,
-        { userId: decision.userId, source: decision.turn.source },
+        {
+          userId: decision.userId,
+          source: decision.turn.source,
+          chainDepth: decision.turn.chainDepth,
+        },
         decision.sokoBot,
         client,
       )
     : decision.userId === callerUserId;
-  return allowed ? decision : null;
+  if (!allowed) return null;
+  return {
+    ...decision,
+    firstResolverUserId: decision.resolvedByUserId ?? callerUserId,
+  };
 }

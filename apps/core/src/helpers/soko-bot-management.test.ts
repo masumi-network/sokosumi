@@ -6,6 +6,7 @@ import {
   assertSokoBotManagement,
   assertSokoBotTurnAction,
   findResolvableSokoBotDecision,
+  isMemberAskedSokoBotTurn,
   type SokoBotAdminAction,
 } from "./soko-bot-management";
 
@@ -116,7 +117,11 @@ describe("assertSokoBotManagement", () => {
 });
 
 describe("assertSokoBotTurnAction", () => {
-  const chatTurn = { userId: "member_1", source: "CHAT" as const };
+  const chatTurn = {
+    userId: "member_1",
+    source: "CHAT" as const,
+    chainDepth: 0,
+  };
 
   it.each([
     ["the asking member", "member_1", true],
@@ -141,7 +146,7 @@ describe("assertSokoBotTurnAction", () => {
     "keeps a self-started %s turn for an owner or admin",
     async (source) => {
       const { client } = fakeClient();
-      const turn = { userId: "member_1", source };
+      const turn = { userId: "member_1", source, chainDepth: 0 };
       await expect(
         assertSokoBotTurnAction("member_1", turn, PROJECT_BOT, client),
       ).rejects.toMatchObject({ status: 403 });
@@ -154,6 +159,17 @@ describe("assertSokoBotTurnAction", () => {
     },
   );
 
+  it("keeps a chat turn another bot asked for with an owner or admin", async () => {
+    const { client } = fakeClient();
+    const turn = { ...chatTurn, chainDepth: 1 };
+    await expect(
+      assertSokoBotTurnAction("member_1", turn, PROJECT_BOT, client),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      assertSokoBotTurnAction("admin_1", turn, PROJECT_BOT, client),
+    ).resolves.toBe(true);
+  });
+
   it.each([
     ["its member", "member_1", true],
     ["an admin", "admin_1", false],
@@ -165,7 +181,7 @@ describe("assertSokoBotTurnAction", () => {
       await expect(
         assertSokoBotTurnAction(
           userId,
-          { userId: "member_1", source: "SCHEDULE" },
+          { userId: "member_1", source: "SCHEDULE", chainDepth: 0 },
           PERSONAL_BOT,
           client,
         ),
@@ -179,7 +195,8 @@ describe("findResolvableSokoBotDecision", () => {
   const decision = {
     id: "decision_1",
     userId: "member_1",
-    turn: { source: "CHAT" },
+    resolvedByUserId: null,
+    turn: { source: "CHAT", chainDepth: 0 },
     sokoBot: WORKSPACE_BOT,
   };
 
@@ -194,7 +211,7 @@ describe("findResolvableSokoBotDecision", () => {
         true,
         client,
       ),
-    ).resolves.toBe(decision);
+    ).resolves.toEqual({ ...decision, firstResolverUserId: "admin_1" });
     expect(decisionFindFirst).toHaveBeenCalledWith({
       where: { id: "decision_1", status: { in: ["PENDING", "PROCESSING"] } },
       include: {
@@ -202,6 +219,23 @@ describe("findResolvableSokoBotDecision", () => {
         sokoBot: { select: { userId: true, workspaceId: true } },
       },
     });
+  });
+
+  it("keeps the resolver a PROCESSING claim already recorded", async () => {
+    const { client, decisionFindFirst } = fakeClient();
+    decisionFindFirst.mockResolvedValue({
+      ...decision,
+      resolvedByUserId: "member_1",
+    });
+    await expect(
+      findResolvableSokoBotDecision(
+        "admin_1",
+        "decision_1",
+        true,
+        true,
+        client,
+      ),
+    ).resolves.toMatchObject({ firstResolverUserId: "member_1" });
   });
 
   it("rejects only a PENDING decision", async () => {
@@ -250,7 +284,7 @@ describe("findResolvableSokoBotDecision", () => {
     const { client, decisionFindFirst, memberFindFirst } = fakeClient();
     decisionFindFirst.mockResolvedValue({
       ...decision,
-      turn: { source: "SCHEDULE" },
+      turn: { source: "SCHEDULE", chainDepth: 0 },
     });
     await expect(
       findResolvableSokoBotDecision(
@@ -285,5 +319,19 @@ describe("findResolvableSokoBotDecision", () => {
         client,
       ),
     ).resolves.toBeNull();
+  });
+});
+
+describe("isMemberAskedSokoBotTurn", () => {
+  it.each([
+    ["CHAT", 0, true],
+    ["CHAT", 1, false],
+    ["SCHEDULE", 0, false],
+    ["EVENT", 0, false],
+    ["INGEST", 0, false],
+    ["ADMIN_RETRY", 0, false],
+    [null, 0, false],
+  ])("%s at depth %s -> %s", (source, chainDepth, expected) => {
+    expect(isMemberAskedSokoBotTurn({ source, chainDepth })).toBe(expected);
   });
 });

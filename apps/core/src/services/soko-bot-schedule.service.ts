@@ -118,6 +118,27 @@ export interface UpdateSokoBotScheduleInput {
 }
 
 /**
+ * Whether an edit moves a shared schedule to its editor: a member, not the
+ * author, changed what runs or when. Whatever the turn's source, the
+ * schedule then runs as the editor, the identity the turn already has, so
+ * outside content can never rewrite a schedule that keeps running as its
+ * author. A pause or a rename leaves the author in place.
+ */
+function takesOverSchedule(
+  schedule: { userId: string },
+  input: Pick<
+    UpdateSokoBotScheduleInput,
+    "userId" | "prompt" | "cronExpression" | "timezone"
+  >,
+): boolean {
+  const changesContent =
+    input.prompt !== undefined ||
+    input.cronExpression !== undefined ||
+    input.timezone !== undefined;
+  return schedule.userId !== input.userId && changesContent;
+}
+
+/**
  * Recurring prompts a Soko Bot runs on cron. Shared by the owner's console
  * and the bot's own `*_schedule` tools, so a bot can set up its own
  * check-ins without an approval round-trip.
@@ -158,12 +179,28 @@ export async function createSokoBotSchedule(
     // the existing schedule instead of stacking duplicates.
     const existing = await tx.sokoBotSchedule.findFirst({
       where: { sokoBotId: bot.id, name: name.slice(0, 120) },
-      select: { id: true },
+      select: {
+        id: true,
+        userId: true,
+        prompt: true,
+        cronExpression: true,
+        timezone: true,
+      },
     });
     if (existing) {
+      // Only the fields that differ count as an edit of its content.
+      const changed = <T>(next: T, current: T) =>
+        next === current ? undefined : next;
+      const takesOver = takesOverSchedule(existing, {
+        userId: input.userId,
+        prompt: changed(prompt.slice(0, 20_000), existing.prompt),
+        cronExpression: changed(cronExpression, existing.cronExpression),
+        timezone: changed(input.timezone, existing.timezone),
+      });
       return tx.sokoBotSchedule.update({
         where: { id: existing.id },
         data: {
+          userId: takesOver ? input.userId : undefined,
           enabled: true,
           consecutiveFailures: 0,
           workspaceId: input.workspaceId,
@@ -238,10 +275,13 @@ async function findScheduleForUser(
   transaction?: Prisma.TransactionClient,
 ) {
   const db = transaction ?? prisma;
+  // The author's own lookup reaches only their personal bot: a shared bot's
+  // schedule needs live access, which the shared lookup below checks.
   const own = {
     userId,
     workspaceId: ref.workspaceId,
     sokoBotId: ref.sokoBotId,
+    sokoBot: { userId },
   };
   const matching = {
     OR: [
@@ -308,6 +348,9 @@ export async function updateSokoBotSchedule(
     // A new cron makes a one-time schedule recurring.
     runOnce: input.cronExpression ? false : undefined,
     prompt: input.prompt?.trim(),
+    // Only a shared bot's schedule is found for someone other than its
+    // author; it then runs as the member who last set it up.
+    userId: takesOverSchedule(schedule, input) ? input.userId : undefined,
     nextRunAt:
       input.timezone !== undefined ||
       input.cronExpression !== undefined ||

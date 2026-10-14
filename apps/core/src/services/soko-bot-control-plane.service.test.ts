@@ -2653,9 +2653,18 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
 
     beforeEach(() => {
+      // Only a Member row of the bot's own workspace's Organization counts.
       memberFindFirstMock.mockImplementation(
-        async (args: { where: { userId: string } }) => {
-          const role = ROLES[args.where.userId];
+        async (args: {
+          where: {
+            userId: string;
+            organization: { workspace: { id: string } };
+          };
+        }) => {
+          const role =
+            args.where.organization.workspace.id === "ws_1"
+              ? ROLES[args.where.userId]
+              : undefined;
           return role ? { role } : null;
         },
       );
@@ -2734,6 +2743,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       id: "turn_1",
       status: "RUNNING",
       source,
+      chainDepth: 0,
       eveSessionId: "session_1",
       eveTurnId: "eve_turn_1",
       userId,

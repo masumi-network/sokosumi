@@ -5105,11 +5105,8 @@ export class SokoBotRuntimeService {
               false,
               input.capability,
             );
-            const scope = {
-              userId: authorized.turn.userId,
-              workspaceId: authorized.turn.workspaceId,
-              sokoBotId: authorized.turn.sokoBotId,
-            };
+            const { userId, workspaceId, sokoBotId } = authorized.turn;
+            const scope = { userId, workspaceId, sokoBotId };
             const schedule =
               input.capability === "create_schedule"
                 ? await createSokoBotSchedule(
@@ -5374,7 +5371,7 @@ export class SokoBotRuntimeService {
             data: {
               status: "ACCEPTED",
               resolvedAt: new Date(),
-              resolvedByUserId: resolverUserId,
+              resolvedByUserId: decision.firstResolverUserId,
               resultingEntityId: recoveredEntityId,
             },
           }),
@@ -5479,7 +5476,7 @@ export class SokoBotRuntimeService {
             data: {
               status: "ACCEPTED",
               resolvedAt: new Date(),
-              resolvedByUserId: resolverUserId,
+              resolvedByUserId: decision.firstResolverUserId,
               resultingEntityId: existingDelegation.jobId,
             },
           });
@@ -5898,7 +5895,7 @@ export class SokoBotRuntimeService {
         data: {
           status: "ACCEPTED",
           resolvedAt: new Date(),
-          resolvedByUserId: resolverUserId,
+          resolvedByUserId: decision.firstResolverUserId,
           resultingEntityId,
         },
       });

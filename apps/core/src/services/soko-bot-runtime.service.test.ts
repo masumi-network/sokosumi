@@ -572,6 +572,7 @@ import {
   SokoBotRuntimeService,
   SokoBotRuntimeValidationError,
 } from "@/services/soko-bot-runtime.service";
+import * as scheduleService from "@/services/soko-bot-schedule.service";
 
 const SCOPE = {
   userId: "user_1",
@@ -2178,6 +2179,68 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(Buffer.byteLength(detail, "utf8")).toBeLessThanOrEqual(1_000);
     expect(detail).toBe("[Sensitive value removed]");
   });
+
+  it.each([
+    [
+      "create_schedule",
+      "createSokoBotSchedule",
+      {
+        name: "Check-in",
+        timezone: "UTC",
+        cronExpression: "0 9 * * 1",
+        prompt: "How is it going?",
+      },
+    ],
+    [
+      "update_schedule",
+      "updateSokoBotSchedule",
+      { scheduleId: "01960001-0001-7001-8001-0000000000cc", prompt: "New" },
+    ],
+  ] as const)(
+    "runs %s on the turn's own bot, member and workspace",
+    async (capability, call, input) => {
+      turnFindUniqueMock.mockResolvedValue({
+        userMessage: "Check in",
+        id: SCOPE.turnId,
+        sokoBotId: SCOPE.sokoBotId,
+        userId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        capabilityNames: [capability],
+        contextSnapshot: {
+          id: "01960001-0001-7001-8001-000000000004",
+          packet: { memory: { version: 1 } },
+        },
+        eveSessionId: SCOPE.sessionId,
+        status: "RUNNING",
+        deadlineAt: new Date(Date.now() + 60_000),
+        leaseExpiresAt: new Date(Date.now() + 60_000),
+        sokoBot: { archivedAt: null, status: "RUNNING" },
+      });
+      toolCallFindUniqueMock.mockResolvedValue(null);
+      const spy = vi.spyOn(scheduleService, call).mockResolvedValue({
+        id: "01960001-0001-7001-8001-0000000000cc",
+        name: "Check-in",
+      } as never);
+      try {
+        await new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability,
+          toolCallId: `call_${capability}`,
+          input,
+        });
+        expect(spy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            userId: SCOPE.userId,
+            workspaceId: SCOPE.workspaceId,
+            sokoBotId: SCOPE.sokoBotId,
+          }),
+          expect.anything(),
+        );
+      } finally {
+        spy.mockRestore();
+      }
+    },
+  );
 
   it("creates Task through shared domain operation with Soko Bot attribution", async () => {
     turnFindUniqueMock.mockResolvedValue({
@@ -3951,7 +4014,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
     const sharedDecision = (source: string) => ({
       ...hireDecision(),
       sokoBot: { userId: null, workspaceId: SCOPE.workspaceId },
-      turn: { ...hireDecision().turn, source },
+      turn: { ...hireDecision().turn, source, chainDepth: 0 },
     });
     const resolveAs = (userId: string) =>
       new SokoBotRuntimeService().resolveDecision(userId, DECISION_ID, true);
@@ -3994,6 +4057,33 @@ describe("SokoBotRuntimeService hire decisions", () => {
               status: "ACCEPTED",
               resolvedByUserId: resolver,
             }),
+          }),
+        );
+      },
+    );
+
+    const FAILED_HIRE = { jobId: null, outcome: "failed", error: null };
+    it.each([
+      ["a recovered job", { jobId: "job_1" }, { jobId: "job_1" }],
+      ["a job found on the second look", FAILED_HIRE, { jobId: "job_1" }],
+      ["a retried hire", FAILED_HIRE, FAILED_HIRE],
+    ])(
+      "keeps the member who claimed a decision when an admin resumes it with %s",
+      async (_label, firstLook, secondLook) => {
+        decisionFindFirstMock.mockResolvedValue({
+          ...sharedDecision("CHAT"),
+          status: "PROCESSING",
+          resolvedByUserId: SCOPE.userId,
+        });
+        delegationFindUniqueMock
+          .mockResolvedValueOnce(firstLook)
+          .mockResolvedValue(secondLook);
+        await expect(resolveAs("admin_1")).resolves.toMatchObject({
+          status: "ACCEPTED",
+        });
+        expect(decisionUpdateMock).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ resolvedByUserId: SCOPE.userId }),
           }),
         );
       },
