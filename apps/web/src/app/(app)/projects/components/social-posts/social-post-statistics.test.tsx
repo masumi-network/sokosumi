@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
@@ -282,6 +283,38 @@ describe("SocialPostStatistics account history", () => {
     expect(await screen.findByText(post.text)).toBeVisible();
     expect(screen.getByText("Updated Oct 8, 2026")).toBeVisible();
     expect(screen.queryByText("Updated Oct 1, 2026")).not.toBeInTheDocument();
+  });
+  it("keeps Impressions on All accounts when an X account is connected", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [account],
+        headline: {
+          ...headline,
+          current: {
+            ...headline.current,
+            views: null,
+            impressions: 400,
+          },
+          deltas: { ...headline.deltas, views: null, impressions: -20 },
+          daily: [
+            {
+              date: "2026-10-01",
+              postCount: 1,
+              views: null,
+              impressions: 400,
+              interactions: 6,
+            },
+          ],
+        },
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    const overview = screen.getByTestId("social-performance-overview");
+    expect(within(overview).getByText("Impressions")).toBeVisible();
+    expect(within(overview).queryByText("Views")).not.toBeInTheDocument();
   });
   it("hides the trend chart when the selected period has no daily points", async () => {
     mocks.fetch.mockResolvedValue({

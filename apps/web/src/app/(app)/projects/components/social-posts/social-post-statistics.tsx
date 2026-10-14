@@ -227,9 +227,13 @@ export function SocialPostStatistics(
   const selectedAccount =
     accounts.find((account) => account.id === filters.statisticsAccount) ??
     null;
-  const impressionBased =
-    selectedAccount?.provider === "x" ||
-    selectedAccount?.provider === "linkedin";
+  const impressionBased = selectedAccount
+    ? selectedAccount.provider === "x" ||
+      selectedAccount.provider === "linkedin"
+    : accounts.some(
+        (account) =>
+          account.provider === "x" || account.provider === "linkedin",
+      );
   const headline = query.data?.pages[0]?.headline;
   const posts = validRange
     ? (query.data?.pages.flatMap((page) => page.posts) ?? [])
