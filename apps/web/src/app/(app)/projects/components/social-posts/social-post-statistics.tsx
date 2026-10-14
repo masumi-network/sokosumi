@@ -30,6 +30,7 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { refreshProjectSocialAccountStatistics } from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
 import type { projectService } from "@/lib/services/project.service";
+import { socialSyncPollIntervalMs } from "@/lib/social-sync-poll";
 import { PerformanceTrendChart } from "./performance-trend-chart";
 import { PostingConsistency } from "./posting-consistency";
 import { SocialPerformanceOverview } from "./social-performance-overview";
@@ -218,7 +219,9 @@ export function SocialPostStatistics(
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled: Boolean(session?.user.id),
     retry: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
+    refetchInterval: (current) =>
+      socialSyncPollIntervalMs(current.state.data?.pages[0]?.accounts ?? []),
   });
   const accounts = query.data?.pages[0]?.accounts ?? [];
   const accountsById = new Map(
