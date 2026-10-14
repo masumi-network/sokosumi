@@ -4989,7 +4989,7 @@
         "success": "Cuenta conectada correctamente",
         "error": "No se pudo conectar {provider}",
         "loadErrorTitle": "No se pudieron cargar las cuentas conectadas",
-        "loadError": "No pudimos cargar tus cuentas conectadas en este momento.",
+        "loadError": "Comprueba tu conexión e inténtalo de nuevo.",
         "retry": "Reintentar",
         "DisconnectModal": {
           "title": "Desconectar {provider}",

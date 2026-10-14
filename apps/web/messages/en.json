@@ -5025,7 +5025,7 @@
         "success": "Account connected successfully",
         "error": "Failed to connect {provider}",
         "loadErrorTitle": "Could not load connected accounts",
-        "loadError": "We could not load your connected accounts right now.",
+        "loadError": "Check your connection and try again.",
         "retry": "Retry",
         "DisconnectModal": {
           "title": "Disconnect {provider}",
