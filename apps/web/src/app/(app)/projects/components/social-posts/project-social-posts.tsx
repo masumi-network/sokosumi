@@ -653,6 +653,7 @@ export function ProjectSocialPosts({
             type="button"
             variant="ghost"
             size="icon"
+            className="size-11 md:size-10"
             aria-label={t("preview.open")}
             data-testid={`social-post-preview-open-${post.id}`}
             onClick={() => {
@@ -685,6 +686,7 @@ export function ProjectSocialPosts({
                 type="button"
                 variant="ghost"
                 size="icon"
+                className="size-11 md:size-10"
                 aria-label={t("moreActions")}
               >
                 <MoreHorizontal className="size-4" aria-hidden />
