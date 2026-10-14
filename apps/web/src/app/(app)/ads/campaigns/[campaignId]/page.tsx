@@ -11,8 +11,8 @@ import {
 } from "@/app/ads/ads-query";
 import { AdsCampaignDetails } from "@/app/ads/components/ads-campaign-details";
 import { AdsCampaignsError } from "@/app/ads/components/ads-campaigns-error";
-import { toCampaignsLoadError } from "@/app/ads/components/ads-campaigns-section";
 import { AdsErrorState } from "@/app/ads/components/ads-error-state";
+import { toCampaignsLoadError } from "@/app/ads/components/ads-load-error";
 import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { adsService } from "@/lib/services/ads.service";
@@ -87,6 +87,8 @@ export default async function AdsCampaignDetailsPage({
     );
   } catch (error) {
     if (!(error instanceof CoreApiRequestError)) throw error;
+    // Core answers 422 only for an id that is not a campaign id, which no
+    // link of ours holds, so it is as missing as a 404.
     if (error.status === 404 || error.status === 422) notFound();
     const kind = toCampaignsLoadError(error);
     body =

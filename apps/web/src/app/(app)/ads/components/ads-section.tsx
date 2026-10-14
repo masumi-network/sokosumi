@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-interface AdsFormSectionProps {
+interface AdsSectionProps {
   id: string;
   title: string;
   /** A control that belongs to the section, beside its title. */
@@ -9,12 +9,7 @@ interface AdsFormSectionProps {
 }
 
 /** A titled group of fields on the create page and of facts on the details page. */
-export function AdsFormSection({
-  id,
-  title,
-  action,
-  children,
-}: AdsFormSectionProps) {
+export function AdsSection({ id, title, action, children }: AdsSectionProps) {
   const heading = (
     <h2 className="text-lg font-semibold" id={id}>
       {title}

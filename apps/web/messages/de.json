@@ -3383,15 +3383,9 @@
         "title": "Kampagne",
         "types": {
           "SEARCH": "Suche",
-          "DISPLAY": "Display",
-          "OTHER": "Sonstige"
+          "DISPLAY": "Display"
         },
         "perDay": "{amount} pro Tag",
-        "dates": {
-          "range": "{start} – {end}",
-          "from": "Ab {start}, ohne Enddatum",
-          "until": "Bis {end}"
-        },
         "noEndDate": "Kein Enddatum",
         "sections": {
           "performance": "Performance",
@@ -3407,14 +3401,24 @@
           "chartLabel": "{metric} pro Tag",
           "empty": "Keine Aktivität in diesem Zeitraum",
           "tableCaption": "Tägliche Performance",
-          "date": "Datum"
+          "date": "Datum",
+          "chartHint": "Mit den Pfeiltasten nach links und rechts wechselst du zwischen den Tagen."
         },
         "settings": {
-          "type": "Typ",
-          "bidding": "Gebotsstrategie"
+          "bidding": "Gebotsstrategie",
+          "networks": "Netzwerke"
         },
         "bidding": {
-          "TARGET_SPEND": "Klicks maximieren"
+          "TARGET_SPEND": "Klicks maximieren",
+          "MANUAL_CPC": "Manueller CPC",
+          "ENHANCED_CPC": "Optimierter CPC",
+          "MANUAL_CPM": "Manueller CPM",
+          "TARGET_CPM": "Ziel-CPM",
+          "MAXIMIZE_CONVERSIONS": "Conversions maximieren",
+          "MAXIMIZE_CONVERSION_VALUE": "Conversion-Wert maximieren",
+          "TARGET_CPA": "Ziel-CPA",
+          "TARGET_ROAS": "Ziel-ROAS",
+          "TARGET_IMPRESSION_SHARE": "Ziel-Impressionsanteil"
         },
         "matchTypes": {
           "BROAD": "Weitgehend passend",
@@ -3426,13 +3430,16 @@
           "APPROVED_LIMITED": "Eingeschränkt genehmigt",
           "DISAPPROVED": "Abgelehnt",
           "PENDING_REVIEW": "Prüfung ausstehend",
-          "UNDER_REVIEW": "In Prüfung"
+          "UNDER_REVIEW": "In Prüfung",
+          "AREA_OF_INTEREST_ONLY": "Nur in einigen Regionen ausgespielt"
         },
         "ad": {
           "displayUrl": "Angezeigte URL",
           "review": {
             "REVIEW_IN_PROGRESS": "Prüfung läuft",
-            "UNDER_APPEAL": "Einspruch eingelegt"
+            "UNDER_APPEAL": "Einspruch eingelegt",
+            "REVIEWED": "Geprüft",
+            "ELIGIBLE_MAY_SERVE": "Auslieferung möglich"
           },
           "strength": "Anzeigeneffektivität: {strength}",
           "strengths": {
@@ -3445,9 +3452,17 @@
           },
           "imageAlt": "{role}-Bild {number}"
         },
-        "notEditable": "Diese Kampagne hat mehrere Anzeigengruppen oder Anzeigen oder einen Typ, den Sokosumi nicht erstellt. Verwalte die Details in Google Ads.",
+        "notEditable": {
+          "TYPE": "Sokosumi erstellt diesen Kampagnentyp nicht. Verwalte ihn in Google Ads.",
+          "AD_GROUPS": "Diese Kampagne hat mehrere Anzeigengruppen. Verwalte sie in Google Ads.",
+          "AD_TYPE": "Diese Kampagne hat keine einzelne responsive Anzeige. Verwalte ihre Anzeigen in Google Ads."
+        },
         "errors": {
           "failed": "Diese Kampagne konnte nicht geladen werden"
+        },
+        "networks": {
+          "SEARCH": "Google Suche",
+          "DISPLAY": "Displaynetzwerk"
         }
       },
       "market": {

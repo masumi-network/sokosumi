@@ -3383,15 +3383,9 @@
         "title": "Campaign",
         "types": {
           "SEARCH": "Search",
-          "DISPLAY": "Display",
-          "OTHER": "Other"
+          "DISPLAY": "Display"
         },
         "perDay": "{amount} a day",
-        "dates": {
-          "range": "{start} – {end}",
-          "from": "From {start}, no end date",
-          "until": "Until {end}"
-        },
         "noEndDate": "No end date",
         "sections": {
           "performance": "Performance",
@@ -3407,14 +3401,24 @@
           "chartLabel": "{metric} per day",
           "empty": "No activity in this period",
           "tableCaption": "Daily performance",
-          "date": "Date"
+          "date": "Date",
+          "chartHint": "Use the left and right arrow keys to move between days."
         },
         "settings": {
-          "type": "Type",
-          "bidding": "Bidding"
+          "bidding": "Bidding",
+          "networks": "Networks"
         },
         "bidding": {
-          "TARGET_SPEND": "Maximize clicks"
+          "TARGET_SPEND": "Maximize clicks",
+          "MANUAL_CPC": "Manual CPC",
+          "ENHANCED_CPC": "Enhanced CPC",
+          "MANUAL_CPM": "Manual CPM",
+          "TARGET_CPM": "Target CPM",
+          "MAXIMIZE_CONVERSIONS": "Maximize conversions",
+          "MAXIMIZE_CONVERSION_VALUE": "Maximize conversion value",
+          "TARGET_CPA": "Target CPA",
+          "TARGET_ROAS": "Target ROAS",
+          "TARGET_IMPRESSION_SHARE": "Target impression share"
         },
         "matchTypes": {
           "BROAD": "Broad match",
@@ -3426,13 +3430,16 @@
           "APPROVED_LIMITED": "Approved (limited)",
           "DISAPPROVED": "Disapproved",
           "PENDING_REVIEW": "Pending review",
-          "UNDER_REVIEW": "Under review"
+          "UNDER_REVIEW": "Under review",
+          "AREA_OF_INTEREST_ONLY": "Shows in some areas only"
         },
         "ad": {
           "displayUrl": "Display URL",
           "review": {
             "REVIEW_IN_PROGRESS": "Review in progress",
-            "UNDER_APPEAL": "Under appeal"
+            "UNDER_APPEAL": "Under appeal",
+            "REVIEWED": "Reviewed",
+            "ELIGIBLE_MAY_SERVE": "Eligible to serve"
           },
           "strength": "Ad strength: {strength}",
           "strengths": {
@@ -3445,9 +3452,17 @@
           },
           "imageAlt": "{role} image {number}"
         },
-        "notEditable": "This campaign has several ad groups or ads, or a type Sokosumi doesn't build; manage the details in Google Ads.",
+        "notEditable": {
+          "TYPE": "Sokosumi doesn't build this campaign type; manage it in Google Ads.",
+          "AD_GROUPS": "This campaign has several ad groups; manage them in Google Ads.",
+          "AD_TYPE": "This campaign doesn't have a single responsive ad; manage its ads in Google Ads."
+        },
         "errors": {
           "failed": "Failed to load this campaign"
+        },
+        "networks": {
+          "SEARCH": "Google Search",
+          "DISPLAY": "Display Network"
         }
       },
       "market": {

@@ -5,18 +5,8 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { adsService } from "@/lib/services/ads.service";
 
 import { AdsCampaigns } from "./ads-campaigns";
-import {
-  AdsCampaignsError,
-  type CampaignsLoadError,
-} from "./ads-campaigns-error";
-import { toAdsLoadError } from "./ads-load-error";
-
-/** 409 means the connection is no longer active; the rest is shared. */
-export function toCampaignsLoadError(
-  error: CoreApiRequestError,
-): CampaignsLoadError {
-  return error.status === 409 ? "not_active" : toAdsLoadError(error);
-}
+import { AdsCampaignsError } from "./ads-campaigns-error";
+import { toCampaignsLoadError } from "./ads-load-error";
 
 interface AdsCampaignsSectionProps {
   account: ProjectAdAccount;

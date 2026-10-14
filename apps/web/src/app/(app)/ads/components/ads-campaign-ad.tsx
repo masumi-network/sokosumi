@@ -2,27 +2,22 @@ import type { AdCampaignDetails } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 
 import {
+  AD_STRENGTHS,
   APPROVAL_STATUSES,
   enumLabel,
   meaningfulStatus,
+  REVIEW_STATUSES,
 } from "@/lib/ads/campaign-details";
 import { adDisplayUrl } from "@/lib/ads/google-search";
+import { cn } from "@/lib/utils";
 
 import { AdsFact, AdsFactList, AdsFacts } from "./ads-fact";
-import { AdsFormSection } from "./ads-form-section";
+import { AdsSection } from "./ads-section";
 
 type Ad = NonNullable<AdCampaignDetails["ad"]>;
 
-const AD_STRENGTHS = [
-  "PENDING",
-  "NO_ADS",
-  "POOR",
-  "AVERAGE",
-  "GOOD",
-  "EXCELLENT",
-] as const;
-/** Reviews still in motion; a finished one adds nothing next to the approval. */
-const OPEN_REVIEWS = ["REVIEW_IN_PROGRESS", "UNDER_APPEAL"] as const;
+/** A finished review adds nothing next to the approval, so it is not shown. */
+const SETTLED_REVIEWS: readonly string[] = ["REVIEWED", "ELIGIBLE_MAY_SERVE"];
 
 /** Image shapes by role, so a logo never stretches to a landscape. */
 const IMAGE_SIZE = {
@@ -52,9 +47,9 @@ export function AdsCampaignAd({ ad }: AdsCampaignAdProps) {
       enumLabel(approval, APPROVAL_STATUSES, (key) => t(`approval.${key}`)),
     );
   }
-  if (review && OPEN_REVIEWS.some((open) => open === review)) {
+  if (review && !SETTLED_REVIEWS.includes(review)) {
     status.push(
-      enumLabel(review, OPEN_REVIEWS, (key) => t(`ad.review.${key}`)),
+      enumLabel(review, REVIEW_STATUSES, (key) => t(`ad.review.${key}`)),
     );
   }
   if (strength) {
@@ -70,7 +65,7 @@ export function AdsCampaignAd({ ad }: AdsCampaignAdProps) {
   const { search, display } = ad;
 
   return (
-    <AdsFormSection id="campaign-ad" title={tNew("sections.ad")}>
+    <AdsSection id="campaign-ad" title={tNew("sections.ad")}>
       {status.length > 0 ? (
         <p className="text-muted-foreground text-sm">{status.join(" · ")}</p>
       ) : null}
@@ -118,8 +113,12 @@ export function AdsCampaignAd({ ad }: AdsCampaignAdProps) {
                     <li key={image.assetId}>
                       <figure className="flex flex-col gap-1">
                         <div
-                          className={`bg-muted overflow-hidden rounded-md ${IMAGE_SIZE[image.role]}`}
+                          className={cn(
+                            "bg-muted overflow-hidden rounded-md",
+                            IMAGE_SIZE[image.role],
+                          )}
                         >
+                          {/* Google-hosted, so a plain `<img>` that sends no referrer, as in `ads-market-ad-preview.tsx`. */}
                           <img
                             alt={t("ad.imageAlt", {
                               role: tNew(`ad.images.roles.${image.role}`),
@@ -146,6 +145,6 @@ export function AdsCampaignAd({ ad }: AdsCampaignAdProps) {
           </>
         ) : null}
       </AdsFacts>
-    </AdsFormSection>
+    </AdsSection>
   );
 }

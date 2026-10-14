@@ -9,7 +9,33 @@ vi.mock("@/lib/clients/core.client", async () => {
 });
 
 import { CoreApiRequestError } from "@/lib/clients/core.client";
-import { settleAdsLoad, toAdsLoadError } from "./ads-load-error";
+import {
+  settleAdsLoad,
+  toAdsLoadError,
+  toCampaignsLoadError,
+} from "./ads-load-error";
+
+describe("toCampaignsLoadError", () => {
+  it("reads a 409 as a connection that is no longer active", () => {
+    expect(
+      toCampaignsLoadError(new CoreApiRequestError("x", { status: 409 })),
+    ).toBe("not_active");
+  });
+
+  it("leaves the rest to the shared reading", () => {
+    expect(
+      toCampaignsLoadError(
+        new CoreApiRequestError("x", {
+          status: 503,
+          kind: "integration_not_configured",
+        }),
+      ),
+    ).toBe("unavailable");
+    expect(
+      toCampaignsLoadError(new CoreApiRequestError("x", { status: 502 })),
+    ).toBe("failed");
+  });
+});
 
 describe("toAdsLoadError", () => {
   it("reads a provider that is not set up by its kind, not its status", () => {

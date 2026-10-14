@@ -28,11 +28,11 @@ import { cn } from "@/lib/utils";
 
 import { AdsAddMarketKeywords } from "./ads-add-market-keywords";
 import { AdsFinalUrlField } from "./ads-final-url-field";
-import { AdsFormSection } from "./ads-form-section";
 import {
   AdsCalloutsSection,
   AdsSitelinksSection,
 } from "./ads-search-assets-fields";
+import { AdsSection } from "./ads-section";
 import { AdsTextList } from "./ads-text-list";
 
 interface AdsGoogleSearchFieldsProps {
@@ -115,7 +115,7 @@ function KeywordsSection({
   }
 
   return (
-    <AdsFormSection id="new-campaign-keywords" title={t("label")}>
+    <AdsSection id="new-campaign-keywords" title={t("label")}>
       <FormField
         control={form.control}
         name="keywords"
@@ -151,7 +151,7 @@ function KeywordsSection({
           </FormItem>
         )}
       />
-    </AdsFormSection>
+    </AdsSection>
   );
 }
 
@@ -162,7 +162,7 @@ function AdSection() {
   const [finalUrl, path1, path2] = form.watch(["finalUrl", "path1", "path2"]);
 
   return (
-    <AdsFormSection id="new-campaign-ad" title={tSection("ad")}>
+    <AdsSection id="new-campaign-ad" title={tSection("ad")}>
       <AdsFinalUrlField />
       <fieldset className="grid gap-2">
         <legend className="text-sm font-medium">{t("displayPath")}</legend>
@@ -198,6 +198,6 @@ function AdSection() {
       />
       <AdsSitelinksSection />
       <AdsCalloutsSection />
-    </AdsFormSection>
+    </AdsSection>
   );
 }

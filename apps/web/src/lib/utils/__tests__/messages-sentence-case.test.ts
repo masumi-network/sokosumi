@@ -24,6 +24,8 @@ const PROPER_PHRASES = [
   "Agent Identities",
   // Ad platforms.
   "Google Ads",
+  "Google Search",
+  "Display Network",
   "Meta Ads",
   // The Files area, named as a destination ("Copy to Files").
   "to Files",

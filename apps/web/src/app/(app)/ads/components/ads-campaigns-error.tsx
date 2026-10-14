@@ -8,9 +8,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
 
 import { AdsErrorState } from "./ads-error-state";
-import type { AdsLoadError } from "./ads-load-error";
-
-export type CampaignsLoadError = "not_active" | AdsLoadError;
+import type { CampaignsLoadError } from "./ads-load-error";
 
 interface AdsCampaignsErrorProps {
   kind: CampaignsLoadError;

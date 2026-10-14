@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
 
+import de from "../../../messages/de.json";
+import en from "../../../messages/en.json";
+import es from "../../../messages/es.json";
 import {
+  AD_STRENGTHS,
+  APPROVAL_STATUSES,
+  BIDDING_STRATEGIES,
   enumLabel,
   humanizeEnum,
   meaningfulStatus,
   problemApproval,
+  REVIEW_STATUSES,
 } from "./campaign-details";
 
 describe("humanizeEnum", () => {
@@ -54,5 +61,29 @@ describe("meaningfulStatus", () => {
     expect(meaningfulStatus("GOOD")).toBe("GOOD");
     expect(meaningfulStatus(null)).toBeNull();
     expect(meaningfulStatus("UNKNOWN")).toBeNull();
+  });
+});
+
+describe("the copy for Google's documented values", () => {
+  it.each([
+    ["en", en],
+    ["de", de],
+    ["es", es],
+  ])("covers every one in %s", (_locale, messages) => {
+    const copy = messages.App.Ads.campaignDetails;
+    const keysOf = (group: object) => Object.keys(group);
+
+    expect(keysOf(copy.approval)).toEqual(
+      expect.arrayContaining([...APPROVAL_STATUSES]),
+    );
+    expect(keysOf(copy.ad.review)).toEqual(
+      expect.arrayContaining([...REVIEW_STATUSES]),
+    );
+    expect(keysOf(copy.ad.strengths)).toEqual(
+      expect.arrayContaining([...AD_STRENGTHS]),
+    );
+    expect(keysOf(copy.bidding)).toEqual(
+      expect.arrayContaining([...BIDDING_STRATEGIES]),
+    );
   });
 });

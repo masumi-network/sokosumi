@@ -1,7 +1,7 @@
 "use client";
 
-import { useFormatter } from "next-intl";
-import { type KeyboardEvent, useState } from "react";
+import { useFormatter, useTranslations } from "next-intl";
+import { type KeyboardEvent, useId, useState } from "react";
 
 import { adsDay } from "./ads-format";
 
@@ -22,46 +22,66 @@ interface AdsDailyChartProps {
  * Daily bars in one accent color: a baseline, no axes, and the first, middle
  * and last dates. A day's value reads out above the bars on hover and, from
  * the keyboard, with the arrow keys; every day is also in the table beside it.
+ * Only the keyboard's readout is announced, so moving the pointer over the bars
+ * stays quiet.
  */
 export function AdsDailyChart({
   days,
   formatValue,
   label,
 }: AdsDailyChartProps) {
+  const t = useTranslations("App.Ads.campaignDetails.performance");
   const formatter = useFormatter();
-  const formatDay = (date: string) => adsDay(formatter, date);
+  const hintId = useId();
   const [active, setActive] = useState<number | null>(null);
+  const [announced, setAnnounced] = useState<number | null>(null);
   const max = Math.max(...days.map(({ value }) => value), 0);
   const last = days.length - 1;
+
+  const formatDay = (date: string) => adsDay(formatter, date);
+  const readout = (index: number | null) => {
+    const day = index === null ? undefined : days[index];
+    return day ? `${formatDay(day.date)} · ${formatValue(day.value)}` : null;
+  };
+
+  function show(index: number | null): void {
+    setActive(index);
+    setAnnounced(index);
+  }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
     const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
     if (step === undefined) return;
     event.preventDefault();
-    setActive((current) =>
-      Math.min(Math.max((current ?? last) + step, 0), last),
-    );
+    show(Math.min(Math.max((active ?? last) + step, 0), last));
   }
 
-  const day = active === null ? null : days[active];
   const labelled = [...new Set([0, Math.floor(last / 2), last])];
 
   return (
     <div
+      aria-describedby={hintId}
       aria-label={label}
       className="flex flex-col gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4"
       role="group"
       tabIndex={0}
-      onBlur={() => setActive(null)}
-      onFocus={() => setActive((current) => current ?? last)}
+      onBlur={() => show(null)}
+      onFocus={() => show(active ?? last)}
       onKeyDown={handleKeyDown}
       onPointerLeave={() => setActive(null)}
     >
+      <span className="sr-only" id={hintId}>
+        {t("chartHint")}
+      </span>
       <p
+        aria-hidden
         className="text-muted-foreground min-h-5 text-sm tabular-nums"
-        role="status"
+        data-testid="daily-readout"
       >
-        {day ? `${formatDay(day.date)} · ${formatValue(day.value)}` : null}
+        {readout(active)}
+      </p>
+      <p className="sr-only" role="status">
+        {readout(announced)}
       </p>
       <svg
         aria-hidden

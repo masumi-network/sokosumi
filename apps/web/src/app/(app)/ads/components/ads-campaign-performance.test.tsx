@@ -149,7 +149,28 @@ describe("AdsCampaignPerformance", () => {
 
     await user.hover(bars()[0]);
 
-    expect(screen.getByRole("status")).toHaveTextContent("Nov 1 · €3.50");
+    expect(screen.getByTestId("daily-readout")).toHaveTextContent(
+      "Nov 1 · €3.50",
+    );
+  });
+
+  it("announces only what the keyboard picks, not the pointer's hover", async () => {
+    const user = userEvent.setup();
+    renderPerformance();
+
+    await user.hover(bars()[2]);
+
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  });
+
+  it("tells the group how the arrow keys move between days", () => {
+    renderPerformance();
+
+    expect(
+      screen.getByRole("group", { name: "Spend per day" }),
+    ).toHaveAccessibleDescription(
+      "Use the left and right arrow keys to move between days.",
+    );
   });
 
   it("walks the days with the arrow keys", async () => {

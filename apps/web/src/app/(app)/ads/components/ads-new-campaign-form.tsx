@@ -54,12 +54,12 @@ import {
 import type { GoogleTargeting } from "@/lib/ads/targeting";
 import { useAdsBudget } from "./ads-budget";
 import { ImageUploadContext } from "./ads-display-images";
-import { AdsFormSection } from "./ads-form-section";
 import { AdsGoogleDisplayFields } from "./ads-google-display-fields";
 import {
   AdsGoogleDateFields,
   AdsGoogleSearchFields,
 } from "./ads-google-search-fields";
+import { AdsSection } from "./ads-section";
 import { AdsGoogleTargetingFields } from "./ads-targeting-fields";
 
 interface CampaignFormProps {
@@ -385,7 +385,7 @@ export function MetaCampaignForm(props: CampaignFormProps) {
         )}
         submitting={form.formState.isSubmitting}
       >
-        <AdsFormSection id="new-campaign-basics" title={t("sections.basics")}>
+        <AdsSection id="new-campaign-basics" title={t("sections.basics")}>
           <NameAndBudgetFields budget={budget} />
           <FormField
             control={form.control}
@@ -411,7 +411,7 @@ export function MetaCampaignForm(props: CampaignFormProps) {
               </FormItem>
             )}
           />
-        </AdsFormSection>
+        </AdsSection>
       </CampaignFormFrame>
     </Form>
   );
@@ -472,7 +472,7 @@ function GoogleTypePicker() {
   const form = useFormContext<typeof EMPTY_GOOGLE_VALUES>();
 
   return (
-    <AdsFormSection id="new-campaign-type" title={t("sections.type")}>
+    <AdsSection id="new-campaign-type" title={t("sections.type")}>
       <div className="grid gap-2">
         <ToggleGroup
           aria-label={t("sections.type")}
@@ -502,7 +502,7 @@ function GoogleTypePicker() {
           {t(`typeHelp.${form.watch("type")}`)}
         </p>
       </div>
-    </AdsFormSection>
+    </AdsSection>
   );
 }
 
@@ -609,11 +609,11 @@ export function GoogleCampaignForm({
           uploading={uploading}
         >
           <GoogleTypePicker />
-          <AdsFormSection id="new-campaign-basics" title={t("sections.basics")}>
+          <AdsSection id="new-campaign-basics" title={t("sections.basics")}>
             <NameAndBudgetFields budget={budget} />
             <AdsGoogleDateFields />
-          </AdsFormSection>
-          <AdsFormSection
+          </AdsSection>
+          <AdsSection
             id="new-campaign-targeting"
             title={t("sections.targeting")}
           >
@@ -622,7 +622,7 @@ export function GoogleCampaignForm({
               languageOptions={targeting.languageOptions}
               projectId={props.projectId}
             />
-          </AdsFormSection>
+          </AdsSection>
           {type === "SEARCH" ? (
             <AdsGoogleSearchFields
               hasMarketProfile={hasMarketProfile}

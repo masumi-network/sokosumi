@@ -3383,15 +3383,9 @@
         "title": "Campaña",
         "types": {
           "SEARCH": "Búsqueda",
-          "DISPLAY": "Display",
-          "OTHER": "Otro"
+          "DISPLAY": "Display"
         },
         "perDay": "{amount} al día",
-        "dates": {
-          "range": "{start} – {end}",
-          "from": "Desde {start}, sin fecha de finalización",
-          "until": "Hasta {end}"
-        },
         "noEndDate": "Sin fecha de finalización",
         "sections": {
           "performance": "Rendimiento",
@@ -3407,14 +3401,24 @@
           "chartLabel": "{metric} por día",
           "empty": "Sin actividad en este período",
           "tableCaption": "Rendimiento diario",
-          "date": "Fecha"
+          "date": "Fecha",
+          "chartHint": "Usa las flechas izquierda y derecha para moverte entre los días."
         },
         "settings": {
-          "type": "Tipo",
-          "bidding": "Puja"
+          "bidding": "Puja",
+          "networks": "Redes"
         },
         "bidding": {
-          "TARGET_SPEND": "Maximizar clics"
+          "TARGET_SPEND": "Maximizar clics",
+          "MANUAL_CPC": "CPC manual",
+          "ENHANCED_CPC": "CPC mejorado",
+          "MANUAL_CPM": "CPM manual",
+          "TARGET_CPM": "CPM objetivo",
+          "MAXIMIZE_CONVERSIONS": "Maximizar conversiones",
+          "MAXIMIZE_CONVERSION_VALUE": "Maximizar el valor de conversión",
+          "TARGET_CPA": "CPA objetivo",
+          "TARGET_ROAS": "ROAS objetivo",
+          "TARGET_IMPRESSION_SHARE": "Porcentaje de impresiones objetivo"
         },
         "matchTypes": {
           "BROAD": "Concordancia amplia",
@@ -3426,13 +3430,16 @@
           "APPROVED_LIMITED": "Aprobado (limitado)",
           "DISAPPROVED": "Rechazado",
           "PENDING_REVIEW": "Revisión pendiente",
-          "UNDER_REVIEW": "En revisión"
+          "UNDER_REVIEW": "En revisión",
+          "AREA_OF_INTEREST_ONLY": "Solo se muestra en algunas zonas"
         },
         "ad": {
           "displayUrl": "URL visible",
           "review": {
             "REVIEW_IN_PROGRESS": "Revisión en curso",
-            "UNDER_APPEAL": "En apelación"
+            "UNDER_APPEAL": "En apelación",
+            "REVIEWED": "Revisado",
+            "ELIGIBLE_MAY_SERVE": "Apto para publicarse"
           },
           "strength": "Eficacia del anuncio: {strength}",
           "strengths": {
@@ -3445,9 +3452,17 @@
           },
           "imageAlt": "Imagen {number} ({role})"
         },
-        "notEditable": "Esta campaña tiene varios grupos de anuncios o anuncios, o un tipo que Sokosumi no crea; gestiona los detalles en Google Ads.",
+        "notEditable": {
+          "TYPE": "Sokosumi no crea este tipo de campaña; gestiónala en Google Ads.",
+          "AD_GROUPS": "Esta campaña tiene varios grupos de anuncios; gestiónalos en Google Ads.",
+          "AD_TYPE": "Esta campaña no tiene un único anuncio adaptable; gestiona sus anuncios en Google Ads."
+        },
         "errors": {
           "failed": "No se pudo cargar esta campaña"
+        },
+        "networks": {
+          "SEARCH": "Búsqueda de Google",
+          "DISPLAY": "Red de Display"
         }
       },
       "market": {

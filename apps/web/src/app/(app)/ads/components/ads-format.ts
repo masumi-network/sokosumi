@@ -1,7 +1,7 @@
 import type { createFormatter } from "next-intl";
 
 /** What a metric shows when the provider has no value for it. */
-const NO_VALUE = "—";
+export const NO_VALUE = "—";
 
 type Formatter = ReturnType<typeof createFormatter>;
 

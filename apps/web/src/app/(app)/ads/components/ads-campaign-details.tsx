@@ -4,7 +4,9 @@ import { useFormatter, useTranslations } from "next-intl";
 import type { RangeParam } from "@/app/ads/ads-query";
 import {
   APPROVAL_STATUSES,
+  BIDDING_STRATEGIES,
   enumLabel,
+  humanizeEnum,
   problemApproval,
 } from "@/lib/ads/campaign-details";
 import { formatGoogleKeyword } from "@/lib/ads/google-keywords";
@@ -13,10 +15,8 @@ import { AdsCampaignActions } from "./ads-campaign-actions";
 import { AdsCampaignAd } from "./ads-campaign-ad";
 import { AdsCampaignPerformance } from "./ads-campaign-performance";
 import { AdsFact, AdsFactList, AdsFacts } from "./ads-fact";
-import { AdsFormSection } from "./ads-form-section";
-import { adsDay, adsFormat } from "./ads-format";
-
-const BIDDING_STRATEGIES = ["TARGET_SPEND"] as const;
+import { adsDay, adsFormat, NO_VALUE } from "./ads-format";
+import { AdsSection } from "./ads-section";
 
 interface AdsCampaignDetailsProps {
   accountId: string;
@@ -51,26 +51,16 @@ export function AdsCampaignDetails({
       : null;
   };
 
-  const dates = (() => {
-    if (campaign.startDate && campaign.endDate) {
-      return t("dates.range", {
-        start: date(campaign.startDate),
-        end: date(campaign.endDate),
-      });
-    }
-    if (campaign.startDate) {
-      return t("dates.from", { start: date(campaign.startDate) });
-    }
-    return campaign.endDate
-      ? t("dates.until", { end: date(campaign.endDate) })
-      : null;
-  })();
+  // Google's other channels (Performance Max, Shopping, ...) have no copy here.
+  const type =
+    campaign.type === "OTHER"
+      ? humanizeEnum(campaign.channelType)
+      : t(`types.${campaign.type}`);
   const facts = [
-    t(`types.${campaign.type}`),
+    type,
     tCampaigns(`status.${campaign.status}`),
     t("perDay", { amount: money(campaign.dailyBudget) }),
-    dates,
-  ].filter((fact) => fact !== null);
+  ];
 
   return (
     <div className="flex flex-col gap-10">
@@ -96,11 +86,8 @@ export function AdsCampaignDetails({
         range={range}
       />
 
-      <AdsFormSection id="campaign-settings" title={t("sections.settings")}>
+      <AdsSection id="campaign-settings" title={t("sections.settings")}>
         <AdsFacts className="sm:grid-cols-2">
-          <AdsFact label={t("settings.type")}>
-            {t(`types.${campaign.type}`)}
-          </AdsFact>
           <AdsFact label={t("settings.bidding")}>
             {enumLabel(
               campaign.biddingStrategyType,
@@ -108,19 +95,21 @@ export function AdsCampaignDetails({
               (key) => t(`bidding.${key}`),
             )}
           </AdsFact>
+          {campaign.type === "OTHER" ? null : (
+            <AdsFact label={t("settings.networks")}>
+              {t(`networks.${campaign.type}`)}
+            </AdsFact>
+          )}
           <AdsFact label={tNew("startDate")}>
-            {campaign.startDate ? date(campaign.startDate) : "—"}
+            {campaign.startDate ? date(campaign.startDate) : NO_VALUE}
           </AdsFact>
           <AdsFact label={tNew("endDate")}>
             {campaign.endDate ? date(campaign.endDate) : t("noEndDate")}
           </AdsFact>
-          <AdsFact label={tCampaigns("columns.dailyBudget")}>
-            {money(campaign.dailyBudget)}
-          </AdsFact>
         </AdsFacts>
-      </AdsFormSection>
+      </AdsSection>
 
-      <AdsFormSection id="campaign-targeting" title={t("sections.targeting")}>
+      <AdsSection id="campaign-targeting" title={t("sections.targeting")}>
         <AdsFacts>
           <AdsFact label={tNew("targeting.locations.label")}>
             {targeting.locations.length > 0 ? (
@@ -139,10 +128,10 @@ export function AdsCampaignDetails({
               : tNew("targeting.languages.all")}
           </AdsFact>
         </AdsFacts>
-      </AdsFormSection>
+      </AdsSection>
 
       {campaign.type === "SEARCH" ? (
-        <AdsFormSection id="campaign-keywords" title={t("sections.keywords")}>
+        <AdsSection id="campaign-keywords" title={t("sections.keywords")}>
           <ul className="flex flex-col gap-2">
             {keywords.map((keyword) => (
               <li
@@ -163,17 +152,19 @@ export function AdsCampaignDetails({
               </li>
             ))}
           </ul>
-        </AdsFormSection>
+        </AdsSection>
       ) : null}
 
-      {ad ? (
-        <AdsCampaignAd ad={ad} />
-      ) : (
-        <p className="text-muted-foreground text-sm">{t("notEditable")}</p>
-      )}
+      {ad ? <AdsCampaignAd ad={ad} /> : null}
+
+      {!campaign.editable && campaign.notEditableReason ? (
+        <p className="text-muted-foreground text-sm">
+          {t(`notEditable.${campaign.notEditableReason}`)}
+        </p>
+      ) : null}
 
       {sitelinks.length > 0 ? (
-        <AdsFormSection id="campaign-sitelinks" title={t("sections.sitelinks")}>
+        <AdsSection id="campaign-sitelinks" title={t("sections.sitelinks")}>
           <ul className="flex flex-col gap-4">
             {sitelinks.map((sitelink) => (
               <li key={sitelink.assetId} className="flex flex-col gap-0.5">
@@ -195,11 +186,11 @@ export function AdsCampaignDetails({
               </li>
             ))}
           </ul>
-        </AdsFormSection>
+        </AdsSection>
       ) : null}
 
       {callouts.length > 0 ? (
-        <AdsFormSection id="campaign-callouts" title={t("sections.callouts")}>
+        <AdsSection id="campaign-callouts" title={t("sections.callouts")}>
           <ul className="flex flex-col gap-2">
             {callouts.map((callout) => (
               <li
@@ -213,7 +204,7 @@ export function AdsCampaignDetails({
               </li>
             ))}
           </ul>
-        </AdsFormSection>
+        </AdsSection>
       ) : null}
     </div>
   );

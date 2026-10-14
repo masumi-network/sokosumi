@@ -164,35 +164,25 @@ describe("AdsCampaignDetails", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Spring sale" }),
     ).toBeVisible();
-    expect(
-      screen.getByText(
-        "Search · Paused · €1.00 a day · Nov 1, 2026 – Nov 30, 2026",
-      ),
-    ).toBeVisible();
+    expect(screen.getByText("Search · Paused · €1.00 a day")).toBeVisible();
     expect(
       screen.getByRole("button", { name: "menu Spring sale" }),
     ).toBeVisible();
   });
 
-  it("says when a campaign has no end date, or no dates at all", () => {
+  it("names the channel of a campaign type Sokosumi does not build", () => {
     renderDetails({
       ...SEARCH,
-      campaign: { ...SEARCH.campaign, endDate: null },
+      campaign: {
+        ...SEARCH.campaign,
+        type: "OTHER",
+        channelType: "PERFORMANCE_MAX",
+      },
     });
+
     expect(
-      screen.getByText(
-        "Search · Paused · €1.00 a day · From Nov 1, 2026, no end date",
-      ),
+      screen.getByText("Performance max · Paused · €1.00 a day"),
     ).toBeVisible();
-  });
-
-  it("leaves the dates out of the line when there are none", () => {
-    renderDetails({
-      ...SEARCH,
-      campaign: { ...SEARCH.campaign, startDate: null, endDate: null },
-    });
-
-    expect(screen.getByText("Search · Paused · €1.00 a day")).toBeVisible();
   });
 
   it("passes the range to the performance block", () => {
@@ -201,14 +191,31 @@ describe("AdsCampaignDetails", () => {
     expect(screen.getByTestId("performance")).toHaveTextContent("7d");
   });
 
-  it("lists the settings with friendly values", () => {
+  it("lists the settings without repeating the header", () => {
     renderDetails();
 
     const settings = section("Settings");
     expect(settings.getByText("Maximize clicks")).toBeVisible();
+    expect(settings.getByText("Google Search")).toBeVisible();
     expect(settings.getByText("Nov 1, 2026")).toBeVisible();
     expect(settings.getByText("Nov 30, 2026")).toBeVisible();
-    expect(settings.getByText("€1.00")).toBeVisible();
+    expect(settings.queryByText("Type")).toBeNull();
+    expect(settings.queryByText("Daily budget")).toBeNull();
+  });
+
+  it("names the Display Network for a Display campaign", () => {
+    renderDetails(DISPLAY);
+
+    expect(section("Settings").getByText("Display Network")).toBeVisible();
+  });
+
+  it("has no networks for a type it cannot name them for", () => {
+    renderDetails({
+      ...SEARCH,
+      campaign: { ...SEARCH.campaign, type: "OTHER", channelType: "SHOPPING" },
+    });
+
+    expect(section("Settings").queryByText("Networks")).toBeNull();
   });
 
   it("humanizes a bidding strategy it has no copy for", () => {
@@ -216,13 +223,13 @@ describe("AdsCampaignDetails", () => {
       ...SEARCH,
       campaign: {
         ...SEARCH.campaign,
-        biddingStrategyType: "MAXIMIZE_CONVERSIONS",
+        biddingStrategyType: "PAGE_ONE_PROMOTED",
         endDate: null,
       },
     });
 
     const settings = section("Settings");
-    expect(settings.getByText("Maximize conversions")).toBeVisible();
+    expect(settings.getByText("Page one promoted")).toBeVisible();
     expect(settings.getByText("No end date")).toBeVisible();
   });
 
@@ -381,10 +388,40 @@ describe("AdsCampaignDetails", () => {
     expect(callouts.queryByText("Approved")).toBeNull();
   });
 
-  it("points to Google Ads when the campaign has no single ad to show", () => {
+  it.each([
+    [
+      "TYPE",
+      "Sokosumi doesn't build this campaign type; manage it in Google Ads.",
+    ],
+    [
+      "AD_GROUPS",
+      "This campaign has several ad groups; manage them in Google Ads.",
+    ],
+    [
+      "AD_TYPE",
+      "This campaign doesn't have a single responsive ad; manage its ads in Google Ads.",
+    ],
+  ] as const)(
+    "points to Google Ads when the campaign is not editable (%s)",
+    (reason, note) => {
+      renderDetails({
+        ...SEARCH,
+        ad: null,
+        campaign: {
+          ...SEARCH.campaign,
+          editable: false,
+          notEditableReason: reason,
+        },
+      });
+
+      expect(screen.queryByRole("region", { name: "Ad" })).toBeNull();
+      expect(screen.getByText(note)).toBeVisible();
+    },
+  );
+
+  it("keeps the ad and adds the note when a campaign with an ad is not editable", () => {
     renderDetails({
       ...SEARCH,
-      ad: null,
       campaign: {
         ...SEARCH.campaign,
         editable: false,
@@ -392,17 +429,13 @@ describe("AdsCampaignDetails", () => {
       },
     });
 
-    expect(screen.queryByRole("region", { name: "Ad" })).toBeNull();
-    expect(
-      screen.getByText(
-        "This campaign has several ad groups or ads, or a type Sokosumi doesn't build; manage the details in Google Ads.",
-      ),
-    ).toBeVisible();
+    expect(screen.getByRole("region", { name: "Ad" })).toBeVisible();
+    expect(screen.getByText(/several ad groups/)).toBeVisible();
   });
 
-  it("has no such note when the ad is shown", () => {
-    renderDetails();
+  it("has no note for an editable campaign, even without an ad", () => {
+    renderDetails({ ...SEARCH, ad: null });
 
-    expect(screen.queryByText(/manage the details in Google Ads/)).toBeNull();
+    expect(screen.queryByText(/manage/)).toBeNull();
   });
 });

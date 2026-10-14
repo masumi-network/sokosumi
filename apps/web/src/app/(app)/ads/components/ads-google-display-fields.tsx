@@ -18,7 +18,7 @@ import {
 
 import { AdsDisplayImages } from "./ads-display-images";
 import { AdsFinalUrlField } from "./ads-final-url-field";
-import { AdsFormSection } from "./ads-form-section";
+import { AdsSection } from "./ads-section";
 import { AdsCharCount, AdsCountedInput, AdsTextList } from "./ads-text-list";
 
 type TextFieldName = "businessName" | "longHeadline";
@@ -66,7 +66,7 @@ export function AdsGoogleDisplayFields() {
   const tSection = useTranslations("App.Ads.newCampaign.sections");
 
   return (
-    <AdsFormSection id="new-campaign-ad" title={tSection("ad")}>
+    <AdsSection id="new-campaign-ad" title={tSection("ad")}>
       <AdsFinalUrlField />
       <TextField max={GOOGLE_DISPLAY_LIMITS.businessName} name="businessName" />
       <AdsTextList
@@ -79,6 +79,6 @@ export function AdsGoogleDisplayFields() {
         name="displayDescriptions"
       />
       <AdsDisplayImages />
-    </AdsFormSection>
+    </AdsSection>
   );
 }
