@@ -22,9 +22,7 @@ public extension WorkspaceState {
           do {
             try await syncRoomAttentionAfterThreadChange(client: client)
           } catch {
-            if let error = error as? ChatServiceError {
-              signOutIfUnauthorized(error)
-            }
+            signOutIfUnauthorized(error)
           }
         }
       }
