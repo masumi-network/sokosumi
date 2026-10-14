@@ -55,7 +55,7 @@ describe("account-wide Social statistics", () => {
   it("teaches the new default to evaluate externally published posts without changing v22", () => {
     const version = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
     const prior = getSokoBotVersion("v22");
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v23");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v24");
     expect(version.model).toBe(prior.model);
     expect(version.systemPrompt).toBe(prior.systemPrompt);
     const prompt = composeSystemPrompt(version);

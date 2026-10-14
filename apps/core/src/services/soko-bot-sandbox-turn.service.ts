@@ -131,6 +131,7 @@ export interface SandboxTurnStart
   message: string;
   deadlineAt: string;
   maxSteps: number;
+  background: boolean;
 }
 
 /** What the runner needs to run the loop; records the turn as started once. */
@@ -152,7 +153,12 @@ export async function startSandboxTurn(
   if (started) throw conflict("Turn already started");
   const stored = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: claims.turnId },
-    select: { userMessage: true, deadlineAt: true, createdAt: true },
+    select: {
+      userMessage: true,
+      deadlineAt: true,
+      createdAt: true,
+      parentTurnId: true,
+    },
   });
   await announceTurn(logFor(claims), stored.userMessage);
   const { inferenceRegion: _region, ...turn } = prepared;
@@ -163,6 +169,7 @@ export async function startSandboxTurn(
     maxSteps: sokoBotMaxSteps(
       stored.deadlineAt.getTime() - stored.createdAt.getTime(),
     ),
+    background: Boolean(stored.parentTurnId),
   };
 }
 
