@@ -2600,7 +2600,7 @@
         "connectPrompt": {
           "title": "Connect an account to start posting",
           "body": "Posts go out from this project's accounts.",
-          "action": "Connect X, YouTube, LinkedIn…"
+          "action": "Connect account"
         },
         "reconnectPrompt": {
           "title": "Reconnect to post",

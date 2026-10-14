@@ -2600,7 +2600,7 @@
         "connectPrompt": {
           "title": "Verbinde ein Konto, um zu posten",
           "body": "Beiträge gehen von den Konten dieses Projekts.",
-          "action": "X, YouTube, LinkedIn … verbinden"
+          "action": "Konto verbinden"
         },
         "reconnectPrompt": {
           "title": "Erneut verbinden, um zu posten",

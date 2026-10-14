@@ -107,7 +107,7 @@ const MESSAGES: Record<string, string> = {
     "Failed to refresh statistics. Previous results are retained.",
   "connectPrompt.title": "Connect an account to start posting",
   "connectPrompt.body": "Posts go out from this project's accounts.",
-  "connectPrompt.action": "Connect X, YouTube, LinkedIn…",
+  "connectPrompt.action": "Connect account",
   "reconnectPrompt.title": "Reconnect to post",
   "reconnectPrompt.body": "Sign in again on a connected account.",
   "reconnectPrompt.action": "Reconnect",
@@ -801,12 +801,12 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
     expect(
       within(prompt).getByRole("button", {
-        name: "Connect X, YouTube, LinkedIn…",
+        name: "Connect account",
       }),
     ).toHaveClass("h-11", "md:h-8");
     await user.click(
       within(prompt).getByRole("button", {
-        name: "Connect X, YouTube, LinkedIn…",
+        name: "Connect account",
       }),
     );
 
