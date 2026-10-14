@@ -245,6 +245,7 @@ function SocialPostRowSkeleton() {
     </li>
   );
 }
+
 export function ProjectSocialPosts({
   accounts,
   accountCount,

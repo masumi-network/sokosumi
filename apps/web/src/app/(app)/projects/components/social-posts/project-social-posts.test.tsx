@@ -499,6 +499,16 @@ const IMAGE_REF: SocialPostMediaRef = {
   kind: "image",
 };
 
+const GIF_REF: SocialPostMediaRef = {
+  pathname: "drive/users/user_1/loop.gif",
+  fileUrl:
+    "https://store.public.blob.vercel-storage.com/drive/users/user_1/loop.gif",
+  name: "loop.gif",
+  size: 4096,
+  mimeType: "image/gif",
+  kind: "gif",
+};
+
 /** A fixed local "now" for the schedule picker, and its "In an hour" slot. */
 const NOW = new Date(2026, 8, 20, 10, 3);
 const IN_AN_HOUR = new Date(2026, 8, 20, 11, 15);
@@ -2838,6 +2848,43 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(screen.getByRole("dialog")).getByAltText("launch.png"),
     ).toBeVisible();
+  });
+
+  it("marks a GIF thumb on the queue row", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({ id: "post-gif", status: "FAILED", media: [GIF_REF] }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=attention",
+    );
+
+    const row = screen.getByTestId("social-post-post-gif");
+    expect(within(row).getByTestId("social-post-media-gif")).toHaveTextContent(
+      "GIF",
+    );
+  });
+
+  it("does not mark a still image as a GIF", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({ id: "post-img", status: "FAILED", media: [IMAGE_REF] }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=attention",
+    );
+
+    expect(
+      within(screen.getByTestId("social-post-post-img")).queryByTestId(
+        "social-post-media-gif",
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it("attaches a Drive file and sends it with the draft", async () => {
