@@ -2427,6 +2427,8 @@
         "loading": "Wird geladen…",
         "calendarFailed": "Der Kalender konnte nicht geladen werden.",
         "calendarRetry": "Erneut versuchen",
+        "selectedPostFailed": "Dieser Beitrag konnte nicht geöffnet werden.",
+        "selectedPostRetry": "Erneut versuchen",
         "title": "Social-Media-Beiträge",
         "newPost": "Neuer Beitrag",
         "moreActions": "Beitragsaktionen",

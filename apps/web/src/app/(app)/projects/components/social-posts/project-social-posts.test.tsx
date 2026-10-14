@@ -82,6 +82,8 @@ const {
 
 const MESSAGES: Record<string, string> = {
   title: "Social posts",
+  selectedPostFailed: "Couldn't open that post.",
+  selectedPostRetry: "Try again",
   accountsFailed: "Couldn't load accounts.",
   accountsRetry: "Try again",
   calendarFailed: "Couldn't load the calendar.",
@@ -740,6 +742,26 @@ describe("ProjectSocialPosts", () => {
     await openTab(user, "Accounts");
     expect(screen.getByText("Accounts panel")).toBeVisible();
     expect(screen.queryByText("Calendar panel")).not.toBeInTheDocument();
+  });
+
+  it("keeps Social up with a retry when a linked post failed", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+        selectedPostFailed
+      />,
+    );
+
+    expect(screen.getByText("Calendar panel")).toBeVisible();
+    const failed = screen.getByTestId("social-selected-post-load-error");
+    expect(within(failed).getByText("Couldn't open that post.")).toBeVisible();
+    await user.click(within(failed).getByRole("button", { name: "Try again" }));
+    expect(refreshMock).toHaveBeenCalledOnce();
   });
 
   it("keeps Calendar open with a retry when the calendar failed", async () => {

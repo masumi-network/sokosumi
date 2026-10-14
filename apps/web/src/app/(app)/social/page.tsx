@@ -99,46 +99,55 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     );
   }
 
-  const [pages, connectionsResult, selectedPost, calendarResult, sokoBot] =
-    await Promise.all([
-      Promise.all(
-        SECTION_ORDER.map(async (section) => {
-          try {
-            return {
-              failed: false as const,
-              ...(await projectService.listSocialPosts(project.id, {
-                statuses: SECTION_STATUSES[section],
-              })),
-            };
-          } catch {
-            return {
-              failed: true as const,
-              posts: [],
-              nextCursor: null,
-            };
-          }
-        }),
-      ),
-      projectService
-        .listSocialConnections(project.id)
-        .then((connections) => ({ failed: false as const, connections }))
-        .catch(() => ({ failed: true as const, connections: [] })),
-      query.postId
-        ? projectService.getSocialPost(project.id, query.postId)
-        : Promise.resolve(null),
-      loadWorkspaceCalendarPage({
-        projectId: project.id,
-        searchParams: Promise.resolve(withoutAgendaView(query)),
-      })
-        .then((calendar) => ({ failed: false as const, calendar }))
-        .catch((error: unknown) => {
-          unstable_rethrow(error);
-          return { failed: true as const, calendar: null };
-        }),
-      sokoBotService.getMine().catch(() => null),
-    ]);
+  const [
+    pages,
+    connectionsResult,
+    selectedPostResult,
+    calendarResult,
+    sokoBot,
+  ] = await Promise.all([
+    Promise.all(
+      SECTION_ORDER.map(async (section) => {
+        try {
+          return {
+            failed: false as const,
+            ...(await projectService.listSocialPosts(project.id, {
+              statuses: SECTION_STATUSES[section],
+            })),
+          };
+        } catch {
+          return {
+            failed: true as const,
+            posts: [],
+            nextCursor: null,
+          };
+        }
+      }),
+    ),
+    projectService
+      .listSocialConnections(project.id)
+      .then((connections) => ({ failed: false as const, connections }))
+      .catch(() => ({ failed: true as const, connections: [] })),
+    query.postId
+      ? projectService
+          .getSocialPost(project.id, query.postId)
+          .then((post) => ({ failed: false as const, post }))
+          .catch(() => ({ failed: true as const, post: null }))
+      : Promise.resolve({ failed: false as const, post: null }),
+    loadWorkspaceCalendarPage({
+      projectId: project.id,
+      searchParams: Promise.resolve(withoutAgendaView(query)),
+    })
+      .then((calendar) => ({ failed: false as const, calendar }))
+      .catch((error: unknown) => {
+        unstable_rethrow(error);
+        return { failed: true as const, calendar: null };
+      }),
+    sokoBotService.getMine().catch(() => null),
+  ]);
   const { connections, failed: accountsFailed } = connectionsResult;
   const { calendar, failed: calendarFailed } = calendarResult;
+  const { post: selectedPost, failed: selectedPostFailed } = selectedPostResult;
   const activeConnections = connections.filter(
     (socialConnection) => socialConnection.status === "active",
   );
@@ -194,6 +203,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             )}
             posts={posts}
             projectId={project.id}
+            selectedPostFailed={selectedPostFailed}
             selectedPostId={selectedPost?.id}
           />
         </SocialComposeProvider>

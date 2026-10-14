@@ -2427,6 +2427,8 @@
         "loading": "Loading…",
         "calendarFailed": "Couldn't load the calendar.",
         "calendarRetry": "Try again",
+        "selectedPostFailed": "Couldn't open that post.",
+        "selectedPostRetry": "Try again",
         "title": "Social posts",
         "newPost": "New post",
         "moreActions": "Post actions",

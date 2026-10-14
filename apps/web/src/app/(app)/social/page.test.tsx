@@ -89,6 +89,7 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
     failedSections?: string[];
     accountsFailed?: boolean;
     projectId: string;
+    selectedPostFailed?: boolean;
     selectedPostId?: string;
   }) => (
     <div
@@ -101,6 +102,7 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
       data-order={props.posts.map((post) => post.id).join(",")}
       data-project={props.projectId}
       data-selected={props.selectedPostId}
+      data-selected-failed={props.selectedPostFailed ? "true" : "false"}
     >
       {props.actions}
       {props.calendar}
@@ -555,5 +557,26 @@ describe("SocialPage", () => {
     expect(screen.getByTestId("social-posts")).not.toHaveAttribute(
       "data-selected",
     );
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-selected-failed",
+      "false",
+    );
+  });
+
+  it("keeps Social up when a linked post fails to load", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.getSocialPost.mockRejectedValue(new Error("core down"));
+
+    await visit({ projectId: "project-1", postId: "post-broken" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-selected-failed",
+      "true",
+    );
+    expect(screen.getByTestId("social-posts")).not.toHaveAttribute(
+      "data-selected",
+    );
+    expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
+    expect(projectServiceMock.listSocialPosts).toHaveBeenCalled();
   });
 });

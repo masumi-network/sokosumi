@@ -2427,6 +2427,8 @@
         "loading": "Cargando…",
         "calendarFailed": "No se pudo cargar el calendario.",
         "calendarRetry": "Intentar de nuevo",
+        "selectedPostFailed": "No se pudo abrir esa publicación.",
+        "selectedPostRetry": "Intentar de nuevo",
         "title": "Publicaciones sociales",
         "newPost": "Nueva publicación",
         "moreActions": "Acciones de la publicación",
