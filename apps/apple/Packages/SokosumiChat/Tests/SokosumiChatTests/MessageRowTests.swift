@@ -223,6 +223,116 @@ struct MessageRowTests {
     #expect(failed.showsActionBar)
   }
 
+  // MARK: Body parts
+
+  private static let quote = Components.Schemas.ChatRoomMessageQuote(messageId: "source", authorName: "Ben", snippet: "Hello")
+
+  @Test func aPlainMessageIsItsMarkdown() {
+    #expect(Self.row().body == [.markdown])
+  }
+
+  /// Send to yourself posts only a quote, so there is no text to draw after it.
+  @Test func aQuoteComesBeforeItsText() {
+    var quoteOnly = Self.message(content: "")
+    quoteOnly.quote = Self.quote
+    #expect(Self.row(quoteOnly).body == [.quote])
+    var withText = Self.message()
+    withText.quote = Self.quote
+    #expect(Self.row(withText).body == [.quote, .markdown])
+  }
+
+  /// A deleted root keeps only its tombstone: no extras, no Edited mark, no Pinned label, even with a quote and unfurls.
+  @Test func aDeletedRootIsOnlyItsTombstone() {
+    var root = Self.message()
+    root.quote = Self.quote
+    root.unfurls = [.init(url: "https://example.com", title: "Example", description: "Preview")]
+    root.editedAt = Self.created
+    #expect(Self.row(root).unfurls.count == 1)
+    #expect(Self.row(root).isEdited)
+    root.deletedAt = Self.created
+    let row = Self.row(root)
+    #expect(row.body == [.deleted])
+    #expect(!row.isEdited)
+    #expect(row.unfurls.isEmpty)
+    #expect(row.resultPreviewIds.isEmpty)
+    #expect(row.sokoBotFooter == nil)
+    #expect(!row.showsPinnedLabel(isPinned: true))
+  }
+
+  @Test func theRowBeingEditedIsItsComposer() throws {
+    var reply = Self.message(from: "soko")
+    reply.metadata = try .init(additionalProperties: [
+      "soko_bot": OpenAPIValueContainer(unvalidatedValue: ["turn_id": "turn_1", "source": "INGEST"])
+    ])
+    #expect(Self.row(reply).body == [.sokoBotSource(.inbox), .markdown])
+    var editing = Self.channel
+    editing.editingMessageId = reply.id
+    #expect(Self.row(reply, in: editing).body == [.editComposer])
+    var quoted = Self.message()
+    quoted.quote = Self.quote
+    editing.editingMessageId = quoted.id
+    #expect(Self.row(quoted, in: editing).body == [.quote, .editComposer])
+  }
+
+  @Test func aFailedShellIsItsFailureAndAThinkingOneItsThought() throws {
+    let failed = try Self.row(Self.coworkerShell(["mention_id": "mention_1", "mention_failed": true]))
+    #expect(failed.body == [.failedMention])
+    let thinking = try Self.coworkerShell(["streaming": true, "mention_id": "mention_1"])
+    #expect(Self.row(thinking).body == [.thought(startedAt: thinking.createdAt, shellWorking: true)])
+    let started = try Self.coworkerShell([
+      "streaming": true, "mention_id": "mention_1", "thought_timing_ms": ["start": 1_790_000_100_000]
+    ])
+    #expect(Self.row(started).body == [.thought(startedAt: Date(timeIntervalSince1970: 1_790_000_100), shellWorking: true)])
+  }
+
+  /// A coworker's settled answer keeps its Thought header above the text, with no shell working.
+  @Test func aCoworkersAnswerKeepsItsThoughtAboveTheText() throws {
+    var answer = try Self.coworkerShell([:])
+    answer.content = "Done."
+    #expect(Self.row(answer).body == [.thought(startedAt: answer.createdAt, shellWorking: false), .markdown])
+  }
+
+  @Test func aProjectReplyIsTheChosenProject() {
+    let projectId = "00000000-0000-4000-8000-000000000001"
+    let reply = Self.message(content: ProjectSelectionReply.content(projectId: projectId, name: "Apollo"))
+    #expect(Self.row(reply).body == [.projectSelection(.init(projectId: projectId, name: "Apollo"))])
+  }
+
+  @Test func theSokoBotSourceLabelComesFirst() throws {
+    var reply = Self.message(from: "soko")
+    reply.quote = Self.quote
+    reply.metadata = try .init(additionalProperties: [
+      "soko_bot": OpenAPIValueContainer(unvalidatedValue: ["turn_id": "turn_1", "source": "EVENT"])
+    ])
+    #expect(Self.row(reply).body == [.sokoBotSource(.taskUpdate), .quote, .markdown])
+  }
+
+  @Test func editedAndThenDeletedIsNotEdited() {
+    var message = Self.message()
+    #expect(!Self.row(message).isEdited)
+    message.editedAt = Self.created
+    #expect(Self.row(message).isEdited)
+    message.deletedAt = Self.created
+    #expect(!Self.row(message).isEdited)
+  }
+
+  @Test func thePinnedLabelNeedsAPinAndALiveMessage() {
+    var message = Self.message()
+    #expect(Self.row(message).showsPinnedLabel(isPinned: true))
+    #expect(!Self.row(message).showsPinnedLabel(isPinned: false))
+    message.deletedAt = Self.created
+    #expect(!Self.row(message).showsPinnedLabel(isPinned: true))
+  }
+
+  // MARK: Busy actions
+
+  @Test func busyActionsFollowTheRunningRequests() {
+    #expect(MessageRowActivity().busy.isEmpty)
+    #expect(MessageRowActivity(isUpdatingPin: true).busy == [.pin, .unpin])
+    #expect(MessageRowActivity(feedbackLocked: true).busy == [.useful, .notUseful])
+    #expect(MessageRowActivity(isDeleting: true, isSendingToSelf: true).busy == [.delete, .sendToSelf])
+  }
+
   // MARK: Display parts
 
   @Test func continuationFollowsTheSenderAndTheBurst() {
