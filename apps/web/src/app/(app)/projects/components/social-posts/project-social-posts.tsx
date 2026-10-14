@@ -1,10 +1,11 @@
 "use client";
 
-import type {
-  ProjectSocialConnection,
-  SocialPost,
-  SocialPostMediaRef,
-  SocialPostStatus,
+import {
+  type ProjectSocialConnection,
+  type ProjectSocialProvider as ProjectSocialProviderValue,
+  type SocialPost,
+  type SocialPostMediaRef,
+  type SocialPostStatus,
 } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
@@ -20,7 +21,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { parseAsStringEnum, parseAsStringLiteral, useQueryState } from "nuqs";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
@@ -28,6 +29,10 @@ import { SocialPostComposerDialog } from "@/app/projects/components/social-posts
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
 import { EmptyState } from "@/components/common/empty-state";
+import {
+  SOCIAL_POST_PROVIDERS,
+  SocialPlatformFilter,
+} from "@/components/social-platform-filter";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import {
   AlertDialog,
@@ -258,6 +263,10 @@ export function ProjectSocialPosts({
   const [tabParam, setTabParam] = useQueryState(
     "tab",
     parseAsStringLiteral(SOCIAL_TABS),
+  );
+  const [provider, setProvider] = useQueryState(
+    "provider",
+    parseAsStringEnum<ProjectSocialProviderValue>(SOCIAL_POST_PROVIDERS),
   );
   const sourceRef = useRef(initialPosts);
   sourceRef.current = initialPosts;
@@ -962,6 +971,14 @@ export function ProjectSocialPosts({
                 );
               })}
             </TabsList>
+            {tab === "drafts" || tab === "attention" ? (
+              <SocialPlatformFilter
+                value={provider}
+                onChange={(next) => {
+                  void setProvider(next);
+                }}
+              />
+            ) : null}
             {actions}
           </div>
 
@@ -1015,7 +1032,9 @@ export function ProjectSocialPosts({
 
           {SECTION_ORDER.filter((section) => tabs.includes(section)).map(
             (section) => {
-              const sectionPosts = postsIn(section);
+              const sectionPosts = postsIn(section).filter(
+                (post) => provider === null || post.provider === provider,
+              );
               const cursor = cursors[section];
               return (
                 <TabsContent

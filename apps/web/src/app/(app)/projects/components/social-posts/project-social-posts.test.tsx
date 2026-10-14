@@ -97,6 +97,7 @@ const MESSAGES: Record<string, string> = {
   "actions.publishNow": "Publish now",
   "actions.retry": "Retry",
   "actions.dismiss": "Dismiss",
+  "filters.platform": "Platform",
   "sections.calendar": "Calendar",
   "sections.drafts": "Drafts",
   "sections.attention": "Needs attention",
@@ -699,6 +700,90 @@ describe("ProjectSocialPosts", () => {
       screen.queryByTestId("social-post-post-published"),
     ).not.toBeInTheDocument();
     expect(screen.getAllByRole("list")).toHaveLength(1);
+  });
+
+  it("narrows the draft list by platform and keeps the full tab count", () => {
+    renderUi(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost(),
+          buildPost({
+            id: "post-li",
+            provider: "linkedin",
+            text: "LinkedIn draft",
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+      {
+        wrapper: ({ children }) => (
+          <TestQueryProvider>
+            <NuqsTestingAdapter searchParams="?tab=drafts&provider=linkedin">
+              <SocialComposeProvider>{children}</SocialComposeProvider>
+            </NuqsTestingAdapter>
+          </TestQueryProvider>
+        ),
+      },
+    );
+
+    const drafts = screen.getByTestId("social-posts-section-drafts");
+    expect(within(drafts).getByText("LinkedIn draft")).toBeVisible();
+    expect(
+      within(drafts).queryByTestId("social-post-post-draft"),
+    ).not.toBeInTheDocument();
+    expect(getTab("Drafts")).toHaveTextContent("Drafts 2");
+    expect(screen.getByTestId("social-posts-platform-filter")).toBeVisible();
+  });
+
+  it("narrows Needs attention by platform", () => {
+    renderUi(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          FAILED_POST,
+          buildPost({
+            ...FAILED_POST,
+            id: "post-failed-li",
+            provider: "linkedin",
+            text: "LinkedIn failed",
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+      {
+        wrapper: ({ children }) => (
+          <TestQueryProvider>
+            <NuqsTestingAdapter searchParams="?tab=attention&provider=linkedin">
+              <SocialComposeProvider>{children}</SocialComposeProvider>
+            </NuqsTestingAdapter>
+          </TestQueryProvider>
+        ),
+      },
+    );
+
+    const attention = screen.getByTestId("social-posts-section-attention");
+    expect(within(attention).getByText("LinkedIn failed")).toBeVisible();
+    expect(
+      within(attention).queryByText("Failed text"),
+    ).not.toBeInTheDocument();
+    expect(getTab("Needs attention")).toHaveTextContent("Needs attention 2");
+    expect(screen.getByTestId("social-posts-platform-filter")).toBeVisible();
+  });
+
+  it("hides the platform filter on the calendar tab", () => {
+    render(
+      <ProjectSocialPosts
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("social-posts-platform-filter"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows a draft's media in the platform preview, including a GIF badge", () => {
