@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ComponentProps, useId, useRef } from "react";
+import { flushSync } from "react-dom";
 import { useFormContext } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -100,9 +101,11 @@ export function AdsTextList({ limits, name, hideLegend }: AdsTextListProps) {
   const revalidate = form.formState.isSubmitted;
 
   function handleAdd(): void {
-    form.setValue(name, [...values, ""], { shouldDirty: true });
-    // The new input mounts after this render.
-    requestAnimationFrame(() => form.setFocus(`${name}.${values.length}`));
+    // Mount the new input now, so focus leaves the button before the next key.
+    flushSync(() =>
+      form.setValue(name, [...values, ""], { shouldDirty: true }),
+    );
+    form.setFocus(`${name}.${values.length}`);
   }
 
   function handleRemove(index: number): void {

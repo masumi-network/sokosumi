@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { useForm } from "react-hook-form";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Form } from "@/components/ui/form";
 import {
@@ -45,6 +45,10 @@ const callouts = () => screen.queryAllByLabelText(/^Callout \d+$/);
 const add = () => screen.getByRole("button", { name: "Add callout" });
 
 describe("AdsTextList", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("starts with no rows when the minimum is 0 and adds one per click", async () => {
     const user = renderList("callouts", []);
     expect(callouts()).toHaveLength(0);
@@ -53,6 +57,19 @@ describe("AdsTextList", () => {
     await user.click(add());
 
     expect(callouts()).toHaveLength(2);
+  });
+
+  it("moves focus to the added row at once, so typing goes into it", async () => {
+    // A background tab runs no animation frames; focus must not wait for one.
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 0);
+    const user = renderList("callouts", ["First"]);
+
+    await user.click(add());
+    await user.keyboard("Free shipping");
+
+    expect(callouts()).toHaveLength(2);
+    expect(callouts()[1]).toHaveFocus();
+    expect(callouts()[1]).toHaveValue("Free shipping");
   });
 
   it("stops adding at the maximum", async () => {

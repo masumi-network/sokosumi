@@ -109,11 +109,27 @@ function useCreateCampaign({
   accountId,
   projectId,
   budgetPrecisionOn422 = false,
-}: CampaignFormProps & { budgetPrecisionOn422?: boolean }) {
+  onStartOver,
+}: CampaignFormProps & {
+  budgetPrecisionOn422?: boolean;
+  /** Empties the form for the next campaign. */
+  onStartOver: () => void;
+}) {
   const t = useTranslations("App.Ads.newCampaign");
   const router = useRouter();
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [created, setCreated] = useState(false);
+  const createdRef = useRef(false);
+
+  // Next keeps a visited page mounted but hidden and re-runs its effects when
+  // it shows again. After a create, the next "New campaign" starts empty; an
+  // unsent draft stays.
+  useMountEffect(() => {
+    if (!createdRef.current) return;
+    createdRef.current = false;
+    setCreated(false);
+    onStartOver();
+  });
 
   async function create(details: CampaignDetails): Promise<CreateOutcome> {
     setRefusal(null);
@@ -126,6 +142,7 @@ function useCreateCampaign({
       });
       if (result.ok) {
         toast.success(t("success"));
+        createdRef.current = true;
         setCreated(true);
         router.push(campaignsHref(projectId, accountId));
         return "ok";
@@ -328,7 +345,6 @@ function NameAndBudgetFields({
 /** A Meta campaign: a name, a budget and one objective. */
 export function MetaCampaignForm(props: CampaignFormProps) {
   const t = useTranslations("App.Ads.newCampaign");
-  const creation = useCreateCampaign({ ...props, budgetPrecisionOn422: true });
   const { budget, shape } = useBasics(props.currency);
   const form = useForm({
     resolver: zodResolver(
@@ -339,6 +355,11 @@ export function MetaCampaignForm(props: CampaignFormProps) {
     ),
     mode: "onTouched",
     defaultValues: { name: "", dailyBudget: "", objective: "" },
+  });
+  const creation = useCreateCampaign({
+    ...props,
+    budgetPrecisionOn422: true,
+    onStartOver: () => form.reset(),
   });
 
   return (
@@ -497,7 +518,6 @@ export function GoogleCampaignForm({
   ...props
 }: GoogleCampaignFormProps) {
   const t = useTranslations("App.Ads.newCampaign");
-  const creation = useCreateCampaign(props);
   const { budget, shape } = useBasics(props.currency);
   const common = {
     finalUrl: t("errors.finalUrl"),
@@ -561,6 +581,10 @@ export function GoogleCampaignForm({
       locations: targeting.defaultLocations,
       languages: targeting.defaultLanguages,
     },
+  });
+  const creation = useCreateCampaign({
+    ...props,
+    onStartOver: () => form.reset(),
   });
   const [uploading, setUploading] = useState(false);
   const type = form.watch("type");

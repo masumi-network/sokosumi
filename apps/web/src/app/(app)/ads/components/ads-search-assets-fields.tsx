@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ComponentProps, useId, useRef } from "react";
+import { flushSync } from "react-dom";
 import { useFormContext } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -37,11 +38,13 @@ export function AdsSitelinksSection() {
   const revalidate = form.formState.isSubmitted;
 
   function handleAdd(): void {
-    form.setValue("sitelinks", [...rows, EMPTY_SITELINK], {
-      shouldDirty: true,
-    });
-    // The new input mounts after this render.
-    requestAnimationFrame(() => form.setFocus(`sitelinks.${rows.length}.text`));
+    // Mount the new row now, so focus leaves the button before the next key.
+    flushSync(() =>
+      form.setValue("sitelinks", [...rows, EMPTY_SITELINK], {
+        shouldDirty: true,
+      }),
+    );
+    form.setFocus(`sitelinks.${rows.length}.text`);
   }
 
   function handleRemove(index: number): void {

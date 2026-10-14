@@ -2,6 +2,7 @@ import type { ProjectAdProvider } from "@sokosumi/core-client";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { Activity } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -1128,6 +1129,56 @@ describe("AdsNewCampaignForm", () => {
         expect(pushMock).toHaveBeenCalledWith(
           "/ads?projectId=project-1&tab=campaigns&account=account-1",
         );
+      });
+
+      describe("when Next shows the page again", () => {
+        /** Next keeps a visited page mounted but hidden, as `Activity` does. */
+        function renderInActivity() {
+          const user = userEvent.setup();
+          const page = (mode: "visible" | "hidden") => (
+            <NextIntlClientProvider locale="en" messages={messages}>
+              <Activity mode={mode}>
+                <GoogleCampaignForm
+                  accountId="account-1"
+                  currency="USD"
+                  hasMarketProfile={false}
+                  projectId="project-1"
+                  targeting={NO_DEFAULTS}
+                />
+              </Activity>
+            </NextIntlClientProvider>
+          );
+          const { rerender } = render(page("visible"));
+          const showAgain = () => {
+            rerender(page("hidden"));
+            rerender(page("visible"));
+          };
+          return { user, showAgain };
+        }
+
+        it("starts over after a created campaign", async () => {
+          createMock.mockResolvedValue({ ok: true, value: { id: "42" } });
+          const { user, showAgain } = renderInActivity();
+          await fillGoogle(user);
+          await user.click(submit());
+          await waitFor(() => expect(pushMock).toHaveBeenCalled());
+
+          showAgain();
+
+          await waitFor(() => expect(nameInput()).toHaveValue(""));
+          expect(keywordsInput()).toHaveValue("");
+          expect(screen.getByLabelText("Headline 1")).toHaveValue("");
+          expect(submit()).not.toHaveAttribute("aria-busy", "true");
+        });
+
+        it("keeps a draft that was not sent", async () => {
+          const { user, showAgain } = renderInActivity();
+          await user.type(nameInput(), "Half done");
+
+          showAgain();
+
+          expect(nameInput()).toHaveValue("Half done");
+        });
       });
 
       it("keeps the button busy while the request runs", async () => {
