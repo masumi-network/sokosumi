@@ -991,6 +991,28 @@ describe("ProjectSocialPosts", () => {
     );
   });
 
+  it("hides the Post now shortcut until the draft can post", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const postNow = within(dialog).getByRole("button", { name: "Post now" });
+    expect(postNow).toBeDisabled();
+    expect(postNow.querySelector("kbd")).not.toBeInTheDocument();
+
+    await user.type(within(dialog).getByLabelText("Text"), "Hello");
+    const enabled = within(dialog).getByRole("button", { name: "Post now" });
+    expect(enabled).toBeEnabled();
+    expect(enabled.querySelector("kbd")).toHaveTextContent("⌘↵");
+  });
+
   it("names every selected network that still needs text or media", async () => {
     const user = userEvent.setup();
     render(

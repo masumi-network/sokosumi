@@ -811,12 +811,14 @@ export function SocialPostComposerDialog({
       aria-describedby={showRequirementHint ? publishHintId : undefined}
     >
       {primaryLabel}
-      <kbd
-        aria-hidden
-        className="hidden font-sans text-xs opacity-70 sm:inline"
-      >
-        ⌘↵
-      </kbd>
+      {primaryEnabled ? (
+        <kbd
+          aria-hidden
+          className="hidden font-sans text-xs opacity-70 sm:inline"
+        >
+          ⌘↵
+        </kbd>
+      ) : null}
     </Button>
   );
 
