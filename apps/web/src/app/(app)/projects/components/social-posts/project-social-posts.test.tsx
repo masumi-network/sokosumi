@@ -2409,7 +2409,7 @@ describe("ProjectSocialPosts", () => {
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
-        posts={[FAILED_POST]}
+        posts={[{ ...FAILED_POST, canCancel: false }]}
         projectId={PROJECT_ID}
         selectedPostId="post-failed"
       />,
@@ -2517,7 +2517,7 @@ describe("ProjectSocialPosts", () => {
       await user.type(within(dialog).getByLabelText("Text"), "Hello both");
 
       const chip = within(dialog).getByRole("button", {
-        name: "Preview as @sokosumi",
+        name: "Preview as X @sokosumi",
       });
       await waitFor(() => {
         expect(
