@@ -64,6 +64,13 @@ function hoverStyle(name: string, left: number, width = 300) {
 }
 
 describe("the empty studio carousel", () => {
+  it("draws large cards with a border and no drop shadow", () => {
+    mount();
+    const card = screen.getByRole("button", { name: "poster" });
+    expect(card.className).toContain("border-border");
+    expect(card.className).not.toMatch(/\bshadow(?:-lg|-md|-sm)?\b/);
+  });
+
   it("has no navigation buttons or unattended rotation; selecting a style stays explicit", () => {
     const { apply } = mount();
     advance();
