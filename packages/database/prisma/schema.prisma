@@ -589,6 +589,9 @@ model SocialAccountPost {
   connectionId      String    @db.Uuid
   externalId        String
   text              String
+  contentType       String    @default("unknown")
+  postKind          String    @default("unknown")
+  media             Json      @default("[]")
   publishedAt       DateTime?
   url               String?
   metrics           Json

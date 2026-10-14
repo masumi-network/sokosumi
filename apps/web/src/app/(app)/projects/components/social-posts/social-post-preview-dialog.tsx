@@ -111,7 +111,10 @@ export function SocialPostPreviewDialog({
         ) : null}
         {post?.status === "PUBLISHED" ? (
           <div className="space-y-3">
-            <SocialPostMetrics statistics={refreshedPost?.statistics} compact />
+            <SocialPostMetrics
+              statistics={refreshedPost?.statistics}
+              variant="compact"
+            />
             <Button
               type="button"
               size="sm"
