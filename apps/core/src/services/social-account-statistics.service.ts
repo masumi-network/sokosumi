@@ -588,7 +588,7 @@ export async function refreshSocialAccountStatistics(
       });
       if (preservePostMetrics.has(post.externalId)) continue;
       const publishedStatistics: Prisma.InputJsonObject = {
-        metrics: { ...post.metrics },
+        metrics: data.metrics,
         fetchedAt: fetchedAt.toISOString(),
         refreshAttemptedAt: attemptedAt,
         error: null,

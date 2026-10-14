@@ -539,6 +539,23 @@ describe("Social account statistics", () => {
       { key: "quotes", value: 3, period: "lifetime", unit: "count" },
       { key: "bookmarks", value: 1, period: "lifetime", unit: "count" },
     ]);
+    expect(mocks.published).toHaveBeenCalledWith({
+      where: {
+        projectId,
+        workspaceId,
+        socialConnectionId: connectionId,
+        status: "PUBLISHED",
+        publishedExternalId: providerPost.externalId,
+      },
+      data: {
+        statistics: {
+          metrics: update.metrics,
+          fetchedAt: update.fetchedAt.toISOString(),
+          refreshAttemptedAt: expect.any(String),
+          error: null,
+        },
+      },
+    });
   });
   it("writes a measured zero over a stored like count", async () => {
     mocks.storedPosts.mockResolvedValue([
