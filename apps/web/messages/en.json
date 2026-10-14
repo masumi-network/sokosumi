@@ -2396,7 +2396,7 @@
           "disconnected": "{account} disconnected."
         },
         "warning": {
-          "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings."
+          "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections."
         },
         "errors": {
           "facebookPage": "Facebook needs an account that manages exactly one Page.",
