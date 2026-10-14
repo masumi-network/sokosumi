@@ -1450,6 +1450,33 @@ describe("ProjectSocialPosts", () => {
     ).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("names the missing account next to the chips when none are selected", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Hello");
+    await user.click(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    );
+
+    const accounts = within(dialog).getByRole("group", { name: "Post to" });
+    expect(accounts).toHaveAttribute("aria-invalid", "true");
+    expect(
+      within(accounts).getByTestId("social-post-pick-account"),
+    ).toHaveTextContent("Pick an account to post to.");
+    expect(
+      within(dialog).getByRole("button", { name: "Post now" }),
+    ).toBeDisabled();
+  });
+
   it("counts the text against each picked platform's own limit", async () => {
     const user = userEvent.setup();
     render(
