@@ -3378,6 +3378,78 @@
           "failed": "No se pudo crear la campaña"
         }
       },
+      "campaignDetails": {
+        "back": "Volver a las campañas",
+        "title": "Campaña",
+        "types": {
+          "SEARCH": "Búsqueda",
+          "DISPLAY": "Display",
+          "OTHER": "Otro"
+        },
+        "perDay": "{amount} al día",
+        "dates": {
+          "range": "{start} – {end}",
+          "from": "Desde {start}, sin fecha de finalización",
+          "until": "Hasta {end}"
+        },
+        "noEndDate": "Sin fecha de finalización",
+        "sections": {
+          "performance": "Rendimiento",
+          "settings": "Ajustes",
+          "targeting": "Segmentación",
+          "keywords": "Palabras clave",
+          "ad": "Anuncio",
+          "sitelinks": "Enlaces de sitio",
+          "callouts": "Textos destacados"
+        },
+        "performance": {
+          "chartMetric": "Métrica del gráfico",
+          "chartLabel": "{metric} por día",
+          "empty": "Sin actividad en este período",
+          "tableCaption": "Rendimiento diario",
+          "date": "Fecha"
+        },
+        "settings": {
+          "type": "Tipo",
+          "bidding": "Puja"
+        },
+        "bidding": {
+          "TARGET_SPEND": "Maximizar clics"
+        },
+        "matchTypes": {
+          "BROAD": "Concordancia amplia",
+          "PHRASE": "Concordancia de frase",
+          "EXACT": "Concordancia exacta"
+        },
+        "approval": {
+          "APPROVED": "Aprobado",
+          "APPROVED_LIMITED": "Aprobado (limitado)",
+          "DISAPPROVED": "Rechazado",
+          "PENDING_REVIEW": "Revisión pendiente",
+          "UNDER_REVIEW": "En revisión"
+        },
+        "ad": {
+          "displayUrl": "URL visible",
+          "review": {
+            "REVIEW_IN_PROGRESS": "Revisión en curso",
+            "UNDER_APPEAL": "En apelación"
+          },
+          "strength": "Eficacia del anuncio: {strength}",
+          "strengths": {
+            "PENDING": "Pendiente",
+            "NO_ADS": "Sin anuncios",
+            "POOR": "Baja",
+            "AVERAGE": "Media",
+            "GOOD": "Buena",
+            "EXCELLENT": "Excelente"
+          },
+          "imageAlt": "Imagen {number} ({role})"
+        },
+        "notEditable": "Esta campaña tiene varios grupos de anuncios o anuncios, o un tipo que Sokosumi no crea; gestiona los detalles en Google Ads.",
+        "errors": {
+          "failed": "No se pudo cargar esta campaña"
+        }
+      },
       "market": {
         "setupTitle": "Configura tu mercado",
         "setupBody": "Añade las palabras clave que busca tu público y dónde. Así verás qué está en tendencia y qué anuncios publican tus competidores de búsqueda.",

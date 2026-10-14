@@ -53,6 +53,7 @@ const PAUSED: AdCampaign = {
 async function renderCampaigns(
   campaigns: AdCampaign[] = [ACTIVE, PAUSED],
   currency = "USD",
+  provider: "google_ads" | "meta_ads" = "google_ads",
 ) {
   render(
     await AdsCampaigns({
@@ -60,7 +61,8 @@ async function renderCampaigns(
       campaigns,
       currency,
       projectId: "project-1",
-      provider: "google_ads",
+      provider,
+      range: "7d",
     }),
   );
 }
@@ -168,6 +170,28 @@ describe("AdsCampaigns", () => {
     expect(
       within(first).getByRole("button", { name: "menu Spring sale" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("AdsCampaigns names", () => {
+  it("link a Google campaign to its details, keeping project, account and range", async () => {
+    await renderCampaigns();
+
+    expect(table().getByRole("link", { name: "Spring sale" })).toHaveAttribute(
+      "href",
+      "/ads/campaigns/1?projectId=project-1&accountId=account-1&range=7d",
+    );
+    expect(rows().getByRole("link", { name: "Winter promo" })).toHaveAttribute(
+      "href",
+      "/ads/campaigns/2?projectId=project-1&accountId=account-1&range=7d",
+    );
+  });
+
+  it("stay plain text for a Meta campaign", async () => {
+    await renderCampaigns([ACTIVE], "USD", "meta_ads");
+
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(table().getByText("Spring sale")).toBeInTheDocument();
   });
 });
 

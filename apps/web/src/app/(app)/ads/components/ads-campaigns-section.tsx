@@ -47,6 +47,7 @@ export async function AdsCampaignsSection({
         currency={currency}
         projectId={projectId}
         provider={account.provider}
+        range={range}
       />
     );
   } catch (error) {

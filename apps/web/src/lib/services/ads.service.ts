@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  AdCampaignDetails,
   AdRange,
   CreateAdCampaignRequest,
   CreateAdCampaignResponse,
@@ -90,6 +91,21 @@ export const adsService = (() => {
     const result =
       await coreClient.getProjectsByIdAdsAccountsByAccountIdCampaigns(
         { id: projectId, accountId },
+        { range },
+      );
+    return result.data;
+  }
+
+  /** One Google campaign, read-only; Core answers 404 for anything else. */
+  async function getCampaignDetails(
+    projectId: string,
+    accountId: string,
+    campaignId: string,
+    range: AdRange,
+  ): Promise<AdCampaignDetails> {
+    const result =
+      await coreClient.getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId(
+        { id: projectId, accountId, campaignId },
         { range },
       );
     return result.data;
@@ -199,6 +215,7 @@ export const adsService = (() => {
     disconnectAccount,
     discardConnection,
     listCampaigns,
+    getCampaignDetails,
     updateCampaign,
     createCampaign,
     getMarketProfile,

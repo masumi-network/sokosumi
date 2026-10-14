@@ -153,6 +153,7 @@ export const updateAdCampaign = adsAction(
       ...(dailyBudget !== undefined ? { dailyBudget } : {}),
     });
     revalidatePath("/ads");
+    revalidatePath(`/ads/campaigns/${campaignId}`);
   },
 );
 

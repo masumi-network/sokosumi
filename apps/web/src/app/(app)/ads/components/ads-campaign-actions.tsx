@@ -51,7 +51,8 @@ type CampaignDialog = "pause" | "resume" | "budget";
 
 interface AdsCampaignActionsProps {
   accountId: string;
-  campaign: AdCampaign;
+  /** What the menu and its dialogs read, so the details page can pass its own. */
+  campaign: Pick<AdCampaign, "id" | "name" | "status" | "dailyBudget">;
   currency: string;
   projectId: string;
   provider: ProjectAdProvider;

@@ -2,8 +2,10 @@ import type { ProjectAdAccount } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
 import {
+  campaignDetailsHref,
   campaignsHref,
   loadAdsSearchParams,
+  loadCampaignDetailsSearchParams,
   loadNewCampaignSearchParams,
   selectAccount,
 } from "./ads-query";
@@ -71,5 +73,38 @@ describe("campaignsHref", () => {
     expect(campaignsHref("p1", "a2")).toBe(
       "/ads?projectId=p1&tab=campaigns&account=a2",
     );
+  });
+});
+
+describe("campaignsHref with a range", () => {
+  it("keeps the range the reader was looking at", () => {
+    expect(campaignsHref("p1", "a2", "7d")).toBe(
+      "/ads?projectId=p1&tab=campaigns&account=a2&range=7d",
+    );
+  });
+});
+
+describe("campaignDetailsHref", () => {
+  it("names the project, account and range", () => {
+    expect(campaignDetailsHref("p1", "a2", "42", "7d")).toBe(
+      "/ads/campaigns/42?projectId=p1&accountId=a2&range=7d",
+    );
+  });
+});
+
+describe("loadCampaignDetailsSearchParams", () => {
+  it("reads the project, account and range, defaulting to 30 days", () => {
+    expect(
+      loadCampaignDetailsSearchParams({
+        projectId: "p1",
+        accountId: "a2",
+        range: "7d",
+      }),
+    ).toEqual({ projectId: "p1", accountId: "a2", range: "7d" });
+    expect(loadCampaignDetailsSearchParams({ range: "90d" })).toEqual({
+      projectId: null,
+      accountId: null,
+      range: "30d",
+    });
   });
 });

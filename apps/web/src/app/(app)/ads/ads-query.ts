@@ -33,13 +33,43 @@ export function selectAccount(
   return accounts.find(({ id }) => id === accountId) ?? accounts[0];
 }
 
-/** The Campaigns tab of one account, where the create page leads back to. */
-export function campaignsHref(projectId: string, accountId: string): string {
-  return `/ads?${new URLSearchParams({ projectId, tab: "campaigns", account: accountId })}`;
+/**
+ * The Campaigns tab of one account, where the create and details pages lead
+ * back to. A `range` is kept when given.
+ */
+export function campaignsHref(
+  projectId: string,
+  accountId: string,
+  range?: RangeParam,
+): string {
+  const params = new URLSearchParams({
+    projectId,
+    tab: "campaigns",
+    account: accountId,
+    ...(range ? { range } : {}),
+  });
+  return `/ads?${params}`;
+}
+
+/** One Google campaign's details page, over the range the list showed. */
+export function campaignDetailsHref(
+  projectId: string,
+  accountId: string,
+  campaignId: string,
+  range: RangeParam,
+): string {
+  return `/ads/campaigns/${encodeURIComponent(campaignId)}?${new URLSearchParams({ projectId, accountId, range })}`;
 }
 
 /** The create page's URL state: the project and the account to create in. */
 export const loadNewCampaignSearchParams = createLoader({
   projectId: parseAsString,
   accountId: parseAsString,
+});
+
+/** The details page's URL state: the project, the account and the range. */
+export const loadCampaignDetailsSearchParams = createLoader({
+  projectId: parseAsString,
+  accountId: parseAsString,
+  range: adsSearchParams.range,
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   appendBroadKeywords,
+  formatGoogleKeyword,
   GOOGLE_KEYWORD_LIMIT,
   parseGoogleKeywords,
 } from "./google-keywords";
@@ -137,5 +138,20 @@ describe("appendBroadKeywords", () => {
     expect(parseGoogleKeywords(result.text).keywords).toHaveLength(
       GOOGLE_KEYWORD_LIMIT,
     );
+  });
+});
+
+describe("formatGoogleKeyword", () => {
+  it.each([
+    ["BROAD", "running shoes"],
+    ["PHRASE", '"running shoes"'],
+    ["EXACT", "[running shoes]"],
+  ] as const)("writes %s as %s", (matchType, line) => {
+    const formatted = formatGoogleKeyword({ text: "running shoes", matchType });
+
+    expect(formatted).toBe(line);
+    expect(parseGoogleKeywords(formatted).keywords).toEqual([
+      { text: "running shoes", matchType },
+    ]);
   });
 });

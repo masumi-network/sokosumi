@@ -76,6 +76,15 @@ export function parseGoogleKeywords(input: string): ParsedKeywords {
   return { keywords, invalid };
 }
 
+/** A keyword in Google's syntax: `shoes`, `"shoes"` or `[shoes]`. */
+export function formatGoogleKeyword({
+  text,
+  matchType,
+}: GoogleKeyword): string {
+  if (matchType === "PHRASE") return `"${text}"`;
+  return matchType === "EXACT" ? `[${text}]` : text;
+}
+
 /**
  * Appends keywords as broad lines to the textarea's text, skipping any whose
  * text is already there (in any match type) and anything past the limit or

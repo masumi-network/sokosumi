@@ -51,6 +51,7 @@ import type {
   GetImageStudioStateData,
   GetJobsData,
   GetNotificationsData,
+  GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
   GetProjectsByIdAdsAccountsByAccountIdCampaignsData,
   GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesData,
   GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData,
@@ -288,6 +289,7 @@ import {
   getProjectsById as coreGetProjectsById,
   getProjectsByIdAdsAccounts as coreGetProjectsByIdAdsAccounts,
   getProjectsByIdAdsAccountsByAccountIdCampaigns as coreGetProjectsByIdAdsAccountsByAccountIdCampaigns,
+  getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId as coreGetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
   getProjectsByIdAdsAccountsByAccountIdTargetingLanguages as coreGetProjectsByIdAdsAccountsByAccountIdTargetingLanguages,
   getProjectsByIdAdsAccountsByAccountIdTargetingLocations as coreGetProjectsByIdAdsAccountsByAccountIdTargetingLocations,
   getProjectsByIdAdsMarket as coreGetProjectsByIdAdsMarket,
@@ -3694,6 +3696,23 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId(
+    path: GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["path"],
+    query: GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId({
+          client,
+          path,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch ad campaign details",
+    );
+  }
+
   async function getProjectsByIdAdsAccountsByAccountIdTargetingLocations(
     path: GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData["path"],
     query: GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData["query"],
@@ -6457,6 +6476,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdNeedsAttention,
     getProjectsByIdAdsAccounts,
     getProjectsByIdAdsAccountsByAccountIdCampaigns,
+    getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
     getProjectsByIdAdsAccountsByAccountIdTargetingLocations,
     getProjectsByIdAdsAccountsByAccountIdTargetingLanguages,
     getProjectsByIdAdsMarket,

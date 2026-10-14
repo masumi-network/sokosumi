@@ -3378,6 +3378,78 @@
           "failed": "Failed to create campaign"
         }
       },
+      "campaignDetails": {
+        "back": "Back to campaigns",
+        "title": "Campaign",
+        "types": {
+          "SEARCH": "Search",
+          "DISPLAY": "Display",
+          "OTHER": "Other"
+        },
+        "perDay": "{amount} a day",
+        "dates": {
+          "range": "{start} – {end}",
+          "from": "From {start}, no end date",
+          "until": "Until {end}"
+        },
+        "noEndDate": "No end date",
+        "sections": {
+          "performance": "Performance",
+          "settings": "Settings",
+          "targeting": "Targeting",
+          "keywords": "Keywords",
+          "ad": "Ad",
+          "sitelinks": "Sitelinks",
+          "callouts": "Callouts"
+        },
+        "performance": {
+          "chartMetric": "Chart metric",
+          "chartLabel": "{metric} per day",
+          "empty": "No activity in this period",
+          "tableCaption": "Daily performance",
+          "date": "Date"
+        },
+        "settings": {
+          "type": "Type",
+          "bidding": "Bidding"
+        },
+        "bidding": {
+          "TARGET_SPEND": "Maximize clicks"
+        },
+        "matchTypes": {
+          "BROAD": "Broad match",
+          "PHRASE": "Phrase match",
+          "EXACT": "Exact match"
+        },
+        "approval": {
+          "APPROVED": "Approved",
+          "APPROVED_LIMITED": "Approved (limited)",
+          "DISAPPROVED": "Disapproved",
+          "PENDING_REVIEW": "Pending review",
+          "UNDER_REVIEW": "Under review"
+        },
+        "ad": {
+          "displayUrl": "Display URL",
+          "review": {
+            "REVIEW_IN_PROGRESS": "Review in progress",
+            "UNDER_APPEAL": "Under appeal"
+          },
+          "strength": "Ad strength: {strength}",
+          "strengths": {
+            "PENDING": "Pending",
+            "NO_ADS": "No ads",
+            "POOR": "Poor",
+            "AVERAGE": "Average",
+            "GOOD": "Good",
+            "EXCELLENT": "Excellent"
+          },
+          "imageAlt": "{role} image {number}"
+        },
+        "notEditable": "This campaign has several ad groups or ads, or a type Sokosumi doesn't build; manage the details in Google Ads.",
+        "errors": {
+          "failed": "Failed to load this campaign"
+        }
+      },
       "market": {
         "setupTitle": "Set up your market",
         "setupBody": "Add the keywords your customers search for and where. Then you see what is trending and which ads your search competitors are running.",

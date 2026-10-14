@@ -7,6 +7,7 @@ const coreClientMock = {
   deleteProjectsByIdAdsConnectionsByAdConnectionId: vi.fn(),
   getProjectsByIdAdsAccounts: vi.fn(),
   getProjectsByIdAdsAccountsByAccountIdCampaigns: vi.fn(),
+  getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId: vi.fn(),
   getProjectsByIdAdsAccountsByAccountIdTargetingLanguages: vi.fn(),
   getProjectsByIdAdsAccountsByAccountIdTargetingLocations: vi.fn(),
   getProjectsByIdAdsMarket: vi.fn(),
@@ -173,6 +174,30 @@ describe("adsService", () => {
     ).toHaveBeenCalledWith(
       { id: "project-1", accountId: "account-1" },
       { range: "LAST_7_DAYS" },
+    );
+  });
+
+  it("reads one campaign's details over a range", async () => {
+    const body = { campaign: { id: "42" } };
+    coreClientMock.getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId.mockResolvedValue(
+      { data: body },
+    );
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.getCampaignDetails(
+        "project-1",
+        "account-1",
+        "42",
+        "LAST_30_DAYS",
+      ),
+    ).resolves.toEqual(body);
+    expect(
+      coreClientMock.getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+    ).toHaveBeenCalledWith(
+      { id: "project-1", accountId: "account-1", campaignId: "42" },
+      { range: "LAST_30_DAYS" },
     );
   });
 

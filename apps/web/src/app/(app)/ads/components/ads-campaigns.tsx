@@ -1,6 +1,8 @@
 import type { AdCampaign, ProjectAdProvider } from "@sokosumi/core-client";
+import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 
+import { campaignDetailsHref, type RangeParam } from "@/app/ads/ads-query";
 import { EmptyState } from "@/components/common/empty-state";
 import {
   Table,
@@ -13,9 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { AdsCampaignActions } from "./ads-campaign-actions";
-
-/** What a metric shows when the provider has no value for it. */
-const NO_VALUE = "—";
+import { adsFormat } from "./ads-format";
 
 const NUMERIC_COLUMNS = [
   "dailyBudget",
@@ -67,6 +67,7 @@ interface AdsCampaignsProps {
   currency: string;
   projectId: string;
   provider: ProjectAdProvider;
+  range: RangeParam;
 }
 
 /**
@@ -79,6 +80,7 @@ export async function AdsCampaigns({
   currency,
   projectId,
   provider,
+  range,
 }: AdsCampaignsProps) {
   const t = await getTranslations("App.Ads.campaigns");
   const tObjectives = await getTranslations("App.Ads.newCampaign.objectives");
@@ -93,20 +95,7 @@ export async function AdsCampaigns({
     );
   }
 
-  const money = (value: number | null) =>
-    value === null
-      ? NO_VALUE
-      : formatter.number(value, { style: "currency", currency });
-  const count = (value: number | null) =>
-    // Conversions can be fractional (Google attributes shares of one).
-    value === null
-      ? NO_VALUE
-      : formatter.number(value, { maximumFractionDigits: 1 });
-  // CTR is clicks / impressions as a fraction.
-  const percent = (value: number | null) =>
-    value === null
-      ? NO_VALUE
-      : formatter.number(value, { style: "percent", maximumFractionDigits: 2 });
+  const { money, count, percent } = adsFormat(formatter, currency);
 
   const cells: Record<
     (typeof NUMERIC_COLUMNS)[number],
@@ -140,6 +129,19 @@ export async function AdsCampaigns({
       </span>
     </span>
   );
+
+  /** Google campaigns open their details; Meta has none yet. */
+  const name = ({ id, name }: AdCampaign) =>
+    provider === "google_ads" ? (
+      <Link
+        className="underline-offset-4 hover:underline"
+        href={campaignDetailsHref(projectId, accountId, id, range)}
+      >
+        {name}
+      </Link>
+    ) : (
+      name
+    );
 
   const actions = (campaign: AdCampaign) => (
     <AdsCampaignActions
@@ -183,7 +185,7 @@ export async function AdsCampaigns({
             {campaigns.map((campaign) => (
               <TableRow key={campaign.id}>
                 <TableCell className="max-w-64">
-                  <p className="truncate font-medium">{campaign.name}</p>
+                  <p className="truncate font-medium">{name(campaign)}</p>
                   {campaign.objective ? (
                     <p className="text-muted-foreground truncate text-xs">
                       {formatObjective(campaign.objective, tObjectives)}
@@ -219,7 +221,7 @@ export async function AdsCampaigns({
           <li key={campaign.id} className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-3">
-                <p className="truncate text-sm font-medium">{campaign.name}</p>
+                <p className="truncate text-sm font-medium">{name(campaign)}</p>
                 {status(campaign)}
               </div>
               <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">

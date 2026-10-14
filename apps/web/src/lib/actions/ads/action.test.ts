@@ -365,6 +365,7 @@ describe("ads actions", () => {
       );
       expect(result).toEqual({ ok: true, value: undefined });
       expect(revalidatePath).toHaveBeenCalledWith("/ads");
+      expect(revalidatePath).toHaveBeenCalledWith("/ads/campaigns/42");
     });
 
     it("changes the daily budget", async () => {
