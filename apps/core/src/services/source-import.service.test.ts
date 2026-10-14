@@ -328,46 +328,74 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
     );
   });
 
-  it("rethrows Prisma serialization conflicts from upsert without capturing them", async () => {
-    const conflict = Object.assign(
-      new Error(
-        "Invalid `prisma.taskFile.upsert()` invocation — Transaction failed due to a write conflict or a deadlock. Please retry your transaction",
+  // The catch wraps findFirst and upsert. A P2034-only check would still
+  // pass the Prisma-code cases and swallow Neon DriverAdapterError.
+  const transactionConflicts = [
+    {
+      name: "Prisma P2034",
+      error: Object.assign(
+        new Error(
+          "Invalid `prisma.taskFile.upsert()` invocation — Transaction failed due to a write conflict or a deadlock. Please retry your transaction",
+        ),
+        { code: "P2034" },
       ),
-      { code: "P2034" },
-    );
-    mockTaskFileClient.taskFile.upsert.mockRejectedValueOnce(conflict);
-
-    await expect(
-      sourceImportService.enqueueTaskOutputsFromMarkdown(
-        "task_1",
-        [
-          "[file](https://example.com/conflict.pdf)",
-          "[other](https://example.com/other.pdf)",
-        ].join("\n"),
-        mockTaskFileClient,
+    },
+    {
+      name: "Postgres 40001",
+      error: new Error(
+        "Raw query failed. Code: `40001`. Message: `could not serialize access due to concurrent update`",
       ),
-    ).rejects.toBe(conflict);
+    },
+    {
+      name: "Neon DriverAdapterError",
+      error: Object.assign(new Error("TransactionWriteConflict"), {
+        name: "DriverAdapterError",
+      }),
+    },
+  ] as const;
 
-    expect(captureExceptionMock).not.toHaveBeenCalled();
-    expect(mockTaskFileClient.taskFile.upsert).toHaveBeenCalledTimes(1);
-  });
+  const conflictMarkdown = [
+    "[file](https://example.com/conflict.pdf)",
+    "[other](https://example.com/other.pdf)",
+  ].join("\n");
 
-  it("rethrows Postgres 40001 serialization failures from upsert without capturing them", async () => {
-    const conflict = new Error(
-      "Raw query failed. Code: `40001`. Message: `could not serialize access due to concurrent update`",
-    );
-    mockTaskFileClient.taskFile.upsert.mockRejectedValueOnce(conflict);
+  it.each(transactionConflicts)(
+    "rethrows $name from upsert without capturing them",
+    async ({ error }) => {
+      mockTaskFileClient.taskFile.upsert.mockRejectedValueOnce(error);
 
-    await expect(
-      sourceImportService.enqueueTaskOutputsFromMarkdown(
-        "task_1",
-        "[file](https://example.com/conflict.pdf)",
-        mockTaskFileClient,
-      ),
-    ).rejects.toBe(conflict);
+      await expect(
+        sourceImportService.enqueueTaskOutputsFromMarkdown(
+          "task_1",
+          conflictMarkdown,
+          mockTaskFileClient,
+        ),
+      ).rejects.toBe(error);
 
-    expect(captureExceptionMock).not.toHaveBeenCalled();
-  });
+      expect(captureExceptionMock).not.toHaveBeenCalled();
+      expect(mockTaskFileClient.taskFile.upsert).toHaveBeenCalledTimes(1);
+      expect(mockTaskFileClient.taskFile.findFirst).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(transactionConflicts)(
+    "rethrows $name from findFirst without capturing them",
+    async ({ error }) => {
+      mockTaskFileClient.taskFile.findFirst.mockRejectedValueOnce(error);
+
+      await expect(
+        sourceImportService.enqueueTaskOutputsFromMarkdown(
+          "task_1",
+          conflictMarkdown,
+          mockTaskFileClient,
+        ),
+      ).rejects.toBe(error);
+
+      expect(captureExceptionMock).not.toHaveBeenCalled();
+      expect(mockTaskFileClient.taskFile.findFirst).toHaveBeenCalledTimes(1);
+      expect(mockTaskFileClient.taskFile.upsert).not.toHaveBeenCalled();
+    },
+  );
 
   it("skips when markdown contains no file links", async () => {
     await sourceImportService.enqueueTaskOutputsFromMarkdown(
