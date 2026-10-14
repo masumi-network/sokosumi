@@ -56,6 +56,8 @@ export function PreviewAvatar({
 
 const TOKEN_PATTERN =
   /(https?:\/\/[^\s]+|www\.[^\s]+|#[\p{L}\p{N}_]+|(?<![\p{L}\p{N}_])@[\p{L}\p{N}_.]+)/gu;
+const TOKEN_PATTERN_WITH_CASHTAG =
+  /(https?:\/\/[^\s]+|www\.[^\s]+|#[\p{L}\p{N}_]+|(?<![\p{L}\p{N}_])@[\p{L}\p{N}_.]+|(?<![\p{L}\p{N}])\$[A-Za-z]{1,6}(?![A-Za-z]))/gu;
 const URL_DISPLAY_MAX = 25;
 
 /** Links show without their scheme and shortened, the way X and LinkedIn do. */
@@ -72,11 +74,16 @@ const URL_TRAILING_PUNCT = /[.,;:!?)]+$/;
 export function PreviewRichText({
   text,
   linkClassName,
+  cashtags = false,
 }: {
   text: string;
   linkClassName: string;
+  /** X colors $TICKER the way the live feed does. */
+  cashtags?: boolean;
 }) {
-  const parts = text.split(TOKEN_PATTERN);
+  const parts = text.split(
+    cashtags ? TOKEN_PATTERN_WITH_CASHTAG : TOKEN_PATTERN,
+  );
   return parts.map((part, index) => {
     // split() with one capture group puts matches at odd indexes.
     if (index % 2 === 0) {

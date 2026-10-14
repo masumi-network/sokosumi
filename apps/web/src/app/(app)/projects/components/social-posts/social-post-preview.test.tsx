@@ -97,6 +97,41 @@ describe("SocialPostPreview", () => {
     );
   });
 
+  it("highlights an X cashtag and leaves a dollar amount as text", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Buy $AAPL or save $20"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByText("$AAPL")).toHaveClass("text-social-x-link");
+    expect(screen.queryByText("$20")).not.toBeInTheDocument();
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "Buy $AAPL or save $20",
+    );
+  });
+
+  it("does not highlight a cashtag on LinkedIn", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="linkedin"
+        text="Buy $AAPL today"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.queryByText("$AAPL")).not.toBeInTheDocument();
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "Buy $AAPL today",
+    );
+  });
+
   it("does not treat an email address as a mention", () => {
     render(
       <SocialPostPreview

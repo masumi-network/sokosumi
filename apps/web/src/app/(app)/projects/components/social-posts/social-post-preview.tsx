@@ -147,7 +147,11 @@ function XPreview({
         </div>
         {text ? (
           <p className="mt-0.5 leading-5 whitespace-pre-wrap break-words">
-            <PreviewRichText text={text} linkClassName="text-social-x-link" />
+            <PreviewRichText
+              text={text}
+              linkClassName="text-social-x-link"
+              cashtags
+            />
           </p>
         ) : null}
         <PreviewMediaGrid media={media} className="mt-3 rounded-2xl border" />
