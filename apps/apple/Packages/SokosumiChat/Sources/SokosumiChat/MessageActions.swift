@@ -43,17 +43,32 @@ public struct MessageActions: Equatable, Sendable {
     self == MessageActions()
   }
 
-  /// Web's hover pill order (a Soko Bot turn's thumbs, then React, Edit, Quote, Thread), then its ⋯ overflow
-  /// order (Pin, Copy link, Send to yourself), then Delete on its own: the Mac puts the destructive action
-  /// last. A text selection in the message puts Copy first, as in any Mac text menu.
+  /// The hover pill's buttons after a Soko Bot turn's thumbs, in web's order: React, Edit, Quote, Thread (`reply`).
+  /// Web's pill never puts Edit in ⋯ More.
+  public var toolbar: [MessageMenuAction] {
+    [canReact ? .addReaction : nil, canEdit ? .edit : nil, canQuote ? .quote : nil, canReply ? .reply : nil]
+      .compactMap(\.self)
+  }
+
+  /// Web's ⋯ More menu in its order (Pin or Unpin, Copy link, Send to yourself), then Delete on its own: the Mac puts
+  /// the destructive action last and sets it apart.
+  public func overflowSections(isPinned: Bool) -> [[MessageMenuAction]] {
+    let rest: [MessageMenuAction?] = [canPin ? (isPinned ? .unpin : .pin) : nil, canCopyLink ? .copyLink : nil,
+                                      canSendToSelf ? .sendToSelf : nil]
+    return [rest.compactMap(\.self), canDelete ? [.delete] : []].filter { !$0.isEmpty }
+  }
+
+  /// Whether the pill carries ⋯ More. Edit is a pill button, not an overflow entry, so it does not count.
+  public var offersOverflow: Bool {
+    canPin || canCopyLink || canSendToSelf || canDelete
+  }
+
+  /// Web's hover pill order (a Soko Bot turn's thumbs, then `toolbar`), then its ⋯ overflow order, then Delete on
+  /// its own. A text selection in the message puts Copy first, as in any Mac text menu.
   public func menuSections(hasSelection: Bool, isPinned: Bool) -> [[MessageMenuAction]] {
     let thumbs: [MessageMenuAction] = offersFeedback ? [.useful, .notUseful] : []
-    let toolbar: [MessageMenuAction?] = [canReact ? .addReaction : nil, canEdit ? .edit : nil,
-                                         canQuote ? .quote : nil, canReply ? .reply : nil]
-    let overflow: [MessageMenuAction?] = [canPin ? (isPinned ? .unpin : .pin) : nil,
-                                          canCopyLink ? .copyLink : nil, canSendToSelf ? .sendToSelf : nil]
-    return [hasSelection ? [.copySelection] : [], thumbs, toolbar.compactMap(\.self), overflow.compactMap(\.self),
-            canDelete ? [.delete] : []].filter { !$0.isEmpty }
+    return ([hasSelection ? [.copySelection] : [], thumbs, toolbar] + overflowSections(isPinned: isPinned))
+      .filter { !$0.isEmpty }
   }
 }
 

@@ -121,7 +121,7 @@ import SwiftUI
     @FocusState private var focusedAction: MessageAction?
 
     private enum MessageAction: Hashable {
-      case quote, reply, more, react
+      case edit, quote, reply, more, react
       case quickReaction(Int)
       case feedback(useful: Bool)
     }
@@ -477,20 +477,11 @@ import SwiftUI
           sokoBotFeedbackButton(sokoBotFeedback, useful: true)
           sokoBotFeedbackButton(sokoBotFeedback, useful: false)
         }
-        if row.actions.canReact {
-          ForEach(Array(quickReactions.enumerated()), id: \.element.id) { index, emoji in
-            quickReactionButton(emoji, position: index)
-          }
-          messageAction("React", symbol: "face.smiling", focus: .react, compact: compact) { showsReactionPicker = true }
+        // Web's pill order: React, Edit, Quote, Thread, then ⋯ More (`MessageActions.toolbar`).
+        ForEach(row.actions.toolbar, id: \.self) { action in
+          toolbarButton(action, compact: compact)
         }
-        if row.actions.canReply {
-          messageAction("Reply", symbol: "text.bubble", focus: .reply, compact: compact) { _ = perform?(.reply) }
-        }
-        if row.actions.canQuote {
-          messageAction("Quote", symbol: "quote.opening", focus: .quote, compact: compact) { _ = perform?(.quote) }
-        }
-        let actions = row.actions
-        if actions.canEdit || actions.canDelete || actions.canPin || actions.canCopyLink || actions.canSendToSelf {
+        if row.actions.offersOverflow {
           moreActions
         }
       }
@@ -499,24 +490,18 @@ import SwiftUI
 
     private var moreActions: some View {
       Menu {
-        if row.actions.canPin {
-          pinButton
-        }
-        if row.actions.canCopyLink {
-          copyLinkButton
-        }
-        if row.actions.canSendToSelf {
-          sendToSelfButton
-        }
-
-        if row.actions.canEdit {
-          Button("Edit message", systemImage: "pencil") { _ = perform?(.edit) }
-        }
-        if row.actions.canEdit, row.actions.canDelete {
-          Divider()
-        }
-        if row.actions.canDelete {
-          Button("Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
+        // The Mac keeps a divider before Delete, as the context menu does.
+        let sections = row.actions.overflowSections(isPinned: isPinned)
+        ForEach(sections, id: \.self) { section in
+          if section != sections.first {
+            Divider()
+          }
+          ForEach(section, id: \.self) { action in
+            Button(action.title, systemImage: action.systemImage, role: action == .delete ? .destructive : nil) {
+              performMenuAction(action)
+            }
+            .disabled(menuBusy.contains(action))
+          }
         }
       } label: {
         Image(systemName: "ellipsis")
@@ -532,9 +517,28 @@ import SwiftUI
       .contentShape(.rect)
       .onHover { hoveredAction = $0 ? .more : nil }
       .focused($focusedAction, equals: .more)
-      .disabled(isDeleting)
       .help(isDeleting ? "Deleting message…" : "More message actions")
       .accessibilityLabel("More message actions")
+    }
+
+    @ViewBuilder
+    private func toolbarButton(_ action: MessageMenuAction, compact: Bool) -> some View {
+      switch action {
+      case .addReaction:
+        ForEach(Array(quickReactions.enumerated()), id: \.element.id) { index, emoji in
+          quickReactionButton(emoji, position: index)
+        }
+        messageAction("React", symbol: "face.smiling", focus: .react, compact: compact) { showsReactionPicker = true }
+      // The pill keeps its short labels; the menus spell the action out.
+      case .edit:
+        messageAction("Edit", symbol: "pencil", focus: .edit, compact: compact) { performMenuAction(action) }
+      case .quote:
+        messageAction("Quote", symbol: "quote.opening", focus: .quote, compact: compact) { performMenuAction(action) }
+      case .reply:
+        messageAction("Reply", symbol: "text.bubble", focus: .reply, compact: compact) { performMenuAction(action) }
+      default:
+        EmptyView()
+      }
     }
 
     private func quickReactionButton(_ emoji: ReactionEmoji, position: Int) -> some View {
@@ -603,20 +607,11 @@ import SwiftUI
       outbound?.status == .pending ? outbound?.createdAt : nil
     }
 
-    private var copyLinkButton: some View {
-      Button("Copy link", systemImage: "link", action: copyMessageLink)
-    }
-
     private func copyMessageLink() {
       guard let url = ChatLink.href(roomId: message.roomId, messageId: message.id, webBaseURL: CoreSettings.webBaseURL) else {
         return
       }
       PlatformPasteboard.copy(url.absoluteString)
-    }
-
-    private var sendToSelfButton: some View {
-      Button("Send to yourself", systemImage: "paperplane", action: sendToSelf)
-        .disabled(isSendingToSelf)
     }
 
     private func sendToSelf() {
@@ -644,11 +639,6 @@ import SwiftUI
         return perform.map { perform in { _ = perform(.jumpToQuote($0)) } }
       }
       return { _ in openURL(url) }
-    }
-
-    private var pinButton: some View {
-      Button(isPinned ? "Unpin message" : "Pin message", systemImage: isPinned ? "pin.slash" : "pin", action: togglePin)
-        .disabled(isUpdatingPin)
     }
 
     private func togglePin() {
