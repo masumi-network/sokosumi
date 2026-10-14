@@ -491,8 +491,9 @@ import SwiftUI
     private var moreActions: some View {
       Menu {
         // The Mac keeps a divider before Delete, as the context menu does.
-        ForEach(Array(row.actions.overflowSections(isPinned: isPinned).enumerated()), id: \.offset) { index, section in
-          if index > 0 {
+        let sections = row.actions.overflowSections(isPinned: isPinned)
+        ForEach(sections, id: \.self) { section in
+          if section != sections.first {
             Divider()
           }
           ForEach(section, id: \.self) { action in
