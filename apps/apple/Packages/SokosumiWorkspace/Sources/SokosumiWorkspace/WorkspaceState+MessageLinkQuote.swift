@@ -1,6 +1,5 @@
 import CoreAPI
 import Foundation
-import SokosumiAuth
 import SokosumiChat
 
 public extension WorkspaceState {

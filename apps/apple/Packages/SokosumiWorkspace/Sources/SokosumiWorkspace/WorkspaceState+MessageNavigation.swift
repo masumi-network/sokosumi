@@ -1,6 +1,5 @@
 import CoreAPI
 import Foundation
-import SokosumiAuth
 import SokosumiChat
 
 /// Distinguishes a missing target from a jump the reader already replaced.

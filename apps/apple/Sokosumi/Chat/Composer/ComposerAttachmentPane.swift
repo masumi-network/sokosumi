@@ -1,5 +1,4 @@
 #if os(macOS)
-  import SokosumiAuth
   import SokosumiChat
   import SokosumiWorkspace
   import SwiftUI

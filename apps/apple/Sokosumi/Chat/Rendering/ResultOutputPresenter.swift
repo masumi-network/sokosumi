@@ -1,6 +1,5 @@
 import AppKit
 import Quartz
-import SokosumiAuth
 import SokosumiChat
 import SokosumiWorkspace
 import SwiftUI
