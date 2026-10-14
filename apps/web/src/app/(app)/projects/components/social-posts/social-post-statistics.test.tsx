@@ -276,6 +276,17 @@ describe("SocialPostStatistics account history", () => {
       screen.queryByRole("heading", { name: "Performance over time" }),
     ).not.toBeInTheDocument();
   });
+  it("uses the shared empty state when no imported posts match", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ ...page(), posts: [] }),
+    });
+    renderStatistics();
+    expect(
+      await screen.findByText(en.App.Projects.SocialPosts.statistics.empty),
+    ).toBeVisible();
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+  });
   it("filters cached posts by account, platform and UTC dates while retaining the account overview", async () => {
     renderStatistics(
       `?statisticsProvider=x&statisticsAccount=${account.id}&publishedFrom=2026-10-01&publishedUntil=2026-10-01`,

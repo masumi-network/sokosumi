@@ -1,11 +1,12 @@
 "use client";
 
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, MoreVertical } from "lucide-react";
+import { BarChart2, Download, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useRef, useState } from "react";
+import { EmptyState } from "@/components/common/empty-state";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import { Button } from "@/components/ui/button";
@@ -649,9 +650,7 @@ export function SocialPostStatistics(
             !query.isError &&
             validRange &&
             posts.length === 0 ? (
-              <p className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
-                {t("empty")}
-              </p>
+              <EmptyState description={t("empty")} icon={BarChart2} />
             ) : null}
             <ul className="space-y-3">
               {posts.map((post) => (
