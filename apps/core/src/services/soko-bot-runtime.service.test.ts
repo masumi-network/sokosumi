@@ -84,6 +84,7 @@ const {
   chatMessageCountMock,
   chatMessageFindFirstMock,
   memberFindManyMock,
+  memberFindFirstMock,
   toolCallCountMock,
   createOrGetDirectRoomMock,
   mentionFindManyMock,
@@ -198,6 +199,7 @@ const {
   chatMessageCountMock: vi.fn(),
   chatMessageFindFirstMock: vi.fn(),
   memberFindManyMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   toolCallCountMock: vi.fn(),
   createOrGetDirectRoomMock: vi.fn(),
   mentionFindManyMock: vi.fn(),
@@ -374,6 +376,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: decisionFindFirstMock,
       update: decisionUpdateMock,
       updateMany: decisionUpdateManyMock,
+      findUniqueOrThrow: vi.fn(async () => ({ status: "REJECTED" })),
     },
     sokoBotTurn: {
       findUnique: turnFindUniqueMock,
@@ -406,7 +409,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: workspaceFindFirstMock,
       findUnique: workspaceFindUniqueMock,
     },
-    member: { findMany: memberFindManyMock },
+    member: { findFirst: memberFindFirstMock, findMany: memberFindManyMock },
   },
 }));
 vi.mock("@/services/soko-bot-integration-list.service", () => ({
@@ -638,6 +641,7 @@ function hireDecision(status: "PENDING" | "PROCESSING" = "PENDING") {
     },
     status,
     expiresAt: new Date(Date.now() + 60_000),
+    sokoBot: { userId: SCOPE.userId, workspaceId: SCOPE.workspaceId },
     turn: {
       capabilityNames: ["hire_agent"],
       eveSessionId: SCOPE.sessionId,
@@ -3935,6 +3939,120 @@ describe("SokoBotRuntimeService hire decisions", () => {
       expect(transactionBotFindFirstMock).toHaveBeenLastCalledWith(
         expect.objectContaining({ where: TURN_BOT_WHERE }),
       );
+    });
+  });
+  describe("who may answer a shared bot's decision", () => {
+    const ROLES: Record<string, string> = {
+      [SCOPE.userId]: "member",
+      other_member: "member",
+      admin_1: "admin",
+      owner_1: "owner",
+    };
+    const sharedDecision = (source: string) => ({
+      ...hireDecision(),
+      sokoBot: { userId: null, workspaceId: SCOPE.workspaceId },
+      turn: { ...hireDecision().turn, source },
+    });
+    const resolveAs = (userId: string) =>
+      new SokoBotRuntimeService().resolveDecision(userId, DECISION_ID, true);
+
+    beforeEach(() => {
+      botFindFirstMock.mockResolvedValue(botRow({ userId: null }));
+      transactionBotFindFirstMock.mockResolvedValue(botRow({ userId: null }));
+      memberFindFirstMock.mockImplementation(
+        async (args: { where: { userId: string } }) => {
+          const role = ROLES[args.where.userId];
+          return role ? { role } : null;
+        },
+      );
+    });
+
+    it.each([
+      ["the asking member", SCOPE.userId],
+      ["an admin", "admin_1"],
+      ["an owner", "owner_1"],
+    ])(
+      "lets %s accept a chat decision, run for the asking member",
+      async (_label, resolver) => {
+        decisionFindFirstMock.mockResolvedValue(sharedDecision("CHAT"));
+        await expect(resolveAs(resolver)).resolves.toMatchObject({
+          status: "ACCEPTED",
+        });
+        expect(createAgentJobForUserMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            owner: expect.objectContaining({ ownerId: SCOPE.userId }),
+          }),
+        );
+        expect(decisionUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ resolvedByUserId: resolver }),
+          }),
+        );
+        expect(decisionUpdateMock).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              status: "ACCEPTED",
+              resolvedByUserId: resolver,
+            }),
+          }),
+        );
+      },
+    );
+
+    it("records an admin who rejects a member's decision", async () => {
+      decisionFindFirstMock.mockResolvedValue(sharedDecision("CHAT"));
+      decisionUpdateManyMock.mockResolvedValueOnce({ count: 1 });
+      await expect(
+        new SokoBotRuntimeService().resolveDecision(
+          "admin_1",
+          DECISION_ID,
+          false,
+        ),
+      ).resolves.toMatchObject({ status: "REJECTED" });
+      expect(decisionUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: DECISION_ID, status: "PENDING" },
+        data: expect.objectContaining({
+          status: "REJECTED",
+          resolvedByUserId: "admin_1",
+        }),
+      });
+    });
+
+    it("refuses another member a chat decision", async () => {
+      decisionFindFirstMock.mockResolvedValue(sharedDecision("CHAT"));
+      await expect(resolveAs("other_member")).rejects.toThrow(
+        "Only the member who asked",
+      );
+      expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+      expect(decisionUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("hides a shared decision from a non-member", async () => {
+      decisionFindFirstMock.mockResolvedValue(sharedDecision("CHAT"));
+      await expect(resolveAs("outsider")).rejects.toThrow(
+        "Pending decision not found",
+      );
+      expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+    });
+
+    it.each(["SCHEDULE", "EVENT", "INGEST", "ADMIN_RETRY"])(
+      "keeps a self-started %s decision for an owner or admin",
+      async (source) => {
+        decisionFindFirstMock.mockResolvedValue(sharedDecision(source));
+        await expect(resolveAs(SCOPE.userId)).rejects.toThrow("started itself");
+        expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+        await expect(resolveAs("admin_1")).resolves.toMatchObject({
+          status: "ACCEPTED",
+        });
+      },
+    );
+
+    it("never looks up a personal decision by role", async () => {
+      decisionFindFirstMock.mockResolvedValue(hireDecision());
+      await expect(resolveAs("admin_1")).rejects.toThrow(
+        "Pending decision not found",
+      );
+      expect(memberFindFirstMock).not.toHaveBeenCalled();
     });
   });
 });

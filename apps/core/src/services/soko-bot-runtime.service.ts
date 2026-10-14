@@ -96,6 +96,7 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { jsonInput } from "@/helpers/prisma-json";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
+import { findResolvableSokoBotDecision } from "@/helpers/soko-bot-management";
 import {
   loadSokoBotPersona,
   SOKO_BOT_OWNER_NAME_SELECT,
@@ -5149,22 +5150,21 @@ export class SokoBotRuntimeService {
   }
 
   async resolveDecision(
-    userId: string,
+    resolverUserId: string,
     decisionId: string,
     accepted: boolean,
     ownerConfirmed = true,
     confirmationTurnId?: string,
   ) {
-    const decision = await prisma.sokoBotPendingDecision.findFirst({
-      where: {
-        id: decisionId,
-        userId,
-        status: accepted ? { in: ["PENDING", "PROCESSING"] } : "PENDING",
-      },
-      include: { turn: true },
-    });
+    const decision = await findResolvableSokoBotDecision(
+      resolverUserId,
+      decisionId,
+      accepted,
+      ownerConfirmed,
+    );
     if (!decision)
       throw new SokoBotRuntimeValidationError("Pending decision not found");
+    const userId = decision.userId; // The member who asked, whoever answers.
     if (
       decision.status === "PENDING" &&
       decision.expiresAt.getTime() <= Date.now()
@@ -5200,7 +5200,7 @@ export class SokoBotRuntimeService {
         data: {
           status: "REJECTED",
           resolvedAt: new Date(),
-          resolvedByUserId: userId,
+          resolvedByUserId: resolverUserId,
         },
       });
       if (rejected.count === 0) {
@@ -5374,7 +5374,7 @@ export class SokoBotRuntimeService {
             data: {
               status: "ACCEPTED",
               resolvedAt: new Date(),
-              resolvedByUserId: userId,
+              resolvedByUserId: resolverUserId,
               resultingEntityId: recoveredEntityId,
             },
           }),
@@ -5417,7 +5417,7 @@ export class SokoBotRuntimeService {
     if (!resumeProcessing) {
       const claimed = await prisma.sokoBotPendingDecision.updateMany({
         where: { id: decision.id, status: "PENDING" },
-        data: { status: "PROCESSING", resolvedByUserId: userId },
+        data: { status: "PROCESSING", resolvedByUserId: resolverUserId },
       });
       if (claimed.count === 0) {
         throw new SokoBotRuntimeConflictError(
@@ -5479,7 +5479,7 @@ export class SokoBotRuntimeService {
             data: {
               status: "ACCEPTED",
               resolvedAt: new Date(),
-              resolvedByUserId: userId,
+              resolvedByUserId: resolverUserId,
               resultingEntityId: existingDelegation.jobId,
             },
           });
@@ -5898,7 +5898,7 @@ export class SokoBotRuntimeService {
         data: {
           status: "ACCEPTED",
           resolvedAt: new Date(),
-          resolvedByUserId: userId,
+          resolvedByUserId: resolverUserId,
           resultingEntityId,
         },
       });

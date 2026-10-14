@@ -1,4 +1,4 @@
-import { MemberRole, type Prisma } from "@sokosumi/database";
+import type { Prisma } from "@sokosumi/database";
 import {
   buildRoomQuoteSnippetParts,
   CHANNEL_SLUG_MAX_LENGTH,
@@ -26,6 +26,7 @@ import {
 } from "@/helpers/chat-room-message-unfurl-metadata";
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import { isDirectKeyUniqueConstraintError } from "@/helpers/prisma";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import prisma from "@/lib/db/prisma";
@@ -1338,14 +1339,6 @@ export function buildDirectRoomName(names: readonly string[]): string {
   }
 
   return formatParticipantNameList(cleanNames);
-}
-
-/**
- * Organization owner/admin elevation for channel lifecycle and settings.
- * Room creator is provenance only — never authorizes.
- */
-export function isOrganizationOwnerOrAdmin(role: string): boolean {
-  return role === MemberRole.OWNER || role === MemberRole.ADMIN;
 }
 
 /**

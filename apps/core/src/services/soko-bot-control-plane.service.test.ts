@@ -57,6 +57,7 @@ const {
   scheduleUpdateMock,
   transactionMock,
   transactionQueryRawMock,
+  memberFindFirstMock,
   tokenSignMock,
   taskFindManyMock,
   turnCreateMock,
@@ -116,6 +117,7 @@ const {
   scheduleUpdateMock: vi.fn(),
   transactionMock: vi.fn(),
   transactionQueryRawMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   tokenSignMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   turnCreateMock: vi.fn(),
@@ -240,7 +242,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: adminActionFindUniqueMock,
     },
     task: { findMany: taskFindManyMock },
-    member: { findMany: memberFindManyMock },
+    member: { findFirst: memberFindFirstMock, findMany: memberFindManyMock },
     workspace: { findFirst: workspaceFindFirstMock },
   },
 }));
@@ -316,6 +318,7 @@ function runtimeWithReset(
 function transactionClient() {
   return {
     $queryRaw: transactionQueryRawMock,
+    member: { findFirst: memberFindFirstMock },
     sokoBotIntent: {
       create: vi.fn().mockResolvedValue({ id: "intent-1", revision: 1 }),
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -2551,6 +2554,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       userId: "user_1",
       sokoBotId: BOT_ID,
       workspaceId: "workspace_1",
+      sokoBot: { userId: "user_1", workspaceId: "workspace_1" },
     });
     turnUpdateManyMock.mockResolvedValue({ count: 0 });
     const cancelTurn = vi.fn<SokoBotRuntime["cancelTurn"]>();
@@ -2573,6 +2577,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       userId: "user_1",
       sokoBotId: BOT_ID,
       workspaceId: "workspace_1",
+      sokoBot: { userId: "user_1", workspaceId: "workspace_1" },
     });
     const cancelTurn = vi.fn<SokoBotRuntime["cancelTurn"]>();
     const runtime = runtimeWithReset(vi.fn());
@@ -2630,6 +2635,191 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(publishMentionStatusesMock).toHaveBeenCalledWith(["message_1"]);
     expect(cancelTurn).toHaveBeenCalledWith(
       expect.objectContaining({ eveTurnId: "eve_turn_1" }),
+    );
+  });
+
+  describe("who may manage a shared bot", () => {
+    const SHARED_ID = { kind: "id", sokoBotId: BOT_ID } as const;
+    const ROLES: Record<string, string> = {
+      owner_1: "owner",
+      admin_1: "admin",
+      member_1: "member",
+      member_2: "member",
+    };
+    const sharedBot = (overrides: Record<string, unknown> = {}) => ({
+      ...adminBot({ userId: null, workspaceId: "ws_1" }),
+      workspace: { organizationId: "org_1" },
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      memberFindFirstMock.mockImplementation(
+        async (args: { where: { userId: string } }) => {
+          const role = ROLES[args.where.userId];
+          return role ? { role } : null;
+        },
+      );
+      botFindFirstMock.mockResolvedValue(sharedBot());
+      turnFindFirstMock.mockResolvedValue(null);
+      botUpdateMock.mockResolvedValue({});
+      memoryCreateMock.mockResolvedValue({ id: "memory_v2", version: 2 });
+    });
+
+    it.each(["owner_1", "admin_1"])("lets %s archive it", async (userId) => {
+      await new SokoBotControlPlane().archive(userId, "ws_1", SHARED_ID);
+      expect(botUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "PAUSED" }),
+        }),
+      );
+    });
+
+    it("refuses a member the archive", async () => {
+      await expect(
+        new SokoBotControlPlane().archive("member_1", "ws_1", SHARED_ID),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(botUpdateMock).not.toHaveBeenCalled();
+      expect(sokoBotMemberDeleteManyMock).not.toHaveBeenCalled();
+    });
+
+    it("leaves an already archived bot alone after the role check", async () => {
+      botFindFirstMock.mockResolvedValue(sharedBot({ archivedAt: new Date() }));
+      await expect(
+        new SokoBotControlPlane().archive("member_1", "ws_1", SHARED_ID),
+      ).rejects.toMatchObject({ status: 403 });
+      await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
+      expect(botUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it.each(["owner_1", "admin_1"])(
+      "lets %s reset its memory",
+      async (userId) => {
+        await new SokoBotControlPlane().resetMemory(userId, "ws_1", SHARED_ID);
+        expect(memoryCreateMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ source: "user_reset" }),
+          }),
+        );
+      },
+    );
+
+    it("refuses a member the memory reset", async () => {
+      await expect(
+        new SokoBotControlPlane().resetMemory("member_1", "ws_1", SHARED_ID),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(memoryCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("answers an archived bot's memory reset as not found", async () => {
+      botFindFirstMock.mockResolvedValue(sharedBot({ archivedAt: new Date() }));
+      await expect(
+        new SokoBotControlPlane().resetMemory("admin_1", "ws_1", SHARED_ID),
+      ).rejects.toThrow("Soko Bot not found");
+    });
+
+    it("keeps the personal bot's archive and reset with its owner, no role read", async () => {
+      botFindFirstMock.mockResolvedValue(adminBot());
+      await new SokoBotControlPlane().resetMemory("user_1", "ws_1");
+      await new SokoBotControlPlane().archive("user_1", "ws_1");
+      expect(memoryCreateMock).toHaveBeenCalledOnce();
+      expect(botUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "PAUSED" }),
+        }),
+      );
+      expect(memberFindFirstMock).not.toHaveBeenCalled();
+    });
+
+    const turnOf = (source: string, userId = "member_1") => ({
+      id: "turn_1",
+      status: "RUNNING",
+      source,
+      eveSessionId: "session_1",
+      eveTurnId: "eve_turn_1",
+      userId,
+      sokoBotId: BOT_ID,
+      workspaceId: "ws_1",
+      sokoBot: { userId: null, workspaceId: "ws_1" },
+    });
+
+    it.each(["member_1", "admin_1", "owner_1"])(
+      "lets %s cancel the asking member's chat turn",
+      async (userId) => {
+        turnFindFirstMock.mockResolvedValue(turnOf("CHAT"));
+        await new SokoBotControlPlane(runtimeWithReset(vi.fn())).cancelTurn(
+          userId,
+          "turn_1",
+        );
+        expect(turnFindFirstMock).toHaveBeenCalledWith(
+          expect.objectContaining({ where: { id: "turn_1" } }),
+        );
+        expect(turnUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ status: "CANCEL_REQUESTED" }),
+          }),
+        );
+      },
+    );
+
+    it.each([
+      ["another member's chat turn", "CHAT", "member_2", 403],
+      ["a self-started turn", "SCHEDULE", "member_1", 403],
+    ])("refuses a member %s", async (_label, source, caller, status) => {
+      turnFindFirstMock.mockResolvedValue(turnOf(source));
+      await expect(
+        new SokoBotControlPlane(runtimeWithReset(vi.fn())).cancelTurn(
+          caller,
+          "turn_1",
+        ),
+      ).rejects.toMatchObject({ status });
+      expect(turnUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("hides a shared turn from a non-member and a personal turn from others", async () => {
+      turnFindFirstMock.mockResolvedValue(turnOf("CHAT"));
+      const plane = new SokoBotControlPlane(runtimeWithReset(vi.fn()));
+      await expect(plane.cancelTurn("outsider", "turn_1")).rejects.toThrow(
+        "Active turn not found",
+      );
+      turnFindFirstMock.mockResolvedValue({
+        ...turnOf("CHAT", "user_1"),
+        sokoBot: { userId: "user_1", workspaceId: "ws_1" },
+      });
+      await expect(plane.cancelTurn("admin_1", "turn_1")).rejects.toThrow(
+        "Active turn not found",
+      );
+      expect(turnUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["a shared bot", null, "admin_1"],
+      ["a personal bot", "user_1", "user_1"],
+    ])(
+      "audits an admin action on %s against its owner or the operator",
+      async (_label, owner, auditedUserId) => {
+        let state = adminBot({ userId: owner });
+        botFindUniqueMock.mockImplementation(async () => state);
+        botUpdateMock.mockImplementation(async ({ data }) => {
+          state = { ...state, ...data };
+          return state;
+        });
+        await new SokoBotControlPlane().performAdminAction({
+          sokoBotId: BOT_ID,
+          operatorId: "admin_1",
+          action: "PAUSE",
+          reason: "Investigate",
+          requestId: "request-shared-pause",
+        });
+        expect(adminActionCreateMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              status: "ATTEMPTED",
+              userId: auditedUserId,
+              operatorId: "admin_1",
+            }),
+          }),
+        );
+      },
     );
   });
 

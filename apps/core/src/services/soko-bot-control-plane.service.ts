@@ -9,7 +9,6 @@ import {
   applyVersionCapabilities,
   capabilitiesForClassification,
   composeSokoBotVersionNotice,
-  containsSokoBotSensitiveMaterial,
   createEmptySokoBotMemory,
   type IndexedRuntimeEvent,
   isSokoBotCapability,
@@ -37,9 +36,15 @@ import {
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
 import {
+  assertSokoBotManagement,
+  assertSokoBotTurnAction,
+} from "@/helpers/soko-bot-management";
+import { personalOwnerUserId } from "@/helpers/soko-bot-owner";
+import {
   ME_SOKO_BOT,
   memberSokoBot,
   type ResolvedSokoBotRow,
+  type SokoBotSelector,
 } from "@/helpers/soko-bot-resolver";
 import { sokoBotTurnStarter } from "@/helpers/soko-bot-turn-attribution";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
@@ -54,6 +59,12 @@ import {
   actionInputHash,
 } from "@/lib/soko-bot/action-receipts";
 import { buildActionResponse } from "@/lib/soko-bot/action-response";
+import {
+  adminActionOperationId,
+  adminActionSnapshot,
+  adminRetryOperationKey,
+  redactAdminPresentation,
+} from "@/lib/soko-bot/admin-action-record";
 import { loadClassificationContext } from "@/lib/soko-bot/classification-context";
 import {
   type ClassificationResult,
@@ -240,15 +251,6 @@ export type SokoBotAdminActionName =
   | "DISABLE_SCHEDULE"
   | "SET_VERSION";
 
-interface AdminActionSnapshotInput {
-  status: string;
-  adminPausedAt: Date | null;
-  eveSessionId: string | null;
-  memoryVersion: number;
-  archivedAt: Date | null;
-  versionId: string | null;
-}
-
 interface AdminActionIntentInput {
   sokoBotId: string;
   userId: string;
@@ -256,19 +258,6 @@ interface AdminActionIntentInput {
   action: string;
   targetId?: string | null;
   reason: string;
-}
-
-function adminActionSnapshot(bot: AdminActionSnapshotInput) {
-  return {
-    status: bot.status,
-    adminPausedAt: bot.adminPausedAt,
-    hasEveSession: bot.eveSessionId !== null,
-    memoryVersion: bot.memoryVersion,
-    archivedAt: bot.archivedAt,
-    // Which version the bot ran before and after. `SET_VERSION` is otherwise
-    // invisible in the audit trail: nothing else on the snapshot changes.
-    versionId: bot.versionId,
-  };
 }
 
 function normalizeAdminActionIdentifier(
@@ -281,53 +270,6 @@ function normalizeAdminActionIdentifier(
     throw new SokoBotValidationError(`${name} must not exceed 200 characters`);
   }
   return normalized;
-}
-
-function adminActionOperationId(
-  operationId: string | undefined,
-  requestId: string | undefined,
-  traceId: string | undefined,
-): string {
-  if (operationId) return operationId;
-  const source = requestId
-    ? `request:${requestId}`
-    : traceId
-      ? `trace:${traceId}`
-      : `generated:${randomUUID()}`;
-  return createHash("sha256").update(source).digest("hex");
-}
-
-function adminRetryOperationKey(operationId: string): string {
-  return createHash("sha256").update(operationId).digest("hex").slice(0, 32);
-}
-
-/** A record id is never a secret; blanking one fails the response schema. */
-const EXACT_UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function redactAdminPresentation<T>(value: T): T {
-  if (typeof value === "string") {
-    return (
-      EXACT_UUID.test(value) ? value : redactSokoBotSensitiveText(value)
-    ) as T;
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => redactAdminPresentation(item)) as T;
-  }
-  if (value && typeof value === "object" && !(value instanceof Date)) {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => {
-        const safeKey = redactSokoBotSensitiveText(key);
-        return [
-          safeKey,
-          containsSokoBotSensitiveMaterial(`${key}: value`)
-            ? "[Sensitive value removed]"
-            : redactAdminPresentation(item),
-        ];
-      }),
-    ) as T;
-  }
-  return value;
 }
 
 function isAmbiguousRuntimeAcceptance(error: unknown): boolean {
@@ -3220,9 +3162,11 @@ export class SokoBotControlPlane {
 
   async cancelTurn(userId: string, turnId: string): Promise<void> {
     const turn = await prisma.sokoBotTurn.findFirst({
-      where: { id: turnId, userId },
+      where: { id: turnId },
+      include: { sokoBot: { select: { userId: true, workspaceId: true } } },
     });
-    if (!turn) throw new SokoBotNotFoundError("Active turn not found");
+    if (!turn || !(await assertSokoBotTurnAction(userId, turn, turn.sokoBot)))
+      throw new SokoBotNotFoundError("Active turn not found");
     if (!["STARTING", "RUNNING", "CANCEL_REQUESTED"].includes(turn.status)) {
       return;
     }
@@ -3238,12 +3182,18 @@ export class SokoBotControlPlane {
     await this.deliverRuntimeCancellation(turn);
   }
 
-  async resetMemory(userId: string, workspaceId: string) {
+  async resetMemory(
+    userId: string,
+    workspaceId: string,
+    selector: SokoBotSelector = ME_SOKO_BOT,
+  ) {
     const markdown = renderSokoBotMemory(createEmptySokoBotMemory());
     const hash = memoryHash(markdown);
     return serializableTransaction(async (tx) => {
-      const bot = await memberSokoBot(userId, workspaceId, ME_SOKO_BOT, tx);
-      if (!bot) throw new SokoBotNotFoundError("Soko Bot not found");
+      const bot = await memberSokoBot(userId, workspaceId, selector, tx);
+      if (!bot || bot.archivedAt)
+        throw new SokoBotNotFoundError("Soko Bot not found");
+      await assertSokoBotManagement(userId, bot, "resetMemory", tx);
       const version = bot.memoryVersion + 1;
       const revision = await tx.sokoBotMemoryRevision.create({
         data: {
@@ -3671,7 +3621,8 @@ export class SokoBotControlPlane {
     }
     const intent = {
       sokoBotId: bot.id,
-      userId: bot.userId,
+      // The bot's owner; a shared bot has none, so the operator stands in.
+      userId: personalOwnerUserId(bot) ?? input.operatorId,
       operatorId: input.operatorId,
       action: input.action,
       targetId: resolvedTargetId,
@@ -4400,10 +4351,16 @@ export class SokoBotControlPlane {
     return this.getForAdmin(input.sokoBotId);
   }
 
-  async archive(userId: string, workspaceId: string): Promise<void> {
+  async archive(
+    userId: string,
+    workspaceId: string,
+    selector: SokoBotSelector = ME_SOKO_BOT,
+  ): Promise<void> {
     const archived = await serializableTransaction(async (tx) => {
-      const bot = await memberSokoBot(userId, workspaceId, ME_SOKO_BOT, tx);
+      const bot = await memberSokoBot(userId, workspaceId, selector, tx);
       if (!bot) return null;
+      await assertSokoBotManagement(userId, bot, "archive", tx);
+      if (bot.archivedAt) return null;
       await tx.$queryRaw`
         SELECT "id"
         FROM "soko_bot"

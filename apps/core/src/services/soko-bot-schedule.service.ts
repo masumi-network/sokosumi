@@ -13,6 +13,8 @@ export class SokoBotScheduleValidationError extends Error {}
 export interface CreateSokoBotScheduleInput {
   userId: string;
   workspaceId: string;
+  /** The bot a turn runs as; without it, the caller's personal bot. */
+  sokoBotId?: string;
   name: string;
   timezone: string;
   /** Recurring runs; exactly one of `cronExpression` and `runAt`. */
@@ -136,7 +138,7 @@ export async function createSokoBotSchedule(
   const bot = await memberSokoBot(
     input.userId,
     input.workspaceId,
-    ME_SOKO_BOT,
+    input.sokoBotId ? { kind: "id", sokoBotId: input.sokoBotId } : ME_SOKO_BOT,
     db,
   );
   if (!bot) throw new SokoBotScheduleNotFoundError("Soko Bot not found");
@@ -203,6 +205,27 @@ export async function createSokoBotSchedule(
       );
 }
 
+/**
+ * Any member with access configures a shared bot, so its schedules are not
+ * limited to the member who wrote them. `null` for a personal bot.
+ */
+async function sharedBotScheduleScope(
+  userId: string,
+  ref: { workspaceId?: string; sokoBotId?: string },
+  db: Prisma.TransactionClient | typeof prisma,
+): Promise<{ workspaceId: string; sokoBotId: string } | null> {
+  if (!ref.workspaceId || !ref.sokoBotId) return null;
+  const bot = await memberSokoBot(
+    userId,
+    ref.workspaceId,
+    { kind: "id", sokoBotId: ref.sokoBotId },
+    db,
+  );
+  return bot?.userId === null
+    ? { workspaceId: ref.workspaceId, sokoBotId: ref.sokoBotId }
+    : null;
+}
+
 /** Resolves by id first, then exact (case-insensitive) name; the error lists what exists so a caller can correct itself. */
 async function findScheduleForUser(
   userId: string,
@@ -215,29 +238,37 @@ async function findScheduleForUser(
   transaction?: Prisma.TransactionClient,
 ) {
   const db = transaction ?? prisma;
-  const schedule = await db.sokoBotSchedule.findFirst({
-    where: {
-      userId,
-      workspaceId: ref.workspaceId,
-      sokoBotId: ref.sokoBotId,
-      OR: [
-        ...(ref.scheduleId ? [{ id: ref.scheduleId }] : []),
-        ...(ref.scheduleName
-          ? [
-              {
-                name: {
-                  equals: ref.scheduleName.trim(),
-                  mode: "insensitive" as const,
-                },
+  const own = {
+    userId,
+    workspaceId: ref.workspaceId,
+    sokoBotId: ref.sokoBotId,
+  };
+  const matching = {
+    OR: [
+      ...(ref.scheduleId ? [{ id: ref.scheduleId }] : []),
+      ...(ref.scheduleName
+        ? [
+            {
+              name: {
+                equals: ref.scheduleName.trim(),
+                mode: "insensitive" as const,
               },
-            ]
-          : []),
-      ],
-    },
+            },
+          ]
+        : []),
+    ],
+  };
+  const schedule = await db.sokoBotSchedule.findFirst({
+    where: { ...own, ...matching },
   });
   if (schedule) return schedule;
+  const shared = await sharedBotScheduleScope(userId, ref, db);
+  const sharedSchedule =
+    shared &&
+    (await db.sokoBotSchedule.findFirst({ where: { ...shared, ...matching } }));
+  if (sharedSchedule) return sharedSchedule;
   const existing = await db.sokoBotSchedule.findMany({
-    where: { userId, workspaceId: ref.workspaceId, sokoBotId: ref.sokoBotId },
+    where: shared ?? own,
     select: { id: true, name: true },
     orderBy: { createdAt: "asc" },
   });

@@ -1,9 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-
 import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonContent, jsonErrorResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { created, ok, successResponseSchema } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -25,7 +25,6 @@ import {
 import {
   chatRoomInclude,
   createOrGetDirectRoom,
-  isOrganizationOwnerOrAdmin,
   mapChatRoomWithSidebarFlags,
   requireActiveOrganizationId,
   requireSanitizedChannelSlug,

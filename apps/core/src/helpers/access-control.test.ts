@@ -1837,6 +1837,41 @@ describe("requireTaskAssignableSokoBot", () => {
     ).rejects.toThrow("Only the owner can assign work to this Soko Bot");
   });
 
+  // No member may hand a Task to a shared bot: the gate cannot see the Task's
+  // visibility, and the bot's EVENT turns trust whatever it lets through.
+  it.each(["member", "admin", "owner"])(
+    "refuses a %s assigning work to a shared Soko Bot",
+    async (userId) => {
+      const tx = {
+        sokoBot: {
+          findFirst: vi.fn().mockResolvedValue({ id: "bot_1", userId: null }),
+        },
+      } as unknown as Prisma.TransactionClient;
+
+      await expect(
+        requireTaskAssignableSokoBot("bot_1", workspaceId, tx, {
+          kind: "user",
+          userId,
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+    },
+  );
+
+  it("lets a shared Soko Bot assign work to itself", async () => {
+    const tx = {
+      sokoBot: {
+        findFirst: vi.fn().mockResolvedValue({ id: "bot_1", userId: null }),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      requireTaskAssignableSokoBot("bot_1", workspaceId, tx, {
+        kind: "soko_bot",
+        sokoBotId: "bot_1",
+      }),
+    ).resolves.toBeUndefined();
+  });
+
   it("rejects a missing or archived soko bot", async () => {
     const tx = {
       sokoBot: { findFirst: vi.fn().mockResolvedValue(null) },
