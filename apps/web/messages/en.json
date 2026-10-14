@@ -2588,6 +2588,7 @@
           "failed": "Something went wrong. Try again.",
           "offline": "You're offline. Try again.",
           "timeout": "Timed out. Try again.",
+          "missingPost": "Couldn't open this post.",
           "unauthenticated": "Please log in to continue.",
           "unauthenticatedAction": "Log in",
           "published": "Post published.",

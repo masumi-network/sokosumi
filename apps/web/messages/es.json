@@ -2588,6 +2588,7 @@
           "failed": "Algo salió mal. Inténtalo de nuevo.",
           "offline": "Estás sin conexión. Inténtalo de nuevo.",
           "timeout": "Se agotó el tiempo. Inténtalo de nuevo.",
+          "missingPost": "No se pudo abrir esta publicación.",
           "unauthenticated": "Inicia sesión para continuar.",
           "unauthenticatedAction": "Iniciar sesión",
           "published": "Publicación publicada.",
