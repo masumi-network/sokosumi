@@ -2451,7 +2451,7 @@
           "drafts": "No drafts yet."
         },
         "emptyHint": {
-          "drafts": "Save a post as a draft to finish it later."
+          "drafts": "Save a draft to finish later."
         },
         "status": {
           "DRAFT": "Draft",
