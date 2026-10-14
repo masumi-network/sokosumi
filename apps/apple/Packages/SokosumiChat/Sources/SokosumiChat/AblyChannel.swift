@@ -64,6 +64,7 @@ func realtimeChannelId(in channelName: String, namespace: String, kind: String) 
 }
 
 /// The token's capability as channel → operations. Nil when missing or malformed.
+/// Ably's `*` operation grants every operation.
 func grantedChannelOperations(in capability: String?) -> [String: [String]]? {
   guard let capability, let data = capability.data(using: .utf8),
         let map = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
@@ -75,7 +76,7 @@ func grantedChannelOperations(in capability: String?) -> [String: [String]]? {
 func grantedChannelIds(in capability: String?, namespace: String, kind: String, operation: String) -> [String: String]? {
   grantedChannelOperations(in: capability).map { map in
     var names: [String: String] = [:]
-    for (channel, operations) in map where operations.contains(operation) {
+    for (channel, operations) in map where operations.contains(operation) || operations.contains("*") {
       guard let id = realtimeChannelId(in: channel, namespace: namespace, kind: kind) else { continue }
       names[id] = names[id].map { min($0, channel) } ?? channel
     }

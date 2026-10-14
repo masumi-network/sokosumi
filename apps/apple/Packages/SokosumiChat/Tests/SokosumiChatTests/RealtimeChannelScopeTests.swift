@@ -70,6 +70,14 @@ struct RealtimeChannelScopeTests {
     #expect(orgPresenceChannelNames(grantedPresenceIn: production) == ["o1": "presence:org_o1"])
   }
 
+  @Test func theAllOperationsGrantCountsAsEveryOperation() {
+    let all = #"{"chat_rooms:room_a":["*"],"chat_typing:room_a":["*"],"presence:org_o1":["*"],"chat_control:user_u1":["*"]}"#
+    #expect(chatRoomChannelNames(grantedSubscribeIn: all) == ["a": "chat_rooms:room_a"])
+    #expect(chatTypingGrant(in: all, roomId: "a") == ChatTypingGrant(channelName: "chat_typing:room_a", canPublish: true))
+    #expect(orgPresenceChannelNames(grantedPresenceIn: all) == ["o1": "presence:org_o1"])
+    #expect(userChatControlChannelName(grantedSubscribeIn: all, userId: "u1") == "chat_control:user_u1")
+  }
+
   @Test func wildcardsAndOtherNamespacesNameNoChannel() {
     #expect(realtimeChannelId(in: "chat_typing:*", namespace: "chat_typing", kind: "room") == nil)
     #expect(realtimeChannelId(in: "presence:*", namespace: "presence", kind: "org") == nil)

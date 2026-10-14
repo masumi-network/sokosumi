@@ -79,10 +79,10 @@ public struct ChatTypingGrant: Equatable, Sendable {
 public func chatTypingGrant(in capability: String?, roomId: String) -> ChatTypingGrant? {
   grantedChannelOperations(in: capability)?
     .filter { channel, operations in
-      operations.contains("subscribe") && realtimeChannelId(in: channel, namespace: "chat_typing", kind: "room") == roomId
+      (operations.contains("subscribe") || operations.contains("*")) && realtimeChannelId(in: channel, namespace: "chat_typing", kind: "room") == roomId
     }
     .min { $0.key < $1.key }
-    .map { ChatTypingGrant(channelName: $0.key, canPublish: $0.value.contains("publish")) }
+    .map { ChatTypingGrant(channelName: $0.key, canPublish: $0.value.contains("publish") || $0.value.contains("*")) }
 }
 
 /// The typists of one room, in the order they started.
