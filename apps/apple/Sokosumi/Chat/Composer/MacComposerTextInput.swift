@@ -494,6 +494,25 @@
         pasteText(from: .general)
       }
 
+      /// AppKit enables Paste only for the text types it reads, and a screenshot or a copied image puts image data
+      /// on the pasteboard alone; Paste stays on for what the composer attaches.
+      override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        if super.validateUserInterfaceItem(item) {
+          return true
+        }
+        guard let action = item.action,
+              [#selector(paste(_:)), #selector(pasteAsPlainText(_:)), #selector(pasteAsRichText(_:))].contains(action) else { return false }
+        return isEditable && hasAttachment(on: .general)
+      }
+
+      /// Whether `pasteboard` holds a file or an image this composer attaches.
+      func hasAttachment(on pasteboard: NSPasteboard) -> Bool {
+        if attachFiles != nil, pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) {
+          return true
+        }
+        return attachImage != nil && pasteboard.availableType(from: [.png, .tiff]) != nil
+      }
+
       /// The composer has one paste: it already inserts plain text, attaches
       /// files and images, and offers the paste as a quote. Paste and Match
       /// Style must not slip past that.
