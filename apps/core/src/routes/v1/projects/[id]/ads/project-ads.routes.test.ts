@@ -144,7 +144,7 @@ const campaignDetailsResult = {
         countryCode: "DE",
       },
     ],
-    languages: [{ id: "1001", name: "German" }],
+    languages: [{ id: "1001", code: "de", name: "German" }],
   },
   keywords: [
     {

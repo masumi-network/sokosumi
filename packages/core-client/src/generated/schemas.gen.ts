@@ -21060,6 +21060,7 @@ export const AdCampaignDetailsCampaignSchema = {
                 'null'
             ],
             pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
             description: 'YYYY-MM-DD in the account time zone; null when not set'
         },
         endDate: {
@@ -21068,6 +21069,7 @@ export const AdCampaignDetailsCampaignSchema = {
                 'null'
             ],
             pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
             description: 'YYYY-MM-DD in the account time zone; null when not set'
         },
         started: {
@@ -21114,14 +21116,14 @@ export const AdCampaignTargetingSchema = {
         locations: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/AdCampaignLocation'
+                $ref: '#/components/schemas/GoogleLocation'
             },
             description: 'Empty targets all countries'
         },
         languages: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/AdCampaignLanguage'
+                $ref: '#/components/schemas/GoogleLanguage'
             },
             description: 'Empty targets all languages'
         }
@@ -21132,23 +21134,37 @@ export const AdCampaignTargetingSchema = {
     ]
 } as const;
 
-export const AdCampaignLocationSchema = {
+export const GoogleLocationSchema = {
     type: 'object',
     properties: {
         id: {
-            type: 'string'
+            type: 'string',
+            description: 'Geo target constant id; pass it in `google.locationIds`',
+            example: '2276'
         },
         name: {
-            type: 'string'
+            type: 'string',
+            example: 'Berlin'
         },
         canonicalName: {
-            type: 'string'
+            type: 'string',
+            example: 'Berlin,Berlin,Germany'
         },
         targetType: {
-            type: 'string'
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when Google omits it',
+            example: 'City'
         },
         countryCode: {
-            type: 'string'
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when Google omits it',
+            example: 'DE'
         }
     },
     required: [
@@ -21160,18 +21176,26 @@ export const AdCampaignLocationSchema = {
     ]
 } as const;
 
-export const AdCampaignLanguageSchema = {
+export const GoogleLanguageSchema = {
     type: 'object',
     properties: {
         id: {
-            type: 'string'
+            type: 'string',
+            description: 'Language constant id; pass it in `google.languageIds`',
+            example: '1001'
+        },
+        code: {
+            type: 'string',
+            example: 'de'
         },
         name: {
-            type: 'string'
+            type: 'string',
+            example: 'German'
         }
     },
     required: [
         'id',
+        'code',
         'name'
     ]
 } as const;
@@ -21506,7 +21530,8 @@ export const AdCampaignDailyMetricsSchema = {
     properties: {
         date: {
             type: 'string',
-            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01'
         },
         spend: {
             type: 'number'
@@ -21967,48 +21992,6 @@ export const ListGoogleLocationsResponseSchema = {
     ]
 } as const;
 
-export const GoogleLocationSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            description: 'Geo target constant id; pass it in `google.locationIds`',
-            example: '2276'
-        },
-        name: {
-            type: 'string',
-            example: 'Berlin'
-        },
-        canonicalName: {
-            type: 'string',
-            example: 'Berlin,Berlin,Germany'
-        },
-        targetType: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'Null when Google omits it',
-            example: 'City'
-        },
-        countryCode: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'Null when Google omits it',
-            example: 'DE'
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'canonicalName',
-        'targetType',
-        'countryCode'
-    ]
-} as const;
-
 export const ListGoogleLanguagesResponseSchema = {
     type: 'object',
     properties: {
@@ -22021,30 +22004,6 @@ export const ListGoogleLanguagesResponseSchema = {
     },
     required: [
         'languages'
-    ]
-} as const;
-
-export const GoogleLanguageSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            description: 'Language constant id; pass it in `google.languageIds`',
-            example: '1001'
-        },
-        code: {
-            type: 'string',
-            example: 'de'
-        },
-        name: {
-            type: 'string',
-            example: 'German'
-        }
-    },
-    required: [
-        'id',
-        'code',
-        'name'
     ]
 } as const;
 

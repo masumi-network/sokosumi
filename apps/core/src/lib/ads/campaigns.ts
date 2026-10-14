@@ -59,6 +59,19 @@ export const GOOGLE_KEYWORD_MATCH_TYPES = ["BROAD", "PHRASE", "EXACT"] as const;
 export type GoogleKeywordMatchType =
   (typeof GOOGLE_KEYWORD_MATCH_TYPES)[number];
 
+/** `OTHER` is any campaign type the builder cannot create or edit. */
+export const GOOGLE_CAMPAIGN_TYPES = ["SEARCH", "DISPLAY", "OTHER"] as const;
+export type GoogleCampaignType = (typeof GOOGLE_CAMPAIGN_TYPES)[number];
+
+/** Why a campaign cannot be edited in place; the first failing rule wins. */
+export const GOOGLE_CAMPAIGN_NOT_EDITABLE_REASONS = [
+  "TYPE",
+  "AD_GROUPS",
+  "AD_TYPE",
+] as const;
+export type GoogleCampaignNotEditableReason =
+  (typeof GOOGLE_CAMPAIGN_NOT_EDITABLE_REASONS)[number];
+
 export interface GoogleKeyword {
   text: string;
   matchType: GoogleKeywordMatchType;

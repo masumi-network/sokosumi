@@ -9,6 +9,8 @@ import {
   AD_CAMPAIGN_SETTABLE_STATUSES,
   AD_CAMPAIGN_STATUSES,
   AD_RANGES,
+  GOOGLE_CAMPAIGN_NOT_EDITABLE_REASONS,
+  GOOGLE_CAMPAIGN_TYPES,
   GOOGLE_DISPLAY_IMAGE_MAX_BYTES,
   GOOGLE_DISPLAY_IMAGE_MAX_LABEL,
   GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
@@ -125,7 +127,7 @@ export const adRangeSchema = z
   .enum(AD_RANGES)
   .openapi("AdRange", { example: "LAST_30_DAYS" });
 
-export const listAdCampaignsQuerySchema = z.object({
+export const adRangeQuerySchema = z.object({
   range: adRangeSchema.default("LAST_30_DAYS").openapi({
     param: { name: "range", in: "query" },
     description:
@@ -184,181 +186,6 @@ export const projectAdCampaignParamsSchema =
         example: "23850000000000000",
       }),
   });
-
-const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-
-const adCampaignDetailsCampaignSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    status: z.enum(AD_CAMPAIGN_STATUSES),
-    type: z.enum(["SEARCH", "DISPLAY", "OTHER"]),
-    channelType: z.string().openapi({
-      description: "Google advertising channel type",
-      example: "SEARCH",
-    }),
-    dailyBudget: z.number().openapi({
-      description: "Decimal in the account currency",
-      example: 25.5,
-    }),
-    currency: z.string().openapi({ example: "EUR" }),
-    biddingStrategyType: z.string().openapi({ example: "MAXIMIZE_CLICKS" }),
-    startDate: dateOnlySchema.nullable().openapi({
-      description: "YYYY-MM-DD in the account time zone; null when not set",
-    }),
-    endDate: dateOnlySchema.nullable().openapi({
-      description: "YYYY-MM-DD in the account time zone; null when not set",
-    }),
-    started: z.boolean().openapi({
-      description:
-        "The start date is today or earlier in the account time zone",
-    }),
-    editable: z.boolean().openapi({
-      description:
-        "One ad group with one ad of the campaign type's responsive format",
-    }),
-    notEditableReason: z.enum(["TYPE", "AD_GROUPS", "AD_TYPE"]).nullable(),
-  })
-  .openapi("AdCampaignDetailsCampaign");
-
-const adCampaignLocationSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    canonicalName: z.string(),
-    targetType: z.string(),
-    countryCode: z.string(),
-  })
-  .openapi("AdCampaignLocation");
-
-const adCampaignLanguageSchema = z
-  .object({ id: z.string(), name: z.string() })
-  .openapi("AdCampaignLanguage");
-
-const adCampaignKeywordSchema = z
-  .object({
-    id: z.string(),
-    text: z.string(),
-    matchType: z.enum(GOOGLE_KEYWORD_MATCH_TYPES),
-    status: z.string(),
-    approvalStatus: z.string().nullable(),
-  })
-  .openapi("AdCampaignKeyword");
-
-const adCampaignDisplayImageSchema = z
-  .object({
-    assetId: z.string(),
-    role: z.enum(GOOGLE_DISPLAY_IMAGE_ROLES),
-    url: z.string(),
-    width: z.number(),
-    height: z.number(),
-  })
-  .openapi("AdCampaignDisplayImage");
-
-const adCampaignAdSchema = z
-  .object({
-    id: z.string(),
-    status: z.string(),
-    approvalStatus: z.string().nullable(),
-    reviewStatus: z.string().nullable(),
-    adStrength: z.string().nullable(),
-    finalUrl: z.string().openapi({
-      description: "The first final URL; empty without one",
-    }),
-    search: z
-      .object({
-        headlines: z.array(z.string()),
-        descriptions: z.array(z.string()),
-        path1: z.string().nullable(),
-        path2: z.string().nullable(),
-      })
-      .openapi("AdCampaignSearchAd")
-      .optional()
-      .openapi({ description: "Set for a responsive search ad" }),
-    display: z
-      .object({
-        businessName: z.string(),
-        headlines: z.array(z.string()),
-        longHeadline: z.string(),
-        descriptions: z.array(z.string()),
-        images: z.array(adCampaignDisplayImageSchema),
-      })
-      .openapi("AdCampaignDisplayAd")
-      .optional()
-      .openapi({ description: "Set for a responsive display ad" }),
-  })
-  .openapi("AdCampaignAd");
-
-const adCampaignSitelinkSchema = z
-  .object({
-    assetId: z.string(),
-    text: z.string(),
-    finalUrl: z.string(),
-    description1: z.string().nullable(),
-    description2: z.string().nullable(),
-    approvalStatus: z.string().nullable(),
-  })
-  .openapi("AdCampaignSitelink");
-
-const adCampaignCalloutSchema = z
-  .object({
-    assetId: z.string(),
-    text: z.string(),
-    approvalStatus: z.string().nullable(),
-  })
-  .openapi("AdCampaignCallout");
-
-const adCampaignTotalsSchema = adCampaignSchema
-  .pick({
-    spend: true,
-    impressions: true,
-    clicks: true,
-    ctr: true,
-    cpc: true,
-    conversions: true,
-  })
-  .openapi("AdCampaignTotals");
-
-const adCampaignDailyMetricsSchema = z
-  .object({
-    date: dateOnlySchema,
-    spend: z.number(),
-    impressions: z.number(),
-    clicks: z.number(),
-    conversions: z.number(),
-  })
-  .openapi("AdCampaignDailyMetrics");
-
-export const adCampaignDetailsSchema = z
-  .object({
-    campaign: adCampaignDetailsCampaignSchema,
-    targeting: z
-      .object({
-        locations: z.array(adCampaignLocationSchema).openapi({
-          description: "Empty targets all countries",
-        }),
-        languages: z.array(adCampaignLanguageSchema).openapi({
-          description: "Empty targets all languages",
-        }),
-      })
-      .openapi("AdCampaignTargeting"),
-    keywords: z.array(adCampaignKeywordSchema),
-    ad: adCampaignAdSchema.nullable().openapi({
-      description: "The campaign's only ad; null when it has none or several",
-    }),
-    sitelinks: z.array(adCampaignSitelinkSchema),
-    callouts: z.array(adCampaignCalloutSchema),
-    performance: z
-      .object({
-        totals: adCampaignTotalsSchema,
-        daily: z.array(adCampaignDailyMetricsSchema).openapi({
-          description:
-            "Every day of the range, oldest first; days without data are zero",
-        }),
-      })
-      .openapi("AdCampaignPerformance"),
-  })
-  .openapi("AdCampaignDetails");
 
 export const updateAdCampaignRequestSchema = z
   .object({
@@ -658,3 +485,162 @@ export const googleLanguageSchema = z
 export const listGoogleLanguagesResponseSchema = z
   .object({ languages: z.array(googleLanguageSchema) })
   .openapi("ListGoogleLanguagesResponse");
+
+const adCampaignDetailsCampaignSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    status: z.enum(AD_CAMPAIGN_STATUSES),
+    type: z.enum(GOOGLE_CAMPAIGN_TYPES),
+    channelType: z.string().openapi({
+      description: "Google advertising channel type",
+      example: "SEARCH",
+    }),
+    dailyBudget: z.number().openapi({
+      description: "Decimal in the account currency",
+      example: 25.5,
+    }),
+    currency: z.string().openapi({ example: "EUR" }),
+    biddingStrategyType: z.string().openapi({ example: "MAXIMIZE_CLICKS" }),
+    startDate: googleDate.nullable().openapi({
+      description: "YYYY-MM-DD in the account time zone; null when not set",
+    }),
+    endDate: googleDate.nullable().openapi({
+      description: "YYYY-MM-DD in the account time zone; null when not set",
+    }),
+    started: z.boolean().openapi({
+      description:
+        "The start date is today or earlier in the account time zone",
+    }),
+    editable: z.boolean().openapi({
+      description:
+        "One ad group with one ad of the campaign type's responsive format",
+    }),
+    notEditableReason: z.enum(GOOGLE_CAMPAIGN_NOT_EDITABLE_REASONS).nullable(),
+  })
+  .openapi("AdCampaignDetailsCampaign");
+
+const adCampaignKeywordSchema = z
+  .object({
+    id: z.string(),
+    text: z.string(),
+    matchType: z.enum(GOOGLE_KEYWORD_MATCH_TYPES),
+    status: z.string(),
+    approvalStatus: z.string().nullable(),
+  })
+  .openapi("AdCampaignKeyword");
+
+const adCampaignDisplayImageSchema = z
+  .object({
+    assetId: z.string(),
+    role: z.enum(GOOGLE_DISPLAY_IMAGE_ROLES),
+    url: z.string(),
+    width: z.number(),
+    height: z.number(),
+  })
+  .openapi("AdCampaignDisplayImage");
+
+const adCampaignAdSchema = z
+  .object({
+    id: z.string(),
+    status: z.string(),
+    approvalStatus: z.string().nullable(),
+    reviewStatus: z.string().nullable(),
+    adStrength: z.string().nullable(),
+    finalUrl: z.string().openapi({
+      description: "The first final URL; empty without one",
+    }),
+    search: z
+      .object({
+        headlines: z.array(z.string()),
+        descriptions: z.array(z.string()),
+        path1: z.string().nullable(),
+        path2: z.string().nullable(),
+      })
+      .openapi("AdCampaignSearchAd")
+      .optional()
+      .openapi({ description: "Set for a responsive search ad" }),
+    display: z
+      .object({
+        businessName: z.string(),
+        headlines: z.array(z.string()),
+        longHeadline: z.string(),
+        descriptions: z.array(z.string()),
+        images: z.array(adCampaignDisplayImageSchema),
+      })
+      .openapi("AdCampaignDisplayAd")
+      .optional()
+      .openapi({ description: "Set for a responsive display ad" }),
+  })
+  .openapi("AdCampaignAd");
+
+const adCampaignSitelinkSchema = z
+  .object({
+    assetId: z.string(),
+    text: z.string(),
+    finalUrl: z.string(),
+    description1: z.string().nullable(),
+    description2: z.string().nullable(),
+    approvalStatus: z.string().nullable(),
+  })
+  .openapi("AdCampaignSitelink");
+
+const adCampaignCalloutSchema = z
+  .object({
+    assetId: z.string(),
+    text: z.string(),
+    approvalStatus: z.string().nullable(),
+  })
+  .openapi("AdCampaignCallout");
+
+const adCampaignTotalsSchema = adCampaignSchema
+  .pick({
+    spend: true,
+    impressions: true,
+    clicks: true,
+    ctr: true,
+    cpc: true,
+    conversions: true,
+  })
+  .openapi("AdCampaignTotals");
+
+const adCampaignDailyMetricsSchema = z
+  .object({
+    date: googleDate,
+    spend: z.number(),
+    impressions: z.number(),
+    clicks: z.number(),
+    conversions: z.number(),
+  })
+  .openapi("AdCampaignDailyMetrics");
+
+export const adCampaignDetailsSchema = z
+  .object({
+    campaign: adCampaignDetailsCampaignSchema,
+    targeting: z
+      .object({
+        locations: z.array(googleLocationSchema).openapi({
+          description: "Empty targets all countries",
+        }),
+        languages: z.array(googleLanguageSchema).openapi({
+          description: "Empty targets all languages",
+        }),
+      })
+      .openapi("AdCampaignTargeting"),
+    keywords: z.array(adCampaignKeywordSchema),
+    ad: adCampaignAdSchema.nullable().openapi({
+      description: "The campaign's only ad; null when it has none or several",
+    }),
+    sitelinks: z.array(adCampaignSitelinkSchema),
+    callouts: z.array(adCampaignCalloutSchema),
+    performance: z
+      .object({
+        totals: adCampaignTotalsSchema,
+        daily: z.array(adCampaignDailyMetricsSchema).openapi({
+          description:
+            "Every day of the range, oldest first; days without data are zero",
+        }),
+      })
+      .openapi("AdCampaignPerformance"),
+  })
+  .openapi("AdCampaignDetails");

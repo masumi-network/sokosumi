@@ -10,7 +10,7 @@ import {
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
-  listAdCampaignsQuerySchema,
+  adRangeQuerySchema,
   listAdCampaignsResponseSchema,
   projectAdAccountParamsSchema,
 } from "@/schemas/project-ad-account.schema";
@@ -27,7 +27,7 @@ const route = withOrganizationSlugHeaderParameter(
     tags: ["Projects"],
     request: {
       params: projectAdAccountParamsSchema,
-      query: listAdCampaignsQuerySchema,
+      query: adRangeQuerySchema,
     },
     responses: {
       200: jsonSuccessResponse(

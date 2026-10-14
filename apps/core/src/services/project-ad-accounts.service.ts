@@ -367,9 +367,14 @@ export async function listProjectAdAccounts(
   });
 }
 
-/** An ad account of the Project with an active connection, ready to call its provider. */
+/**
+ * An ad account of the Project with an active connection, ready to call its
+ * provider. With `onlyProvider`, an account of another provider is 404 with
+ * that message, before the connection is checked.
+ */
 async function requireActiveAdAccount(
   input: ProjectScope & { accountId: string },
+  onlyProvider?: { provider: ProjectAdProvider; notFound: string },
 ) {
   await requireScopedProject(input);
   const account = await prisma.projectAdAccount.findFirst({
@@ -384,6 +389,9 @@ async function requireActiveAdAccount(
     },
   });
   if (!account) throw notFound("Ad account not found");
+  if (onlyProvider && account.provider !== onlyProvider.provider) {
+    throw notFound(onlyProvider.notFound);
+  }
   if (account.connection.status !== "active") {
     throw conflict("Ad connection is not active");
   }
@@ -465,12 +473,10 @@ export async function getProjectAdCampaignDetails(
     range: AdRange;
   },
 ): Promise<GoogleCampaignDetails> {
-  const account = await requireActiveAdAccount(input);
-  if (account.provider !== "google_ads") {
-    throw notFound(
-      "Campaign details are only available for Google Ads accounts",
-    );
-  }
+  const account = await requireActiveAdAccount(input, {
+    provider: "google_ads",
+    notFound: "Campaign details are only available for Google Ads accounts",
+  });
   return getGoogleCampaignDetails({
     ...account.connected,
     customerId: account.externalAccountId,

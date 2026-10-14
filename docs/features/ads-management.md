@@ -196,24 +196,24 @@ The suggest body is JSON, so `q` needs no character whitelist.
 
 ## Campaign details
 
-`GET /ads/accounts/{accountId}/campaigns/{campaignId}?range=` (default `LAST_30_DAYS`): one Google campaign, read-only. A Meta account, an unknown campaign and a REMOVED campaign are 404; `campaignId` is 1-20 digits (422 otherwise), because it goes into GAQL. Response (`AdCampaignDetails`):
+`GET /ads/accounts/{accountId}/campaigns/{campaignId}?range=` (default `LAST_30_DAYS`): one Google campaign, read-only. A Meta account (even with an inactive connection), an unknown campaign and a REMOVED campaign are 404; an inactive connection is 409, as for the list; `campaignId` is 1-20 digits (422 otherwise), because it goes into GAQL. Response (`AdCampaignDetails`):
 
-- `campaign`: `id`, `name`, `status` (`ACTIVE` for ENABLED, else `PAUSED`), `type` (`SEARCH` | `DISPLAY` | `OTHER`), `channelType` (raw), `dailyBudget` (micros ÷ 1e6), `currency` (the ad account's), `biddingStrategyType` (raw), `startDate` / `endDate` (`YYYY-MM-DD`, the date part of `start_date_time` / `end_date_time`; null when unset, Google's "no end" `2037-12-30` is null), `started` (start date is today or earlier in `customer.time_zone`), `editable`, `notEditableReason`.
+- `campaign`: `id`, `name`, `status` (maps like the list: `ACTIVE` / `PAUSED` / `ENDED` / `OTHER`, using `campaign.serving_status`), `type` (`SEARCH` | `DISPLAY` | `OTHER`), `channelType` (raw), `dailyBudget` (micros ÷ 1e6), `currency` (the ad account's), `biddingStrategyType` (raw), `startDate` / `endDate` (`YYYY-MM-DD`, the date part of `start_date_time` / `end_date_time`; null when unset, Google's "no end" `2037-12-30` is null), `started` (start date is today or earlier in `customer.time_zone`), `editable`, `notEditableReason`.
 - `editable`: type is Search or Display, else `TYPE`; exactly one non-removed ad group, else `AD_GROUPS`; exactly one non-removed ad in it, a responsive search ad (Search) or responsive display ad (Display), else `AD_TYPE`. The first failing rule wins.
-- `targeting`: `locations` (`id`, `name`, `canonicalName`, `targetType`, `countryCode`) and `languages` (`id`, `name`) from the non-negative, non-removed campaign criteria; empty means all countries / languages.
-- `keywords`: positive, non-removed keywords of the campaign (`id`, `text`, `matchType`, `status`, `approvalStatus`).
-- `ad`: the campaign's only non-removed ad, else null. `search` (RSA: `headlines`, `descriptions`, `path1`, `path2`) or `display` (RDA: `businessName`, `headlines`, `longHeadline`, `descriptions`, `images` as `{assetId, role, url, width, height}`); any other ad type has neither. Image roles: `marketing_images` LANDSCAPE, `square_marketing_images` SQUARE, `square_logo_images` LOGO (`logo_images` is ignored); an image whose asset is gone is skipped.
+- `targeting`: `locations` (`GoogleLocation`: `id`, `name`, `canonicalName`, `targetType`, `countryCode`, the last two null when Google omits them) and `languages` (`GoogleLanguage`: `id`, `code`, `name`), as the targeting endpoints return them, from the non-negative, non-removed campaign criteria; empty means all countries / languages.
+- `keywords`: Search campaigns only (`[]` for any other type): positive, non-removed keywords under non-removed ad groups (`id`, `text`, `matchType`, `status`, `approvalStatus`). A keyword with an unknown match type is skipped.
+- `ad`: the campaign's only non-removed ad; null when it has none or several. `search` (RSA: `headlines`, `descriptions`, `path1`, `path2`) or `display` (RDA: `businessName`, `headlines`, `longHeadline`, `descriptions`, `images` as `{assetId, role, url, width, height}`); any other ad type has neither. Image roles: `marketing_images` LANDSCAPE, `square_marketing_images` SQUARE, `square_logo_images` LOGO (`logo_images` is ignored); an image whose asset is gone is skipped.
 - `sitelinks`, `callouts`: ENABLED campaign assets only.
 - `performance`: `totals` (same fields, rounding and nulls as a campaign list row) and `daily` (`date`, `spend`, `impressions`, `clicks`, `conversions`): the N days before today in the customer's time zone, oldest first, zero-filled.
 
-Read with `GOOGLEADS_SEARCH_STREAM_GAQL` in one session. Queries 1, 2 and 4-9 run in parallel (`X` = campaign id); 3 and 7 follow because they need ids from 2 and 6:
+Read with `GOOGLEADS_SEARCH_STREAM_GAQL` in one session. Queries 1, 2, 4-6, 8 and 9 run in parallel (`X` = campaign id); 3 and 7 follow because they need ids from 2 and 6:
 
-1. `campaign` (+ `customer.time_zone`, `campaign_budget.amount_micros`, bidding strategy, start / end date time) `WHERE campaign.id = X AND campaign.status != 'REMOVED'`; no row is 404.
-2. `campaign_criterion` (type, location, language, `language_constant.id/name`) `WHERE campaign.id = X AND negative = FALSE AND status != 'REMOVED' AND type IN ('LOCATION', 'LANGUAGE')`.
+1. `campaign` (+ `customer.time_zone`, `campaign.serving_status`, `campaign_budget.amount_micros`, bidding strategy, start / end date time) `WHERE campaign.id = X AND campaign.status != 'REMOVED'`; no row is 404.
+2. `campaign_criterion` (type, location, language, `language_constant.id/code/name`) `WHERE campaign.id = X AND negative = FALSE AND status != 'REMOVED' AND type IN ('LOCATION', 'LANGUAGE')`.
 3. Only with locations: `geo_target_constant` (id, name, canonical name, target type, country code) `WHERE resource_name IN (…)`, put back in criterion order.
 4. `ad_group WHERE campaign.id = X AND status != 'REMOVED'`: counted for `editable`.
-5. `ad_group_criterion` (keyword text, match type, status, approval status) `WHERE campaign.id = X AND type = 'KEYWORD' AND negative = FALSE AND status != 'REMOVED'`.
-6. `ad_group_ad` (status, ad strength, policy summary, ad id / type / final URLs, responsive search and display fields) `WHERE campaign.id = X AND status != 'REMOVED'`.
+5. `ad_group_criterion` (keyword text, match type, status, approval status) `WHERE campaign.id = X AND type = 'KEYWORD' AND negative = FALSE AND status != 'REMOVED' AND ad_group.status != 'REMOVED'`. Run for every type; the result is dropped unless the campaign is Search.
+6. `ad_group_ad` (status, ad strength, policy summary, ad id / type / final URLs, responsive search and display fields) `WHERE campaign.id = X AND status != 'REMOVED' AND ad_group.status != 'REMOVED'`.
 7. Only with display images: `asset` (resource name, id, `image_asset.full_size` url / width / height) `WHERE resource_name IN (…)`.
 8. `campaign_asset` (`field_type IN ('SITELINK', 'CALLOUT')`, `status = 'ENABLED'`) with the asset's link text, descriptions, final URLs, callout text and approval status.
 9. `campaign` with `segments.date`, cost, impressions, clicks, conversions `DURING LAST_7_DAYS | LAST_30_DAYS`; days without a row are zero.

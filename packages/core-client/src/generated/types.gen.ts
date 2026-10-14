@@ -6118,23 +6118,36 @@ export type AdCampaignTargeting = {
     /**
      * Empty targets all countries
      */
-    locations: Array<AdCampaignLocation>;
+    locations: Array<GoogleLocation>;
     /**
      * Empty targets all languages
      */
-    languages: Array<AdCampaignLanguage>;
+    languages: Array<GoogleLanguage>;
 };
 
-export type AdCampaignLocation = {
+export type GoogleLocation = {
+    /**
+     * Geo target constant id; pass it in `google.locationIds`
+     */
     id: string;
     name: string;
     canonicalName: string;
-    targetType: string;
-    countryCode: string;
+    /**
+     * Null when Google omits it
+     */
+    targetType: string | null;
+    /**
+     * Null when Google omits it
+     */
+    countryCode: string | null;
 };
 
-export type AdCampaignLanguage = {
+export type GoogleLanguage = {
+    /**
+     * Language constant id; pass it in `google.languageIds`
+     */
     id: string;
+    code: string;
     name: string;
 };
 
@@ -6387,34 +6400,8 @@ export type ListGoogleLocationsResponse = {
     locations: Array<GoogleLocation>;
 };
 
-export type GoogleLocation = {
-    /**
-     * Geo target constant id; pass it in `google.locationIds`
-     */
-    id: string;
-    name: string;
-    canonicalName: string;
-    /**
-     * Null when Google omits it
-     */
-    targetType: string | null;
-    /**
-     * Null when Google omits it
-     */
-    countryCode: string | null;
-};
-
 export type ListGoogleLanguagesResponse = {
     languages: Array<GoogleLanguage>;
-};
-
-export type GoogleLanguage = {
-    /**
-     * Language constant id; pass it in `google.languageIds`
-     */
-    id: string;
-    code: string;
-    name: string;
 };
 
 export type GetAdMarketProfileResponse = {

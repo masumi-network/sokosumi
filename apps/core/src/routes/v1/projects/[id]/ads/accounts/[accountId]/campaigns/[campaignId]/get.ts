@@ -11,7 +11,7 @@ import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   adCampaignDetailsSchema,
-  listAdCampaignsQuerySchema,
+  adRangeQuerySchema,
   projectAdCampaignParamsSchema,
 } from "@/schemas/project-ad-account.schema";
 import { getProjectAdCampaignDetails } from "@/services/project-ad-accounts.service";
@@ -27,7 +27,7 @@ const route = withOrganizationSlugHeaderParameter(
     tags: ["Projects"],
     request: {
       params: projectAdCampaignParamsSchema,
-      query: listAdCampaignsQuerySchema,
+      query: adRangeQuerySchema,
     },
     responses: {
       200: jsonSuccessResponse(adCampaignDetailsSchema, "Campaign details"),

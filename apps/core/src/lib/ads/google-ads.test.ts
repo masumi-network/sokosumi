@@ -1815,7 +1815,7 @@ describe("getGoogleCampaignDetails", () => {
           type: "LANGUAGE",
           language: { languageConstant: "languageConstants/1001" },
         },
-        languageConstant: { id: "1001", name: "German" },
+        languageConstant: { id: "1001", code: "de", name: "German" },
       },
     ],
     geo: [
@@ -1875,7 +1875,7 @@ describe("getGoogleCampaignDetails", () => {
     executeToolMock.mockImplementation(
       async (call: { arguments: { query: string } }) => {
         const query = call.arguments.query;
-        const key = [
+        const patterns: [RegExp, string][] = [
           [/FROM campaign_criterion/, "criteria"],
           [/FROM geo_target_constant/, "geo"],
           [/FROM ad_group WHERE/, "adGroups"],
@@ -1885,8 +1885,13 @@ describe("getGoogleCampaignDetails", () => {
           [/FROM campaign_asset/, "assets"],
           [/segments\.date DURING/, "daily"],
           [/FROM campaign WHERE/, "campaign"],
-        ].find(([pattern]) => (pattern as RegExp).test(query))?.[1] as string;
-        return { results: results[key], fieldMask: "x", requestId: "req" };
+        ];
+        const key = patterns.find(([pattern]) => pattern.test(query))?.[1];
+        return {
+          results: key && results[key],
+          fieldMask: "x",
+          requestId: "req",
+        };
       },
     );
   }
@@ -1932,7 +1937,7 @@ describe("getGoogleCampaignDetails", () => {
           countryCode: "DE",
         },
       ],
-      languages: [{ id: "1001", name: "German" }],
+      languages: [{ id: "1001", code: "de", name: "German" }],
     });
     expect(details.keywords).toEqual([
       {
@@ -1988,6 +1993,8 @@ describe("getGoogleCampaignDetails", () => {
       editable: true,
       notEditableReason: null,
     });
+    // Keywords are Search only, even when Google returns some.
+    expect(details.keywords).toEqual([]);
     expect(details.ad).toEqual({
       id: "901",
       status: "ENABLED",
@@ -2029,6 +2036,31 @@ describe("getGoogleCampaignDetails", () => {
     expect(imageQuery).toContain(
       "'customers/111/assets/1', 'customers/111/assets/404', 'customers/111/assets/2', 'customers/111/assets/3'",
     );
+  });
+
+  it("reports a location without target type or country code as null", async () => {
+    mockResults({
+      geo: [
+        {
+          geoTargetConstant: {
+            id: "2276",
+            name: "Germany",
+            canonicalName: "Germany",
+          },
+        },
+      ],
+    });
+    expect(
+      (await getGoogleCampaignDetails(detailsInput)).targeting.locations,
+    ).toEqual([
+      {
+        id: "2276",
+        name: "Germany",
+        canonicalName: "Germany",
+        targetType: null,
+        countryCode: null,
+      },
+    ]);
   });
 
   it("handles a campaign with nothing around it", async () => {

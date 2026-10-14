@@ -13,6 +13,7 @@ import {
   downloadDriveFile,
 } from "@/helpers/drive-file-download";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
+import { toLocalDateKey } from "@/helpers/task-schedule";
 import {
   type AdCampaign,
   type AdCampaignCreate,
@@ -27,7 +28,9 @@ import {
   GOOGLE_MAX_IDS,
   GOOGLE_MAX_LOCATION_SUGGESTIONS,
   type GoogleCampaignCreate,
+  type GoogleCampaignNotEditableReason,
   type GoogleCampaignSpec,
+  type GoogleCampaignType,
   type GoogleDisplayCampaignSpec,
   type GoogleDisplayImage,
   type GoogleDisplayImageRole,
@@ -345,6 +348,11 @@ export async function updateGoogleCampaign(
       }
     },
   );
+}
+
+/** The id after the last slash of a resource name. */
+function resourceId(resourceName: string): string {
+  return resourceName.slice(resourceName.lastIndexOf("/") + 1);
 }
 
 const campaignResultSchema = z.object({
@@ -835,7 +843,7 @@ export async function createGoogleCampaign(
       message: "create Google Ads campaign was not applied",
     });
   }
-  return campaignResourceName.slice(campaignResourceName.lastIndexOf("/") + 1);
+  return resourceId(campaignResourceName);
 }
 
 export interface GoogleLocation {
@@ -997,9 +1005,6 @@ export async function listGoogleLanguages(
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export type GoogleCampaignType = "SEARCH" | "DISPLAY" | "OTHER";
-export type GoogleCampaignNotEditableReason = "TYPE" | "AD_GROUPS" | "AD_TYPE";
-
 export interface GoogleCampaignKeyword {
   id: string;
   text: string;
@@ -1059,15 +1064,9 @@ export interface GoogleCampaignDetails {
   };
   targeting: {
     /** None targets all countries. */
-    locations: {
-      id: string;
-      name: string;
-      canonicalName: string;
-      targetType: string;
-      countryCode: string;
-    }[];
+    locations: GoogleLocation[];
     /** None targets all languages. */
-    languages: { id: string; name: string }[];
+    languages: GoogleLanguage[];
   };
   keywords: GoogleCampaignKeyword[];
   /** The campaign's only ad; null when it has none or several. */
@@ -1135,7 +1134,11 @@ const criterionRowSchema = z.object({
     language: z.object({ languageConstant: z.string() }).nullish(),
   }),
   languageConstant: z
-    .object({ id: z.coerce.string().min(1), name: z.string() })
+    .object({
+      id: z.coerce.string().min(1),
+      code: z.string(),
+      name: z.string(),
+    })
     .nullish(),
 });
 
@@ -1239,21 +1242,6 @@ const dailyRowSchema = z.object({
   metrics: metricRowSchema.shape.metrics,
 });
 
-/** The id after the last slash of a resource name. */
-function resourceId(resourceName: string): string {
-  return resourceName.slice(resourceName.lastIndexOf("/") + 1);
-}
-
-/** Today's date (`YYYY-MM-DD`) in the time zone; UTC without one. */
-function todayIn(timeZone: string | null | undefined, now: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: timeZone ?? "UTC",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-}
-
 /** The `days` dates before `today`, oldest first. */
 function daysBefore(today: string, days: number): string[] {
   const end = Date.parse(`${today}T00:00:00Z`);
@@ -1342,12 +1330,312 @@ function notEditableReason(
     : "AD_TYPE";
 }
 
+type DetailRows = Awaited<ReturnType<typeof readDetailRows>>;
+type DetailCampaign = z.infer<typeof detailCampaignRowSchema>;
+
+/**
+ * Every GAQL read of the details in one session: the independent queries run
+ * together, then the location and image lookups that need their results.
+ * `campaignId` is digits only, so it cannot alter the queries. 404 when the
+ * campaign is not in the customer or is removed.
+ */
+async function readDetailRows(
+  execute: ExecuteAdsTool,
+  customerId: string,
+  campaignId: string,
+  range: AdRange,
+) {
+  const search = async <T extends z.ZodType>(
+    query: string,
+    schema: T,
+    what: string,
+  ): Promise<z.infer<T>[]> => {
+    const context = `read Google Ads campaign ${what}`;
+    return parseToolRows(
+      requireToolRows(
+        await execute(SEARCH_STREAM_GAQL, { customer_id: customerId, query }),
+        "results",
+        context,
+      ),
+      schema,
+      context,
+    );
+  };
+  const campaignQuery = `campaign.id = ${campaignId}`;
+  const [[head], criteria, adGroups, keywords, ads, linkedAssets, dailyRows] =
+    await Promise.all([
+      search(
+        `SELECT customer.time_zone, campaign.id, campaign.name, campaign.status, campaign.serving_status, campaign.advertising_channel_type, campaign.bidding_strategy_type, campaign.start_date_time, campaign.end_date_time, campaign_budget.amount_micros FROM campaign WHERE ${campaignQuery} AND campaign.status != 'REMOVED'`,
+        detailCampaignRowSchema,
+        "details",
+      ),
+      search(
+        `SELECT campaign_criterion.criterion_id, campaign_criterion.type, campaign_criterion.location.geo_target_constant, campaign_criterion.language.language_constant, language_constant.id, language_constant.code, language_constant.name FROM campaign_criterion WHERE ${campaignQuery} AND campaign_criterion.negative = FALSE AND campaign_criterion.status != 'REMOVED' AND campaign_criterion.type IN ('LOCATION', 'LANGUAGE')`,
+        criterionRowSchema,
+        "targeting",
+      ),
+      search(
+        `SELECT ad_group.id, ad_group.status FROM ad_group WHERE ${campaignQuery} AND ad_group.status != 'REMOVED'`,
+        adGroupRowSchema,
+        "ad groups",
+      ),
+      search(
+        `SELECT ad_group_criterion.criterion_id, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.status, ad_group_criterion.approval_status FROM ad_group_criterion WHERE ${campaignQuery} AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = FALSE AND ad_group_criterion.status != 'REMOVED' AND ad_group.status != 'REMOVED'`,
+        keywordRowSchema,
+        "keywords",
+      ),
+      search(
+        `SELECT ad_group_ad.status, ad_group_ad.ad_strength, ad_group_ad.policy_summary.approval_status, ad_group_ad.policy_summary.review_status, ad_group_ad.ad.id, ad_group_ad.ad.type, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2, ad_group_ad.ad.responsive_display_ad.marketing_images, ad_group_ad.ad.responsive_display_ad.square_marketing_images, ad_group_ad.ad.responsive_display_ad.square_logo_images, ad_group_ad.ad.responsive_display_ad.headlines, ad_group_ad.ad.responsive_display_ad.long_headline, ad_group_ad.ad.responsive_display_ad.descriptions, ad_group_ad.ad.responsive_display_ad.business_name, ad_group.id FROM ad_group_ad WHERE ${campaignQuery} AND ad_group_ad.status != 'REMOVED' AND ad_group.status != 'REMOVED'`,
+        adRowSchema,
+        "ads",
+      ),
+      search(
+        `SELECT campaign_asset.field_type, campaign_asset.status, asset.id, asset.sitelink_asset.link_text, asset.sitelink_asset.description1, asset.sitelink_asset.description2, asset.final_urls, asset.callout_asset.callout_text, asset.policy_summary.approval_status FROM campaign_asset WHERE campaign_asset.campaign = 'customers/${customerId}/campaigns/${campaignId}' AND campaign_asset.field_type IN ('SITELINK', 'CALLOUT') AND campaign_asset.status = 'ENABLED'`,
+        linkedAssetRowSchema,
+        "assets",
+      ),
+      search(
+        `SELECT segments.date, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions FROM campaign WHERE ${campaignQuery} AND segments.date DURING ${range}`,
+        dailyRowSchema,
+        "metrics",
+      ),
+    ]);
+  if (!head) throw notFound("Campaign not found");
+
+  // Resource names come from Google's own rows, not from the request.
+  const locationNames = criteria.flatMap(({ campaignCriterion }) =>
+    campaignCriterion.type === "LOCATION" && campaignCriterion.location
+      ? [campaignCriterion.location.geoTargetConstant]
+      : [],
+  );
+  const imageNames = [
+    ...new Set(
+      ads.flatMap(({ adGroupAd }) => {
+        const display = adGroupAd.ad.responsiveDisplayAd;
+        return display
+          ? [
+              ...display.marketingImages,
+              ...display.squareMarketingImages,
+              ...display.squareLogoImages,
+            ]
+          : [];
+      }),
+    ),
+  ];
+  const inList = (names: readonly string[]) =>
+    names.map((name) => `'${name}'`).join(", ");
+  const [geoTargets, imageAssets] = await Promise.all([
+    locationNames.length > 0
+      ? search(
+          `SELECT geo_target_constant.id, geo_target_constant.name, geo_target_constant.canonical_name, geo_target_constant.target_type, geo_target_constant.country_code FROM geo_target_constant WHERE geo_target_constant.resource_name IN (${inList(locationNames)})`,
+          geoRowSchema,
+          "locations",
+        )
+      : [],
+    imageNames.length > 0
+      ? search(
+          `SELECT asset.resource_name, asset.id, asset.image_asset.full_size.url, asset.image_asset.full_size.width_pixels, asset.image_asset.full_size.height_pixels FROM asset WHERE asset.resource_name IN (${inList(imageNames)})`,
+          imageAssetRowSchema,
+          "images",
+        )
+      : [],
+  ]);
+  return {
+    head,
+    criteria,
+    adGroups,
+    keywords,
+    ads: ads.map(({ adGroupAd }) => adGroupAd),
+    linkedAssets,
+    dailyRows,
+    geoTargets,
+    imageAssets,
+  };
+}
+
+function campaignTypeOf(campaign: DetailCampaign["campaign"]) {
+  const channel = campaign.advertisingChannelType;
+  return channel === "SEARCH" || channel === "DISPLAY" ? channel : "OTHER";
+}
+
+function buildCampaign(
+  { head, adGroups, ads }: DetailRows,
+  type: GoogleCampaignType,
+  currency: string,
+  today: string,
+): GoogleCampaignDetails["campaign"] {
+  const { campaign, campaignBudget } = head;
+  const startDate = campaign.startDateTime?.slice(0, 10) || null;
+  const endDate = campaign.endDateTime?.slice(0, 10) || null;
+  const reason = notEditableReason(type, adGroups.length, ads);
+  return {
+    id: campaign.id,
+    name: campaign.name,
+    status: googleStatus(campaign.status, campaign.servingStatus),
+    type,
+    channelType: campaign.advertisingChannelType ?? "",
+    dailyBudget: round((campaignBudget?.amountMicros ?? 0) / MICROS, 2),
+    currency,
+    biddingStrategyType: campaign.biddingStrategyType ?? "",
+    startDate,
+    endDate: endDate === NO_END_DATE ? null : endDate,
+    started: startDate !== null && startDate <= today,
+    editable: reason === null,
+    notEditableReason: reason,
+  };
+}
+
+/** Locations in the order of the criteria that named them. */
+function buildLocations({
+  criteria,
+  geoTargets,
+}: DetailRows): GoogleLocation[] {
+  const byId = new Map(
+    geoTargets.map(({ geoTargetConstant }) => [
+      geoTargetConstant.id,
+      geoTargetConstant,
+    ]),
+  );
+  return criteria.flatMap(({ campaignCriterion }) => {
+    const constant = byId.get(
+      resourceId(campaignCriterion.location?.geoTargetConstant ?? ""),
+    );
+    return constant
+      ? [
+          {
+            id: constant.id,
+            name: constant.name,
+            canonicalName: constant.canonicalName,
+            targetType: constant.targetType ?? null,
+            countryCode: constant.countryCode ?? null,
+          },
+        ]
+      : [];
+  });
+}
+
+function buildLanguages({ criteria }: DetailRows): GoogleLanguage[] {
+  return criteria.flatMap(({ campaignCriterion, languageConstant }) =>
+    campaignCriterion.type === "LANGUAGE" && languageConstant
+      ? [languageConstant]
+      : [],
+  );
+}
+
+/** Keywords exist on Search campaigns only; a match type we do not know is skipped. */
+function buildKeywords(
+  { keywords }: DetailRows,
+  type: GoogleCampaignType,
+): GoogleCampaignKeyword[] {
+  if (type !== "SEARCH") return [];
+  return keywords.flatMap(({ adGroupCriterion: criterion }) => {
+    const matchType = GOOGLE_KEYWORD_MATCH_TYPES.find(
+      (known) => known === criterion.keyword.matchType,
+    );
+    return matchType
+      ? [
+          {
+            id: criterion.criterionId,
+            text: criterion.keyword.text,
+            matchType,
+            status: criterion.status,
+            approvalStatus: criterion.approvalStatus ?? null,
+          },
+        ]
+      : [];
+  });
+}
+
+/** The campaign's only ad; null when it has none or several. */
+function buildOnlyAd({
+  ads,
+  imageAssets,
+}: DetailRows): GoogleCampaignAd | null {
+  const [ad] = ads;
+  return ads.length === 1 && ad
+    ? buildCampaignAd(
+        ad,
+        new Map(imageAssets.map(({ asset }) => [asset.resourceName, asset])),
+      )
+    : null;
+}
+
+function buildSitelinks({
+  linkedAssets,
+}: DetailRows): GoogleCampaignDetails["sitelinks"] {
+  return linkedAssets.flatMap(({ campaignAsset, asset }) =>
+    campaignAsset.fieldType === "SITELINK" && asset.sitelinkAsset
+      ? [
+          {
+            assetId: asset.id,
+            text: asset.sitelinkAsset.linkText,
+            finalUrl: asset.finalUrls?.[0] ?? "",
+            description1: asset.sitelinkAsset.description1 ?? null,
+            description2: asset.sitelinkAsset.description2 ?? null,
+            approvalStatus: asset.policySummary?.approvalStatus ?? null,
+          },
+        ]
+      : [],
+  );
+}
+
+function buildCallouts({
+  linkedAssets,
+}: DetailRows): GoogleCampaignDetails["callouts"] {
+  return linkedAssets.flatMap(({ campaignAsset, asset }) =>
+    campaignAsset.fieldType === "CALLOUT" && asset.calloutAsset
+      ? [
+          {
+            assetId: asset.id,
+            text: asset.calloutAsset.calloutText,
+            approvalStatus: asset.policySummary?.approvalStatus ?? null,
+          },
+        ]
+      : [],
+  );
+}
+
+/** Totals of the rows and one zero-filled entry per day of the range, oldest first. */
+function buildPerformance(
+  { dailyRows }: DetailRows,
+  range: AdRange,
+  today: string,
+): GoogleCampaignDetails["performance"] {
+  const rows = dailyRows.map(({ segments, metrics }) => ({
+    date: segments.date,
+    spend: (metrics.costMicros ?? 0) / MICROS,
+    impressions: metrics.impressions ?? 0,
+    clicks: metrics.clicks ?? 0,
+    conversions: metrics.conversions ?? 0,
+  }));
+  // sumAdMetrics groups by `campaignId`: here by date, and by one key for the totals.
+  const perDay = sumAdMetrics(
+    rows.map(({ date, ...row }) => ({ ...row, campaignId: date })),
+  );
+  const total = sumAdMetrics(
+    rows.map(({ date: _date, ...row }) => ({ ...row, campaignId: "all" })),
+  ).get("all");
+  return {
+    totals: summarizeAdMetrics(total ?? noAdMetrics(0)),
+    daily: daysBefore(today, range === "LAST_7_DAYS" ? 7 : 30).map((date) => {
+      const { spend, impressions, clicks, conversions } = summarizeAdMetrics(
+        perDay.get(date) ?? noAdMetrics(0),
+      );
+      return {
+        date,
+        spend,
+        impressions,
+        clicks,
+        conversions: conversions ?? 0,
+      };
+    }),
+  };
+}
+
 /**
  * One non-removed Google campaign with its targeting, keywords, ad, sitelinks,
- * callouts and daily performance over the range. All of it is read with GAQL
- * in one session: the independent queries run together, then the location and
- * image lookups that need their results. 404 when the campaign is not in the
- * customer or is removed.
+ * callouts and daily performance over the range, read with GAQL in one
+ * session. 404 when the campaign is not in the customer or is removed.
  */
 export async function getGoogleCampaignDetails(
   input: AdsConnectedAccount & {
@@ -1361,290 +1649,30 @@ export async function getGoogleCampaignDetails(
   const { customerId, campaignId, currency, range, ...connected } = input;
   // The id goes into the queries, so it must be digits only.
   if (!/^\d{1,20}$/.test(campaignId)) throw notFound("Campaign not found");
-  const campaignQuery = `campaign.id = ${campaignId}`;
 
-  const {
-    head,
-    criteria,
-    adGroups,
-    keywords,
-    ads,
-    linkedAssets,
-    dailyRows,
-    geoTargets,
-    imageAssets,
-  } = await withAdsToolSession(
+  const rows = await withAdsToolSession(
     {
       ...connected,
       toolkit: PROJECT_AD_PROVIDERS.google_ads,
       toolSlugs: [SEARCH_STREAM_GAQL],
     },
-    async (execute) => {
-      const search = async <T extends z.ZodType>(
-        query: string,
-        schema: T,
-        what: string,
-      ): Promise<z.infer<T>[]> => {
-        const context = `read Google Ads campaign ${what}`;
-        return parseToolRows(
-          requireToolRows(
-            await execute(SEARCH_STREAM_GAQL, {
-              customer_id: customerId,
-              query,
-            }),
-            "results",
-            context,
-          ),
-          schema,
-          context,
-        );
-      };
-      const [
-        [head],
-        criteria,
-        adGroups,
-        keywords,
-        ads,
-        linkedAssets,
-        dailyRows,
-      ] = await Promise.all([
-        search(
-          `SELECT customer.time_zone, campaign.id, campaign.name, campaign.status, campaign.serving_status, campaign.advertising_channel_type, campaign.bidding_strategy_type, campaign.start_date_time, campaign.end_date_time, campaign_budget.amount_micros FROM campaign WHERE ${campaignQuery} AND campaign.status != 'REMOVED'`,
-          detailCampaignRowSchema,
-          "details",
-        ),
-        search(
-          `SELECT campaign_criterion.criterion_id, campaign_criterion.type, campaign_criterion.location.geo_target_constant, campaign_criterion.language.language_constant, language_constant.id, language_constant.name FROM campaign_criterion WHERE ${campaignQuery} AND campaign_criterion.negative = FALSE AND campaign_criterion.status != 'REMOVED' AND campaign_criterion.type IN ('LOCATION', 'LANGUAGE')`,
-          criterionRowSchema,
-          "targeting",
-        ),
-        search(
-          `SELECT ad_group.id, ad_group.status FROM ad_group WHERE ${campaignQuery} AND ad_group.status != 'REMOVED'`,
-          adGroupRowSchema,
-          "ad groups",
-        ),
-        search(
-          `SELECT ad_group_criterion.criterion_id, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.status, ad_group_criterion.approval_status FROM ad_group_criterion WHERE ${campaignQuery} AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = FALSE AND ad_group_criterion.status != 'REMOVED' AND ad_group.status != 'REMOVED'`,
-          keywordRowSchema,
-          "keywords",
-        ),
-        search(
-          `SELECT ad_group_ad.status, ad_group_ad.ad_strength, ad_group_ad.policy_summary.approval_status, ad_group_ad.policy_summary.review_status, ad_group_ad.ad.id, ad_group_ad.ad.type, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2, ad_group_ad.ad.responsive_display_ad.marketing_images, ad_group_ad.ad.responsive_display_ad.square_marketing_images, ad_group_ad.ad.responsive_display_ad.square_logo_images, ad_group_ad.ad.responsive_display_ad.headlines, ad_group_ad.ad.responsive_display_ad.long_headline, ad_group_ad.ad.responsive_display_ad.descriptions, ad_group_ad.ad.responsive_display_ad.business_name, ad_group.id FROM ad_group_ad WHERE ${campaignQuery} AND ad_group_ad.status != 'REMOVED' AND ad_group.status != 'REMOVED'`,
-          adRowSchema,
-          "ads",
-        ),
-        search(
-          `SELECT campaign_asset.field_type, campaign_asset.status, asset.id, asset.sitelink_asset.link_text, asset.sitelink_asset.description1, asset.sitelink_asset.description2, asset.final_urls, asset.callout_asset.callout_text, asset.policy_summary.approval_status FROM campaign_asset WHERE campaign_asset.campaign = 'customers/${customerId}/campaigns/${campaignId}' AND campaign_asset.field_type IN ('SITELINK', 'CALLOUT') AND campaign_asset.status = 'ENABLED'`,
-          linkedAssetRowSchema,
-          "assets",
-        ),
-        search(
-          `SELECT segments.date, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions FROM campaign WHERE ${campaignQuery} AND segments.date DURING ${range}`,
-          dailyRowSchema,
-          "metrics",
-        ),
-      ]);
-      if (!head) throw notFound("Campaign not found");
-
-      // Resource names come from Google's own rows, not from the request.
-      const locationNames = criteria.flatMap(({ campaignCriterion }) =>
-        campaignCriterion.type === "LOCATION" && campaignCriterion.location
-          ? [campaignCriterion.location.geoTargetConstant]
-          : [],
-      );
-      const imageNames = [
-        ...new Set(
-          ads.flatMap(({ adGroupAd }) => {
-            const display = adGroupAd.ad.responsiveDisplayAd;
-            return display
-              ? [
-                  ...display.marketingImages,
-                  ...display.squareMarketingImages,
-                  ...display.squareLogoImages,
-                ]
-              : [];
-          }),
-        ),
-      ];
-      const inList = (names: readonly string[]) =>
-        names.map((name) => `'${name}'`).join(", ");
-      const [geoTargets, imageAssets] = await Promise.all([
-        locationNames.length > 0
-          ? search(
-              `SELECT geo_target_constant.id, geo_target_constant.name, geo_target_constant.canonical_name, geo_target_constant.target_type, geo_target_constant.country_code FROM geo_target_constant WHERE geo_target_constant.resource_name IN (${inList(locationNames)})`,
-              geoRowSchema,
-              "locations",
-            )
-          : [],
-        imageNames.length > 0
-          ? search(
-              `SELECT asset.resource_name, asset.id, asset.image_asset.full_size.url, asset.image_asset.full_size.width_pixels, asset.image_asset.full_size.height_pixels FROM asset WHERE asset.resource_name IN (${inList(imageNames)})`,
-              imageAssetRowSchema,
-              "images",
-            )
-          : [],
-      ]);
-      return {
-        head,
-        criteria,
-        adGroups,
-        keywords,
-        ads,
-        linkedAssets,
-        dailyRows,
-        geoTargets,
-        imageAssets,
-      };
-    },
+    (execute) => readDetailRows(execute, customerId, campaignId, range),
   );
-
-  const { campaign } = head;
-  const type: GoogleCampaignType =
-    campaign.advertisingChannelType === "SEARCH" ||
-    campaign.advertisingChannelType === "DISPLAY"
-      ? campaign.advertisingChannelType
-      : "OTHER";
-  const startDate = campaign.startDateTime?.slice(0, 10) || null;
-  const endDate = campaign.endDateTime?.slice(0, 10) || null;
-  const today = todayIn(head.customer.timeZone, new Date());
-  const adRows = ads.map(({ adGroupAd }) => adGroupAd);
-  const reason = notEditableReason(type, adGroups.length, adRows);
-
-  // Geo constants keep the order of the criteria that named them.
-  const geoById = new Map(
-    geoTargets.map(({ geoTargetConstant }) => [
-      geoTargetConstant.id,
-      geoTargetConstant,
-    ]),
+  const type = campaignTypeOf(rows.head.campaign);
+  const today = toLocalDateKey(
+    new Date(),
+    rows.head.customer.timeZone ?? "UTC",
   );
-  const locations = criteria.flatMap(({ campaignCriterion }) => {
-    const constant = geoById.get(
-      resourceId(campaignCriterion.location?.geoTargetConstant ?? ""),
-    );
-    return constant
-      ? [
-          {
-            id: constant.id,
-            name: constant.name,
-            canonicalName: constant.canonicalName,
-            targetType: constant.targetType ?? "",
-            countryCode: constant.countryCode ?? "",
-          },
-        ]
-      : [];
-  });
-  const languages = criteria.flatMap(
-    ({ campaignCriterion, languageConstant }) =>
-      campaignCriterion.type === "LANGUAGE" && languageConstant
-        ? [{ id: languageConstant.id, name: languageConstant.name }]
-        : [],
-  );
-
-  const imageAssetsByName = new Map(
-    imageAssets.map(({ asset }) => [asset.resourceName, asset]),
-  );
-  const [onlyAd] = adRows;
-
-  const empty = { spend: 0, impressions: 0, clicks: 0, conversions: 0 };
-  const perDay = new Map<string, typeof empty>();
-  for (const { segments, metrics } of dailyRows) {
-    const day = perDay.get(segments.date) ?? empty;
-    perDay.set(segments.date, {
-      spend: day.spend + (metrics.costMicros ?? 0) / MICROS,
-      impressions: day.impressions + (metrics.impressions ?? 0),
-      clicks: day.clicks + (metrics.clicks ?? 0),
-      conversions: day.conversions + (metrics.conversions ?? 0),
-    });
-  }
-  const days = daysBefore(today, range === "LAST_7_DAYS" ? 7 : 30).map(
-    (date) => ({ date, ...(perDay.get(date) ?? empty) }),
-  );
-
   return {
-    campaign: {
-      id: campaign.id,
-      name: campaign.name,
-      status: googleStatus(campaign.status, campaign.servingStatus),
-      type,
-      channelType: campaign.advertisingChannelType ?? "",
-      dailyBudget: round((head.campaignBudget?.amountMicros ?? 0) / MICROS, 2),
-      currency,
-      biddingStrategyType: campaign.biddingStrategyType ?? "",
-      startDate,
-      endDate: endDate === NO_END_DATE ? null : endDate,
-      started: startDate !== null && startDate <= today,
-      editable: reason === null,
-      notEditableReason: reason,
+    campaign: buildCampaign(rows, type, currency, today),
+    targeting: {
+      locations: buildLocations(rows),
+      languages: buildLanguages(rows),
     },
-    targeting: { locations, languages },
-    keywords: keywords.flatMap(
-      ({
-        adGroupCriterion: { criterionId, keyword, status, approvalStatus },
-      }) => {
-        const matchType = GOOGLE_KEYWORD_MATCH_TYPES.find(
-          (known) => known === keyword.matchType,
-        );
-        return matchType
-          ? [
-              {
-                id: criterionId,
-                text: keyword.text,
-                matchType,
-                status,
-                approvalStatus: approvalStatus ?? null,
-              },
-            ]
-          : [];
-      },
-    ),
-    ad:
-      adRows.length === 1 && onlyAd
-        ? buildCampaignAd(onlyAd, imageAssetsByName)
-        : null,
-    sitelinks: linkedAssets.flatMap(({ campaignAsset, asset }) =>
-      campaignAsset.fieldType === "SITELINK" && asset.sitelinkAsset
-        ? [
-            {
-              assetId: asset.id,
-              text: asset.sitelinkAsset.linkText,
-              finalUrl: asset.finalUrls?.[0] ?? "",
-              description1: asset.sitelinkAsset.description1 ?? null,
-              description2: asset.sitelinkAsset.description2 ?? null,
-              approvalStatus: asset.policySummary?.approvalStatus ?? null,
-            },
-          ]
-        : [],
-    ),
-    callouts: linkedAssets.flatMap(({ campaignAsset, asset }) =>
-      campaignAsset.fieldType === "CALLOUT" && asset.calloutAsset
-        ? [
-            {
-              assetId: asset.id,
-              text: asset.calloutAsset.calloutText,
-              approvalStatus: asset.policySummary?.approvalStatus ?? null,
-            },
-          ]
-        : [],
-    ),
-    performance: {
-      totals: summarizeAdMetrics(
-        days.reduce(
-          (total, day) => ({
-            spend: total.spend + day.spend,
-            impressions: total.impressions + day.impressions,
-            clicks: total.clicks + day.clicks,
-            conversions: total.conversions + day.conversions,
-          }),
-          empty,
-        ),
-      ),
-      daily: days.map(({ date, spend, impressions, clicks, conversions }) => ({
-        date,
-        spend: round(spend, 2),
-        impressions,
-        clicks,
-        conversions: round(conversions, 2),
-      })),
-    },
+    keywords: buildKeywords(rows, type),
+    ad: buildOnlyAd(rows),
+    sitelinks: buildSitelinks(rows),
+    callouts: buildCallouts(rows),
+    performance: buildPerformance(rows, range, today),
   };
 }

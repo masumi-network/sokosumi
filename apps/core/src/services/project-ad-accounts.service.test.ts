@@ -619,6 +619,14 @@ describe("project ad accounts service", () => {
       expect(m.googleDetails).not.toHaveBeenCalled();
     });
 
+    it("returns 404 for a Meta account whose connection is not active", async () => {
+      m.accountFindFirst.mockResolvedValue(
+        accountRow("meta_ads", "act_9", "disconnected"),
+      );
+      await expect(details()).rejects.toMatchObject({ status: 404 });
+      expect(m.googleDetails).not.toHaveBeenCalled();
+    });
+
     it("returns 404 for an account of another Project", async () => {
       m.accountFindFirst.mockResolvedValue(null);
       await expect(details()).rejects.toMatchObject({ status: 404 });
