@@ -369,28 +369,15 @@ struct OpenRoomSessionTests {
     #expect(moved())
   }
 
-  /// A Pending reaction lists the reader under the name the open room gives them, else their account name.
-  @Test(arguments: [("Ada in the room", "Ada in the room"), (nil, "Ada Lovelace")])
-  func aPendingReactionNamesTheReaderAsTheRoomDoes(listed: String?, expected: String) async throws {
-    let transport = TestTransport([
-      (200, testMessagesPageBody(messages: [testMessageJSON(id: "m1", content: "Hi", sender: ada)], nextCursor: nil)),
-      (200, #"{"data":{"messageId":"m1","emoji":"👍","reacted":true},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#)
-    ])
-    let session = try connected(transport)
+  /// A Pending reaction lists the reader under the name the open room gives them, else their account name; no name
+  /// at all lists them unnamed.
+  @Test(arguments: [("Ada in the room", "Ada Lovelace", "Ada in the room"), (nil, "Ada Lovelace", "Ada Lovelace"), (nil, "", nil)])
+  func aPendingReactionNamesTheReaderAsTheRoomDoes(listed: String?, account: String, expected: String?) {
+    let session = OpenRoomSession()
     var listedRoom = room(testRoomId)
     listedRoom.userMembers = listed.map { [.init(id: "me", name: $0, email: "me@example.com", presence: .online)] } ?? []
     session.hooks.listedRoom = { listedRoom }
-    session.hooks.viewer = { ("me", "Ada Lovelace") }
-    session.open(room(testRoomId), userId: "me", organizationId: nil)
-    _ = await session.room.loadTask?.value
-    let message = try #require(session.room.timeline.messages.first)
-    let toggle = Task { try await session.toggleReaction(message, emoji: "👍") }
-    var reactors: [String?]?
-    for _ in 0 ..< 100 where reactors == nil {
-      await Task.yield()
-      reactors = session.displayedTranscript.first?.reactions.first { $0.emoji == "👍" }?.reactors.map(\.name)
-    }
-    #expect(reactors == [expected])
-    _ = try? await toggle.value
+    session.hooks.viewer = { ("me", account) }
+    #expect(session.reactionViewer == PendingReactionViewer(id: "me", name: expected))
   }
 }

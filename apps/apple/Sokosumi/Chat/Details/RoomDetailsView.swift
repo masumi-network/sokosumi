@@ -22,6 +22,31 @@ struct RoomDetailsView: View {
     ChannelEditPermissions(room: room, isOwnerOrAdmin: workspaces.isOrganizationOwnerOrAdmin)
   }
 
+  /// What manages this room, the same entries and gates as the sidebar's room menu.
+  private var manage: [RoomMenuEntry] {
+    RoomMenu.manage(
+      room: room, isOwnerOrAdmin: workspaces.isOrganizationOwnerOrAdmin, mutationInFlight: workspaces.roomMutationInFlight
+    )
+  }
+
+  private func manageButton(_ entry: RoomMenuEntry) -> some View {
+    Button {
+      switch entry.command {
+      case .nameGroup:
+        roomEditSheets?.nameGroup = .init(id: workspaces.compositionContext, roomId: room.id)
+      case .channelSettings:
+        roomEditSheets?.editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
+      case .leave:
+        lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: .leave)
+      case .markUnread, .pin, .unpin, .mute, .unmute:
+        break
+      }
+    } label: {
+      RoomMenuEntryLabel(command: entry.command, showsIcon: false)
+    }
+    .disabled(!entry.isEnabled)
+  }
+
   var body: some View {
     VStack(spacing: 0) {
       HStack {
@@ -45,30 +70,17 @@ struct RoomDetailsView: View {
             if let topic = room.topic?.trimmingCharacters(in: .whitespacesAndNewlines), !topic.isEmpty {
               Text(topic).textSelection(.enabled)
             }
-            if permissions.canManageSettings {
-              Button("Channel settings…") {
-                roomEditSheets?.editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
-              }
-            }
-            if ChannelEditPermissions.canLeave(room) {
-              Button("Leave channel…") {
-                lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: .leave)
-              }
-              .disabled(workspaces.roomMutationInFlight)
+            ForEach(manage.filter { $0.command != .nameGroup }, id: \.command) { entry in
+              manageButton(entry)
             }
           }
         }
-        if GroupNameDraft.canName(room) {
+        if let nameGroup = manage.first(where: { $0.command == .nameGroup }) {
           Section {
             if let groupName = room.groupName {
               Text(groupName).font(.headline)
             }
-            Button {
-              roomEditSheets?.nameGroup = .init(id: workspaces.compositionContext, roomId: room.id)
-            } label: {
-              NameGroupLabel()
-            }
-            .disabled(workspaces.roomMutationInFlight)
+            manageButton(nameGroup)
           } header: {
             Text("Group", tableName: groupNameTable, comment: "Members inspector section for a group Direct's name.")
           }
