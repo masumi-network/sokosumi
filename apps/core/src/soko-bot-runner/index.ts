@@ -22,6 +22,7 @@ import {
   tool,
 } from "ai";
 
+import { compactHistory } from "./history";
 import {
   citableSources,
   fetchWebPage,
@@ -295,6 +296,10 @@ async function main(): Promise<void> {
         forSubagent: false,
       }),
       stopWhen: stepCountIs(start.maxSteps),
+      prepareStep: ({ messages }) => {
+        const compacted = compactHistory(messages);
+        return compacted ? { messages: compacted } : {};
+      },
       // Ask for the provider's reasoning summary (never raw thoughts) so the
       // chat can show what the bot considered, as Coworker replies do.
       providerOptions: REASONING_SUMMARY_OPTIONS,
