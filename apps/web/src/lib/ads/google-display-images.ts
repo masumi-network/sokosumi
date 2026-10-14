@@ -7,6 +7,32 @@ const image = GoogleDisplayImageSchema.properties;
 export type DisplayImageRole = GoogleDisplayImage["role"];
 type DisplayImageMimeType = GoogleDisplayImage["mimeType"];
 
+/**
+ * An image the ad being edited already has, kept as it is. Core takes only its
+ * `assetId` and `role`; `url` is Google's, to show it.
+ */
+export interface KeptDisplayImage {
+  assetId: string;
+  role: DisplayImageRole;
+  url: string;
+}
+
+/** What the form holds as an image: a Drive file to upload, or a kept one. */
+export type FormDisplayImage = GoogleDisplayImage | KeptDisplayImage;
+
+export function isKeptImage(
+  image: FormDisplayImage,
+): image is KeptDisplayImage {
+  return "assetId" in image;
+}
+
+/** What tells one image from another: a kept one's asset, a Drive file's path. */
+export function displayImageKey(
+  image: { assetId: string } | { pathname: string },
+): string {
+  return "assetId" in image ? `asset:${image.assetId}` : image.pathname;
+}
+
 /** Where an image is added: the marketing images, or the logos. */
 export type DisplayImageSlot = "images" | "logo";
 
@@ -50,10 +76,10 @@ const SLOT_MAX: Record<DisplayImageSlot, number> = {
 };
 
 /** The images that sit in this slot. */
-export function imagesInSlot(
-  images: readonly GoogleDisplayImage[],
+export function imagesInSlot<T extends { role: DisplayImageRole }>(
+  images: readonly T[],
   slot: DisplayImageSlot,
-): GoogleDisplayImage[] {
+): T[] {
   return images.filter(({ role }) => SLOT_OF_ROLE[role] === slot);
 }
 
@@ -148,7 +174,9 @@ export function imageRoleForSize(
 }
 
 /** How many images hold each role. */
-export function displayImageCounts(images: readonly GoogleDisplayImage[]) {
+export function displayImageCounts(
+  images: readonly { role: DisplayImageRole }[],
+) {
   function count(role: DisplayImageRole): number {
     return images.filter((candidate) => candidate.role === role).length;
   }
@@ -164,7 +192,7 @@ export function displayImageCounts(images: readonly GoogleDisplayImage[]) {
 
 /** What an ad still needs: Core wants a landscape and a square image. */
 export function missingDisplayImages(
-  images: readonly GoogleDisplayImage[],
+  images: readonly { role: DisplayImageRole }[],
 ): "both" | "landscape" | "square" | null {
   const { landscape, square } = displayImageCounts(images);
   if (landscape === 0 && square === 0) return "both";
@@ -175,7 +203,7 @@ export function missingDisplayImages(
 
 /** Whether another image of this role fits: 6 landscape and square together, 2 logos. */
 export function hasRoomForDisplayImage(
-  images: readonly GoogleDisplayImage[],
+  images: readonly { role: DisplayImageRole }[],
   role: DisplayImageRole,
 ): boolean {
   const slot = SLOT_OF_ROLE[role];
@@ -187,10 +215,12 @@ type DisplayImageAddIssue = "duplicate" | "full";
 
 /** The images with this one added, or why it cannot be. */
 export function addDisplayImage(
-  images: readonly GoogleDisplayImage[],
-  added: GoogleDisplayImage,
-): Result<GoogleDisplayImage[], DisplayImageAddIssue> {
-  if (images.some(({ pathname }) => pathname === added.pathname)) {
+  images: readonly FormDisplayImage[],
+  added: FormDisplayImage,
+): Result<FormDisplayImage[], DisplayImageAddIssue> {
+  if (
+    images.some((image) => displayImageKey(image) === displayImageKey(added))
+  ) {
     return err("duplicate");
   }
   return hasRoomForDisplayImage(images, added.role)

@@ -129,6 +129,7 @@ import type {
   PostWorkspacesDesignMdAdhocData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
+  PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
   PutProjectsByIdAdsMarketData,
   PutProjectsByIdDesignMdData,
   PutTasksByIdShareError,
@@ -493,6 +494,7 @@ import {
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
+  putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId as corePutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
   putProjectsByIdAdsMarket as corePutProjectsByIdAdsMarket,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
   putTasksByIdShare as corePutTasksByIdShare,
@@ -3790,6 +3792,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId(
+    path: PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["path"],
+    body: PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId({
+          client,
+          path,
+          body,
+        }),
+      "Failed to edit ad campaign",
+    );
+  }
+
   async function putProjectsByIdAdsMarket(
     id: string,
     body: PutProjectsByIdAdsMarketData["body"],
@@ -6480,6 +6498,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdAdsAccountsByAccountIdTargetingLocations,
     getProjectsByIdAdsAccountsByAccountIdTargetingLanguages,
     getProjectsByIdAdsMarket,
+    putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
     putProjectsByIdAdsMarket,
     getProjectsByIdAdsMarketKeywords,
     getProjectsByIdAdsMarketAds,

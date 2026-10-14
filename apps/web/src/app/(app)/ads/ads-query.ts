@@ -61,6 +61,16 @@ export function campaignDetailsHref(
   return `/ads/campaigns/${encodeURIComponent(campaignId)}?${new URLSearchParams({ projectId, accountId, range })}`;
 }
 
+/** One Google campaign's edit page, which leads back to its details. */
+export function campaignEditHref(
+  projectId: string,
+  accountId: string,
+  campaignId: string,
+  range: RangeParam,
+): string {
+  return `/ads/campaigns/${encodeURIComponent(campaignId)}/edit?${new URLSearchParams({ projectId, accountId, range })}`;
+}
+
 /** The create page's URL state: the project and the account to create in. */
 export const loadNewCampaignSearchParams = createLoader({
   projectId: parseAsString,

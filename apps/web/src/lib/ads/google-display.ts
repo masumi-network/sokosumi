@@ -1,4 +1,5 @@
 import type {
+  GoogleDisplayCampaignEditSpec,
   GoogleDisplayCampaignSpec,
   GoogleDisplayImage,
 } from "@sokosumi/core-client";
@@ -19,6 +20,9 @@ import {
   DISPLAY_IMAGE_ROLES,
   DISPLAY_IMAGE_RULES,
   displayImageCounts,
+  displayImageKey,
+  type FormDisplayImage,
+  isKeptImage,
   missingDisplayImages,
 } from "./google-display-images";
 
@@ -103,13 +107,24 @@ const imageSchema = z.object({
   role: z.enum(DISPLAY_IMAGE_ROLES),
 });
 
+/** An image of the ad being edited, kept; `url` is only for showing it. */
+const keptImageSchema = z.object({
+  assetId: z.string().min(1),
+  role: z.enum(DISPLAY_IMAGE_ROLES),
+  url: z.string(),
+});
+
+/** Core's kept image: the asset and its role. */
+const keptImageSpecSchema = keptImageSchema.omit({ url: true });
+
 /** Rules that span fields, as Core states them. */
 function refineAcrossFields(
   value: {
     startDate?: string | undefined;
     endDate?: string | undefined;
-    images: readonly GoogleDisplayImage[];
+    images: readonly { role: GoogleDisplayImage["role"] }[];
   },
+  imageKeys: readonly string[],
   headlines: { path: string; texts: readonly string[] },
   ctx: z.RefinementCtx,
   messages: OptionalMessages,
@@ -137,18 +152,20 @@ function refineAcrossFields(
         `images.logosTooMany.${DISPLAY_IMAGE_RULES.maxLogos}`,
     );
   }
-  const paths = value.images.map(({ pathname }) => pathname);
-  if (new Set(paths).size < paths.length) {
+  if (new Set(imageKeys).size < imageKeys.length) {
     issue(messages.imageRepeated ?? "images.repeated");
   }
 }
 
-/**
- * Core's Display spec as the server action receives it, so a call that skips
- * the form still meets Core's limits. Google stays the authority on image
- * dimensions and policy.
- */
-export function googleDisplaySpecSchema(messages: OptionalMessages = {}) {
+type ImageRef = { role: GoogleDisplayImage["role"] } & (
+  | { assetId: string }
+  | { pathname: string }
+);
+
+function displaySpecSchema<I extends ImageRef>(
+  messages: OptionalMessages,
+  image: z.ZodType<I>,
+) {
   return z
     .object({
       type: z.literal("DISPLAY"),
@@ -163,16 +180,34 @@ export function googleDisplaySpecSchema(messages: OptionalMessages = {}) {
         .array(description(messages))
         .min(DESCRIPTIONS.min)
         .max(DESCRIPTIONS.max),
-      images: z.array(imageSchema).max(GOOGLE_DISPLAY_LIMITS.images),
+      images: z.array(image).max(GOOGLE_DISPLAY_LIMITS.images),
     })
     .superRefine((value, ctx) =>
       refineAcrossFields(
         value,
+        value.images.map(displayImageKey),
         { path: "headlines", texts: value.headlines },
         ctx,
         messages,
       ),
     );
+}
+
+/**
+ * Core's Display spec as the server action receives it, so a call that skips
+ * the form still meets Core's limits. Google stays the authority on image
+ * dimensions and policy.
+ */
+export function googleDisplaySpecSchema(messages: OptionalMessages = {}) {
+  return displaySpecSchema(messages, imageSchema);
+}
+
+/** The same for an edit, whose images may also be kept ones. */
+export function googleDisplayEditSpecSchema(messages: OptionalMessages = {}) {
+  return displaySpecSchema(
+    messages,
+    z.union([imageSchema, keptImageSpecSchema]),
+  );
 }
 
 /**
@@ -185,7 +220,7 @@ export interface GoogleDisplayFormValues extends GoogleSharedFormValues {
   longHeadline: string;
   displayDescriptions: string[];
   /** Marketing images and logos together, told apart by their role. */
-  images: GoogleDisplayImage[];
+  images: FormDisplayImage[];
 }
 
 /** The same limits for the form's fields, in the reader's words. */
@@ -203,11 +238,12 @@ export function googleDisplayFormSchema(messages: OptionalMessages = {}) {
         .array(description(messages))
         .min(DESCRIPTIONS.min)
         .max(DESCRIPTIONS.max),
-      images: z.array(imageSchema),
+      images: z.array(z.union([imageSchema, keptImageSchema])),
     })
     .superRefine((value, ctx) =>
       refineAcrossFields(
         value,
+        value.images.map(displayImageKey),
         { path: "displayHeadlines", texts: value.displayHeadlines },
         ctx,
         messages,
@@ -215,17 +251,37 @@ export function googleDisplayFormSchema(messages: OptionalMessages = {}) {
     );
 }
 
-/** The Display spec for what the form holds. */
-export function toGoogleDisplaySpec(
-  values: GoogleDisplayFormValues,
-): GoogleDisplayCampaignSpec {
+function displayAdTexts(values: GoogleDisplayFormValues) {
   return {
-    type: "DISPLAY",
+    type: "DISPLAY" as const,
     ...toGoogleSharedSpec(values),
     businessName: values.businessName.trim(),
     headlines: values.displayHeadlines.map((value) => value.trim()),
     longHeadline: values.longHeadline.trim(),
     descriptions: values.displayDescriptions.map((value) => value.trim()),
-    images: values.images,
+  };
+}
+
+/** The Display spec of a new campaign: its images are all Drive files. */
+export function toGoogleDisplaySpec(
+  values: GoogleDisplayFormValues,
+): GoogleDisplayCampaignSpec {
+  return {
+    ...displayAdTexts(values),
+    images: values.images.filter(
+      (image): image is GoogleDisplayImage => !isKeptImage(image),
+    ),
+  };
+}
+
+/** The Display spec of an edit: kept images are sent as asset and role. */
+export function toGoogleDisplayEditSpec(
+  values: GoogleDisplayFormValues,
+): GoogleDisplayCampaignEditSpec {
+  return {
+    ...displayAdTexts(values),
+    images: values.images.map((image) =>
+      isKeptImage(image) ? { assetId: image.assetId, role: image.role } : image,
+    ),
   };
 }

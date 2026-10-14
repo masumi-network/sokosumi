@@ -1,6 +1,6 @@
 "use client";
 
-import type { DriveFile } from "@sokosumi/core-client";
+import type { DriveFile, GoogleDisplayImage } from "@sokosumi/core-client";
 import { ImagePlus, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { createContext, useContext, useRef, useState } from "react";
@@ -29,9 +29,12 @@ import {
   type DisplayImageSizeIssue,
   type DisplayImageSlot,
   displayImageCounts,
+  displayImageKey,
+  type FormDisplayImage,
   hasRoomForDisplayImage,
   imageRoleForSize,
   imagesInSlot,
+  isKeptImage,
   type MinSize,
   missingDisplayImages,
 } from "@/lib/ads/google-display-images";
@@ -110,10 +113,7 @@ function ImageSlot({ slot }: ImageSlotProps) {
     problemsOut.push(t(`errors.${key}`, { name, ...RULE_PARAMS }));
   }
 
-  function attach(
-    image: Parameters<typeof addDisplayImage>[1],
-    out: string[],
-  ): void {
+  function attach(image: GoogleDisplayImage, out: string[]): void {
     const added = addDisplayImage(form.getValues("images"), image);
     if (added.isErr()) {
       refuse(added.error, image.name, out);
@@ -215,10 +215,29 @@ function ImageSlot({ slot }: ImageSlotProps) {
     }
   }
 
-  function handleRemove(pathname: string): void {
+  /** What a thumbnail shows: a kept image is Google's, with no file behind it. */
+  function previewOf(image: FormDisplayImage) {
+    return isKeptImage(image)
+      ? {
+          name: t("kept", { role: t(`roles.${image.role}`) }),
+          url: image.url,
+          mediaType: "image/*",
+          size: undefined,
+        }
+      : {
+          name: image.name,
+          url: image.fileUrl,
+          mediaType: image.mimeType,
+          size: image.size,
+        };
+  }
+
+  function handleRemove(key: string): void {
     form.setValue(
       "images",
-      form.getValues("images").filter((image) => image.pathname !== pathname),
+      form
+        .getValues("images")
+        .filter((image) => displayImageKey(image) !== key),
       { shouldDirty: true, shouldValidate: form.formState.isSubmitted },
     );
   }
@@ -227,24 +246,25 @@ function ImageSlot({ slot }: ImageSlotProps) {
     <div className="grid gap-3">
       {images.length > 0 ? (
         <ul className="flex flex-wrap gap-3">
-          {images.map((image) => (
-            <li
-              className="flex w-20 flex-col items-center gap-1"
-              key={image.pathname}
-            >
-              <FileChipMiniPreview
-                fileName={image.name}
-                mediaType={image.mimeType}
-                onRemove={() => handleRemove(image.pathname)}
-                removeLabel={t("remove", { name: image.name })}
-                size={image.size}
-                url={image.fileUrl}
-              />
-              <span className="text-muted-foreground text-xs">
-                {t(`roles.${image.role}`)}
-              </span>
-            </li>
-          ))}
+          {images.map((image) => {
+            const { name, mediaType, size, url } = previewOf(image);
+            const key = displayImageKey(image);
+            return (
+              <li className="flex w-20 flex-col items-center gap-1" key={key}>
+                <FileChipMiniPreview
+                  fileName={name}
+                  mediaType={mediaType}
+                  onRemove={() => handleRemove(key)}
+                  removeLabel={t("remove", { name })}
+                  size={size}
+                  url={url}
+                />
+                <span className="text-muted-foreground text-xs">
+                  {t(`roles.${image.role}`)}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">

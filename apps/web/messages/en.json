@@ -3350,7 +3350,8 @@
               "logoRatio": "{name}: logos must be square (1:1).",
               "logoTooSmall": "{name}: logos need at least {logo} px.",
               "repeated": "Use each image file once."
-            }
+            },
+            "kept": "Current image ({role})"
           }
         },
         "submit": "Create campaign",
@@ -3463,6 +3464,19 @@
         "networks": {
           "SEARCH": "Google Search",
           "DISPLAY": "Display Network"
+        },
+        "edit": "Edit"
+      },
+      "editCampaign": {
+        "title": "Edit campaign",
+        "back": "Back to campaign",
+        "submit": "Save changes",
+        "reviewNote": "Saving sends the ad back to Google's review.",
+        "startDateLocked": "The start date can't change once a campaign has started.",
+        "success": "Campaign updated",
+        "errors": {
+          "conflict": "This campaign can't be edited here.",
+          "failed": "Failed to save changes"
         }
       },
       "market": {

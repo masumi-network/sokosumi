@@ -1,7 +1,9 @@
 import type { AdCampaignDetails } from "@sokosumi/core-client";
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 
-import type { RangeParam } from "@/app/ads/ads-query";
+import { campaignEditHref, type RangeParam } from "@/app/ads/ads-query";
+import { Button } from "@/components/ui/button";
 import {
   APPROVAL_STATUSES,
   BIDDING_STRATEGIES,
@@ -26,9 +28,9 @@ interface AdsCampaignDetailsProps {
 }
 
 /**
- * One Google campaign, read-only, rendered on the server: what it is, how it
- * performed, how it is set up and what it shows. Only the performance block
- * and the menu are client code.
+ * One Google campaign, rendered on the server: what it is, how it performed,
+ * how it is set up and what it shows, with a way to edit it when it can be.
+ * Only the performance block and the menu are client code.
  */
 export function AdsCampaignDetails({
   accountId,
@@ -71,13 +73,29 @@ export function AdsCampaignDetails({
           </h1>
           <p className="text-muted-foreground text-sm">{facts.join(" · ")}</p>
         </div>
-        <AdsCampaignActions
-          accountId={accountId}
-          campaign={campaign}
-          currency={campaign.currency}
-          projectId={projectId}
-          provider="google_ads"
-        />
+        <div className="flex shrink-0 items-center gap-1">
+          {campaign.editable ? (
+            <Button asChild size="sm" variant="outline">
+              <Link
+                href={campaignEditHref(
+                  projectId,
+                  accountId,
+                  campaign.id,
+                  range,
+                )}
+              >
+                {t("edit")}
+              </Link>
+            </Button>
+          ) : null}
+          <AdsCampaignActions
+            accountId={accountId}
+            campaign={campaign}
+            currency={campaign.currency}
+            projectId={projectId}
+            provider="google_ads"
+          />
+        </div>
       </header>
 
       <AdsCampaignPerformance

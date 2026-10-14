@@ -13,6 +13,7 @@ const coreClientMock = {
   getProjectsByIdAdsMarket: vi.fn(),
   getProjectsByIdAdsMarketAds: vi.fn(),
   getProjectsByIdAdsMarketKeywords: vi.fn(),
+  putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId: vi.fn(),
   putProjectsByIdAdsMarket: vi.fn(),
   patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId: vi.fn(),
   postProjectsByIdAdsAccounts: vi.fn(),
@@ -265,6 +266,35 @@ describe("adsService", () => {
       coreClientMock.postProjectsByIdAdsAccountsByAccountIdCampaigns,
     ).toHaveBeenCalledWith(
       { id: "project-1", accountId: "account-1" },
+      { name: "Spring sale", dailyBudget: 25, google },
+    );
+  });
+
+  it("edits a campaign with a PUT of its settings", async () => {
+    coreClientMock.putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId.mockResolvedValue(
+      { data: undefined },
+    );
+    const google = {
+      type: "SEARCH" as const,
+      locationIds: [],
+      languageIds: [],
+      finalUrl: "https://example.com",
+      keywords: [{ text: "running shoes", matchType: "EXACT" as const }],
+      headlines: ["One", "Two", "Three"],
+      descriptions: ["First description", "Second description"],
+    };
+
+    const { adsService } = await import("./ads.service");
+
+    await adsService.editCampaign("project-1", "account-1", "42", {
+      name: "Spring sale",
+      dailyBudget: 25,
+      google,
+    });
+    expect(
+      coreClientMock.putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+    ).toHaveBeenCalledWith(
+      { id: "project-1", accountId: "account-1", campaignId: "42" },
       { name: "Spring sale", dailyBudget: 25, google },
     );
   });

@@ -4,8 +4,10 @@ import { describe, expect, it } from "vitest";
 import {
   GOOGLE_DISPLAY_LIMITS,
   type GoogleDisplayFormValues,
+  googleDisplayEditSpecSchema,
   googleDisplayFormSchema,
   googleDisplaySpecSchema,
+  toGoogleDisplayEditSpec,
   toGoogleDisplaySpec,
 } from "./google-display";
 
@@ -260,5 +262,57 @@ describe("toGoogleDisplaySpec", () => {
     const sent = toGoogleDisplaySpec(form);
     expect(sent).not.toHaveProperty("startDate");
     expect(sent).not.toHaveProperty("endDate");
+  });
+});
+
+const KEPT = {
+  assetId: "a1",
+  role: "LANDSCAPE" as const,
+  url: "https://tpc.googlesyndication.com/a1.png",
+};
+
+describe("editing images", () => {
+  it("sends a kept image as its asset and role, a new one as the Drive file", () => {
+    const square = image("SQUARE");
+
+    expect(
+      toGoogleDisplayEditSpec({ ...form, images: [KEPT, square] }).images,
+    ).toEqual([{ assetId: "a1", role: "LANDSCAPE" }, square]);
+  });
+
+  it("keeps a create to Drive files", () => {
+    expect(
+      toGoogleDisplaySpec({ ...form, images: [KEPT, ...IMAGES] }).images,
+    ).toEqual(IMAGES);
+  });
+
+  it("lets the form hold kept images and counts their roles", () => {
+    const schema = googleDisplayFormSchema();
+
+    expect(
+      schema.safeParse({ ...form, images: [KEPT, image("SQUARE")] }).success,
+    ).toBe(true);
+    expect(
+      firstIssue(schema.safeParse({ ...form, images: [KEPT] }), "images"),
+    ).toBeDefined();
+  });
+
+  it("refuses a kept image twice", () => {
+    const result = googleDisplayFormSchema().safeParse({
+      ...form,
+      images: [KEPT, KEPT, image("SQUARE")],
+    });
+
+    expect(firstIssue(result, "images")).toBeDefined();
+  });
+
+  it("is accepted by the edit spec only", () => {
+    const sent = {
+      ...spec,
+      images: [{ assetId: "a1", role: "LANDSCAPE" }, image("SQUARE")],
+    };
+
+    expect(googleDisplayEditSpecSchema().safeParse(sent).success).toBe(true);
+    expect(googleDisplaySpecSchema().safeParse(sent).success).toBe(false);
   });
 });

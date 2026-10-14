@@ -20,7 +20,10 @@ import {
   AD_CAMPAIGN_NAME_MAX_LENGTH,
   AD_CAMPAIGN_OBJECTIVES,
 } from "@/lib/ads/campaign";
-import { googleDisplaySpecSchema } from "@/lib/ads/google-display";
+import {
+  googleDisplayEditSpecSchema,
+  googleDisplaySpecSchema,
+} from "@/lib/ads/google-display";
 import { googleSearchSpecSchema } from "@/lib/ads/google-search";
 import { createMarketProfileSchema } from "@/lib/ads/market";
 import { GOOGLE_LOCATION_QUERY_MAX_LENGTH } from "@/lib/ads/targeting";
@@ -186,6 +189,35 @@ export const createAdCampaign = adsAction(
     });
     revalidatePath("/ads");
     return campaign;
+  },
+);
+
+/**
+ * Edits a Google campaign from its details page. The spec is the create one,
+ * except that Display images may also be kept ones. Core answers 204 (also
+ * when nothing changed), and 422 with Google's own message for what it
+ * dislikes, which reaches the UI.
+ */
+export const editAdCampaign = adsAction(
+  z.object({
+    projectId: trimmedId,
+    accountId: trimmedId,
+    campaignId: trimmedId,
+    name: z.string().trim().min(1).max(AD_CAMPAIGN_NAME_MAX_LENGTH),
+    dailyBudget: z.number().positive(),
+    google: z.discriminatedUnion("type", [
+      googleSearchSpecSchema(),
+      googleDisplayEditSpecSchema(),
+    ]),
+  }),
+  async ({ projectId, accountId, campaignId, name, dailyBudget, google }) => {
+    await adsService.editCampaign(projectId, accountId, campaignId, {
+      name,
+      dailyBudget,
+      google,
+    });
+    revalidatePath("/ads");
+    revalidatePath(`/ads/campaigns/${campaignId}`);
   },
 );
 

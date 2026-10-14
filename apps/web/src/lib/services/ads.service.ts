@@ -5,6 +5,7 @@ import type {
   AdRange,
   CreateAdCampaignRequest,
   CreateAdCampaignResponse,
+  EditAdCampaignRequest,
   FinalizeProjectAdConnectionResponse,
   GetAdMarketProfileResponse,
   InitiateProjectSocialConnectionResponse,
@@ -136,6 +137,19 @@ export const adsService = (() => {
     return result.data;
   }
 
+  /** Replaces an editable Google campaign's settings; Core changes what differs. */
+  async function editCampaign(
+    projectId: string,
+    accountId: string,
+    campaignId: string,
+    campaign: EditAdCampaignRequest,
+  ): Promise<void> {
+    await coreClient.putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId(
+      { id: projectId, accountId, campaignId },
+      campaign,
+    );
+  }
+
   async function getMarketProfile(
     projectId: string,
   ): Promise<GetAdMarketProfileResponse> {
@@ -218,6 +232,7 @@ export const adsService = (() => {
     getCampaignDetails,
     updateCampaign,
     createCampaign,
+    editCampaign,
     getMarketProfile,
     saveMarketProfile,
     listMarketKeywords,

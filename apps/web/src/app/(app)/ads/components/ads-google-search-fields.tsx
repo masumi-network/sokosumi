@@ -60,9 +60,17 @@ export function AdsGoogleSearchFields({
   );
 }
 
-/** The optional dates, which close the Basics section. */
-export function AdsGoogleDateFields() {
+/**
+ * The optional dates, which close the Basics section. A campaign that has
+ * started keeps its start date.
+ */
+export function AdsGoogleDateFields({
+  startDateLocked = false,
+}: {
+  startDateLocked?: boolean;
+}) {
   const t = useTranslations("App.Ads.newCampaign");
+  const tEdit = useTranslations("App.Ads.editCampaign");
   const form = useFormContext<GoogleSharedFormValues>();
 
   return (
@@ -77,7 +85,11 @@ export function AdsGoogleDateFields() {
               <FormItem>
                 <FormLabel>{t(name)}</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} />
+                  <Input
+                    type="date"
+                    {...field}
+                    disabled={name === "startDate" && startDateLocked}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -86,6 +98,11 @@ export function AdsGoogleDateFields() {
         ))}
       </div>
       <p className="text-muted-foreground text-sm">{t("datesHelp")}</p>
+      {startDateLocked ? (
+        <p className="text-muted-foreground text-sm">
+          {tEdit("startDateLocked")}
+        </p>
+      ) : null}
     </div>
   );
 }

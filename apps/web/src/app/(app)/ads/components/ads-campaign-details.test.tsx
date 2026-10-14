@@ -170,6 +170,28 @@ describe("AdsCampaignDetails", () => {
     ).toBeVisible();
   });
 
+  it("offers Edit for an editable campaign, keeping the project, account and range", () => {
+    renderDetails();
+
+    expect(screen.getByRole("link", { name: "Edit" })).toHaveAttribute(
+      "href",
+      "/ads/campaigns/42/edit?projectId=project-1&accountId=account-1&range=7d",
+    );
+  });
+
+  it("offers no Edit for a campaign that is not editable", () => {
+    renderDetails({
+      ...SEARCH,
+      campaign: {
+        ...SEARCH.campaign,
+        editable: false,
+        notEditableReason: "AD_GROUPS",
+      },
+    });
+
+    expect(screen.queryByRole("link", { name: "Edit" })).toBeNull();
+  });
+
   it("names the channel of a campaign type Sokosumi does not build", () => {
     renderDetails({
       ...SEARCH,

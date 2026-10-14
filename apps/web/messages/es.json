@@ -3350,7 +3350,8 @@
               "logoRatio": "{name}: los logotipos deben ser cuadrados (1:1).",
               "logoTooSmall": "{name}: los logotipos necesitan al menos {logo} px.",
               "repeated": "Usa cada archivo de imagen una sola vez."
-            }
+            },
+            "kept": "Imagen actual ({role})"
           }
         },
         "submit": "Crear campaña",
@@ -3463,6 +3464,19 @@
         "networks": {
           "SEARCH": "Búsqueda de Google",
           "DISPLAY": "Red de Display"
+        },
+        "edit": "Editar"
+      },
+      "editCampaign": {
+        "title": "Editar campaña",
+        "back": "Volver a la campaña",
+        "submit": "Guardar cambios",
+        "reviewNote": "Al guardar, el anuncio vuelve a revisión de Google.",
+        "startDateLocked": "La fecha de inicio no se puede cambiar una vez iniciada la campaña.",
+        "success": "Campaña actualizada",
+        "errors": {
+          "conflict": "Esta campaña no se puede editar aquí.",
+          "failed": "No se pudieron guardar los cambios"
         }
       },
       "market": {

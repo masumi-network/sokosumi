@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { GoogleCampaignSpec } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -31,7 +30,9 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { createAdCampaign } from "@/lib/actions/ads/action";
+import type { ActionResultDto } from "@/lib/actions/action-result";
+import { createAdCampaign, editAdCampaign } from "@/lib/actions/ads/action";
+import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
   AD_CAMPAIGN_NAME_MAX_LENGTH,
   AD_CAMPAIGN_OBJECTIVES,
@@ -39,8 +40,13 @@ import {
 import {
   GOOGLE_DISPLAY_LIMITS,
   googleDisplayFormSchema,
+  toGoogleDisplayEditSpec,
   toGoogleDisplaySpec,
 } from "@/lib/ads/google-display";
+import {
+  EMPTY_GOOGLE_VALUES,
+  type GoogleFormValues,
+} from "@/lib/ads/google-form-values";
 import {
   GOOGLE_KEYWORD_LIMIT,
   GOOGLE_KEYWORD_MAX_LENGTH,
@@ -69,18 +75,19 @@ interface CampaignFormProps {
 }
 
 interface GoogleCampaignFormProps extends CampaignFormProps {
+  /** Present when an existing campaign is edited instead of a new one made. */
+  edit?: {
+    campaignId: string;
+    /** Where the details page of the campaign is, to go back to. */
+    detailsHref: string;
+    /** Its start date can no longer change. */
+    started: boolean;
+    initialValues: GoogleFormValues;
+  };
   /** Whether the project has a Market profile, which "Add from Market" reads. */
   hasMarketProfile: boolean;
   /** The languages to pick from and the Market profile's suggestions. */
   targeting: GoogleTargeting;
-}
-
-/** What a campaign is created with; the project and account come separately. */
-interface CampaignDetails {
-  name: string;
-  dailyBudget: number;
-  objective?: (typeof AD_CAMPAIGN_OBJECTIVES)[number];
-  google?: GoogleCampaignSpec;
 }
 
 /** Why the last attempt failed, and which attempt it was (to re-focus). */
@@ -96,55 +103,63 @@ interface BasicsValues {
   dailyBudget: string;
 }
 
-type CreateOutcome = "ok" | "budget_refused" | "shown";
+type SaveOutcome = "ok" | "budget_refused" | "shown";
+
+interface SaveCampaignOptions {
+  projectId: string;
+  /** Where a saved campaign leads, and what the toast says. */
+  successHref: string;
+  successMessage: string;
+  /** Meta create maps 422 to the budget field (our precision copy). */
+  budgetPrecisionOn422?: boolean;
+  /** Said for a 409 instead of asking to reconnect (an edit has another cause). */
+  conflictMessage?: string;
+  /** Takes the form back to its start after a save, once Next shows it again. */
+  onStartOver: () => void;
+}
 
 /**
- * Creates the campaign and follows the outcome. Core creates it paused and
- * the action revalidates the list, so nothing updates optimistically.
+ * Sends the campaign and follows the outcome. Core answers the create and the
+ * edit alike, and the action revalidates the pages, so nothing updates
+ * optimistically.
  *
- * `budgetPrecisionOn422`: Meta create maps 422 to the budget field (our
- * precision copy). Google keeps Core's/Google's message in the alert.
+ * Google keeps Core's/Google's message for a 422 in the alert.
  */
-function useCreateCampaign({
-  accountId,
+function useSaveCampaign({
   projectId,
+  successHref,
+  successMessage,
   budgetPrecisionOn422 = false,
+  conflictMessage,
   onStartOver,
-}: CampaignFormProps & {
-  budgetPrecisionOn422?: boolean;
-  /** Empties the form for the next campaign. */
-  onStartOver: () => void;
-}) {
-  const t = useTranslations("App.Ads.newCampaign");
+}: SaveCampaignOptions) {
   const router = useRouter();
   const [refusal, setRefusal] = useState<Refusal | null>(null);
-  const [created, setCreated] = useState(false);
-  const createdRef = useRef(false);
+  const [saved, setSaved] = useState(false);
+  const savedRef = useRef(false);
 
   // Next keeps a visited page mounted but hidden and re-runs its effects when
-  // it shows again. After a create, the next "New campaign" starts empty; an
-  // unsent draft stays.
+  // it shows again. After a save, the page starts over (a create empty, an
+  // edit as it was); an unsent draft stays.
   useMountEffect(() => {
-    if (!createdRef.current) return;
-    createdRef.current = false;
-    setCreated(false);
+    if (!savedRef.current) return;
+    savedRef.current = false;
+    setSaved(false);
     onStartOver();
   });
 
-  async function create(details: CampaignDetails): Promise<CreateOutcome> {
+  async function save(
+    send: () => Promise<ActionResultDto<unknown, ActionError>>,
+  ): Promise<SaveOutcome> {
     setRefusal(null);
     const attempt = (refusal?.attempt ?? 0) + 1;
     try {
-      const result = await createAdCampaign({
-        projectId,
-        accountId,
-        ...details,
-      });
+      const result = await send();
       if (result.ok) {
-        toast.success(t("success"));
-        createdRef.current = true;
-        setCreated(true);
-        router.push(campaignsHref(projectId, accountId));
+        toast.success(successMessage);
+        savedRef.current = true;
+        setSaved(true);
+        router.push(successHref);
         return "ok";
       }
       if (result.error.status === 422) {
@@ -158,6 +173,10 @@ function useCreateCampaign({
           return "shown";
         }
       }
+      if (result.error.status === 409 && conflictMessage) {
+        setRefusal({ attempt, kind: "refused", message: conflictMessage });
+        return "shown";
+      }
       setRefusal({
         attempt,
         kind: result.error.status === 409 ? "reconnect" : "failed",
@@ -169,26 +188,27 @@ function useCreateCampaign({
     }
   }
 
-  return { refusal, created, create };
+  return { refusal, saved, save };
 }
 
 /** Pulls focus (and the view) up from the submit button far below. */
 function RefusalAlert({
+  failedTitle,
   projectId,
   refusal,
 }: {
+  failedTitle: string;
   projectId: string;
   refusal: Refusal;
 }) {
-  const t = useTranslations("App.Ads.newCampaign");
   const tCampaigns = useTranslations("App.Ads.campaigns");
   const ref = useRef<HTMLDivElement>(null);
   useMountEffect(() => ref.current?.focus());
 
   const { title, description } = {
-    failed: { title: t("errors.failed"), description: null },
+    failed: { title: failedTitle, description: null },
     refused: {
-      title: t("errors.failed"),
+      title: failedTitle,
       description: <p>{refusal.message}</p>,
     },
     reconnect: {
@@ -212,9 +232,15 @@ function RefusalAlert({
   );
 }
 
-interface CampaignFormFrameProps extends CampaignFormProps {
+interface CampaignFormFrameProps {
+  cancelHref: string;
   children: ReactNode;
-  creation: ReturnType<typeof useCreateCampaign>;
+  failedTitle: string;
+  /** A note above the actions. */
+  note?: string;
+  projectId: string;
+  saving: ReturnType<typeof useSaveCampaign>;
+  submitLabel: string;
   onSubmit: () => Promise<void>;
   submitting: boolean;
   /** Pictures are still going in; the campaign waits for them. */
@@ -223,11 +249,14 @@ interface CampaignFormFrameProps extends CampaignFormProps {
 
 /** The form element around a provider's fields: the failure above, actions below. */
 function CampaignFormFrame({
-  accountId,
+  cancelHref,
   children,
-  creation,
+  failedTitle,
+  note,
   onSubmit,
   projectId,
+  saving,
+  submitLabel,
   submitting,
   uploading = false,
 }: CampaignFormFrameProps) {
@@ -243,32 +272,36 @@ function CampaignFormFrame({
         void onSubmit();
       }}
     >
-      {creation.refusal ? (
+      {saving.refusal ? (
         // A new key per attempt re-mounts the alert, which focuses it again.
         <RefusalAlert
-          key={creation.refusal.attempt}
+          failedTitle={failedTitle}
+          key={saving.refusal.attempt}
           projectId={projectId}
-          refusal={creation.refusal}
+          refusal={saving.refusal}
         />
       ) : null}
       {children}
-      <div className="flex items-center justify-end gap-3">
-        {/* Always there, so the wait is announced when it starts. */}
-        <span className="text-muted-foreground mr-auto text-sm" role="status">
-          {uploading ? t("uploadingImages") : null}
-        </span>
-        <Button asChild variant="ghost">
-          <Link href={campaignsHref(projectId, accountId)}>
-            {tCampaigns("cancel")}
-          </Link>
-        </Button>
-        <Button
-          disabled={uploading}
-          loading={submitting || creation.created}
-          type="submit"
-        >
-          {t("submit")}
-        </Button>
+      <div className="flex flex-col gap-3">
+        {note ? (
+          <p className="text-muted-foreground text-right text-sm">{note}</p>
+        ) : null}
+        <div className="flex items-center justify-end gap-3">
+          {/* Always there, so the wait is announced when it starts. */}
+          <span className="text-muted-foreground mr-auto text-sm" role="status">
+            {uploading ? t("uploadingImages") : null}
+          </span>
+          <Button asChild variant="ghost">
+            <Link href={cancelHref}>{tCampaigns("cancel")}</Link>
+          </Button>
+          <Button
+            disabled={uploading}
+            loading={submitting || saving.saved}
+            type="submit"
+          >
+            {submitLabel}
+          </Button>
+        </div>
       </div>
     </form>
   );
@@ -356,8 +389,10 @@ export function MetaCampaignForm(props: CampaignFormProps) {
     mode: "onTouched",
     defaultValues: { name: "", dailyBudget: "", objective: "" },
   });
-  const creation = useCreateCampaign({
-    ...props,
+  const saving = useSaveCampaign({
+    projectId: props.projectId,
+    successHref: campaignsHref(props.projectId, props.accountId),
+    successMessage: t("success"),
     budgetPrecisionOn422: true,
     onStartOver: () => form.reset(),
   });
@@ -365,17 +400,24 @@ export function MetaCampaignForm(props: CampaignFormProps) {
   return (
     <Form {...form}>
       <CampaignFormFrame
-        {...props}
-        creation={creation}
+        cancelHref={campaignsHref(props.projectId, props.accountId)}
+        failedTitle={t("errors.failed")}
+        projectId={props.projectId}
+        saving={saving}
+        submitLabel={t("submit")}
         onSubmit={form.handleSubmit(
           async ({ name, dailyBudget, objective }) => {
-            const outcome = await creation.create({
-              name,
-              dailyBudget: Number(dailyBudget),
-              objective: AD_CAMPAIGN_OBJECTIVES.find(
-                (candidate) => candidate === objective,
-              ),
-            });
+            const outcome = await saving.save(() =>
+              createAdCampaign({
+                projectId: props.projectId,
+                accountId: props.accountId,
+                name,
+                dailyBudget: Number(dailyBudget),
+                objective: AD_CAMPAIGN_OBJECTIVES.find(
+                  (candidate) => candidate === objective,
+                ),
+              }),
+            );
             if (outcome === "budget_refused") {
               form.setError("dailyBudget", {
                 message: budget.precisionMessage,
@@ -418,7 +460,6 @@ export function MetaCampaignForm(props: CampaignFormProps) {
 }
 
 const GOOGLE_TYPES = ["SEARCH", "DISPLAY"] as const;
-type GoogleType = (typeof GOOGLE_TYPES)[number];
 
 /** Fields that belong only to Search; cleared when switching to Display. */
 const SEARCH_ONLY_FIELDS = [
@@ -440,36 +481,27 @@ const DISPLAY_ONLY_FIELDS = [
   "images",
 ] as const;
 
-function blankTexts(count: number): string[] {
-  return Array.from({ length: count }, () => "");
-}
-
-/** What a Google form starts with: the fields of both types, one shown. */
-const EMPTY_GOOGLE_VALUES = {
-  type: "SEARCH" as GoogleType,
-  name: "",
-  dailyBudget: "",
-  startDate: "",
-  endDate: "",
-  finalUrl: "",
-  keywords: "",
-  path1: "",
-  path2: "",
-  headlines: blankTexts(GOOGLE_SEARCH_LIMITS.headlines.min),
-  descriptions: blankTexts(GOOGLE_SEARCH_LIMITS.descriptions.min),
-  sitelinks: [],
-  callouts: [],
-  businessName: "",
-  displayHeadlines: blankTexts(GOOGLE_DISPLAY_LIMITS.headlines.min),
-  longHeadline: "",
-  displayDescriptions: blankTexts(GOOGLE_DISPLAY_LIMITS.descriptions.min),
-  images: [],
-};
-
-/** Search or Display. Switching keeps what both share and swaps the rest. */
-function GoogleTypePicker() {
+/**
+ * Search or Display. Switching keeps what both share and swaps the rest. A
+ * campaign being edited keeps its type: it is only told.
+ */
+function GoogleTypePicker({ locked }: { locked: boolean }) {
   const t = useTranslations("App.Ads.newCampaign");
-  const form = useFormContext<typeof EMPTY_GOOGLE_VALUES>();
+  const form = useFormContext<GoogleFormValues>();
+
+  if (locked) {
+    const type = form.getValues("type");
+    return (
+      <AdsSection id="new-campaign-type" title={t("sections.type")}>
+        <div className="grid gap-1">
+          <p className="text-sm font-medium">{t(`types.${type}`)}</p>
+          <p className="text-muted-foreground text-sm">
+            {t(`typeHelp.${type}`)}
+          </p>
+        </div>
+      </AdsSection>
+    );
+  }
 
   return (
     <AdsSection id="new-campaign-type" title={t("sections.type")}>
@@ -513,11 +545,13 @@ function GoogleTypePicker() {
  * Display images and responsive display ad.
  */
 export function GoogleCampaignForm({
+  edit,
   hasMarketProfile,
   targeting,
   ...props
 }: GoogleCampaignFormProps) {
   const t = useTranslations("App.Ads.newCampaign");
+  const tEdit = useTranslations("App.Ads.editCampaign");
   const { budget, shape } = useBasics(props.currency);
   const common = {
     finalUrl: t("errors.finalUrl"),
@@ -575,15 +609,20 @@ export function GoogleCampaignForm({
   const form = useForm({
     resolver: zodResolver(schema),
     mode: "onTouched",
-    // The Market profile's suggestions start the pickers; the reader may remove them.
-    defaultValues: {
+    // An edit starts from the campaign; a new one from the Market profile's
+    // suggestions, which the reader may remove.
+    defaultValues: edit?.initialValues ?? {
       ...EMPTY_GOOGLE_VALUES,
       locations: targeting.defaultLocations,
       languages: targeting.defaultLanguages,
     },
   });
-  const creation = useCreateCampaign({
-    ...props,
+  const saving = useSaveCampaign({
+    projectId: props.projectId,
+    successHref:
+      edit?.detailsHref ?? campaignsHref(props.projectId, props.accountId),
+    successMessage: edit ? tEdit("success") : t("success"),
+    conflictMessage: edit ? tEdit("errors.conflict") : undefined,
     onStartOver: () => form.reset(),
   });
   const [uploading, setUploading] = useState(false);
@@ -593,25 +632,56 @@ export function GoogleCampaignForm({
     <Form {...form}>
       <ImageUploadContext value={{ uploading, setUploading }}>
         <CampaignFormFrame
-          {...props}
-          creation={creation}
+          cancelHref={
+            edit?.detailsHref ?? campaignsHref(props.projectId, props.accountId)
+          }
+          failedTitle={edit ? tEdit("errors.failed") : t("errors.failed")}
+          note={edit ? tEdit("reviewNote") : undefined}
+          projectId={props.projectId}
+          saving={saving}
+          submitLabel={edit ? tEdit("submit") : t("submit")}
           onSubmit={form.handleSubmit(async (values) => {
-            await creation.create({
-              name: values.name.trim(),
-              dailyBudget: Number(values.dailyBudget),
-              google:
-                values.type === "SEARCH"
-                  ? toGoogleSearchSpec(values)
-                  : toGoogleDisplaySpec(values),
-            });
+            const name = values.name.trim();
+            const dailyBudget = Number(values.dailyBudget);
+            const base = {
+              projectId: props.projectId,
+              accountId: props.accountId,
+              name,
+              dailyBudget,
+            };
+            if (edit) {
+              // A started campaign keeps its start date: leave it out, and
+              // Core keeps it.
+              const sent = edit.started ? { ...values, startDate: "" } : values;
+              await saving.save(() =>
+                editAdCampaign({
+                  ...base,
+                  campaignId: edit.campaignId,
+                  google:
+                    sent.type === "SEARCH"
+                      ? toGoogleSearchSpec(sent)
+                      : toGoogleDisplayEditSpec(sent),
+                }),
+              );
+              return;
+            }
+            await saving.save(() =>
+              createAdCampaign({
+                ...base,
+                google:
+                  values.type === "SEARCH"
+                    ? toGoogleSearchSpec(values)
+                    : toGoogleDisplaySpec(values),
+              }),
+            );
           })}
           submitting={form.formState.isSubmitting}
           uploading={uploading}
         >
-          <GoogleTypePicker />
+          <GoogleTypePicker locked={!!edit} />
           <AdsSection id="new-campaign-basics" title={t("sections.basics")}>
             <NameAndBudgetFields budget={budget} />
-            <AdsGoogleDateFields />
+            <AdsGoogleDateFields startDateLocked={edit?.started ?? false} />
           </AdsSection>
           <AdsSection
             id="new-campaign-targeting"
