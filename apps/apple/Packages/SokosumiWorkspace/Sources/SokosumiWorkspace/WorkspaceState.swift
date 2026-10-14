@@ -21,7 +21,6 @@ public final class WorkspaceState: ObservableObject {
   /// The Open room: its Transcript, the open Thread, the coworker stream, Pins and what else resets with the room.
   public let openRoom: OpenRoomSession
   public let crossRoomThreads = CrossRoomThreads()
-  @Published public internal(set) var threadAttentionRevision = 0
   private var observations: Set<AnyCancellable> = []
   /// The Channel, Direct or invitation change in flight, if any.
   @Published public private(set) var runningMutation: WorkspaceMutation?
@@ -111,38 +110,6 @@ public final class WorkspaceState: ObservableObject {
     openRoom.room.timeline.roomId
   }
 
-  var transcriptMessages: [Components.Schemas.ChatRoomMessage] {
-    get { openRoom.room.timeline.messages }
-    set { openRoom.room.timeline.messages = newValue }
-  }
-
-  var transcriptLoading: Bool {
-    openRoom.room.timeline.isLoading
-  }
-
-  var transcriptLoadingOlder: Bool {
-    openRoom.room.timeline.isLoadingOlder
-  }
-
-  /// Latest-page refetch in flight (ADR 0014 envelope). Not the older-page
-  /// spinner: live refetch must not flash `transcriptLoadingOlder`.
-  var transcriptRefreshing: Bool {
-    openRoom.room.timeline.isRefreshing
-  }
-
-  /// Failure text. Shown full-pane when there is no history, as a banner
-  /// above loaded history otherwise — a failed older page never wipes
-  /// what already resolved.
-  var transcriptError: String? {
-    get { openRoom.room.timeline.errorMessage }
-    set { openRoom.room.timeline.errorMessage = newValue }
-  }
-
-  /// True while a classic POST is in flight for this composer.
-  var outboundInFlight: Bool {
-    openRoom.room.outbox.isSending
-  }
-
   /// Factory for the live socket: the app's ably-cocoa connection, a fake in tests. Without one the transcript stays
   /// HTTP-only and every realtime call below no-ops.
   let realtimeConnectionFactory: (@Sendable () -> (any RealtimeConnection))?
@@ -164,18 +131,6 @@ public final class WorkspaceState: ObservableObject {
   var typingSweepTask: Task<Void, Never>?
   /// The open room's live read marks (row 31b1); see `WorkspaceState+ReadReceipts`.
   let roomReads = RoomReadMarks()
-
-  /// Confirmed history plus unresolved outbound shells (sticky at the end), with Pending reactions on top.
-  public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
-    let messages = openRoom.directStream.displayedMessages(persisted: openRoom.room.displayedMessages)
-    let rows = openRoom.loaded.pendingReactions.overlaying(messages, viewer: reactionViewer)
-    // Once the room's unread-thread read has answered it owns every reply bar's count (web, SOK-1151).
-    return openRoom.threadOverview.unreadReplyCounts.map { applyThreadUnreadReplyCounts(rows, counts: $0) } ?? rows
-  }
-
-  var transcriptCursor: String? {
-    openRoom.room.timeline.cursor
-  }
 
   let sidebarRecovery: SidebarCollectionsRecovery
   /// Re-reads the open room while it still counts unread (row 07e); see `WorkspaceState+OpenRoomUnreadRecheck`.
@@ -644,8 +599,8 @@ public final class WorkspaceState: ObservableObject {
     }, listedRoom: { [weak self] in
       guard let self else { return nil }
       return rooms.first { $0.id == transcriptRoomId }
-    }, viewerId: { [weak self] in
-      self?.currentUserId ?? ""
+    }, viewer: { [weak self] in
+      (self?.currentUserId ?? "", self?.currentUserName ?? "")
     }, organizationId: { [weak self] in
       self?.selection?.workspace.organizationId
     })
@@ -814,9 +769,6 @@ public final class WorkspaceState: ObservableObject {
   private func applyRealtimeHealth(roomId: String, healthy: Bool, continuityLost: Bool) {
     guard roomId == transcriptRoomId else { return }
     openRoom.applyRealtimeHealth(healthy, continuityLost: continuityLost)
-    if continuityLost {
-      threadAttentionRevision += 1
-    }
   }
 
   /// Apply a full-DTO Ably create/update/delete to the open room. Events for
@@ -829,9 +781,6 @@ public final class WorkspaceState: ObservableObject {
     eventType: ChatRoomMessageRealtimeEventType,
     message: Components.Schemas.ChatRoomMessage
   ) {
-    if roomId == transcriptRoomId, message.parentMessageId != nil {
-      threadAttentionRevision += 1
-    }
     if eventType == .create, roomId != transcriptRoomId {
       sidebarRecovery.requestRefresh([.active])
     }
@@ -847,9 +796,6 @@ public final class WorkspaceState: ObservableObject {
   /// create/update refetch history for the focused room, everything else is
   /// ignored. The refetch merges — it never invents a row.
   func applyRealtimeEnvelope(_ envelope: ChatRoomMessageIdEnvelope) {
-    if envelope.roomId == transcriptRoomId, envelope.parentMessageId != nil {
-      threadAttentionRevision += 1
-    }
     // An envelope the open room does not take may still be news for the sidebar.
     if !openRoom.apply(envelope), envelope.eventType == .create {
       sidebarRecovery.requestRefresh([.active])
@@ -891,7 +837,7 @@ public final class WorkspaceState: ObservableObject {
   }
 
   var readContent: RoomReadAttention.Content {
-    .init(messages: transcriptMessages.map { .init(id: $0.id, content: $0.content) },
+    .init(messages: openRoom.room.timeline.messages.map { .init(id: $0.id, content: $0.content) },
           parentMessageId: openRoom.thread.parent?.id,
           replies: openRoom.thread.transcript.timeline.messages.map { .init(id: $0.id, content: $0.content) })
   }

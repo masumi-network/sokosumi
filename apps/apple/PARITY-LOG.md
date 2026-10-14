@@ -5050,3 +5050,7 @@ Each needs its own decision; none is scheduled.
 ### Verification
 
 Harness only: the doc's sources extracted into a fresh copy (`setup.py … paging`) build in Release; `HITCH_BENCH`, `HITCH_KINDS` and the paging run complete. `node --test scripts/ci/__tests__/apple-parity.test.mjs` passes. No Swift source in the app or packages changed, so the Xcode suites, SwiftLint and SwiftFormat were not rerun.
+
+## 21 fix — a failed first Pins page clears the list
+
+A failed first Pins page now clears the rows and cursor, as web does (`pinned-messages-panel.tsx` `setItems([])` in both failure paths); Apple kept the stale rows. A failed older page keeps rows and cursor and sets `errorMessage`, as web (:326-334). Found while `PinnedMessages`, `RoomThreadOverview` and `CrossRoomThreads` moved onto one `CursorPages`. Tests: `PinnedMessageTests.aFailedFirstPageClearsThePinsLikeWeb`, `aFailedOlderPageKeepsThePinsAndShowsTheError`, `invalidateDropsALatePage`.
