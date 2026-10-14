@@ -7,6 +7,7 @@ import {
   MoreHorizontal,
   Plus,
   RefreshCw,
+  RotateCcw,
   TriangleAlert,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -47,6 +48,8 @@ import { cn } from "@/lib/utils";
 interface ProjectSocialAccountsProps {
   connections: ProjectSocialConnection[];
   projectId: string;
+  /** Closing or closed projects cannot start a new connect. */
+  connectDisabled?: boolean;
 }
 
 interface PendingConfirmation {
@@ -129,6 +132,7 @@ function isExpiredIntentError(error: ActionError): boolean {
 export function ProjectSocialAccounts({
   connections,
   projectId,
+  connectDisabled = false,
 }: ProjectSocialAccountsProps) {
   const router = useRouter();
   const t = useTranslations("App.Projects.ProjectSocialAccounts");
@@ -144,7 +148,7 @@ export function ProjectSocialAccounts({
   // The provider being connected, or the connection being changed.
   const [pendingTarget, setPendingTarget] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<
-    "disconnect" | OAuthAction | null
+    "disconnect" | "startOver" | OAuthAction | null
   >(null);
   const [pendingConfirmation, setPendingConfirmation] =
     useState<PendingConfirmation | null>(null);
@@ -348,6 +352,45 @@ export function ProjectSocialAccounts({
     }
   }
 
+  async function handleStartOver(
+    connection: ProjectSocialConnection,
+  ): Promise<void> {
+    if (connectDisabled) return;
+    if (disconnectInFlightRef.current || isBusy) {
+      showFeedback({ kind: "error", message: t("errors.inFlight") });
+      return;
+    }
+
+    disconnectInFlightRef.current = true;
+    setFeedback(null);
+    setPendingAction("startOver");
+    setPendingTarget(connection.id);
+
+    let disconnected = false;
+    try {
+      const result = await disconnectProjectSocialConnection({
+        projectId,
+        socialConnectionId: connection.id,
+      });
+      if (!result.ok) {
+        showActionError(result.error, t("errors.disconnect"));
+        return;
+      }
+      disconnected = true;
+    } catch {
+      showFeedback({ kind: "error", message: t("errors.disconnect") });
+      return;
+    } finally {
+      disconnectInFlightRef.current = false;
+      finishAction();
+    }
+
+    if (!disconnected) return;
+
+    await startOAuth("connect", undefined, connection.provider);
+    router.refresh();
+  }
+
   function requestConfirmation(
     action: PendingConfirmation["action"],
     connection: ProjectSocialConnection,
@@ -478,6 +521,7 @@ export function ProjectSocialAccounts({
               connection.status === "reauthorization_required";
             const isWarningStatus =
               canReconnect || connection.status === "pending";
+            const canStartOver = connection.status === "pending";
             const canReplace = connection.status === "active" || canReconnect;
             const canDisconnect = connection.status !== "disconnected";
             const isRowPending =
@@ -538,6 +582,21 @@ export function ProjectSocialAccounts({
                       {t("reconnect")}
                     </Button>
                   ) : null}
+                  {canStartOver ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isBusy || connectDisabled}
+                      loading={isRowPending && pendingAction === "startOver"}
+                      onClick={() => {
+                        void handleStartOver(connection);
+                      }}
+                    >
+                      <RotateCcw className="size-4" aria-hidden />
+                      {t("startOver")}
+                    </Button>
+                  ) : null}
                   {canDisconnect ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild disabled={isBusy}>
@@ -556,7 +615,9 @@ export function ProjectSocialAccounts({
                           variant="ghost"
                           size="icon"
                           loading={
-                            isRowPending && pendingAction !== "reconnect"
+                            isRowPending &&
+                            pendingAction !== "reconnect" &&
+                            pendingAction !== "startOver"
                           }
                           aria-label={t("actions", { account: primary })}
                         >

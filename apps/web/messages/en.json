@@ -2371,6 +2371,7 @@
         "connectAccount": "Connect account",
         "actions": "Actions for {account}",
         "reconnect": "Reconnect",
+        "startOver": "Start over",
         "replace": "Replace",
         "disconnect": "Disconnect",
         "unknownHandle": "Unknown account",
