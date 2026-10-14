@@ -366,6 +366,7 @@ import SwiftUI
           .offset(y: -(replyActionHeight + 6) / 2)
         }
       }
+      .whoReactedLabel()
       .onChange(of: showsActions) { _, visible in
         // Read history only on entry. Keep targets stable while hovering,
         // keyboard-focused, or choosing from the picker.
