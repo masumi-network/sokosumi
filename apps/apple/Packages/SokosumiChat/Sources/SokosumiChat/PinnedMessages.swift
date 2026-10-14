@@ -6,37 +6,45 @@ import Foundation
 @MainActor
 public final class PinnedMessages: ObservableObject {
   @Published public private(set) var roomId: String?
-  @Published public private(set) var items: [Components.Schemas.ChatRoomPinnedMessageListItem] = []
-  @Published public private(set) var nextCursor: String?
-  @Published public private(set) var isLoading = false
+  /// The pins and the paging around them. A failed older page keeps them and shows `errorMessage`; its
+  /// `.failed` status is never drawn.
+  @Published private(set) var pages = CursorPages<Components.Schemas.ChatRoomPinnedMessageListItem>()
   @Published public private(set) var errorMessage: String?
   @Published public private(set) var revision = 0
   public private(set) var roomGeneration = 0
-  private var generation = 0
   private var loadTask: Task<Void, Error>?
 
   public init() {}
+
+  public var items: [Components.Schemas.ChatRoomPinnedMessageListItem] {
+    pages.items
+  }
+
+  public var nextCursor: String? {
+    pages.nextCursor
+  }
+
+  public var isLoading: Bool {
+    pages.isLoadingFirstPage || pages.olderPageStatus == .loading
+  }
 
   public func reset(roomId: String? = nil) {
     roomGeneration += 1
     invalidate()
     self.roomId = roomId
-    items = []
-    nextCursor = nil
-    isLoading = false
+    pages.reset()
     errorMessage = nil
   }
 
   public func invalidate() {
     loadTask?.cancel()
     loadTask = nil
-    generation += 1
+    pages.supersede()
     revision += 1
-    isLoading = false
   }
 
   public func remove(messageId: String) {
-    items.removeAll { $0.messageId == messageId }
+    pages.removeAll { $0.messageId == messageId }
     invalidate()
   }
 
@@ -45,39 +53,30 @@ public final class PinnedMessages: ObservableObject {
       try await loadTask.value
       return
     }
-    guard let roomId, !older || nextCursor != nil else { return }
-    let requestedGeneration = generation
-    let cursor = older ? nextCursor : nil
-    isLoading = true
+    guard let roomId, let request = pages.begin(older: older) else { return }
     errorMessage = nil
     let task = Task {
-      try await self.loadPage(client: client, roomId: roomId, organizationSlug: organizationSlug,
-                              cursor: cursor, requestedGeneration: requestedGeneration)
+      try await self.loadPage(client: client, roomId: roomId, organizationSlug: organizationSlug, request: request)
     }
     loadTask = task
     try await task.value
   }
 
-  private func loadPage(client: Client, roomId: String, organizationSlug: String?, cursor: String?,
-                        requestedGeneration: Int) async throws {
+  private func loadPage(client: Client, roomId: String, organizationSlug: String?,
+                        request: CursorPages<Components.Schemas.ChatRoomPinnedMessageListItem>.Request) async throws {
     defer {
-      if requestedGeneration == generation {
-        isLoading = false
+      if pages.isCurrent(request) {
+        pages.settle(request)
         loadTask = nil
       }
     }
     do {
-      let page = try await ChatService().listPinnedMessages(client: client, roomId: roomId, cursor: cursor, organizationSlug: organizationSlug)
-      guard requestedGeneration == generation, !Task.isCancelled else { return }
-      if cursor != nil {
-        let known = Set(items.map(\.messageId))
-        items += page.items.filter { !known.contains($0.messageId) }
-      } else {
-        items = page.items
-      }
-      nextCursor = page.nextCursor == cursor ? nil : page.nextCursor
+      let page = try await ChatService().listPinnedMessages(client: client, roomId: roomId, cursor: request.cursor, organizationSlug: organizationSlug)
+      guard pages.isCurrent(request), !Task.isCancelled else { return }
+      pages.answer(request, items: page.items, nextCursor: page.nextCursor, id: \.messageId)
     } catch {
-      guard requestedGeneration == generation, !Task.isCancelled else { return }
+      guard pages.isCurrent(request), !Task.isCancelled else { return }
+      pages.fail(request)
       errorMessage = friendlyMessage(for: error)
       throw error
     }

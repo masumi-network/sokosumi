@@ -30,6 +30,12 @@ private actor PausedPinTransport: ClientTransport {
   }
 }
 
+private func pinsBody(_ ids: [String], next: String?) -> String {
+  let items = ids.map { #"{"messageId":"\#($0)","pinnedAt":"2026-01-01T00:00:00.000Z","pinnedBy":null,"message":null}"# }
+  let cursor = next.map { "\"\($0)\"" } ?? "null"
+  return "{\"data\":[\(items.joined(separator: ","))],\"meta\":{\"timestamp\":\"2026-01-01T00:00:00.000Z\",\"requestId\":\"req\",\"pagination\":{\"cursor\":null,\"limit\":100,\"total\":\(ids.count),\"nextCursor\":\(cursor)}}}"
+}
+
 @MainActor struct PinnedMessageTests {
   @Test func openingPanelDuringCancelledPrefetchStillLoadsPins() async throws {
     let transport = PausedPinTransport()
@@ -101,5 +107,64 @@ private actor PausedPinTransport: ClientTransport {
     let transport = TestTransport([(200, body)])
     let page = try await ChatService().listPinnedMessages(client: makeTestClient(transport), roomId: testRoomId, organizationSlug: nil)
     #expect(page.items.first?.message?.content == "Pinned preview")
+  }
+
+  @Test func aFailedFirstPageClearsThePinsLikeWeb() async throws {
+    let transport = TestTransport([(200, pinsBody(["a", "b"], next: "c1")), (500, #"{"message":"Down"}"#)])
+    let client = try makeTestClient(transport)
+    let pins = PinnedMessages()
+    pins.reset(roomId: testRoomId)
+    try await pins.load(client: client, organizationSlug: nil)
+    #expect(pins.items.map(\.messageId) == ["a", "b"])
+    #expect(pins.nextCursor == "c1")
+
+    await #expect(throws: (any Error).self) { try await pins.load(client: client, organizationSlug: nil) }
+    #expect(pins.items.isEmpty, "Web's setItems([]) on a failed list read.")
+    #expect(pins.nextCursor == nil)
+    #expect(pins.errorMessage != nil)
+    #expect(!pins.isLoading)
+  }
+
+  @Test func aFailedOlderPageKeepsThePinsAndShowsTheError() async throws {
+    let transport = TestTransport([
+      (200, pinsBody(["a", "b"], next: "c1")),
+      (500, #"{"message":"Down"}"#),
+      (200, pinsBody(["c"], next: nil))
+    ])
+    let client = try makeTestClient(transport)
+    let pins = PinnedMessages()
+    pins.reset(roomId: testRoomId)
+    try await pins.load(client: client, organizationSlug: nil)
+
+    await #expect(throws: (any Error).self) { try await pins.load(client: client, organizationSlug: nil, older: true) }
+    #expect(pins.items.map(\.messageId) == ["a", "b"])
+    #expect(pins.nextCursor == "c1")
+    #expect(pins.errorMessage != nil)
+    #expect(!pins.isLoading)
+
+    try await pins.load(client: client, organizationSlug: nil, older: true)
+    #expect(pins.items.map(\.messageId) == ["a", "b", "c"])
+    #expect(pins.nextCursor == nil)
+    #expect(pins.errorMessage == nil)
+    #expect(transport.requests[2].request.path?.contains("cursor=c1") == true)
+  }
+
+  @Test func invalidateDropsALatePage() async throws {
+    let transport = PausedPinTransport()
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let pins = PinnedMessages()
+    pins.reset(roomId: testRoomId)
+    let revision = pins.revision
+    let load = Task { try await pins.load(client: client, organizationSlug: nil) }
+    await transport.waitForRequest()
+    #expect(pins.isLoading)
+    pins.invalidate()
+    #expect(!pins.isLoading)
+    #expect(pins.revision == revision + 1)
+    await transport.release()
+    try await load.value
+    #expect(pins.items.isEmpty, "The late page belongs to a list that was invalidated.")
+    #expect(pins.nextCursor == nil)
+    #expect(!pins.isLoading)
   }
 }

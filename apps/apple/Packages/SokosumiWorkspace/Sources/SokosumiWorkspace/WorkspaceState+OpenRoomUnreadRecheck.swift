@@ -9,7 +9,7 @@ extension WorkspaceState {
   /// as no room view is mounted on web's `/chat/threads`.
   var openRoomUnreadSignal: OpenRoomUnreadRecheck.Signal? {
     guard !sidebar.showsThreadsView, let roomId = transcriptRoomId else { return nil }
-    return .init(room: rooms.first { $0.id == roomId }, historyLoading: transcriptLoading)
+    return .init(room: rooms.first { $0.id == roomId }, historyLoading: openRoom.room.timeline.isLoading)
   }
 
   func watchOpenRoomUnread() {

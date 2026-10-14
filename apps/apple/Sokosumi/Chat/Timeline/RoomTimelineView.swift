@@ -19,7 +19,7 @@ import SwiftUI
     private var preparationInput: PreparedTranscript.Input {
       let room = workspaces.rooms.first { $0.id == roomId }
       return .init(scope: [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.openRoom.room.timeline.generation)],
-                   messages: workspaces.displayedTranscript, mentions: room.map(MessageMentions.init),
+                   messages: workspaces.openRoom.displayedTranscript, mentions: room.map(MessageMentions.init),
                    channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
     }
 
@@ -156,7 +156,7 @@ import SwiftUI
         }
         .onChange(of: workspaces.openRoom.thread.parent == nil) { _, closed in
           guard closed, let target = workspaces.openRoom.room.jumpTarget, target.isCovered, !target.hasLanded,
-                !workspaces.displayedTranscript.contains(where: { $0.id == target.messageId }) else { return }
+                !workspaces.openRoom.displayedTranscript.contains(where: { $0.id == target.messageId }) else { return }
           // Gone from the loaded rows while the Thread was open: nothing to land on, so forget it.
           Task { @MainActor in workspaces.openRoom.room.clearJump() }
         }
@@ -354,7 +354,7 @@ import SwiftUI
         }
         .onChange(of: scrollTarget.flatMap { target in messages.contains { $0.id == target.messageId } ? target.messageId : nil }, initial: true) { _, target in
           guard let target else { return }
-          guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
+          guard workspaces.openRoom.displayedTranscript.contains(where: { $0.id == target }) else {
             Task { @MainActor in workspaces.openRoom.room.clearJump() }
             return
           }

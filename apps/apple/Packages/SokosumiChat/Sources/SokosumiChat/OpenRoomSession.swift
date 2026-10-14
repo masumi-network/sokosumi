@@ -35,7 +35,8 @@ public final class OpenRoomSession: ObservableObject {
     public var lookBeforeThread: () async -> Void
     public var isForeground: () -> Bool
     public var listedRoom: () -> Components.Schemas.ChatRoom?
-    public var viewerId: () -> String
+    /// The reader: their id and account name.
+    public var viewer: () -> (id: String, name: String)
     public var organizationId: () -> String?
 
     public init(
@@ -45,7 +46,7 @@ public final class OpenRoomSession: ObservableObject {
       lookBeforeThread: @escaping () async -> Void,
       isForeground: @escaping () -> Bool,
       listedRoom: @escaping () -> Components.Schemas.ChatRoom?,
-      viewerId: @escaping () -> String,
+      viewer: @escaping () -> (id: String, name: String),
       organizationId: @escaping () -> String?
     ) {
       self.access = access
@@ -54,13 +55,13 @@ public final class OpenRoomSession: ObservableObject {
       self.lookBeforeThread = lookBeforeThread
       self.isForeground = isForeground
       self.listedRoom = listedRoom
-      self.viewerId = viewerId
+      self.viewer = viewer
       self.organizationId = organizationId
     }
   }
 
   public var hooks = Hooks(access: { nil }, failed: { _ in false }, pageLanded: {}, lookBeforeThread: {}, isForeground: { false },
-                           listedRoom: { nil }, viewerId: { "" }, organizationId: { nil })
+                           listedRoom: { nil }, viewer: { ("", "") }, organizationId: { nil })
   /// The room's main Transcript: its history, Send queue, realtime updates and recovery.
   public let room: TranscriptSession
   public let thread: ThreadSession
@@ -80,6 +81,10 @@ public final class OpenRoomSession: ObservableObject {
   let service = ChatService()
   /// The newest message navigation; opening or closing the room supersedes it.
   public private(set) var navigationRequest = UUID()
+  /// Bumps whenever the room's Thread unread may have moved (a reply, lost continuity, a Look, a mute or Mark all),
+  /// so the Threads trigger counts again. Only ever counts up, across visits: the trigger keys on it together with
+  /// the room, so opening another room needs no reset.
+  @Published public private(set) var threadAttentionRevision = 0
   /// Whether the socket reports the room's live updates as healthy, which lets recovery poll less.
   public private(set) var realtimeHealthy = false
   private var observations: Set<AnyCancellable> = []
@@ -196,6 +201,11 @@ public final class OpenRoomSession: ObservableObject {
       guard isCurrent() else { return nil }
       throw error
     }
+  }
+
+  /// A Look, a mute or Mark all moved the room's Thread unread.
+  public func threadAttentionChanged() {
+    threadAttentionRevision += 1
   }
 
   public func setForeground(_ foreground: Bool) {
@@ -380,6 +390,9 @@ public final class OpenRoomSession: ObservableObject {
   /// client turn id (ADR 0004). While the coworker stream draws the room's newest rows only a delete reaches the
   /// room's history; anything else only moves an open Thread.
   public func apply(eventType: ChatRoomMessageRealtimeEventType, message: Components.Schemas.ChatRoomMessage, roomId: String) {
+    if roomId == room.timeline.roomId, message.parentMessageId != nil {
+      threadAttentionChanged()
+    }
     guard roomId == room.timeline.roomId, message.roomId == roomId, !directStream.isBusy || eventType == .delete else {
       return thread.apply(eventType: eventType, message: message)
     }
@@ -391,6 +404,9 @@ public final class OpenRoomSession: ObservableObject {
   /// ignores may still move the Thread's parent, and the workspace may refresh the sidebar for it.
   @discardableResult
   public func apply(_ envelope: ChatRoomMessageIdEnvelope) -> Bool {
+    if envelope.roomId == room.timeline.roomId, envelope.parentMessageId != nil {
+      threadAttentionChanged()
+    }
     let refreshParent = thread.apply(envelope)
     if envelope.roomId == directStream.roomId, directStream.isBusy, envelope.eventType != .delete, !refreshParent {
       return true
@@ -419,6 +435,7 @@ public final class OpenRoomSession: ObservableObject {
     thread.transcript.recovery.setHealthy(healthy)
     room.recovery.setHealthy(healthy)
     if continuityLost {
+      threadAttentionChanged()
       thread.transcript.recovery.requestRefresh()
       room.recovery.requestRefresh()
     }

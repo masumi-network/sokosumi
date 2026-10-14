@@ -18,16 +18,6 @@ private struct NavigationGuard {
 /// Landing on a message in the open room: a link, a quote, a search hit or a notification. Every suspension is
 /// guarded, so a navigation the reader replaced never moves the room or the Thread.
 public extension OpenRoomSession {
-  /// The room's rows as it shows them: history plus the coworker stream's overlay, before Pending reactions.
-  internal var roomRows: [Components.Schemas.ChatRoomMessage] {
-    directStream.displayedMessages(persisted: room.displayedMessages)
-  }
-
-  /// The open Thread's replies as it shows them, before Pending reactions.
-  internal var replyRows: [Components.Schemas.ChatRoomMessage] {
-    directStream.displayedMessages(persisted: thread.transcript.displayedMessages, parentMessageId: thread.parent?.id)
-  }
-
   /// A link's target once its room is selected: waits for the room's first page, which alone decides whether the
   /// message is there (a refresh or older page may keep running), then lands on `messageId`, or just shows the
   /// room with no Thread over it.

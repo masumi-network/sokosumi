@@ -30,28 +30,8 @@ public enum UnreadThreadsState: Equatable, Sendable {
 /// anything read; opening a row does, through the thread's own Look.
 @MainActor
 public final class CrossRoomThreads: ObservableObject {
-  /// One list's pages.
-  public struct Pages<Thread: Hashable & Sendable>: Equatable, Sendable {
-    public fileprivate(set) var threads: [Thread] = []
-    public fileprivate(set) var nextCursor: String?
-    /// A first page answered and none failed since: web's `isSuccess`.
-    public fileprivate(set) var hasAnswered = false
-    public fileprivate(set) var isLoadingFirstPage = false
-    /// The last first page failed: web's `isError` with no data.
-    public fileprivate(set) var firstPageFailed = false
-    /// The paging row after the last row, web's `ThreadListLoadMore` status.
-    public fileprivate(set) var olderPageStatus: PageBoundaryStatus = .idle
-    fileprivate var generation = 0
-
-    /// Web's `useLoadWhenVisible` arming: the paging row asks by itself only while idle, never during a
-    /// first page, and after a failure not until the reader retries.
-    public var loadsOlderAutomatically: Bool {
-      nextCursor != nil && olderPageStatus == .idle && !isLoadingFirstPage
-    }
-  }
-
-  @Published public private(set) var unread = Pages<Components.Schemas.ChatUnreadThread>()
-  @Published public private(set) var earlier = Pages<Components.Schemas.ChatEarlierThread>()
+  @Published public private(set) var unread = CursorPages<Components.Schemas.ChatUnreadThread>()
+  @Published public private(set) var earlier = CursorPages<Components.Schemas.ChatEarlierThread>()
   /// Each Thread's name from its parent, keyed by parent message id.
   @Published public private(set) var labels: [String: String] = [:]
   /// The workspace the lists answer. Another one starts both lists empty.
@@ -60,8 +40,8 @@ public final class CrossRoomThreads: ObservableObject {
   public init() {}
 
   public func reset() {
-    unread = Pages(generation: unread.generation + 1)
-    earlier = Pages(generation: earlier.generation + 1)
+    unread.reset()
+    earlier.reset()
     labels = [:]
     scope = nil
   }
@@ -98,73 +78,29 @@ public final class CrossRoomThreads: ObservableObject {
     let room: KeyPath<Thread, String>
   }
 
-  private func loadPage<Thread: Hashable & Sendable>(
-    _ pages: ReferenceWritableKeyPath<CrossRoomThreads, Pages<Thread>>,
+  private func loadPage<Thread: Sendable>(
+    _ pages: ReferenceWritableKeyPath<CrossRoomThreads, CursorPages<Thread>>,
     older: Bool,
     rooms: [Components.Schemas.ChatRoom],
     parts: Parts<Thread>,
     fetch: (String?) async throws -> (items: [Thread], nextCursor: String?)
   ) async throws {
-    guard let (request, cursor) = begin(pages, older: older) else { return }
-    defer { settle(pages, request: request) }
+    guard !Task.isCancelled, let request = self[keyPath: pages].begin(older: older) else { return }
+    defer { self[keyPath: pages].settle(request) }
     do {
-      let page = try await fetch(cursor)
-      guard self[keyPath: pages].generation == request, !Task.isCancelled else { return }
+      let page = try await fetch(request.cursor)
+      guard self[keyPath: pages].isCurrent(request), !Task.isCancelled else { return }
       let previews = await Self.previews(of: page.items, rooms: rooms, parts: parts)
-      guard self[keyPath: pages].generation == request, !Task.isCancelled else { return }
+      guard self[keyPath: pages].isCurrent(request), !Task.isCancelled else { return }
       labels.merge(previews) { _, new in new }
-      var answered = self[keyPath: pages]
-      if older {
-        // A Thread whose reply moved since the last page comes back on this one; the held copy stays.
-        let known = Set(answered.threads.map { $0[keyPath: parts.parent] })
-        answered.threads += page.items.filter { !known.contains($0[keyPath: parts.parent]) }
-      } else {
-        answered.threads = page.items
-      }
-      answered.nextCursor = page.nextCursor == cursor ? nil : page.nextCursor
-      answered.hasAnswered = true
-      answered.firstPageFailed = false
-      self[keyPath: pages] = answered
+      // A Thread whose reply moved since the last page comes back on this one; the held copy stays.
+      self[keyPath: pages].answer(request, items: page.items, nextCursor: page.nextCursor, id: parts.parent)
     } catch {
-      guard self[keyPath: pages].generation == request, !Task.isCancelled else { return }
-      if older {
-        self[keyPath: pages].olderPageStatus = .failed
-      } else {
-        // Web's query without data: no rows, no paging row, the error with Try again.
-        var failed = self[keyPath: pages]
-        failed.threads = []
-        failed.nextCursor = nil
-        failed.hasAnswered = false
-        failed.firstPageFailed = true
-        self[keyPath: pages] = failed
-      }
+      guard self[keyPath: pages].isCurrent(request), !Task.isCancelled else { return }
+      // A failed first page is web's query without data (no rows, the error with Try again); a failed older page
+      // keeps the rows and fails only its paging row.
+      self[keyPath: pages].fail(request)
       throw error
-    }
-  }
-
-  /// Starts a page, or nil when an older page cannot start now. A first page supersedes an older page in
-  /// flight and forgets a failed one.
-  private func begin(_ pages: ReferenceWritableKeyPath<CrossRoomThreads, Pages<some Any>>, older: Bool) -> (Int, String?)? {
-    let current = self[keyPath: pages]
-    if older, current.nextCursor == nil || current.isLoadingFirstPage || current.olderPageStatus == .loading {
-      return nil
-    }
-    guard !Task.isCancelled else { return nil }
-    self[keyPath: pages].generation += 1
-    if older {
-      self[keyPath: pages].olderPageStatus = .loading
-    } else {
-      self[keyPath: pages].isLoadingFirstPage = true
-      self[keyPath: pages].olderPageStatus = .idle
-    }
-    return (self[keyPath: pages].generation, older ? current.nextCursor : nil)
-  }
-
-  private func settle(_ pages: ReferenceWritableKeyPath<CrossRoomThreads, Pages<some Any>>, request: Int) {
-    guard self[keyPath: pages].generation == request else { return }
-    self[keyPath: pages].isLoadingFirstPage = false
-    if self[keyPath: pages].olderPageStatus == .loading {
-      self[keyPath: pages].olderPageStatus = .idle
     }
   }
 
@@ -186,12 +122,12 @@ public final class CrossRoomThreads: ObservableObject {
   /// The unread Threads to list: only those whose room the sidebar lists and the reader has not muted, in
   /// Core's order.
   public func unreadRows(rooms: [Components.Schemas.ChatRoom]) -> [Components.Schemas.ChatUnreadThread] {
-    Self.listed(unread.threads, rooms: rooms, room: \.roomId)
+    Self.listed(unread.items, rooms: rooms, room: \.roomId)
   }
 
   /// The read Threads to list, by the same rule.
   public func earlierRows(rooms: [Components.Schemas.ChatRoom]) -> [Components.Schemas.ChatEarlierThread] {
-    Self.listed(earlier.threads, rooms: rooms, room: \.roomId)
+    Self.listed(earlier.items, rooms: rooms, room: \.roomId)
   }
 
   /// Each list already holds a Thread once: Core groups a page by parent, and an older page skips held ones.
@@ -215,7 +151,7 @@ public final class CrossRoomThreads: ObservableObject {
       return .caughtUp
     }
     // Core's own empty answer; a page whose rows were all dropped says nothing while another follows.
-    if unread.hasAnswered, rows.isEmpty, unread.nextCursor == nil, unread.threads.isEmpty || !rooms.isEmpty {
+    if unread.hasAnswered, rows.isEmpty, unread.nextCursor == nil, unread.items.isEmpty || !rooms.isEmpty {
       return .caughtUp
     }
     if unread.firstPageFailed, rows.isEmpty {
