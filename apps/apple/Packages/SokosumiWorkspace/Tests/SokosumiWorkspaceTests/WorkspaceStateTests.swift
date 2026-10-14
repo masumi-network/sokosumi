@@ -2527,7 +2527,7 @@ extension WorkspaceStateTests {
     var hit = try #require(state.transcriptMessages.first)
     hit.id = "old"
     hit.parentMessageId = "parent"
-    #expect(try await state.openMessageReply(hit) == .opened)
+    #expect(try await state.openRoom.openMessageReply(hit) == .opened)
     #expect(state.openRoom.thread.parent?.id == "parent")
     #expect(state.openRoom.thread.transcript.jumpTarget?.messageId == "old")
     #expect(Set(state.openRoom.thread.transcript.timeline.messages.map(\.id)) == ["old", "recent"])
@@ -2552,7 +2552,7 @@ extension WorkspaceStateTests {
     hit.id = "old"
     hit.content = "Old"
     hit.parentMessageId = "parent"
-    #expect(try await state.openMessageReply(hit) == .unavailable)
+    #expect(try await state.openRoom.openMessageReply(hit) == .unavailable)
     let loaded = try #require(state.openRoom.thread.transcript.timeline.messages.first { $0.id == "old" })
     #expect(!shouldKeepPersistedMessage(loaded))
     #expect(state.openRoom.thread.transcript.jumpTarget == nil)
@@ -2575,7 +2575,7 @@ extension WorkspaceStateTests {
     hit.parentMessageId = "parent"
     state.openRoom.room.timeline.reset(roomId: "room")
     transport.pauseGET = true
-    let request = Task { try await state.openMessageReply(hit) }
+    let request = Task { try await state.openRoom.openMessageReply(hit) }
     while transport.operationIDs.count < 2 {
       await Task.yield()
     }
@@ -2595,11 +2595,11 @@ extension WorkspaceStateTests {
     ], visible: false)
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.openMessage("old") == .opened)
+    #expect(try await state.openRoom.openMessage("old") == .opened)
     #expect(state.openRoom.messageJump?.messageId == "old")
     #expect(state.openRoom.messageJump?.roomId == "room")
     let first = state.openRoom.messageJump?.requestId
-    #expect(try await state.openMessage("old") == .opened)
+    #expect(try await state.openRoom.openMessage("old") == .opened)
     #expect(first != state.openRoom.messageJump?.requestId)
   }
 
@@ -2610,7 +2610,7 @@ extension WorkspaceStateTests {
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
     transport.pauseGET = true
-    let request = Task { try await state.openMessage("old") }
+    let request = Task { try await state.openRoom.openMessage("old") }
     while transport.operationIDs.isEmpty {
       await Task.yield()
     }
@@ -2627,7 +2627,7 @@ extension WorkspaceStateTests {
     ], visible: false)
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.openMessage("missing") == .unavailable)
+    #expect(try await state.openRoom.openMessage("missing") == .unavailable)
     #expect(state.openRoom.messageJump == nil)
     #expect(transport.operationIDs.count == 1)
   }
@@ -2639,7 +2639,7 @@ extension WorkspaceStateTests {
     let (state, _, transport, _) = try ephemeralState([(200, deleted)], visible: false)
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.openMessage("gone") == .unavailable)
+    #expect(try await state.openRoom.openMessage("gone") == .unavailable)
     #expect(state.openRoom.messageJump == nil)
     #expect(transport.operationIDs.count == 1)
   }
@@ -2673,7 +2673,7 @@ extension WorkspaceStateTests {
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
     #expect(try await state.openRoom.jumpToMessage("parent"))
-    #expect(try await state.openMessage("reply") == .opened)
+    #expect(try await state.openRoom.openMessage("reply") == .opened)
     #expect(state.openRoom.thread.parent?.id == "parent")
     #expect(state.openRoom.thread.transcript.jumpTarget?.messageId == "reply")
   }
@@ -2693,7 +2693,7 @@ extension WorkspaceStateTests {
     var hit = try #require(state.transcriptMessages.first)
     hit.id = "reply"
     hit.parentMessageId = "parent"
-    #expect(try await state.openMessageReply(hit) == .opened)
+    #expect(try await state.openRoom.openMessageReply(hit) == .opened)
     #expect(state.openRoom.thread.transcript.jumpTarget?.messageId == "reply")
     let jump = try #require(state.openRoom.messageJump, "The room is sent to the parent.")
     #expect(jump.roomId == "room")
@@ -2718,7 +2718,7 @@ extension WorkspaceStateTests {
     var hit = try #require(state.transcriptMessages.first)
     hit.id = "old"
     hit.parentMessageId = "parent"
-    await #expect(throws: (any Error).self) { try await state.openMessageReply(hit) }
+    await #expect(throws: (any Error).self) { try await state.openRoom.openMessageReply(hit) }
     #expect(state.openRoom.thread.parent?.id == "parent")
     #expect(state.openRoom.thread.transcript.jumpTarget == nil, "The reply was not reached.")
     #expect(state.openRoom.messageJump?.messageId == "parent")
@@ -2740,7 +2740,7 @@ extension WorkspaceStateTests {
     // The quote's lookup answers from loaded rows: the reply is in the open Thread.
     try state.openRoom.openThread(#require(state.transcriptMessages.first))
     _ = await state.openRoom.thread.transcript.loadTask?.value
-    #expect(try await state.openMessage("reply", marksThreadParent: false) == .opened)
+    #expect(try await state.openRoom.openMessage("reply", marksThreadParent: false) == .opened)
     #expect(state.openRoom.thread.transcript.jumpTarget?.messageId == "reply", "The quote still opens the Thread on the reply.")
     #expect(state.openRoom.messageJump == nil)
   }
@@ -2763,7 +2763,7 @@ extension WorkspaceStateTests {
     hit.id = "old"
     hit.parentMessageId = "parent"
     transport.pauseGET = true
-    let request = Task { try await state.openMessageReply(hit) }
+    let request = Task { try await state.openRoom.openMessageReply(hit) }
     while transport.operationIDs.count < 2 {
       await Task.yield()
     }
@@ -2794,7 +2794,7 @@ extension WorkspaceStateTests {
     var hit = try #require(state.transcriptMessages.first)
     hit.id = "reply"
     hit.parentMessageId = "parent"
-    #expect(try await state.openMessageReply(hit) == .opened)
+    #expect(try await state.openRoom.openMessageReply(hit) == .opened)
     #expect(state.openRoom.thread.transcript.jumpTarget?.messageId == "reply", "The reply is reached.")
     #expect(state.openRoom.messageJump == nil)
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 1)
@@ -2809,11 +2809,11 @@ extension WorkspaceStateTests {
     state.openRoom.room.timeline.reset(roomId: "room")
     #expect(try await state.openRoom.jumpToMessage("new"))
     transport.pauseGET = true
-    let old = Task { try await state.openMessage("old") }
+    let old = Task { try await state.openRoom.openMessage("old") }
     while transport.operationIDs.count < 2 {
       await Task.yield()
     }
-    #expect(try await state.openMessage("new") == .opened)
+    #expect(try await state.openRoom.openMessage("new") == .opened)
     transport.releasePausedRequest()
     #expect(try await old.value == .superseded)
     #expect(state.openRoom.messageJump?.messageId == "new")
@@ -2880,7 +2880,7 @@ extension WorkspaceStateTests {
     ], visible: false)
     defer { state.reset() }
     state.openRoom.room.timeline.reset(roomId: "room")
-    #expect(try await state.openMessage("target") == .opened)
+    #expect(try await state.openRoom.openMessage("target") == .opened)
     #expect(state.openRoom.messageJump?.messageId == "target")
   }
 }

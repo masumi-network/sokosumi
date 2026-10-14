@@ -234,7 +234,7 @@
         let auth = AuthState()
         state.openRoom.room.timeline.reset(roomId: "room")
         _ = try await state.openRoom.room.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.openRoom.room.timeline.generation)
-        #expect(try await state.openMessage("fixture-20") == .opened)
+        #expect(try await state.openRoom.openMessage("fixture-20") == .opened)
         #expect(state.openRoom.room.timeline.historyGapMessageIds == ["fixture-70"])
         #expect(state.openRoom.room.timeline.messages.count == 60)
         return GapFixture(state: state, auth: auth, session: session)

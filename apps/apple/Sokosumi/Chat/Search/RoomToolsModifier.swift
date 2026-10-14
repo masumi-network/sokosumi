@@ -253,7 +253,7 @@ import SwiftUI
         }
         do {
           let result = if hit.parentMessageId != nil {
-            try await workspaces.openMessageReply(hit)
+            try await workspaces.openRoom.openMessageReply(hit)
           } else {
             try await jump(hit.id)
           }

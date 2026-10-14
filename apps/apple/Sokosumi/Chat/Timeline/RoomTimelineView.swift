@@ -472,7 +472,7 @@ import SwiftUI
     private func jumpToMessage(_ id: String) async throws -> MessageNavigationResult {
       let expectedRoom = roomId
       scroll.readOlder()
-      let result = try await workspaces.openMessage(id)
+      let result = try await workspaces.openRoom.openMessage(id)
       guard result == .opened, workspaces.openRoom.room.timeline.roomId == expectedRoom else {
         return result == .opened ? .superseded : result
       }
