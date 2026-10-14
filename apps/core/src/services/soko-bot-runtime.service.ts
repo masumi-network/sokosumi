@@ -220,7 +220,7 @@ import {
   activeIntegrationsForBot,
   fetchCalendarEvents,
   fetchInboxMessage,
-  fetchInboxMessages,
+  fetchInboxPage,
   listIntegrationTools,
   listSokoBotIntegrations,
   runIntegrationTool,
@@ -5039,6 +5039,13 @@ export class SokoBotRuntimeService {
           parsed.provider,
         );
         const limit = parsed.limit ?? 20;
+        // A token belongs to one mailbox; across several, a merged page cut
+        // to the limit would skip mail the token has already moved past.
+        if (parsed.pageToken && integrations.length !== 1)
+          throw new SokoBotRuntimeValidationError(
+            "pageToken needs the provider of the page it came from",
+          );
+        let nextPageToken: string | null = null;
         const result = await readSokoBotSource({
           source: "MAIL",
           filters: {
@@ -5046,15 +5053,17 @@ export class SokoBotRuntimeService {
             since: parsed.since ?? "",
             unreadOnly: String(parsed.unreadOnly ?? false),
           },
-          queries: integrations.map(
-            (integration) => () =>
-              fetchInboxMessages(integration, {
-                query: parsed.query,
-                since: parsed.since ? new Date(parsed.since) : undefined,
-                unreadOnly: parsed.unreadOnly,
-                limit,
-              }),
-          ),
+          queries: integrations.map((integration) => async () => {
+            const page = await fetchInboxPage(integration, {
+              query: parsed.query,
+              since: parsed.since ? new Date(parsed.since) : undefined,
+              unreadOnly: parsed.unreadOnly,
+              limit,
+              pageToken: parsed.pageToken,
+            });
+            if (integrations.length === 1) nextPageToken = page.nextPageToken;
+            return page.messages;
+          }),
         });
         return {
           coverage: {
@@ -5067,6 +5076,7 @@ export class SokoBotRuntimeService {
           messages: result.rows
             .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
             .slice(0, limit),
+          nextPageToken,
         };
       }
       case "read_email": {

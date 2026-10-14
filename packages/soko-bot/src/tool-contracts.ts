@@ -314,6 +314,8 @@ export const sokoBotSearchInboxInputSchema = z.object({
   /** Restrict to one connected provider id; default all email providers. */
   provider: z.string().optional(),
   limit: z.number().int().min(1).max(50).optional(),
+  /** `nextPageToken` from the previous page of the same provider and query. */
+  pageToken: z.string().max(2_000).optional(),
 });
 
 export const sokoBotReadEmailInputSchema = z.object({
@@ -703,7 +705,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   list_integrations:
     "Which external accounts (Gmail, Outlook, Google Calendar, …) the owner connected to you, and when you last ingested them.",
   search_inbox:
-    "Search the owner's connected mailboxes. Returns sender, subject, snippet and ids; use read_email for the full body. Never send mail; you can only read.",
+    "Search the owner's connected mailboxes. Returns sender, subject, snippet and ids; use read_email for the full body. Gmail returns nextPageToken when more mail matches: pass it back as pageToken with the same provider and query for the next page, and page or narrow by date (after:/before: in the query) to cover months or years of mail. Never send mail; you can only read.",
   read_email: "Read one email in full by provider and messageId.",
   list_calendar_events:
     "The owner's calendar events in a time window across connected calendars. Default window: now to +7 days.",
