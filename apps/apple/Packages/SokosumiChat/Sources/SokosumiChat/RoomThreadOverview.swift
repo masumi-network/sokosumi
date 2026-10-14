@@ -10,25 +10,38 @@ import Foundation
 /// paging row, which stops loading by itself until the reader retries.
 @MainActor
 public final class RoomThreadOverview: ObservableObject {
-  @Published public private(set) var items: [Components.Schemas.ChatRoomThread] = []
+  /// The room's Threads and the paging around them.
+  @Published private(set) var pages = CursorPages<Components.Schemas.ChatRoomThread>()
   @Published public private(set) var previews: [String: String] = [:]
-  @Published public private(set) var nextCursor: String?
   /// Web's `useUnreadThreadReplyCounts`: unread replies per Thread in the room, keyed by parent message id,
   /// nil until the room's own first read lands. One read feeds the Threads trigger (its size) and every
   /// reply bar in the transcript (row 24h), so the two cannot disagree (SOK-1151).
   @Published public private(set) var unreadReplyCounts: [String: Int]?
-  /// The first page is loading: on open, after Back from a thread and after Mark all.
-  @Published public private(set) var isLoading = false
   @Published public private(set) var isMarkingRead = false
   /// The list's own error, web's `error`: a failed first page or Mark all, never an older page.
   @Published public private(set) var failureMessage: String?
-  /// The paging row after the last thread, web's `ThreadListLoadMore` status.
-  @Published public private(set) var olderPageStatus: PageBoundaryStatus = .idle
   private var generation = 0
   private var countGeneration = 0
-  private var loadGeneration = 0
 
   public init() {}
+
+  public var items: [Components.Schemas.ChatRoomThread] {
+    pages.items
+  }
+
+  public var nextCursor: String? {
+    pages.nextCursor
+  }
+
+  /// The first page is loading: on open, after Back from a thread and after Mark all.
+  public var isLoading: Bool {
+    pages.isLoadingFirstPage
+  }
+
+  /// The paging row after the last thread, web's `ThreadListLoadMore` status.
+  public var olderPageStatus: PageBoundaryStatus {
+    pages.olderPageStatus
+  }
 
   /// The Threads trigger's number: how many Threads are unread.
   public var unreadCount: Int {
@@ -50,21 +63,17 @@ public final class RoomThreadOverview: ObservableObject {
   /// only while it is idle: never while a page or Mark all runs, and after a failure not until the reader
   /// retries.
   public var loadsOlderAutomatically: Bool {
-    nextCursor != nil && olderPageStatus == .idle && !isLoading && !isMarkingRead
+    pages.loadsOlderAutomatically && !isMarkingRead
   }
 
   public func reset() {
     generation += 1
     countGeneration += 1
-    loadGeneration += 1
-    items = []
+    pages.reset()
     previews = [:]
-    nextCursor = nil
     unreadReplyCounts = nil
-    isLoading = false
     isMarkingRead = false
     failureMessage = nil
-    olderPageStatus = .idle
   }
 
   /// Reads the room's unread Threads again. A failed read keeps the last answer: the counts are decoration.
@@ -93,29 +102,15 @@ public final class RoomThreadOverview: ObservableObject {
   }
 
   private func loadPage(client: Client, roomId: String, organizationSlug: String?, older: Bool = false, mentions: MessageMentions? = nil) async throws {
-    guard !older || (!isLoading && olderPageStatus != .loading && nextCursor != nil), !Task.isCancelled else { return }
-    loadGeneration += 1
-    let request = loadGeneration
-    let cursor = older ? nextCursor : nil
-    if older {
-      olderPageStatus = .loading
-    } else {
+    guard !Task.isCancelled, let request = pages.begin(older: older) else { return }
+    if !older {
       // Web's `loadFirstPage`: supersedes an older page in flight and forgets a failed one.
-      isLoading = true
       failureMessage = nil
-      olderPageStatus = .idle
     }
-    defer {
-      if request == loadGeneration {
-        isLoading = false
-        if olderPageStatus == .loading {
-          olderPageStatus = .idle
-        }
-      }
-    }
+    defer { pages.settle(request) }
     do {
-      let page = try await ChatService().listThreads(client: client, roomId: roomId, cursor: cursor, organizationSlug: organizationSlug)
-      guard request == loadGeneration, !Task.isCancelled else { return }
+      let page = try await ChatService().listThreads(client: client, roomId: roomId, cursor: request.cursor, organizationSlug: organizationSlug)
+      guard pages.isCurrent(request), !Task.isCancelled else { return }
       var seen = Set<String>()
       let incoming = page.items.filter { $0.parentMessage.roomId == roomId && seen.insert($0.parentMessage.id).inserted }
       let labels = await Task.detached {
@@ -124,33 +119,26 @@ public final class RoomThreadOverview: ObservableObject {
           (item.parentMessage.id, ChatMessagePreview.text(item.parentMessage.content, names: names))
         })
       }.value
-      guard request == loadGeneration, !Task.isCancelled else { return }
+      guard pages.isCurrent(request), !Task.isCancelled else { return }
       if older {
         previews.merge(labels) { _, new in new }
-        let known = Set(items.map(\.parentMessage.id))
-        items += incoming.filter { !known.contains($0.parentMessage.id) }
       } else {
         previews = labels
-        items = incoming
       }
-      nextCursor = page.nextCursor == cursor ? nil : page.nextCursor
+      pages.answer(request, items: incoming, nextCursor: page.nextCursor, id: \.parentMessage.id)
     } catch {
-      guard request == loadGeneration, !Task.isCancelled else { return }
-      pageFailed(older: older, error: error)
+      guard pages.isCurrent(request), !Task.isCancelled else { return }
+      pageFailed(request, error: error)
       throw error
     }
   }
 
   /// A failed older page stays on the paging row with the rows kept; a failed first page clears the list,
   /// its headings, Mark all and the paging row, and says why.
-  private func pageFailed(older: Bool, error: any Error) {
-    if older {
-      olderPageStatus = .failed
-      return
-    }
-    items = []
+  private func pageFailed(_ request: CursorPages<Components.Schemas.ChatRoomThread>.Request, error: any Error) {
+    pages.fail(request)
+    guard !request.older else { return }
     previews = [:]
-    nextCursor = nil
     failureMessage = Self.message(for: error, fallback: "Could not load threads. Try again.")
   }
 
