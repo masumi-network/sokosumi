@@ -348,7 +348,7 @@ describe("SokoBotEventsSyncService", () => {
       expect.objectContaining({
         where: {
           organizationId: "org_1",
-          userId: { in: ["member_2", "user_1", "creator_1"] },
+          userId: { in: ["member_2", "user_1"] },
         },
       }),
     );
@@ -467,6 +467,61 @@ describe("SokoBotEventsSyncService", () => {
       'Job "Agent job" (id job_1) is now COMPLETED',
     );
   });
+
+  it.each([
+    { label: "no parent Task", task: null },
+    {
+      label: "a parent Task someone else owns",
+      task: { visibility: "PUBLIC", ownerId: "other_owner" },
+    },
+  ])(
+    "runs a shared bot's Job wake for the hiring member with $label",
+    async ({ task }) => {
+      delegationFindManyMock.mockResolvedValue([
+        {
+          id: "j",
+          kind: "JOB",
+          lastSeenStatus: "RUNNING",
+          task: null,
+          job: {
+            id: "job_1",
+            name: null,
+            workspaceId: "ws_1",
+            ownerId: "user_1",
+            task,
+            events: [{ status: "COMPLETED" }],
+          },
+          turn,
+        },
+      ]);
+      botFindUniqueMock.mockResolvedValue({
+        userId: null,
+        createdByUserId: "creator_1",
+        workspace: { organizationId: "org_1" },
+      });
+      const live = ["user_1", "other_owner", "creator_1", "owner_1"];
+      memberFindManyMock.mockImplementation(
+        async (args: { where: { userId?: { in: string[] }; role?: string } }) =>
+          live
+            .filter((id) =>
+              args.where.role
+                ? id === "owner_1"
+                : args.where.userId?.in.includes(id),
+            )
+            .map((id) => ({
+              userId: id,
+              user: { banned: false, banExpires: null },
+            })),
+      );
+
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+
+      expect(startTurnMock.mock.calls[0]?.[0]).toMatchObject({
+        userId: "user_1",
+        sokoBotId: "bot_1",
+      });
+    },
+  );
 
   it("does nothing while Soko Bot is disabled", async () => {
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: false });

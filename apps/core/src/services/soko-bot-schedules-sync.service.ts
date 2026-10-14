@@ -496,6 +496,7 @@ export class SokoBotSchedulesSyncService {
         }
         const starter = await sokoBotTurnStarter(schedule.sokoBotId, {
           scheduleUserId: schedule.userId,
+          systemRhythm: schedule.systemKey !== null,
         });
         if (!starter) throw new SokoBotNotFoundError("No member to run for");
         const started = await sokoBotControlPlane.startTurn({

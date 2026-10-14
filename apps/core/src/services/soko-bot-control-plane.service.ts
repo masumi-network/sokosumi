@@ -4244,6 +4244,7 @@ export class SokoBotControlPlane {
           scheduleRun.prompt ?? scheduleRun.schedule.prompt;
         const starter = await sokoBotTurnStarter(bot.id, {
           scheduleUserId: scheduleRun.schedule.userId,
+          systemRhythm: scheduleRun.schedule.systemKey !== null,
         });
         if (!starter) throw new SokoBotNotFoundError("No member to run for");
         retry = await this.startTurn({
@@ -4327,7 +4328,7 @@ export class SokoBotControlPlane {
       let retry: SokoBotTurnStartResult;
       try {
         const starter = await sokoBotTurnStarter(bot.id, {
-          turnUserId: failed.userId,
+          replayUserId: failed.userId,
         });
         if (!starter) throw new SokoBotNotFoundError("No member to run for");
         retry = await this.startTurn({

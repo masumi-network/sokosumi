@@ -37,6 +37,12 @@ const MEMBERS: MemberRow[] = [
     createdAt: new Date("2021-01-01"),
   },
   {
+    userId: "job_owner",
+    organizationId: "org_1",
+    role: MemberRole.MEMBER,
+    createdAt: new Date("2022-01-01"),
+  },
+  {
     userId: "turn_member",
     organizationId: "org_1",
     role: MemberRole.MEMBER,
@@ -106,7 +112,9 @@ function fakeClient(members: MemberRow[] = MEMBERS, bot: unknown = null) {
       user: { banned: row.banned ?? false, banExpires: null },
     }));
   });
-  const findUnique = vi.fn(async () => bot);
+  const findUnique = vi.fn(async (args: { where: { id: string } }) =>
+    args.where.id === "bot_1" ? bot : null,
+  );
   return {
     client: { member: { findMany }, sokoBot: { findUnique } } as never,
     findMany,
@@ -123,8 +131,16 @@ const sharedBot: TurnAttributionBot = {
 const allHints = {
   scheduleUserId: "schedule_member",
   taskEventUserId: "event_member",
+  jobOwnerId: "job_owner",
   taskOwnerId: "task_owner",
+  systemRhythm: true,
 };
+
+const STRANGERS = [
+  ["a user who left", "gone"],
+  ["a member of another Organization", "other_org_member"],
+  ["a banned member", "banned_member"],
+] as const;
 
 describe("resolveTurnUserId", () => {
   it("keeps a personal bot's owner and reads nothing", async () => {
@@ -136,23 +152,42 @@ describe("resolveTurnUserId", () => {
           createdByUserId: "creator",
           workspace: { organizationId: "org_1" },
         },
-        { ...allHints, turnUserId: "turn_member" },
+        { ...allHints, replayUserId: "gone" },
         client,
       ),
     ).resolves.toBe("owner_1");
     expect(findMany).not.toHaveBeenCalled();
   });
 
-  it("takes a replayed turn's member before every other step", async () => {
+  it("replays for the original member and ignores every other step", async () => {
     const { client } = fakeClient();
     await expect(
       resolveTurnUserId(
         sharedBot,
-        { ...allHints, turnUserId: "turn_member" },
+        { ...allHints, replayUserId: "turn_member" },
         client,
       ),
     ).resolves.toBe("turn_member");
   });
+
+  it.each(STRANGERS)(
+    "refuses a replay for %s instead of running it as someone else",
+    async (_label, stranger) => {
+      const { client, findMany } = fakeClient();
+      await expect(
+        resolveTurnUserId(
+          sharedBot,
+          { ...allHints, replayUserId: stranger },
+          client,
+        ),
+      ).resolves.toBeNull();
+      expect(findMany).toHaveBeenCalledTimes(1);
+      expect(findMany.mock.calls[0]?.[0].where).toEqual({
+        organizationId: "org_1",
+        userId: { in: [stranger] },
+      });
+    },
+  );
 
   it("takes the schedule's member first", async () => {
     const { client } = fakeClient();
@@ -161,88 +196,93 @@ describe("resolveTurnUserId", () => {
     );
   });
 
-  it.each([
-    ["a user who left", "gone"],
-    ["a member of another Organization", "other_org_member"],
-    ["a banned member", "banned_member"],
-  ])("skips %s at every hint step", async (_label, stranger) => {
-    const { client } = fakeClient();
-    await expect(
-      resolveTurnUserId(
-        sharedBot,
-        {
-          turnUserId: stranger,
-          scheduleUserId: stranger,
-          taskEventUserId: "event_member",
-        },
-        client,
-      ),
-    ).resolves.toBe("event_member");
-    await expect(
-      resolveTurnUserId(
-        sharedBot,
-        {
-          scheduleUserId: stranger,
-          taskEventUserId: stranger,
-          taskOwnerId: "task_owner",
-        },
-        client,
-      ),
-    ).resolves.toBe("task_owner");
-    await expect(
-      resolveTurnUserId(
-        sharedBot,
-        {
-          scheduleUserId: stranger,
-          taskEventUserId: stranger,
-          taskOwnerId: stranger,
-        },
-        client,
-      ),
-    ).resolves.toBe("creator");
-    await expect(
-      resolveTurnUserId(
-        { ...sharedBot, createdByUserId: stranger },
-        {
-          scheduleUserId: stranger,
-          taskEventUserId: stranger,
-          taskOwnerId: stranger,
-        },
-        client,
-      ),
-    ).resolves.toBe("owner_old");
-  });
+  it.each(STRANGERS)(
+    "skips %s at every hint step",
+    async (_label, stranger) => {
+      const { client } = fakeClient();
+      const steps = [
+        "scheduleUserId",
+        "taskEventUserId",
+        "jobOwnerId",
+        "taskOwnerId",
+      ] as const;
+      const expected = ["event_member", "job_owner", "task_owner", "creator"];
+      for (const [index, step] of steps.entries()) {
+        const hints = { ...allHints };
+        for (const skipped of steps.slice(0, index + 1))
+          hints[skipped] = stranger;
+        await expect(
+          resolveTurnUserId(sharedBot, hints, client),
+          `${step} skipped`,
+        ).resolves.toBe(expected[index]);
+      }
+      await expect(
+        resolveTurnUserId(
+          { ...sharedBot, createdByUserId: stranger },
+          {
+            scheduleUserId: stranger,
+            taskEventUserId: stranger,
+            jobOwnerId: stranger,
+            taskOwnerId: stranger,
+            systemRhythm: true,
+          },
+          client,
+        ),
+      ).resolves.toBe("owner_old");
+    },
+  );
 
   it("takes the TaskEvent's member when the schedule is missing", async () => {
     const { client } = fakeClient();
     await expect(
       resolveTurnUserId(
         sharedBot,
-        { taskEventUserId: "event_member", taskOwnerId: "task_owner" },
+        { taskEventUserId: "event_member", jobOwnerId: "job_owner" },
         client,
       ),
     ).resolves.toBe("event_member");
   });
 
-  it("takes the Task owner after the TaskEvent", async () => {
+  it("takes the Job's hiring member before the Task owner", async () => {
+    const { client } = fakeClient();
+    await expect(
+      resolveTurnUserId(
+        sharedBot,
+        { jobOwnerId: "job_owner", taskOwnerId: "task_owner" },
+        client,
+      ),
+    ).resolves.toBe("job_owner");
+  });
+
+  it("takes the Task owner after the Job owner", async () => {
     const { client } = fakeClient();
     await expect(
       resolveTurnUserId(sharedBot, { taskOwnerId: "task_owner" }, client),
     ).resolves.toBe("task_owner");
   });
 
-  it("takes the creator when no hint applies", async () => {
+  it("takes the creator only for a built-in rhythm", async () => {
     const { client } = fakeClient();
+    await expect(
+      resolveTurnUserId(sharedBot, { systemRhythm: true }, client),
+    ).resolves.toBe("creator");
+  });
+
+  it("skips the creator for a member schedule, an event or a retry", async () => {
+    const { client } = fakeClient();
+    await expect(
+      resolveTurnUserId(sharedBot, { scheduleUserId: "gone" }, client),
+    ).resolves.toBe("owner_old");
     await expect(resolveTurnUserId(sharedBot, {}, client)).resolves.toBe(
-      "creator",
+      "owner_old",
     );
   });
 
   it("falls back to the earliest live OWNER, never an earlier ADMIN", async () => {
     const { client, findMany } = fakeClient();
-    await expect(
-      resolveTurnUserId({ ...sharedBot, createdByUserId: null }, {}, client),
-    ).resolves.toBe("owner_old");
+    await expect(resolveTurnUserId(sharedBot, {}, client)).resolves.toBe(
+      "owner_old",
+    );
     expect(findMany).toHaveBeenCalledTimes(1);
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -257,9 +297,9 @@ describe("resolveTurnUserId", () => {
       row.userId === "owner_old" ? { ...row, banned: true } : row,
     );
     const { client } = fakeClient(members);
-    await expect(
-      resolveTurnUserId({ ...sharedBot, createdByUserId: "gone" }, {}, client),
-    ).resolves.toBe("owner_new");
+    await expect(resolveTurnUserId(sharedBot, {}, client)).resolves.toBe(
+      "owner_new",
+    );
   });
 
   it("returns null when no live member is left", async () => {
@@ -267,7 +307,11 @@ describe("resolveTurnUserId", () => {
       MEMBERS.filter((row) => row.role !== MemberRole.OWNER),
     );
     await expect(
-      resolveTurnUserId({ ...sharedBot, createdByUserId: "gone" }, {}, client),
+      resolveTurnUserId(
+        { ...sharedBot, createdByUserId: "gone" },
+        { systemRhythm: true },
+        client,
+      ),
     ).resolves.toBeNull();
   });
 
@@ -286,7 +330,7 @@ describe("resolveTurnUserId", () => {
 
 describe("sokoBotTurnStarter", () => {
   it("names only the owner for a personal bot, so startTurn keeps its me lookup", async () => {
-    const { client } = fakeClient(MEMBERS, {
+    const { client, findUnique } = fakeClient(MEMBERS, {
       userId: "owner_1",
       createdByUserId: "owner_1",
       workspace: { organizationId: null },
@@ -298,6 +342,9 @@ describe("sokoBotTurnStarter", () => {
         client,
       ),
     ).resolves.toEqual({ userId: "owner_1" });
+    expect(findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "bot_1" } }),
+    );
   });
 
   it("names the member and the bot for a shared bot", async () => {
@@ -312,8 +359,8 @@ describe("sokoBotTurnStarter", () => {
   });
 
   it("returns null for a missing bot", async () => {
-    const { client } = fakeClient(MEMBERS, null);
-    await expect(sokoBotTurnStarter("bot_1", {}, client)).resolves.toBeNull();
+    const { client } = fakeClient(MEMBERS, sharedBot);
+    await expect(sokoBotTurnStarter("bot_2", {}, client)).resolves.toBeNull();
   });
 
   it("returns null for a shared bot with no live member", async () => {

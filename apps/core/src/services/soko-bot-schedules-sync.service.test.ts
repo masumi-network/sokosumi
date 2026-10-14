@@ -49,6 +49,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     sokoBotScheduleRun: {
       findFirst: runFindFirstMock,
+      update: vi.fn(),
       updateMany: runUpdateManyMock,
     },
     sokoBotTurn: { findUnique: turnFindUniqueMock },
@@ -220,32 +221,72 @@ describe("SokoBotSchedulesSyncService", () => {
     });
   });
 
-  it("runs a shared bot's schedule for its member while they are live", async () => {
-    botFindUniqueMock.mockResolvedValue({
-      userId: null,
-      createdByUserId: "creator_1",
-      workspace: { organizationId: "org_1" },
-    });
-    memberFindManyMock.mockResolvedValue([
-      { userId: dueSchedule.userId, user: { banned: false, banExpires: null } },
-    ]);
-    dueScheduleFindFirstMock.mockResolvedValue({
-      ...dueSchedule,
-      sokoBotId: "bot_1",
-    });
-
-    await new SokoBotSchedulesSyncService().syncDueSchedules({
-      shouldContinue: continueFor(1),
-    });
-
-    expect(startTurnMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: dueSchedule.userId,
+  it.each([
+    {
+      systemKey: null,
+      live: [dueSchedule.userId, "creator_1", "owner_1"],
+      expected: dueSchedule.userId,
+    },
+    { systemKey: null, live: ["creator_1", "owner_1"], expected: "owner_1" },
+    {
+      systemKey: "meeting-prep",
+      live: ["creator_1", "owner_1"],
+      expected: "creator_1",
+    },
+  ])(
+    "runs a shared bot's $systemKey schedule for $expected when $live are live",
+    async ({ systemKey, live, expected }) => {
+      botFindUniqueMock.mockResolvedValue({
+        id: "bot_1",
+        name: "Team bot",
+        userId: null,
+        createdByUserId: "creator_1",
+        workspaceId: dueSchedule.workspaceId,
+        ingestTimezone: "UTC",
+        followWholeBoard: false,
+        workspace: { organizationId: "org_1" },
+      });
+      vi.mocked(buildSystemBeatMessage).mockResolvedValue({
+        message: "Meeting prep.",
+        nudgeKeys: [],
+        skip: false,
+      });
+      memberFindManyMock.mockImplementation(
+        async ({
+          where,
+        }: {
+          where: { userId?: { in: string[] }; role?: string };
+        }) =>
+          live
+            .filter((id) =>
+              where.role
+                ? where.role === "owner" && id === "owner_1"
+                : where.userId?.in.includes(id),
+            )
+            .map((id) => ({
+              userId: id,
+              user: { banned: false, banExpires: null },
+            })),
+      );
+      dueScheduleFindFirstMock.mockResolvedValue({
+        ...dueSchedule,
         sokoBotId: "bot_1",
-        source: "SCHEDULE",
-      }),
-    );
-  });
+        systemKey,
+      });
+
+      await new SokoBotSchedulesSyncService().syncDueSchedules({
+        shouldContinue: continueFor(1),
+      });
+
+      expect(startTurnMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: expected,
+          sokoBotId: "bot_1",
+          source: "SCHEDULE",
+        }),
+      );
+    },
+  );
 
   it("completes a quiet built-in rhythm without starting a turn", async () => {
     dueScheduleFindFirstMock.mockResolvedValue({

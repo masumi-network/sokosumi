@@ -9,12 +9,19 @@ type DbClient = Prisma.TransactionClient | typeof prisma;
  * first. A missing hint is skipped.
  */
 export interface TurnAttributionHints {
-  /** The member a replayed turn ran for. */
-  turnUserId?: string | null;
+  /**
+   * The member a replayed turn ran for. A replay runs only for them: their
+   * words must never run as anyone else, so there is no fallback.
+   */
+  replayUserId?: string | null;
   scheduleUserId?: string | null;
   /** The person behind the TaskEvent that woke the bot. */
   taskEventUserId?: string | null;
+  /** The member who hired the Job that woke the bot. */
+  jobOwnerId?: string | null;
   taskOwnerId?: string | null;
+  /** A built-in rhythm: the bot's creator stands in before the OWNER. */
+  systemRhythm?: boolean;
 }
 
 export interface TurnAttributionBot {
@@ -35,13 +42,31 @@ const LIVE_MEMBER_SELECT = {
   user: { select: { banned: true, banExpires: true } },
 } as const;
 
+async function liveMemberIds(
+  organizationId: string,
+  userIds: string[],
+  client: DbClient,
+): Promise<Set<string>> {
+  if (userIds.length === 0) return new Set();
+  const members = await client.member.findMany({
+    where: { organizationId, userId: { in: userIds } },
+    select: LIVE_MEMBER_SELECT,
+  });
+  return new Set(
+    members
+      .filter((member) => isActiveUser(member.user))
+      .map((member) => member.userId),
+  );
+}
+
 /**
  * The member a self-started turn runs for, or `null` when nobody can.
  *
- * A personal bot always runs for its owner. A shared bot takes the first live
- * member of its Organization from: the hints in order, the bot's creator, then
- * the earliest Organization OWNER. Project access is workspace membership
- * (`requireProjectAccess`), so a project bot needs no extra check.
+ * A personal bot always runs for its owner. A shared bot runs a replay only
+ * for its original member. Otherwise it takes the first live member of its
+ * Organization from the hints in order, the bot's creator for a built-in
+ * rhythm, then the earliest Organization OWNER. Project access is workspace
+ * membership (`requireProjectAccess`), so a project bot needs no extra check.
  */
 export async function resolveTurnUserId(
   bot: TurnAttributionBot,
@@ -52,26 +77,23 @@ export async function resolveTurnUserId(
   const organizationId = bot.workspace.organizationId;
   if (organizationId === null) return null;
 
+  if (hints.replayUserId !== undefined) {
+    const replay = hints.replayUserId;
+    if (!replay) return null;
+    const live = await liveMemberIds(organizationId, [replay], client);
+    return live.has(replay) ? replay : null;
+  }
+
   const candidates = [
-    hints.turnUserId,
     hints.scheduleUserId,
     hints.taskEventUserId,
+    hints.jobOwnerId,
     hints.taskOwnerId,
-    bot.createdByUserId,
+    hints.systemRhythm ? bot.createdByUserId : null,
   ].filter((id): id is string => typeof id === "string" && id !== "");
-  if (candidates.length > 0) {
-    const members = await client.member.findMany({
-      where: { organizationId, userId: { in: candidates } },
-      select: LIVE_MEMBER_SELECT,
-    });
-    const live = new Set(
-      members
-        .filter((member) => isActiveUser(member.user))
-        .map((member) => member.userId),
-    );
-    const first = candidates.find((id) => live.has(id));
-    if (first) return first;
-  }
+  const live = await liveMemberIds(organizationId, candidates, client);
+  const first = candidates.find((id) => live.has(id));
+  if (first) return first;
 
   const owners = await client.member.findMany({
     where: { organizationId, role: MemberRole.OWNER },

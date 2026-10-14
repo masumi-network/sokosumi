@@ -57,7 +57,11 @@ interface Change {
   /** Credits charged on the Task so far, set once it has finished. */
   creditsCharged?: number;
   /** Who the turn is for when the bot is shared; see `resolveTurnUserId`. */
-  attribution?: { taskEventUserId: string | null; taskOwnerId: string | null };
+  attribution?: {
+    taskEventUserId: string | null;
+    jobOwnerId: string | null;
+    taskOwnerId: string | null;
+  };
 }
 
 interface BotWork {
@@ -227,6 +231,7 @@ export class SokoBotEventsSyncService {
             eventId: delegation.task.events[0]?.id ?? null,
             eventAt: delegation.task.events[0]?.createdAt,
             eventUserId: delegation.task.events[0]?.userId ?? null,
+            jobOwnerId: null,
             ownerId: delegation.task.ownerId,
           }
         : delegation.job
@@ -238,6 +243,7 @@ export class SokoBotEventsSyncService {
               eventId: delegation.job.events[0]?.id ?? null,
               eventAt: delegation.job.events[0]?.createdAt,
               eventUserId: null,
+              jobOwnerId: delegation.job.ownerId,
               ownerId: delegation.job.task?.ownerId ?? null,
             }
           : null;
@@ -337,6 +343,7 @@ export class SokoBotEventsSyncService {
             note: event.comment,
             attribution: {
               taskEventUserId: event.userId,
+              jobOwnerId: current.jobOwnerId,
               taskOwnerId: current.ownerId,
             },
           });
@@ -386,6 +393,7 @@ export class SokoBotEventsSyncService {
         note: current.note ?? null,
         attribution: {
           taskEventUserId: current.eventUserId,
+          jobOwnerId: current.jobOwnerId,
           taskOwnerId: current.ownerId,
         },
       });
