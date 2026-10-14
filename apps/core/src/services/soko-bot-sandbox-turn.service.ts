@@ -42,7 +42,7 @@ import {
   RuntimeEventLog,
   runTurnTool,
   runtimeEvent,
-  SOKO_BOT_MAX_STEPS,
+  sokoBotMaxSteps,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
 import { withTurnSkills } from "@/services/chat-message-skills.service";
@@ -152,7 +152,7 @@ export async function startSandboxTurn(
   if (started) throw conflict("Turn already started");
   const stored = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: claims.turnId },
-    select: { userMessage: true, deadlineAt: true },
+    select: { userMessage: true, deadlineAt: true, createdAt: true },
   });
   await announceTurn(logFor(claims), stored.userMessage);
   const { inferenceRegion: _region, ...turn } = prepared;
@@ -160,7 +160,9 @@ export async function startSandboxTurn(
     ...turn,
     message: await withTurnSkills(claims.turnId, stored.userMessage),
     deadlineAt: stored.deadlineAt.toISOString(),
-    maxSteps: SOKO_BOT_MAX_STEPS,
+    maxSteps: sokoBotMaxSteps(
+      stored.deadlineAt.getTime() - stored.createdAt.getTime(),
+    ),
   };
 }
 

@@ -2371,6 +2371,7 @@
         "connectAccount": "Konto verbinden",
         "actions": "Aktionen für {account}",
         "reconnect": "Erneut verbinden",
+        "syncNow": "Jetzt synchronisieren",
         "replace": "Ersetzen",
         "disconnect": "Trennen",
         "unknownHandle": "Unbekanntes Konto",
@@ -2393,7 +2394,8 @@
         "cancel": "Abbrechen",
         "success": {
           "connected": "{account} verbunden.",
-          "disconnected": "{account} getrennt."
+          "disconnected": "{account} getrennt.",
+          "syncStarted": "Synchronisierung gestartet."
         },
         "warning": {
           "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe den Zugriff in deinen Kontoeinstellungen."
@@ -2411,7 +2413,8 @@
           "reconnectMismatch": "Verbinde dasselbe Konto erneut, das bereits mit diesem Projekt verknüpft ist.",
           "finalize": "Dieses Konto konnte nicht vollständig verbunden werden. Versuche es erneut.",
           "disconnect": "Dieses Konto konnte nicht getrennt werden. Versuche es erneut.",
-          "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren."
+          "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren.",
+          "sync": "Synchronisierung konnte nicht gestartet werden."
         },
         "comingSoon": "Bald verfügbar",
         "connectComingSoon": "{provider} (bald verfügbar)",
@@ -2667,9 +2670,11 @@
           "empty": "Keine importierten Beiträge entsprechen diesen Filtern. Synchronisiere ein Konto oder setze die Filter zurück.",
           "refresh": "Statistiken aktualisieren",
           "loadMore": "Weitere Beiträge laden",
+          "loadMoreError": "Mehr konnte nicht geladen werden.",
           "unavailable": "Nicht verfügbar",
           "notFetched": "Statistiken wurden noch nicht abgerufen.",
-          "updatedAt": "Aktualisiert am {date}",
+          "updatedAt": "Aktualisiert {date}",
+          "updating": "Aktualisiere…",
           "metrics": {
             "views": "Aufrufe",
             "impressions": "Impressionen",

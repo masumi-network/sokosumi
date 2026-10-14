@@ -37,8 +37,17 @@ import { SOKO_BOT_ARCHIVE_GUIDANCE } from "./evaluation-preparation";
 const REPLY_LANGUAGE_GUIDANCE =
   "Reply in the language of the owner's latest message. Earlier messages, stand-ups, schedule prompts and packets in another language do not change that.";
 
-/** Upper bound on model steps in one turn. */
+/** Upper bound on model steps in one 15-minute turn. */
 export const SOKO_BOT_MAX_STEPS = 40;
+
+/** Longer turns get steps in proportion: an hour's turn has 160. */
+export function sokoBotMaxSteps(durationMs: number): number {
+  const fifteenMinutes = 15 * 60 * 1_000;
+  return Math.max(
+    SOKO_BOT_MAX_STEPS,
+    Math.round((durationMs / fifteenMinutes) * SOKO_BOT_MAX_STEPS),
+  );
+}
 
 /** A single Sokosumi tool call may not run longer than this. */
 const TOOL_CALL_TIMEOUT_MS = 90_000;

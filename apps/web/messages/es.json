@@ -2371,6 +2371,7 @@
         "connectAccount": "Conectar cuenta",
         "actions": "Acciones de {account}",
         "reconnect": "Volver a conectar",
+        "syncNow": "Sincronizar ahora",
         "replace": "Reemplazar",
         "disconnect": "Desconectar",
         "unknownHandle": "Cuenta desconocida",
@@ -2393,7 +2394,8 @@
         "cancel": "Cancelar",
         "success": {
           "connected": "{account} conectada.",
-          "disconnected": "{account} desconectada."
+          "disconnected": "{account} desconectada.",
+          "syncStarted": "Sincronización iniciada."
         },
         "warning": {
           "providerRevocationFailed": "Esta cuenta está desconectada del proyecto, pero el proveedor puede seguir autorizando esta aplicación. Revoca el acceso en la configuración de tu cuenta."
@@ -2411,7 +2413,8 @@
           "reconnectMismatch": "Vuelve a conectar la misma cuenta que ya está vinculada a este proyecto.",
           "finalize": "No pudimos terminar de conectar esta cuenta. Inténtalo de nuevo.",
           "disconnect": "No pudimos desconectar esta cuenta. Inténtalo de nuevo.",
-          "notConfigured": "Esta integración aún no está configurada. Contacta con soporte para activarla."
+          "notConfigured": "Esta integración aún no está configurada. Contacta con soporte para activarla.",
+          "sync": "No se pudo iniciar la sincronización."
         },
         "comingSoon": "Próximamente",
         "connectComingSoon": "{provider} (próximamente)",
@@ -2667,9 +2670,11 @@
           "empty": "Ninguna publicación importada coincide con estos filtros. Sincroniza una cuenta o borra los filtros.",
           "refresh": "Actualizar estadísticas",
           "loadMore": "Cargar más publicaciones",
+          "loadMoreError": "No se pudieron cargar más.",
           "unavailable": "No disponible",
           "notFetched": "Todavía no se han obtenido estadísticas.",
-          "updatedAt": "Actualizadas el {date}",
+          "updatedAt": "Actualizado {date}",
+          "updating": "Actualizando…",
           "metrics": {
             "views": "Visualizaciones",
             "impressions": "Impresiones",

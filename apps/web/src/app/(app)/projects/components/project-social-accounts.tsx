@@ -40,6 +40,7 @@ import {
   disconnectProjectSocialConnection,
   finalizeProjectSocialConnection,
   initiateProjectSocialConnection,
+  refreshProjectSocialAccountStatistics,
 } from "@/lib/actions/project/action";
 import { useComposioOAuthPopup } from "@/lib/composio/use-composio-oauth-popup";
 import { cn } from "@/lib/utils";
@@ -144,7 +145,7 @@ export function ProjectSocialAccounts({
   // The provider being connected, or the connection being changed.
   const [pendingTarget, setPendingTarget] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<
-    "disconnect" | OAuthAction | null
+    "disconnect" | "sync" | OAuthAction | null
   >(null);
   const [pendingConfirmation, setPendingConfirmation] =
     useState<PendingConfirmation | null>(null);
@@ -302,6 +303,37 @@ export function ProjectSocialAccounts({
       }
     } catch {
       showFeedback({ kind: "error", message: t("errors.finalize") });
+    }
+  }
+
+  async function handleSyncNow(
+    connection: ProjectSocialConnection,
+  ): Promise<void> {
+    if (isBusy) {
+      showFeedback({ kind: "error", message: t("errors.inFlight") });
+      return;
+    }
+
+    setFeedback(null);
+    setPendingAction("sync");
+    setPendingTarget(connection.id);
+    try {
+      const result = await refreshProjectSocialAccountStatistics({
+        projectId,
+        connectionId: connection.id,
+      });
+      if (!result.ok) {
+        showFeedback({ kind: "error", message: t("errors.sync") });
+        return;
+      }
+      showFeedback({
+        kind: "success",
+        message: t("success.syncStarted"),
+      });
+    } catch {
+      showFeedback({ kind: "error", message: t("errors.sync") });
+    } finally {
+      finishAction();
     }
   }
 
@@ -562,6 +594,16 @@ export function ProjectSocialAccounts({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {connection.status === "active" ? (
+                          <DropdownMenuItem
+                            className="min-h-11"
+                            onSelect={() => {
+                              void handleSyncNow(connection);
+                            }}
+                          >
+                            {t("syncNow")}
+                          </DropdownMenuItem>
+                        ) : null}
                         {canReplace ? (
                           <DropdownMenuItem
                             className="min-h-11"
