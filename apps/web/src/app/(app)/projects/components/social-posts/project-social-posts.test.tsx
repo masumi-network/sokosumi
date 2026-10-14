@@ -1105,6 +1105,46 @@ describe("ProjectSocialPosts", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
+  it("says why Schedule is off when a picked network still needs media", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-ig",
+            provider: "instagram",
+            externalHandle: "sokosumi.ig",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Instagram @sokosumi.ig" }),
+    );
+    await user.type(within(dialog).getByLabelText("Text"), "Hello");
+    await pickInAnHour(user, dialog);
+
+    const schedule = within(dialog).getByRole("button", {
+      name: /^Schedule for /,
+    });
+    const trigger = schedule.parentElement;
+    if (!trigger) throw new Error("Schedule has no tooltip trigger");
+    expect(schedule).toBeDisabled();
+    expect(schedule).toHaveAttribute("aria-describedby");
+
+    trigger.focus();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Instagram requires at least one image or video.",
+    );
+  });
+
   it("opens the composer from New post and blocks over-limit text", async () => {
     const user = userEvent.setup();
     render(
