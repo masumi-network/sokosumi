@@ -11,7 +11,7 @@ import {
   writeText,
 } from "./command-helpers.js";
 
-export interface VendorsCommandContext extends CommandContext {
+interface VendorsCommandContext extends CommandContext {
   subcommand?: string;
   positionalId?: string;
   options?: CommandOptions;

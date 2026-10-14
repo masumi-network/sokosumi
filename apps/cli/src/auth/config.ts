@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 
-export type CliTarget = "mainnet" | "preprod" | "custom";
+type CliTarget = "mainnet" | "preprod" | "custom";
 
 export type CliEnvironment = Readonly<Record<string, string | undefined>>;
 
@@ -15,7 +15,7 @@ export interface CliTargetConfig {
 export const MAINNET_API_URL = "https://api.sokosumi.com";
 export const PREPROD_API_URL = "https://api.preprod.sokosumi.com";
 export const MAINNET_OAUTH_CLIENT_ID = "GxmewjdHVAaqUEglxWdyCqVFvnTASycj";
-export const PREPROD_OAUTH_CLIENT_ID = "lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR";
+const PREPROD_OAUTH_CLIENT_ID = "lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR";
 
 const BUILT_IN_OAUTH_CLIENT_ID_BY_TARGET: Readonly<
   Record<Exclude<CliTarget, "custom">, string>
