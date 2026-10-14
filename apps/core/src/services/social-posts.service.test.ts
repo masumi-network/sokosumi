@@ -1606,5 +1606,42 @@ describe("social posts service", () => {
         }),
       }),
     );
+    expect(socialPostUpdateManyMock.mock.calls[0]?.[0].data).not.toHaveProperty(
+      "scheduledAt",
+    );
+  });
+
+  it("moves a past-due scheduled post to now when it is edited", async () => {
+    const pastDue = new Date(NOW.getTime() - 70 * 60_000);
+    socialPostFindFirstMock.mockResolvedValue({
+      ...scheduledPost,
+      scheduledAt: pastDue,
+      lastError: "X is unavailable",
+      attemptCount: 2,
+      nextAttemptAt: FUTURE,
+    });
+    const { updateSocialPost } = await loadService();
+
+    await updateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: scheduledPost.revision,
+      text: "Fixed copy",
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          text: "Fixed copy",
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
+          scheduledAt: NOW,
+        }),
+      }),
+    );
   });
 });
