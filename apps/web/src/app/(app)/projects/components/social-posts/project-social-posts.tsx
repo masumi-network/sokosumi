@@ -744,6 +744,12 @@ export function ProjectSocialPosts({
           text={post.text}
           timestamp={null}
         />
+        {post.status === "PUBLISHING" ? (
+          <SocialPostStatusBadge
+            label={t("status.PUBLISHING")}
+            status={post.status}
+          />
+        ) : null}
         {renderReconnectWarning(post)}
         {renderPostActions(post)}
       </li>
