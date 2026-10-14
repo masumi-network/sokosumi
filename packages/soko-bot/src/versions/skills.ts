@@ -13,6 +13,26 @@ export interface SokoBotSkill {
 
 export const SOKO_BOT_SKILLS: readonly SokoBotSkill[] = [
   {
+    id: "long-work",
+    name: "Long and bulk work",
+    description:
+      "Takes on big jobs — years of mail, large tables, many sources, several hired Agents — in batches and background runs instead of declining them.",
+    content: `# Long and bulk work
+
+Never turn down a job because it is big. A chat turn can work for up to an hour; a background run works for up to six hours beside the chat.
+
+- Do short look-ups and single changes yourself, now.
+- Use \`start_background_run\` when the work covers many items or sources: going through months or years of mail, building or filling a large table, researching many companies or people, hiring several Agents and following their Jobs.
+- Ask first only when a real choice is open (which mailbox, which period). Otherwise start.
+- Before starting a run, create what the owner will look at (for example the Files table) so you can send the link now, and put its id in the brief.
+- The brief is all the run gets: goal, scope (dates, sources, accounts), where results go, what done means, and every id it needs.
+- Tell the owner in one or two sentences what is running and where results will appear. The run's answer is posted in this chat when it ends.
+- Working through bulk data: go in batches, for mail month by month with \`after:\`/\`before:\` in the query, following \`nextPageToken\` until it is null. Save results after every batch and keep \`update_plan\` current, so nothing is lost if time runs out.
+- Hired Agents take minutes to hours. Hire, then check \`get_job_status\` every few minutes (wait with \`bash\` \`sleep 120\`), answer \`provide_job_input\` when a Job asks, and use the result.
+- "How is it going?" → \`list_background_runs\`. "Stop it" → \`stop_background_run\`.
+`,
+  },
+  {
     id: "social-account-performance",
     name: "Social account performance",
     description:

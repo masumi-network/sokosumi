@@ -546,31 +546,31 @@ model ProjectStar {
 }
 
 model ProjectSocialConnection {
-  id                         String    @id @default(uuid(7)) @db.Uuid
-  projectId                  String    @db.Uuid
-  provider                   String
-  externalAccountId          String
-  externalHandle             String?
+  id                            String    @id @default(uuid(7)) @db.Uuid
+  projectId                     String    @db.Uuid
+  provider                      String
+  externalAccountId             String
+  externalHandle                String?
   /// Profile display name read at connect/reconnect; previews fall back to the handle.
-  displayName                String?
+  displayName                   String?
   /// Public Blob copy of the profile picture (provider CDN URLs expire).
-  avatarUrl                  String?
-  composioConnectedAccountId String
-  status                     String
-  activeExternalAccountKey   String?
-  connectorUserId            String
-  connectedAt                DateTime?
-  disconnectedAt             DateTime?
+  avatarUrl                     String?
+  composioConnectedAccountId    String
+  status                        String
+  activeExternalAccountKey      String?
+  connectorUserId               String
+  connectedAt                   DateTime?
+  disconnectedAt                DateTime?
   /// Cached account metrics and provider history progress; separate from scheduled posts.
-  statistics                 Json?
+  statistics                    Json?
   /// Collection scheduling, including failed attempts, prevents retrying denied accounts continuously.
   performanceRefreshAttemptedAt DateTime?
   /// Successful latest-page observation; attempts do not suppress retries after cancellation.
   performanceHeadFetchedAt      DateTime?
   /// Manual/connect dirty flag. Reads never set this.
   performanceRefreshRequestedAt DateTime?
-  createdAt                  DateTime  @default(now())
-  updatedAt                  DateTime  @updatedAt
+  createdAt                     DateTime  @default(now())
+  updatedAt                     DateTime  @updatedAt
 
   project              Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   audits               ProjectSocialConnectionAudit[]
@@ -2356,6 +2356,14 @@ model SokoBotTurn {
   /// so it draws on the owner's allowance for unprompted work.
   chainDepth Int @default(0)
 
+  /// Set on a background run: the turn that started it. A run works beside
+  /// the bot's chat instead of blocking it, on its own computer.
+  parentTurnId    String?       @db.Uuid
+  parentTurn      SokoBotTurn?  @relation("SokoBotBackgroundRuns", fields: [parentTurnId], references: [id], onDelete: SetNull)
+  backgroundRuns  SokoBotTurn[] @relation("SokoBotBackgroundRuns")
+  /// The name the owner sees for a background run.
+  backgroundTitle String?
+
   /// Chat-room mention that started this turn (null for the assistant page and schedules).
   chatMentionId         String?                 @unique @db.Uuid
   chatMention           ChatRoomMention?        @relation(fields: [chatMentionId], references: [id], onDelete: SetNull)
@@ -2378,6 +2386,7 @@ model SokoBotTurn {
 
   @@unique([sokoBotId, clientTurnId])
   @@unique([sokoBotId, eveSessionId, eveTurnId])
+  @@index([sokoBotId, parentTurnId, status])
   @@index([userId, createdAt(sort: Desc)])
   @@index([sokoBotId, status, createdAt(sort: Desc)])
   @@index([status, reconcilerHeartbeatAt])

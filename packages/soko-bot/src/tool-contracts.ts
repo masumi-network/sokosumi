@@ -516,7 +516,21 @@ const sokoBotRunSubagentInputSchema = z
   .object({ task: z.string().trim().min(1).max(4_000) })
   .strict();
 
+export const sokoBotStartBackgroundRunInputSchema = z
+  .object({
+    /** Short name the owner sees, e.g. "Gmail CRM, Oct 2023 – Oct 2026". */
+    title: z.string().trim().min(1).max(120),
+    /** Everything the run needs: it does not see this conversation. */
+    brief: z.string().trim().min(1).max(8_000),
+  })
+  .strict();
+
+const backgroundRunRefSchema = z.object({ runId: z.uuid() }).strict();
+
 export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
+  start_background_run: sokoBotStartBackgroundRunInputSchema,
+  list_background_runs: z.object({}).strict(),
+  stop_background_run: backgroundRunRefSchema,
   list_project_social_accounts: socialProjectInputSchema,
   list_social_posts: listSocialPostsInputSchema,
   list_social_post_statistics: listSocialPostStatisticsInputSchema,
@@ -603,6 +617,12 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
 } as const satisfies Record<SokoBotCapability, z.ZodType>;
 
 export const SOKO_BOT_TOOL_DESCRIPTIONS = {
+  start_background_run:
+    "Start work that takes longer than a few minutes as a background run: it gets your tools, its own computer and up to six hours, while you keep talking with the owner. Use it for bulk work — going through months of email, building or filling a large table, research across many sources, hiring Agents and waiting for their results. Write a complete brief: the goal, what done looks like, where results go (a Files table, a Task, a chat message) and any ids; the run does not see this conversation. Tell the owner it has started. When it finishes, its final answer is posted in this chat. At most three run at once.",
+  list_background_runs:
+    "Your background runs, newest first: title, status, when it started and must end, its latest plan, and its final answer once done. Use it when the owner asks how a long job is going.",
+  stop_background_run:
+    "Stop one of your background runs by its runId, for example when the owner calls it off or changes the plan.",
   list_project_social_accounts:
     "List project Social account metadata across X, LinkedIn, Instagram, Facebook, TikTok, and YouTube; the chosen account's provider decides which publishing rules apply. Instagram needs an image or video, TikTok and YouTube need a video, and LinkedIn and YouTube need text. Account connection and reconnection require a human to complete OAuth in Project Social; never request or handle credentials.",
   list_social_posts:
