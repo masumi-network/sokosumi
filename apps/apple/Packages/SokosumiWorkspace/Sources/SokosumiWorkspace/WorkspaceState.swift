@@ -228,9 +228,7 @@ public final class WorkspaceState: ObservableObject {
     do {
       return try await operation(service, client, selection?.workspace.organizationSlug)
     } catch {
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
+      signOutIfUnauthorized(error)
       throw error
     }
   }
@@ -332,9 +330,8 @@ public final class WorkspaceState: ObservableObject {
 
   /// Names or clears a group Direct's Group name (ADR-0040) in any workspace, then takes Core's room in place like `updateChannel`.
   public func nameGroup(_ draft: GroupNameDraft, roomId: String, context: UUID) async throws -> Bool {
-    let slug = selection?.workspace.organizationSlug
-    return try await exclusive(.updateRoom, context: context) {
-      let room = try await workspaceOperation(context: context) { client in
+    try await exclusive(.updateRoom, context: context) {
+      let room = try await workspaceOperation(context: context) { client, slug in
         try await service.updateRoom(client: client, roomId: roomId, request: draft.updateRequest, organizationSlug: slug)
       }
       // A list read already in flight predates this rename.
@@ -360,7 +357,7 @@ public final class WorkspaceState: ObservableObject {
 
   func channelOperation<Value: Sendable>(context: UUID, operation: (Client, String, String) async throws -> Value) async throws -> Value {
     guard let organizationId = selection?.workspace.organizationId, let slug = selection?.workspace.organizationSlug else { throw CancellationError() }
-    return try await workspaceOperation(context: context) { client in
+    return try await workspaceOperation(context: context) { client, _ in
       try await operation(client, organizationId, slug)
     }
   }
@@ -385,18 +382,17 @@ public final class WorkspaceState: ObservableObject {
     runningMutation = nil
   }
 
-  /// Runs an authenticated request for the current composition context; a workspace change or reset turns its result into cancellation.
-  func workspaceOperation<Value: Sendable>(context: UUID, operation: (Client) async throws -> Value) async throws -> Value {
+  /// Runs an authenticated request for the current composition context with the open workspace's slug; a workspace
+  /// change or reset turns its result into cancellation.
+  func workspaceOperation<Value: Sendable>(context: UUID, operation: (Client, String?) async throws -> Value) async throws -> Value {
     guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, let client = resolveClient() else { throw CancellationError() }
     do {
-      let value = try await operation(client)
+      let value = try await operation(client, selection?.workspace.organizationSlug)
       guard context == compositionContext, phase == .ready, !Task.isCancelled else { throw CancellationError() }
       return value
     } catch {
       guard context == compositionContext else { throw CancellationError() }
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
+      signOutIfUnauthorized(error)
       throw error
     }
   }
@@ -418,8 +414,7 @@ public final class WorkspaceState: ObservableObject {
   /// Leaving drops the room like a membership revoke: the open transcript clears and no other room is forced open.
   public func leaveChannel(roomId: String, context: UUID) async throws -> Bool {
     try await exclusive(.channelLifecycle(.leave, roomId: roomId), context: context) {
-      let slug = selection?.workspace.organizationSlug
-      try await workspaceOperation(context: context) { client in
+      try await workspaceOperation(context: context) { client, slug in
         try await service.leaveChannel(client: client, roomId: roomId, organizationSlug: slug)
       }
       applyMembershipRevoked(roomId: roomId)
@@ -466,25 +461,13 @@ public final class WorkspaceState: ObservableObject {
   }
 
   public func loadDirectRecipients(context: UUID) async throws -> ChatRecipientRoster {
-    guard phase == .ready, context == compositionContext, !workspaceSession.isSwitching,
-          let client = resolveClient() else { throw CancellationError() }
-    do {
-      let yourself = currentUserId.isEmpty ? nil : ChatRecipientTarget.messageYourself(
-        userId: currentUserId, name: currentUserName.isEmpty ? currentUserEmail : currentUserName, imageURL: currentUserImageURL
+    let yourself = currentUserId.isEmpty ? nil : ChatRecipientTarget.messageYourself(
+      userId: currentUserId, name: currentUserName.isEmpty ? currentUserEmail : currentUserName, imageURL: currentUserImageURL
+    )
+    return try await workspaceOperation(context: context) { client, slug in
+      try await service.directRecipients(
+        client: client, yourself: yourself, organizationId: selection?.workspace.organizationId, organizationSlug: slug
       )
-      let roster = try await service.directRecipients(
-        client: client, yourself: yourself,
-        organizationId: selection?.workspace.organizationId,
-        organizationSlug: selection?.workspace.organizationSlug
-      )
-      guard context == compositionContext, phase == .ready, !Task.isCancelled else { throw CancellationError() }
-      return roster
-    } catch {
-      guard context == compositionContext else { throw CancellationError() }
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
-      throw error
     }
   }
 
@@ -498,21 +481,18 @@ public final class WorkspaceState: ObservableObject {
 
   @discardableResult
   public func openDirect(_ recipients: DirectConversationSelection, context: UUID) async throws -> Bool {
-    guard let first = recipients.recipients.first, let client = resolveClient() else { return false }
+    guard let first = recipients.recipients.first, resolveClient() != nil else { return false }
     let sourceRoom = transcriptRoomId
     var opened = false
     _ = try await exclusive(.openDirect(first), context: context) {
       do {
-        let room = try await service.openDirect(client: client, selection: recipients, organizationSlug: selection?.workspace.organizationSlug)
-        guard !Task.isCancelled, context == compositionContext, phase == .ready else { return }
+        let room = try await workspaceOperation(context: context) { client, slug in
+          try await service.openDirect(client: client, selection: recipients, organizationSlug: slug)
+        }
         acceptCreatedRoom(room, sourceRoom: sourceRoom)
         opened = true
-      } catch {
-        guard context == compositionContext else { return }
-        if let error = error as? ChatServiceError {
-          signOutIfUnauthorized(error)
-        }
-        throw error
+      } catch is CancellationError {
+        return
       }
     }
     return opened
@@ -575,7 +555,7 @@ public final class WorkspaceState: ObservableObject {
       return (client, selection?.workspace.organizationSlug)
     }, failed: { [weak self] error in
       guard let self else { return false }
-      guard let error = error as? ChatServiceError else {
+      guard error is ChatServiceError else {
         logger.error("Sokosumi open room request failed: \(String(describing: error), privacy: .public)")
         return false
       }
@@ -871,8 +851,8 @@ public final class WorkspaceState: ObservableObject {
   /// Signs out when Core rejects the session. Returns whether it did, so
   /// silent callers (attention sync) can keep the side effect explicit.
   @discardableResult
-  func signOutIfUnauthorized(_ error: ChatServiceError) -> Bool {
-    if case let .unauthorized(message) = error {
+  func signOutIfUnauthorized(_ error: Error) -> Bool {
+    if case let ChatServiceError.unauthorized(message) = error {
       auth.signOut(message: "Core rejected the session (\(message)). Log in again.")
       return true
     }
@@ -910,7 +890,7 @@ public final class WorkspaceState: ObservableObject {
       ensureRoomSelection()
     } catch {
       guard context == compositionContext else { return }
-      handleWorkspaceError(error)
+      signOutIfUnauthorized(error)
     }
   }
 
@@ -947,7 +927,7 @@ public final class WorkspaceState: ObservableObject {
     } catch {
       guard context == compositionContext else { return }
       switchError = workspaceSession.errorMessage
-      handleWorkspaceError(error)
+      signOutIfUnauthorized(error)
     }
   }
 
@@ -1017,13 +997,7 @@ public final class WorkspaceState: ObservableObject {
         ensureRoomSelection()
       }
     } catch {
-      handleWorkspaceError(error)
-    }
-  }
-
-  private func handleWorkspaceError(_ error: Error) {
-    if case let ChatServiceError.unauthorized(message) = error {
-      auth.signOut(message: "Core rejected the session (\(message)). Log in again.")
+      signOutIfUnauthorized(error)
     }
   }
 }
