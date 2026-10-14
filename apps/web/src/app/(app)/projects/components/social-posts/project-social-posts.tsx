@@ -97,6 +97,8 @@ interface ProjectSocialPostsProps {
   accountCount?: number;
   /** The Accounts first page failed, so do not pretend there are none. */
   accountsFailed?: boolean;
+  /** The Calendar first page failed, so do not pretend there are no posts. */
+  calendarFailed?: boolean;
   posts: SocialPost[];
   /** List tabs whose first page failed to load. */
   failedSections?: readonly SectionKey[];
@@ -215,6 +217,7 @@ export function ProjectSocialPosts({
   accountsFailed = false,
   actions,
   calendar,
+  calendarFailed = false,
   connections,
   posts: initialPosts,
   failedSections = [],
@@ -281,8 +284,9 @@ export function ProjectSocialPosts({
 
   // Needs attention is a tab only while something needs it. Once the last
   // post in it is dealt with, the page goes back to its first tab.
+  const hasCalendar = calendar !== undefined || calendarFailed;
   const tabs: SocialTab[] = SOCIAL_TABS.filter((candidate) => {
-    if (candidate === "calendar") return calendar !== undefined;
+    if (candidate === "calendar") return hasCalendar;
     if (candidate === "accounts") return accounts !== undefined;
     return (
       candidate !== "attention" ||
@@ -359,8 +363,7 @@ export function ProjectSocialPosts({
     // Follow the post to the tab that shows it now, so a new draft, a
     // scheduled draft or a failed publish stays in view.
     if (previewOnly) router.refresh();
-    else
-      showTab(sectionOf(post) ?? (calendar !== undefined ? "calendar" : null));
+    else showTab(sectionOf(post) ?? (hasCalendar ? "calendar" : null));
   }
 
   async function handleConfirmCancel(): Promise<void> {
@@ -817,12 +820,33 @@ export function ProjectSocialPosts({
             </div>
           ) : null}
 
-          {calendar !== undefined ? (
+          {hasCalendar ? (
             <TabsContent
               data-testid="social-posts-section-calendar"
               value="calendar"
             >
-              {calendar}
+              {calendarFailed ? (
+                <div
+                  className="space-y-3"
+                  data-testid="social-calendar-load-error"
+                  role="alert"
+                >
+                  <p className="text-sm">{t("calendarFailed")}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-11 md:h-8"
+                    onClick={() => {
+                      router.refresh();
+                    }}
+                  >
+                    {t("calendarRetry")}
+                  </Button>
+                </div>
+              ) : (
+                calendar
+              )}
             </TabsContent>
           ) : null}
 

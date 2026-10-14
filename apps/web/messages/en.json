@@ -2425,6 +2425,8 @@
         "listFailed": "Couldn't load posts.",
         "listRetry": "Try again",
         "loading": "Loading…",
+        "calendarFailed": "Couldn't load the calendar.",
+        "calendarRetry": "Try again",
         "title": "Social posts",
         "newPost": "New post",
         "moreActions": "Post actions",

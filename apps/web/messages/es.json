@@ -2425,6 +2425,8 @@
         "listFailed": "No se pudieron cargar las publicaciones.",
         "listRetry": "Inténtalo de nuevo",
         "loading": "Cargando…",
+        "calendarFailed": "No se pudo cargar el calendario.",
+        "calendarRetry": "Intentar de nuevo",
         "title": "Publicaciones sociales",
         "newPost": "Nueva publicación",
         "moreActions": "Acciones de la publicación",

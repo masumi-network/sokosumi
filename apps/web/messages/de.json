@@ -2425,6 +2425,8 @@
         "listFailed": "Beiträge konnten nicht geladen werden.",
         "listRetry": "Erneut versuchen",
         "loading": "Wird geladen…",
+        "calendarFailed": "Der Kalender konnte nicht geladen werden.",
+        "calendarRetry": "Erneut versuchen",
         "title": "Social-Media-Beiträge",
         "newPost": "Neuer Beitrag",
         "moreActions": "Beitragsaktionen",

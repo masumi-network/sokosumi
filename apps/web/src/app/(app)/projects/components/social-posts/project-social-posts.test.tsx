@@ -84,6 +84,8 @@ const MESSAGES: Record<string, string> = {
   title: "Social posts",
   accountsFailed: "Couldn't load accounts.",
   accountsRetry: "Try again",
+  calendarFailed: "Couldn't load the calendar.",
+  calendarRetry: "Try again",
   loadMore: "Load more",
   listFailed: "Couldn't load posts.",
   listRetry: "Try again",
@@ -738,6 +740,28 @@ describe("ProjectSocialPosts", () => {
     await openTab(user, "Accounts");
     expect(screen.getByText("Accounts panel")).toBeVisible();
     expect(screen.queryByText("Calendar panel")).not.toBeInTheDocument();
+  });
+
+  it("keeps Calendar open with a retry when the calendar failed", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        calendarFailed
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(getTab("Calendar")).toHaveAttribute("aria-selected", "true");
+    const failed = screen.getByTestId("social-calendar-load-error");
+    expect(
+      within(failed).getByText("Couldn't load the calendar."),
+    ).toBeVisible();
+    expect(screen.queryByText("Calendar panel")).not.toBeInTheDocument();
+    await user.click(within(failed).getByRole("button", { name: "Try again" }));
+    expect(refreshMock).toHaveBeenCalledOnce();
   });
 
   it("gives tabs 44px phone targets and scrolls from the start", () => {
