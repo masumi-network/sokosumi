@@ -63,6 +63,40 @@ struct MessageRowTests {
     #expect(actions.menuSections(hasSelection: false, isPinned: true)[1] == [.unpin, .copyLink, .sendToSelf])
   }
 
+  /// Web's pill: React, Edit, Quote, Thread; Edit is never in ⋯ More, whose entries run Pin, Copy link, Send to yourself,
+  /// then Delete apart.
+  @Test func theToolbarAndMoreMenuFollowWeb() {
+    let own = Self.row().actions
+    #expect(own.toolbar == [.addReaction, .edit, .quote, .reply])
+    #expect(own.overflowSections(isPinned: false) == [[.pin, .copyLink, .sendToSelf], [.delete]])
+    #expect(own.overflowSections(isPinned: true) == [[.unpin, .copyLink, .sendToSelf], [.delete]])
+    let others = Self.row(Self.message(from: "ben")).actions
+    #expect(others.toolbar == [.addReaction, .quote, .reply])
+    #expect(others.overflowSections(isPinned: false) == [[.pin, .copyLink, .sendToSelf]])
+    #expect(Self.row(in: Self.direct).actions.overflowSections(isPinned: false) == [[.copyLink, .sendToSelf], [.delete]])
+    #expect(MessageActions().toolbar.isEmpty)
+    #expect(MessageActions().overflowSections(isPinned: false).isEmpty)
+    #expect(MessageActions(canDelete: true).overflowSections(isPinned: false) == [[.delete]])
+  }
+
+  @Test func theMenuIsTheToolbarThenTheOverflow() {
+    for actions in [Self.row().actions, Self.row(Self.message(from: "ben")).actions, Self.row(in: Self.direct).actions] {
+      for isPinned in [false, true] {
+        #expect(actions.menuSections(hasSelection: false, isPinned: isPinned) == [actions.toolbar] + actions.overflowSections(isPinned: isPinned))
+      }
+    }
+  }
+
+  @Test(arguments: [
+    (MessageActions(canEdit: true), false), (MessageActions(canReact: true, canQuote: true, canReply: true), false),
+    (MessageActions(canPin: true), true), (MessageActions(canCopyLink: true), true),
+    (MessageActions(canSendToSelf: true), true), (MessageActions(canDelete: true), true),
+    (MessageActions(canEdit: true, canDelete: true), true), (MessageActions(), false)
+  ])
+  func overflowIsOfferedOnlyForItsOwnActions(actions: MessageActions, offers: Bool) {
+    #expect(actions.offersOverflow == offers)
+  }
+
   @Test func othersChannelMessage() {
     #expect(Self.row(Self.message(from: "ben")).actions.menuSections(hasSelection: false, isPinned: false) == [
       [.addReaction, .quote, .reply],
