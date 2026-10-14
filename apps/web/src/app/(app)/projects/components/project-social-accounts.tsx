@@ -476,6 +476,8 @@ export function ProjectSocialAccounts({
             );
             const canReconnect =
               connection.status === "reauthorization_required";
+            const isWarningStatus =
+              canReconnect || connection.status === "pending";
             const canReplace = connection.status === "active" || canReconnect;
             const canDisconnect = connection.status !== "disconnected";
             const isRowPending =
@@ -499,10 +501,10 @@ export function ProjectSocialAccounts({
                     <span
                       className={cn(
                         "inline-flex items-center gap-1",
-                        canReconnect && "text-semantic-warning-label",
+                        isWarningStatus && "text-semantic-warning-label",
                       )}
                     >
-                      {canReconnect ? (
+                      {isWarningStatus ? (
                         <TriangleAlert className="size-3" aria-hidden />
                       ) : (
                         <span
