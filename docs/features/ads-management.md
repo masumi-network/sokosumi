@@ -1,6 +1,6 @@
 # Ads Management
 
-Last updated: 2026-10-12
+Last updated: 2026-10-14
 
 ## Goal
 
@@ -57,6 +57,7 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | POST | `/ads/accounts` `{adConnectionId, externalAccountIds[]}` | Attach chosen accounts; already attached accounts are returned unchanged |
 | DELETE | `/ads/accounts/{accountId}` | Detach; revoke the Composio account when its last ad account goes |
 | GET | `/ads/accounts/{accountId}/campaigns?range=LAST_7_DAYS\|LAST_30_DAYS` | Campaigns + spend, impressions, clicks, CTR, CPC, conversions |
+| GET | `/ads/accounts/{accountId}/campaigns/{campaignId}?range=LAST_7_DAYS\|LAST_30_DAYS` | One Google campaign's details (Meta account, unknown or removed campaign: 404). See [Campaign details](#campaign-details) |
 | PATCH | `/ads/accounts/{accountId}/campaigns/{campaignId}` `{status?: ACTIVE\|PAUSED, dailyBudget?}` | Pause/resume, budget |
 | POST | `/ads/accounts/{accountId}/campaigns` `{name, dailyBudget, objective? (Meta, required), google? (Google, required)}` | Create, always PAUSED → 201 `{id}`. Google: `google` spec, `objective` is 422; Meta: `google` is 422. See [Google campaign builder](#google-campaign-builder) |
 | GET | `/ads/accounts/{accountId}/targeting/locations?q=<1-80>` or `?ids=2276,2840` | Google only (Meta is 404): `{locations: {id, name, canonicalName, targetType, countryCode}[]}`, enabled Google locations. Send exactly one of `q` (a place name, any characters) or `ids` (1-25 digit ids), else 422. See [Targeting lookups](#targeting-lookups) |
@@ -193,6 +194,30 @@ The suggest body is JSON, so `q` needs no character whitelist.
 - A Display image outside the active Workspace's Drive is 403 / 422 / 400 (see [Display images](#display-images)); one that cannot be downloaded or has the wrong served type is 422 naming the file.
 - Account rules (422): Google account without `google`, Google account with `objective`, Meta account with `google`, Meta account without `objective`.
 
+## Campaign details
+
+`GET /ads/accounts/{accountId}/campaigns/{campaignId}?range=` (default `LAST_30_DAYS`): one Google campaign, read-only. A Meta account, an unknown campaign and a REMOVED campaign are 404; `campaignId` is 1-20 digits (422 otherwise), because it goes into GAQL. Response (`AdCampaignDetails`):
+
+- `campaign`: `id`, `name`, `status` (`ACTIVE` for ENABLED, else `PAUSED`), `type` (`SEARCH` | `DISPLAY` | `OTHER`), `channelType` (raw), `dailyBudget` (micros ÷ 1e6), `currency` (the ad account's), `biddingStrategyType` (raw), `startDate` / `endDate` (`YYYY-MM-DD`, the date part of `start_date_time` / `end_date_time`; null when unset, Google's "no end" `2037-12-30` is null), `started` (start date is today or earlier in `customer.time_zone`), `editable`, `notEditableReason`.
+- `editable`: type is Search or Display, else `TYPE`; exactly one non-removed ad group, else `AD_GROUPS`; exactly one non-removed ad in it, a responsive search ad (Search) or responsive display ad (Display), else `AD_TYPE`. The first failing rule wins.
+- `targeting`: `locations` (`id`, `name`, `canonicalName`, `targetType`, `countryCode`) and `languages` (`id`, `name`) from the non-negative, non-removed campaign criteria; empty means all countries / languages.
+- `keywords`: positive, non-removed keywords of the campaign (`id`, `text`, `matchType`, `status`, `approvalStatus`).
+- `ad`: the campaign's only non-removed ad, else null. `search` (RSA: `headlines`, `descriptions`, `path1`, `path2`) or `display` (RDA: `businessName`, `headlines`, `longHeadline`, `descriptions`, `images` as `{assetId, role, url, width, height}`); any other ad type has neither. Image roles: `marketing_images` LANDSCAPE, `square_marketing_images` SQUARE, `square_logo_images` LOGO (`logo_images` is ignored); an image whose asset is gone is skipped.
+- `sitelinks`, `callouts`: ENABLED campaign assets only.
+- `performance`: `totals` (same fields, rounding and nulls as a campaign list row) and `daily` (`date`, `spend`, `impressions`, `clicks`, `conversions`): the N days before today in the customer's time zone, oldest first, zero-filled.
+
+Read with `GOOGLEADS_SEARCH_STREAM_GAQL` in one session. Queries 1, 2 and 4-9 run in parallel (`X` = campaign id); 3 and 7 follow because they need ids from 2 and 6:
+
+1. `campaign` (+ `customer.time_zone`, `campaign_budget.amount_micros`, bidding strategy, start / end date time) `WHERE campaign.id = X AND campaign.status != 'REMOVED'`; no row is 404.
+2. `campaign_criterion` (type, location, language, `language_constant.id/name`) `WHERE campaign.id = X AND negative = FALSE AND status != 'REMOVED' AND type IN ('LOCATION', 'LANGUAGE')`.
+3. Only with locations: `geo_target_constant` (id, name, canonical name, target type, country code) `WHERE resource_name IN (…)`, put back in criterion order.
+4. `ad_group WHERE campaign.id = X AND status != 'REMOVED'`: counted for `editable`.
+5. `ad_group_criterion` (keyword text, match type, status, approval status) `WHERE campaign.id = X AND type = 'KEYWORD' AND negative = FALSE AND status != 'REMOVED'`.
+6. `ad_group_ad` (status, ad strength, policy summary, ad id / type / final URLs, responsive search and display fields) `WHERE campaign.id = X AND status != 'REMOVED'`.
+7. Only with display images: `asset` (resource name, id, `image_asset.full_size` url / width / height) `WHERE resource_name IN (…)`.
+8. `campaign_asset` (`field_type IN ('SITELINK', 'CALLOUT')`, `status = 'ENABLED'`) with the asset's link text, descriptions, final URLs, callout text and approval status.
+9. `campaign` with `segments.date`, cost, impressions, clicks, conversions `DURING LAST_7_DAYS | LAST_30_DAYS`; days without a row are zero.
+
 ## Web (`apps/web/src/app/(app)/ads`)
 
 - Sidebar item "Ads" (lucide `Megaphone`) in `menu-items.tsx`, gated like Social, project-scoped via `project-scope-href.ts`.
@@ -252,5 +277,6 @@ Plain branches, each based on the one below. Draft PRs. Before every PR: `code-r
 | 20 | `ads/20-web-targeting` | Web | Location + language pickers, Market defaults |
 | 21 | `ads/21-web-search-assets` | Web | Sitelinks + callouts editors |
 | 22 | `ads/22-web-display` | Web | Type picker, Display ad editor, image upload / pick |
+| 23 | `ads/23-core-campaign-details` | Core | Google campaign details: settings, targeting, keywords, ad, sitelinks, callouts, daily performance |
 
 Ops (no PR): Google Ads developer token + Composio `googleads` auth config; Meta app (ads_read, ads_management, App Review, Business Verification) + Composio `metaads` auth config; DataForSEO account + Composio platform connection.

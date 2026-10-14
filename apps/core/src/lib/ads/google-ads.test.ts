@@ -1,5 +1,5 @@
 import { SsrfError } from "@sokosumi/net";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ComposioApiError } from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
@@ -38,6 +38,7 @@ vi.mock("@/clients/social-post-providers/tools", async (importOriginal) => ({
 
 import {
   createGoogleCampaign,
+  getGoogleCampaignDetails,
   listGoogleAdAccounts,
   listGoogleCampaigns,
   listGoogleLanguages,
@@ -1715,5 +1716,635 @@ describe("Google targeting lookups", () => {
         ComposioApiError,
       );
     });
+  });
+});
+
+describe("getGoogleCampaignDetails", () => {
+  const detailsInput = {
+    ...input,
+    customerId: "111",
+    campaignId: "42",
+    currency: "EUR",
+    range: "LAST_7_DAYS" as const,
+  };
+
+  const campaignRow = (overrides: Record<string, unknown> = {}) => ({
+    customer: { timeZone: "Europe/Berlin" },
+    campaign: {
+      id: "42",
+      name: "Brand search",
+      status: "ENABLED",
+      advertisingChannelType: "SEARCH",
+      biddingStrategyType: "MAXIMIZE_CLICKS",
+      startDateTime: "2026-10-01 00:00:00",
+      endDateTime: "2026-12-31 23:59:59",
+      ...overrides,
+    },
+    campaignBudget: { amountMicros: "12500000" },
+  });
+
+  const rsa = {
+    adGroupAd: {
+      status: "ENABLED",
+      adStrength: "GOOD",
+      policySummary: { approvalStatus: "APPROVED", reviewStatus: "REVIEWED" },
+      ad: {
+        id: "900",
+        type: "RESPONSIVE_SEARCH_AD",
+        finalUrls: ["https://example.com"],
+        responsiveSearchAd: {
+          headlines: [{ text: "Buy shoes" }, { text: "Run fast" }],
+          descriptions: [{ text: "Free shipping" }],
+          path1: "shoes",
+        },
+      },
+    },
+    adGroup: { id: "7" },
+  };
+
+  const rda = {
+    adGroupAd: {
+      status: "ENABLED",
+      ad: {
+        id: "901",
+        type: "RESPONSIVE_DISPLAY_AD",
+        finalUrls: ["https://example.com/display"],
+        responsiveDisplayAd: {
+          marketingImages: [
+            { asset: "customers/111/assets/1" },
+            { asset: "customers/111/assets/404" },
+          ],
+          squareMarketingImages: [{ asset: "customers/111/assets/2" }],
+          squareLogoImages: [{ asset: "customers/111/assets/3" }],
+          headlines: [{ text: "Shoes" }],
+          longHeadline: { text: "The best running shoes" },
+          descriptions: [{ text: "Fast" }],
+          businessName: "Acme",
+        },
+      },
+    },
+    adGroup: { id: "7" },
+  };
+
+  const imageAsset = (id: number, width: number, height: number) => ({
+    asset: {
+      resourceName: `customers/111/assets/${id}`,
+      id: String(id),
+      imageAsset: {
+        fullSize: {
+          url: `https://img.example.com/${id}`,
+          widthPixels: String(width),
+          heightPixels: String(height),
+        },
+      },
+    },
+  });
+
+  /** One result set per query; override a key to change what Google returns. */
+  const base: Record<string, unknown[]> = {
+    campaign: [campaignRow()],
+    criteria: [
+      {
+        campaignCriterion: {
+          type: "LOCATION",
+          location: { geoTargetConstant: "geoTargetConstants/2276" },
+        },
+      },
+      {
+        campaignCriterion: {
+          type: "LANGUAGE",
+          language: { languageConstant: "languageConstants/1001" },
+        },
+        languageConstant: { id: "1001", name: "German" },
+      },
+    ],
+    geo: [
+      {
+        geoTargetConstant: {
+          id: "2276",
+          name: "Germany",
+          canonicalName: "Germany",
+          targetType: "Country",
+          countryCode: "DE",
+        },
+      },
+    ],
+    adGroups: [{ adGroup: { id: "7", status: "ENABLED" } }],
+    keywords: [
+      {
+        adGroupCriterion: {
+          criterionId: "11",
+          keyword: { text: "running shoes", matchType: "EXACT" },
+          status: "ENABLED",
+          approvalStatus: "APPROVED",
+        },
+      },
+    ],
+    ads: [rsa],
+    images: [],
+    assets: [
+      {
+        campaignAsset: { fieldType: "SITELINK", status: "ENABLED" },
+        asset: {
+          id: "50",
+          finalUrls: ["https://example.com/sale"],
+          sitelinkAsset: { linkText: "Sale", description1: "Up to 50%" },
+          policySummary: { approvalStatus: "APPROVED" },
+        },
+      },
+      {
+        campaignAsset: { fieldType: "CALLOUT", status: "ENABLED" },
+        asset: { id: "51", calloutAsset: { calloutText: "Free returns" } },
+      },
+    ],
+    daily: [
+      {
+        segments: { date: "2026-10-12" },
+        metrics: {
+          costMicros: "10000000",
+          impressions: "400",
+          clicks: "20",
+          conversions: 1.5,
+        },
+      },
+    ],
+  };
+
+  function mockResults(overrides: Record<string, unknown[]> = {}) {
+    const results = { ...base, ...overrides };
+    executeToolMock.mockImplementation(
+      async (call: { arguments: { query: string } }) => {
+        const query = call.arguments.query;
+        const key = [
+          [/FROM campaign_criterion/, "criteria"],
+          [/FROM geo_target_constant/, "geo"],
+          [/FROM ad_group WHERE/, "adGroups"],
+          [/FROM ad_group_criterion/, "keywords"],
+          [/FROM ad_group_ad/, "ads"],
+          [/FROM asset WHERE/, "images"],
+          [/FROM campaign_asset/, "assets"],
+          [/segments\.date DURING/, "daily"],
+          [/FROM campaign WHERE/, "campaign"],
+        ].find(([pattern]) => (pattern as RegExp).test(query))?.[1] as string;
+        return { results: results[key], fieldMask: "x", requestId: "req" };
+      },
+    );
+  }
+
+  const queries = () =>
+    executeToolMock.mock.calls.map(([call]) => call.arguments.query as string);
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.setSystemTime(new Date("2026-10-14T10:00:00.000Z"));
+    createSessionMock.mockResolvedValue("sess_1");
+    mockResults();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("reads a Search campaign", async () => {
+    const details = await getGoogleCampaignDetails(detailsInput);
+    expect(details.campaign).toEqual({
+      id: "42",
+      name: "Brand search",
+      status: "ACTIVE",
+      type: "SEARCH",
+      channelType: "SEARCH",
+      dailyBudget: 12.5,
+      currency: "EUR",
+      biddingStrategyType: "MAXIMIZE_CLICKS",
+      startDate: "2026-10-01",
+      endDate: "2026-12-31",
+      started: true,
+      editable: true,
+      notEditableReason: null,
+    });
+    expect(details.targeting).toEqual({
+      locations: [
+        {
+          id: "2276",
+          name: "Germany",
+          canonicalName: "Germany",
+          targetType: "Country",
+          countryCode: "DE",
+        },
+      ],
+      languages: [{ id: "1001", name: "German" }],
+    });
+    expect(details.keywords).toEqual([
+      {
+        id: "11",
+        text: "running shoes",
+        matchType: "EXACT",
+        status: "ENABLED",
+        approvalStatus: "APPROVED",
+      },
+    ]);
+    expect(details.ad).toEqual({
+      id: "900",
+      status: "ENABLED",
+      approvalStatus: "APPROVED",
+      reviewStatus: "REVIEWED",
+      adStrength: "GOOD",
+      finalUrl: "https://example.com",
+      search: {
+        headlines: ["Buy shoes", "Run fast"],
+        descriptions: ["Free shipping"],
+        path1: "shoes",
+        path2: null,
+      },
+    });
+    expect(details.sitelinks).toEqual([
+      {
+        assetId: "50",
+        text: "Sale",
+        finalUrl: "https://example.com/sale",
+        description1: "Up to 50%",
+        description2: null,
+        approvalStatus: "APPROVED",
+      },
+    ]);
+    expect(details.callouts).toEqual([
+      { assetId: "51", text: "Free returns", approvalStatus: null },
+    ]);
+  });
+
+  it("reads a Display ad with its images in role order, skipping a missing asset", async () => {
+    mockResults({
+      campaign: [campaignRow({ advertisingChannelType: "DISPLAY" })],
+      ads: [rda],
+      images: [
+        imageAsset(3, 128, 128),
+        imageAsset(1, 1200, 628),
+        imageAsset(2, 600, 600),
+      ],
+    });
+    const details = await getGoogleCampaignDetails(detailsInput);
+    expect(details.campaign).toMatchObject({
+      type: "DISPLAY",
+      editable: true,
+      notEditableReason: null,
+    });
+    expect(details.ad).toEqual({
+      id: "901",
+      status: "ENABLED",
+      approvalStatus: null,
+      reviewStatus: null,
+      adStrength: null,
+      finalUrl: "https://example.com/display",
+      display: {
+        businessName: "Acme",
+        headlines: ["Shoes"],
+        longHeadline: "The best running shoes",
+        descriptions: ["Fast"],
+        images: [
+          {
+            assetId: "1",
+            role: "LANDSCAPE",
+            url: "https://img.example.com/1",
+            width: 1200,
+            height: 628,
+          },
+          {
+            assetId: "2",
+            role: "SQUARE",
+            url: "https://img.example.com/2",
+            width: 600,
+            height: 600,
+          },
+          {
+            assetId: "3",
+            role: "LOGO",
+            url: "https://img.example.com/3",
+            width: 128,
+            height: 128,
+          },
+        ],
+      },
+    });
+    const imageQuery = queries().find((q) => q.includes("FROM asset WHERE"));
+    expect(imageQuery).toContain(
+      "'customers/111/assets/1', 'customers/111/assets/404', 'customers/111/assets/2', 'customers/111/assets/3'",
+    );
+  });
+
+  it("handles a campaign with nothing around it", async () => {
+    mockResults({
+      campaign: [
+        campaignRow({ startDateTime: undefined, endDateTime: undefined }),
+      ],
+      criteria: [],
+      adGroups: [],
+      keywords: [],
+      ads: [],
+      assets: [],
+      daily: [],
+    });
+    const details = await getGoogleCampaignDetails(detailsInput);
+    expect(details.campaign).toMatchObject({
+      startDate: null,
+      endDate: null,
+      started: false,
+      editable: false,
+      notEditableReason: "AD_GROUPS",
+    });
+    expect(details.targeting).toEqual({ locations: [], languages: [] });
+    expect(details.keywords).toEqual([]);
+    expect(details.ad).toBeNull();
+    expect(details.sitelinks).toEqual([]);
+    expect(details.callouts).toEqual([]);
+    // No locations and no images: those lookups are skipped.
+    expect(queries().some((q) => q.includes("FROM geo_target_constant"))).toBe(
+      false,
+    );
+    expect(queries().some((q) => q.includes("FROM asset WHERE"))).toBe(false);
+  });
+
+  it("treats Google's far-future end date as no end date", async () => {
+    mockResults({
+      campaign: [campaignRow({ endDateTime: "2037-12-30 23:59:59" })],
+    });
+    expect(
+      (await getGoogleCampaignDetails(detailsInput)).campaign.endDate,
+    ).toBeNull();
+  });
+
+  it("returns 404 for an unknown or removed campaign", async () => {
+    mockResults({ campaign: [] });
+    await expect(getGoogleCampaignDetails(detailsInput)).rejects.toMatchObject({
+      status: 404,
+    });
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it("returns 404 without a query for an id that is not digits", async () => {
+    await expect(
+      getGoogleCampaignDetails({ ...detailsInput, campaignId: "1 OR 1=1" }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(executeToolMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["PAUSED", "PAUSED"],
+    ["UNKNOWN", "PAUSED"],
+    ["ENABLED", "ACTIVE"],
+  ])("maps Google status %s to %s", async (google, status) => {
+    mockResults({ campaign: [campaignRow({ status: google })] });
+    expect((await getGoogleCampaignDetails(detailsInput)).campaign.status).toBe(
+      status,
+    );
+  });
+
+  describe("editable shape", () => {
+    const secondAd = {
+      ...rsa,
+      adGroupAd: { ...rsa.adGroupAd, ad: { ...rsa.adGroupAd.ad, id: "2" } },
+    };
+    const display = campaignRow({ advertisingChannelType: "DISPLAY" });
+
+    it.each([
+      [
+        "a type other than Search and Display",
+        { campaign: [campaignRow({ advertisingChannelType: "SHOPPING" })] },
+        { type: "OTHER", reason: "TYPE" },
+      ],
+      [
+        "TYPE before AD_GROUPS",
+        {
+          campaign: [campaignRow({ advertisingChannelType: "VIDEO" })],
+          adGroups: [],
+        },
+        { type: "OTHER", reason: "TYPE" },
+      ],
+      [
+        "two ad groups",
+        {
+          adGroups: [
+            { adGroup: { id: "7", status: "ENABLED" } },
+            { adGroup: { id: "8", status: "PAUSED" } },
+          ],
+        },
+        { type: "SEARCH", reason: "AD_GROUPS" },
+      ],
+      [
+        "two ads",
+        { ads: [rsa, secondAd] },
+        { type: "SEARCH", reason: "AD_TYPE" },
+      ],
+      ["no ad", { ads: [] }, { type: "SEARCH", reason: "AD_TYPE" }],
+      [
+        "an ad of the wrong type for the campaign",
+        { campaign: [display], ads: [rsa] },
+        { type: "DISPLAY", reason: "AD_TYPE" },
+      ],
+      [
+        "an ad of another type",
+        {
+          ads: [
+            {
+              ...rsa,
+              adGroupAd: {
+                ...rsa.adGroupAd,
+                ad: { id: "5", type: "EXPANDED_TEXT_AD", finalUrls: [] },
+              },
+            },
+          ],
+        },
+        { type: "SEARCH", reason: "AD_TYPE" },
+      ],
+    ])(
+      "is not editable with %s",
+      async (_name, overrides: Record<string, unknown[]>, expected) => {
+        mockResults(overrides);
+        const { campaign, ad } = await getGoogleCampaignDetails(detailsInput);
+        expect(campaign).toMatchObject({
+          type: expected.type,
+          editable: false,
+          notEditableReason: expected.reason,
+        });
+        // Only a campaign with exactly one ad exposes it.
+        if ((overrides.ads ?? base.ads).length !== 1) expect(ad).toBeNull();
+      },
+    );
+
+    it("keeps an ad of another type without search or display content", async () => {
+      mockResults({
+        ads: [
+          {
+            ...rsa,
+            adGroupAd: {
+              ...rsa.adGroupAd,
+              ad: { id: "5", type: "EXPANDED_TEXT_AD", finalUrls: [] },
+            },
+          },
+        ],
+      });
+      expect((await getGoogleCampaignDetails(detailsInput)).ad).toEqual({
+        id: "5",
+        status: "ENABLED",
+        approvalStatus: "APPROVED",
+        reviewStatus: "REVIEWED",
+        adStrength: "GOOD",
+        finalUrl: "",
+      });
+    });
+  });
+
+  describe("performance", () => {
+    it("zero-fills the 7 days before today, oldest first, and totals them", async () => {
+      mockResults({
+        daily: [
+          {
+            segments: { date: "2026-10-13" },
+            metrics: {
+              costMicros: "5000000",
+              impressions: "100",
+              clicks: "10",
+              conversions: 0,
+            },
+          },
+          {
+            segments: { date: "2026-10-12" },
+            metrics: {
+              costMicros: "10000000",
+              impressions: "400",
+              clicks: "20",
+              conversions: 1.5,
+            },
+          },
+        ],
+      });
+      const { performance } = await getGoogleCampaignDetails(detailsInput);
+      expect(performance.daily.map((day) => day.date)).toEqual([
+        "2026-10-07",
+        "2026-10-08",
+        "2026-10-09",
+        "2026-10-10",
+        "2026-10-11",
+        "2026-10-12",
+        "2026-10-13",
+      ]);
+      expect(performance.daily[0]).toEqual({
+        date: "2026-10-07",
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        conversions: 0,
+      });
+      expect(performance.daily[5]).toEqual({
+        date: "2026-10-12",
+        spend: 10,
+        impressions: 400,
+        clicks: 20,
+        conversions: 1.5,
+      });
+      expect(performance.totals).toEqual({
+        spend: 15,
+        impressions: 500,
+        clicks: 30,
+        ctr: 0.06,
+        cpc: 0.5,
+        conversions: 1.5,
+      });
+    });
+
+    it("has null ctr and cpc without traffic", async () => {
+      mockResults({ daily: [] });
+      expect(
+        (await getGoogleCampaignDetails(detailsInput)).performance.totals,
+      ).toEqual({
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        ctr: null,
+        cpc: null,
+        conversions: 0,
+      });
+    });
+
+    it("covers 30 days for LAST_30_DAYS and queries that range", async () => {
+      const { performance } = await getGoogleCampaignDetails({
+        ...detailsInput,
+        range: "LAST_30_DAYS",
+      });
+      expect(performance.daily).toHaveLength(30);
+      expect(performance.daily[0]?.date).toBe("2026-09-14");
+      expect(performance.daily[29]?.date).toBe("2026-10-13");
+      expect(
+        queries().some((q) => q.includes("segments.date DURING LAST_30_DAYS")),
+      ).toBe(true);
+    });
+
+    it("counts days in the customer's time zone", async () => {
+      // 03:00 UTC: still Oct 13 in Los Angeles, already Oct 14 in Berlin.
+      vi.setSystemTime(new Date("2026-10-14T03:00:00.000Z"));
+      mockResults({
+        campaign: [
+          {
+            ...campaignRow({ startDateTime: "2026-10-14 00:00:00" }),
+            customer: { timeZone: "America/Los_Angeles" },
+          },
+        ],
+      });
+      const la = await getGoogleCampaignDetails(detailsInput);
+      expect(la.campaign.started).toBe(false);
+      expect(la.performance.daily.at(-1)?.date).toBe("2026-10-12");
+
+      mockResults({
+        campaign: [campaignRow({ startDateTime: "2026-10-14 00:00:00" })],
+      });
+      const berlin = await getGoogleCampaignDetails(detailsInput);
+      expect(berlin.campaign.started).toBe(true);
+      expect(berlin.performance.daily.at(-1)?.date).toBe("2026-10-13");
+    });
+  });
+
+  it("queries only this campaign, in one session, without removed resources", async () => {
+    mockResults({ images: [] });
+    await getGoogleCampaignDetails(detailsInput);
+    const all = queries();
+    expect(all).toHaveLength(8);
+    expect(createSessionMock).toHaveBeenCalledTimes(1);
+    expect(createSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolkitSlug: "googleads",
+        toolSlugs: ["GOOGLEADS_SEARCH_STREAM_GAQL"],
+      }),
+    );
+    for (const call of executeToolMock.mock.calls.map(([c]) => c)) {
+      expect(call.toolSlug).toBe("GOOGLEADS_SEARCH_STREAM_GAQL");
+      expect(call.arguments.customer_id).toBe("111");
+    }
+    expect(all.filter((q) => q.includes("campaign.id = 42"))).toHaveLength(6);
+    expect(all.find((q) => q.includes("FROM campaign_asset"))).toContain(
+      "campaign_asset.campaign = 'customers/111/campaigns/42'",
+    );
+    expect(all.find((q) => q.includes("FROM geo_target_constant"))).toContain(
+      "geo_target_constant.resource_name IN ('geoTargetConstants/2276')",
+    );
+    expect(deleteSessionMock).toHaveBeenCalledWith(
+      "sess_1",
+      expect.any(String),
+    );
+  });
+
+  it("raises a Composio tool error and still deletes the session", async () => {
+    executeToolMock.mockRejectedValue(
+      new ComposioToolError({ message: "refused" }),
+    );
+    await expect(getGoogleCampaignDetails(detailsInput)).rejects.toBeInstanceOf(
+      ComposioToolError,
+    );
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it("raises a row that does not match the expected shape", async () => {
+    mockResults({ keywords: [{ adGroupCriterion: {} }] });
+    await expect(getGoogleCampaignDetails(detailsInput)).rejects.toThrow(
+      /invalid response/,
+    );
   });
 });

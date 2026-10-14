@@ -6061,7 +6061,7 @@ export type AdCampaign = {
      */
     cpc: number | null;
     /**
-     * Null when the provider does not report conversions (Meta)
+     * Over the range; null only when the provider omits the metric
      */
     conversions: number | null;
 };
@@ -6070,10 +6070,184 @@ export const AdRange = { LAST_7_DAYS: 'LAST_7_DAYS', LAST_30_DAYS: 'LAST_30_DAYS
 
 export type AdRange = typeof AdRange[keyof typeof AdRange];
 
+export type AdCampaignDetails = {
+    campaign: AdCampaignDetailsCampaign;
+    targeting: AdCampaignTargeting;
+    keywords: Array<AdCampaignKeyword>;
+    ad: AdCampaignAd;
+    sitelinks: Array<AdCampaignSitelink>;
+    callouts: Array<AdCampaignCallout>;
+    performance: AdCampaignPerformance;
+};
+
+export type AdCampaignDetailsCampaign = {
+    id: string;
+    name: string;
+    status: 'ACTIVE' | 'PAUSED';
+    type: 'SEARCH' | 'DISPLAY' | 'OTHER';
+    /**
+     * Google advertising channel type
+     */
+    channelType: string;
+    /**
+     * Decimal in the account currency
+     */
+    dailyBudget: number;
+    currency: string;
+    biddingStrategyType: string;
+    /**
+     * YYYY-MM-DD in the account time zone; null when not set
+     */
+    startDate: string | null;
+    /**
+     * YYYY-MM-DD in the account time zone; null when not set
+     */
+    endDate: string | null;
+    /**
+     * The start date is today or earlier in the account time zone
+     */
+    started: boolean;
+    /**
+     * One ad group with one ad of the campaign type's responsive format
+     */
+    editable: boolean;
+    notEditableReason: 'TYPE' | 'AD_GROUPS' | 'AD_TYPE' | null;
+};
+
+export type AdCampaignTargeting = {
+    /**
+     * Empty targets all countries
+     */
+    locations: Array<AdCampaignLocation>;
+    /**
+     * Empty targets all languages
+     */
+    languages: Array<AdCampaignLanguage>;
+};
+
+export type AdCampaignLocation = {
+    id: string;
+    name: string;
+    canonicalName: string;
+    targetType: string;
+    countryCode: string;
+};
+
+export type AdCampaignLanguage = {
+    id: string;
+    name: string;
+};
+
+export type AdCampaignKeyword = {
+    id: string;
+    text: string;
+    matchType: 'BROAD' | 'PHRASE' | 'EXACT';
+    status: string;
+    approvalStatus: string | null;
+};
+
+/**
+ * The campaign's only ad; null when it has none or several
+ */
+export type AdCampaignAd = {
+    id: string;
+    status: string;
+    approvalStatus: string | null;
+    reviewStatus: string | null;
+    adStrength: string | null;
+    /**
+     * The first final URL; empty without one
+     */
+    finalUrl: string;
+    search?: AdCampaignSearchAd;
+    display?: AdCampaignDisplayAd;
+} | null;
+
+/**
+ * Set for a responsive search ad
+ */
+export type AdCampaignSearchAd = {
+    headlines: Array<string>;
+    descriptions: Array<string>;
+    path1: string | null;
+    path2: string | null;
+};
+
+/**
+ * Set for a responsive display ad
+ */
+export type AdCampaignDisplayAd = {
+    businessName: string;
+    headlines: Array<string>;
+    longHeadline: string;
+    descriptions: Array<string>;
+    images: Array<AdCampaignDisplayImage>;
+};
+
+export type AdCampaignDisplayImage = {
+    assetId: string;
+    role: 'LANDSCAPE' | 'SQUARE' | 'LOGO';
+    url: string;
+    width: number;
+    height: number;
+};
+
+export type AdCampaignSitelink = {
+    assetId: string;
+    text: string;
+    finalUrl: string;
+    description1: string | null;
+    description2: string | null;
+    approvalStatus: string | null;
+};
+
+export type AdCampaignCallout = {
+    assetId: string;
+    text: string;
+    approvalStatus: string | null;
+};
+
+export type AdCampaignPerformance = {
+    totals: AdCampaignTotals;
+    /**
+     * Every day of the range, oldest first; days without data are zero
+     */
+    daily: Array<AdCampaignDailyMetrics>;
+};
+
+export type AdCampaignTotals = {
+    /**
+     * Over the range, decimal
+     */
+    spend: number;
+    impressions: number;
+    clicks: number;
+    /**
+     * clicks / impressions; null without impressions
+     */
+    ctr: number | null;
+    /**
+     * spend / clicks; null without clicks
+     */
+    cpc: number | null;
+    /**
+     * Over the range; null only when the provider omits the metric
+     */
+    conversions: number | null;
+};
+
+export type AdCampaignDailyMetrics = {
+    date: string;
+    spend: number;
+    impressions: number;
+    clicks: number;
+    conversions: number;
+};
+
 export type UpdateAdCampaignRequest = {
     status?: 'ACTIVE' | 'PAUSED';
     /**
-     * Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)
+     * Decimal in the account currency, greater than 0. Core rejects budgets with more fraction digits than the currency allows (JPY 0, USD 2) with 422
      */
     dailyBudget?: number;
 };
@@ -44015,6 +44189,172 @@ export type PostProjectsByIdAdsAccountsByAccountIdCampaignsResponses = {
 
 export type PostProjectsByIdAdsAccountsByAccountIdCampaignsResponse = PostProjectsByIdAdsAccountsByAccountIdCampaignsResponses[keyof PostProjectsByIdAdsAccountsByAccountIdCampaignsResponses];
 
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+        /**
+         * Provider campaign id (1-20 digits)
+         */
+        campaignId: string;
+    };
+    query?: {
+        /**
+         * Metrics window: the last 7 or 30 complete days, excluding today
+         */
+        range?: AdRange & unknown;
+    };
+    url: '/projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}';
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdError = GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors[keyof GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors];
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses = {
+    /**
+     * Campaign details
+     */
+    200: {
+        data: AdCampaignDetails;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse = GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses[keyof GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses];
+
 export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
     body: UpdateAdCampaignRequest;
     headers?: {
@@ -44027,7 +44367,7 @@ export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
         id: string;
         accountId: string;
         /**
-         * Provider campaign id (digits)
+         * Provider campaign id (1-20 digits)
          */
         campaignId: string;
     };

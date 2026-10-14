@@ -42,8 +42,10 @@ import type {
 } from "@/lib/ads/composio-tools";
 import {
   createGoogleCampaign,
+  type GoogleCampaignDetails,
   type GoogleLanguage,
   type GoogleLocation,
+  getGoogleCampaignDetails,
   listGoogleAdAccounts,
   listGoogleCampaigns,
   listGoogleLanguages,
@@ -453,6 +455,29 @@ export async function listProjectAdLanguages(
       await requireGoogleTargetingAccount(input),
     ),
   };
+}
+
+/** One Google campaign of an attached ad account with its details and performance over the range. */
+export async function getProjectAdCampaignDetails(
+  input: ProjectScope & {
+    accountId: string;
+    campaignId: string;
+    range: AdRange;
+  },
+): Promise<GoogleCampaignDetails> {
+  const account = await requireActiveAdAccount(input);
+  if (account.provider !== "google_ads") {
+    throw notFound(
+      "Campaign details are only available for Google Ads accounts",
+    );
+  }
+  return getGoogleCampaignDetails({
+    ...account.connected,
+    customerId: account.externalAccountId,
+    campaignId: input.campaignId,
+    currency: account.currency,
+    range: input.range,
+  });
 }
 
 /** A budget with more decimals than the currency has cannot be charged exactly. */

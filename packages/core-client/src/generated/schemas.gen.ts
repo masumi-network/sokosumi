@@ -20938,7 +20938,7 @@ export const AdCampaignSchema = {
                 'number',
                 'null'
             ],
-            description: 'Null when the provider does not report conversions (Meta)'
+            description: 'Over the range; null only when the provider omits the metric'
         }
     },
     required: [
@@ -20965,6 +20965,569 @@ export const AdRangeSchema = {
     example: 'LAST_30_DAYS'
 } as const;
 
+export const AdCampaignDetailsSchema = {
+    type: 'object',
+    properties: {
+        campaign: {
+            $ref: '#/components/schemas/AdCampaignDetailsCampaign'
+        },
+        targeting: {
+            $ref: '#/components/schemas/AdCampaignTargeting'
+        },
+        keywords: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdCampaignKeyword'
+            }
+        },
+        ad: {
+            $ref: '#/components/schemas/AdCampaignAd'
+        },
+        sitelinks: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdCampaignSitelink'
+            }
+        },
+        callouts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdCampaignCallout'
+            }
+        },
+        performance: {
+            $ref: '#/components/schemas/AdCampaignPerformance'
+        }
+    },
+    required: [
+        'campaign',
+        'targeting',
+        'keywords',
+        'ad',
+        'sitelinks',
+        'callouts',
+        'performance'
+    ]
+} as const;
+
+export const AdCampaignDetailsCampaignSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'ACTIVE',
+                'PAUSED'
+            ]
+        },
+        type: {
+            type: 'string',
+            enum: [
+                'SEARCH',
+                'DISPLAY',
+                'OTHER'
+            ]
+        },
+        channelType: {
+            type: 'string',
+            description: 'Google advertising channel type',
+            example: 'SEARCH'
+        },
+        dailyBudget: {
+            type: 'number',
+            description: 'Decimal in the account currency',
+            example: 25.5
+        },
+        currency: {
+            type: 'string',
+            example: 'EUR'
+        },
+        biddingStrategyType: {
+            type: 'string',
+            example: 'MAXIMIZE_CLICKS'
+        },
+        startDate: {
+            type: [
+                'string',
+                'null'
+            ],
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'YYYY-MM-DD in the account time zone; null when not set'
+        },
+        endDate: {
+            type: [
+                'string',
+                'null'
+            ],
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'YYYY-MM-DD in the account time zone; null when not set'
+        },
+        started: {
+            type: 'boolean',
+            description: 'The start date is today or earlier in the account time zone'
+        },
+        editable: {
+            type: 'boolean',
+            description: 'One ad group with one ad of the campaign type\'s responsive format'
+        },
+        notEditableReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'TYPE',
+                'AD_GROUPS',
+                'AD_TYPE',
+                null
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'status',
+        'type',
+        'channelType',
+        'dailyBudget',
+        'currency',
+        'biddingStrategyType',
+        'startDate',
+        'endDate',
+        'started',
+        'editable',
+        'notEditableReason'
+    ]
+} as const;
+
+export const AdCampaignTargetingSchema = {
+    type: 'object',
+    properties: {
+        locations: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdCampaignLocation'
+            },
+            description: 'Empty targets all countries'
+        },
+        languages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdCampaignLanguage'
+            },
+            description: 'Empty targets all languages'
+        }
+    },
+    required: [
+        'locations',
+        'languages'
+    ]
+} as const;
+
+export const AdCampaignLocationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        canonicalName: {
+            type: 'string'
+        },
+        targetType: {
+            type: 'string'
+        },
+        countryCode: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'canonicalName',
+        'targetType',
+        'countryCode'
+    ]
+} as const;
+
+export const AdCampaignLanguageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
+export const AdCampaignKeywordSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        text: {
+            type: 'string'
+        },
+        matchType: {
+            type: 'string',
+            enum: [
+                'BROAD',
+                'PHRASE',
+                'EXACT'
+            ]
+        },
+        status: {
+            type: 'string'
+        },
+        approvalStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'text',
+        'matchType',
+        'status',
+        'approvalStatus'
+    ]
+} as const;
+
+export const AdCampaignAdSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string'
+        },
+        status: {
+            type: 'string'
+        },
+        approvalStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        reviewStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        adStrength: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        finalUrl: {
+            type: 'string',
+            description: 'The first final URL; empty without one'
+        },
+        search: {
+            $ref: '#/components/schemas/AdCampaignSearchAd'
+        },
+        display: {
+            $ref: '#/components/schemas/AdCampaignDisplayAd'
+        }
+    },
+    required: [
+        'id',
+        'status',
+        'approvalStatus',
+        'reviewStatus',
+        'adStrength',
+        'finalUrl'
+    ],
+    description: 'The campaign\'s only ad; null when it has none or several'
+} as const;
+
+export const AdCampaignSearchAdSchema = {
+    type: 'object',
+    properties: {
+        headlines: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        descriptions: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        path1: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        path2: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'headlines',
+        'descriptions',
+        'path1',
+        'path2'
+    ],
+    description: 'Set for a responsive search ad'
+} as const;
+
+export const AdCampaignDisplayAdSchema = {
+    type: 'object',
+    properties: {
+        businessName: {
+            type: 'string'
+        },
+        headlines: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        longHeadline: {
+            type: 'string'
+        },
+        descriptions: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        images: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdCampaignDisplayImage'
+            }
+        }
+    },
+    required: [
+        'businessName',
+        'headlines',
+        'longHeadline',
+        'descriptions',
+        'images'
+    ],
+    description: 'Set for a responsive display ad'
+} as const;
+
+export const AdCampaignDisplayImageSchema = {
+    type: 'object',
+    properties: {
+        assetId: {
+            type: 'string'
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'LANDSCAPE',
+                'SQUARE',
+                'LOGO'
+            ]
+        },
+        url: {
+            type: 'string'
+        },
+        width: {
+            type: 'number'
+        },
+        height: {
+            type: 'number'
+        }
+    },
+    required: [
+        'assetId',
+        'role',
+        'url',
+        'width',
+        'height'
+    ]
+} as const;
+
+export const AdCampaignSitelinkSchema = {
+    type: 'object',
+    properties: {
+        assetId: {
+            type: 'string'
+        },
+        text: {
+            type: 'string'
+        },
+        finalUrl: {
+            type: 'string'
+        },
+        description1: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        description2: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        approvalStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'assetId',
+        'text',
+        'finalUrl',
+        'description1',
+        'description2',
+        'approvalStatus'
+    ]
+} as const;
+
+export const AdCampaignCalloutSchema = {
+    type: 'object',
+    properties: {
+        assetId: {
+            type: 'string'
+        },
+        text: {
+            type: 'string'
+        },
+        approvalStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'assetId',
+        'text',
+        'approvalStatus'
+    ]
+} as const;
+
+export const AdCampaignPerformanceSchema = {
+    type: 'object',
+    properties: {
+        totals: {
+            $ref: '#/components/schemas/AdCampaignTotals'
+        },
+        daily: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdCampaignDailyMetrics'
+            },
+            description: 'Every day of the range, oldest first; days without data are zero'
+        }
+    },
+    required: [
+        'totals',
+        'daily'
+    ]
+} as const;
+
+export const AdCampaignTotalsSchema = {
+    type: 'object',
+    properties: {
+        spend: {
+            type: 'number',
+            description: 'Over the range, decimal'
+        },
+        impressions: {
+            type: 'number'
+        },
+        clicks: {
+            type: 'number'
+        },
+        ctr: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'clicks / impressions; null without impressions'
+        },
+        cpc: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'spend / clicks; null without clicks'
+        },
+        conversions: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Over the range; null only when the provider omits the metric'
+        }
+    },
+    required: [
+        'spend',
+        'impressions',
+        'clicks',
+        'ctr',
+        'cpc',
+        'conversions'
+    ]
+} as const;
+
+export const AdCampaignDailyMetricsSchema = {
+    type: 'object',
+    properties: {
+        date: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        spend: {
+            type: 'number'
+        },
+        impressions: {
+            type: 'number'
+        },
+        clicks: {
+            type: 'number'
+        },
+        conversions: {
+            type: 'number'
+        }
+    },
+    required: [
+        'date',
+        'spend',
+        'impressions',
+        'clicks',
+        'conversions'
+    ]
+} as const;
+
 export const UpdateAdCampaignRequestSchema = {
     type: 'object',
     properties: {
@@ -20978,7 +21541,7 @@ export const UpdateAdCampaignRequestSchema = {
         dailyBudget: {
             type: 'number',
             exclusiveMinimum: 0,
-            description: 'Decimal in the account currency, greater than 0, with at most the currency\'s decimal places (JPY 0, USD 2)',
+            description: 'Decimal in the account currency, greater than 0. Core rejects budgets with more fraction digits than the currency allows (JPY 0, USD 2) with 422',
             example: 25.5
         }
     }

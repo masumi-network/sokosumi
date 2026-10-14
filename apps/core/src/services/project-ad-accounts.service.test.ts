@@ -23,6 +23,7 @@ const m = vi.hoisted(() => {
     metaCreate: vi.fn(),
     googleLocations: vi.fn(),
     googleLanguages: vi.fn(),
+    googleDetails: vi.fn(),
     requireScopedProject: vi.fn(),
     requireLockedOpenProject: vi.fn(),
     intentFindUnique: vi.fn(),
@@ -87,6 +88,7 @@ vi.mock("@/lib/ads/google-ads", () => ({
   createGoogleCampaign: m.googleCreate,
   searchGoogleLocations: m.googleLocations,
   listGoogleLanguages: m.googleLanguages,
+  getGoogleCampaignDetails: m.googleDetails,
 }));
 vi.mock("@/lib/ads/meta-ads", () => ({
   listMetaAdAccounts: m.listMeta,
@@ -114,6 +116,7 @@ import {
   discardProjectAdConnection,
   finalizeProjectAdConnection,
   getPendingProjectAdRevocation,
+  getProjectAdCampaignDetails,
   initiateProjectAdConnection,
   listProjectAdCampaigns,
   listProjectAdLanguages,
@@ -581,6 +584,59 @@ describe("project ad accounts service", () => {
       m.requireScopedProject.mockRejectedValue(notFound("Project not found"));
       await expect(list()).rejects.toMatchObject({ status: 404 });
       expect(m.accountFindFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("campaign details", () => {
+    const details = () =>
+      getProjectAdCampaignDetails({
+        ...scope,
+        accountId: ACCOUNT_UUID,
+        campaignId: "42",
+        range: "LAST_7_DAYS",
+      });
+
+    it("reads the campaign inside the attached customer with the account currency", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      m.googleDetails.mockResolvedValue({ campaign: { id: "42" } });
+      await expect(details()).resolves.toEqual({ campaign: { id: "42" } });
+      expect(m.googleDetails).toHaveBeenCalledWith({
+        connectedAccountId: "ca_1",
+        executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+        customerId: "111",
+        campaignId: "42",
+        currency: "EUR",
+        range: "LAST_7_DAYS",
+      });
+    });
+
+    it("returns 404 for a Meta account", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("meta_ads", "act_9"));
+      await expect(details()).rejects.toMatchObject({
+        status: 404,
+        message: expect.stringContaining("Google Ads"),
+      });
+      expect(m.googleDetails).not.toHaveBeenCalled();
+    });
+
+    it("returns 404 for an account of another Project", async () => {
+      m.accountFindFirst.mockResolvedValue(null);
+      await expect(details()).rejects.toMatchObject({ status: 404 });
+      expect(m.googleDetails).not.toHaveBeenCalled();
+    });
+
+    it("returns 409 when the connection is not active", async () => {
+      m.accountFindFirst.mockResolvedValue(
+        accountRow("google_ads", "111", "disconnected"),
+      );
+      await expect(details()).rejects.toMatchObject({ status: 409 });
+      expect(m.googleDetails).not.toHaveBeenCalled();
+    });
+
+    it("passes on the provider's 404 for an unknown campaign", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      m.googleDetails.mockRejectedValue(notFound("Campaign not found"));
+      await expect(details()).rejects.toMatchObject({ status: 404 });
     });
   });
 

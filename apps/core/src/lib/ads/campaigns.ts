@@ -180,7 +180,7 @@ export function noAdMetrics(conversions: number | null): AdCampaignMetrics {
   return { spend: 0, impressions: 0, clicks: 0, conversions };
 }
 
-function round(value: number, digits: number): number {
+export function round(value: number, digits: number): number {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
 }
@@ -222,19 +222,30 @@ export function sumAdMetrics(
   return totals;
 }
 
-export function buildAdCampaign(
-  base: AdCampaignBase,
-  metrics: AdCampaignMetrics,
-): AdCampaign {
-  const { spend, impressions, clicks, conversions } = metrics;
+/** Metrics as the API reports them: rounded, with CTR and CPC derived. */
+export function summarizeAdMetrics({
+  spend,
+  impressions,
+  clicks,
+  conversions,
+}: AdCampaignMetrics) {
   return {
-    ...base,
-    dailyBudget: base.dailyBudget === null ? null : round(base.dailyBudget, 2),
     spend: round(spend, 2),
     impressions,
     clicks,
     ctr: impressions > 0 ? round(clicks / impressions, 4) : null,
     cpc: clicks > 0 ? round(spend / clicks, 2) : null,
     conversions: conversions === null ? null : round(conversions, 2),
+  };
+}
+
+export function buildAdCampaign(
+  base: AdCampaignBase,
+  metrics: AdCampaignMetrics,
+): AdCampaign {
+  return {
+    ...base,
+    dailyBudget: base.dailyBudget === null ? null : round(base.dailyBudget, 2),
+    ...summarizeAdMetrics(metrics),
   };
 }

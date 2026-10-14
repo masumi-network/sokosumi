@@ -17,6 +17,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
+import mountGetCampaign from "./accounts/[accountId]/campaigns/[campaignId]/get.js";
 import mountUpdateCampaign from "./accounts/[accountId]/campaigns/[campaignId]/patch.js";
 import mountListCampaigns from "./accounts/[accountId]/campaigns/get.js";
 import mountCreateCampaign from "./accounts/[accountId]/campaigns/post.js";
@@ -42,6 +43,7 @@ const m = vi.hoisted(() => ({
   createCampaign: vi.fn(),
   locations: vi.fn(),
   languages: vi.fn(),
+  campaignDetails: vi.fn(),
 }));
 
 vi.mock("@/helpers/social-beta-access", () => ({
@@ -59,6 +61,7 @@ vi.mock("@/services/project-ad-accounts.service", () => ({
   createProjectAdCampaign: m.createCampaign,
   searchProjectAdLocations: m.locations,
   listProjectAdLanguages: m.languages,
+  getProjectAdCampaignDetails: m.campaignDetails,
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
@@ -115,6 +118,80 @@ const campaignsResult = {
   currency: "EUR",
 };
 
+const campaignDetailsResult = {
+  campaign: {
+    id: "42",
+    name: "Brand",
+    status: "ACTIVE",
+    type: "SEARCH",
+    channelType: "SEARCH",
+    dailyBudget: 12.5,
+    currency: "EUR",
+    biddingStrategyType: "MAXIMIZE_CLICKS",
+    startDate: "2026-10-01",
+    endDate: null,
+    started: true,
+    editable: true,
+    notEditableReason: null,
+  },
+  targeting: {
+    locations: [
+      {
+        id: "2276",
+        name: "Germany",
+        canonicalName: "Germany",
+        targetType: "Country",
+        countryCode: "DE",
+      },
+    ],
+    languages: [{ id: "1001", name: "German" }],
+  },
+  keywords: [
+    {
+      id: "11",
+      text: "running shoes",
+      matchType: "EXACT",
+      status: "ENABLED",
+      approvalStatus: "APPROVED",
+    },
+  ],
+  ad: {
+    id: "900",
+    status: "ENABLED",
+    approvalStatus: "APPROVED",
+    reviewStatus: "REVIEWED",
+    adStrength: "GOOD",
+    finalUrl: "https://example.com",
+    search: {
+      headlines: ["Buy shoes"],
+      descriptions: ["Free shipping"],
+      path1: null,
+      path2: null,
+    },
+  },
+  sitelinks: [],
+  callouts: [{ assetId: "51", text: "Free returns", approvalStatus: null }],
+  performance: {
+    totals: {
+      spend: 20,
+      impressions: 1000,
+      clicks: 40,
+      ctr: 0.04,
+      cpc: 0.5,
+      conversions: 3.5,
+    },
+    daily: [
+      {
+        date: "2026-10-13",
+        spend: 20,
+        impressions: 1000,
+        clicks: 40,
+        conversions: 3.5,
+      },
+    ],
+  },
+};
+
 function createApp(
   authContext: AuthenticationContext = SESSION_AUTH,
   workspaceContext: WorkspaceContext | null = WORKSPACE_CONTEXT,
@@ -136,6 +213,7 @@ function createApp(
   mountDeleteAccount(app);
   mountDiscardConnection(app);
   mountListCampaigns(app);
+  mountGetCampaign(app);
   mountUpdateCampaign(app);
   mountCreateCampaign(app);
   mountSearchLocations(app);
@@ -403,6 +481,92 @@ describe("Project ads routes", () => {
       const response = await createApp().request(campaignsUrl());
       expect(response.status).toBe(403);
       expect(m.campaigns).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("campaign details", () => {
+    const detailsUrl = (campaignId = "42", query = "") =>
+      `http://localhost/${PROJECT_ID}/ads/accounts/${ACCOUNT_UUID}/campaigns/${campaignId}${query}`;
+
+    beforeEach(() => {
+      m.campaignDetails.mockResolvedValue(campaignDetailsResult);
+    });
+
+    it("returns the details, defaulting the range to the last 30 days", async () => {
+      const response = await createApp().request(detailsUrl());
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        data: campaignDetailsResult,
+      });
+      expect(m.campaignDetails).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        accountId: ACCOUNT_UUID,
+        campaignId: "42",
+        range: "LAST_30_DAYS",
+      });
+    });
+
+    it("passes the requested range", async () => {
+      const response = await createApp().request(
+        detailsUrl("42", "?range=LAST_7_DAYS"),
+      );
+      expect(response.status).toBe(200);
+      expect(m.campaignDetails).toHaveBeenCalledWith(
+        expect.objectContaining({ range: "LAST_7_DAYS" }),
+      );
+    });
+
+    it("returns an ad of another type without search or display content", async () => {
+      m.campaignDetails.mockResolvedValue({
+        ...campaignDetailsResult,
+        ad: { ...campaignDetailsResult.ad, search: undefined },
+      });
+      const response = await createApp().request(detailsUrl());
+      expect(response.status).toBe(200);
+      const { data } = await response.json();
+      expect(data.ad).not.toHaveProperty("search");
+      expect(data.ad).not.toHaveProperty("display");
+    });
+
+    it("rejects an unknown range", async () => {
+      const response = await createApp().request(
+        detailsUrl("42", "?range=LAST_YEAR"),
+      );
+      expect(response.status).toBe(422);
+      expect(m.campaignDetails).not.toHaveBeenCalled();
+    });
+
+    it.each(["abc", "1; DROP", "-1", "1.5", "1".repeat(21)])(
+      "rejects campaign id %s",
+      async (campaignId) => {
+        const response = await createApp().request(detailsUrl(campaignId));
+        expect(response.status).toBe(422);
+        expect(m.campaignDetails).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ["unknown campaign or Meta account", notFound("Campaign not found"), 404],
+      ["disconnected connection", conflict("Ad connection is not active"), 409],
+      [
+        "Composio tool error",
+        new ComposioToolError({ message: "secret detail" }),
+        502,
+      ],
+      ["missing Composio configuration", new ComposioConfigError("nope"), 503],
+    ])("maps %s to %i", async (_name, error, status) => {
+      m.campaignDetails.mockRejectedValue(error);
+      const response = await createApp().request(detailsUrl());
+      expect(response.status).toBe(status);
+      expect(await response.text()).not.toContain("secret detail");
+    });
+
+    it("denies users outside the beta before any work", async () => {
+      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
+      const response = await createApp().request(detailsUrl());
+      expect(response.status).toBe(403);
+      expect(m.campaignDetails).not.toHaveBeenCalled();
     });
   });
 

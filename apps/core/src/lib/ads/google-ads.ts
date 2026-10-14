@@ -23,6 +23,7 @@ import {
   GOOGLE_DISPLAY_IMAGE_MAX_BYTES,
   GOOGLE_DISPLAY_IMAGE_MAX_LABEL,
   GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
+  GOOGLE_KEYWORD_MATCH_TYPES,
   GOOGLE_MAX_IDS,
   GOOGLE_MAX_LOCATION_SUGGESTIONS,
   type GoogleCampaignCreate,
@@ -31,10 +32,13 @@ import {
   type GoogleDisplayImage,
   type GoogleDisplayImageRole,
   type GoogleKeyword,
+  type GoogleKeywordMatchType,
   type GoogleLocationLookup,
   type GoogleSearchCampaignSpec,
   noAdMetrics,
+  round,
   sumAdMetrics,
+  summarizeAdMetrics,
 } from "@/lib/ads/campaigns";
 import {
   type AdsConnectedAccount,
@@ -991,4 +995,645 @@ export async function listGoogleLanguages(
   )
     .map(({ languageConstant }) => languageConstant)
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export type GoogleCampaignType = "SEARCH" | "DISPLAY" | "OTHER";
+export type GoogleCampaignNotEditableReason = "TYPE" | "AD_GROUPS" | "AD_TYPE";
+
+export interface GoogleCampaignKeyword {
+  id: string;
+  text: string;
+  matchType: GoogleKeywordMatchType;
+  status: string;
+  approvalStatus: string | null;
+}
+
+export interface GoogleCampaignAd {
+  id: string;
+  status: string;
+  approvalStatus: string | null;
+  reviewStatus: string | null;
+  adStrength: string | null;
+  /** The first final URL; empty without one. */
+  finalUrl: string;
+  search?: {
+    headlines: string[];
+    descriptions: string[];
+    path1: string | null;
+    path2: string | null;
+  };
+  display?: {
+    businessName: string;
+    headlines: string[];
+    longHeadline: string;
+    descriptions: string[];
+    images: {
+      assetId: string;
+      role: GoogleDisplayImageRole;
+      url: string;
+      width: number;
+      height: number;
+    }[];
+  };
+}
+
+export interface GoogleCampaignDetails {
+  campaign: {
+    id: string;
+    name: string;
+    status: "ACTIVE" | "PAUSED";
+    type: GoogleCampaignType;
+    /** Google's `advertising_channel_type`. */
+    channelType: string;
+    dailyBudget: number;
+    currency: string;
+    biddingStrategyType: string;
+    /** `YYYY-MM-DD`, the customer's time zone; null when not set. */
+    startDate: string | null;
+    endDate: string | null;
+    /** The start date is today or earlier in the customer's time zone. */
+    started: boolean;
+    /** One ad group with one ad of the campaign type's responsive format. */
+    editable: boolean;
+    notEditableReason: GoogleCampaignNotEditableReason | null;
+  };
+  targeting: {
+    /** None targets all countries. */
+    locations: {
+      id: string;
+      name: string;
+      canonicalName: string;
+      targetType: string;
+      countryCode: string;
+    }[];
+    /** None targets all languages. */
+    languages: { id: string; name: string }[];
+  };
+  keywords: GoogleCampaignKeyword[];
+  /** The campaign's only ad; null when it has none or several. */
+  ad: GoogleCampaignAd | null;
+  sitelinks: {
+    assetId: string;
+    text: string;
+    finalUrl: string;
+    description1: string | null;
+    description2: string | null;
+    approvalStatus: string | null;
+  }[];
+  callouts: {
+    assetId: string;
+    text: string;
+    approvalStatus: string | null;
+  }[];
+  performance: {
+    totals: ReturnType<typeof summarizeAdMetrics>;
+    /** Every day of the range, oldest first. */
+    daily: {
+      date: string;
+      spend: number;
+      impressions: number;
+      clicks: number;
+      conversions: number;
+    }[];
+  };
+}
+
+const MS_PER_DAY = 86_400_000;
+// Google reports this end date for a campaign without one.
+const NO_END_DATE = "2037-12-30";
+
+const textAssetsSchema = z
+  .array(z.object({ text: z.string() }))
+  .nullish()
+  .transform((assets) => (assets ?? []).map(({ text }) => text));
+const imageAssetsSchema = z
+  .array(z.object({ asset: z.string() }))
+  .nullish()
+  .transform((assets) => (assets ?? []).map(({ asset }) => asset));
+
+const detailCampaignRowSchema = z.object({
+  customer: z.object({ timeZone: z.string().nullish() }),
+  campaign: z.object({
+    id: z.coerce.string().min(1),
+    name: z.string(),
+    status: z.string(),
+    advertisingChannelType: z.string().nullish(),
+    biddingStrategyType: z.string().nullish(),
+    startDateTime: z.string().nullish(),
+    endDateTime: z.string().nullish(),
+  }),
+  campaignBudget: z
+    .object({ amountMicros: z.coerce.number().nullish() })
+    .nullish(),
+});
+
+const criterionRowSchema = z.object({
+  campaignCriterion: z.object({
+    type: z.string(),
+    location: z.object({ geoTargetConstant: z.string() }).nullish(),
+    language: z.object({ languageConstant: z.string() }).nullish(),
+  }),
+  languageConstant: z
+    .object({ id: z.coerce.string().min(1), name: z.string() })
+    .nullish(),
+});
+
+const geoRowSchema = z.object({
+  geoTargetConstant: z.object({
+    id: z.coerce.string().min(1),
+    name: z.string(),
+    canonicalName: z.string(),
+    targetType: z.string().nullish(),
+    countryCode: z.string().nullish(),
+  }),
+});
+
+const adGroupRowSchema = z.object({
+  adGroup: z.object({ id: z.coerce.string() }),
+});
+
+const keywordRowSchema = z.object({
+  adGroupCriterion: z.object({
+    criterionId: z.coerce.string().min(1),
+    keyword: z.object({
+      text: z.string(),
+      matchType: z.enum(GOOGLE_KEYWORD_MATCH_TYPES),
+    }),
+    status: z.string(),
+    approvalStatus: z.string().nullish(),
+  }),
+});
+
+const adRowSchema = z.object({
+  adGroupAd: z.object({
+    status: z.string(),
+    adStrength: z.string().nullish(),
+    policySummary: z
+      .object({
+        approvalStatus: z.string().nullish(),
+        reviewStatus: z.string().nullish(),
+      })
+      .nullish(),
+    ad: z.object({
+      id: z.coerce.string().min(1),
+      type: z.string(),
+      finalUrls: z.array(z.string()).nullish(),
+      responsiveSearchAd: z
+        .object({
+          headlines: textAssetsSchema,
+          descriptions: textAssetsSchema,
+          path1: z.string().nullish(),
+          path2: z.string().nullish(),
+        })
+        .nullish(),
+      responsiveDisplayAd: z
+        .object({
+          marketingImages: imageAssetsSchema,
+          squareMarketingImages: imageAssetsSchema,
+          squareLogoImages: imageAssetsSchema,
+          headlines: textAssetsSchema,
+          longHeadline: z.object({ text: z.string() }).nullish(),
+          descriptions: textAssetsSchema,
+          businessName: z.string().nullish(),
+        })
+        .nullish(),
+    }),
+  }),
+});
+
+const imageAssetRowSchema = z.object({
+  asset: z.object({
+    resourceName: z.string(),
+    id: z.coerce.string().min(1),
+    imageAsset: z.object({
+      fullSize: z.object({
+        url: z.string(),
+        widthPixels: z.coerce.number(),
+        heightPixels: z.coerce.number(),
+      }),
+    }),
+  }),
+});
+
+const linkedAssetRowSchema = z.object({
+  campaignAsset: z.object({ fieldType: z.string() }),
+  asset: z.object({
+    id: z.coerce.string().min(1),
+    finalUrls: z.array(z.string()).nullish(),
+    sitelinkAsset: z
+      .object({
+        linkText: z.string(),
+        description1: z.string().nullish(),
+        description2: z.string().nullish(),
+      })
+      .nullish(),
+    calloutAsset: z.object({ calloutText: z.string() }).nullish(),
+    policySummary: z.object({ approvalStatus: z.string().nullish() }).nullish(),
+  }),
+});
+
+const dailyRowSchema = z.object({
+  segments: z.object({ date: z.string() }),
+  metrics: metricRowSchema.shape.metrics,
+});
+
+/** The id after the last slash of a resource name. */
+function resourceId(resourceName: string): string {
+  return resourceName.slice(resourceName.lastIndexOf("/") + 1);
+}
+
+/** Today's date (`YYYY-MM-DD`) in the time zone; UTC without one. */
+function todayIn(timeZone: string | null | undefined, now: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: timeZone ?? "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+/** The `days` dates before `today`, oldest first. */
+function daysBefore(today: string, days: number): string[] {
+  const end = Date.parse(`${today}T00:00:00Z`);
+  return Array.from({ length: days }, (_, i) =>
+    new Date(end - (days - i) * MS_PER_DAY).toISOString().slice(0, 10),
+  );
+}
+
+const AD_TYPES = {
+  SEARCH: "RESPONSIVE_SEARCH_AD",
+  DISPLAY: "RESPONSIVE_DISPLAY_AD",
+} as const;
+
+type AdRow = z.infer<typeof adRowSchema>["adGroupAd"];
+
+function buildCampaignAd(
+  { status, adStrength, policySummary, ad }: AdRow,
+  imageAssets: ReadonlyMap<
+    string,
+    z.infer<typeof imageAssetRowSchema>["asset"]
+  >,
+): GoogleCampaignAd {
+  const { responsiveSearchAd: search, responsiveDisplayAd: display } = ad;
+  const roles: [GoogleDisplayImageRole, string[]][] = display
+    ? [
+        ["LANDSCAPE", display.marketingImages],
+        ["SQUARE", display.squareMarketingImages],
+        ["LOGO", display.squareLogoImages],
+      ]
+    : [];
+  return {
+    id: ad.id,
+    status,
+    approvalStatus: policySummary?.approvalStatus ?? null,
+    reviewStatus: policySummary?.reviewStatus ?? null,
+    adStrength: adStrength ?? null,
+    finalUrl: ad.finalUrls?.[0] ?? "",
+    ...(ad.type === AD_TYPES.SEARCH &&
+      search && {
+        search: {
+          headlines: search.headlines,
+          descriptions: search.descriptions,
+          path1: search.path1 ?? null,
+          path2: search.path2 ?? null,
+        },
+      }),
+    ...(ad.type === AD_TYPES.DISPLAY &&
+      display && {
+        display: {
+          businessName: display.businessName ?? "",
+          headlines: display.headlines,
+          longHeadline: display.longHeadline?.text ?? "",
+          descriptions: display.descriptions,
+          images: roles.flatMap(([role, names]) =>
+            names.flatMap((name) => {
+              const asset = imageAssets.get(name);
+              if (!asset) return [];
+              const { url, widthPixels, heightPixels } =
+                asset.imageAsset.fullSize;
+              return [
+                {
+                  assetId: asset.id,
+                  role,
+                  url,
+                  width: widthPixels,
+                  height: heightPixels,
+                },
+              ];
+            }),
+          ),
+        },
+      }),
+  };
+}
+
+/** Why a campaign cannot be edited in place; the first failing rule wins. */
+function notEditableReason(
+  type: GoogleCampaignType,
+  adGroupCount: number,
+  ads: readonly AdRow[],
+): GoogleCampaignNotEditableReason | null {
+  if (type === "OTHER") return "TYPE";
+  if (adGroupCount !== 1) return "AD_GROUPS";
+  return ads.length === 1 && ads[0]?.ad.type === AD_TYPES[type]
+    ? null
+    : "AD_TYPE";
+}
+
+/**
+ * One non-removed Google campaign with its targeting, keywords, ad, sitelinks,
+ * callouts and daily performance over the range. All of it is read with GAQL
+ * in one session: the independent queries run together, then the location and
+ * image lookups that need their results. 404 when the campaign is not in the
+ * customer or is removed.
+ */
+export async function getGoogleCampaignDetails(
+  input: AdsConnectedAccount & {
+    customerId: string;
+    campaignId: string;
+    /** ISO 4217 code of the customer. */
+    currency: string;
+    range: AdRange;
+  },
+): Promise<GoogleCampaignDetails> {
+  const { customerId, campaignId, currency, range, ...connected } = input;
+  // The id goes into the queries, so it must be digits only.
+  if (!/^\d{1,20}$/.test(campaignId)) throw notFound("Campaign not found");
+  const campaignQuery = `campaign.id = ${campaignId}`;
+
+  const {
+    head,
+    criteria,
+    adGroups,
+    keywords,
+    ads,
+    linkedAssets,
+    dailyRows,
+    geoTargets,
+    imageAssets,
+  } = await withAdsToolSession(
+    {
+      ...connected,
+      toolkit: PROJECT_AD_PROVIDERS.google_ads,
+      toolSlugs: [SEARCH_STREAM_GAQL],
+    },
+    async (execute) => {
+      const search = async <T extends z.ZodType>(
+        query: string,
+        schema: T,
+        what: string,
+      ): Promise<z.infer<T>[]> => {
+        const context = `read Google Ads campaign ${what}`;
+        return parseToolRows(
+          requireToolRows(
+            await execute(SEARCH_STREAM_GAQL, {
+              customer_id: customerId,
+              query,
+            }),
+            "results",
+            context,
+          ),
+          schema,
+          context,
+        );
+      };
+      const [
+        [head],
+        criteria,
+        adGroups,
+        keywords,
+        ads,
+        linkedAssets,
+        dailyRows,
+      ] = await Promise.all([
+        search(
+          `SELECT customer.time_zone, campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type, campaign.start_date_time, campaign.end_date_time, campaign_budget.amount_micros FROM campaign WHERE ${campaignQuery} AND campaign.status != 'REMOVED'`,
+          detailCampaignRowSchema,
+          "details",
+        ),
+        search(
+          `SELECT campaign_criterion.criterion_id, campaign_criterion.type, campaign_criterion.location.geo_target_constant, campaign_criterion.language.language_constant, language_constant.id, language_constant.name FROM campaign_criterion WHERE ${campaignQuery} AND campaign_criterion.negative = FALSE AND campaign_criterion.status != 'REMOVED' AND campaign_criterion.type IN ('LOCATION', 'LANGUAGE')`,
+          criterionRowSchema,
+          "targeting",
+        ),
+        search(
+          `SELECT ad_group.id, ad_group.status FROM ad_group WHERE ${campaignQuery} AND ad_group.status != 'REMOVED'`,
+          adGroupRowSchema,
+          "ad groups",
+        ),
+        search(
+          `SELECT ad_group_criterion.criterion_id, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.status, ad_group_criterion.approval_status FROM ad_group_criterion WHERE ${campaignQuery} AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = FALSE AND ad_group_criterion.status != 'REMOVED'`,
+          keywordRowSchema,
+          "keywords",
+        ),
+        search(
+          `SELECT ad_group_ad.status, ad_group_ad.ad_strength, ad_group_ad.policy_summary.approval_status, ad_group_ad.policy_summary.review_status, ad_group_ad.ad.id, ad_group_ad.ad.type, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2, ad_group_ad.ad.responsive_display_ad.marketing_images, ad_group_ad.ad.responsive_display_ad.square_marketing_images, ad_group_ad.ad.responsive_display_ad.square_logo_images, ad_group_ad.ad.responsive_display_ad.headlines, ad_group_ad.ad.responsive_display_ad.long_headline, ad_group_ad.ad.responsive_display_ad.descriptions, ad_group_ad.ad.responsive_display_ad.business_name, ad_group.id FROM ad_group_ad WHERE ${campaignQuery} AND ad_group_ad.status != 'REMOVED'`,
+          adRowSchema,
+          "ads",
+        ),
+        search(
+          `SELECT campaign_asset.field_type, campaign_asset.status, asset.id, asset.sitelink_asset.link_text, asset.sitelink_asset.description1, asset.sitelink_asset.description2, asset.final_urls, asset.callout_asset.callout_text, asset.policy_summary.approval_status FROM campaign_asset WHERE campaign_asset.campaign = 'customers/${customerId}/campaigns/${campaignId}' AND campaign_asset.field_type IN ('SITELINK', 'CALLOUT') AND campaign_asset.status = 'ENABLED'`,
+          linkedAssetRowSchema,
+          "assets",
+        ),
+        search(
+          `SELECT segments.date, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions FROM campaign WHERE ${campaignQuery} AND segments.date DURING ${range}`,
+          dailyRowSchema,
+          "metrics",
+        ),
+      ]);
+      if (!head) throw notFound("Campaign not found");
+
+      // Resource names come from Google's own rows, not from the request.
+      const locationNames = criteria.flatMap(({ campaignCriterion }) =>
+        campaignCriterion.type === "LOCATION" && campaignCriterion.location
+          ? [campaignCriterion.location.geoTargetConstant]
+          : [],
+      );
+      const imageNames = [
+        ...new Set(
+          ads.flatMap(({ adGroupAd }) => {
+            const display = adGroupAd.ad.responsiveDisplayAd;
+            return display
+              ? [
+                  ...display.marketingImages,
+                  ...display.squareMarketingImages,
+                  ...display.squareLogoImages,
+                ]
+              : [];
+          }),
+        ),
+      ];
+      const inList = (names: readonly string[]) =>
+        names.map((name) => `'${name}'`).join(", ");
+      const [geoTargets, imageAssets] = await Promise.all([
+        locationNames.length > 0
+          ? search(
+              `SELECT geo_target_constant.id, geo_target_constant.name, geo_target_constant.canonical_name, geo_target_constant.target_type, geo_target_constant.country_code FROM geo_target_constant WHERE geo_target_constant.resource_name IN (${inList(locationNames)})`,
+              geoRowSchema,
+              "locations",
+            )
+          : [],
+        imageNames.length > 0
+          ? search(
+              `SELECT asset.resource_name, asset.id, asset.image_asset.full_size.url, asset.image_asset.full_size.width_pixels, asset.image_asset.full_size.height_pixels FROM asset WHERE asset.resource_name IN (${inList(imageNames)})`,
+              imageAssetRowSchema,
+              "images",
+            )
+          : [],
+      ]);
+      return {
+        head,
+        criteria,
+        adGroups,
+        keywords,
+        ads,
+        linkedAssets,
+        dailyRows,
+        geoTargets,
+        imageAssets,
+      };
+    },
+  );
+
+  const { campaign } = head;
+  const type: GoogleCampaignType =
+    campaign.advertisingChannelType === "SEARCH" ||
+    campaign.advertisingChannelType === "DISPLAY"
+      ? campaign.advertisingChannelType
+      : "OTHER";
+  const startDate = campaign.startDateTime?.slice(0, 10) || null;
+  const endDate = campaign.endDateTime?.slice(0, 10) || null;
+  const today = todayIn(head.customer.timeZone, new Date());
+  const adRows = ads.map(({ adGroupAd }) => adGroupAd);
+  const reason = notEditableReason(type, adGroups.length, adRows);
+
+  // Geo constants keep the order of the criteria that named them.
+  const geoById = new Map(
+    geoTargets.map(({ geoTargetConstant }) => [
+      geoTargetConstant.id,
+      geoTargetConstant,
+    ]),
+  );
+  const locations = criteria.flatMap(({ campaignCriterion }) => {
+    const constant = geoById.get(
+      resourceId(campaignCriterion.location?.geoTargetConstant ?? ""),
+    );
+    return constant
+      ? [
+          {
+            id: constant.id,
+            name: constant.name,
+            canonicalName: constant.canonicalName,
+            targetType: constant.targetType ?? "",
+            countryCode: constant.countryCode ?? "",
+          },
+        ]
+      : [];
+  });
+  const languages = criteria.flatMap(
+    ({ campaignCriterion, languageConstant }) =>
+      campaignCriterion.type === "LANGUAGE" && languageConstant
+        ? [{ id: languageConstant.id, name: languageConstant.name }]
+        : [],
+  );
+
+  const imageAssetsByName = new Map(
+    imageAssets.map(({ asset }) => [asset.resourceName, asset]),
+  );
+  const [onlyAd] = adRows;
+
+  const empty = { spend: 0, impressions: 0, clicks: 0, conversions: 0 };
+  const perDay = new Map<string, typeof empty>();
+  for (const { segments, metrics } of dailyRows) {
+    const day = perDay.get(segments.date) ?? empty;
+    perDay.set(segments.date, {
+      spend: day.spend + (metrics.costMicros ?? 0) / MICROS,
+      impressions: day.impressions + (metrics.impressions ?? 0),
+      clicks: day.clicks + (metrics.clicks ?? 0),
+      conversions: day.conversions + (metrics.conversions ?? 0),
+    });
+  }
+  const days = daysBefore(today, range === "LAST_7_DAYS" ? 7 : 30).map(
+    (date) => ({ date, ...(perDay.get(date) ?? empty) }),
+  );
+
+  return {
+    campaign: {
+      id: campaign.id,
+      name: campaign.name,
+      status: campaign.status === "ENABLED" ? "ACTIVE" : "PAUSED",
+      type,
+      channelType: campaign.advertisingChannelType ?? "",
+      dailyBudget: round((head.campaignBudget?.amountMicros ?? 0) / MICROS, 2),
+      currency,
+      biddingStrategyType: campaign.biddingStrategyType ?? "",
+      startDate,
+      endDate: endDate === NO_END_DATE ? null : endDate,
+      started: startDate !== null && startDate <= today,
+      editable: reason === null,
+      notEditableReason: reason,
+    },
+    targeting: { locations, languages },
+    keywords: keywords.map(
+      ({
+        adGroupCriterion: { criterionId, keyword, status, approvalStatus },
+      }) => ({
+        id: criterionId,
+        text: keyword.text,
+        matchType: keyword.matchType,
+        status,
+        approvalStatus: approvalStatus ?? null,
+      }),
+    ),
+    ad:
+      adRows.length === 1 && onlyAd
+        ? buildCampaignAd(onlyAd, imageAssetsByName)
+        : null,
+    sitelinks: linkedAssets.flatMap(({ campaignAsset, asset }) =>
+      campaignAsset.fieldType === "SITELINK" && asset.sitelinkAsset
+        ? [
+            {
+              assetId: asset.id,
+              text: asset.sitelinkAsset.linkText,
+              finalUrl: asset.finalUrls?.[0] ?? "",
+              description1: asset.sitelinkAsset.description1 ?? null,
+              description2: asset.sitelinkAsset.description2 ?? null,
+              approvalStatus: asset.policySummary?.approvalStatus ?? null,
+            },
+          ]
+        : [],
+    ),
+    callouts: linkedAssets.flatMap(({ campaignAsset, asset }) =>
+      campaignAsset.fieldType === "CALLOUT" && asset.calloutAsset
+        ? [
+            {
+              assetId: asset.id,
+              text: asset.calloutAsset.calloutText,
+              approvalStatus: asset.policySummary?.approvalStatus ?? null,
+            },
+          ]
+        : [],
+    ),
+    performance: {
+      totals: summarizeAdMetrics(
+        days.reduce(
+          (total, day) => ({
+            spend: total.spend + day.spend,
+            impressions: total.impressions + day.impressions,
+            clicks: total.clicks + day.clicks,
+            conversions: total.conversions + day.conversions,
+          }),
+          empty,
+        ),
+      ),
+      daily: days.map(({ date, spend, impressions, clicks, conversions }) => ({
+        date,
+        spend: round(spend, 2),
+        impressions,
+        clicks,
+        conversions: round(conversions, 2),
+      })),
+    },
+  };
 }
