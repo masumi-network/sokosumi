@@ -24,7 +24,7 @@ import {
   writeText,
 } from "./command-helpers.js";
 
-export interface JobsCommandContext extends CommandContext {
+interface JobsCommandContext extends CommandContext {
   subcommand?: string;
   positionalId?: string;
   options?: CommandOptions;

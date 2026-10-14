@@ -12,7 +12,7 @@ export interface CommandContext {
   signal?: AbortSignal;
 }
 
-export type CommandOption = string | string[] | boolean | undefined;
+type CommandOption = string | string[] | boolean | undefined;
 export type CommandOptions = Record<string, CommandOption>;
 
 export function option(

@@ -55,7 +55,7 @@ export interface CliSession {
   authManager: AuthManager;
 }
 
-export interface BootstrapCliSessionOptions {
+interface BootstrapCliSessionOptions {
   environment?: AuthEnvironment;
   loadFiles?: boolean;
   preprod?: boolean;

@@ -10,7 +10,7 @@ interface AuthLogoutManager {
   logout(): void;
 }
 
-export interface AuthLogoutResult {
+interface AuthLogoutResult {
   authenticated: false;
 }
 export async function runAuthLogout({

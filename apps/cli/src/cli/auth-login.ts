@@ -16,7 +16,7 @@ import {
 import { type BrowserLoginOptions, loginWithBrowser } from "../auth/oauth.js";
 import type { CommandOutput } from "./commands/command-helpers.js";
 
-export interface AuthLoginResult {
+interface AuthLoginResult {
   authenticated: true;
   authMethod: "oauth" | "api-key";
   apiKeyAvailable: boolean;

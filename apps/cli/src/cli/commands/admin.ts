@@ -22,7 +22,7 @@ import {
   writeText,
 } from "./command-helpers.js";
 
-export interface AdminCommandContext extends CommandContext {
+interface AdminCommandContext extends CommandContext {
   target?: CliTargetConfig["target"];
   subcommand?: string;
   positionalId?: string;
