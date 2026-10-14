@@ -142,7 +142,7 @@ struct ConversationSidebarDirectoryTests {
     await transport.waitForRequest()
     try await state.upsert(room(directoryRoomJSON(id: otherRoomId, name: "other")))
     await transport.release()
-    _ = try await refresh.value
+    #expect(try await refresh.value == false, "The read predates the room and is dropped.")
     #expect(state.rooms.map(\.id) == [testRoomId, otherRoomId])
   }
 
