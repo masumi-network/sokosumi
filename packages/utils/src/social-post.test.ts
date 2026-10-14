@@ -11,6 +11,8 @@ import {
   type SocialPostMediaRef,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
+  socialPostMediaRequirementMessage,
+  socialPostMeetsMediaRequirement,
   socialPostMimeForFileName,
   socialPostProviderLabel,
   validateSocialPostMedia,
@@ -75,6 +77,28 @@ describe("per-provider limits and requirements", () => {
     ["youtube", "YouTube"],
   ] as const)("labels %s as %s", (provider, label) => {
     expect(socialPostProviderLabel(provider)).toBe(label);
+  });
+
+  it.each([
+    ["x", true, null],
+    ["linkedin", true, null],
+    ["facebook", true, null],
+    ["instagram", false, "Instagram requires at least one image or video"],
+    ["tiktok", false, "TikTok requires a video"],
+    ["youtube", false, "YouTube requires a video"],
+  ] as const)(
+    "treats empty media on %s as ready=%s",
+    (provider, ready, message) => {
+      expect(socialPostMeetsMediaRequirement(provider, [])).toBe(ready);
+      expect(socialPostMediaRequirementMessage(provider)).toBe(message);
+    },
+  );
+
+  it("accepts one video for TikTok and YouTube, and any file for Instagram", () => {
+    expect(socialPostMeetsMediaRequirement("tiktok", [video])).toBe(true);
+    expect(socialPostMeetsMediaRequirement("tiktok", [image])).toBe(false);
+    expect(socialPostMeetsMediaRequirement("youtube", [video])).toBe(true);
+    expect(socialPostMeetsMediaRequirement("instagram", [jpeg])).toBe(true);
   });
 
   it("exposes the strictest request bounds and the schedule lead", () => {

@@ -2966,6 +2966,33 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getByText("No drafts yet.")).toBeVisible();
   });
 
+  it("hides Publish now on a TikTok draft that still needs a video", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection({ provider: "tiktok" })]}
+        posts={[
+          buildPost({
+            id: "post-tiktok-draft",
+            provider: "tiktok",
+            text: "Caption only",
+            media: [],
+            canPublishNow: false,
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Drafts");
+    await openRowMenu(user, "post-tiktok-draft");
+    expect(
+      screen.queryByRole("menuitem", { name: "Publish now" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "Schedule" })).toBeVisible();
+  });
+
   it("toasts and refreshes when publishing hits a revision conflict", async () => {
     const user = userEvent.setup();
     vi.mocked(publishProjectSocialPost).mockResolvedValue({

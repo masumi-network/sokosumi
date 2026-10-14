@@ -67,6 +67,32 @@ export interface SocialPostMediaRef {
   kind: SocialPostMediaKind;
 }
 
+/** Whether attached media satisfies the provider's presence rule. */
+export function socialPostMeetsMediaRequirement(
+  provider: SocialPostProvider,
+  media: readonly SocialPostMediaRef[],
+): boolean {
+  const requirement = SOCIAL_POST_MEDIA_REQUIREMENTS[provider];
+  if (requirement === "none") return true;
+  if (requirement === "any") return media.length > 0;
+  return media.length === 1 && media[0]?.kind === "video";
+}
+
+/**
+ * Why the provider still needs media, or `null` when presence is optional.
+ * Create and schedule use this; MIME and count rules are separate.
+ */
+export function socialPostMediaRequirementMessage(
+  provider: SocialPostProvider,
+): string | null {
+  const requirement = SOCIAL_POST_MEDIA_REQUIREMENTS[provider];
+  if (requirement === "none") return null;
+  const label = socialPostProviderLabel(provider);
+  return requirement === "any"
+    ? `${label} requires at least one image or video`
+    : `${label} requires a video`;
+}
+
 const SOCIAL_POST_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const SOCIAL_POST_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
 
