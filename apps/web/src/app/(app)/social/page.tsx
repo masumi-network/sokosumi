@@ -64,9 +64,15 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
   const query = await searchParams;
   const t = await getTranslations("App.Social");
   const projectId = query.projectId?.trim();
-  const project = projectId
-    ? await projectService.getProjectById(projectId)
-    : null;
+  let project = null;
+  let projectLoadFailed = false;
+  if (projectId) {
+    try {
+      project = await projectService.getProjectById(projectId);
+    } catch {
+      projectLoadFailed = true;
+    }
+  }
 
   if (!project) {
     const [calendar, sokoBot] = await Promise.all([
@@ -91,7 +97,13 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
               />
             }
             calendar={<SocialCalendar calendar={calendar} />}
-            notice={projectId ? t("pickUnavailable") : undefined}
+            notice={
+              projectLoadFailed
+                ? t("pickFailed")
+                : projectId
+                  ? t("pickUnavailable")
+                  : undefined
+            }
             workspaceId={calendar.workspaceId}
           />
         </SocialCalendarPreviewProvider>

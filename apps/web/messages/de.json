@@ -3095,6 +3095,7 @@
     "Social": {
       "title": "Social-Planung",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
+      "pickFailed": "Dieses Projekt konnte nicht geladen werden. Wähle ein anderes aus oder versuche es erneut.",
       "newPost": {
         "label": "Neuer Beitrag",
         "options": "Optionen für neuen Beitrag",

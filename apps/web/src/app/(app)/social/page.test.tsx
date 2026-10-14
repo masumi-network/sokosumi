@@ -341,6 +341,22 @@ describe("SocialPage", () => {
     await expect(searchParams).resolves.toMatchObject({ projectId: undefined });
   });
 
+  it("stays on all-projects when that project fails to load", async () => {
+    projectServiceMock.getProjectById.mockRejectedValue(new Error("core down"));
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-no-project")).toHaveTextContent(
+      "App.Social.pickFailed",
+    );
+    expect(screen.getByTestId("social-all-projects-tabs")).toBeInTheDocument();
+    expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
+    expect(screen.queryByTestId("social-posts")).not.toBeInTheDocument();
+    expect(projectServiceMock.listSocialPosts).not.toHaveBeenCalled();
+    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
+    await expect(searchParams).resolves.toMatchObject({ projectId: undefined });
+  });
+
   it("loads the month range for a stale view=agenda link", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
 
