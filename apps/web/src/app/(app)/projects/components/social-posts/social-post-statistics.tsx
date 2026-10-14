@@ -418,7 +418,7 @@ export function SocialPostStatistics(
               >
                 <SelectTrigger
                   aria-label={t("performance.accountTabs")}
-                  className="text-foreground w-full sm:w-auto sm:min-w-[200px]"
+                  className="text-foreground h-11 w-full sm:w-auto sm:min-w-[200px] md:h-10 data-[size=default]:h-11 md:data-[size=default]:h-10"
                 >
                   <SelectValue />
                 </SelectTrigger>

@@ -234,7 +234,12 @@ describe("SocialPostStatistics account history", () => {
     expect(screen.getAllByText("Interactions")[0]).toBeVisible();
     expect(
       screen.getByRole("combobox", { name: "Connected accounts" }),
-    ).toBeVisible();
+    ).toHaveClass(
+      "h-11",
+      "md:h-10",
+      "data-[size=default]:h-11",
+      "md:data-[size=default]:h-10",
+    );
     expect(screen.getByRole("button", { name: "More actions" })).toBeVisible();
     expect(screen.getByText("Link clicks")).toBeVisible();
     expect(
