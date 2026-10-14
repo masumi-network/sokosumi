@@ -21,26 +21,45 @@
 
     /// A screenshot puts only image data on the pasteboard. AppKit enables Paste for text types alone, so without
     /// this the composer's own paste never ran and the image was not attached.
-    @Test(arguments: [NSPasteboard.PasteboardType.png, .tiff])
-    func anImageAloneOnThePasteboardCanBePasted(type: NSPasteboard.PasteboardType) {
+    @Test func anImageAloneOnThePasteboardCanBePasted() throws {
       let pasteboard = NSPasteboard.withUniqueName()
       defer { pasteboard.releaseGlobally() }
-      pasteboard.setData(Data([1, 2, 3]), forType: type)
+      let png = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 1, pixelsHigh: 1, bitsPerSample: 8, samplesPerPixel: 4,
+                                              hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+      try pasteboard.setData(#require(png.tiffRepresentation), forType: .tiff)
       let input = MacComposerTextInput.InputView()
-      #expect(!input.hasAttachment(on: pasteboard), "Without attachments the composer pastes text only.")
+      let paste = #selector(NSText.paste(_:))
+      #expect(!input.pastesAttachment(paste, from: pasteboard), "Without attachments the composer pastes text only.")
       input.attachImage = { _ in }
-      #expect(input.hasAttachment(on: pasteboard))
+      for action in [paste, #selector(NSTextView.pasteAsPlainText(_:)), #selector(NSTextView.pasteAsRichText(_:))] {
+        #expect(input.pastesAttachment(action, from: pasteboard))
+      }
+      #expect(!input.pastesAttachment(#selector(NSText.copy(_:)), from: pasteboard), "Only the pastes.")
+      input.isEditable = false
+      #expect(!input.pastesAttachment(paste, from: pasteboard), "A read-only composer takes no paste.")
+    }
+
+    /// Paste enables only for what the paste itself would attach: TIFF bytes that are no image enable nothing.
+    @Test func anUnreadableImageDoesNotEnablePaste() {
+      let pasteboard = NSPasteboard.withUniqueName()
+      defer { pasteboard.releaseGlobally() }
+      pasteboard.setData(Data([1, 2, 3]), forType: .tiff)
+      let input = MacComposerTextInput.InputView()
+      input.attachImage = { _ in }
+      #expect(input.pastedAttachment(on: pasteboard) == nil)
+      #expect(!input.pastesAttachment(#selector(NSText.paste(_:)), from: pasteboard))
     }
 
     @Test func aCopiedFileCanBePastedWhereFilesAttach() {
       let pasteboard = NSPasteboard.withUniqueName()
       defer { pasteboard.releaseGlobally() }
-      pasteboard.writeObjects([URL(fileURLWithPath: "/tmp/report.pdf") as NSURL])
+      let file = URL(fileURLWithPath: "/tmp/report.pdf")
+      pasteboard.writeObjects([file as NSURL])
       let input = MacComposerTextInput.InputView()
       input.attachImage = { _ in }
-      #expect(!input.hasAttachment(on: pasteboard), "An image-only composer takes no files.")
+      #expect(input.pastedAttachment(on: pasteboard) == nil, "An image-only composer takes no files.")
       input.attachFiles = { _ in }
-      #expect(input.hasAttachment(on: pasteboard))
+      #expect(input.pastedAttachment(on: pasteboard) == .files([file]))
     }
 
     @Test func imagePasteRoutesToUploadAndDisabledAttachmentsKeepTextPaste() {
