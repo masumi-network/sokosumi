@@ -18,9 +18,14 @@ import {
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import { cn } from "@/lib/utils";
 
-/** Failed, missed, and canceled posts need the word, not only a coloured mark. */
+/** Failed, missed, canceled, and publishing posts need the word, not only a coloured mark. */
 function needsStatusLabel(status: SocialPostCalendarItem["status"]) {
-  return status === "FAILED" || status === "MISSED" || status === "CANCELED";
+  return (
+    status === "FAILED" ||
+    status === "MISSED" ||
+    status === "CANCELED" ||
+    status === "PUBLISHING"
+  );
 }
 
 function CalendarSocialPostStatus({
