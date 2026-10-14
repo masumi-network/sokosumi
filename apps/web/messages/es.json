@@ -2419,6 +2419,8 @@
         "emptyHint": "Conecta una para publicar."
       },
       "SocialPosts": {
+        "accountsFailed": "No se pudieron cargar las cuentas.",
+        "accountsRetry": "Inténtalo de nuevo",
         "loadMore": "Cargar más",
         "listFailed": "No se pudieron cargar las publicaciones.",
         "listRetry": "Inténtalo de nuevo",

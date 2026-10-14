@@ -75,6 +75,7 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
     posts: { id: string }[];
     connections: { id: string }[];
     failedSections?: string[];
+    accountsFailed?: boolean;
     projectId: string;
     selectedPostId?: string;
   }) => (
@@ -386,6 +387,22 @@ describe("SocialPage", () => {
       "post-a",
     );
     expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
+  });
+
+  it("keeps Social up when accounts fail to load", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialConnections.mockRejectedValue(
+      new Error("core down"),
+    );
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-accounts-failed",
+      "true",
+    );
+    expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
+    expect(projectServiceMock.listSocialPosts).toHaveBeenCalled();
   });
 
   /**
