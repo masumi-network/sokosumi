@@ -57,7 +57,7 @@ const MESSAGES: Record<string, string> = {
   unknownHandle: "Unknown account",
   "replaceDialog.title": "Replace {account}?",
   "replaceDialog.description":
-    "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
+    "Drafts and scheduled posts move to the new account.",
   "replaceDialog.confirm": "Replace account",
   "disconnectDialog.title": "Disconnect {account}?",
   "disconnectDialog.description":
@@ -1101,7 +1101,7 @@ describe("ProjectSocialAccounts", () => {
     const replaceDialog = screen.getByRole("alertdialog");
     expect(replaceDialog).toHaveAccessibleName("Replace @sokosumi?");
     expect(replaceDialog).toHaveTextContent(
-      "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
+      "Drafts and scheduled posts move to the new account.",
     );
     expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
     await user.click(

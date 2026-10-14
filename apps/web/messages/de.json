@@ -2382,7 +2382,7 @@
         },
         "replaceDialog": {
           "title": "{account} ersetzen?",
-          "description": "Alle Entwürfe und geplanten Beiträge dieses Kontos werden auf das neue Konto übertragen. Wenn du sie hier behalten willst, füge ein neues Konto hinzu, statt zu ersetzen.",
+          "description": "Entwürfe und geplante Beiträge wandern auf das neue Konto.",
           "confirm": "Konto ersetzen"
         },
         "disconnectDialog": {
