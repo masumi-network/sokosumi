@@ -242,6 +242,7 @@ const MESSAGES: Record<string, string> = {
     "Coworker scheduling access was revoked. Reschedule this post to publish it.",
   "outcomes.connectionInactive": "Account disconnected. Reconnect to retry.",
   "outcomes.missed": "Missed the scheduled time.",
+  "failures.generic": "Couldn't publish. Open the post for details.",
   "failures.rateLimited": "Rate limited. Try again later.",
   "failures.timeout": "Timed out. Try again.",
   "failures.unauthorized": "Reconnect the account.",
@@ -3389,6 +3390,11 @@ describe("ProjectSocialPosts", () => {
             id: "post-missed",
             status: "MISSED",
             lastError: "Scheduled time passed more than an hour ago",
+            lastAttempt: {
+              ...FAILED_POST.lastAttempt!,
+              outcome: "missed",
+              errorKind: null,
+            },
           },
         ]}
         projectId={PROJECT_ID}
@@ -3511,14 +3517,17 @@ describe("ProjectSocialPosts", () => {
       });
     });
     expect(toastErrorMock).toHaveBeenCalledWith(
-      "Publishing failed: X is unavailable",
+      "Publishing failed: Couldn't publish. Open the post for details.",
     );
     expect(toastSuccessMock).not.toHaveBeenCalled();
     // The failed post takes the list with it to Needs attention.
     expect(getTab("Needs attention")).toHaveAttribute("aria-selected", "true");
     const attention = screen.getByTestId("social-posts-section-attention");
     const row = within(attention).getByTestId("social-post-post-draft");
-    expect(within(row).getByText("X is unavailable")).toBeVisible();
+    expect(
+      within(row).getByText("Couldn't publish. Open the post for details."),
+    ).toBeVisible();
+    expect(within(row).queryByText("X is unavailable")).not.toBeInTheDocument();
 
     await openTab(user, "Drafts");
     expect(screen.getByText("No drafts yet.")).toBeVisible();
