@@ -49,6 +49,7 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "sections.calendar",
       "sections.drafts",
+      "sections.attention",
       "sections.statistics",
       "sections.accounts",
     ]);
@@ -56,12 +57,15 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getByRole("button", { name: "New post" })).toBeVisible();
   });
 
-  it("asks for a project on Drafts and Accounts, and shows workspace Performance", async () => {
+  it("asks for a project on Drafts, Needs attention and Accounts, and shows workspace Performance", async () => {
     const user = userEvent.setup();
     renderTabs();
 
     await user.click(screen.getByRole("tab", { name: "sections.drafts" }));
     expect(screen.getByText("choose a project for drafts")).toBeVisible();
+
+    await user.click(screen.getByRole("tab", { name: "sections.attention" }));
+    expect(screen.getByText("choose a project for attention")).toBeVisible();
 
     await user.click(screen.getByRole("tab", { name: "sections.statistics" }));
     expect(screen.getByText("workspace performance workspace-1")).toBeVisible();
@@ -73,7 +77,7 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getByText("choose a project for accounts")).toBeVisible();
   });
 
-  it("opens the tab the URL names, and falls back for a project-only one", () => {
+  it("opens the tab the URL names", () => {
     const { unmount } = renderTabs("?tab=accounts");
     expect(
       screen.getByRole("tab", { name: "sections.accounts" }),
@@ -82,8 +86,9 @@ describe("SocialAllProjectsTabs", () => {
 
     renderTabs("?tab=attention");
     expect(
-      screen.getByRole("tab", { name: "sections.calendar" }),
+      screen.getByRole("tab", { name: "sections.attention" }),
     ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("choose a project for attention")).toBeVisible();
   });
 
   it("shows every project's posts on the calendar without asking for a project", () => {

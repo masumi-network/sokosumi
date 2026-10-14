@@ -22,8 +22,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
+const NEED_PROJECT_COPY = {
+  accounts: "accountsNeedProject",
+  attention: "attentionNeedProject",
+  drafts: "draftsNeedProject",
+  statistics: "statisticsNeedProject",
+} as const;
+
 interface SocialAccountsProjectPromptProps {
-  kind?: "accounts" | "drafts";
+  kind?: keyof typeof NEED_PROJECT_COPY;
   notice?: string;
 }
 
@@ -32,7 +39,7 @@ export function SocialAccountsProjectPrompt({
   kind = "accounts",
   notice,
 }: SocialAccountsProjectPromptProps) {
-  const copy = kind === "drafts" ? "draftsNeedProject" : "accountsNeedProject";
+  const copy = NEED_PROJECT_COPY[kind];
   const t = useTranslations("App.Social");
   const router = useRouter();
   const { projectId, switchHref } = useProjectScope();
