@@ -48,7 +48,7 @@ import { cn } from "@/lib/utils";
 interface ProjectSocialAccountsProps {
   connections: ProjectSocialConnection[];
   projectId: string;
-  /** Closing or closed projects cannot start a new connect. */
+  /** Closing or closed projects cannot add or replace accounts. */
   connectDisabled?: boolean;
 }
 
@@ -435,12 +435,17 @@ export function ProjectSocialAccounts({
       data-testid="project-social-accounts"
       id="social-accounts"
     >
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-4">
+        {connectDisabled ? (
+          <p className="text-muted-foreground me-auto text-sm">
+            {t("projectClosed")}
+          </p>
+        ) : null}
         <DropdownMenu>
           {/* Disabled on the trigger, not the button: a loading button drops
               native `disabled`, and only the trigger's own flag stops Radix
               from opening the menu. */}
-          <DropdownMenuTrigger asChild disabled={isBusy}>
+          <DropdownMenuTrigger asChild disabled={isBusy || connectDisabled}>
             <Button
               type="button"
               variant="outline"
@@ -522,7 +527,9 @@ export function ProjectSocialAccounts({
             const isWarningStatus =
               canReconnect || connection.status === "pending";
             const canStartOver = connection.status === "pending";
-            const canReplace = connection.status === "active" || canReconnect;
+            const canReplace =
+              !connectDisabled &&
+              (connection.status === "active" || canReconnect);
             const canDisconnect = connection.status !== "disconnected";
             const isRowPending =
               pendingAction !== "connect" && pendingTarget === connection.id;
@@ -572,7 +579,7 @@ export function ProjectSocialAccounts({
                       variant="outline"
                       size="sm"
                       className="h-11 md:h-8"
-                      disabled={isBusy}
+                      disabled={isBusy || connectDisabled}
                       loading={isRowPending && pendingAction === "reconnect"}
                       onClick={() => {
                         void startOAuth("reconnect", connection.id);

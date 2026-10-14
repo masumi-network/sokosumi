@@ -2369,6 +2369,7 @@
         "account": "Cuenta de {provider}",
         "connect": "Conectar cuenta de {provider}",
         "connectAccount": "Conectar cuenta",
+        "projectClosed": "Este proyecto está cerrado.",
         "actions": "Acciones de {account}",
         "reconnect": "Volver a conectar",
         "startOver": "Empezar de nuevo",
