@@ -9,6 +9,7 @@ import SwiftUI
     @Environment(\.transcriptScrollActivity) private var scrollActivity
     @State private var hoveredEmoji: String?
     @FocusState private var focusedEmoji: String?
+    @Namespace private var row
 
     /// The chip under the pointer, unless the transcript is carrying it there (M8). Scroll activity is read only while a
     /// chip is hovered or focused, so a scroll starting or ending re-evaluates that row alone (M6).
@@ -17,9 +18,14 @@ import SwiftUI
     }
 
     /// The chip whose label shows: the one under the pointer, else the one holding keyboard focus, as web's Radix
-    /// tooltip also opens on focus.
+    /// tooltip also opens on focus. Web opens one tooltip at a time, so a focused chip gives way to a chip hovered in
+    /// another row; the transcript is read only while this row holds focus and no pointer.
     private var labelledEmoji: String? {
-      settled(hoveredEmoji ?? focusedEmoji)
+      if let hoveredEmoji {
+        return settled(hoveredEmoji)
+      }
+      guard let focusedEmoji, scrollActivity?.reactionRowUnderPointer == nil else { return nil }
+      return settled(focusedEmoji)
     }
 
     private func settled(_ emoji: String?) -> String? {
@@ -53,14 +59,25 @@ import SwiftUI
           .onHover { inside in
             if inside {
               hoveredEmoji = reaction.emoji
+              if scrollActivity?.reactionRowUnderPointer != row {
+                scrollActivity?.reactionRowUnderPointer = row
+              }
             } else if hoveredEmoji == reaction.emoji {
               hoveredEmoji = nil
+              releasePointer()
             }
           }
           .accessibilityLabel("\(reaction.emoji), ^[\(reaction.count) reaction](inflect: true)")
           .accessibilityValue(reaction.reactedByCurrentUser ? "You reacted" : "You have not reacted")
           .accessibilityHint(reaction.whoReacted ?? "")
         }
+      }
+      .onDisappear(perform: releasePointer)
+    }
+
+    private func releasePointer() {
+      if scrollActivity?.reactionRowUnderPointer == row {
+        scrollActivity?.reactionRowUnderPointer = nil
       }
     }
 

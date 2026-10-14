@@ -46,6 +46,9 @@ import SwiftUI
     var isScrolling = false
     /// Older-page insertion waits for native idle, including programmatic animations.
     var isAtRest = true
+    /// The reactions row whose chip is under the pointer (M10): a focused chip elsewhere hides its label, as web
+    /// shows one tooltip at a time. Read only by a row holding keyboard focus.
+    var reactionRowUnderPointer: Namespace.ID?
 
     func update(for phase: ScrollPhase) {
       let scrolling = phase == .interacting || phase == .decelerating || phase == .tracking
