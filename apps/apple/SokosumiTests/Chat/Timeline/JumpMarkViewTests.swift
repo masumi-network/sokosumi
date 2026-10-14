@@ -87,7 +87,7 @@
         if thread {
           state.openRoom.thread.transcript.requestJump(to: Self.landedId)
         } else {
-          #expect(try await state.openMessage(Self.landedId) == .opened)
+          #expect(try await state.openRoom.openMessage(Self.landedId) == .opened)
         }
         let host = NSHostingView(rootView: AnyView(Group {
           if thread {

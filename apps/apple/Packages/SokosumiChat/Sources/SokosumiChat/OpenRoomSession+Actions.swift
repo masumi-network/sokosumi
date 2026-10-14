@@ -200,7 +200,7 @@ public extension OpenRoomSession {
 
   /// Lands on `messageId`: at once when the room shows it, else after loading the page around it.
   func jumpToMessage(_ messageId: String) async throws -> Bool {
-    if directStream.displayedMessages(persisted: room.displayedMessages).contains(where: { $0.id == messageId }) {
+    if roomRows.contains(where: { $0.id == messageId }) {
       return true
     }
     guard hooks.access() != nil else {

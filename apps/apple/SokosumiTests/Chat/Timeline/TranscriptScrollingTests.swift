@@ -66,7 +66,7 @@
           state.openRoom.thread.transcript.requestJump(to: "fixture-2")
           #expect(state.openRoom.thread.transcript.jumpTarget?.messageId == "fixture-2")
         } else {
-          #expect(try await state.openMessage("fixture-2") == .opened)
+          #expect(try await state.openRoom.openMessage("fixture-2") == .opened)
         }
         let host = NSHostingView(rootView: Group {
           if thread {

@@ -69,7 +69,7 @@ struct TranscriptRowActions {
       return Task {
         do {
           // A quote in this room marks no Thread parent, as web's same-room quote (row 25c).
-          if try await workspaces.openMessage(id, marksThreadParent: false) == .unavailable {
+          if try await workspaces.openRoom.openMessage(id, marksThreadParent: false) == .unavailable {
             jumpFailed(messageUnavailableText)
           }
         } catch {

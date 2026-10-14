@@ -278,4 +278,62 @@ struct OpenRoomSessionTests {
     #expect(try session.isPinned(#require(session.room.timeline.messages.first)))
     #expect(!session.isUpdatingPin("m1"))
   }
+
+  // MARK: - Navigation
+
+  private func reply(_ id: String, to parentId: String) -> String {
+    testMessageJSON(id: id, content: "Reply", sender: ada)
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(parentId)\"")
+  }
+
+  /// A loaded row lands at once: the room marks it and no Thread stays over it.
+  @Test func aLoadedMessageLandsInTheRoom() async throws {
+    let session = try connected(TestTransport([
+      (200, testMessagesPageBody(messages: [testMessageJSON(id: "root", content: "Root", sender: ada)], nextCursor: nil)),
+      (200, testMessagesPageBody(messages: [], nextCursor: nil))
+    ]))
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    _ = await session.room.loadTask?.value
+    try session.openThread(#require(session.room.timeline.messages.first))
+    _ = await session.thread.transcript.loadTask?.value
+    #expect(try await session.openMessage("root") == .opened)
+    #expect(session.messageJump?.messageId == "root")
+    #expect(session.thread.parent == nil)
+  }
+
+  /// Core refusing the lookup means the message is not the reader's to see; a rejected session reaches the caller.
+  /// Every refusal goes to the `failed` hook, where the workspace signs a rejected session out.
+  @Test(arguments: [(404, false), (403, false), (401, true)])
+  func aRefusedLookupIsUnavailable(status: Int, reachesCaller: Bool) async throws {
+    var failures = 0
+    let session = try connected(TestTransport([
+      (200, testMessagesPageBody(messages: [], nextCursor: nil)),
+      (status, #"{"message":"No"}"#)
+    ]), rejected: { _ in failures += 1 })
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    _ = await session.room.loadTask?.value
+    if reachesCaller {
+      await #expect(throws: ChatServiceError.self) { _ = try await session.openMessage("gone") }
+    } else {
+      #expect(try await session.openMessage("gone") == .unavailable)
+    }
+    #expect(failures == 1)
+    #expect(session.messageJump == nil)
+  }
+
+  /// A reply opens its parent's Thread, lands there, and marks the parent in the room behind it.
+  @Test func aReplyOpensItsThreadAndMarksTheParent() async throws {
+    let session = try connected(TestTransport([
+      (200, testMessagesPageBody(messages: [testMessageJSON(id: "root", content: "Root", sender: ada)], nextCursor: nil)),
+      (200, testMessagesPageBody(messages: [reply("r1", to: "root")], nextCursor: nil))
+    ]))
+    session.open(room(testRoomId), userId: "me", organizationId: nil)
+    _ = await session.room.loadTask?.value
+    let hit = try #require(try await fetchTestMessages([reply("r1", to: "root")]).first)
+    #expect(try await session.openMessageReply(hit) == .opened)
+    #expect(session.thread.parent?.id == "root")
+    #expect(session.thread.transcript.jumpTarget?.messageId == "r1")
+    #expect(session.messageJump?.messageId == "root")
+    #expect(session.messageJump?.isThreadParent == true)
+  }
 }
