@@ -22,20 +22,25 @@ struct MarkdownBareDomains {
         let end = links[linkIndex].upperBound
         result += String(text[index ..< end])
         index = end
+      } else if let end = urlEnd(at: index) {
+        // Web's remark-gfm autolinks URLs, `www.` hosts and emails; swift-markdown attaches no autolink extension.
+        let url = String(text[index ..< end])
+        result += Self.link(label: url, href: url)
+        index = end
       } else if let end = protectedEnd(at: index) {
         result += String(text[index ..< end])
         index = end
+      } else if let end = wwwEnd(at: index) {
+        let label = String(text[index ..< end])
+        result += Self.link(label: label, href: "http://" + label)
+        index = end
+      } else if let end = emailEnd(at: index) {
+        let label = String(text[index ..< end])
+        result += Self.link(label: label, href: "mailto:" + label)
+        index = end
       } else if let end = domainEnd(at: index) {
         let label = String(text[index ..< end])
-        let escapedLabel = label.reduce(into: "") { value, character in
-          if "\\[]*_~".contains(character) {
-            value.append("\\")
-          }
-          value.append(character)
-        }
-        let href = ("https://" + label).replacingOccurrences(of: "\\", with: "\\\\")
-          .replacingOccurrences(of: ")", with: "\\)")
-        result += "[\(escapedLabel)](\(href))"
+        result += Self.link(label: label, href: "https://" + label)
         index = end
       } else {
         result.append(text[index])
@@ -60,17 +65,72 @@ struct MarkdownBareDomains {
     if character == "<", let close = text[(start + 1)...].firstIndex(of: ">") {
       return close + 1
     }
-    if text[start...].starts(with: Array("https://")) || text[start...].starts(with: Array("http://")) {
-      var end = start
-      while end < text.count, !Self.stops.contains(text[end]) {
-        end += 1
-      }
-      while end > start, Self.trailing.contains(text[end - 1]) {
-        end -= 1
-      }
-      return max(end, start + 1)
-    }
     return nil
+  }
+
+  private func urlEnd(at start: Int) -> Int? {
+    guard text[start...].starts(with: Array("https://")) || text[start...].starts(with: Array("http://")) else { return nil }
+    return max(pathEnd(from: start), start + 1)
+  }
+
+  /// GFM's `www.` autolink: after a line start, whitespace or `*_~(`, a host whose last two labels have no `_`.
+  private func wwwEnd(at start: Int) -> Int? {
+    guard String(text[start ..< min(start + 4, text.count)]).lowercased() == "www.",
+          start == 0 || Self.whitespace.contains(text[start - 1]) || "*_~(".contains(text[start - 1])
+    else { return nil }
+    var hostEnd = start + 4
+    while hostEnd < text.count, Self.isHost(text[hostEnd]) || text[hostEnd] == "_" {
+      hostEnd += 1
+    }
+    let labels = String(text[(start + 4) ..< hostEnd]).split(separator: ".", omittingEmptySubsequences: false)
+    guard labels.first?.isEmpty == false, !labels.suffix(2).contains(where: { $0.contains("_") }) else { return nil }
+    let end = pathEnd(from: start)
+    return end > start + 4 ? end : nil
+  }
+
+  /// GFM's email autolink: `[A-Za-z0-9.+_-]+@` then dot-separated labels, ending on a letter or digit.
+  private func emailEnd(at start: Int) -> Int? {
+    if start > 0, Self.isEmailLocal(text[start - 1]) || "/@".contains(text[start - 1]) {
+      return nil
+    }
+    var sign = start
+    while sign < text.count, Self.isEmailLocal(text[sign]) {
+      sign += 1
+    }
+    guard sign > start, sign < text.count, text[sign] == "@" else { return nil }
+    var end = sign + 1
+    while end < text.count, Self.isHost(text[end]) || text[end] == "_" {
+      end += 1
+    }
+    while end > sign + 1, text[end - 1] == "." {
+      end -= 1
+    }
+    let domain = text[(sign + 1) ..< end]
+    guard domain.contains("."), let last = domain.last, Self.isLetter(last) || Self.isDigit(last) else { return nil }
+    return end
+  }
+
+  /// Up to whitespace or another stop, without trailing punctuation.
+  private func pathEnd(from start: Int) -> Int {
+    var end = start
+    while end < text.count, !Self.stops.contains(text[end]) {
+      end += 1
+    }
+    while end > start, Self.trailing.contains(text[end - 1]) {
+      end -= 1
+    }
+    return end
+  }
+
+  private static func link(label: String, href: String) -> String {
+    let escapedLabel = label.reduce(into: "") { value, character in
+      if "\\[]*_~".contains(character) {
+        value.append("\\")
+      }
+      value.append(character)
+    }
+    let escapedHref = href.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: ")", with: "\\)")
+    return "[\(escapedLabel)](\(escapedHref))"
   }
 
   private func codeEnd(start: Int, openingEnd: Int, character: Character) -> Int {
@@ -390,6 +450,10 @@ struct MarkdownBareDomains {
 
   private static func isHost(_ character: Character) -> Bool {
     isLabel(character) || character == "."
+  }
+
+  private static func isEmailLocal(_ character: Character) -> Bool {
+    isLabel(character) || ".+_".contains(character)
   }
 
   private static let stops = Set(" \t\n\r<>[]`'\"()")
