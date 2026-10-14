@@ -61,6 +61,10 @@ import {
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
 import {
+  accountChipLabel,
+  formatComposerHandle,
+} from "./social-post-account-chip-label";
+import {
   initialCreateConnectionIds,
   readRememberedComposerAccounts,
   writeRememberedComposerAccounts,
@@ -107,14 +111,9 @@ interface SocialPostComposerDialogProps {
 
 type PendingSubmit = "save" | "schedule" | "publish" | null;
 
-function formatHandle(handle: string | null): string {
-  if (!handle) return "";
-  return handle.startsWith("@") ? handle : `@${handle}`;
-}
-
 function accountLabel(connection: ProjectSocialConnection): string {
   return (
-    formatHandle(connection.externalHandle) ||
+    formatComposerHandle(connection.externalHandle) ||
     connection.displayName ||
     socialPostProviderLabel(connection.provider)
   );
@@ -935,9 +934,10 @@ export function SocialPostComposerDialog({
                   >
                     {connections.map((connection) => {
                       const selected = connectionIds.includes(connection.id);
-                      const handle =
-                        formatHandle(connection.externalHandle) ||
-                        t("composer.unknownHandle");
+                      const handle = accountChipLabel(
+                        connection,
+                        t("composer.unknownHandle"),
+                      );
                       return (
                         <button
                           aria-label={t("composer.accountOption", {
@@ -1192,7 +1192,7 @@ export function SocialPostComposerDialog({
                   >
                     {selectedConnections.map((connection) => {
                       const handle =
-                        formatHandle(connection.externalHandle) ||
+                        formatComposerHandle(connection.externalHandle) ||
                         t("composer.unknownHandle");
                       const active = previewConnection?.id === connection.id;
                       return (
