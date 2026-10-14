@@ -150,45 +150,43 @@ export const sourceImportService = {
         continue;
       }
 
-      try {
-        // Skip if a TaskFile already exists with matching fileUrl or sourceUrl.
-        // This prevents duplicate rows when user uploads a file (fileUrl=blob, sourceUrl=null)
-        // then posts a comment with that blob URL (sourceUrl=blob, fileUrl=null).
-        const existing = await client.taskFile.findFirst({
-          where: {
-            taskId,
-            OR: [{ fileUrl: url }, { sourceUrl: url }],
-          },
-        });
+      // Skip if a TaskFile already exists with matching fileUrl or sourceUrl.
+      // This prevents duplicate rows when user uploads a file (fileUrl=blob, sourceUrl=null)
+      // then posts a comment with that blob URL (sourceUrl=blob, fileUrl=null).
+      const existing = await client.taskFile.findFirst({
+        where: {
+          taskId,
+          OR: [{ fileUrl: url }, { sourceUrl: url }],
+        },
+      });
 
-        if (existing) {
-          continue;
-        }
-
-        const basename = getUrlBasename(url) ?? "file";
-        // Upsert PENDING task-output TaskFile. Unique on (taskId, sourceUrl).
-        // Do NOT set fileUrl yet — source-import cron will fetch and upload.
-        // update: {} preserves READY name on repeat URL (no-op update).
-        await client.taskFile.upsert({
-          where: {
-            taskId_sourceUrl: {
-              taskId,
-              sourceUrl: url,
-            },
-          },
-          update: {},
-          create: {
-            taskId,
-            name: basename,
-            sourceUrl: url,
-            fileUrl: null,
-            status: "PENDING",
-            origin: "TASK_OUTPUT",
-          },
-        });
-      } catch (error) {
-        Sentry.captureException(error);
+      if (existing) {
+        continue;
       }
+
+      const basename = getUrlBasename(url) ?? "file";
+      // Upsert PENDING task-output TaskFile. Unique on (taskId, sourceUrl).
+      // Do NOT set fileUrl yet — source-import cron will fetch and upload.
+      // update: {} preserves READY name on repeat URL (no-op update).
+      // Errors must propagate: this runs inside serializableTransaction, and a
+      // swallowed Postgres error aborts the tx so the next statement is 25P02.
+      await client.taskFile.upsert({
+        where: {
+          taskId_sourceUrl: {
+            taskId,
+            sourceUrl: url,
+          },
+        },
+        update: {},
+        create: {
+          taskId,
+          name: basename,
+          sourceUrl: url,
+          fileUrl: null,
+          status: "PENDING",
+          origin: "TASK_OUTPUT",
+        },
+      });
     }
   },
 };
