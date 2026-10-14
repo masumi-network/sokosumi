@@ -612,7 +612,7 @@ describe("ProjectSocialAccounts", () => {
     );
     const row = screen.getByTestId(`social-reconnect-${connection.id}`);
     expect(within(row).getByText("@sokosumi needs reconnecting")).toBeVisible();
-    expect(within(row).getByText("0 posts affected")).toBeVisible();
+    expect(within(row).queryByText(/posts affected/)).not.toBeInTheDocument();
     await waitFor(() =>
       expect(
         within(row).getByTestId("social-post-account-photo"),

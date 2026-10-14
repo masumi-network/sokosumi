@@ -415,11 +415,13 @@ export function ProjectSocialAccounts({
                     t("unknownHandle"),
                 })}
               </p>
-              <p className="text-muted-foreground text-xs">
-                {postsT("reconnection.affected", {
-                  count: affectedPosts.length,
-                })}
-              </p>
+              {affectedPosts.length > 0 ? (
+                <p className="text-muted-foreground text-xs">
+                  {postsT("reconnection.affected", {
+                    count: affectedPosts.length,
+                  })}
+                </p>
+              ) : null}
             </div>
             <Button
               type="button"
