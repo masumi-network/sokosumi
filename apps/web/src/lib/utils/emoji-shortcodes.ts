@@ -389,7 +389,7 @@ export function getEmojiShortcodeName(emoji: string): string | null {
 }
 
 /** Resolve stored glyphs to catalog entries; drop unknown / duplicates. */
-export function resolveFrequentlyUsedEmojis(
+function resolveFrequentlyUsedEmojis(
   stored: readonly string[],
 ): EmojiCatalogEntry[] {
   const resolved: EmojiCatalogEntry[] = [];
@@ -408,6 +408,5 @@ export function resolveFrequentlyUsedEmojis(
 
 export {
   DEFAULT_EMOJI_RESULT_CAP as EMOJI_RESULT_CAP,
-  DEFAULT_FREQUENTLY_USED_CAP as FREQUENTLY_USED_EMOJI_CAP,
   FREQUENTLY_USED_SECTION_ID,
 };

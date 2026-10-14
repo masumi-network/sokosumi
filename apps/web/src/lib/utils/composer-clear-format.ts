@@ -17,7 +17,7 @@ export type ClearFormatRole =
   | "unwrap-list"
   | "keep";
 
-export const CLEAR_FORMAT_ROLES: Record<string, ClearFormatRole> = {
+const CLEAR_FORMAT_ROLES: Record<string, ClearFormatRole> = {
   b: "unwrap-inline",
   strong: "unwrap-inline",
   i: "unwrap-inline",

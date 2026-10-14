@@ -152,10 +152,11 @@ describe("accessibility", () => {
   it("gives every image an alt attribute", () => {
     const missing: string[] = [];
     for (const file of SOURCE) {
-      for (const match of file.text.matchAll(/<img\b[^>]*>/g)) {
+      for (const match of file.text.matchAll(/<(?:img|Image)\b[^>]*>/g)) {
         if (/\balt=/.test(match[0])) continue;
         const line = file.text.slice(0, match.index).split("\n").length;
-        missing.push(`${file.rel}:${line}: <img> without alt`);
+        const tag = match[0].startsWith("<Image") ? "<Image>" : "<img>";
+        missing.push(`${file.rel}:${line}: ${tag} without alt`);
       }
     }
 
