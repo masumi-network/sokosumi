@@ -6102,6 +6102,7 @@ describe("Soko Bot project social tools", () => {
 describe("Drive file tools", () => {
   const authorized = {
     turn: { userId: SCOPE.userId, workspaceId: SCOPE.workspaceId },
+    reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
   };
   const service = new SokoBotRuntimeService();
   beforeEach(() => {
@@ -6135,7 +6136,12 @@ describe("Drive file tools", () => {
     expect(files.search).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceId: "personal-workspace",
-        actor: { userId: SCOPE.userId, organizationId: null, kind: "soko_bot" },
+        actor: {
+          userId: SCOPE.userId,
+          organizationId: null,
+          kind: "soko_bot",
+          sokoBotScope: null,
+        },
         query: "launch",
         sortBy: "relevance",
       }),
@@ -6156,6 +6162,40 @@ describe("Drive file tools", () => {
         },
       ],
     });
+  });
+
+  it("reads files as a shared bot's scope, not as the member", async () => {
+    const sharedScope = {
+      sokoBotId: SCOPE.sokoBotId,
+      workspaceId: SCOPE.workspaceId,
+      projectId: "project-1",
+    };
+    const shared = {
+      ...authorized,
+      reader: { userId: SCOPE.userId, audience: "TEAMMATE", sharedScope },
+    };
+    workspaceFindUniqueMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: "org-1",
+    });
+    files.search.mockResolvedValue({ items: [] });
+    files.loadLive.mockResolvedValueOnce([]);
+    await service["listFiles"](shared as never, {});
+    await expect(
+      service["readFile"](shared as never, { fileId: "file-1" }),
+    ).rejects.toThrow("File not found");
+    const actor = {
+      userId: SCOPE.userId,
+      organizationId: "org-1",
+      kind: "soko_bot",
+      sokoBotScope: sharedScope,
+    };
+    expect(files.search).toHaveBeenCalledWith(
+      expect.objectContaining({ actor }),
+    );
+    expect(files.loadLive).toHaveBeenCalledWith(
+      expect.objectContaining({ actor }),
+    );
   });
 
   it("reads a file's extracted text, and explains when there is none", async () => {
@@ -6388,6 +6428,7 @@ describe("Drive file tools", () => {
         workspaceId: SCOPE.workspaceId,
         sokoBotId: SCOPE.sokoBotId,
       },
+      reader: authorized.reader,
     };
     const bytes = new Uint8Array([137, 80, 78, 71]);
 

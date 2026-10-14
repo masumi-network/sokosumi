@@ -1685,9 +1685,8 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     projectId: string,
   ) {
-    const refusal = sokoBotProjectRefusal(authorized.reader.sharedScope, [
-      projectId,
-    ]);
+    const scope = authorized.reader.sharedScope;
+    const refusal = sokoBotProjectRefusal(scope, [projectId]);
     if (refusal) throw new SokoBotRuntimeValidationError(refusal);
   }
 
@@ -1889,6 +1888,7 @@ export class SokoBotRuntimeService {
         userId,
         organizationId,
         kind: "soko_bot",
+        sokoBotScope: authorized.reader.sharedScope,
       } satisfies FileActor,
     };
   }
