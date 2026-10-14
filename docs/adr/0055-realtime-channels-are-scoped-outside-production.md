@@ -1,6 +1,6 @@
 # ADR 0055: Realtime channels are scoped outside production
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-14
 
 **Every Ably channel name carries the deployment's environment unless the deployment is production.** Production keeps today's names byte for byte. Previews and local development insert a scope part after the first segment:
@@ -21,7 +21,7 @@ Room messages are only the visible case. Typing, chat control (membership revoke
 
 ## Decision
 
-1. **One scope rule in `packages/utils`.** `RealtimeChannelEnvironment` (renamed from `NotificationChannelEnvironment`, same fields: network, Vercel env, Git ref) decides the scope. Every channel builder takes it: rooms, typing, chat control, tasks, calendar (workspace and control), org presence, agent jobs and notifications. Both parsers (room id and organization id from a channel name) accept the scoped form.
+1. **One scope rule in `packages/utils`.** `RealtimeChannelEnvironment` (renamed from `NotificationChannelEnvironment`, same fields: network, Vercel env, Git ref) decides the scope. Every channel builder takes it: rooms, typing, chat control, tasks, calendar (workspace and control), org presence, agent jobs and notifications, plus the token's agent-jobs wildcard grant (`agent_jobs:*:user_{id}` in production). Both parsers (room id and organization id from a channel name) accept the scoped form.
 2. **Fail closed.** Only `vercelEnv === "production"` yields the unscoped name. A missing or unknown environment is scoped as development. A preview without a Git ref throws instead of falling back to the production name.
 3. **The first segment stays first.** Ably applies channel rules by namespace (the part before the first colon), and dashboard key permissions are written as `chat_typing:*`, `presence:org_*` and similar (ADR 0003, ADR 0033). Scoped names keep that segment, so the same rules and key grants cover them without dashboard changes.
 4. **Notifications follow the same rule.** The preview format they ship today stays. Local development moves from `notifications:all:user_{id}` to the development scope.
