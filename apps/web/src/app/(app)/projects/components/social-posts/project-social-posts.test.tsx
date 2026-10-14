@@ -1200,6 +1200,9 @@ describe("ProjectSocialPosts", () => {
     expect(saveDraft).toBeDisabled();
 
     const textarea = within(dialog).getByLabelText("Text");
+    const characterCount = screen.getByTestId("social-post-character-count");
+    expect(textarea).toHaveAttribute("aria-describedby", characterCount.id);
+    expect(textarea.className).toContain("focus-visible:ring-ring-halo");
     fireEvent.change(textarea, { target: { value: "x".repeat(281) } });
     expect(screen.getByTestId("social-post-character-count")).toHaveTextContent(
       "281 / 280",
@@ -1212,7 +1215,10 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.getByTestId("social-post-character-count").parentElement,
     ).toContainElement(tooLong);
-    expect(textarea).toHaveAttribute("aria-describedby", tooLong.id);
+    expect(textarea).toHaveAttribute(
+      "aria-describedby",
+      `${screen.getByTestId("social-post-character-count").id} ${tooLong.id}`,
+    );
     expect(saveDraft).toBeDisabled();
     expect(
       within(dialog).getByRole("button", { name: "Post now" }),
