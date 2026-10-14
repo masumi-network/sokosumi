@@ -12,7 +12,7 @@ import {
   writeText,
 } from "./command-helpers.js";
 
-export interface WorkspacesCommandContext extends CommandContext {
+interface WorkspacesCommandContext extends CommandContext {
   subcommand?: string;
   positionalId?: string;
   options?: CommandOptions;
