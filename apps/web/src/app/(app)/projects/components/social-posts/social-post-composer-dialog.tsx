@@ -17,18 +17,13 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Check, ImagePlus, Plus, Upload } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import {
-  type ClipboardEvent,
-  type DragEvent,
-  useId,
-  useRef,
-  useState,
-} from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
+import { RoomFileDropZone } from "@/app/chat/components/room-file-drop-zone";
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
+import { AccountChipMark } from "@/components/social-account-chip-mark";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import {
@@ -113,70 +108,6 @@ function zoneName(timezone: string): string {
 
 function resolveTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
-}
-
-function AccountChipLogo({
-  className,
-  provider,
-}: {
-  className: string;
-  provider: ProjectSocialConnection["provider"];
-}) {
-  return (
-    <SocialPostProviderIcon
-      aria-hidden
-      className={className}
-      data-testid="social-post-account-logo"
-      provider={provider}
-    />
-  );
-}
-
-/** Photo with a corner network badge, or the same logo circle main uses. */
-function AccountChipMark({
-  avatarUrl,
-  provider,
-}: {
-  avatarUrl: string | null;
-  provider: ProjectSocialConnection["provider"];
-}) {
-  const [photoReady, setPhotoReady] = useState(false);
-  const showPhoto = Boolean(avatarUrl) && photoReady;
-
-  if (!avatarUrl) {
-    return (
-      <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
-        <AccountChipLogo className="size-3.5" provider={provider} />
-      </span>
-    );
-  }
-
-  return (
-    <span className="relative size-6 shrink-0">
-      <Avatar className={cn("size-6", !showPhoto && "invisible")}>
-        <AvatarImage
-          alt=""
-          data-testid="social-post-account-photo"
-          onLoadingStatusChange={(status) => {
-            setPhotoReady(status === "loaded");
-          }}
-          src={avatarUrl}
-        />
-      </Avatar>
-      {showPhoto ? (
-        <span
-          className="bg-background ring-background absolute end-0 bottom-0 flex size-3 items-center justify-center rounded-full ring-1"
-          data-testid="social-post-account-logo-badge"
-        >
-          <AccountChipLogo className="size-2" provider={provider} />
-        </span>
-      ) : (
-        <span className="bg-muted absolute inset-0 flex items-center justify-center rounded-full">
-          <AccountChipLogo className="size-3.5" provider={provider} />
-        </span>
-      )}
-    </span>
-  );
 }
 
 export function SocialPostComposerDialog({
@@ -435,18 +366,6 @@ export function SocialPostComposerDialog({
     setMedia((current) => current.filter((ref) => ref.pathname !== pathname));
   }
 
-  function filesFromClipboard(data: DataTransfer | null): File[] {
-    const items = data?.items;
-    if (!items) return [];
-    const files: File[] = [];
-    for (const item of items) {
-      if (item.kind !== "file") continue;
-      const file = item.getAsFile();
-      if (file && file.size > 0) files.push(file);
-    }
-    return files;
-  }
-
   async function uploadOne(
     file: File,
     attached: SocialPostMediaRef[],
@@ -508,28 +427,6 @@ export function SocialPostComposerDialog({
       uploadInFlightRef.current = false;
       setUploadPending(false);
     }
-  }
-
-  function handleComposerPaste(event: ClipboardEvent<HTMLDivElement>): void {
-    const files = filesFromClipboard(event.clipboardData);
-    if (files.length === 0) return;
-    event.preventDefault();
-    void handleUploadFiles(files);
-  }
-
-  function handleComposerDragOver(event: DragEvent<HTMLDivElement>): void {
-    if (!Array.from(event.dataTransfer.types).includes("Files")) return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
-  }
-
-  function handleComposerDrop(event: DragEvent<HTMLDivElement>): void {
-    const files = Array.from(event.dataTransfer.files).filter(
-      (file) => file.size > 0,
-    );
-    if (files.length === 0) return;
-    event.preventDefault();
-    void handleUploadFiles(files);
   }
 
   /**
@@ -877,389 +774,401 @@ export function SocialPostComposerDialog({
         textareaRef.current?.focus();
       }}
     >
-      <div
+      <RoomFileDropZone
         className="flex min-h-0 flex-1 flex-col"
-        data-testid="social-post-composer-surface"
-        onDragOver={handleComposerDragOver}
-        onDrop={handleComposerDrop}
-        onKeyDown={(event) => {
-          if (
-            event.key === "Enter" &&
-            (event.metaKey || event.ctrlKey) &&
-            !event.nativeEvent.isComposing &&
-            // Keys bubble through portals: ⌘Enter in the Drive picker or a
-            // date or time popover belongs to them, not to this dialog.
-            !pickerOpen &&
-            event.target instanceof Node &&
-            event.currentTarget.contains(event.target)
-          ) {
-            event.preventDefault();
-            runPrimary();
-          }
+        enabled={!isBusy && !isScheduleOnly}
+        label={t("composer.media.drop")}
+        onFiles={(files) => {
+          void handleUploadFiles(files);
         }}
-        onPaste={handleComposerPaste}
       >
-        <div className="app-scrollbar grid auto-rows-min min-h-0 flex-1 grid-cols-1 overflow-y-auto md:flex md:flex-row md:overflow-hidden">
-          <form
-            className="contents md:app-scrollbar md:flex md:min-w-0 md:flex-1 md:flex-col md:overflow-y-auto"
-            data-testid="social-post-composer"
-            onSubmit={(event) => {
+        <div
+          className="flex min-h-0 flex-1 flex-col"
+          data-testid="social-post-composer-surface"
+          onKeyDown={(event) => {
+            if (
+              event.key === "Enter" &&
+              (event.metaKey || event.ctrlKey) &&
+              !event.nativeEvent.isComposing &&
+              // Keys bubble through portals: ⌘Enter in the Drive picker or a
+              // date or time popover belongs to them, not to this dialog.
+              !pickerOpen &&
+              event.target instanceof Node &&
+              event.currentTarget.contains(event.target)
+            ) {
               event.preventDefault();
-            }}
-          >
-            <div className="order-first flex flex-wrap items-center gap-x-3 gap-y-2 px-6 py-4 md:order-none md:px-8">
-              <span
-                className="text-muted-foreground text-sm font-medium"
-                id={accountsLabelId}
-              >
-                {multiAccount ? t("composer.accounts") : t("composer.account")}
-              </span>
-              {connections.length === 0 ? (
-                <div
-                  className="flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3"
-                  data-testid="social-post-no-accounts"
+              runPrimary();
+            }
+          }}
+        >
+          <div className="app-scrollbar grid auto-rows-min min-h-0 flex-1 grid-cols-1 overflow-y-auto md:flex md:flex-row md:overflow-hidden">
+            <form
+              className="contents md:app-scrollbar md:flex md:min-w-0 md:flex-1 md:flex-col md:overflow-y-auto"
+              data-testid="social-post-composer"
+              onSubmit={(event) => {
+                event.preventDefault();
+              }}
+            >
+              <div className="order-first flex flex-wrap items-center gap-x-3 gap-y-2 px-6 py-4 md:order-none md:px-8">
+                <span
+                  className="text-muted-foreground text-sm font-medium"
+                  id={accountsLabelId}
                 >
-                  <div className="min-w-0 space-y-0.5">
-                    <p className="text-sm font-medium">
-                      {t("composer.noAccountsTitle")}
-                    </p>
-                    <p className="text-muted-foreground text-xs text-pretty">
-                      {t("composer.noAccounts")}
-                    </p>
+                  {multiAccount
+                    ? t("composer.accounts")
+                    : t("composer.account")}
+                </span>
+                {connections.length === 0 ? (
+                  <div
+                    className="flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3"
+                    data-testid="social-post-no-accounts"
+                  >
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="text-sm font-medium">
+                        {t("composer.noAccountsTitle")}
+                      </p>
+                      <p className="text-muted-foreground text-xs text-pretty">
+                        {t("composer.noAccounts")}
+                      </p>
+                    </div>
+                    {onConnectAccount ? (
+                      <Button
+                        onClick={onConnectAccount}
+                        size="sm"
+                        className="h-11 md:h-8"
+                        type="button"
+                        variant="outline"
+                      >
+                        <Plus className="size-4" aria-hidden />
+                        {t("composer.connectAccount")}
+                      </Button>
+                    ) : null}
                   </div>
-                  {onConnectAccount ? (
-                    <Button
-                      onClick={onConnectAccount}
-                      size="sm"
-                      className="h-11 md:h-8"
-                      type="button"
-                      variant="outline"
-                    >
-                      <Plus className="size-4" aria-hidden />
-                      {t("composer.connectAccount")}
-                    </Button>
-                  ) : null}
-                </div>
-              ) : (
-                <div
-                  aria-labelledby={accountsLabelId}
-                  className="flex flex-wrap items-center gap-2"
-                  data-testid="social-post-accounts"
-                  role="group"
-                >
-                  {connections.map((connection) => {
-                    const selected = connectionIds.includes(connection.id);
-                    const handle =
-                      formatHandle(connection.externalHandle) ||
-                      t("composer.unknownHandle");
-                    return (
-                      <button
-                        aria-label={t("composer.accountOption", {
-                          provider: socialPostProviderLabel(
-                            connection.provider,
-                          ),
-                          handle,
-                        })}
-                        aria-pressed={selected}
-                        className={cn(
-                          "focus-visible:ring-ring inline-flex h-11 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 md:h-8",
-                          selected
-                            ? "border-foreground text-foreground"
-                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                        )}
-                        disabled={isBusy}
-                        key={connection.id}
-                        onClick={() => toggleConnection(connection.id)}
-                        type="button"
-                      >
-                        <AccountChipMark
-                          avatarUrl={connection.avatarUrl}
-                          provider={connection.provider}
-                        />
-                        <span className="max-w-40 truncate">{handle}</span>
-                        {selected ? (
-                          <Check className="size-3.5" aria-hidden />
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {isScheduleOnly ? null : (
-              <div className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8">
-                <textarea
-                  id={textId}
-                  aria-invalid={overLimit || undefined}
-                  aria-label={t("composer.text")}
-                  className="placeholder:text-muted-foreground field-sizing-content min-h-40 w-full resize-none border-0 bg-transparent px-0 text-base leading-relaxed shadow-none outline-none"
-                  disabled={isBusy}
-                  onChange={(event) => setText(event.target.value)}
-                  placeholder={t("composer.textPlaceholder")}
-                  ref={textareaRef}
-                  value={text}
-                />
-                {media.length > 0 ? mediaStrip : null}
-                <div className="flex flex-wrap items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground h-11 md:h-8"
-                    disabled={isBusy}
-                    onClick={() => setPickerOpen(true)}
+                ) : (
+                  <div
+                    aria-labelledby={accountsLabelId}
+                    className="flex flex-wrap items-center gap-2"
+                    data-testid="social-post-accounts"
+                    role="group"
                   >
-                    <ImagePlus className="size-4" aria-hidden />
-                    {t("composer.media.addFromDrive")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground h-11 md:h-8"
-                    disabled={isBusy}
-                    loading={uploadPending}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="size-4" aria-hidden />
-                    {t("composer.media.upload")}
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    accept={accept}
-                    className="hidden"
-                    multiple
-                    onChange={(event) => {
-                      const files = Array.from(event.target.files ?? []);
-                      event.target.value = "";
-                      void handleUploadFiles(files);
-                    }}
-                    type="file"
-                  />
-                  <span
-                    aria-live="polite"
-                    className={cn(
-                      "ms-auto text-xs tabular-nums",
-                      overLimit ? "text-destructive" : "text-muted-foreground",
-                    )}
-                    data-testid="social-post-character-count"
-                  >
-                    {t("composer.characters", {
-                      count: text.length,
-                      limit: textLimit,
-                    })}
-                  </span>
-                </div>
-                {/* One platform: the count above already is its limit. */}
-                {providers.length > 1 ? (
-                  <ul
-                    aria-label={t("composer.platforms")}
-                    className="flex flex-wrap gap-x-4 gap-y-1 text-xs"
-                    data-testid="social-post-platforms"
-                  >
-                    {providers.map((candidate) => {
-                      const limit = SOCIAL_POST_TEXT_LIMITS[candidate];
-                      const over = text.length > limit;
+                    {connections.map((connection) => {
+                      const selected = connectionIds.includes(connection.id);
+                      const handle =
+                        formatHandle(connection.externalHandle) ||
+                        t("composer.unknownHandle");
                       return (
-                        <li
+                        <button
+                          aria-label={t("composer.accountOption", {
+                            provider: socialPostProviderLabel(
+                              connection.provider,
+                            ),
+                            handle,
+                          })}
+                          aria-pressed={selected}
                           className={cn(
-                            "inline-flex items-center gap-1.5",
-                            over ? "text-destructive" : "text-muted-foreground",
+                            "focus-visible:ring-ring inline-flex h-11 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 md:h-8",
+                            selected
+                              ? "border-foreground text-foreground"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                           )}
-                          data-testid={`social-post-platform-${candidate}`}
-                          key={candidate}
+                          disabled={isBusy}
+                          key={connection.id}
+                          onClick={() => toggleConnection(connection.id)}
+                          type="button"
                         >
-                          <SocialPostProviderIcon
-                            aria-hidden
-                            className="size-3.5"
-                            provider={candidate}
-                          />
-                          <span>
-                            {t("composer.platformLimit", {
-                              provider: socialPostProviderLabel(candidate),
-                              format: t(
-                                `composer.formats.${socialPostComposerFormat(candidate)}`,
-                              ),
-                              count: text.length,
-                              limit,
-                            })}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : null}
-              </div>
-            )}
-
-            <section
-              aria-labelledby={scheduledAtId}
-              className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8"
-            >
-              <div className="space-y-1">
-                <h3 id={scheduledAtId} className="text-sm font-semibold">
-                  {t("composer.when")}
-                </h3>
-                {mode.kind === "edit" ? (
-                  <p className="text-muted-foreground text-xs">
-                    {t("composer.whenOptional")}
-                  </p>
-                ) : null}
-              </div>
-              <SocialPostSchedulePicker
-                allowNow={canPostNow}
-                describedBy={
-                  scheduledAtTooSoon ? scheduledAtErrorId : undefined
-                }
-                disabled={isBusy}
-                earliest={new Date(earliestScheduledAt)}
-                invalid={scheduledAtTooSoon}
-                labelledBy={scheduledAtId}
-                onChange={setScheduledAt}
-                value={scheduledAt}
-              />
-              <div
-                className="text-muted-foreground space-y-0.5 text-xs"
-                data-testid="social-post-timezone"
-              >
-                {/* A post goes out at one instant; the picker and this line
-                  read it in the viewer's zone, and name that zone. */}
-                <p>
-                  {scheduledAtValid && scheduledDate
-                    ? t("composer.timezone.goesOut", {
-                        date: formatter.dateTime(
-                          scheduledDate,
-                          "dateTimeWithYear",
-                        ),
-                        zone: zoneName(viewerTimezone),
-                      })
-                    : t("composer.timezone.yours", {
-                        zone: zoneName(viewerTimezone),
-                      })}
-                </p>
-                {post?.scheduledAt &&
-                post.timezone &&
-                post.timezone !== viewerTimezone ? (
-                  <p>
-                    {t("composer.timezone.postZone", {
-                      date: formatter.dateTime(
-                        post.scheduledAt,
-                        "dateTimeWithYear",
-                        { timeZone: post.timezone },
-                      ),
-                      zone: zoneName(post.timezone),
-                    })}
-                  </p>
-                ) : null}
-              </div>
-            </section>
-          </form>
-
-          {previewAccount || hasContent ? (
-            <aside
-              aria-label={t("preview.open")}
-              className="bg-background-muted order-1 flex shrink-0 flex-col gap-3 border-t px-6 py-5 md:order-none md:app-scrollbar md:w-96 md:overflow-y-auto md:border-t-0 md:border-s md:px-6"
-            >
-              <p className="text-muted-foreground text-xs font-medium">
-                {t("preview.open")}
-              </p>
-              {selectedConnections.length > 1 ? (
-                <div
-                  aria-label={t("preview.accounts")}
-                  className="flex flex-wrap items-center gap-1"
-                  data-testid="social-post-preview-accounts"
-                  role="group"
-                >
-                  {selectedConnections.map((connection) => {
-                    const handle =
-                      formatHandle(connection.externalHandle) ||
-                      t("composer.unknownHandle");
-                    const active = previewConnection?.id === connection.id;
-                    return (
-                      <button
-                        aria-label={t("preview.as", { handle })}
-                        aria-pressed={active}
-                        className={cn(
-                          "focus-visible:ring-ring inline-flex h-8 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2",
-                          active
-                            ? "border-foreground text-foreground"
-                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                        )}
-                        key={connection.id}
-                        onClick={() => setPreviewConnectionId(connection.id)}
-                        type="button"
-                      >
-                        <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
-                          <SocialPostProviderIcon
-                            aria-hidden
-                            className="size-3.5"
+                          <AccountChipMark
+                            avatarUrl={connection.avatarUrl}
                             provider={connection.provider}
                           />
-                        </span>
-                        <span className="max-w-32 truncate">{handle}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-              <SocialPostPreview
-                account={previewAccount}
-                className={cn(!hasContent && "opacity-60")}
-                media={media}
-                provider={previewProvider}
-                text={hasContent ? text : t("composer.previewEmpty")}
-                timestamp={scheduledAtValid ? scheduledDate : null}
-              />
-            </aside>
-          ) : null}
-        </div>
+                          <span className="max-w-40 truncate">{handle}</span>
+                          {selected ? (
+                            <Check className="size-3.5" aria-hidden />
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
-        <div className="flex shrink-0 flex-col items-stretch gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8">
-          <div
-            aria-live="polite"
-            className="text-muted-foreground min-w-0 flex-1 text-sm"
-          >
-            {footerMessage}
-          </div>
-          <div className="flex items-center justify-end gap-2">
-            {!isScheduleOnly && primaryAction !== "save" ? (
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={!canSave}
-                loading={pending === "save"}
-                onClick={() => {
-                  void handleSaveDraft();
-                }}
-              >
-                {saveLabel}
-              </Button>
-            ) : null}
-            {showPublishRequirementHint ? (
-              <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span tabIndex={0} className="inline-flex">
-                      {primaryButton}
+              {isScheduleOnly ? null : (
+                <div className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8">
+                  <textarea
+                    id={textId}
+                    aria-invalid={overLimit || undefined}
+                    aria-label={t("composer.text")}
+                    className="placeholder:text-muted-foreground field-sizing-content min-h-40 w-full resize-none border-0 bg-transparent px-0 text-base leading-relaxed shadow-none outline-none"
+                    disabled={isBusy}
+                    onChange={(event) => setText(event.target.value)}
+                    placeholder={t("composer.textPlaceholder")}
+                    ref={textareaRef}
+                    value={text}
+                  />
+                  {media.length > 0 ? mediaStrip : null}
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground h-11 md:h-8"
+                      disabled={isBusy}
+                      onClick={() => setPickerOpen(true)}
+                    >
+                      <ImagePlus className="size-4" aria-hidden />
+                      {t("composer.media.addFromDrive")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground h-11 md:h-8"
+                      disabled={isBusy}
+                      loading={uploadPending}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="size-4" aria-hidden />
+                      {t("composer.media.upload")}
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      accept={accept}
+                      className="hidden"
+                      multiple
+                      onChange={(event) => {
+                        const files = Array.from(event.target.files ?? []);
+                        event.target.value = "";
+                        void handleUploadFiles(files);
+                      }}
+                      type="file"
+                    />
+                    <span
+                      aria-live="polite"
+                      className={cn(
+                        "ms-auto text-xs tabular-nums",
+                        overLimit
+                          ? "text-destructive"
+                          : "text-muted-foreground",
+                      )}
+                      data-testid="social-post-character-count"
+                    >
+                      {t("composer.characters", {
+                        count: text.length,
+                        limit: textLimit,
+                      })}
                     </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {requirementHintLines.map((line) => (
-                      <p key={line.key}>{line.text}</p>
-                    ))}
-                  </TooltipContent>
-                </Tooltip>
-                <span className="sr-only" id={publishHintId}>
-                  {requirementHintLines.map((line) => line.text).join(" ")}
-                </span>
-              </>
-            ) : (
-              primaryButton
-            )}
+                  </div>
+                  {/* One platform: the count above already is its limit. */}
+                  {providers.length > 1 ? (
+                    <ul
+                      aria-label={t("composer.platforms")}
+                      className="flex flex-wrap gap-x-4 gap-y-1 text-xs"
+                      data-testid="social-post-platforms"
+                    >
+                      {providers.map((candidate) => {
+                        const limit = SOCIAL_POST_TEXT_LIMITS[candidate];
+                        const over = text.length > limit;
+                        return (
+                          <li
+                            className={cn(
+                              "inline-flex items-center gap-1.5",
+                              over
+                                ? "text-destructive"
+                                : "text-muted-foreground",
+                            )}
+                            data-testid={`social-post-platform-${candidate}`}
+                            key={candidate}
+                          >
+                            <SocialPostProviderIcon
+                              aria-hidden
+                              className="size-3.5"
+                              provider={candidate}
+                            />
+                            <span>
+                              {t("composer.platformLimit", {
+                                provider: socialPostProviderLabel(candidate),
+                                format: t(
+                                  `composer.formats.${socialPostComposerFormat(candidate)}`,
+                                ),
+                                count: text.length,
+                                limit,
+                              })}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : null}
+                </div>
+              )}
+
+              <section
+                aria-labelledby={scheduledAtId}
+                className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8"
+              >
+                <div className="space-y-1">
+                  <h3 id={scheduledAtId} className="text-sm font-semibold">
+                    {t("composer.when")}
+                  </h3>
+                  {mode.kind === "edit" ? (
+                    <p className="text-muted-foreground text-xs">
+                      {t("composer.whenOptional")}
+                    </p>
+                  ) : null}
+                </div>
+                <SocialPostSchedulePicker
+                  allowNow={canPostNow}
+                  describedBy={
+                    scheduledAtTooSoon ? scheduledAtErrorId : undefined
+                  }
+                  disabled={isBusy}
+                  earliest={new Date(earliestScheduledAt)}
+                  invalid={scheduledAtTooSoon}
+                  labelledBy={scheduledAtId}
+                  onChange={setScheduledAt}
+                  value={scheduledAt}
+                />
+                <div
+                  className="text-muted-foreground space-y-0.5 text-xs"
+                  data-testid="social-post-timezone"
+                >
+                  {/* A post goes out at one instant; the picker and this line
+                  read it in the viewer's zone, and name that zone. */}
+                  <p>
+                    {scheduledAtValid && scheduledDate
+                      ? t("composer.timezone.goesOut", {
+                          date: formatter.dateTime(
+                            scheduledDate,
+                            "dateTimeWithYear",
+                          ),
+                          zone: zoneName(viewerTimezone),
+                        })
+                      : t("composer.timezone.yours", {
+                          zone: zoneName(viewerTimezone),
+                        })}
+                  </p>
+                  {post?.scheduledAt &&
+                  post.timezone &&
+                  post.timezone !== viewerTimezone ? (
+                    <p>
+                      {t("composer.timezone.postZone", {
+                        date: formatter.dateTime(
+                          post.scheduledAt,
+                          "dateTimeWithYear",
+                          { timeZone: post.timezone },
+                        ),
+                        zone: zoneName(post.timezone),
+                      })}
+                    </p>
+                  ) : null}
+                </div>
+              </section>
+            </form>
+
+            {previewAccount || hasContent ? (
+              <aside
+                aria-label={t("preview.open")}
+                className="bg-background-muted order-1 flex shrink-0 flex-col gap-3 border-t px-6 py-5 md:order-none md:app-scrollbar md:w-96 md:overflow-y-auto md:border-t-0 md:border-s md:px-6"
+              >
+                <p className="text-muted-foreground text-xs font-medium">
+                  {t("preview.open")}
+                </p>
+                {selectedConnections.length > 1 ? (
+                  <div
+                    aria-label={t("preview.accounts")}
+                    className="flex flex-wrap items-center gap-1"
+                    data-testid="social-post-preview-accounts"
+                    role="group"
+                  >
+                    {selectedConnections.map((connection) => {
+                      const handle =
+                        formatHandle(connection.externalHandle) ||
+                        t("composer.unknownHandle");
+                      const active = previewConnection?.id === connection.id;
+                      return (
+                        <button
+                          aria-label={t("preview.as", { handle })}
+                          aria-pressed={active}
+                          className={cn(
+                            "focus-visible:ring-ring inline-flex h-11 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 md:h-8",
+                            active
+                              ? "border-foreground text-foreground"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                          )}
+                          key={connection.id}
+                          onClick={() => setPreviewConnectionId(connection.id)}
+                          type="button"
+                        >
+                          <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
+                            <SocialPostProviderIcon
+                              aria-hidden
+                              className="size-3.5"
+                              provider={connection.provider}
+                            />
+                          </span>
+                          <span className="max-w-32 truncate">{handle}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+                <SocialPostPreview
+                  account={previewAccount}
+                  className={cn(!hasContent && "opacity-60")}
+                  media={media}
+                  provider={previewProvider}
+                  text={hasContent ? text : t("composer.previewEmpty")}
+                  timestamp={scheduledAtValid ? scheduledDate : null}
+                />
+              </aside>
+            ) : null}
+          </div>
+
+          <div className="flex shrink-0 flex-col items-stretch gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8">
+            <div
+              aria-live="polite"
+              className="text-muted-foreground min-w-0 flex-1 text-sm"
+            >
+              {footerMessage}
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              {!isScheduleOnly && primaryAction !== "save" ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={!canSave}
+                  loading={pending === "save"}
+                  onClick={() => {
+                    void handleSaveDraft();
+                  }}
+                >
+                  {saveLabel}
+                </Button>
+              ) : null}
+              {showPublishRequirementHint ? (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span tabIndex={0} className="inline-flex">
+                        {primaryButton}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {requirementHintLines.map((line) => (
+                        <p key={line.key}>{line.text}</p>
+                      ))}
+                    </TooltipContent>
+                  </Tooltip>
+                  <span className="sr-only" id={publishHintId}>
+                    {requirementHintLines.map((line) => line.text).join(" ")}
+                  </span>
+                </>
+              ) : (
+                primaryButton
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </RoomFileDropZone>
 
       <DriveFilePicker
         open={pickerOpen}

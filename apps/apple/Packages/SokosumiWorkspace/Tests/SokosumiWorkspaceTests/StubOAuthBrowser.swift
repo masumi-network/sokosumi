@@ -9,3 +9,9 @@ final class StubOAuthBrowser: OAuthBrowser {
 
   func cancel() {}
 }
+
+/// A session nothing restores, for a workspace whose test never signs in.
+@MainActor
+func signedOutAuth() -> AuthState {
+  AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
+}

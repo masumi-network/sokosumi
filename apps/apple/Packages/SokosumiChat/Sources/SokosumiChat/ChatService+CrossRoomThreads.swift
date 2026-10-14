@@ -6,33 +6,21 @@ import CoreAPI
 public extension ChatService {
   func listUnreadThreads(client: Client, cursor: String? = nil, organizationSlug: String?) async throws
     -> (items: [Components.Schemas.ChatUnreadThread], nextCursor: String?) {
-    let response = try await client.getChatsThreadsUnread(.init(query: .init(cursor: cursor, limit: threadListPageLimit),
-                                                                headers: .init(xOrganizationSlug: organizationSlug)))
-    switch response {
-    case let .ok(value):
-      let payload = try value.body.json
-      return (payload.data, payload.meta.pagination.nextCursor)
-    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    let value = try await call {
+      try await client.getChatsThreadsUnread(.init(query: .init(cursor: cursor, limit: threadListPageLimit),
+                                                   headers: .init(xOrganizationSlug: organizationSlug)))
+    }.ok
+    let payload = try value.body.json
+    return (payload.data, payload.meta.pagination.nextCursor)
   }
 
   func listEarlierThreads(client: Client, cursor: String? = nil, organizationSlug: String?) async throws
     -> (items: [Components.Schemas.ChatEarlierThread], nextCursor: String?) {
-    let response = try await client.getChatsThreadsEarlier(.init(query: .init(cursor: cursor, limit: threadListPageLimit),
-                                                                 headers: .init(xOrganizationSlug: organizationSlug)))
-    switch response {
-    case let .ok(value):
-      let payload = try value.body.json
-      return (payload.data, payload.meta.pagination.nextCursor)
-    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    let value = try await call {
+      try await client.getChatsThreadsEarlier(.init(query: .init(cursor: cursor, limit: threadListPageLimit),
+                                                    headers: .init(xOrganizationSlug: organizationSlug)))
+    }.ok
+    let payload = try value.body.json
+    return (payload.data, payload.meta.pagination.nextCursor)
   }
 }

@@ -9,7 +9,7 @@ extension WorkspaceState {
   /// as no room view is mounted on web's `/chat/threads`.
   var openRoomUnreadSignal: OpenRoomUnreadRecheck.Signal? {
     guard !sidebar.showsThreadsView, let roomId = transcriptRoomId else { return nil }
-    return .init(room: rooms.first { $0.id == roomId }, historyLoading: transcriptLoading)
+    return .init(room: rooms.first { $0.id == roomId }, historyLoading: openRoom.room.timeline.isLoading)
   }
 
   func watchOpenRoomUnread() {
@@ -23,7 +23,7 @@ extension WorkspaceState {
   /// Web asks the open room's one scheduler, whose read also takes an open Thread's latest page
   /// (`refreshFocusedRoomMessages`); Apple keeps the two in separate schedulers and asks both, as lost continuity does.
   private func recheckOpenRoom() {
-    transcriptRecovery.requestRefresh()
-    thread.recovery.requestRefresh()
+    openRoom.room.recovery.requestRefresh()
+    openRoom.thread.transcript.recovery.requestRefresh()
   }
 }

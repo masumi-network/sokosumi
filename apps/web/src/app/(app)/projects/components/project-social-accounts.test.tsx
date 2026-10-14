@@ -26,6 +26,7 @@ import {
   finalizeProjectSocialConnection,
   initiateProjectSocialConnection,
 } from "@/lib/actions/project/action";
+import { stubLoadedImage } from "@/test/stub-pending-image-load";
 import messages from "../../../../../messages/en.json";
 
 const { refreshMock, toastErrorMock, toastSuccessMock, toastWarningMock } =
@@ -428,6 +429,70 @@ describe("ProjectSocialAccounts", () => {
     expect(screen.getByRole("menuitem", { name: "Replace" })).toHaveClass(
       "min-h-11",
     );
+  });
+
+  it("keeps the platform logo when the account has no photo", () => {
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+      />,
+    );
+    const row = screen.getByTestId("project-social-connection-connection-1");
+    expect(within(row).getByTestId("social-post-account-logo")).toBeVisible();
+    expect(
+      within(row).queryByTestId("social-post-account-photo"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(row).queryByTestId("social-post-account-logo-badge"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the account photo with a platform logo badge", async () => {
+    const restore = stubLoadedImage();
+    const photo =
+      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect width='8' height='8' fill='%23111'/></svg>";
+    try {
+      render(
+        <ProjectSocialAccounts
+          projectId={PROJECT_ID}
+          connections={[buildConnection({ avatarUrl: photo })]}
+        />,
+      );
+      const row = screen.getByTestId("project-social-connection-connection-1");
+      await waitFor(() => {
+        expect(
+          within(row).getByTestId("social-post-account-photo"),
+        ).toHaveAttribute("src", photo);
+      });
+      expect(within(row).getByTestId("social-post-account-logo")).toBeVisible();
+      expect(
+        within(row).getByTestId("social-post-account-logo-badge"),
+      ).toBeVisible();
+    } finally {
+      restore();
+    }
+  });
+
+  it("falls back to the platform logo when the account photo fails", async () => {
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({ avatarUrl: "https://example.invalid/missing.png" }),
+        ]}
+      />,
+    );
+    const row = screen.getByTestId("project-social-connection-connection-1");
+    await waitFor(() => {
+      expect(
+        within(row).queryByTestId("social-post-account-photo"),
+      ).not.toBeInTheDocument();
+    });
+    expect(within(row).getByTestId("social-post-account-logo")).toBeVisible();
+    expect(
+      within(row).queryByTestId("social-post-account-logo-badge"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows connected and reauthorization-required X account lifecycle controls", async () => {

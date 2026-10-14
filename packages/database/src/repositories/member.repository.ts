@@ -5,7 +5,6 @@ import {
   type MemberWithUser,
   type MemberWithUserAndLastSeen,
   memberOrderBy,
-  membershipAgeOrderBy,
   memberUserInclude,
 } from "../types/member.js";
 import { MemberRole } from "../types/organization.js";
@@ -75,18 +74,6 @@ async function attachLastSeenAt(
 }
 
 export const memberRepository = {
-  async getMembersOrganizationIdsByUserId(
-    userId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<string[]> {
-    const userMemberships = await tx.member.findMany({
-      where: { userId },
-      orderBy: [...membershipAgeOrderBy],
-      select: { organizationId: true },
-    });
-    return userMemberships.map((m) => m.organizationId);
-  },
-
   async getMemberByUserIdAndOrganizationId(
     userId: string,
     organizationId: string,

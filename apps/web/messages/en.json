@@ -2478,6 +2478,7 @@
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Add from Drive",
+            "drop": "Drop files to attach",
             "upload": "Upload",
             "remove": "Remove {name}",
             "unsupported": "Use a file type {provider} accepts.",
@@ -2555,11 +2556,17 @@
           "description": "The post will not be published. This cannot be undone.",
           "confirm": "Cancel post"
         },
+        "dismissDialog": {
+          "title": "Dismiss this post?",
+          "description": "It leaves Needs attention.",
+          "confirm": "Dismiss"
+        },
         "toasts": {
           "created": "{count, plural, one {Draft saved.} other {# drafts saved.}}",
           "scheduled": "{count, plural, one {Post scheduled.} other {# posts scheduled.}}",
           "updated": "Post updated.",
           "canceled": "Post canceled.",
+          "dismissed": "Post dismissed.",
           "conflict": "This post was changed elsewhere. Reloading the latest version.",
           "failed": "Something went wrong. Try again.",
           "offline": "You're offline. Try again.",
@@ -2578,7 +2585,8 @@
         "attempts": "{count, plural, one {# attempt} other {# attempts}}",
         "actions": {
           "publishNow": "Publish now",
-          "retry": "Retry"
+          "retry": "Retry",
+          "dismiss": "Dismiss"
         },
         "publishDialog": {
           "title": "Publish this post now?",

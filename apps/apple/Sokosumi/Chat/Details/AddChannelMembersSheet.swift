@@ -1,5 +1,4 @@
 import CoreAPI
-import SokosumiAuth
 import SokosumiChat
 import SokosumiWorkspace
 import SwiftUI
@@ -10,16 +9,15 @@ struct AddChannelMembersSheet: ViewModifier {
   /// How many were added, for the members panel's notice.
   let onAdded: (Int) -> Void
   @EnvironmentObject private var workspaces: WorkspaceState
-  @EnvironmentObject private var auth: AuthState
 
   func body(content: Content) -> some View {
     content
       .sheet(item: $presentation) { presentation in
         if let room = workspaces.rooms.first(where: { $0.id == presentation.roomId }) {
           AddChannelMembersView(room: room, currentUserId: workspaces.currentUserId, load: {
-            try await workspaces.loadChannelRoster(context: presentation.id, auth: auth).recipients
+            try await workspaces.loadChannelRoster(context: presentation.id).recipients
           }, add: { selection in
-            let added = try await workspaces.addChannelMembers(selection, roomId: room.id, context: presentation.id, auth: auth)
+            let added = try await workspaces.addChannelMembers(selection, roomId: room.id, context: presentation.id)
             if added {
               onAdded(selection.count)
             }
@@ -42,15 +40,15 @@ struct AddChannelMembersSheet: ViewModifier {
 
   private func guestAccess(roomId: String, context: UUID) -> GuestAccessActions {
     GuestAccessActions(load: {
-      try await workspaces.loadGuestAccess(roomId: roomId, context: context, auth: auth)
+      try await workspaces.loadGuestAccess(roomId: roomId, context: context)
     }, invite: {
-      try await workspaces.inviteGuest(roomId: roomId, email: $0, context: context, auth: auth)
+      try await workspaces.inviteGuest(roomId: roomId, email: $0, context: context)
     }, revokeInvitation: {
-      try await workspaces.revokeGuestInvitation(roomId: roomId, invitationId: $0, context: context, auth: auth)
+      try await workspaces.revokeGuestInvitation(roomId: roomId, invitationId: $0, context: context)
     }, createLink: {
-      try await workspaces.createGuestInviteLink(roomId: roomId, options: $0, context: context, auth: auth)
+      try await workspaces.createGuestInviteLink(roomId: roomId, options: $0, context: context)
     }, revokeLink: {
-      try await workspaces.revokeGuestInviteLink(roomId: roomId, token: $0, context: context, auth: auth)
+      try await workspaces.revokeGuestInviteLink(roomId: roomId, token: $0, context: context)
     })
   }
 }

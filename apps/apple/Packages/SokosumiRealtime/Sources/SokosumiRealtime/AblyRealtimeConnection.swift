@@ -39,7 +39,12 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   private var roomHealth: RoomRealtimeHealth?
   private var removeHealthListeners: (() -> Void)?
 
-  public init() {}
+  /// Paces the gated channels' and membership's retry after a failed token mint; tests pass a clock they drive.
+  private let sleep: @Sendable (Duration) async throws -> Void
+
+  public init(sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
+    self.sleep = sleep
+  }
 
   public func connect(
     userId: String,
@@ -88,9 +93,9 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       self.realtime = realtime
       self.notificationsListener = notificationsListener
       controlChannel = control
-      membershipSubscriptions = RoomMembershipSubscriptions(realtime: realtime, onEvent: onEvent)
-      presence = OrgPresenceChannel(realtime: realtime, onEvent: onEvent)
-      typing = RoomTypingChannel(realtime: realtime, userId: userId, onEvent: onEvent)
+      membershipSubscriptions = RoomMembershipSubscriptions(realtime: realtime, sleep: sleep, onEvent: onEvent)
+      presence = OrgPresenceChannel(realtime: realtime, onEvent: onEvent, sleep: sleep)
+      typing = RoomTypingChannel(realtime: realtime, userId: userId, onEvent: onEvent, sleep: sleep)
     }
   }
 
@@ -175,13 +180,14 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
 
   public func disconnect() {
     var cleanup: (() -> Void)?
+    var membershipToStop: RoomMembershipSubscriptions?
     var presenceToStop: OrgPresenceChannel?
     var typingToStop: RoomTypingChannel?
     let control = lock.withLock { () -> ARTRealtimeChannel? in
       tokenSource?.invalidate()
       connectionGeneration = UUID()
       tokenSource = nil
-      membershipSubscriptions?.stop()
+      membershipToStop = membershipSubscriptions
       membershipSubscriptions = nil
       presenceToStop = presence
       presence = nil
@@ -198,6 +204,7 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       return control
     }
     detachNotifications()
+    membershipToStop?.stop()
     presenceToStop?.stop()
     typingToStop?.stop()
     cleanup?()

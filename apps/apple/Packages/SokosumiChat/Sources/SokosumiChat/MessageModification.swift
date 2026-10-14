@@ -2,8 +2,7 @@ import CoreAPI
 
 public func canModifyOwnMessage(_ message: Components.Schemas.ChatRoomMessage, userId: String) -> Bool {
   guard !userId.isEmpty, case let .case1(sender) = message.sender else { return false }
-  return sender.user.id == userId && message.deletedAt == nil && !isRoomStatusMessage(message)
-    && !isOutboundLocalMessage(message) && !message.id.hasPrefix("stream:")
+  return sender.user.id == userId && MessageKind(message) == .confirmed
 }
 
 /// Core also republishes the parent. Do not decrement a count already updated by realtime.

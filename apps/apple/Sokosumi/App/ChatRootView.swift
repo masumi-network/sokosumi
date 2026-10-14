@@ -35,7 +35,7 @@ struct ChatRootView: View {
       return .handled
     })
     // Row 38e2: result cards load protected outputs with this window's session and workspace.
-    .environment(\.resultOutputLoader, WorkspaceResultOutputLoader(workspaces: workspaces, auth: auth))
+    .environment(\.resultOutputLoader, WorkspaceResultOutputLoader(workspaces: workspaces))
     .modifier(InviteLinkSheet(presentation: $inviteLink))
     .modifier(PresenceLifecycleModifier())
     .modifier(ChatNotificationLifecycleModifier())
@@ -48,20 +48,11 @@ struct ChatRootView: View {
     } message: { Text(linkError ?? "") }
     .task(id: scenePhase) {
       workspaces.setWindowVisible(scenePhase == .active, window: windowID)
-      await workspaces.syncReadAttention(auth: auth)
+      await workspaces.syncReadAttention()
     }
     .onDisappear {
       linkTask?.cancel()
       Task { @MainActor in workspaces.setWindowVisible(false, window: windowID) }
-    }
-    .onChange(of: workspaces.readContent) { _, _ in
-      Task { @MainActor in await workspaces.syncReadAttention(auth: auth) }
-    }
-    .onChange(of: workspaces.thread.timeline.isLoading) { _, _ in
-      Task { @MainActor in await workspaces.syncReadAttention(auth: auth) }
-    }
-    .onChange(of: workspaces.timeline.hasLoadedHistory) { _, _ in
-      Task { @MainActor in await workspaces.syncReadAttention(auth: auth) }
     }
     .alert("Couldn’t update unread status", isPresented: Binding(
       get: { workspaces.readAttention.errorMessage != nil },
@@ -75,16 +66,6 @@ struct ChatRootView: View {
     } message: {
       Text(workspaces.readAttention.errorMessage ?? "")
     }
-    .onChange(of: auth.isSignedIn) { _, signedIn in
-      // Hop off this view update: startIfNeeded/reset publish WorkspaceState.
-      Task { @MainActor in
-        if signedIn {
-          workspaces.startIfNeeded(auth: auth)
-        } else {
-          workspaces.reset()
-        }
-      }
-    }
   }
 
   @ViewBuilder
@@ -95,7 +76,7 @@ struct ChatRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
           Task { @MainActor in
-            workspaces.startIfNeeded(auth: auth)
+            workspaces.startIfNeeded()
           }
         }
     case let .blocked(gate):
@@ -108,7 +89,7 @@ struct ChatRootView: View {
         HStack {
           Link("Open setup", destination: CoreSettings.setupURL)
           Button("Check again") {
-            workspaces.retry(auth: auth)
+            workspaces.retry()
           }
           Button("Sign out") {
             auth.signOut()
@@ -138,7 +119,7 @@ struct ChatRootView: View {
           .foregroundStyle(.secondary)
         HStack {
           Button("Retry") {
-            workspaces.retry(auth: auth)
+            workspaces.retry()
           }
           Button("Sign out") {
             auth.signOut()
@@ -158,7 +139,7 @@ struct ChatRootView: View {
               roomsLive: workspaces.roomsLive,
               currentUserId: workspaces.currentUserId,
               scope: workspaces.selectionId,
-              load: { await workspaces.updateCrossRoomThreads($0, auth: auth) },
+              load: { await workspaces.updateCrossRoomThreads($0) },
               open: { openRoomLink(roomId: $0, messageId: $1) }
             )
             .navigationTitle("Threads")
@@ -187,7 +168,7 @@ struct ChatRootView: View {
     linkTask?.cancel()
     linkTask = Task { @MainActor in
       do {
-        if try await workspaces.openRoomLink(roomId: roomId, messageId: messageId, auth: auth) == .unavailable, !Task.isCancelled {
+        if try await workspaces.openRoomLink(roomId: roomId, messageId: messageId) == .unavailable, !Task.isCancelled {
           linkError = "This message or conversation is no longer available in this workspace."
         }
       } catch {
@@ -209,9 +190,10 @@ struct ChatRootView: View {
 }
 
 #Preview {
+  let auth = AuthState(store: PreviewTokenStore())
   ChatRootView()
-    .environmentObject(AuthState(store: PreviewTokenStore()))
-    .environmentObject(WorkspaceState())
+    .environmentObject(auth)
+    .environmentObject(WorkspaceState(auth: auth))
 }
 
 private struct PreviewTokenStore: TokenStore {

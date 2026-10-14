@@ -2,7 +2,7 @@ import * as z from "zod";
 
 /** A DESIGN.md a caller may persist to — their own profile, or (with
  * organization owner/admin authority) an organization's. */
-export const manageableDesignMdOwnerSchema = z.discriminatedUnion("type", [
+const manageableDesignMdOwnerSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("user"),
   }),
@@ -22,7 +22,7 @@ export const manageableDesignMdOwnerSchema = z.discriminatedUnion("type", [
  * Only generation accepts this wider union — persisting an upload or removing
  * a DESIGN.md always targets a real, manageable owner.
  */
-export const designMdOwnerSchema = z.discriminatedUnion("type", [
+const designMdOwnerSchema = z.discriminatedUnion("type", [
   ...manageableDesignMdOwnerSchema.options,
   z.object({
     type: z.literal("adhoc"),

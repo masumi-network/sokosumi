@@ -5050,3 +5050,16 @@ Each needs its own decision; none is scheduled.
 ### Verification
 
 Harness only: the doc's sources extracted into a fresh copy (`setup.py … paging`) build in Release; `HITCH_BENCH`, `HITCH_KINDS` and the paging run complete. `node --test scripts/ci/__tests__/apple-parity.test.mjs` passes. No Swift source in the app or packages changed, so the Xcode suites, SwiftLint and SwiftFormat were not rerun.
+
+## 21 fix — a failed first Pins page clears the list
+
+A failed first Pins page now clears the rows and cursor, as web does (`pinned-messages-panel.tsx` `setItems([])` in both failure paths); Apple kept the stale rows. A failed older page keeps rows and cursor and sets `errorMessage`, as web (:326-334). Found while `PinnedMessages`, `RoomThreadOverview` and `CrossRoomThreads` moved onto one `CursorPages`. Tests: `PinnedMessageTests.aFailedFirstPageClearsThePinsLikeWeb`, `aFailedOlderPageKeepsThePinsAndShowsTheError`, `invalidateDropsALatePage`.
+
+## 14a1 fix — an image alone on the pasteboard pastes
+
+Reported by the user on 2026-10-14: pasting a copied image into the composer did nothing. The composer's `paste(_:)` override already attaches files and images (`pasteText(from:)`), but AppKit validates Paste against the text view's `readablePasteboardTypes`, which hold text, RTF, URL and file-name types and no image data. A screenshot or an image copied from a browser puts only `public.png`/`public.tiff` on the pasteboard, so Edit ▸ Paste and ⌘V stayed disabled and the override never ran; a Finder copy still worked because it carries file names. `MacComposerTextInput.InputView.validateUserInterfaceItem` now keeps Paste, Paste and Match Style and Paste as Rich Text enabled when `hasAttachment(on:)` finds a file or image the composer attaches, and otherwise defers to AppKit. Tests: `ComposerAttachmentPasteTests.anImageAloneOnThePasteboardCanBePasted(type:)` (png, tiff) and `aCopiedFileCanBePastedWhereFilesAttach`. The existing paste tests called `pasteText(from:)` directly and put a string beside the image, so they could not see the disabled menu item. A real ⌘V in the signed app is not verified here.
+
+## 26b deviation — the mention badge stays native at 99+
+
+Web moved its sidebar mention counts to `MentionCountPill` ([mention-count-pill.tsx](<../web/src/components/chat/mention-count-pill.tsx>)), a tinted pill with an `@` glyph that caps the number at 9 ("@ 9+"), on room rows, Thread rows and the Threads entry (`RowCountMark`). Its comment gives the reason: the pill shares a 28px hole with the row's menu and the `@` takes its share. Apple draws the count with the native List `.badge`, which has no glyph and no such hole, and caps at 99+ as row 26b recorded from web's earlier rule. The user decided on 2026-10-14 to keep the native badge at 99+. The spoken forms are unchanged and match web: "N mentions", "More than 99 mentions" for a room (`MentionAnnouncement`), and an uncapped "N mentions" for a Thread row.
+

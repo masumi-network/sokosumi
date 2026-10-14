@@ -38,6 +38,7 @@
         defer { fixture.window.orderOut(nil) }
         fixture.editing.draft = Self.overLimit
         try await fixture.waitForDraft(Self.overLimit)
+        try await fixture.waitForLayout(showing: "Too long to send as text")
         let bitmap = try fixture.record(named: "message-edit-over-limit.png")
         guard let read = try Self.recognizedText(in: bitmap) else { return }
         let lines = read.map(\.text)
