@@ -2,11 +2,7 @@ import { ChevronDown, FolderKanban } from "lucide-react";
 import { NextIntlClientProvider, useTranslations } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import {
-  SOCIAL_TAB_TRIGGER_CLASS_NAME,
-  SOCIAL_TABS,
-  SOCIAL_TABS_LIST_CLASS_NAME,
-} from "@/app/projects/components/social-posts/constants";
+import { SOCIAL_TABS } from "@/app/projects/components/social-posts/constants";
 import { Button } from "@/components/ui/button";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
@@ -28,18 +24,12 @@ function WorkspaceTabsShot() {
   return (
     <div className="w-[52rem] space-y-4" data-testid="attention-need-project">
       <div className="flex min-w-0 items-center gap-3">
-        <div
-          className={cn(
-            SEGMENTED_TABS_LIST_CLASS_NAME,
-            SOCIAL_TABS_LIST_CLASS_NAME,
-          )}
-        >
+        <div className={cn(SEGMENTED_TABS_LIST_CLASS_NAME)}>
           {tabs.map((tab) => (
             <span
               key={tab}
               className={cn(
                 SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-                SOCIAL_TAB_TRIGGER_CLASS_NAME,
                 "inline-flex items-center justify-center",
                 tab === active && "bg-background text-foreground shadow-sm",
               )}
