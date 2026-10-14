@@ -8,17 +8,29 @@ import SwiftUI
     var toggle: ((String) -> Void)?
     @Environment(\.transcriptScrollActivity) private var scrollActivity
     @State private var hoveredEmoji: String?
+    @FocusState private var focusedEmoji: String?
 
     /// The chip under the pointer, unless the transcript is carrying it there (M8). Scroll activity is read only while a
-    /// chip is hovered, so a scroll starting or ending re-evaluates that row alone (M6).
-    private var shownEmoji: String? {
-      hoveredEmoji.flatMap { scrollActivity?.isScrolling == true ? nil : $0 }
+    /// chip is hovered or focused, so a scroll starting or ending re-evaluates that row alone (M6).
+    private var hoveredShown: String? {
+      settled(hoveredEmoji)
+    }
+
+    /// The chip whose label shows: the one under the pointer, else the one holding keyboard focus, as web's Radix
+    /// tooltip also opens on focus.
+    private var labelledEmoji: String? {
+      settled(hoveredEmoji ?? focusedEmoji)
+    }
+
+    private func settled(_ emoji: String?) -> String? {
+      emoji.flatMap { scrollActivity?.isScrolling == true ? nil : $0 }
     }
 
     var body: some View {
       WrappingRow(spacing: 6) {
         ForEach(reactions, id: \.emoji) { reaction in
-          let hovered = shownEmoji == reaction.emoji
+          let hovered = hoveredShown == reaction.emoji
+          let labelled = labelledEmoji == reaction.emoji
           Group {
             if let toggle {
               Button { toggle(reaction.emoji) } label: { chip(reaction, hovered: hovered) }
@@ -28,12 +40,15 @@ import SwiftUI
               // Read-only Direct, or a message that cannot take Reactions yet).
               chip(reaction, hovered: false)
                 .accessibilityElement(children: .ignore)
+                // Web's chip stays a focusable `<button>`; like a button, reached only with keyboard navigation on.
+                .focusable(interactions: .activate)
             }
           }
+          .focused($focusedEmoji, equals: reaction.emoji)
           // M10: web's chip tooltip shows at once (`delayDuration = 0`); the native `.help` waited a second or more.
           // The chip only says where; `whoReactedLabel()` on the row draws it, above the row's hover pill.
           .anchorPreference(key: WhoReactedLabelKey.self, value: .bounds) { bounds in
-            hovered ? reaction.whoReacted.map { WhoReactedLabelValue(text: $0, chip: bounds) } : nil
+            labelled ? reaction.whoReacted.map { WhoReactedLabelValue(text: $0, chip: bounds) } : nil
           }
           .onHover { inside in
             if inside {
@@ -78,7 +93,7 @@ import SwiftUI
   }
 
   extension View {
-    /// Draws the hovered reaction chip's who-reacted label over this view. Put it after the row's hover pill, so
+    /// Draws the hovered or focused reaction chip's who-reacted label over this view. Put it after the row's hover pill, so
     /// the label sits on top of the pill as web's portalled tooltip does.
     func whoReactedLabel() -> some View {
       overlayPreferenceValue(WhoReactedLabelKey.self) { value in
