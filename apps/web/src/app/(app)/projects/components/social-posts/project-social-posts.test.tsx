@@ -698,7 +698,7 @@ describe("ProjectSocialPosts", () => {
     expect(within(draftRow).getByTestId("social-post-preview")).toBeVisible();
     expect(within(draftRow).getByText("Draft text")).toBeVisible();
     expect(
-   within(draftRow).getByRole("button", { name: "Preview" }),
+      within(draftRow).getByRole("button", { name: "Preview" }),
     ).toBeVisible();
     expect(
       within(draftRow).getByRole("button", { name: "Post actions" }),
