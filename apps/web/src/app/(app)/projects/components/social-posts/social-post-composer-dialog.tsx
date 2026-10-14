@@ -16,7 +16,7 @@ import {
 } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ImagePlus, Plus, Upload } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { RoomFileDropZone } from "@/app/chat/components/room-file-drop-zone";
@@ -120,8 +120,25 @@ function accountLabel(connection: ProjectSocialConnection): string {
   );
 }
 
-/** An IANA zone as people read it: `America/New_York` → `America/New York`. */
-function zoneName(timezone: string): string {
+/** The zone as people read it: `America/New_York` → `Eastern Time`. */
+function zoneName(
+  timezone: string,
+  locale: string,
+  at: Date = new Date(),
+): string {
+  try {
+    const nameFor = (timeZoneName: "longGeneric" | "long") =>
+      new Intl.DateTimeFormat(locale, { timeZone: timezone, timeZoneName })
+        .formatToParts(at)
+        .find((part) => part.type === "timeZoneName")?.value;
+    const generic = nameFor("longGeneric");
+    // UTC's generic name is an offset (`GMT+00:00`); the long name is words.
+    if (generic && !/^(?:GMT|UTC)[+-]/.test(generic)) return generic;
+    const longName = nameFor("long");
+    if (longName) return longName;
+  } catch {
+    // Unknown IANA zone from an old post.
+  }
   return timezone.replaceAll("_", " ");
 }
 
@@ -141,6 +158,7 @@ export function SocialPostComposerDialog({
   projectId,
 }: SocialPostComposerDialogProps) {
   const t = useTranslations("App.Projects.SocialPosts");
+  const locale = useLocale();
   const formatter = useFormatter();
   const viewerTimezone = resolveTimezone();
   const textId = useId();
@@ -1133,10 +1151,10 @@ export function SocialPostComposerDialog({
                             scheduledDate,
                             "dateTimeWithYear",
                           ),
-                          zone: zoneName(viewerTimezone),
+                          zone: zoneName(viewerTimezone, locale, scheduledDate),
                         })
                       : t("composer.timezone.yours", {
-                          zone: zoneName(viewerTimezone),
+                          zone: zoneName(viewerTimezone, locale),
                         })}
                   </p>
                   {post?.scheduledAt &&
@@ -1149,7 +1167,7 @@ export function SocialPostComposerDialog({
                           "dateTimeWithYear",
                           { timeZone: post.timezone },
                         ),
-                        zone: zoneName(post.timezone),
+                        zone: zoneName(post.timezone, locale, post.scheduledAt),
                       })}
                     </p>
                   ) : null}
