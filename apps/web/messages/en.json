@@ -5020,6 +5020,8 @@
         }
       },
       "SocialAccounts": {
+        "title": "Sign-in",
+        "description": "Use these accounts to sign in.",
         "connected": "{provider} is connected",
         "notConnected": "{provider} is not connected",
         "success": "Account connected successfully",
