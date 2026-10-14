@@ -92,6 +92,7 @@ const MESSAGES: Record<string, string> = {
   needsReconnectLink: "Reconnect the account",
   viewPost: "View post",
   publishedAt: "Published {date}",
+  failedAt: "Failed {date}",
   attempts: "{count} attempts",
   "actions.publishNow": "Publish now",
   "actions.retry": "Retry",
@@ -3401,6 +3402,7 @@ describe("ProjectSocialPosts", () => {
       within(row).queryByText("Scheduled time passed more than an hour ago"),
     ).not.toBeInTheDocument();
     expect(within(row).getByText("Missed")).toBeVisible();
+    expect(within(row).getByText("Failed Sep 10, 10:05 AM")).toBeVisible();
   });
 
   it("retries a FAILED post after confirmation and toasts when it is published", async () => {

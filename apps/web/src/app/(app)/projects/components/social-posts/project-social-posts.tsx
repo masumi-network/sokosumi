@@ -725,12 +725,33 @@ export function ProjectSocialPosts({
               ) : null}
             </div>
           ) : null}
-          {post.status === "FAILED" && failureReason ? (
-            <p className="text-destructive text-xs">{failureReason}</p>
+          {(post.status === "FAILED" || post.status === "MISSED") &&
+          (failureReason || failedAt) ? (
+            <div className="space-y-0.5 text-xs">
+              {failureReason ? (
+                <p
+                  className={
+                    post.status === "FAILED"
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+                  }
+                >
+                  {failureReason}
+                </p>
+              ) : null}
+              {post.status === "MISSED" && failedAt ? (
+                <time
+                  className="text-muted-foreground"
+                  dateTime={failedAt.toISOString()}
+                >
+                  {t("failedAt", {
+                    date: formatter.dateTime(failedAt, "dateTime"),
+                  })}
+                </time>
+              ) : null}
+            </div>
           ) : null}
-          {post.status === "MISSED" && failureReason ? (
-            <p className="text-muted-foreground text-xs">{failureReason}</p>
-          ) : null}
+
         </div>
         {renderPostActions(post)}
       </li>
