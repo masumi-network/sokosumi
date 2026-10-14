@@ -88,7 +88,7 @@ const MESSAGES: Record<string, string> = {
     "Reconnect the same account that is already linked to this project.",
   "errors.finalize": "We could not finish connecting this account. Try again.",
   "errors.facebookPage":
-    "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
+    "Facebook needs an account that manages exactly one Page.",
   "errors.disconnect": "We could not disconnect this account. Try again.",
 };
 
@@ -915,7 +915,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
+        "Facebook needs an account that manages exactly one Page.",
       );
     });
   });
