@@ -5,18 +5,14 @@ import Foundation
 //
 // Who is composing a message to a room's main transcript right now. A human
 // client publishes an ephemeral `chat_typing` message on the room's own
-// `chat_typing:room_{roomId}` channel, which Core grants `publish` +
+// `chat_typing:room_{roomId}` channel (scoped outside production, ADR 0055;
+// the name is read from the grant), which Core grants `publish` +
 // `subscribe` for every membership room while the message channel stays
 // subscribe-only. Ports web's `room-typing-model.ts`, its
 // `chatTypingEventDataSchema` and the reader guards of `use-room-typing.tsx`:
 // pure and clock-injected, so every timing case is plain input.
 
 public let chatTypingEventName = "chat_typing"
-
-/// Room-scoped channel carrying Typing only (`chat_typing:room_{roomId}`).
-public func chatTypingChannelName(roomId: String) -> String {
-  "chat_typing:room_\(roomId)"
-}
 
 enum ChatTypingTiming {
   /// One heartbeat per typist per window, and only on an edit: nothing is sent on a timer.
@@ -67,9 +63,12 @@ public struct ChatTypingSignal: Equatable, Sendable {
 
 /// What a token lets this client do on one room's typing channel once it may read it.
 public struct ChatTypingGrant: Equatable, Sendable {
+  /// The granted channel, as Core names it for its deployment.
+  public var channelName: String
   public var canPublish: Bool
 
-  public init(canPublish: Bool) {
+  public init(channelName: String, canPublish: Bool) {
+    self.channelName = channelName
     self.canPublish = canPublish
   }
 }
@@ -78,11 +77,12 @@ public struct ChatTypingGrant: Equatable, Sendable {
 /// capability is missing or malformed: never attach on a guess, Ably answers a bare attach with
 /// capability-denied failures.
 public func chatTypingGrant(in capability: String?, roomId: String) -> ChatTypingGrant? {
-  guard let capability, let data = capability.data(using: .utf8),
-        let map = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-        let operations = (map[chatTypingChannelName(roomId: roomId)] as? [Any])?.compactMap({ $0 as? String }),
-        operations.contains("subscribe") else { return nil }
-  return ChatTypingGrant(canPublish: operations.contains("publish"))
+  grantedChannelOperations(in: capability)?
+    .filter { channel, operations in
+      operations.contains("subscribe") && realtimeChannelId(in: channel, namespace: "chat_typing", kind: "room") == roomId
+    }
+    .min { $0.key < $1.key }
+    .map { ChatTypingGrant(channelName: $0.key, canPublish: $0.value.contains("publish")) }
 }
 
 /// The typists of one room, in the order they started.

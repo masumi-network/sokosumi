@@ -40,7 +40,6 @@ private func room(_ members: [(id: String, name: String)]) -> Components.Schemas
 /// `use-room-typing.tsx` and the copy of `RoomTypingLine`, as plain input and output.
 struct ChatTypingTests {
   @Test func typingRidesItsOwnRoomChannel() {
-    #expect(chatTypingChannelName(roomId: "room-a") == "chat_typing:room_room-a")
     #expect(chatTypingEventName == "chat_typing")
     #expect(ChatTypingTiming.heartbeatThrottle == 10)
     #expect(ChatTypingTiming.expiry == 12)
@@ -88,8 +87,8 @@ struct ChatTypingTests {
 
   @Test func theTokenDecidesWhetherToReadAndWhetherToAnnounce() {
     let both = #"{"chat_typing:room_a":["publish","subscribe"],"chat_rooms:room_a":["subscribe"]}"#
-    #expect(chatTypingGrant(in: both, roomId: "a") == ChatTypingGrant(canPublish: true))
-    #expect(chatTypingGrant(in: #"{"chat_typing:room_a":["subscribe"]}"#, roomId: "a") == ChatTypingGrant(canPublish: false))
+    #expect(chatTypingGrant(in: both, roomId: "a") == ChatTypingGrant(channelName: "chat_typing:room_a", canPublish: true))
+    #expect(chatTypingGrant(in: #"{"chat_typing:room_a":["subscribe"]}"#, roomId: "a") == ChatTypingGrant(channelName: "chat_typing:room_a", canPublish: false))
     // Without `subscribe` the channel is never attached, whatever else is granted.
     #expect(chatTypingGrant(in: #"{"chat_typing:room_a":["publish"]}"#, roomId: "a") == nil)
     #expect(chatTypingGrant(in: both, roomId: "b") == nil)

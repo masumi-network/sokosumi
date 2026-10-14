@@ -123,8 +123,11 @@ final class RoomMembershipSubscriptions: @unchecked Sendable {
       for id in Array(channels.keys) where !ids.contains(id) {
         detach(id)
       }
+      // Core names each room channel per deployment (ADR 0055). A missing or
+      // malformed capability falls back to membership, and so to production names.
+      let names = chatRoomChannelNames(grantedSubscribeIn: capability) ?? [:]
       for id in ids where channels[id] == nil {
-        subscribe(id)
+        subscribe(id, channelName: names[id] ?? chatRoomChannelName(roomId: id))
       }
     }
     switch membership.finishAuthorization(generation, failed: failed) {
@@ -140,13 +143,13 @@ final class RoomMembershipSubscriptions: @unchecked Sendable {
     }
   }
 
-  private func subscribe(_ id: String) {
-    let channel = realtime.channels.get(chatRoomChannelName(roomId: id))
+  private func subscribe(_ id: String, channelName: String) {
+    let channel = realtime.channels.get(channelName)
     let subscriptionId = UUID()
     channels[id] = Subscription(channel: channel, id: subscriptionId)
     for name in [chatRoomMessageEventName, chatRoomPinnedMessageEventName, chatRoomReadEventName] {
       channel.subscribe(name) { [weak self] message in
-        let event = resolveRealtimeDelivery(channel: chatRoomChannelName(roomId: id), event: message.name ?? "", data: message.data ?? NSNull())
+        let event = resolveRealtimeDelivery(channel: channelName, event: message.name ?? "", data: message.data ?? NSNull())
         self?.queue.async { [weak self] in
           guard let self, active, channels[id]?.id == subscriptionId else { return }
           onEvent(event)
