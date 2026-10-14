@@ -117,7 +117,7 @@ private func resolveNamedDelivery(channel: String, event eventName: String, data
     return .notification(notification)
   }
   if eventName == chatMembershipRevokedEventName {
-    guard channel.hasPrefix("chat_control:user_"),
+    guard isUserChatControlChannel(channel),
           let dict = data as? [String: Any],
           let roomId = dict["roomId"] as? String,
           !roomId.isEmpty
@@ -127,7 +127,7 @@ private func resolveNamedDelivery(channel: String, event eventName: String, data
     return .revoked(roomId: roomId)
   }
   if eventName == chatRoomsChangedEventName {
-    guard channel.hasPrefix("chat_control:user_"), let collections = parseRoomsChanged(data) else { return .ignored }
+    guard isUserChatControlChannel(channel), let collections = parseRoomsChanged(data) else { return .ignored }
     return .roomsChanged(collections)
   }
   return nil
