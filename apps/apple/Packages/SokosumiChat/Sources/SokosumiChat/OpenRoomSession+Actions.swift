@@ -76,7 +76,7 @@ public extension OpenRoomSession {
 
   func startEditing(_ message: Components.Schemas.ChatRoomMessage) {
     guard message.roomId == room.timeline.roomId else { return }
-    messageEditing.start(message, userId: hooks.viewerId())
+    messageEditing.start(message, userId: hooks.viewer().id)
   }
 
   /// The editor keeps its own failure to show; a rejected session also signs out.
@@ -88,7 +88,7 @@ public extension OpenRoomSession {
   }
 
   func removeUnfurl(_ source: Components.Schemas.ChatRoomMessage, url: String) async throws {
-    guard source.roomId == room.timeline.roomId, canModifyOwnMessage(source, userId: hooks.viewerId()) else { return }
+    guard source.roomId == room.timeline.roomId, canModifyOwnMessage(source, userId: hooks.viewer().id) else { return }
     guard try await request(signIn: "Log in to remove link previews.", { service, client, slug in
       try await service.removeUnfurl(client: client, roomId: source.roomId, messageId: source.id, url: url, organizationSlug: slug)
     }) != nil else { return }
@@ -109,7 +109,7 @@ public extension OpenRoomSession {
     // Ordinary rows reach this while scrolling; reject them before copying the transcript.
     guard shell.roomId == room.timeline.roomId,
           case .failed(_, _?) = MentionThoughtShell(message: shell) else { return false }
-    return MentionThoughtShell.canRetry(shell, currentUserId: hooks.viewerId(), sources: loaded.all)
+    return MentionThoughtShell.canRetry(shell, currentUserId: hooks.viewer().id, sources: loaded.all)
   }
 
   /// Flips the failed shell back to a live Thought, then `POST …/mentions/{mentionId}/retry`. Success merges the
