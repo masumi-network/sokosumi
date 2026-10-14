@@ -26,7 +26,7 @@ struct PinnedMessagesView: View {
       Divider()
       ScrollView {
         LazyVStack(spacing: 12) {
-          if pins.isLoading {
+          if pins.isLoadingFirstPage {
             ProgressView("Loading pinned messages…").padding(.vertical, 16)
           }
           if let error = actionError ?? pins.errorMessage {
