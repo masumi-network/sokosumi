@@ -540,6 +540,58 @@ describe("SocialPostStatistics account history", () => {
     expect(await screen.findByText("Second external post")).toBeVisible();
     expect(screen.queryByText("Couldn't load more.")).not.toBeInTheDocument();
   });
+  it("asks for a background refresh when Performance opens with stale accounts", async () => {
+    mocks.refresh.mockResolvedValue(response(account));
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [
+          {
+            ...account,
+            sync: { mayAutoRequest: true, status: "stale" },
+          },
+          {
+            ...secondAccount,
+            sync: { mayAutoRequest: false, status: "fresh" },
+          },
+        ],
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
+    expect(mocks.refresh).toHaveBeenCalledWith({
+      projectId: "project-1",
+      connectionId: account.id,
+    });
+    expect(
+      screen.getByRole("button", { name: "Sync all accounts" }),
+    ).toBeEnabled();
+    expect(screen.getByText(post.text)).toBeVisible();
+  });
+
+  it("does not auto-request a refresh when every account is already fresh", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [
+          {
+            ...account,
+            sync: { mayAutoRequest: false, status: "fresh" },
+          },
+        ],
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
   it("enqueues one refresh per account and never walks history in the browser", async () => {
     mocks.refresh
       .mockResolvedValueOnce(response(account, "provider-page-2"))

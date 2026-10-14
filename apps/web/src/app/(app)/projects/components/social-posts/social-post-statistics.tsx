@@ -5,7 +5,7 @@ import { BarChart2, Download, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
@@ -244,6 +244,7 @@ export function SocialPostStatistics(
   const consistency = query.data?.pages[0]?.consistency;
   const enqueueingRef = useRef(false);
   const mountedRef = useRef(false);
+  const autoRequestedIdsRef = useRef(new Set<string>());
   const [enqueueingId, setEnqueueingId] = useState<string | null>(null);
   const [syncErrors, setSyncErrors] = useState<Record<string, string>>({});
   useMountEffect(() => {
@@ -253,13 +254,16 @@ export function SocialPostStatistics(
     };
   });
 
-  async function handleSync(targets: Account[]) {
+  async function enqueueRefresh(
+    targets: Account[],
+    { silent = false }: { silent?: boolean } = {},
+  ) {
     if (enqueueingRef.current || targets.length === 0) return;
     enqueueingRef.current = true;
-    setSyncErrors({});
+    if (!silent) setSyncErrors({});
     try {
       for (const account of targets) {
-        setEnqueueingId(account.id);
+        if (!silent) setEnqueueingId(account.id);
         try {
           if (!projectId) return;
           const result = await refreshProjectSocialAccountStatistics({
@@ -267,14 +271,14 @@ export function SocialPostStatistics(
             connectionId: account.id,
           });
           if (!mountedRef.current) return;
-          if (!result.ok) {
+          if (!result.ok && !silent) {
             setSyncErrors((errors) => ({
               ...errors,
               [account.id]: t("accountSyncFailed"),
             }));
           }
         } catch {
-          if (mountedRef.current)
+          if (mountedRef.current && !silent)
             setSyncErrors((errors) => ({
               ...errors,
               [account.id]: t("accountSyncFailed"),
@@ -288,6 +292,32 @@ export function SocialPostStatistics(
       if (mountedRef.current) setEnqueueingId(null);
     }
   }
+
+  function handleSync(targets: Account[]) {
+    return enqueueRefresh(targets);
+  }
+
+  const autoRequestKey = accounts
+    .filter((account) => account.sync?.mayAutoRequest)
+    .map((account) => account.id)
+    .toSorted()
+    .join(",");
+  useEffect(() => {
+    if (!query.isSuccess) return;
+    for (const account of accounts) {
+      if (!account.sync?.mayAutoRequest)
+        autoRequestedIdsRef.current.delete(account.id);
+    }
+    const stale = accounts.filter(
+      (account) =>
+        account.status === "active" &&
+        account.sync?.mayAutoRequest &&
+        !autoRequestedIdsRef.current.has(account.id),
+    );
+    if (stale.length === 0) return;
+    for (const account of stale) autoRequestedIdsRef.current.add(account.id);
+    void enqueueRefresh(stale, { silent: true });
+  }, [autoRequestKey, query.isSuccess]);
 
   function metricLabel(metric: Metric) {
     const key = `accountMetrics.${ACCOUNT_METRIC_LABELS[metric.key] ?? metric.key}`;
