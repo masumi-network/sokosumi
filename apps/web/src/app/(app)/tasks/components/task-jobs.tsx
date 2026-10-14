@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { TimeAgo } from "@/components/time-ago";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 
@@ -53,7 +54,11 @@ export function TaskJobs({
         };
         const href = `/agents/${job.agentId}/jobs/${job.id}`;
         const channelName = userId
-          ? makeAgentJobsChannelName(job.agentId, userId)
+          ? makeAgentJobsChannelName(
+              job.agentId,
+              userId,
+              getRealtimeChannelEnvironment(),
+            )
           : null;
 
         const statusBadge = channelName ? (
