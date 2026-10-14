@@ -287,12 +287,8 @@ public final class WorkspaceState: ObservableObject {
   }
 
   private func acceptCreatedRoom(_ room: Components.Schemas.ChatRoom, sourceRoom: String?) {
-    if let index = rooms.firstIndex(where: { $0.id == room.id }) {
-      rooms[index] = room
-    } else {
-      rooms.append(room)
-    }
-    realtime?.setMembershipRooms(Set(rooms.map(\.id)))
+    sidebar.upsert(room)
+    pushMembership()
     // A completed request must not pull the user away from a room they selected meanwhile.
     if transcriptRoomId == sourceRoom {
       selectRoom(room.id)
@@ -330,10 +326,7 @@ public final class WorkspaceState: ObservableObject {
         try await service.updateRoom(client: client, roomId: roomId, request: request, organizationSlug: slug)
       }
       // A list read already in flight predates this settings edit.
-      sidebar.invalidateRefresh()
-      if let index = rooms.firstIndex(where: { $0.id == room.id }) {
-        rooms[index] = room
-      }
+      sidebar.replace(room)
     }
   }
 
@@ -345,10 +338,7 @@ public final class WorkspaceState: ObservableObject {
         try await service.updateRoom(client: client, roomId: roomId, request: draft.updateRequest, organizationSlug: slug)
       }
       // A list read already in flight predates this rename.
-      sidebar.invalidateRefresh()
-      if let index = rooms.firstIndex(where: { $0.id == room.id }) {
-        rooms[index] = room
-      }
+      sidebar.replace(room)
     }
   }
 
@@ -682,9 +672,7 @@ public final class WorkspaceState: ObservableObject {
     closeTyping()
     sidebarRecoveryGeneration = UUID()
     sidebarRecovery.stop()
-    roomsRefreshTask?.cancel()
-    roomsRefreshTask = nil
-    roomsRefreshID = UUID()
+    cancelRoomsRefresh()
     connectionHealthy = false
     realtimeContinuation?.finish()
     realtimeContinuation = nil
@@ -761,8 +749,7 @@ public final class WorkspaceState: ObservableObject {
 
   /// A pin changed, here or in another client: the sidebar count, the row's pin and the open room's Pins follow.
   func applyPin(roomId: String, messageId: String, isPinned: Bool, count: Int) {
-    guard let index = rooms.firstIndex(where: { $0.id == roomId }) else { return }
-    rooms[index].pinnedMessageCount = count
+    guard sidebar.update(roomId, invalidatingRefresh: false, { $0.pinnedMessageCount = count }) else { return }
     openRoom.applyPin(roomId: roomId, messageId: messageId, isPinned: isPinned)
   }
 
@@ -785,9 +772,12 @@ public final class WorkspaceState: ObservableObject {
       sidebarRecovery.requestRefresh([.active])
     }
     // Another member's rename retitles the open room now; other rows follow the sidebar refresh.
-    if eventType == .create, roomId == transcriptRoomId, let index = rooms.firstIndex(where: { $0.id == roomId }),
-       let renamed = rooms[index].applyingGroupNameChange(message) {
-      rooms[index] = renamed
+    if eventType == .create, roomId == transcriptRoomId {
+      sidebar.update(roomId, invalidatingRefresh: false) { room in
+        if let renamed = room.applyingGroupNameChange(message) {
+          room = renamed
+        }
+      }
     }
     openRoom.apply(eventType: eventType, message: message, roomId: roomId)
   }
@@ -808,22 +798,12 @@ public final class WorkspaceState: ObservableObject {
   /// room that is gone. Remints the token when one exists so caps drop.
   func applyMembershipRevoked(roomId revokedRoomId: String) {
     workspaceSession.applyMembershipRevoked(roomId: revokedRoomId)
-    sidebar.invalidateRefresh()
-    sidebar.rollbackPendingAction(roomId: revokedRoomId)
-    roomsRefreshTask?.cancel()
-    roomsRefreshTask = nil
-    roomsRefreshID = UUID()
-    let result = SokosumiChat.applyMembershipRevoked(
-      rooms: rooms,
-      selectedRoomId: selectedRoomId,
-      revokedRoomId: revokedRoomId
-    )
-    rooms = result.rooms
-    selectedRoomId = result.selectedRoomId
+    sidebar.revoke(roomId: revokedRoomId)
+    cancelRoomsRefresh()
     if transcriptRoomId == revokedRoomId {
       leaveRoom()
     }
-    realtime?.setMembershipRooms(Set(rooms.map(\.id)))
+    pushMembership()
   }
 
   var outboundSender: Components.Schemas.ChatRoomUserParticipant {
@@ -936,9 +916,7 @@ public final class WorkspaceState: ObservableObject {
 
   func switchRooms(option: WorkspaceOption) async {
     renewContext()
-    roomsRefreshTask?.cancel()
-    roomsRefreshTask = nil
-    roomsRefreshID = UUID()
+    cancelRoomsRefresh()
     sidebar.invalidateRefresh()
     let context = compositionContext
     roomsLoading = true
@@ -960,7 +938,7 @@ public final class WorkspaceState: ObservableObject {
       rooms = loaded
       switchError = nil
       realtime?.setOrganizationSlug(option.workspace.organizationSlug)
-      realtime?.setMembershipRooms(Set(rooms.map(\.id)))
+      pushMembership()
       startRealtimeIfNeeded()
       syncPresenceOrganization()
       startSidebarRecovery()
@@ -971,6 +949,18 @@ public final class WorkspaceState: ObservableObject {
       switchError = workspaceSession.errorMessage
       handleWorkspaceError(error)
     }
+  }
+
+  /// The socket's membership follows the listed rooms; every change that adds or drops a room says so.
+  private func pushMembership() {
+    realtime?.setMembershipRooms(Set(rooms.map(\.id)))
+  }
+
+  /// Ends the list read the coordinator started; a fresh id turns its completion stale.
+  private func cancelRoomsRefresh() {
+    roomsRefreshTask?.cancel()
+    roomsRefreshTask = nil
+    roomsRefreshID = UUID()
   }
 
   public func refreshRooms() async {
@@ -1020,7 +1010,7 @@ public final class WorkspaceState: ObservableObject {
     guard phase == .ready, !roomsLoading, let client = resolveClient() else { return }
     do {
       guard try await sidebar.refresh(client: client, organizationSlug: selection?.workspace.organizationSlug) else { return }
-      realtime?.setMembershipRooms(Set(rooms.map(\.id)))
+      pushMembership()
       // Preserve a visible transcript on refresh; open a replacement only if
       // the previous room is no longer membership-visible.
       if selectedRoomId == nil || !rooms.contains(where: { $0.id == selectedRoomId }) {
