@@ -26,7 +26,6 @@ const NEED_PROJECT_COPY = {
   accounts: "accountsNeedProject",
   attention: "attentionNeedProject",
   drafts: "draftsNeedProject",
-  statistics: "statisticsNeedProject",
 } as const;
 
 interface SocialAccountsProjectPromptProps {

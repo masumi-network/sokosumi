@@ -91,6 +91,15 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getByText("choose a project for attention")).toBeVisible();
   });
 
+  it("falls back to the calendar when the URL names an unknown tab", () => {
+    renderTabs("?tab=bogus");
+
+    expect(
+      screen.getByRole("tab", { name: "sections.calendar" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Calendar panel")).toBeVisible();
+  });
+
   it("shows every project's posts on the calendar without asking for a project", () => {
     renderTabs();
 
