@@ -42,13 +42,9 @@ export const fileExtractionStateSchema = z
       "Processing state of the current version. PARTIAL means some text is searchable, never all of it.",
   });
 
-export const fileLabelKindSchema = z.enum(["TAG", "CATEGORY"]);
-export const fileMetadataStateSchema = z.enum([
-  "SUGGESTED",
-  "CONFIRMED",
-  "REJECTED",
-]);
-export const fileMetadataProvenanceSchema = z.enum(["MANUAL", "MODEL", "RULE"]);
+const fileLabelKindSchema = z.enum(["TAG", "CATEGORY"]);
+const fileMetadataStateSchema = z.enum(["SUGGESTED", "CONFIRMED", "REJECTED"]);
+const fileMetadataProvenanceSchema = z.enum(["MANUAL", "MODEL", "RULE"]);
 
 /**
  * These three stay unnamed on purpose. A named component that is also used
@@ -56,7 +52,7 @@ export const fileMetadataProvenanceSchema = z.enum(["MANUAL", "MODEL", "RULE"]);
  * every array of it an array of nullables in the web client. Inlining costs
  * a few lines of generated types and keeps `tags: FileLabel[]` honest.
  */
-export const fileSnippetSchema = z
+const fileSnippetSchema = z
   .object({
     text: z.string(),
     highlights: z.array(
@@ -69,7 +65,7 @@ export const fileSnippetSchema = z
     "Extracted passage plus highlight offsets. Plain text: the client escapes at render.",
   );
 
-export const fileLabelSchema = z.object({
+const fileLabelSchema = z.object({
   id: z.string(),
   labelId: z.string(),
   kind: fileLabelKindSchema,
@@ -84,7 +80,7 @@ export const fileLabelSchema = z.object({
   }),
 });
 
-export const fileProjectLinkSchema = z.object({
+const fileProjectLinkSchema = z.object({
   id: z.string(),
   projectId: z.string(),
   projectName: z.string(),
@@ -142,7 +138,7 @@ export const fileResourceSchema = z
   })
   .openapi("FileResource");
 
-export const fileSearchMetaSchema = z
+const fileSearchMetaSchema = z
   .object({
     rankingMode: z.enum(["deterministic", "model"]).openapi({
       description:

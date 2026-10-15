@@ -24,7 +24,7 @@
 
 [VERIFIED] Masumi's Cardano x402 method can route funds through the Masumi smart contract. The current `@x402/cardano` README says a lock from its `masumi` method “cannot be driven through a `masumi-payment-service` node” because the seller authorization differs. [Masumi x402 guide](https://www.masumi.network/dev/masumi/core-concepts/x402) · [SDK and MPS compatibility](https://www.npmjs.com/package/%40x402/cardano/v/2.27.0)
 
-[VERIFIED] Core has Coworker list and workspace routes. Coworker creation exists but requires platform admin authentication. The current offer schema has no typed Cardano x402 price or recipient. [Coworker list](../../../core/src/routes/v1/coworkers/get.ts#L53) · [Create route](../../../core/src/routes/v1/coworkers/post.ts#L18) · [Offer schema](../../../core/src/schemas/coworker.schema.ts#L82)
+[VERIFIED] Core has Coworker list and workspace routes. Coworker creation allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin). The current offer schema has no typed Cardano x402 price or recipient. [Coworker list](../../../core/src/routes/v1/coworkers/get.ts#L53) · [Create route](../../../core/src/routes/v1/coworkers/post.ts#L83-L112) · [Offer schema](../../../core/src/schemas/coworker.schema.ts#L82)
 
 [VERIFIED] Sokosumi's task x402 route pays a 402 response returned by a listed x402 agent. Its readiness checks cover EVM networks. It does not implement Cardano x402 seller receipt for a Coworker. [Task x402 route](../../../core/src/routes/v1/tasks/[id]/x402-payments/post.ts#L47) · [x402 readiness](../../../core/src/helpers/x402-readiness.ts#L28)
 
