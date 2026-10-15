@@ -9,6 +9,7 @@ import {
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
+import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostProviderSchema } from "@/schemas/social-post.schema";
 
 const workspaceCalendarQueryObjectSchema = z.object({
@@ -215,7 +216,9 @@ export const socialPostCalendarItemSchema = z
     provider: socialPostProviderSchema,
     text: z.string(),
     status: z.enum(SocialPostStatus),
+    revision: z.number().int().nonnegative(),
     externalHandle: z.string().nullable(),
+    avatarUrl: projectSocialConnectionSchema.shape.avatarUrl,
     projectName: z.string(),
     scheduledByName: z.string().nullable(),
     scheduledByImage: z.string().nullable(),
