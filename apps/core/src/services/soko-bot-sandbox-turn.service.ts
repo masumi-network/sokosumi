@@ -368,6 +368,35 @@ function withoutZeroRetention(
   return rest;
 }
 
+const UNDICI_TIMEOUT_ERROR_NAMES = new Set([
+  "HeadersTimeoutError",
+  "TimeoutError",
+  "ConnectTimeoutError",
+  "BodyTimeoutError",
+]);
+
+function undiciErrorName(value: unknown): string | undefined {
+  if (value instanceof Error) return value.name;
+  if (value !== null && typeof value === "object" && "name" in value) {
+    return typeof value.name === "string" ? value.name : undefined;
+  }
+  return undefined;
+}
+
+/** undici wraps connect/header/body timeouts as TypeError("fetch failed"). */
+function isUndiciGatewayFetchFailure(error: unknown): boolean {
+  if (error instanceof TypeError && error.message === "fetch failed") {
+    return true;
+  }
+  const name = undiciErrorName(error);
+  const causeName =
+    error instanceof Error ? undiciErrorName(error.cause) : undefined;
+  return (
+    (name !== undefined && UNDICI_TIMEOUT_ERROR_NAMES.has(name)) ||
+    (causeName !== undefined && UNDICI_TIMEOUT_ERROR_NAMES.has(causeName))
+  );
+}
+
 /**
  * One model call from the runner. Core owns the Gateway key and the EU
  * routing policy: only the turn's version model, only the Gateway protocol
@@ -423,12 +452,23 @@ export async function proxySandboxModelCall(
     const value = request.headers.get(name);
     if (value !== null) headers.set(name, value);
   }
-  const upstream = await fetch(GATEWAY_LANGUAGE_MODEL_URL, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-  });
-  const text = await upstream.text();
+  let upstream: Response;
+  let text: string;
+  try {
+    upstream = await fetch(GATEWAY_LANGUAGE_MODEL_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+    text = await upstream.text();
+  } catch (error) {
+    if (!isUndiciGatewayFetchFailure(error)) throw error;
+    // No kind on this 502: keep the undici error as cause for Sentry's chain.
+    throw Object.assign(
+      badGateway("Model gateway timed out or is unreachable"),
+      { cause: error },
+    );
+  }
   if (!upstream.ok) return { status: upstream.status, body: text };
 
   let result: {

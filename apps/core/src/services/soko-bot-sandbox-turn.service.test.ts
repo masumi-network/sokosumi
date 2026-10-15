@@ -92,6 +92,13 @@ function modelRequest(overrides: Record<string, string> = {}) {
   };
 }
 
+function headersTimeoutError() {
+  return Object.assign(new Error("Headers Timeout Error"), {
+    name: "HeadersTimeoutError",
+    code: "UND_ERR_HEADERS_TIMEOUT",
+  });
+}
+
 function gatewayAnswer(content: unknown[] = []) {
   return new Response(
     JSON.stringify({
@@ -248,6 +255,42 @@ describe("sandbox turn service", () => {
       proxySandboxModelCall(claims, modelRequest()),
     ).rejects.toThrow();
     expect(events().map((event) => event.type)).toContain("step.completed");
+  });
+
+  it("maps an AI Gateway fetch timeout to 502 instead of an unexpected 500", async () => {
+    const fetchFailed = Object.assign(new TypeError("fetch failed"), {
+      cause: headersTimeoutError(),
+    });
+    fetchMock.mockRejectedValue(fetchFailed);
+    const error = await proxySandboxModelCall(claims, modelRequest()).then(
+      () => expect.unreachable("expected 502"),
+      (caught: unknown) => caught,
+    );
+    expect(error).toMatchObject({ status: 502 });
+    expect((error as Error).cause).toBe(fetchFailed);
+    expect(((error as Error).cause as Error).cause).toMatchObject({
+      name: "HeadersTimeoutError",
+      code: "UND_ERR_HEADERS_TIMEOUT",
+    });
+  });
+
+  it("maps a bare undici headers timeout to 502", async () => {
+    const timeout = headersTimeoutError();
+    fetchMock.mockRejectedValue(timeout);
+    const error = await proxySandboxModelCall(claims, modelRequest()).then(
+      () => expect.unreachable("expected 502"),
+      (caught: unknown) => caught,
+    );
+    expect(error).toMatchObject({ status: 502 });
+    expect((error as Error).cause).toBe(timeout);
+  });
+
+  it("does not map an unrelated TypeError to 502", async () => {
+    const boom = new TypeError("Cannot read properties of undefined");
+    fetchMock.mockRejectedValue(boom);
+    await expect(proxySandboxModelCall(claims, modelRequest())).rejects.toBe(
+      boom,
+    );
   });
 
   it("drops zero retention only for the Gateway-run search call", async () => {
