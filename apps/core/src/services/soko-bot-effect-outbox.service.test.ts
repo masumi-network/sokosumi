@@ -96,7 +96,11 @@ function effect(overrides = {}) {
     },
     receipt: {
       status: "COMPLETED",
-      turn: { workspaceId: "workspace", userId: "owner", sokoBotId: "bot" },
+      turn: {
+        workspaceId: "workspace",
+        requestedByUserId: "owner",
+        sokoBotId: "bot",
+      },
     },
     ...overrides,
   };

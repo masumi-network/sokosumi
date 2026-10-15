@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.service";
 
-import { mapIntegrationError } from "./helpers";
+import { mapIntegrationError, mapTurn } from "./helpers";
 
 function thrownStatus(error: unknown): number {
   try {
@@ -67,5 +67,21 @@ describe("mapIntegrationError", () => {
         ),
       ),
     ).toBe(404);
+  });
+});
+
+describe("mapTurn", () => {
+  it("returns the teammate who asked as requestedBy and the room as chatRoom", () => {
+    const teammate = { id: "teammate", name: "Tea Mate", image: null };
+    const room = { id: "room-1", name: "general", kind: "channel" };
+
+    const mapped = mapTurn({
+      askedBy: teammate,
+      chatMention: { message: { room } },
+    });
+
+    expect(mapped.requestedBy).toEqual(teammate);
+    expect(mapped.chatRoom).toEqual(room);
+    expect(mapped).not.toHaveProperty("askedBy");
   });
 });

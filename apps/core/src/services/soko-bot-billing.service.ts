@@ -123,7 +123,7 @@ export async function requireSokoBotTurnFunding(
     prisma.sokoBotTurn.findMany({
       where: {
         sokoBotId,
-        userId,
+        requestedByUserId: userId,
         status: "COMPLETED",
       },
       select: { id: true },
@@ -133,7 +133,7 @@ export async function requireSokoBotTurnFunding(
     prisma.sokoBotTurn.findFirst({
       where: {
         sokoBotId,
-        userId,
+        requestedByUserId: userId,
         errorKind: SOKO_BOT_BILLING_SHORTFALL_ERROR_KIND,
         completedAt: { not: null },
       },

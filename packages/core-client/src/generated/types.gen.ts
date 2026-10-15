@@ -5719,9 +5719,9 @@ export type WorkspaceCalendarItem = {
     taskAssigneeId: string | null;
     taskAssigneeUserId?: string | null;
     /**
-     * User who owns the Task Schedule and the Tasks it creates
+     * The person responsible for the Task Schedule and the Tasks it creates; null only when nobody is responsible for the work.
      */
-    taskOwnerId: string;
+    taskOwnerId: string | null;
     /**
      * Effective time at which the item appears in the Calendar
      */

@@ -33,7 +33,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const auth = requireUserAuthContext(c.var.authContext);
     const { turnId } = c.req.valid("param");
     const turn = await prisma.sokoBotTurn.findFirst({
-      where: { id: turnId, userId: auth.userId, status: "COMPLETED" },
+      where: {
+        id: turnId,
+        requestedByUserId: auth.userId,
+        status: "COMPLETED",
+      },
       select: { id: true },
     });
     if (!turn) throw notFound("Result unavailable");

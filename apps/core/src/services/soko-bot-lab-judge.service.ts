@@ -10,6 +10,7 @@ import { generateText, Output } from "ai";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -89,17 +90,17 @@ export function overallScore(verdict: SokoBotJudgeVerdict): number {
 
 async function loadTranscript(turnId: string, userId?: string) {
   const turn = await prisma.sokoBotTurn.findFirst({
-    where: { id: turnId, ...(userId ? { userId } : {}) },
+    where: { id: turnId, ...(userId ? { requestedByUserId: userId } : {}) },
     select: {
       sokoBotId: true,
-      userId: true,
+      requestedByUserId: true,
       source: true,
       status: true,
       route: true,
       userMessage: true,
       finalAnswer: true,
       versionId: true,
-      sokoBot: { select: { name: true } },
+      sokoBot: { select: { name: true, userId: true } },
       toolCalls: {
         orderBy: { createdAt: "asc" },
         select: {
@@ -377,7 +378,7 @@ export async function judgeSokoBotLabTurn(input: {
     if (!input.evaluation) return;
     const data = {
       sokoBotId: turn.sokoBotId,
-      userId: turn.userId,
+      userId: sokoBotActingUserId(turn),
       scenarioId: scenario.id,
       versionId: turn.versionId ?? "unknown",
       passed: input.evaluation.passed,

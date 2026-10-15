@@ -2307,8 +2307,10 @@ model SokoBotTurn {
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Requester: the member who asked (ADR 0056). Null for built-in rhythms
+  /// and work the bot started on its own. Never changed after creation.
+  requestedByUserId String?
+  requestedBy       User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2373,8 +2375,8 @@ model SokoBotTurn {
   errorDetail             String?
 
   /// Who asked, when a teammate (not the owner) mentioned the bot in chat.
-  requestedByUserId String?
-  requestedBy       User?   @relation("SokoBotTurnRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  askedByUserId String?
+  askedBy       User?   @relation("SokoBotTurnAskedBy", fields: [askedByUserId], references: [id], onDelete: SetNull)
 
   /// Bot-to-bot hops behind this turn (see ChatRoomMention.chainDepth). Above
   /// zero the turn exists because another bot spoke, not because a person did,
@@ -2412,7 +2414,7 @@ model SokoBotTurn {
   @@unique([sokoBotId, clientTurnId])
   @@unique([sokoBotId, eveSessionId, eveTurnId])
   @@index([sokoBotId, parentTurnId, status])
-  @@index([userId, createdAt(sort: Desc)])
+  @@index([requestedByUserId, createdAt(sort: Desc)])
   @@index([sokoBotId, status, createdAt(sort: Desc)])
   @@index([status, reconcilerHeartbeatAt])
   @@map("soko_bot_turn")
@@ -2776,8 +2778,10 @@ model SokoBotPendingDecision {
   turnId String      @db.Uuid
   turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Requester: the member who asked (ADR 0056). Null for built-in rhythms
+  /// and work the bot started on its own. Never changed after creation.
+  requestedByUserId String?
+  requestedBy       User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2792,7 +2796,7 @@ model SokoBotPendingDecision {
   resultingTurnId   String?               @db.Uuid
   resultingEntityId String?
 
-  @@index([userId, status, createdAt(sort: Desc)])
+  @@index([requestedByUserId, status, createdAt(sort: Desc)])
   @@index([sokoBotId, status])
   @@map("soko_bot_pending_decision")
 }
@@ -2805,8 +2809,10 @@ model SokoBotSchedule {
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Requester: the member who asked (ADR 0056). Null for built-in rhythms
+  /// and work the bot started on its own. Never changed after creation.
+  requestedByUserId String?
+  requestedBy       User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2834,7 +2840,7 @@ model SokoBotSchedule {
 
   @@unique([sokoBotId, systemKey])
   @@index([enabled, nextRunAt])
-  @@index([userId, createdAt(sort: Desc)])
+  @@index([requestedByUserId, createdAt(sort: Desc)])
   @@map("soko_bot_schedule")
 }
 

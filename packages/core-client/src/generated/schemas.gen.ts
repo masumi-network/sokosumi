@@ -19545,8 +19545,15 @@ export const WorkspaceCalendarItemSchema = {
             example: 'user_123'
         },
         taskOwnerId: {
-            type: 'string',
-            description: 'User who owns the Task Schedule and the Tasks it creates',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The person responsible for the Task Schedule and the Tasks it creates; null only when nobody is responsible for the work.',
             example: 'user_123'
         },
         scheduledAt: {

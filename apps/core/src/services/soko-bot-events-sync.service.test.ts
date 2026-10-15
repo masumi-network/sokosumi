@@ -64,7 +64,7 @@ import {
 
 const turn = {
   sokoBotId: "bot_1",
-  userId: "user_1",
+  requestedByUserId: "user_1",
   workspaceId: "ws_1",
   parentTurnId: null as string | null,
   status: "COMPLETED",

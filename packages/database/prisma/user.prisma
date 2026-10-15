@@ -87,7 +87,7 @@ model User {
   coworkerUsages          CoworkerUsage[]
   sokoBotUsages           SokoBotUsage[]
   sokoBotTurns            SokoBotTurn[]
-  sokoBotRequestedTurns   SokoBotTurn[]            @relation("SokoBotTurnRequestedBy")
+  sokoBotAskedTurns       SokoBotTurn[]            @relation("SokoBotTurnAskedBy")
   sokoBotRequestedAvatars SokoBotAvatar[]          @relation("SokoBotAvatarRequestedBy")
   sokoBotPendingDecisions SokoBotPendingDecision[]
   sokoBotSchedules        SokoBotSchedule[]

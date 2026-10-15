@@ -151,7 +151,7 @@ describe("proactiveGate", () => {
     ]);
     // A teammate mentioning the bot is a person asking a question, not work
     // the bot decided to do; it must not draw on the unprompted allowance.
-    expect(JSON.stringify(where)).not.toContain("requestedByUserId");
+    expect(JSON.stringify(where)).not.toContain("askedByUserId");
   });
 
   it("refuses once the daily allowance is spent", async () => {
@@ -323,7 +323,7 @@ describe("findAttentionItems ownership", () => {
         where: expect.objectContaining({
           turn: {
             sokoBotId: "bot-1",
-            OR: [{ requestedByUserId: null }, { requestedByUserId: "andreas" }],
+            OR: [{ askedByUserId: null }, { askedByUserId: "andreas" }],
           },
         }),
       }),
