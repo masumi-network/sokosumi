@@ -9,7 +9,7 @@ import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
  */
 export function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
   if (media.kind !== "video") {
-    return (
+    const preview = (
       <FileChipMiniPreview
         fileName={media.name}
         mediaType={media.mimeType}
@@ -17,6 +17,19 @@ export function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
         sizeClass="size-12"
         url={media.fileUrl}
       />
+    );
+    if (media.kind !== "gif") return preview;
+    return (
+      <span className="relative inline-flex">
+        {preview}
+        <span
+          aria-hidden
+          className="bg-scrim-strong text-on-media pointer-events-none absolute start-1 bottom-1 rounded px-1 py-0.5 text-2xs font-semibold"
+          data-testid="social-post-media-gif"
+        >
+          GIF
+        </span>
+      </span>
     );
   }
 
