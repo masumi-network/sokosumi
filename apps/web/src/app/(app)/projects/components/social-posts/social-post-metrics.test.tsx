@@ -114,8 +114,31 @@ describe("SocialPostMetrics", () => {
 
   it("renders nothing compact when every count is missing", () => {
     const { container } = render(
-      <SocialPostMetrics compact statistics={undefined} />,
+      <SocialPostMetrics
+        compact
+        statistics={{
+          metrics: {
+            ...metrics,
+            views: null,
+            impressions: null,
+            comments: null,
+          },
+          fetchedAt: null,
+          refreshAttemptedAt: null,
+          error: null,
+        }}
+      />,
     );
     expect(container).toBeEmptyDOMElement();
   });
+
+  it.each([null, undefined])(
+    "renders nothing compact when statistics are %s",
+    (statistics) => {
+      const { container } = render(
+        <SocialPostMetrics compact statistics={statistics} />,
+      );
+      expect(container).toBeEmptyDOMElement();
+    },
+  );
 });

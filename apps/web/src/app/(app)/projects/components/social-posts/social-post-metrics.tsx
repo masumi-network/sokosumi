@@ -40,7 +40,7 @@ export function SocialPostMetrics({
           <div key={key} className={compact ? "flex gap-1" : "space-y-1"}>
             <dt className="text-muted-foreground">{t(`metrics.${key}`)}</dt>
             <dd className="font-medium tabular-nums">
-              {value == null ? t("unavailable") : formatter.number(value)}
+              {formatter.number(value)}
             </dd>
           </div>
         ))}
