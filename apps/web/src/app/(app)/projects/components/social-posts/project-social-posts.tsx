@@ -351,7 +351,10 @@ export function ProjectSocialPosts({
         : connections.length === 0
           ? "reconnect"
           : null;
-  const retryablePosts = postsIn("attention").filter(canRetryPost);
+  const retryablePosts = postsIn("attention").filter(
+    (post) =>
+      canRetryPost(post) && (provider === null || post.provider === provider),
+  );
   const selectedRetryablePosts = retryablePosts.filter((post) =>
     selectedRetryIds.has(post.id),
   );

@@ -13,6 +13,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useQueryState } from "nuqs";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
@@ -770,6 +771,87 @@ describe("ProjectSocialPosts", () => {
     expect(getTab("Needs attention")).toHaveTextContent("Needs attention 2");
     expect(screen.getByTestId("social-posts-platform-filter")).toBeVisible();
   });
+
+  it.each([false, true])(
+    "retries only the visible platform after a filter change: %s",
+    async (changeFilterAfterSelection) => {
+      const user = userEvent.setup();
+      const linkedInFailed = buildPost({
+        ...FAILED_POST,
+        id: "post-failed-li",
+        provider: "linkedin",
+        text: "LinkedIn failed",
+        revision: 7,
+      });
+      vi.mocked(publishProjectSocialPost).mockResolvedValue({
+        ok: true,
+        value: {
+          ...linkedInFailed,
+          status: "PUBLISHED",
+          revision: 8,
+          canPublishNow: false,
+        },
+      });
+
+      function FilterToLinkedIn() {
+        const [, setProvider] = useQueryState("provider");
+        return (
+          <button type="button" onClick={() => void setProvider("linkedin")}>
+            Filter to LinkedIn
+          </button>
+        );
+      }
+
+      render(
+        <>
+          <FilterToLinkedIn />
+          <ProjectSocialPosts
+            connections={[buildConnection()]}
+            posts={[FAILED_POST, linkedInFailed]}
+            projectId={PROJECT_ID}
+          />
+        </>,
+        changeFilterAfterSelection
+          ? "?tab=attention"
+          : "?tab=attention&provider=linkedin",
+      );
+
+      if (changeFilterAfterSelection) {
+        await user.click(screen.getByTestId("social-post-select-post-failed"));
+        expect(screen.getByText("1 selected")).toBeVisible();
+        await user.click(
+          screen.getByRole("button", { name: "Filter to LinkedIn" }),
+        );
+        await waitFor(() => {
+          expect(screen.getByText("0 selected")).toBeVisible();
+        });
+        expect(
+          screen.getByRole("button", { name: "Retry selected" }),
+        ).toBeDisabled();
+      }
+
+      const attention = screen.getByTestId("social-posts-section-attention");
+      expect(within(attention).getByText("LinkedIn failed")).toBeVisible();
+      expect(
+        within(attention).queryByTestId("social-post-post-failed"),
+      ).not.toBeInTheDocument();
+      await user.click(screen.getByTestId("social-bulk-retry-select-all"));
+      expect(screen.getByText("1 selected")).toBeVisible();
+      await user.click(screen.getByRole("button", { name: "Retry selected" }));
+      await user.click(
+        within(screen.getByRole("alertdialog")).getByRole("button", {
+          name: "Retry selected",
+        }),
+      );
+
+      await screen.findByTestId("social-bulk-retry-results");
+      expect(publishProjectSocialPost).toHaveBeenCalledExactlyOnceWith({
+        projectId: PROJECT_ID,
+        postId: linkedInFailed.id,
+        revision: linkedInFailed.revision,
+      });
+    },
+  );
 
   it("hides the platform filter on the calendar tab", () => {
     render(
