@@ -88,6 +88,8 @@ interface AsyncSearchComboboxProps<T> {
   allowClear?: boolean;
   disabled?: boolean;
   id?: string;
+  /** Id of the element that describes the trigger, such as its help text. */
+  "aria-describedby"?: string;
 }
 
 export function AsyncSearchCombobox<T>({
@@ -101,6 +103,7 @@ export function AsyncSearchCombobox<T>({
   allowClear,
   disabled,
   id,
+  "aria-describedby": describedBy,
 }: AsyncSearchComboboxProps<T>) {
   const debounceTime =
     getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME;
@@ -196,6 +199,7 @@ export function AsyncSearchCombobox<T>({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          aria-describedby={describedBy}
           disabled={disabled}
           className="w-full min-w-0 justify-between gap-2 overflow-hidden font-normal"
         >

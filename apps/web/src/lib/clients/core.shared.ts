@@ -25,6 +25,8 @@ import type {
   CreateTaskScheduleRunRequest,
   CreateUserWorkspace,
   DeleteJobsByIdShareError,
+  DeleteProjectsByIdAdsAccountsByAccountIdData,
+  DeleteProjectsByIdAdsConnectionsByAdConnectionIdData,
   DeleteProjectsByIdJobsByJobIdData,
   DeleteProjectsByIdSocialConnectionsByConnectionIdData,
   DeleteProjectsByIdTasksByTaskIdData,
@@ -49,6 +51,10 @@ import type {
   GetImageStudioStateData,
   GetJobsData,
   GetNotificationsData,
+  GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
+  GetProjectsByIdAdsAccountsByAccountIdCampaignsData,
+  GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesData,
+  GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData,
   GetProjectsByIdCalendarData,
   GetProjectsByIdImageStudioData,
   GetProjectsByIdSocialConnectionsStatisticsData,
@@ -77,6 +83,7 @@ import type {
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
+  PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
   PatchProjectsByIdData,
   PatchProjectsByIdSocialPostsByPostIdData,
   PatchTasksByIdData,
@@ -95,6 +102,10 @@ import type {
   PostOrganizationsByIdFilesCleanupData,
   PostOrganizationsByIdFilesData,
   PostOrganizationsByIdInviteLinksData,
+  PostProjectsByIdAdsAccountsByAccountIdCampaignsData,
+  PostProjectsByIdAdsAccountsData,
+  PostProjectsByIdAdsConnectionsFinalizeData,
+  PostProjectsByIdAdsConnectionsInitiateData,
   PostProjectsByIdCloseCancelOwedData,
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
@@ -118,6 +129,8 @@ import type {
   PostWorkspacesDesignMdAdhocData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
+  PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
+  PutProjectsByIdAdsMarketData,
   PutProjectsByIdDesignMdData,
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
@@ -182,6 +195,8 @@ import {
   deleteMySokoBotSchedule as coreDeleteMySokoBotSchedule,
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
+  deleteProjectsByIdAdsAccountsByAccountId as coreDeleteProjectsByIdAdsAccountsByAccountId,
+  deleteProjectsByIdAdsConnectionsByAdConnectionId as coreDeleteProjectsByIdAdsConnectionsByAdConnectionId,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdSocialConnectionsByConnectionId as coreDeleteProjectsByIdSocialConnectionsByConnectionId,
@@ -273,6 +288,14 @@ import {
   getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
+  getProjectsByIdAdsAccounts as coreGetProjectsByIdAdsAccounts,
+  getProjectsByIdAdsAccountsByAccountIdCampaigns as coreGetProjectsByIdAdsAccountsByAccountIdCampaigns,
+  getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId as coreGetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+  getProjectsByIdAdsAccountsByAccountIdTargetingLanguages as coreGetProjectsByIdAdsAccountsByAccountIdTargetingLanguages,
+  getProjectsByIdAdsAccountsByAccountIdTargetingLocations as coreGetProjectsByIdAdsAccountsByAccountIdTargetingLocations,
+  getProjectsByIdAdsMarket as coreGetProjectsByIdAdsMarket,
+  getProjectsByIdAdsMarketAds as coreGetProjectsByIdAdsMarketAds,
+  getProjectsByIdAdsMarketKeywords as coreGetProjectsByIdAdsMarketKeywords,
   getProjectsByIdCalendar as coreGetProjectsByIdCalendar,
   getProjectsByIdClose as coreGetProjectsByIdClose,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
@@ -366,6 +389,7 @@ import {
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
   patchProjectsById as corePatchProjectsById,
+  patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId as corePatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
   patchProjectsByIdSocialPostsByPostId as corePatchProjectsByIdSocialPostsByPostId,
   patchTasksById as corePatchTasksById,
   patchTasksSchedulesById as corePatchTasksSchedulesById,
@@ -418,6 +442,10 @@ import {
   postOrganizationsByIdVendorGrantsByGrantIdDeny as corePostOrganizationsByIdVendorGrantsByGrantIdDeny,
   postOrganizationsByIdVendorGrantsByGrantIdRevoke as corePostOrganizationsByIdVendorGrantsByGrantIdRevoke,
   postProjects as corePostProjects,
+  postProjectsByIdAdsAccounts as corePostProjectsByIdAdsAccounts,
+  postProjectsByIdAdsAccountsByAccountIdCampaigns as corePostProjectsByIdAdsAccountsByAccountIdCampaigns,
+  postProjectsByIdAdsConnectionsFinalize as corePostProjectsByIdAdsConnectionsFinalize,
+  postProjectsByIdAdsConnectionsInitiate as corePostProjectsByIdAdsConnectionsInitiate,
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
@@ -466,6 +494,8 @@ import {
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
+  putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId as corePutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+  putProjectsByIdAdsMarket as corePutProjectsByIdAdsMarket,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
@@ -3568,6 +3598,253 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdAdsAccounts(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccounts({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Project ad accounts",
+    );
+  }
+
+  async function postProjectsByIdAdsConnectionsInitiate(
+    id: string,
+    body: PostProjectsByIdAdsConnectionsInitiateData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdAdsConnectionsInitiate({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to initiate Project ad connection",
+    );
+  }
+
+  async function postProjectsByIdAdsConnectionsFinalize(
+    id: string,
+    body: PostProjectsByIdAdsConnectionsFinalizeData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdAdsConnectionsFinalize({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to finalize Project ad connection",
+    );
+  }
+
+  async function postProjectsByIdAdsAccounts(
+    id: string,
+    body: PostProjectsByIdAdsAccountsData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdAdsAccounts({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to attach Project ad accounts",
+    );
+  }
+
+  async function deleteProjectsByIdAdsAccountsByAccountId(
+    path: DeleteProjectsByIdAdsAccountsByAccountIdData["path"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdAdsAccountsByAccountId({ client, path }),
+      "Failed to disconnect Project ad account",
+    );
+  }
+
+  async function deleteProjectsByIdAdsConnectionsByAdConnectionId(
+    path: DeleteProjectsByIdAdsConnectionsByAdConnectionIdData["path"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdAdsConnectionsByAdConnectionId({ client, path }),
+      "Failed to discard Project ad connection",
+    );
+  }
+
+  async function getProjectsByIdAdsAccountsByAccountIdCampaigns(
+    path: GetProjectsByIdAdsAccountsByAccountIdCampaignsData["path"],
+    query: GetProjectsByIdAdsAccountsByAccountIdCampaignsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccountsByAccountIdCampaigns({
+          client,
+          path,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch ad campaigns",
+    );
+  }
+
+  async function getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId(
+    path: GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["path"],
+    query: GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId({
+          client,
+          path,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch ad campaign details",
+    );
+  }
+
+  async function getProjectsByIdAdsAccountsByAccountIdTargetingLocations(
+    path: GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData["path"],
+    query: GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccountsByAccountIdTargetingLocations({
+          client,
+          path,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to look up ad locations",
+    );
+  }
+
+  async function getProjectsByIdAdsAccountsByAccountIdTargetingLanguages(
+    path: GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesData["path"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccountsByAccountIdTargetingLanguages({
+          client,
+          path,
+          cache: "no-store",
+        }),
+      "Failed to fetch ad languages",
+    );
+  }
+
+  async function patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId(
+    path: PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["path"],
+    body: PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId({
+          client,
+          path,
+          body,
+        }),
+      "Failed to update ad campaign",
+    );
+  }
+
+  async function postProjectsByIdAdsAccountsByAccountIdCampaigns(
+    path: PostProjectsByIdAdsAccountsByAccountIdCampaignsData["path"],
+    body: PostProjectsByIdAdsAccountsByAccountIdCampaignsData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdAdsAccountsByAccountIdCampaigns({
+          client,
+          path,
+          body,
+        }),
+      "Failed to create ad campaign",
+    );
+  }
+
+  async function getProjectsByIdAdsMarket(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsMarket({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Project ad market",
+    );
+  }
+
+  async function putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId(
+    path: PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["path"],
+    body: PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId({
+          client,
+          path,
+          body,
+        }),
+      "Failed to edit ad campaign",
+    );
+  }
+
+  async function putProjectsByIdAdsMarket(
+    id: string,
+    body: PutProjectsByIdAdsMarketData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePutProjectsByIdAdsMarket({ client, path: { id }, body }),
+      "Failed to save Project ad market",
+    );
+  }
+
+  async function getProjectsByIdAdsMarketKeywords(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsMarketKeywords({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch market keywords",
+    );
+  }
+
+  async function getProjectsByIdAdsMarketAds(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsMarketAds({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch market ads",
+    );
+  }
+
   async function postProjectsByIdSocialConnectionsInitiate(
     id: string,
     body: NonNullable<PostProjectsByIdSocialConnectionsInitiateData["body"]>,
@@ -5998,6 +6275,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     createTaskEvent,
     deleteJobShare,
     deleteProjectsByIdDesignMd,
+    deleteProjectsByIdAdsAccountsByAccountId,
+    deleteProjectsByIdAdsConnectionsByAdConnectionId,
     deleteProjectsByIdJobsByJobId,
     deleteProjectsByIdSocialConnectionsByConnectionId,
     deleteProjectsByIdTasksByTaskId,
@@ -6213,6 +6492,16 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdClose,
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
+    getProjectsByIdAdsAccounts,
+    getProjectsByIdAdsAccountsByAccountIdCampaigns,
+    getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+    getProjectsByIdAdsAccountsByAccountIdTargetingLocations,
+    getProjectsByIdAdsAccountsByAccountIdTargetingLanguages,
+    getProjectsByIdAdsMarket,
+    putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+    putProjectsByIdAdsMarket,
+    getProjectsByIdAdsMarketKeywords,
+    getProjectsByIdAdsMarketAds,
     getProjectsByIdSocialConnections,
     getImageStudioCatalog,
     getImageStudioState,
@@ -6225,6 +6514,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
     postProjectsByIdSocialPostsByPostIdStatisticsRefresh,
     getProjectsByIdSocialPostsByPostId,
+    patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
     patchProjectsByIdSocialPostsByPostId,
     postProjectsByIdSocialPosts,
     postProjectsByIdSocialPostsByPostIdCancel,
@@ -6244,6 +6534,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdCloseCancelOwed,
     postProjectsByIdCloseRetry,
     postProjectsByIdJobs,
+    postProjectsByIdAdsAccounts,
+    postProjectsByIdAdsAccountsByAccountIdCampaigns,
+    postProjectsByIdAdsConnectionsFinalize,
+    postProjectsByIdAdsConnectionsInitiate,
     postProjectsByIdSocialConnectionsFinalize,
     postProjectsByIdSocialConnectionsInitiate,
     postProjectsByIdTasks,

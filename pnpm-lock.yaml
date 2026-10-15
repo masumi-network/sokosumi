@@ -817,6 +817,9 @@ importers:
       typescript:
         specifier: 7.0.2
         version: 7.0.2
+      vitest:
+        specifier: 5.0.4
+        version: 5.0.4(patch_hash=fc8076fcb017eacccb523039859b57b11146fa35e2bded1e72b0c6dab075e1af)(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(happy-dom@21.0.1)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
 
   packages/database:
     dependencies:
