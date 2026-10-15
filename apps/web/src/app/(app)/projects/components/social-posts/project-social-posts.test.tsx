@@ -3277,8 +3277,11 @@ describe("ProjectSocialPosts", () => {
     const attention = screen.getByTestId("social-posts-section-attention");
     const row = within(attention).getByTestId("social-post-post-failed");
     expect(
-      within(row).getByText("X rejected the post (403 forbidden)"),
+      within(row).getByText("The platform rejected this post."),
     ).toBeVisible();
+    expect(
+      within(row).queryByText("X rejected the post (403 forbidden)"),
+    ).not.toBeInTheDocument();
     expect(within(row).getByText("Failed Sep 10, 10:05 AM")).toBeVisible();
     expect(within(row).getByText("3 attempts")).toBeVisible();
     expect(within(row).getByText("Failed")).toBeVisible();
@@ -3384,9 +3387,10 @@ describe("ProjectSocialPosts", () => {
 
     await openTab(user, "Needs attention");
     const row = screen.getByTestId("social-post-post-missed");
+    expect(within(row).getByText("Missed the scheduled time.")).toBeVisible();
     expect(
-      within(row).getByText("Scheduled time passed more than an hour ago"),
-    ).toBeVisible();
+      within(row).queryByText("Scheduled time passed more than an hour ago"),
+    ).not.toBeInTheDocument();
     expect(within(row).getByText("Missed")).toBeVisible();
   });
 
@@ -4103,6 +4107,36 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
     expect(
       within(row).queryByText("Internal authorization failure text"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("names a rate-limited failure instead of the raw lastError", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({
+            ...FAILED_POST,
+            lastError: "X rejected the post (429 too many requests)",
+            lastAttempt: {
+              ...FAILED_POST.lastAttempt!,
+              errorKind: "rate_limited",
+              outcome: "failed_transient",
+            },
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    const row = screen.getByTestId("social-post-post-failed");
+    expect(
+      within(row).getByText("Rate limited. Try again later."),
+    ).toBeVisible();
+    expect(
+      within(row).queryByText("X rejected the post (429 too many requests)"),
     ).not.toBeInTheDocument();
   });
 });
