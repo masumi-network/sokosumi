@@ -31,13 +31,16 @@ branch named `cloud-agent-<run-id>`.
 
 ## Provision (how agents get the URL)
 
-`.cursor/environment.json` runs provision after a Corepack-backed `pnpm install`
-(`scripts/cloud-agent-db/ensure-pnpm.sh` avoids a broken pnpm 12 `.tools`
-placeholder that fails environment builds with `Syntax error: ")" unexpected`):
+`.cursor/environment.json` `install` is `scripts/cloud-agent-db/cloud-install.sh`.
+That runs Corepack-backed `pnpm install` (`scripts/cloud-agent-db/ensure-pnpm.sh`
+avoids a broken pnpm 12 `.tools` placeholder that fails environment builds with
+`Syntax error: ")" unexpected`) and then provision:
 
 ```bash
-bash scripts/cloud-agent-db/ensure-pnpm.sh install && node scripts/cloud-agent-db/provision.mjs
+bash scripts/cloud-agent-db/cloud-install.sh
 ```
+
+That script installs Node 24, runs `ensure-pnpm.sh install`, then `provision.mjs`. The build pod is not an agent run, so that provision call no-ops. `cloud-start.sh` runs `provision.mjs` again on each boot (where `CURSOR_AGENT=1`), then wraps `pnpm dev` in `with-db.mjs`. Without Neon secrets, install falls through to local Postgres (`ensure-local-postgres.sh`) and start brings that cluster up.
 
 When `CURSOR_AGENT=1` and Neon secrets are present, provision:
 
