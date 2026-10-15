@@ -128,7 +128,12 @@ function CompactSocialPostCalendarEvent({
   });
   const media = showThumb ? item.previewMedia : null;
   const time = (
-    <span className="text-muted-foreground shrink-0 tabular-nums">
+    <span
+      className={cn(
+        "text-muted-foreground tabular-nums",
+        showThumb ? "min-w-0 truncate" : "shrink-0",
+      )}
+    >
       {formatter.dateTime(item.scheduledAt, "time", { timeZone })}
     </span>
   );
@@ -167,8 +172,8 @@ function CompactSocialPostCalendarEvent({
         >
           {showThumb ? (
             <>
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="flex flex-nowrap items-center gap-0.5">
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden">
+                <span className="flex min-w-0 flex-nowrap items-center gap-0.5">
                   {logo}
                   {time}
                   <span className="shrink-0">{status}</span>

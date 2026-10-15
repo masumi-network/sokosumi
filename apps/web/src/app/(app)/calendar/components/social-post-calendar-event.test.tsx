@@ -211,7 +211,16 @@ describe("Social post calendar event", () => {
     expect(
       screen.getByTestId("calendar-social-post-thumb"),
     ).toBeInTheDocument();
-    expect(screen.getByText("12:00 PM")).toHaveClass("shrink-0");
+    expect(screen.getByText("12:00 PM")).toHaveClass("min-w-0", "truncate");
+    expect(screen.getByText("12:00 PM")).not.toHaveClass("shrink-0");
+    const weekChip = screen.getByTestId("calendar-social-post");
+    expect(weekChip.firstElementChild).toHaveClass(
+      "overflow-hidden",
+      "min-w-0",
+    );
+    expect(weekChip.firstElementChild?.firstElementChild).toHaveClass(
+      "min-w-0",
+    );
   });
   it("keeps failed icon-only on a text-only week chip too", () => {
     renderCard(
@@ -272,6 +281,7 @@ describe("Social post calendar event", () => {
   it("names a failed post on the compact workspace chip too", () => {
     renderCard({ status: "FAILED" }, "compact");
     expect(screen.getByText("Failed")).toBeVisible();
+    expect(screen.getByText("12:00 PM")).toHaveClass("shrink-0");
   });
   it("names a canceled post on the compact workspace chip too", () => {
     renderCard({ status: "CANCELED" }, "compact");
