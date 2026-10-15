@@ -11,7 +11,7 @@ import SwiftUI
     @StateObject private var commands = MacComposerCommands()
     let submit: () -> Bool
     var focusRequest: String?
-    /// Asked when the editor appears and again once it is set; true takes focus there.
+    /// Asked once per time it is set, whether at the editor's appearance or later; true takes focus there.
     var takesFocus: (() -> Bool)?
     var cancelEdit: (() -> Void)?
     var onBlur: (() -> Void)?
