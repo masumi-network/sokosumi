@@ -27,7 +27,10 @@ import { sokoBotSummarySchema } from "@/schemas/soko-bot.schema";
 import { taskFileSchema } from "@/schemas/task-file.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
-import { workCreatorRequesterFields } from "@/schemas/work-creator.schema";
+import {
+  responsibleUserIdField,
+  workCreatorRequesterFields,
+} from "@/schemas/work-creator.schema";
 import { workspaceSummarySchema } from "@/schemas/workspace.schema";
 
 const customBrandSchema = z.object({
@@ -272,6 +275,7 @@ const taskBaseSchema = z.object({
       "Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.",
   }),
   ...workCreatorRequesterFields,
+  ...responsibleUserIdField,
   /** @deprecated Use `creator` when `creator.type === "sokoBot"`. */
   sokoBotId: z.string().uuid().nullable().openapi({
     example: "01960001-0001-7001-8001-000000000099",

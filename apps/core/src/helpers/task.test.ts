@@ -8,13 +8,14 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
-import type { TaskWithIncludes } from "@/types/task";
+import type { TaskListItemWithIncludes, TaskWithIncludes } from "@/types/task";
 
 import {
   mapTask,
   mapTaskEvent,
   mapTaskEventActor,
   mapTaskFile,
+  mapTaskListItem,
   validateQueuedRequiresRunAt,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
@@ -462,6 +463,55 @@ describe("mapTask", () => {
     const result = mapTask(task, TEST_USER_AUTH);
 
     expect(result.share).toEqual(share);
+  });
+
+  it("returns the responsible person, the Owner for existing work", () => {
+    const task = {
+      id: "tsk_responsible",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      projectId: null,
+      project: null,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: null,
+      creatorUser: null,
+      creatorCoworkerId: "cow_123",
+      creatorCoworker: defaultTaskCoworker,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
+      requestedByUserId: "user_456",
+      requestedByUser: { id: "user_456", name: "Asker", image: null },
+      name: "Made by a Coworker",
+      description: null,
+      status: TaskStatus.READY,
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(task, TEST_USER_AUTH)).toMatchObject({
+      ownerId: "user_123",
+      responsibleUserId: "user_123",
+    });
+    expect(
+      mapTaskListItem({
+        ...task,
+        _count: { jobs: 0, events: 0 },
+      } as unknown as TaskListItemWithIncludes),
+    ).toMatchObject({ ownerId: "user_123", responsibleUserId: "user_123" });
   });
 
   it("exposes the stored priority", () => {

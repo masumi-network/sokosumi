@@ -5920,6 +5920,18 @@ export const TaskSchema = {
             ],
             description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
         },
+        responsibleUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
+        },
         sokoBotId: {
             type: [
                 'string',
@@ -6111,6 +6123,7 @@ export const TaskSchema = {
         'coworker',
         'creator',
         'requester',
+        'responsibleUserId',
         'sokoBotId',
         'sokoBot',
         'number',
@@ -6952,6 +6965,18 @@ export const JobSummarySchema = {
             ],
             description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
         },
+        responsibleUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
+        },
         userId: {
             type: 'string',
             example: 'user_123',
@@ -7106,6 +7131,7 @@ export const JobSummarySchema = {
         'owner',
         'creator',
         'requester',
+        'responsibleUserId',
         'userId',
         'user',
         'workspace',
@@ -21608,6 +21634,18 @@ export const JobSchema = {
             ],
             description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
         },
+        responsibleUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
+        },
         userId: {
             type: 'string',
             example: 'user_123',
@@ -22009,6 +22047,7 @@ export const JobSchema = {
         'owner',
         'creator',
         'requester',
+        'responsibleUserId',
         'userId',
         'user',
         'projectId',
@@ -25581,6 +25620,18 @@ export const TaskListItemSchema = {
             ],
             description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
         },
+        responsibleUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
+        },
         sokoBotId: {
             type: [
                 'string',
@@ -25726,6 +25777,7 @@ export const TaskListItemSchema = {
         'coworker',
         'creator',
         'requester',
+        'responsibleUserId',
         'sokoBotId',
         'sokoBot',
         'number',
@@ -25899,6 +25951,18 @@ export const TaskScheduleSchema = {
             ],
             description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
         },
+        responsibleUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
+        },
         state: {
             $ref: '#/components/schemas/TaskScheduleState'
         },
@@ -26032,6 +26096,7 @@ export const TaskScheduleSchema = {
         'creatorSokoBotId',
         'creator',
         'requester',
+        'responsibleUserId',
         'state',
         'rule',
         'ruleEffectiveFrom',

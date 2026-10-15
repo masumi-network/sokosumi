@@ -70,6 +70,7 @@ describe("POST /tasks/{id}/jobs", () => {
       ownerId: "user_123",
       creator: null,
       requester: null,
+      responsibleUserId: "user_123",
       owner: {
         id: "user_123",
         name: "Ada Lovelace",

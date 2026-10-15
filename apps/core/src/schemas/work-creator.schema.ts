@@ -38,6 +38,15 @@ const workCreatorSchema = z
   ])
   .openapi("WorkCreator");
 
+/** `responsibleUserId` of a Task, Task Schedule or Job (ADR 0056). */
+export const responsibleUserIdField = {
+  responsibleUserId: z.union([z.string(), z.null()]).openapi({
+    example: "user_123",
+    description:
+      "The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.",
+  }),
+};
+
 /** `creator` and `requester` of a Task, Task Schedule or Job (ADR 0056). */
 export const workCreatorRequesterFields = {
   creator: z.union([workCreatorSchema, z.null()]).openapi({

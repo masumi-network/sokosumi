@@ -4,6 +4,7 @@ import {
   COWORKER_AUTH,
   COWORKER_ID,
   MEMBER_ID,
+  OWNER_ID,
   PERSONAL_WORKSPACE_ID,
   resetTaskScheduleTestDb,
   SOKO_BOT_AUTH,
@@ -65,6 +66,21 @@ describe("GET /tasks/schedules/{id}", () => {
         nextRunAt: "2030-01-07T09:00:00.000Z",
         canWrite: true,
       },
+    });
+  });
+
+  it("returns the responsible person, the Owner for existing work", async () => {
+    const schedule = seedTaskSchedule({
+      ownerId: OWNER_ID,
+      creatorUserId: null,
+      creatorCoworkerId: COWORKER_ID,
+      requestedByUserId: MEMBER_ID,
+    });
+
+    const response = await get(schedule.id);
+
+    expect(await response.json()).toMatchObject({
+      data: { ownerId: OWNER_ID, responsibleUserId: OWNER_ID },
     });
   });
 

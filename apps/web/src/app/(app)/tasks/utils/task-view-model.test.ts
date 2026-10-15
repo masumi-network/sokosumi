@@ -14,6 +14,7 @@ function buildTask(
   return {
     id: "task-1",
     requester: null,
+    responsibleUserId: "user-1",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     ownerId: "user-1",

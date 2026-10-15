@@ -90,6 +90,7 @@ const {
               }
             : null),
       requester: null,
+      responsibleUserId: t.ownerId,
       creator: (() => {
         const creatorSokoBotId =
           (t.creatorSokoBotId as string | null | undefined) ?? null;

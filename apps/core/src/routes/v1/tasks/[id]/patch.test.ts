@@ -143,6 +143,7 @@ function createTaskApi(projectId: string | null = null) {
     coworkerId: null,
     coworker: null,
     requester: null,
+    responsibleUserId: "user_123",
     creator: {
       type: "user" as const,
       id: "user_123",

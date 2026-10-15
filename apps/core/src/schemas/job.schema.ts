@@ -13,7 +13,10 @@ import {
 } from "@/schemas/domain-enums.schema";
 import { organizationSummarySchema } from "@/schemas/organization.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
-import { workCreatorRequesterFields } from "@/schemas/work-creator.schema";
+import {
+  responsibleUserIdField,
+  workCreatorRequesterFields,
+} from "@/schemas/work-creator.schema";
 
 import { fileSchema } from "./file.schema.js";
 import { linkSchema } from "./link.schema.js";
@@ -62,6 +65,7 @@ export const jobSummarySchema = z
     }),
     owner: userSummarySchema,
     ...workCreatorRequesterFields,
+    ...responsibleUserIdField,
     /** @deprecated Use `ownerId`. */
     userId: z.string().openapi({
       example: "user_123",
@@ -204,6 +208,7 @@ export const jobSchema = z
     }),
     owner: userSummarySchema,
     ...workCreatorRequesterFields,
+    ...responsibleUserIdField,
     /** @deprecated Use `ownerId`. */
     userId: z.string().openapi({
       example: "user_123",

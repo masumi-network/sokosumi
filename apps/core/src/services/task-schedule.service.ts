@@ -44,6 +44,7 @@ import {
   buildCoworkerPrivateTaskVisibilityWhere,
   buildHumanTaskVisibilityWhere,
   isPrivateTaskVisibleToCoworker,
+  resolveResponsibleUserId,
 } from "@/helpers/task-visibility";
 import { getWorkspaceGrant } from "@/helpers/vendor-grants";
 import {
@@ -1006,6 +1007,7 @@ export function mapTaskSchedule(schedule: TaskScheduleView) {
     workspaceId: schedule.workspaceId,
     organizationId: schedule.organizationId,
     ownerId: schedule.ownerId,
+    responsibleUserId: resolveResponsibleUserId(schedule),
     creatorUserId: schedule.creatorUserId,
     creatorCoworkerId: schedule.creatorCoworkerId,
     creatorSokoBotId: schedule.creatorSokoBotId,

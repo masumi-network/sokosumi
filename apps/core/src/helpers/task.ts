@@ -28,6 +28,7 @@ import {
   userSummaryFromLoadedRelation,
 } from "./loaded-relation-summaries";
 import { mapTaskLinksForTask } from "./task-link";
+import { resolveResponsibleUserId } from "./task-visibility";
 import { mapWorkCreator, mapWorkRequester } from "./work-creator";
 import { mapWorkspaceSummary } from "./workspace";
 
@@ -403,6 +404,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     updatedAt: task.updatedAt,
     ownerId: task.ownerId,
     owner: taskOwnerSummary,
+    responsibleUserId: resolveResponsibleUserId(task),
     // Deprecated aliases — keep until clients migrate.
     userId: task.ownerId,
     user: taskOwnerSummary,

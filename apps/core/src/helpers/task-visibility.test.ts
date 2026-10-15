@@ -13,6 +13,7 @@ import {
   isPrivateTaskVisibleToCoworker,
   isPrivateTaskVisibleToHuman,
   readSokoBotPacketAudience,
+  resolveResponsibleUserId,
 } from "./task-visibility";
 
 describe("task visibility helpers", () => {
@@ -165,5 +166,73 @@ describe("task visibility helpers", () => {
         },
       },
     });
+  });
+});
+
+describe("resolveResponsibleUserId", () => {
+  const none = {
+    ownerId: null,
+    creatorUserId: null,
+    creatorCoworkerId: null,
+    creatorSokoBotId: null,
+    requestedByUserId: null,
+  };
+
+  it("is the Owner when the work has one", () => {
+    expect(
+      resolveResponsibleUserId({
+        ...none,
+        ownerId: "user_owner",
+        creatorUserId: "user_creator",
+        requestedByUserId: "user_requester",
+      }),
+    ).toBe("user_owner");
+  });
+
+  it("is the person Creator when there is no Owner", () => {
+    expect(
+      resolveResponsibleUserId({
+        ...none,
+        creatorUserId: "user_creator",
+        requestedByUserId: null,
+      }),
+    ).toBe("user_creator");
+  });
+
+  it("is the Requester when a Coworker made the work and there is no Owner", () => {
+    expect(
+      resolveResponsibleUserId({
+        ...none,
+        creatorCoworkerId: "cow_1",
+        requestedByUserId: "user_requester",
+      }),
+    ).toBe("user_requester");
+  });
+
+  it("is the Requester when a Soko Bot made the work and there is no Owner", () => {
+    expect(
+      resolveResponsibleUserId({
+        ...none,
+        creatorSokoBotId: "01960001-0001-7001-8001-000000000099",
+        requestedByUserId: "user_requester",
+      }),
+    ).toBe("user_requester");
+  });
+
+  it("is nobody for work a Soko Bot started on its own", () => {
+    expect(
+      resolveResponsibleUserId({
+        ...none,
+        creatorSokoBotId: "01960001-0001-7001-8001-000000000099",
+      }),
+    ).toBeNull();
+  });
+
+  it("is nobody when the person who made the work is deleted", () => {
+    expect(resolveResponsibleUserId(none)).toBeNull();
+  });
+
+  it("treats omitted columns as absent", () => {
+    expect(resolveResponsibleUserId({})).toBeNull();
   });
 });

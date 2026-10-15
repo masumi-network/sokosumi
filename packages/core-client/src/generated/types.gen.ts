@@ -1478,6 +1478,10 @@ export type Task = {
      */
     requester: UserSummary | null;
     /**
+     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
+     */
+    responsibleUserId: string | null;
+    /**
      * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
      * @deprecated
@@ -1815,6 +1819,10 @@ export type JobSummary = {
      * The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.
      */
     requester: UserSummary | null;
+    /**
+     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
+     */
+    responsibleUserId: string | null;
     /**
      * Deprecated. Use ownerId instead.
      *
@@ -6194,6 +6202,10 @@ export type Job = {
      */
     requester: UserSummary | null;
     /**
+     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
+     */
+    responsibleUserId: string | null;
+    /**
      * Deprecated. Use ownerId instead.
      *
      * @deprecated
@@ -7185,6 +7197,10 @@ export type TaskListItem = {
      */
     requester: UserSummary | null;
     /**
+     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
+     */
+    responsibleUserId: string | null;
+    /**
      * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
      * @deprecated
@@ -7283,6 +7299,10 @@ export type TaskSchedule = {
      * The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.
      */
     requester: UserSummary | null;
+    /**
+     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
+     */
+    responsibleUserId: string | null;
     state: TaskScheduleState;
     rule: {
         expr: string;

@@ -73,6 +73,7 @@ function createJob(overrides: Partial<Job>): Job {
     id: "job-1",
     creator: null,
     requester: null,
+    responsibleUserId: owner.id,
     name: "Job name",
     createdAt: new Date("2026-02-13T10:00:00.000Z"),
     updatedAt: new Date("2026-02-13T10:00:00.000Z"),
