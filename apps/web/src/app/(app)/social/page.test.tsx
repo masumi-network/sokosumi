@@ -32,7 +32,18 @@ vi.mock("./components/social-calendar-preview", () => ({
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 
-vi.mock("next/navigation", () => ({ notFound: notFoundMock }));
+vi.mock("next/navigation", () => ({
+  notFound: notFoundMock,
+  unstable_rethrow: (error: unknown) => {
+    if (
+      error instanceof Error &&
+      (error.message === "NEXT_NOT_FOUND" ||
+        ("digest" in error && error.digest === "NEXT_NOT_FOUND"))
+    ) {
+      throw error;
+    }
+  },
+}));
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) => (key: string) =>
@@ -72,18 +83,26 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
     accountCount?: number;
     actions?: React.ReactNode;
     calendar?: React.ReactNode;
+    calendarFailed?: boolean;
     posts: { id: string }[];
     connections: { id: string }[];
+    failedSections?: string[];
+    accountsFailed?: boolean;
     projectId: string;
+    selectedPostFailed?: boolean;
     selectedPostId?: string;
   }) => (
     <div
       data-testid="social-posts"
       data-account-count={String(props.accountCount ?? "")}
+      data-calendar-failed={props.calendarFailed ? "true" : "false"}
+      data-accounts-failed={props.accountsFailed ? "true" : "false"}
       data-connections={props.connections.map((c) => c.id).join(",")}
+      data-failed-sections={(props.failedSections ?? []).join(",")}
       data-order={props.posts.map((post) => post.id).join(",")}
       data-project={props.projectId}
       data-selected={props.selectedPostId}
+      data-selected-failed={props.selectedPostFailed ? "true" : "false"}
     >
       {props.actions}
       {props.calendar}
@@ -322,6 +341,22 @@ describe("SocialPage", () => {
     await expect(searchParams).resolves.toMatchObject({ projectId: undefined });
   });
 
+  it("stays on all-projects when that project fails to load", async () => {
+    projectServiceMock.getProjectById.mockRejectedValue(new Error("core down"));
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-no-project")).toHaveTextContent(
+      "App.Social.pickFailed",
+    );
+    expect(screen.getByTestId("social-all-projects-tabs")).toBeInTheDocument();
+    expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
+    expect(screen.queryByTestId("social-posts")).not.toBeInTheDocument();
+    expect(projectServiceMock.listSocialPosts).not.toHaveBeenCalled();
+    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
+    await expect(searchParams).resolves.toMatchObject({ projectId: undefined });
+  });
+
   it("loads the month range for a stale view=agenda link", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
 
@@ -355,9 +390,85 @@ describe("SocialPage", () => {
       "data-project",
       "project-1",
     );
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-failed-sections",
+      "",
+    );
     // One read per list: drafts and needs attention. Scheduled, published
     // and canceled posts are left to the calendar tab.
     expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-calendar-failed",
+      "false",
+    );
+  });
+
+  it("keeps Social up when the calendar fails to load", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    loadWorkspaceCalendarPageMock.mockRejectedValue(new Error("core down"));
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-calendar-failed",
+      "true",
+    );
+    expect(screen.queryByTestId("social-calendar")).not.toBeInTheDocument();
+    expect(projectServiceMock.listSocialPosts).toHaveBeenCalled();
+    expect(projectServiceMock.listSocialConnections).toHaveBeenCalled();
+  });
+
+  it("still 404s when the calendar loader cannot find the project", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    loadWorkspaceCalendarPageMock.mockRejectedValue(
+      Object.assign(new Error("NEXT_NOT_FOUND"), { digest: "NEXT_NOT_FOUND" }),
+    );
+
+    const { default: SocialPage } = await import("./page");
+
+    await expect(
+      SocialPage({
+        searchParams: Promise.resolve({ projectId: "project-1" }),
+      }),
+    ).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  it("keeps Social up when one list page fails", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialPosts
+      .mockRejectedValueOnce(new Error("core down"))
+      .mockResolvedValueOnce({
+        posts: [{ id: "post-a" }],
+        nextCursor: null,
+      });
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-failed-sections",
+      "drafts",
+    );
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-order",
+      "post-a",
+    );
+    expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
+  });
+
+  it("keeps Social up when accounts fail to load", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialConnections.mockRejectedValue(
+      new Error("core down"),
+    );
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-accounts-failed",
+      "true",
+    );
+    expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
+    expect(projectServiceMock.listSocialPosts).toHaveBeenCalled();
   });
 
   /**
@@ -462,5 +573,26 @@ describe("SocialPage", () => {
     expect(screen.getByTestId("social-posts")).not.toHaveAttribute(
       "data-selected",
     );
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-selected-failed",
+      "false",
+    );
+  });
+
+  it("keeps Social up when a linked post fails to load", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.getSocialPost.mockRejectedValue(new Error("core down"));
+
+    await visit({ projectId: "project-1", postId: "post-broken" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-selected-failed",
+      "true",
+    );
+    expect(screen.getByTestId("social-posts")).not.toHaveAttribute(
+      "data-selected",
+    );
+    expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
+    expect(projectServiceMock.listSocialPosts).toHaveBeenCalled();
   });
 });

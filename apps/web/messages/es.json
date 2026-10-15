@@ -2433,8 +2433,16 @@
         "emptyHint": "Conecta una para publicar."
       },
       "SocialPosts": {
+        "accountsFailed": "No se pudieron cargar las cuentas.",
+        "accountsRetry": "Inténtalo de nuevo",
         "loadMore": "Cargar más",
+        "listFailed": "No se pudieron cargar las publicaciones.",
+        "listRetry": "Inténtalo de nuevo",
         "loading": "Cargando…",
+        "calendarFailed": "No se pudo cargar el calendario.",
+        "calendarRetry": "Intentar de nuevo",
+        "selectedPostFailed": "No se pudo abrir esa publicación.",
+        "selectedPostRetry": "Intentar de nuevo",
         "title": "Publicaciones sociales",
         "newPost": "Nueva publicación",
         "moreActions": "Acciones de la publicación",
@@ -2677,9 +2685,9 @@
           "clearFilters": "Borrar filtros",
           "invalidRange": "La fecha final debe ser igual o posterior a la fecha inicial.",
           "loading": "Cargando estadísticas…",
-          "loadFailed": "No se pudieron cargar las estadísticas",
+          "loadFailed": "No se cargaron las estadísticas.",
           "retry": "Volver a intentar",
-          "refreshFailed": "No se pudieron actualizar las estadísticas. Se conservan los resultados anteriores. Revisa la cuenta conectada y los permisos y vuelve a intentarlo.",
+          "refreshFailed": "No se pudieron actualizar.",
           "empty": "Ninguna publicación importada coincide con estos filtros. Sincroniza una cuenta o borra los filtros.",
           "refresh": "Actualizar estadísticas",
           "loadMore": "Cargar más publicaciones",
@@ -3628,6 +3636,7 @@
     "Social": {
       "title": "Programación social",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "pickFailed": "No se pudo cargar ese proyecto. Elige otro, o inténtalo de nuevo.",
       "newPost": {
         "label": "Nueva publicación",
         "options": "Opciones de nueva publicación",

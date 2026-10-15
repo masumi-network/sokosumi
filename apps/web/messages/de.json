@@ -2433,8 +2433,16 @@
         "emptyHint": "Verbinde eines, um zu posten."
       },
       "SocialPosts": {
+        "accountsFailed": "Konten konnten nicht geladen werden.",
+        "accountsRetry": "Erneut versuchen",
         "loadMore": "Mehr laden",
+        "listFailed": "Beiträge konnten nicht geladen werden.",
+        "listRetry": "Erneut versuchen",
         "loading": "Wird geladen…",
+        "calendarFailed": "Der Kalender konnte nicht geladen werden.",
+        "calendarRetry": "Erneut versuchen",
+        "selectedPostFailed": "Dieser Beitrag konnte nicht geöffnet werden.",
+        "selectedPostRetry": "Erneut versuchen",
         "title": "Social-Media-Beiträge",
         "newPost": "Neuer Beitrag",
         "moreActions": "Beitragsaktionen",
@@ -2677,9 +2685,9 @@
           "clearFilters": "Filter zurücksetzen",
           "invalidRange": "Das Enddatum muss am oder nach dem Startdatum liegen.",
           "loading": "Statistiken werden geladen…",
-          "loadFailed": "Statistiken konnten nicht geladen werden",
+          "loadFailed": "Statistiken nicht geladen.",
           "retry": "Erneut versuchen",
-          "refreshFailed": "Statistiken konnten nicht aktualisiert werden. Vorherige Ergebnisse bleiben erhalten. Prüfe das verbundene Konto und die Berechtigungen und versuche es erneut.",
+          "refreshFailed": "Aktualisieren nicht möglich.",
           "empty": "Keine importierten Beiträge entsprechen diesen Filtern. Synchronisiere ein Konto oder setze die Filter zurück.",
           "refresh": "Statistiken aktualisieren",
           "loadMore": "Weitere Beiträge laden",
@@ -3628,6 +3636,7 @@
     "Social": {
       "title": "Social-Planung",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
+      "pickFailed": "Dieses Projekt konnte nicht geladen werden. Wähle ein anderes aus oder versuche es erneut.",
       "newPost": {
         "label": "Neuer Beitrag",
         "options": "Optionen für neuen Beitrag",

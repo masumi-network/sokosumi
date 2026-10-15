@@ -95,7 +95,13 @@ interface ProjectSocialPostsProps {
    * Defaults to `connections.length` when the page only loaded actives.
    */
   accountCount?: number;
+  /** The Accounts first page failed, so do not pretend there are none. */
+  accountsFailed?: boolean;
+  /** The Calendar first page failed, so do not pretend there are no posts. */
+  calendarFailed?: boolean;
   posts: SocialPost[];
+  /** List tabs whose first page failed to load. */
+  failedSections?: readonly SectionKey[];
   nextCursors?: Partial<Record<SectionKey, string | null>>;
   projectId: string;
   /** Render only the post dialog and its actions for an unscoped calendar. */
@@ -105,6 +111,8 @@ interface ProjectSocialPostsProps {
    * The post a link names (`?postId=`), opened in a preview without changing tabs.
    */
   selectedPostId?: string;
+  /** The named post request failed, so do not pretend the link is gone. */
+  selectedPostFailed?: boolean;
 }
 
 /** Statuses whose previous attempt already ran, so the publish action reads as a retry. */
@@ -208,13 +216,17 @@ function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
 export function ProjectSocialPosts({
   accounts,
   accountCount,
+  accountsFailed = false,
   actions,
   calendar,
+  calendarFailed = false,
   connections,
   posts: initialPosts,
+  failedSections = [],
   nextCursors,
   projectId,
   selectedPostId,
+  selectedPostFailed = false,
   previewOnly = false,
   returnFocus,
 }: ProjectSocialPostsProps) {
@@ -275,20 +287,22 @@ export function ProjectSocialPosts({
 
   // Needs attention is a tab only while something needs it. Once the last
   // post in it is dealt with, the page goes back to its first tab.
+  const hasCalendar = calendar !== undefined || calendarFailed;
   const tabs: SocialTab[] = SOCIAL_TABS.filter((candidate) => {
-    if (candidate === "calendar") return calendar !== undefined;
+    if (candidate === "calendar") return hasCalendar;
     if (candidate === "accounts") return accounts !== undefined;
     return (
       candidate !== "attention" ||
       postsIn(candidate).length > 0 ||
-      Boolean(cursors[candidate])
+      Boolean(cursors[candidate]) ||
+      failedSections.includes(candidate)
     );
   });
   const tab: SocialTab =
     tabParam && tabs.includes(tabParam) ? tabParam : tabs[0];
   const listedAccountCount = accountCount ?? connections.length;
   const accountPrompt =
-    accounts === undefined || tab === "accounts"
+    accounts === undefined || tab === "accounts" || accountsFailed
       ? null
       : listedAccountCount === 0
         ? "connect"
@@ -352,8 +366,7 @@ export function ProjectSocialPosts({
     // Follow the post to the tab that shows it now, so a new draft, a
     // scheduled draft or a failed publish stays in view.
     if (previewOnly) router.refresh();
-    else
-      showTab(sectionOf(post) ?? (calendar !== undefined ? "calendar" : null));
+    else showTab(sectionOf(post) ?? (hasCalendar ? "calendar" : null));
   }
 
   async function handleConfirmCancel(): Promise<void> {
@@ -814,12 +827,54 @@ export function ProjectSocialPosts({
             </div>
           ) : null}
 
-          {calendar !== undefined ? (
+          {selectedPostFailed ? (
+            <div
+              className="space-y-3"
+              data-testid="social-selected-post-load-error"
+              role="alert"
+            >
+              <p className="text-sm">{t("selectedPostFailed")}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-11 md:h-8"
+                onClick={() => {
+                  router.refresh();
+                }}
+              >
+                {t("selectedPostRetry")}
+              </Button>
+            </div>
+          ) : null}
+
+          {hasCalendar ? (
             <TabsContent
               data-testid="social-posts-section-calendar"
               value="calendar"
             >
-              {calendar}
+              {calendarFailed ? (
+                <div
+                  className="space-y-3"
+                  data-testid="social-calendar-load-error"
+                  role="alert"
+                >
+                  <p className="text-sm">{t("calendarFailed")}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-11 md:h-8"
+                    onClick={() => {
+                      router.refresh();
+                    }}
+                  >
+                    {t("calendarRetry")}
+                  </Button>
+                </div>
+              ) : (
+                calendar
+              )}
             </TabsContent>
           ) : null}
 
@@ -834,7 +889,27 @@ export function ProjectSocialPosts({
                   data-testid={`social-posts-section-${section}`}
                   value={section}
                 >
-                  {sectionPosts.length > 0 ? (
+                  {failedSections.includes(section) &&
+                  sectionPosts.length === 0 ? (
+                    <div
+                      className="space-y-3"
+                      data-testid={`social-posts-load-error-${section}`}
+                      role="alert"
+                    >
+                      <p className="text-sm">{t("listFailed")}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-11 md:h-8"
+                        onClick={() => {
+                          router.refresh();
+                        }}
+                      >
+                        {t("listRetry")}
+                      </Button>
+                    </div>
+                  ) : sectionPosts.length > 0 ? (
                     <ul
                       className={
                         section === "drafts"
@@ -893,7 +968,28 @@ export function ProjectSocialPosts({
               data-testid="social-posts-section-accounts"
               value="accounts"
             >
-              {accounts}
+              {accountsFailed ? (
+                <div
+                  className="space-y-3"
+                  data-testid="social-accounts-load-error"
+                  role="alert"
+                >
+                  <p className="text-sm">{t("accountsFailed")}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-11 md:h-8"
+                    onClick={() => {
+                      router.refresh();
+                    }}
+                  >
+                    {t("accountsRetry")}
+                  </Button>
+                </div>
+              ) : (
+                accounts
+              )}
             </TabsContent>
           ) : null}
         </Tabs>

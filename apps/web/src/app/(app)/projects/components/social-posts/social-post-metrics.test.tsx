@@ -62,7 +62,7 @@ describe("SocialPostMetrics", () => {
     ).toHaveTextContent("Unavailable");
   });
 
-  it("says when numbers have not been fetched and when a refresh failed", () => {
+  it("says when numbers have not been fetched and when stats failed to load", () => {
     render(
       <SocialPostMetrics
         statistics={{
@@ -75,7 +75,7 @@ describe("SocialPostMetrics", () => {
     );
     expect(screen.getByText("Statistics have not been fetched.")).toBeVisible();
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Failed to refresh statistics",
+      en.App.Projects.SocialPosts.statistics.loadFailed,
     );
   });
 });

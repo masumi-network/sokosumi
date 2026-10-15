@@ -2433,8 +2433,16 @@
         "emptyHint": "Connect one to post."
       },
       "SocialPosts": {
+        "accountsFailed": "Couldn't load accounts.",
+        "accountsRetry": "Try again",
         "loadMore": "Load more",
+        "listFailed": "Couldn't load posts.",
+        "listRetry": "Try again",
         "loading": "Loading…",
+        "calendarFailed": "Couldn't load the calendar.",
+        "calendarRetry": "Try again",
+        "selectedPostFailed": "Couldn't open that post.",
+        "selectedPostRetry": "Try again",
         "title": "Social posts",
         "newPost": "New post",
         "moreActions": "Post actions",
@@ -2677,9 +2685,9 @@
           "clearFilters": "Clear filters",
           "invalidRange": "End date must be on or after the start date.",
           "loading": "Loading statistics…",
-          "loadFailed": "Failed to load statistics",
+          "loadFailed": "Couldn't load stats.",
           "retry": "Try again",
-          "refreshFailed": "Failed to refresh statistics. Previous results are retained. Check the connected account and permissions, then try again.",
+          "refreshFailed": "Couldn't refresh.",
           "empty": "No imported posts match these filters. Sync an account or clear the filters.",
           "refresh": "Refresh statistics",
           "loadMore": "Load more posts",
@@ -3628,6 +3636,7 @@
     "Social": {
       "title": "Social Scheduling",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "pickFailed": "Couldn't load that project. Choose another one, or try again.",
       "newPost": {
         "label": "New post",
         "options": "New post options",

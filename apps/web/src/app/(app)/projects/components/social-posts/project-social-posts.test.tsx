@@ -82,7 +82,15 @@ const {
 
 const MESSAGES: Record<string, string> = {
   title: "Social posts",
+  selectedPostFailed: "Couldn't open that post.",
+  selectedPostRetry: "Try again",
+  accountsFailed: "Couldn't load accounts.",
+  accountsRetry: "Try again",
+  calendarFailed: "Couldn't load the calendar.",
+  calendarRetry: "Try again",
   loadMore: "Load more",
+  listFailed: "Couldn't load posts.",
+  listRetry: "Try again",
   loading: "Loading…",
   description: "Draft text posts for X and schedule them from this Project.",
   newPost: "New post",
@@ -762,6 +770,48 @@ describe("ProjectSocialPosts", () => {
     expect(screen.queryByText("Calendar panel")).not.toBeInTheDocument();
   });
 
+  it("keeps Social up with a retry when a linked post failed", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+        selectedPostFailed
+      />,
+    );
+
+    expect(screen.getByText("Calendar panel")).toBeVisible();
+    const failed = screen.getByTestId("social-selected-post-load-error");
+    expect(within(failed).getByText("Couldn't open that post.")).toBeVisible();
+    await user.click(within(failed).getByRole("button", { name: "Try again" }));
+    expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
+  it("keeps Calendar open with a retry when the calendar failed", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        calendarFailed
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(getTab("Calendar")).toHaveAttribute("aria-selected", "true");
+    const failed = screen.getByTestId("social-calendar-load-error");
+    expect(
+      within(failed).getByText("Couldn't load the calendar."),
+    ).toBeVisible();
+    expect(screen.queryByText("Calendar panel")).not.toBeInTheDocument();
+    await user.click(within(failed).getByRole("button", { name: "Try again" }));
+    expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
   it("gives tabs 44px phone targets and scrolls from the start", () => {
     render(
       <ProjectSocialPosts
@@ -889,6 +939,30 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps Accounts open with a retry when the list failed", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        accountsFailed
+        calendar={<p>Calendar panel</p>}
+        connections={[]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("social-connect-prompt"),
+    ).not.toBeInTheDocument();
+    await openTab(user, "Accounts");
+    const failed = screen.getByTestId("social-accounts-load-error");
+    expect(within(failed).getByText("Couldn't load accounts.")).toBeVisible();
+    expect(screen.queryByText("Accounts panel")).not.toBeInTheDocument();
+    await user.click(within(failed).getByRole("button", { name: "Try again" }));
+    expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
   it("opens the tab the URL names", () => {
     renderUi(
       <NuqsTestingAdapter searchParams="?tab=drafts">
@@ -927,6 +1001,45 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
     expect(getTab("Calendar")).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("keeps Drafts open with a retry when the first page failed", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        failedSections={["drafts"]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const drafts = screen.getByTestId("social-posts-load-error-drafts");
+    expect(within(drafts).getByText("Couldn't load posts.")).toBeVisible();
+    await user.click(within(drafts).getByRole("button", { name: "Try again" }));
+    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(
+      within(screen.getByTestId("social-posts-section-drafts")).queryByText(
+        "No drafts yet.",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps Needs attention so a failed first page can retry", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        failedSections={["attention"]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    const attention = screen.getByTestId("social-posts-load-error-attention");
+    expect(within(attention).getByText("Couldn't load posts.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
   });
 
   it("tells an empty tab how it fills", () => {

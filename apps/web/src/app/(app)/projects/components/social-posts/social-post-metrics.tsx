@@ -55,7 +55,7 @@ export function SocialPostMetrics({
       </p>
       {statistics?.error ? (
         <p role="status" className="text-semantic-warning text-xs">
-          {t("refreshFailed")}
+          {t("loadFailed")}
         </p>
       ) : null}
     </div>
