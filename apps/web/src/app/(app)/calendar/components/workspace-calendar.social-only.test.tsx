@@ -138,12 +138,14 @@ const RUN: WorkspaceCalendarItem = {
 
 const POST: SocialPostCalendarItem = {
   kind: "socialPost",
+  revision: 4,
   id: "social:post-1",
   postId: "post-1",
   provider: "x",
   text: "Launch news",
   status: "SCHEDULED",
   externalHandle: "team",
+  avatarUrl: null,
   projectName: "Release planning",
   scheduledByName: "Ada",
   scheduledByImage: null,
@@ -232,6 +234,7 @@ describe("WorkspaceCalendar Social-only view", () => {
       "aria-pressed",
       "false",
     );
+    expect(screen.getByTestId("calendar-views")).not.toHaveClass("min-h-11");
   });
 
   it("drops the runs once the toggle is pressed", () => {
@@ -395,6 +398,20 @@ describe("WorkspaceCalendar Social-only view", () => {
         "view.month",
         "view.week",
       ]);
+    });
+
+    it("gives the view tabs and filters 44px phone targets", () => {
+      renderCalendar({ includeSocialPosts: true, socialPostsOnly: true });
+
+      expect(screen.getByTestId("calendar-views")).toHaveClass("min-h-11");
+      for (const tab of screen.getAllByRole("tab")) {
+        expect(tab).toHaveClass("min-h-11");
+      }
+      expect(filterDropdownMenuMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          triggerClassName: "min-h-11 min-w-11 sm:min-h-8 sm:min-w-0",
+        }),
+      );
     });
 
     it("names the time zone its grid reads posts in", () => {
