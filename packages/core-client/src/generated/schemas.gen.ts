@@ -19517,6 +19517,10 @@ export const SocialPostCalendarItemSchema = {
                 'CANCELED'
             ]
         },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        },
         externalHandle: {
             type: [
                 'string',
@@ -19630,6 +19634,7 @@ export const SocialPostCalendarItemSchema = {
         'provider',
         'text',
         'status',
+        'revision',
         'externalHandle',
         'avatarUrl',
         'projectName',

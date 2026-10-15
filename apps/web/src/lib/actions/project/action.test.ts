@@ -30,7 +30,6 @@ const projectServiceMock = {
   refreshSocialAccountStatistics: vi.fn(),
   removeProjectDesignMd: vi.fn(),
   retryProjectClose: vi.fn(),
-  getSocialPost: vi.fn(),
   scheduleSocialPost: vi.fn(),
   updateSocialPost: vi.fn(),
 };
@@ -872,30 +871,22 @@ describe("project actions", () => {
       expect(revalidatePath).toHaveBeenCalledWith("/social");
     });
 
-    it("reschedules from the calendar by reading the current revision", async () => {
-      projectServiceMock.getSocialPost.mockResolvedValue({
-        ...post,
-        canSchedule: true,
-        revision: 4,
-      });
+    it("schedules with the revision supplied by the calendar", async () => {
       projectServiceMock.scheduleSocialPost.mockResolvedValue({
         ...post,
         status: "SCHEDULED",
         revision: 5,
       });
 
-      const { rescheduleProjectSocialPost } = await import("./action");
+      const { scheduleProjectSocialPost } = await import("./action");
       const { revalidatePath } = await import("next/cache");
-      const result = await rescheduleProjectSocialPost({
+      const result = await scheduleProjectSocialPost({
         projectId: " project-1 ",
         postId: " post-1 ",
         scheduledAt: "2026-10-02T14:00:00.000Z",
+        revision: 4,
       });
 
-      expect(projectServiceMock.getSocialPost).toHaveBeenCalledWith(
-        "project-1",
-        "post-1",
-      );
       expect(projectServiceMock.scheduleSocialPost).toHaveBeenCalledWith(
         "project-1",
         "post-1",
@@ -908,42 +899,46 @@ describe("project actions", () => {
       expect(revalidatePath).toHaveBeenCalledWith("/calendar");
     });
 
-    it("refuses a calendar reschedule when the post cannot be scheduled", async () => {
-      projectServiceMock.getSocialPost.mockResolvedValue({
-        ...post,
-        canSchedule: false,
+    it("returns Core's stale-revision conflict without retrying the calendar move", async () => {
+      const error = new CoreApiRequestError(
+        "Social post was modified, reload and retry",
+        {
+          status: 409,
+          kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+        },
+      );
+      projectServiceMock.scheduleSocialPost.mockRejectedValue(error);
+      toCoreApiActionErrorMock.mockReturnValue({
+        code: "BAD_INPUT",
+        kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+        message: error.message,
+      });
+
+      const { scheduleProjectSocialPost } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await scheduleProjectSocialPost({
+        projectId: "project-1",
+        postId: "post-1",
+        scheduledAt: "2026-10-02T14:00:00.000Z",
         revision: 4,
       });
 
-      const { rescheduleProjectSocialPost } = await import("./action");
-      const result = await rescheduleProjectSocialPost({
-        projectId: "project-1",
-        postId: "post-1",
-        scheduledAt: "2026-10-02T14:00:00.000Z",
+      expect(
+        projectServiceMock.scheduleSocialPost,
+      ).toHaveBeenCalledExactlyOnceWith("project-1", "post-1", {
+        scheduledAt: new Date("2026-10-02T14:00:00.000Z"),
+        revision: 4,
       });
-
-      expect(result).toMatchObject({
+      expect(toCoreApiActionErrorMock).toHaveBeenCalledWith(error);
+      expect(result).toEqual({
         ok: false,
-        error: { code: "BAD_INPUT" },
+        error: {
+          code: "BAD_INPUT",
+          kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+          message: error.message,
+        },
       });
-      expect(projectServiceMock.scheduleSocialPost).not.toHaveBeenCalled();
-    });
-
-    it("refuses a calendar reschedule when the post is gone", async () => {
-      projectServiceMock.getSocialPost.mockResolvedValue(null);
-
-      const { rescheduleProjectSocialPost } = await import("./action");
-      const result = await rescheduleProjectSocialPost({
-        projectId: "project-1",
-        postId: "post-1",
-        scheduledAt: "2026-10-02T14:00:00.000Z",
-      });
-
-      expect(result).toMatchObject({
-        ok: false,
-        error: { code: "NOT_FOUND" },
-      });
-      expect(projectServiceMock.scheduleSocialPost).not.toHaveBeenCalled();
+      expect(revalidatePath).not.toHaveBeenCalled();
     });
 
     it("publishes a post now through the service and revalidates", async () => {

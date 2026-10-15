@@ -22,6 +22,7 @@ vi.mock("@/app/social/components/social-calendar-preview", () => ({
 
 const item: SocialPostCalendarItem = {
   kind: "socialPost",
+  revision: 4,
   provider: "x",
   id: "social:post",
   postId: "post",

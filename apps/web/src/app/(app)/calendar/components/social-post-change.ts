@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import type { ActionError } from "@/lib/actions/errors/action-error";
-import { rescheduleProjectSocialPost } from "@/lib/actions/project/action";
+import { scheduleProjectSocialPost } from "@/lib/actions/project/action";
 
 const CHANGEABLE_SOCIAL_STATUSES: ReadonlySet<
   SocialPostCalendarItem["status"]
@@ -21,15 +21,16 @@ export function isChangeableSocialPost(
   );
 }
 
-/** Reads the current revision on the server, then schedules the dropped instant. */
+/** Schedule the dropped instant with the revision the calendar originally read. */
 export function rescheduleSocialPost(
   item: SocialPostCalendarItem,
   scheduledAt: Date,
 ) {
-  return rescheduleProjectSocialPost({
+  return scheduleProjectSocialPost({
     projectId: item.sourceProjectId,
     postId: item.postId,
     scheduledAt: scheduledAt.toISOString(),
+    revision: item.revision,
   });
 }
 
@@ -40,9 +41,9 @@ export function useReportSocialRescheduleFailure() {
   return (error?: ActionError) => {
     if (error?.kind === CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT) {
       router.refresh();
-      toast.error(t("conflict"));
+      toast.error(t("conflict"), { duration: Infinity });
       return;
     }
-    toast.error(error?.message || t("failed"));
+    toast.error(error?.message || t("failed"), { duration: Infinity });
   };
 }

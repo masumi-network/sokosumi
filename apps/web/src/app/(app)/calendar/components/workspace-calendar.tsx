@@ -575,7 +575,16 @@ function CalendarView({
   const reportSocialRescheduleFailure = useReportSocialRescheduleFailure();
   // Optimistic overlay for an in-flight drop: the event renders at the time it
   // was dropped at until Core confirms it or the rollback removes it.
-  const [pendingMoves, setPendingMoves] = useState<Record<string, Date>>({});
+  const [pendingMoves, setPendingMoves] = useState<
+    Record<string, { item: WorkspaceCalendarEntry; scheduledAt: Date }>
+  >({});
+  // Fresh server items retire their overlays; local filtering preserves the items.
+  const retainedMoves = Object.entries(pendingMoves).filter(([, move]) =>
+    items.includes(move.item),
+  );
+  if (retainedMoves.length !== Object.keys(pendingMoves).length) {
+    setPendingMoves(Object.fromEntries(retainedMoves));
+  }
   const pluginView = {
     month: "dayGridMonth",
     week: "dayGridWeek",
@@ -597,7 +606,10 @@ function CalendarView({
     }
 
     if (isChangeableRun(item)) {
-      setPendingMoves((moves) => ({ ...moves, [item.id]: scheduledAt }));
+      setPendingMoves((moves) => ({
+        ...moves,
+        [item.id]: { item, scheduledAt },
+      }));
       try {
         const result = await changeRun(item, { action: "move", scheduledAt });
         if (!result.ok) {
@@ -616,7 +628,10 @@ function CalendarView({
     }
 
     if (isChangeableSocialPost(item)) {
-      setPendingMoves((moves) => ({ ...moves, [item.id]: scheduledAt }));
+      setPendingMoves((moves) => ({
+        ...moves,
+        [item.id]: { item, scheduledAt },
+      }));
       try {
         const result = await rescheduleSocialPost(item, scheduledAt);
         if (!result.ok) {
@@ -729,7 +744,9 @@ function CalendarView({
           events={items.map((item) => ({
             id: item.id,
             title: item.kind === "socialPost" ? item.text : item.taskName,
-            start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
+            start: (
+              pendingMoves[item.id]?.scheduledAt ?? item.scheduledAt
+            ).toISOString(),
             // Per-event: a released or unowned Run is visible but not draggable.
             startEditable: isDraggableCalendarEntry(item),
             durationEditable: false,
@@ -759,7 +776,7 @@ function CalendarView({
             }
             const start = eventInfo.event.start;
             if (item.kind === "socialPost") {
-              const pendingStart = pendingMoves[item.id];
+              const pendingStart = pendingMoves[item.id]?.scheduledAt;
               return (
                 <div className="w-full max-w-full min-w-0 overflow-hidden">
                   <SocialPostCalendarEvent

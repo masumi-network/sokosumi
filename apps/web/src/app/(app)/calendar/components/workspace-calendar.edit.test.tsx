@@ -48,7 +48,7 @@ const {
   changeTaskScheduleRunMock,
   filterDropdownMenuMock,
   fullCalendarMock,
-  rescheduleProjectSocialPostMock,
+  scheduleProjectSocialPostMock,
   getProjectCalendarMock,
   getWorkspaceCalendarMock,
   interactionPluginMock,
@@ -61,7 +61,7 @@ const {
   changeTaskScheduleRunMock: vi.fn(),
   filterDropdownMenuMock: vi.fn(),
   fullCalendarMock: vi.fn(),
-  rescheduleProjectSocialPostMock: vi.fn(),
+  scheduleProjectSocialPostMock: vi.fn(),
   getProjectCalendarMock: vi.fn(),
   getWorkspaceCalendarMock: vi.fn(),
   interactionPluginMock: {},
@@ -187,7 +187,7 @@ vi.mock("@/lib/actions/task-schedule/action", () => ({
 }));
 
 vi.mock("@/lib/actions/project/action", () => ({
-  rescheduleProjectSocialPost: rescheduleProjectSocialPostMock,
+  scheduleProjectSocialPost: scheduleProjectSocialPostMock,
 }));
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
@@ -251,6 +251,7 @@ const RUN_AT_ITEM: WorkspaceCalendarItem = {
 
 const SOCIAL_POST: SocialPostCalendarItem = {
   kind: "socialPost",
+  revision: 4,
   id: "social:post-1",
   postId: "post-1",
   provider: "x",
@@ -1061,16 +1062,16 @@ describe("WorkspaceCalendar editing", () => {
     });
 
     expect(revert).toHaveBeenCalledOnce();
-    expect(rescheduleProjectSocialPostMock).not.toHaveBeenCalled();
+    expect(scheduleProjectSocialPostMock).not.toHaveBeenCalled();
     expect(changeTaskScheduleRunMock).not.toHaveBeenCalled();
   });
 
-  it("moves a dropped social post optimistically after fetching its revision", async () => {
+  it("moves a dropped social post optimistically with its displayed revision", async () => {
     const request = createDeferred<{
       ok: true;
       value: { id: string };
     }>();
-    rescheduleProjectSocialPostMock.mockReturnValue(request.promise);
+    scheduleProjectSocialPostMock.mockReturnValue(request.promise);
     renderCalendar({ items: [SOCIAL_POST] });
 
     const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
@@ -1084,10 +1085,11 @@ describe("WorkspaceCalendar editing", () => {
       });
     });
 
-    expect(rescheduleProjectSocialPostMock).toHaveBeenCalledWith({
+    expect(scheduleProjectSocialPostMock).toHaveBeenCalledWith({
       projectId: "project-1",
       postId: "post-1",
       scheduledAt: droppedAt.toISOString(),
+      revision: 4,
     });
     const optimistic = (
       fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps
@@ -1102,8 +1104,65 @@ describe("WorkspaceCalendar editing", () => {
     await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
   });
 
+  it("retires a confirmed social move when fresh server items arrive", async () => {
+    const request = createDeferred<{
+      ok: true;
+      value: { id: string };
+    }>();
+    scheduleProjectSocialPostMock.mockReturnValue(request.promise);
+    function calendar(post: SocialPostCalendarItem) {
+      return (
+        <NuqsTestingAdapter searchParams="?timezone=UTC">
+          <WorkspaceCalendar
+            initialDate="2030-01-02"
+            items={[post]}
+            sources={SOURCES}
+            coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          />
+        </NuqsTestingAdapter>
+      );
+    }
+    function renderedStart() {
+      const props = fullCalendarMock.mock.calls.at(
+        -1,
+      )?.[0] as FullCalendarProps;
+      return props.events?.find(({ id }) => id === SOCIAL_POST.id)?.start;
+    }
+    const { rerender } = render(calendar(SOCIAL_POST));
+    const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
+    const droppedAt = new Date("2030-01-04T14:00:00.000Z");
+
+    await act(async () => {
+      props.eventDrop?.({
+        event: { id: SOCIAL_POST.id, start: droppedAt },
+        revert: vi.fn(),
+      });
+    });
+    expect(renderedStart()).toBe(droppedAt.toISOString());
+
+    rerender(calendar(SOCIAL_POST));
+    expect(renderedStart()).toBe(droppedAt.toISOString());
+
+    await act(async () => {
+      request.resolve({ ok: true, value: { id: "post-1" } });
+      await request.promise;
+    });
+    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(renderedStart()).toBe(droppedAt.toISOString());
+
+    rerender(calendar({ ...SOCIAL_POST, scheduledAt: droppedAt }));
+    expect(renderedStart()).toBe(droppedAt.toISOString());
+
+    const changedAt = new Date("2030-01-05T16:00:00.000Z");
+    rerender(calendar({ ...SOCIAL_POST, scheduledAt: changedAt }));
+    expect(renderedStart()).toBe(changedAt.toISOString());
+
+    rerender(calendar(SOCIAL_POST));
+    expect(renderedStart()).toBe(SOCIAL_POST.scheduledAt.toISOString());
+  });
+
   it("reverts a refused social drop and keeps the original time", async () => {
-    rescheduleProjectSocialPostMock.mockResolvedValue({
+    scheduleProjectSocialPostMock.mockResolvedValue({
       ok: false,
       error: { code: "BAD_INPUT", message: "Social post cannot be scheduled" },
     });
@@ -1125,6 +1184,7 @@ describe("WorkspaceCalendar editing", () => {
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith(
         "Social post cannot be scheduled",
+        { duration: Infinity },
       ),
     );
     expect(revert).toHaveBeenCalledOnce();
@@ -1136,7 +1196,7 @@ describe("WorkspaceCalendar editing", () => {
   });
 
   it("reverts a conflicted social drop and reloads", async () => {
-    rescheduleProjectSocialPostMock.mockResolvedValue({
+    scheduleProjectSocialPostMock.mockResolvedValue({
       ok: false,
       error: {
         code: "CONFLICT",
@@ -1160,6 +1220,8 @@ describe("WorkspaceCalendar editing", () => {
 
     await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
     expect(revert).toHaveBeenCalledOnce();
-    expect(toastErrorMock).toHaveBeenCalledWith("conflict");
+    expect(toastErrorMock).toHaveBeenCalledWith("conflict", {
+      duration: Infinity,
+    });
   });
 });

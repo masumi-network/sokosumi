@@ -216,6 +216,7 @@ export const socialPostCalendarItemSchema = z
     provider: socialPostProviderSchema,
     text: z.string(),
     status: z.enum(SocialPostStatus),
+    revision: z.number().int().nonnegative(),
     externalHandle: z.string().nullable(),
     avatarUrl: projectSocialConnectionSchema.shape.avatarUrl,
     projectName: z.string(),

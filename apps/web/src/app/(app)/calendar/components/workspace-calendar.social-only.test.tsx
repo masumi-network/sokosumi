@@ -138,6 +138,7 @@ const RUN: WorkspaceCalendarItem = {
 
 const POST: SocialPostCalendarItem = {
   kind: "socialPost",
+  revision: 4,
   id: "social:post-1",
   postId: "post-1",
   provider: "x",
