@@ -7,7 +7,7 @@ import {
   type SocialPostMediaRef,
   type SocialPostStatus,
 } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, isValidTimezone } from "@sokosumi/utils";
 import {
   AlertTriangle,
   ExternalLink,
@@ -21,7 +21,12 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { parseAsStringEnum, parseAsStringLiteral, useQueryState } from "nuqs";
+import {
+  parseAsString,
+  parseAsStringEnum,
+  parseAsStringLiteral,
+  useQueryState,
+} from "nuqs";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
@@ -71,6 +76,7 @@ import {
   cancelProjectSocialPost,
   publishProjectSocialPost,
 } from "@/lib/actions/project/action";
+import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import { cn } from "@/lib/utils";
 import { loadMoreSocialPosts } from "./actions";
 import {
@@ -168,6 +174,23 @@ function sortSection(posts: SocialPost[], section: SectionKey): SocialPost[] {
 function formatHandle(handle: string | null): string | null {
   if (!handle) return null;
   return handle.startsWith("@") ? handle : `@${handle}`;
+}
+
+/** Same `yyyy-MM-dd` WorkspaceCalendar reads from `?date=`. */
+function calendarDateParam(date: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values: Partial<Record<Intl.DateTimeFormatPartTypes, string>> = {};
+  for (const part of parts) {
+    if (part.type !== "literal") {
+      values[part.type] = part.value;
+    }
+  }
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function isRevisionConflict(error: ActionError): boolean {
@@ -298,6 +321,8 @@ export function ProjectSocialPosts({
     "provider",
     parseAsStringEnum<ProjectSocialProviderValue>(SOCIAL_POST_PROVIDERS),
   );
+  const [timezone] = useQueryState("timezone", parseAsString);
+  const [, setDate] = useQueryState("date", parseAsString);
   const sourceRef = useRef(initialPosts);
   sourceRef.current = initialPosts;
   if (syncedPosts !== initialPosts) {
@@ -460,25 +485,33 @@ export function ProjectSocialPosts({
     // while other posts still need attention.
     // Calendar entries are server-rendered, so refresh after every save.
     router.refresh();
-    if (previewOnly) {
-      return;
-    }
     const nextSection = sectionOf(post);
-    if (nextSection) {
-      showTab(nextSection);
-      return;
-    }
     const previous = posts.find((candidate) => candidate.id === post.id);
     const attentionRemains = posts.some(
       (candidate) =>
         candidate.id !== post.id &&
         SECTION_STATUSES.attention.includes(candidate.status),
     );
-    if (
-      previous &&
+    const stayOnAttention =
+      previous !== undefined &&
       RETRY_STATUSES.includes(previous.status) &&
-      attentionRemains
-    ) {
+      attentionRemains;
+    const openCalendar =
+      nextSection === undefined &&
+      (previewOnly || (calendar !== undefined && !stayOnAttention));
+    if (openCalendar && post.scheduledAt) {
+      const zone =
+        timezone && isValidTimezone(timezone) ? timezone : getDefaultTimezone();
+      void setDate(calendarDateParam(post.scheduledAt, zone));
+    }
+    if (previewOnly) {
+      return;
+    }
+    if (nextSection) {
+      showTab(nextSection);
+      return;
+    }
+    if (stayOnAttention) {
       return;
     }
     showTab(calendar !== undefined ? "calendar" : null);
