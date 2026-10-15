@@ -9,8 +9,8 @@ Every Task, Task Schedule and Job had one required `ownerId`. It did four jobs a
 Now an Owner exists exactly when work is private, and SQL enforces it: `(visibility = 'PRIVATE') = ("ownerId" IS NOT NULL)`. Public work has no Owner; it belongs to its workspace. Three other roles take over what the Owner used to do:
 
 - **Creator**: the person, Coworker or Soko Bot that made the work (`creatorUserId`, `creatorCoworkerId`, `creatorSokoBotId`).
-- **Requester** (`requestedByUserId`): the person a Coworker or Soko Bot acted for. A record only; it grants no access and no rights.
-- **Responsible person**: computed, never stored. The Owner, otherwise the human Creator, otherwise the Requester. Work a Soko Bot started on its own has none.
+- **Requester** (`requestedByUserId`): the person a Coworker or Soko Bot acted for, or the member who resumed a Task Schedule whose person left. A record only; it grants no access and no rights.
+- **Responsible person**: computed, never stored. The Owner, otherwise the human Creator, otherwise the Requester. Work a Soko Bot started on its own has none, and neither has public work whose person deleted their account.
 
 ## Considered Options
 
@@ -21,13 +21,13 @@ Now an Owner exists exactly when work is private, and SQL enforces it: `(visibil
 
 ## Consequences
 
-- The responsible person replaces the Owner for charges and the Seat check, the "my work" filter (`scope=owned` becomes `scope=mine`), notifications, a Coworker's reach, moving work to another workspace, and Job writes. Core returns `responsibleUserId`, `creator` and `requester`; Web decides no right from `owner`.
-- Work nobody is responsible for comes only from Soko Bots acting on their own. It is charged to the Organization pool with `Transaction.userId` null and no Seat check, capped by `proactiveDailyLimit`. Any seated member may edit it; deleting, moving or refunding it needs an Organization owner or admin.
+- The responsible person replaces the Owner for charges and the Seat check, the "my work" filter (`scope=mine`), notifications, a Coworker's reach, moving work to another workspace, and Job writes. Core returns `responsibleUserId`, `creator` and `requester`; Web decides no right from `owner`.
+- Work nobody is responsible for comes from Soko Bots acting on their own and from public work whose person deleted their account. It is charged to the Organization pool with `Transaction.userId` null and no Seat check. A Soko Bot's work is capped by `proactiveDailyLimit`. Deleting an account pauses the public Task Schedules that person was responsible for, so nothing keeps spending with nobody behind it; the member who resumes one becomes its Requester. Any seated member may edit such work; deleting, moving or refunding it needs an Organization owner or admin.
 - The Owner is the person who creates private work, or its Requester when a Soko Bot or Coworker creates it. Visibility stays fixed after creation, so an Owner is never added or removed later.
 - A Job has an Owner only when its Task is private. Job gains the Creator columns.
 - The Requester is added as a Task participant when the work is made. Task participants stay followers and grant no access.
 - Deleting a user deletes only the private work they own. Their public work stays: `creatorUserId` and `requestedByUserId` become null, and the Creator check relaxes to "at most one", where none means a deleted person. In-flight Jobs they are responsible for still block deletion.
 - `SokoBotSchedule`, `SokoBotTurn` and `SokoBotPendingDecision` rename `userId` to a nullable `requestedByUserId`. It is null for built-in rhythms and self-started turns, and editing never changes it. They get no Creator columns.
 - Existing rows move once, and the move cannot be undone. On public Tasks and Task Schedules, the Owner moves into `requestedByUserId` where a Coworker or Soko Bot made the work, then `ownerId` is cleared. On Jobs, the Creator comes from `SokoBotDelegation` when one exists, else from the Owner, and the Owner is cleared unless the Task is private.
-- `Task.owner` and `Job.owner` are null for most work in the API. The Apple app reads neither.
+- The Core API stays backward compatible, and nothing is removed. `owner` and `ownerId` on Tasks, Task Schedules and Jobs stay and carry the responsible person, so existing clients see the same value as before for every kind of work that existed then. They become nullable, because public work whose person deleted their account has nobody responsible for it, and neither does work a Soko Bot started on its own; only then are they null. `scope=owned` stays an alias of `scope=mine`. All of these are marked deprecated in the OpenAPI document. No sunset date is set; removing them needs its own decision.
 - This ships before shared Soko Bots, which build on it.
