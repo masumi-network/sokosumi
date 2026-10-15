@@ -12,6 +12,7 @@ import {
   buildHumanJobParentVisibilityWhere,
   buildHumanParentTaskVisibilityWhere,
   buildHumanTaskVisibilityWhere,
+  buildResponsibleUserSql,
   buildResponsibleUserWhere,
   buildSokoBotAudienceJobParentTaskWhere,
   buildSokoBotAudienceTaskVisibilityWhere,
@@ -274,5 +275,12 @@ describe("isResponsibleUser", () => {
 describe("buildResponsibleUserWhere", () => {
   it("selects work whose Owner is the person while every row has an Owner", () => {
     expect(buildResponsibleUserWhere("user_1")).toEqual({ ownerId: "user_1" });
+  });
+
+  it("has a raw SQL twin for queries that alias the task table as t", () => {
+    const sql = buildResponsibleUserSql("user_1");
+
+    expect(sql.sql).toBe('t."ownerId" = ?');
+    expect(sql.values).toEqual(["user_1"]);
   });
 });

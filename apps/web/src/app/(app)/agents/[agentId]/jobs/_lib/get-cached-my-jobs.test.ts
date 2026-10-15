@@ -33,7 +33,7 @@ describe("getCachedMyJobs", () => {
     expect(getAgentJobsMock).toHaveBeenCalledTimes(1);
     expect(getAgentJobsMock).toHaveBeenCalledWith("agent-1", {
       limit: 20,
-      scope: "owned",
+      scope: "mine",
     });
     expect(page.jobs.map((job: { id: string }) => job.id)).toEqual([
       "job-newest",
@@ -83,7 +83,7 @@ describe("getOwnedAgentJobsPage", () => {
     expect(getAgentJobsMock).toHaveBeenCalledWith("agent-1", {
       cursor: "cursor-2",
       limit: 20,
-      scope: "owned",
+      scope: "mine",
     });
     expect(page.jobs.map((job: { id: string }) => job.id)).toEqual([
       "job-older",

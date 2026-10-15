@@ -27,6 +27,7 @@ import {
 } from "@/helpers/task-list-filters";
 import {
   buildHumanTaskVisibilityWhere,
+  buildResponsibleUserWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
 } from "@/helpers/task-visibility";
 import {
@@ -47,6 +48,7 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
+import { workScopeQuerySchema } from "@/schemas/work-scope.schema";
 import { taskListInclude } from "@/types/task";
 
 const taskStatusQuerySchema = z
@@ -76,15 +78,10 @@ const taskNameQuerySchema = z
     example: "review",
   });
 
-const taskScopeQuerySchema = z
-  .enum(["workspace", "owned"])
-  .default("owned")
-  .openapi({
-    param: { name: "scope", in: "query" },
-    description:
-      "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.",
-    example: "workspace",
-  });
+const taskScopeQuerySchema = workScopeQuerySchema({
+  defaultScope: "mine",
+  description: "Which tasks to list.",
+});
 
 const projectIdQuerySchema = z
   .union([z.string().uuid(), z.literal("null")])
@@ -268,10 +265,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             archivedAt: null,
             workspaceId: workspaceContext.workspaceId,
             ...requestedVisibility,
-            AND: [listAccessFilter],
-            ...(scope === "owned"
-              ? { ownerId: authContext.context.userId }
-              : {}),
+            AND: [
+              listAccessFilter,
+              ...(scope === "mine"
+                ? [buildResponsibleUserWhere(authContext.context.userId)]
+                : []),
+            ],
             ...(assigneeId ? { assigneeId } : {}),
             ...(assigneeSokoBotId ? { assigneeSokoBotId } : {}),
             ...(assigneeUserId ? { assigneeUserId } : {}),
@@ -323,8 +322,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           archivedAt: null,
           workspaceId: workspaceContext.workspaceId,
           ...requestedVisibility,
-          AND: [buildHumanTaskVisibilityWhere(userContext.userId)],
-          ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
+          AND: [
+            buildHumanTaskVisibilityWhere(userContext.userId),
+            ...(scope === "mine"
+              ? [buildResponsibleUserWhere(userContext.userId)]
+              : []),
+          ],
           ...(assigneeId ? { assigneeId } : {}),
           ...(assigneeSokoBotId ? { assigneeSokoBotId } : {}),
           ...(assigneeUserId ? { assigneeUserId } : {}),

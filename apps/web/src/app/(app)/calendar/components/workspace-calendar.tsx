@@ -206,7 +206,7 @@ const calendarParsers = {
   date: parseAsString,
   projectId: parseAsString,
   sourceId: parseAsString,
-  scope: parseAsStringLiteral(["owned", "workspace"]).withDefault("workspace"),
+  scope: parseAsStringLiteral(["mine", "workspace"]).withDefault("workspace"),
   socialOnly: parseAsBoolean.withDefault(false),
   status: parseAsStringEnum<TaskStatusValue>(CALENDAR_STATUSES),
   postStatus:
@@ -1264,11 +1264,11 @@ export function WorkspaceCalendar({
             value: state.scope,
             options: [
               { value: "workspace", label: tFilters("scopeWorkspace") },
-              { value: "owned", label: tFilters("scopeOwned") },
+              { value: "mine", label: tFilters("scopeMine") },
             ],
             onChange: (scope: string | null) =>
               void setState(
-                { scope: scope === "owned" ? "owned" : "workspace" },
+                { scope: scope === "mine" ? "mine" : "workspace" },
                 { shallow: false },
               ),
           },
@@ -1495,7 +1495,7 @@ export function WorkspaceCalendar({
                   : undefined
               }
               showActiveIndicator={
-                state.scope === "owned" ||
+                state.scope === "mine" ||
                 (!socialOnly &&
                   (state.assigneeId !== null ||
                     state.assigneeUserId !== null ||

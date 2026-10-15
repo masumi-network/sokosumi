@@ -10,11 +10,13 @@ import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
 import { convertCentsToCredits, SokosumiJobStatus } from "@sokosumi/utils";
 
 import { getAgentIcon, getAgentName } from "@/helpers/agent";
+import { buildResponsibleUserWhere } from "@/helpers/task-visibility";
 import type prisma from "@/lib/db/prisma";
 import { findImageModelForEndpoint } from "@/lib/image-studio/catalog";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import type { HistoryItem } from "@/schemas/history.schema";
+import type { WorkScope } from "@/schemas/work-scope.schema";
 
 export interface HistoryRowForApi {
   id: string;
@@ -37,7 +39,7 @@ export interface HistoryRowForApi {
 export interface BuildHistoryWhereParams {
   projectId?: string | null;
   q?: string;
-  scope: "owned" | "workspace";
+  scope: WorkScope;
   statuses?: string[];
   types: HistoryKind[];
   userContext: UserContext;
@@ -248,7 +250,7 @@ export async function findJobHistoryEntityIdsMatchingStatuses(
   }: BuildHistoryWhereParams,
   prismaClient: HistoryPrismaClient,
 ): Promise<string[]> {
-  const owned = scope === "owned";
+  const mine = scope === "mine";
   const hasProjectFilter = projectId !== undefined;
 
   const rows = await prismaClient.$queryRaw<Array<{ entityId: string }>>`
@@ -257,7 +259,7 @@ export async function findJobHistoryEntityIdsMatchingStatuses(
     WHERE h."archivedAt" IS NULL
       AND h."kind" = 'JOB'::"HistoryKind"
       AND h."workspaceId" = ${workspaceContext.workspaceId}::uuid
-      AND (${owned} = false OR h."userId" = ${userContext.userId})
+      AND (${mine} = false OR h."userId" = ${userContext.userId})
       AND (
         ${hasProjectFilter} = false
         OR h."projectId" IS NOT DISTINCT FROM ${projectId ?? null}
@@ -287,7 +289,9 @@ async function findJobIdsWithResultMatching(
   const jobs = await prismaClient.job.findMany({
     where: {
       workspaceId: workspaceContext.workspaceId,
-      ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
+      ...(scope === "mine"
+        ? buildResponsibleUserWhere(userContext.userId)
+        : {}),
       events: { some: { result: { contains: q, mode: "insensitive" } } },
     },
     select: { id: true },
@@ -351,7 +355,7 @@ export async function buildHistoryWhere(
   prismaClient: HistoryPrismaClient,
 ): Promise<Prisma.HistoryWhereInput> {
   // Every kind in this feed is workspace-scoped. Images included: a generation
-  // belongs to a project, which belongs to a workspace, and the `owned` scope
+  // belongs to a project, which belongs to a workspace, and the `mine` scope
   // narrows it to the person who asked for it.
   const workspaceKinds = params.types.filter(
     (kind) =>
@@ -366,7 +370,9 @@ export async function buildHistoryWhere(
           {
             kind: { in: workspaceKinds },
             workspaceId: params.workspaceContext.workspaceId,
-            ...(params.scope === "owned"
+            // `history.userId` is the responsible person, filled by the
+            // history triggers (the Owner while every row has one).
+            ...(params.scope === "mine"
               ? { userId: params.userContext.userId }
               : {}),
             ...(params.projectId !== undefined

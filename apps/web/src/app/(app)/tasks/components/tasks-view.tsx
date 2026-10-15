@@ -216,7 +216,7 @@ interface TasksViewProps {
       emptyResults: string;
       all: string;
       scopeLabel: string;
-      scopeOwned: string;
+      scopeMine: string;
       scopeWorkspace: string;
       coworkerLabel: string;
       statusLabel: string;

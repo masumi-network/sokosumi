@@ -234,7 +234,7 @@ describe("loadWorkspaceCalendarPage", () => {
         date: "2026-06-18",
         projectId: "project-1",
         sourceId: "workspace:workspace-1",
-        scope: "owned",
+        scope: "mine",
         status: "READY",
       }),
     });
@@ -244,7 +244,7 @@ describe("loadWorkspaceCalendarPage", () => {
         assigneeId: "coworker-1",
         projectId: "project-1",
         sourceId: "workspace:workspace-1",
-        scope: "owned",
+        scope: "mine",
         status: "READY",
       }),
     );
@@ -265,7 +265,7 @@ describe("loadWorkspaceCalendarPage", () => {
         date: "2026-06-18",
         projectId: "project-2",
         sourceId: "workspace:workspace-1",
-        scope: "owned",
+        scope: "mine",
         status: "READY",
       }),
     });
@@ -275,7 +275,7 @@ describe("loadWorkspaceCalendarPage", () => {
       PROJECT.id,
       expect.objectContaining({
         assigneeId: "coworker-1",
-        scope: "owned",
+        scope: "mine",
         status: "READY",
       }),
     );
