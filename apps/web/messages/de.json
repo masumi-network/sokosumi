@@ -2588,6 +2588,7 @@
           "failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
           "offline": "Du bist offline. Versuche es erneut.",
           "timeout": "Zeitüberschreitung. Versuche es erneut.",
+          "missingPost": "Beitrag konnte nicht geöffnet werden.",
           "unauthenticated": "Melde dich an, um fortzufahren.",
           "unauthenticatedAction": "Anmelden",
           "published": "Beitrag veröffentlicht.",

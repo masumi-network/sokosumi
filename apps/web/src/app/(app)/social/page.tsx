@@ -166,6 +166,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             )}
             posts={posts}
             projectId={project.id}
+            requestedPostId={query.postId}
             selectedPostId={selectedPost?.id}
           />
         </SocialComposeProvider>

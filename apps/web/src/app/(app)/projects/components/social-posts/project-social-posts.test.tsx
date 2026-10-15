@@ -229,6 +229,7 @@ const MESSAGES: Record<string, string> = {
   "toasts.failed": "Something went wrong. Try again.",
   "toasts.offline": "You're offline. Try again.",
   "toasts.timeout": "Timed out. Try again.",
+  "toasts.missingPost": "Couldn't open this post.",
   "composer.scheduledAtTooSoon": "Choose a time at least one minute from now.",
   "composer.timezone.yours": "Times are in your time zone, {zone}.",
   "composer.timezone.goesOut": "Goes out {date}, your time ({zone}).",
@@ -4021,6 +4022,40 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.queryByTestId("social-post-post-canceled"),
     ).not.toBeInTheDocument();
+  });
+
+  it("toasts when a link names a post that is gone", async () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+        requestedPostId="post-gone"
+      />,
+    );
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("Couldn't open this post.", {
+        duration: Infinity,
+        closeButton: true,
+      }),
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("does not toast when the named post is present", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+        requestedPostId="post-draft"
+        selectedPostId="post-draft"
+      />,
+    );
+
+    expect(toastErrorMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeVisible();
   });
 
   it("opens the linked draft in a preview", () => {
