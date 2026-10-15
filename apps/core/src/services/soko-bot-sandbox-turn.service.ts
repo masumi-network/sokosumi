@@ -462,10 +462,12 @@ export async function proxySandboxModelCall(
     });
     text = await upstream.text();
   } catch (error) {
-    if (isUndiciGatewayFetchFailure(error)) {
-      throw badGateway("Model gateway timed out or is unreachable");
-    }
-    throw error;
+    if (!isUndiciGatewayFetchFailure(error)) throw error;
+    // No kind on this 502: keep the undici error as cause for Sentry's chain.
+    throw Object.assign(
+      badGateway("Model gateway timed out or is unreachable"),
+      { cause: error },
+    );
   }
   if (!upstream.ok) return { status: upstream.status, body: text };
 
