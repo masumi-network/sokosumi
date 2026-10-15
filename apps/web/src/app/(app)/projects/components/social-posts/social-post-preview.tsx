@@ -1,7 +1,7 @@
 "use client";
 
 import type { SocialPost } from "@sokosumi/core-client";
-import { socialPostProviderLabel } from "@sokosumi/utils";
+import { socialPostProviderLabel, splitYouTubePostText } from "@sokosumi/utils";
 import {
   BarChart2,
   Bookmark,
@@ -139,13 +139,15 @@ function XPreview({
     <div className="flex gap-3 px-4 pt-3 pb-2">
       <PreviewAvatar account={account} name={name} className="size-10" />
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-1 leading-5">
-          <span className="min-w-0 truncate font-bold">{name}</span>
-          <span className="text-muted-foreground shrink-0">
-            {handle ? `${handle} · ${time}` : time}
-          </span>
+        <div className="flex min-w-0 items-start gap-1 leading-5">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1">
+            <span className="min-w-0 truncate font-bold">{name}</span>
+            <span className="text-muted-foreground min-w-0 break-words">
+              {handle ? `${handle} · ${time}` : time}
+            </span>
+          </div>
           <MoreHorizontal
-            className="text-muted-foreground ms-auto size-4 shrink-0"
+            className="text-muted-foreground mt-0.5 size-4 shrink-0"
             aria-hidden
           />
         </div>
@@ -423,28 +425,6 @@ function InstagramPreview({
   );
 }
 
-const YOUTUBE_TITLE_LIMIT = 100;
-
-/** First non-empty line is the title. Leftover past 100 chars stays in the body. */
-function youtubeTitleAndBody(text: string): { title: string; body: string } {
-  const lines = text.split(/\r?\n/);
-  const titleIndex = lines.findIndex((part) => part.trim().length > 0);
-  if (titleIndex === -1) return { title: "", body: "" };
-  const titleLine = lines[titleIndex].trim();
-  const overflow =
-    titleLine.length > YOUTUBE_TITLE_LIMIT
-      ? titleLine.slice(YOUTUBE_TITLE_LIMIT).trim()
-      : "";
-  const rest = lines
-    .slice(titleIndex + 1)
-    .join("\n")
-    .trim();
-  return {
-    title: titleLine.slice(0, YOUTUBE_TITLE_LIMIT),
-    body: [overflow, rest].filter((part) => part.length > 0).join("\n"),
-  };
-}
-
 function YouTubePreview({
   account,
   media,
@@ -454,8 +434,8 @@ function YouTubePreview({
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
   const time = usePreviewTime(timestamp);
-  const { title, body } = youtubeTitleAndBody(text);
-  const fold = useFold(body, 180, 3);
+  const { title, description } = splitYouTubePostText(text);
+  const fold = useFold(description, 180, 3);
   const clip = media[0];
 
   return (
@@ -495,7 +475,7 @@ function YouTubePreview({
             <p className="text-muted-foreground text-xs">{time}</p>
           </div>
         </div>
-        {body ? (
+        {description ? (
           <div className="bg-muted rounded-lg px-3 py-2">
             <p className="leading-5 whitespace-pre-wrap break-words">
               <PreviewRichText

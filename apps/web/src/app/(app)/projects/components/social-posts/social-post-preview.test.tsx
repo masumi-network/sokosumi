@@ -195,6 +195,40 @@ describe("SocialPostPreview", () => {
     );
   });
 
+  it.each(["$BRK.B", "$BRK.A", "$BRK_B"])(
+    "highlights the complete X cashtag %s",
+    (cashtag) => {
+      render(
+        <SocialPostPreview
+          account={ACCOUNT}
+          media={[]}
+          provider="x"
+          text={`Watching ${cashtag} today`}
+          timestamp={null}
+        />,
+      );
+
+      expect(screen.getByText(cashtag)).toHaveClass("text-social-x-link");
+    },
+  );
+
+  it("does not highlight a partial X cashtag before digits", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Watching $AAPL20 today"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.queryByText("$AAPL")).not.toBeInTheDocument();
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "Watching $AAPL20 today",
+    );
+  });
+
   it("does not highlight a cashtag on LinkedIn", () => {
     render(
       <SocialPostPreview

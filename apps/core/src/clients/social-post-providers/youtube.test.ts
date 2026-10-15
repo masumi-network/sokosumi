@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
-import {
-  deriveYouTubeDescription,
-  deriveYouTubeTitle,
-  publishYouTubeVideo,
-} from "@/clients/social-post-providers/youtube";
+import { publishYouTubeVideo } from "@/clients/social-post-providers/youtube";
 
 const {
   getEnvMock,
@@ -88,57 +84,6 @@ function executeCalls(
     .map(([, init]) => JSON.parse(String(init?.body)));
 }
 
-describe("deriveYouTubeTitle", () => {
-  it("uses the first non-empty line, trimmed", () => {
-    expect(deriveYouTubeTitle("\n  Launch today  \nmore text")).toBe(
-      "Launch today",
-    );
-  });
-
-  it("caps the title at 100 characters", () => {
-    expect(deriveYouTubeTitle("x".repeat(140))).toHaveLength(100);
-  });
-
-  it("falls back to a placeholder for empty text", () => {
-    expect(deriveYouTubeTitle("   \n  ")).toBe("Untitled");
-  });
-});
-
-describe("deriveYouTubeDescription", () => {
-  it("uses the lines after the title, not the title itself", () => {
-    expect(deriveYouTubeDescription("Launching today\nSecond line")).toBe(
-      "Second line",
-    );
-  });
-
-  it("is empty when the post is only a title", () => {
-    expect(deriveYouTubeDescription("Launching today")).toBe("");
-    expect(deriveYouTubeDescription("T".repeat(100))).toBe("");
-  });
-
-  it("puts leftover of a long first line in the description", () => {
-    const firstLine = `${"T".repeat(100)} leftover caption`;
-    expect(deriveYouTubeDescription(firstLine)).toBe("leftover caption");
-  });
-
-  it("keeps first-line leftover ahead of later lines", () => {
-    const firstLine = `${"T".repeat(100)} leftover`;
-    expect(deriveYouTubeDescription(`${firstLine}\nSecond line`)).toBe(
-      "leftover\nSecond line",
-    );
-  });
-
-  it("skips leading blank lines the same way the title does", () => {
-    expect(deriveYouTubeDescription("\n  Launch today  \nmore text")).toBe(
-      "more text",
-    );
-  });
-
-  it("is empty when there is no title line", () => {
-    expect(deriveYouTubeDescription("   \n  ")).toBe("");
-  });
-});
-
 describe("publishYouTubeVideo", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -204,6 +149,17 @@ describe("publishYouTubeVideo", () => {
     await expect(publishYouTubeVideo(context)).rejects.toBeInstanceOf(
       ComposioPublishOutcomeUnknownError,
     );
+  });
+
+  it("uses the publishing title fallback for blank text", async () => {
+    const fetchMock = stubSession(() => toolResponse({ id: "video_123" }));
+
+    await publishYouTubeVideo({ ...context, text: "   \n  " });
+
+    expect(executeCalls(fetchMock)[0].arguments).toMatchObject({
+      title: "Untitled",
+      description: "",
+    });
   });
 
   it("raises a tool error when YouTube refuses the upload", async () => {

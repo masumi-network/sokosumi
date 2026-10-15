@@ -2864,7 +2864,7 @@ describe("ProjectSocialPosts", () => {
       await user.click(screen.getByRole("button", { name: "New post" }));
       const dialog = screen.getByRole("dialog");
       await user.click(
-        within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+        within(dialog).getByRole("button", { name: "LinkedIn Sokosumi Co" }),
       );
       await user.type(within(dialog).getByLabelText("Text"), "Hello both");
 
@@ -2945,8 +2945,11 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    await openRowMenu(user, "post-scheduled");
-    await user.click(screen.getByRole("menuitem", { name: "Reschedule" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /^Reschedule/,
+      }),
+    );
     const dialog = screen.getByRole("dialog");
     const when = within(dialog)
       .getByRole("heading", { name: "When" })
