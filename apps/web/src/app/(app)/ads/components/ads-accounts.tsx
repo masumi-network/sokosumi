@@ -216,27 +216,24 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
               key={provider}
               className="flex flex-col items-stretch gap-1.5 sm:items-start"
             >
-              <div className="relative">
+              <Button
+                aria-describedby={showNote ? noteId : undefined}
+                disabled={isComingSoon || isUnavailable || connecting !== null}
+                loading={connecting === provider}
+                onClick={() => void handleConnect(provider)}
+                type="button"
+              >
+                {t("connect", { provider: providerName(provider) })}
                 {isComingSoon ? (
                   <span
-                    className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-2xs font-medium"
+                    aria-hidden="true"
+                    className="bg-background text-foreground border-border rounded-full border px-2 py-0.5 text-2xs font-medium"
                     id={noteId}
                   >
                     {t("comingSoon")}
                   </span>
                 ) : null}
-                <Button
-                  aria-describedby={showNote ? noteId : undefined}
-                  disabled={
-                    isComingSoon || isUnavailable || connecting !== null
-                  }
-                  loading={connecting === provider}
-                  onClick={() => void handleConnect(provider)}
-                  type="button"
-                >
-                  {t("connect", { provider: providerName(provider) })}
-                </Button>
-              </div>
+              </Button>
               {isUnavailable && !isComingSoon ? (
                 <p className="text-muted-foreground text-xs" id={noteId}>
                   {t("unavailable", { provider: providerName(provider) })}
