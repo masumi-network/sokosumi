@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore } from "react";
 
+import { NOTIFICATION_PREFERENCES_HREF } from "@/app/account/constants";
 import {
   NotificationRequestRow,
   notificationRequestActionClassName,
@@ -32,7 +33,6 @@ import {
   isServiceWorkerSupported,
 } from "@/lib/utils/notification-service-worker";
 import { getMyPreferencesQueryOptions } from "@/queries/preferences";
-import { NOTIFICATION_PREFERENCES_HREF } from "../account/constants";
 
 /**
  * The most this browser can do, which decides what the card offers.

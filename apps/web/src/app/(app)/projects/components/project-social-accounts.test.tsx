@@ -25,6 +25,7 @@ import {
   disconnectProjectSocialConnection,
   finalizeProjectSocialConnection,
   initiateProjectSocialConnection,
+  refreshProjectSocialAccountStatistics,
 } from "@/lib/actions/project/action";
 import { stubLoadedImage } from "@/test/stub-pending-image-load";
 import messages from "../../../../../messages/en.json";
@@ -48,6 +49,7 @@ const MESSAGES: Record<string, string> = {
   emptyHint: "Connect one to post.",
   actions: "Actions for {account}",
   reconnect: "Reconnect",
+  syncNow: "Sync now",
   replace: "Replace",
   disconnect: "Disconnect",
   "status.active": "Connected",
@@ -66,6 +68,7 @@ const MESSAGES: Record<string, string> = {
   cancel: "Cancel",
   "success.connected": "{account} connected.",
   "success.disconnected": "{account} disconnected.",
+  "success.syncStarted": "Sync started.",
   "warning.providerRevocationFailed":
     "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
   "errors.notConfigured":
@@ -90,6 +93,7 @@ const MESSAGES: Record<string, string> = {
   "errors.facebookPage":
     "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
   "errors.disconnect": "We could not disconnect this account. Try again.",
+  "errors.sync": "Couldn't start sync.",
 };
 
 vi.mock("next-intl", () => ({
@@ -116,6 +120,7 @@ vi.mock("@/lib/actions/project/action", () => ({
   disconnectProjectSocialConnection: vi.fn(),
   finalizeProjectSocialConnection: vi.fn(),
   initiateProjectSocialConnection: vi.fn(),
+  refreshProjectSocialAccountStatistics: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/composio/action", () => ({
@@ -528,6 +533,7 @@ describe("ProjectSocialAccounts", () => {
         name: "Actions for @sokosumi",
       }),
     );
+    expect(screen.getByRole("menuitem", { name: "Sync now" })).toBeVisible();
     expect(screen.getByRole("menuitem", { name: "Replace" })).toBeVisible();
     expect(screen.getByRole("menuitem", { name: "Disconnect" })).toBeVisible();
     await user.keyboard("{Escape}");
@@ -542,6 +548,15 @@ describe("ProjectSocialAccounts", () => {
     expect(
       within(reauthorizationRow).getByRole("button", { name: "Reconnect" }),
     ).toBeVisible();
+    await user.click(
+      within(reauthorizationRow).getByRole("button", {
+        name: "Actions for @needs-auth",
+      }),
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Sync now" }),
+    ).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
     expect(
       screen.getByRole("button", { name: "Connect account" }),
     ).toBeVisible();
@@ -561,7 +576,39 @@ describe("ProjectSocialAccounts", () => {
     expect(
       screen.queryByRole("menuitem", { name: "Replace" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Sync now" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Disconnect" })).toBeVisible();
+  });
+
+  it("queues a background refresh from Sync now on a connected account", async () => {
+    const user = userEvent.setup();
+    vi.mocked(refreshProjectSocialAccountStatistics).mockResolvedValue({
+      ok: true,
+      value: {
+        account: buildConnection(),
+        importedPostCount: 0,
+      },
+    } as never);
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+      />,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Actions for @sokosumi" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Sync now" }));
+    await waitFor(() =>
+      expect(refreshProjectSocialAccountStatistics).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        connectionId: "connection-1",
+      }),
+    );
+    expect(toastSuccessMock).toHaveBeenCalledWith("Sync started.");
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("hides disconnected accounts that have no actions", () => {

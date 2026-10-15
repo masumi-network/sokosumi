@@ -7,6 +7,7 @@ import SokosumiChat
 final class RoomMembershipSubscriptions: @unchecked Sendable {
   private struct Subscription {
     let channel: ARTRealtimeChannel
+    let channelName: String
     let id: UUID
   }
 
@@ -120,12 +121,7 @@ final class RoomMembershipSubscriptions: @unchecked Sendable {
   private func settle(capability: String?, failed: Bool, generation: UUID) {
     guard active else { return }
     if !failed, let ids = membership.authorizedRooms(capability: capability, generation: generation) {
-      for id in Array(channels.keys) where !ids.contains(id) {
-        detach(id)
-      }
-      for id in ids where channels[id] == nil {
-        subscribe(id)
-      }
+      subscribe(ids, capability: capability)
     }
     switch membership.finishAuthorization(generation, failed: failed) {
     case .immediate:
@@ -140,13 +136,29 @@ final class RoomMembershipSubscriptions: @unchecked Sendable {
     }
   }
 
-  private func subscribe(_ id: String) {
-    let channel = realtime.channels.get(chatRoomChannelName(roomId: id))
+  /// Core names each room channel per deployment (ADR 0055). A missing or malformed capability falls back to
+  /// membership, and so to production names; the next token that names a room otherwise moves it there.
+  private func subscribe(_ ids: Set<String>, capability: String?) {
+    for id in Array(channels.keys) where !ids.contains(id) {
+      detach(id)
+    }
+    let names = chatRoomChannelNames(grantedSubscribeIn: capability) ?? [:]
+    for id in ids {
+      if let current = channels[id] {
+        guard let granted = names[id], granted != current.channelName else { continue }
+        detach(id)
+      }
+      subscribe(id, channelName: names[id] ?? chatRoomChannelName(roomId: id))
+    }
+  }
+
+  private func subscribe(_ id: String, channelName: String) {
+    let channel = realtime.channels.get(channelName)
     let subscriptionId = UUID()
-    channels[id] = Subscription(channel: channel, id: subscriptionId)
+    channels[id] = Subscription(channel: channel, channelName: channelName, id: subscriptionId)
     for name in [chatRoomMessageEventName, chatRoomPinnedMessageEventName, chatRoomReadEventName] {
       channel.subscribe(name) { [weak self] message in
-        let event = resolveRealtimeDelivery(channel: chatRoomChannelName(roomId: id), event: message.name ?? "", data: message.data ?? NSNull())
+        let event = resolveRealtimeDelivery(channel: channelName, event: message.name ?? "", data: message.data ?? NSNull())
         self?.queue.async { [weak self] in
           guard let self, active, channels[id]?.id == subscriptionId else { return }
           onEvent(event)

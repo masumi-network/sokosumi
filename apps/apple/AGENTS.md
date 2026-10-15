@@ -15,7 +15,7 @@ The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-
 - `App/`: app scenes, the Sparkle updater adapter (`AppUpdater`), `ChatRootView`, the selected room's detail stack with an open Thread pushed over it (`RoomNavigationStack`), endpoint configuration and the Mac presence activity monitor.
 - `Authentication/`: sign-in presentation, app OAuth configuration, system-browser adapter and Keychain adapter for `TokenStore`.
 - `Packages/SokosumiWorkspace/`: shared workspace, room and realtime coordination; thread orchestration is in `WorkspaceState+Threads.swift`.
-- `Chat/Sidebar/`: conversation sections, workspace/account menus and room labels. The rows (emphasis, status, badge, mark), the room menu (its entries, order and enable state, shared with the Members inspector) and the toolbar's enable flags come from `SidebarPresentation` (`SidebarRoomRow`, `RoomMenu`, `SidebarCommands`) in `SokosumiChat`; the app draws them and owns every title and symbol (`RoomMenuEntryLabel`).
+- `Chat/Sidebar/`: conversation sections, workspace/account menus and room labels. The rows (emphasis, status, badge, mark), the room menu (its entries, order and enable state, shared with the Members inspector) the toolbar's enable flags and which sections stand (visibility, empty state, a closed heading's attention) come from `SidebarPresentation` (`SidebarRoomRow`, `RoomMenu`, `SidebarCommands`) and `SidebarSections` in `SokosumiChat`; the app draws them and owns every title and symbol (`RoomMenuEntryLabel`).
 - `Chat/Timeline/`: room scrolling, message rows, timeline status rows, the jump mark's drawing (`JumpMarkBackground`) and the spotlight it casts over the list's other rows (`JumpSpotlightClock`), the Seen by faces and list on the newest message (`SeenByButton`) and the room header in the title bar, whose name is a button (`RoomHeaderModifier`). The mark's clock is `JumpMark` and the spotlight's step-back `JumpSpotlight`, the header's mark, name and topic come from `RoomHeaderIdentity`, who has read how far comes from `RoomReadReceipts`, and what each message row offers and draws comes from `MessageRow` (its `MessageKind` and the transcript's `TranscriptContext`), all in `SokosumiChat`.
 - `Chat/Threads/`: reply-thread presentation.
 - `Chat/Pins/`: pinned-message inspector and preview cards; pin state and networking stay in the shared packages.
@@ -85,6 +85,8 @@ xcodebuild test -workspace Sokosumi.xcworkspace -scheme Sokosumi \
   -enableCodeCoverage NO                # app tests + all five package suites
 swift test --package-path Packages/SokosumiChat   # fast single-package rerun
 ```
+
+The Debug configuration is its own app, "Sokosumi Dev" (`com.sokosumi.app.dev`), so a build from Xcode never shares the installed app's sandbox container, defaults, keychain session or Launch Services entry. Release keeps `com.sokosumi.app`. Web's `apple-app-site-association` lists both IDs, so the Debug build can sign in through the same HTTPS callback.
 
 CI holds no Apple certificates for the gate job, so `Xcode test` overrides with `DEVELOPMENT_TEAM=` / `CODE_SIGN_IDENTITY=-` (ad-hoc). Keep those flags when adding steps to that job. **`Publish macOS DMG` is the exception and must stay one:** it archives with `DEVELOPMENT_TEAM=$TEAM_ID`, `CODE_SIGN_STYLE=Manual` and `CODE_SIGN_IDENTITY="Developer ID Application"`, because a downloadable build has to be genuinely signed. Do not paste the ad-hoc flags into it.
 

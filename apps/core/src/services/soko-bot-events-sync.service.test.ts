@@ -62,7 +62,13 @@ import {
   sokoBotEventClientTurnId,
 } from "./soko-bot-events-sync.service";
 
-const turn = { sokoBotId: "bot_1", userId: "user_1", workspaceId: "ws_1" };
+const turn = {
+  sokoBotId: "bot_1",
+  userId: "user_1",
+  workspaceId: "ws_1",
+  parentTurnId: null as string | null,
+  status: "COMPLETED",
+};
 const input = {
   abortSignal: new AbortController().signal,
   shouldContinue: () => true,
@@ -296,6 +302,36 @@ describe("SokoBotEventsSyncService", () => {
       input.abortSignal,
       "lease",
     );
+  });
+
+  it("leaves a running background run's own Tasks to the run", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      {
+        ...taskDelegation("a", "READY", "COMPLETED"),
+        turn: { ...turn, parentTurnId: "chat_turn", status: "RUNNING" },
+      },
+    ]);
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+
+    expect(result.woken).toBe(0);
+    expect(startTurnMock).not.toHaveBeenCalled();
+    expect(delegationUpdateMock).toHaveBeenCalledOnce();
+  });
+
+  it("wakes the bot for a Task whose background run has ended", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      {
+        ...taskDelegation("a", "READY", "COMPLETED"),
+        turn: { ...turn, parentTurnId: "chat_turn", status: "FAILED" },
+      },
+    ]);
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+
+    expect(result.woken).toBe(1);
   });
 
   it("baselines first observations and silent statuses without waking", async () => {

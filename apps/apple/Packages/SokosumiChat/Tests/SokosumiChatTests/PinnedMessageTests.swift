@@ -37,6 +37,29 @@ private func pinsBody(_ ids: [String], next: String?) -> String {
 }
 
 @MainActor struct PinnedMessageTests {
+  /// Web shows "Loading pinned messages…" for the first page only; an older page just holds its button.
+  @Test func onlyTheFirstPageShowsTheLoadingLine() async throws {
+    let pins = PinnedMessages()
+    pins.reset(roomId: testRoomId)
+    let first = PausedPinTransport()
+    let load = Task { try await pins.load(client: Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: first),
+                                          organizationSlug: nil) }
+    await first.waitForRequest()
+    #expect(pins.isLoadingFirstPage)
+    await first.release()
+    try await load.value
+    pins.reset(roomId: testRoomId)
+    try await pins.load(client: makeTestClient(TestTransport([(200, pinsBody(["a"], next: "a"))])), organizationSlug: nil)
+    let older = PausedPinTransport()
+    let page = Task { try await pins.load(client: Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: older),
+                                          organizationSlug: nil, older: true) }
+    await older.waitForRequest()
+    #expect(pins.isLoading, "The Load older button waits.")
+    #expect(!pins.isLoadingFirstPage, "The panel shows no Loading line for an older page.")
+    await older.release()
+    try await page.value
+  }
+
   @Test func openingPanelDuringCancelledPrefetchStillLoadsPins() async throws {
     let transport = PausedPinTransport()
     let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)

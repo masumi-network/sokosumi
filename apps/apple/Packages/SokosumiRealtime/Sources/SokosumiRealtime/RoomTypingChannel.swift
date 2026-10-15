@@ -69,7 +69,7 @@ private final class RoomTypingPolicy: GatedChannelPolicy, @unchecked Sendable {
 
   func attach(_ roomId: String, grant: ChatTypingGrant) {
     if subscription == nil {
-      let channel = realtime.channels.get(chatTypingChannelName(roomId: roomId))
+      let channel = realtime.channels.get(grant.channelName)
       let id = UUID()
       // Ably objects are not Sendable: reduce each message to a value before hopping queues.
       let listener = channel.subscribe(chatTypingEventName) { [weak self] message in

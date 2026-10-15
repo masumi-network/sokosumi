@@ -8,7 +8,9 @@ const {
   fetchMock,
   toolCallUpsertMock,
   toolCallUpdateManyMock,
+  turnFindUniqueMock,
 } = vi.hoisted(() => ({
+  turnFindUniqueMock: vi.fn(),
   toolCallUpsertMock: vi.fn(),
   toolCallUpdateManyMock: vi.fn(),
   authorizeMock: vi.fn(),
@@ -27,7 +29,7 @@ vi.mock("@/lib/db/prisma", () => {
       create: createEventMock,
       findFirst: findFirstEventMock,
     },
-    sokoBotTurn: { findUnique: vi.fn().mockResolvedValue(null) },
+    sokoBotTurn: { findUnique: turnFindUniqueMock },
     sokoBotToolCall: {
       upsert: toolCallUpsertMock,
       updateMany: toolCallUpdateManyMock,
@@ -114,6 +116,7 @@ describe("sandbox turn service", () => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", fetchMock);
     findFirstEventMock.mockResolvedValue(null);
+    turnFindUniqueMock.mockResolvedValue(null);
     createEventMock.mockResolvedValue({});
     authorizeMock.mockResolvedValue({
       turn: { id: claims.turnId, versionId: "v16" },
@@ -448,6 +451,68 @@ describe("sandbox turn service", () => {
       runSandboxTool(claims, {
         capability: "post_chat",
         toolCallId: "c5",
+        toolInput: {},
+      }),
+    ).rejects.toThrow("ask the owner in chat");
+    expect(executeToolMock).not.toHaveBeenCalled();
+  });
+
+  it("lets work the owner asked for brief a Coworker after reading the web", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    turnFindUniqueMock.mockResolvedValue({
+      source: "CHAT",
+      parentTurnId: null,
+      requestedByUserId: null,
+      chainDepth: 0,
+      chatMentionId: "mention",
+    });
+    executeToolMock.mockResolvedValue({ ok: true });
+    await runSandboxTool(claims, {
+      capability: "assign_task",
+      toolCallId: "c6",
+      toolInput: { taskId: "task", coworkerId: "hannah" },
+    });
+    expect(executeToolMock).toHaveBeenCalledOnce();
+  });
+
+  it("lets a background run save to Files after running a command, but not post to others", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    turnFindUniqueMock.mockResolvedValue({
+      source: "CHAT",
+      parentTurnId: "parent",
+      requestedByUserId: null,
+      chainDepth: 0,
+      chatMentionId: null,
+    });
+    executeToolMock.mockResolvedValue({ ok: true });
+    await runSandboxTool(claims, {
+      capability: "upload_file",
+      toolCallId: "c7",
+      toolInput: { filename: "index.html", content: "<h1>Hi</h1>" },
+    });
+    await expect(
+      runSandboxTool(claims, {
+        capability: "post_chat",
+        toolCallId: "c8",
+        toolInput: {},
+      }),
+    ).rejects.toThrow("ask the owner in chat");
+    expect(executeToolMock).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a teammate's turn from briefing a Coworker after reading the web", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    turnFindUniqueMock.mockResolvedValue({
+      source: "CHAT",
+      parentTurnId: null,
+      requestedByUserId: "teammate",
+      chainDepth: 0,
+      chatMentionId: "mention",
+    });
+    await expect(
+      runSandboxTool(claims, {
+        capability: "assign_task",
+        toolCallId: "c9",
         toolInput: {},
       }),
     ).rejects.toThrow("ask the owner in chat");

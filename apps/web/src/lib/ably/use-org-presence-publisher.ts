@@ -7,6 +7,7 @@ import {
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useEffect, useRef } from "react";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 
 import { organizationIdsFromAblyCapability } from "./organization-ids-from-ably-capability";
 import { safeDetachChannel } from "./safe-detach-channel";
@@ -140,7 +141,10 @@ export function useOrgPresencePublisher(organizationId: string | null): void {
       const organizationIdBeforeAuthorize = organizationIdRef.current;
       if (organizationIdBeforeAuthorize != null) {
         keepBeforeAuthorize.add(
-          makeOrgPresenceChannelName(organizationIdBeforeAuthorize),
+          makeOrgPresenceChannelName(
+            organizationIdBeforeAuthorize,
+            getRealtimeChannelEnvironment(),
+          ),
         );
       }
       await leaveChannelsNotIn(keepBeforeAuthorize);
@@ -167,7 +171,12 @@ export function useOrgPresencePublisher(organizationId: string | null): void {
           const grantedIds =
             organizationIdsFromAblyCapability(tokenDetails.capability) ?? [];
           if (grantedIds.includes(currentOrganizationId)) {
-            nextNames.add(makeOrgPresenceChannelName(currentOrganizationId));
+            nextNames.add(
+              makeOrgPresenceChannelName(
+                currentOrganizationId,
+                getRealtimeChannelEnvironment(),
+              ),
+            );
           }
         }
       }

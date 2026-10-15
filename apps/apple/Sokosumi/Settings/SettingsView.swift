@@ -3,9 +3,10 @@ import SokosumiChat
 import SokosumiWorkspace
 import SwiftUI
 
-/// Minimal Settings: account identity, chat display preferences, the Core
-/// endpoint in use and sign out.
+/// Minimal Settings: account identity, chat display preferences, automatic
+/// update checks (publish build only), the Core endpoint in use and sign out.
 struct SettingsView: View {
+  @ObservedObject var updater: AppUpdater
   @EnvironmentObject private var auth: AuthState
   @EnvironmentObject private var workspaces: WorkspaceState
   @Environment(\.scenePhase) private var scenePhase
@@ -46,6 +47,9 @@ struct SettingsView: View {
         onPreset: { preset in saveNotifications { try await workspaces.setNotificationPreset(preset) } },
         onReach: { kind, reach in saveNotifications { try await workspaces.setNotificationReach([kind: reach]) } }
       )
+      if AppUpdater.isPublishBuild {
+        UpdateSettingsSection(automaticallyChecks: $updater.automaticallyChecksForUpdates)
+      }
       Section("Core") {
         LabeledContent("Base URL") {
           Text(CoreSettings.baseURL.absoluteString)
@@ -142,6 +146,21 @@ struct ChatSettingsSection: View {
       } label: {
         Text("Time format")
         Text("Choose how times are shown. Auto follows your system settings. Saved on this device.")
+      }
+    }
+  }
+}
+
+/// Sparkle's "check automatically" switch (ADR 0054). Whether a found update
+/// installs on its own stays in Sparkle's prompt.
+struct UpdateSettingsSection: View {
+  @Binding var automaticallyChecks: Bool
+
+  var body: some View {
+    Section("Updates") {
+      Toggle(isOn: $automaticallyChecks) {
+        Text("Check for updates automatically")
+        Text("Sokosumi looks for a new version once a day.")
       }
     }
   }

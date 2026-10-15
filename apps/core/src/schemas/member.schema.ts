@@ -14,7 +14,7 @@ const memberUserSchema = z.object({
     .openapi({ example: "https://example.com/avatar.png" }),
 });
 
-export const memberWithUserSchema = z
+const memberWithUserSchema = z
   .object({
     id: z.string().openapi({ example: "member_123" }),
     organizationId: z.string().openapi({ example: "org_123" }),
@@ -56,7 +56,7 @@ export type MemberRecord = z.infer<typeof memberRecordSchema>;
  * record (see {@link organizationRecordSchema}). Shape mirrors the Prisma
  * `MemberWithOrganization` type.
  */
-export const memberWithOrganizationSchema = z
+const memberWithOrganizationSchema = z
   .object({
     id: z.string().openapi({ example: "member_123" }),
     userId: z.string().openapi({ example: "user_123" }),
