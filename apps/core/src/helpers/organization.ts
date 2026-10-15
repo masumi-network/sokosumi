@@ -116,7 +116,7 @@ export async function resolveMemberOrganizationBySlug(
 
 /**
  * Workspaces of an Organization in which `userId` is an owner or admin: the
- * people who answer for work nobody else is responsible for (ADR 0056).
+ * people who answer for work without an Owner (ADR 0057).
  */
 export function organizationOwnerOrAdminWorkspaceWhere(
   userId: string,

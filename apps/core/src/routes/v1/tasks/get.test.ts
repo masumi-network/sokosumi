@@ -1,7 +1,7 @@
 import { TaskPriority, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buildResponsibleUserWhere } from "@/helpers/task-visibility";
+
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -97,8 +97,6 @@ const HUMAN_TASK_VISIBILITY_AND = [
     ],
   },
 ] as const;
-
-const MINE_TASK_AND = [buildResponsibleUserWhere("user_123")] as const;
 
 const COWORKER_SIBLING_LIST_FILTER = {
   status: { not: TaskStatus.DRAFT },
@@ -260,8 +258,9 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
+          ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
-          AND: [...HUMAN_TASK_VISIBILITY_AND, ...MINE_TASK_AND],
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
           status: {
             in: [TaskStatus.COMPLETED, TaskStatus.FAILED],
           },
@@ -298,8 +297,9 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
+          ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
-          AND: [...HUMAN_TASK_VISIBILITY_AND, ...MINE_TASK_AND],
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
           name: {
             contains: "review",
             mode: "insensitive",
@@ -309,29 +309,7 @@ describe("GET /tasks", () => {
     );
   });
 
-  it.each([
-    ["mine", "http://localhost/?scope=mine"],
-    ["owned (deprecated alias)", "http://localhost/?scope=owned"],
-  ])(
-    "scopes task lists to the responsible user for scope=%s",
-    async (_name, url) => {
-      const app = createApp();
-      const response = await app.request(url);
-
-      expect(response.status).toBe(200);
-      expect(taskFindManyMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            archivedAt: null,
-            workspaceId: "11111111-1111-7111-8111-111111111111",
-            AND: [...HUMAN_TASK_VISIBILITY_AND, ...MINE_TASK_AND],
-          },
-        }),
-      );
-    },
-  );
-
-  it("scopes task lists to the responsible user by default", async () => {
+  it("scopes owned task lists to the authenticated user", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/");
 
@@ -340,8 +318,9 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
+          ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
-          AND: [...HUMAN_TASK_VISIBILITY_AND, ...MINE_TASK_AND],
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
         },
       }),
     );
@@ -375,8 +354,9 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
+          ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
-          AND: [...HUMAN_TASK_VISIBILITY_AND, ...MINE_TASK_AND],
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
           projectId,
         },
       }),
@@ -392,8 +372,9 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
+          ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
-          AND: [...HUMAN_TASK_VISIBILITY_AND, ...MINE_TASK_AND],
+          AND: [...HUMAN_TASK_VISIBILITY_AND],
           projectId: null,
         },
       }),
@@ -496,7 +477,7 @@ describe("GET /tasks", () => {
     expect(taskCountMock).not.toHaveBeenCalled();
   });
 
-  it("uses delegated user and workspace for delegated coworker mine scope", async () => {
+  it("uses delegated user and workspace for delegated coworker owned scope", async () => {
     const app = createApp(
       DELEGATED_COWORKER_AUTH_CONTEXT,
       DELEGATED_WORKSPACE_CONTEXT,
@@ -507,10 +488,7 @@ describe("GET /tasks", () => {
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: delegatedCoworkerListWhere({
-          AND: [
-            COWORKER_SIBLING_LIST_FILTER,
-            buildResponsibleUserWhere("user_delegate"),
-          ],
+          ownerId: "user_delegate",
         }),
       }),
     );

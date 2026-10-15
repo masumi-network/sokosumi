@@ -3,10 +3,8 @@
  * is no status axis: a spend or a top up has an amount and a date, not a
  * lifecycle. The type axis names the source that moved the credits.
  */
-import { readWorkScopeParam } from "@/lib/utils/work-scope";
-
 export const HISTORY_SEARCH_MAX_LENGTH = 200;
-export const HISTORY_SCOPE_VALUES = ["mine", "workspace"] as const;
+export const HISTORY_SCOPE_VALUES = ["owned", "workspace"] as const;
 export const HISTORY_TYPE_VALUES = [
   "job",
   "image",
@@ -110,7 +108,7 @@ export function applyHistoryProjectAllowlist(
 export function getDefaultHistoryScope(
   _activeOrganizationId: string | null,
 ): HistoryScope {
-  return "mine";
+  return "owned";
 }
 
 export function sanitizeHistorySearchInput(raw: unknown): string | null {
@@ -127,7 +125,7 @@ export function sanitizeHistoryScopeInput(
   const defaultScope = getDefaultHistoryScope(activeOrganizationId);
   if (typeof raw !== "string") return defaultScope;
 
-  const requestedScope = readWorkScopeParam(raw);
+  const requestedScope = raw.trim();
   if (
     !requestedScope ||
     !HISTORY_SCOPE_VALUES.includes(requestedScope as HistoryScope)

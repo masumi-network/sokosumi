@@ -42,7 +42,7 @@ interface ListBody {
   data: Array<{
     id: string;
     canWrite: boolean;
-    responsibleUserId: string | null;
+    ownerId: string | null;
   }>;
   meta: { pagination: { nextCursor: string | null; total: number } };
 }
@@ -79,20 +79,23 @@ describe("GET /tasks/schedules", () => {
     expect(body.meta.pagination.total).toBe(2);
   });
 
-  it("returns the responsible person of each schedule, the Owner for existing work", async () => {
-    seedTaskSchedule({ creatorUserId: MEMBER_ID });
-    seedTaskSchedule({
+  it("returns the Owner of each schedule, null for one without an Owner", async () => {
+    const owned = seedTaskSchedule({
       creatorUserId: null,
       creatorCoworkerId: COWORKER_ID,
-      requestedByUserId: MEMBER_ID,
+    });
+    const withoutOwner = seedTaskSchedule({
+      ownerId: null,
+      creatorUserId: null,
     });
 
     const { body } = await list();
 
-    expect(body.data.map((schedule) => schedule.responsibleUserId)).toEqual([
-      OWNER_ID,
-      OWNER_ID,
-    ]);
+    expect(
+      Object.fromEntries(
+        body.data.map((schedule) => [schedule.id, schedule.ownerId]),
+      ),
+    ).toEqual({ [owned.id]: OWNER_ID, [withoutOwner.id]: null });
   });
 
   it("filters by project and state", async () => {

@@ -234,7 +234,7 @@ describe("loadWorkspaceCalendarPage", () => {
         date: "2026-06-18",
         projectId: "project-1",
         sourceId: "workspace:workspace-1",
-        scope: "mine",
+        scope: "owned",
         status: "READY",
       }),
     });
@@ -244,7 +244,7 @@ describe("loadWorkspaceCalendarPage", () => {
         assigneeId: "coworker-1",
         projectId: "project-1",
         sourceId: "workspace:workspace-1",
-        scope: "mine",
+        scope: "owned",
         status: "READY",
       }),
     );
@@ -257,17 +257,6 @@ describe("loadWorkspaceCalendarPage", () => {
     expect(result.currentUserId).toBe("user-1");
   });
 
-  it("reads the old owned scope of a saved URL as mine", async () => {
-    const result = await loadWorkspaceCalendarPage({
-      searchParams: Promise.resolve({ date: "2026-06-18", scope: "owned" }),
-    });
-
-    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
-      expect.objectContaining({ scope: "mine" }),
-    );
-    expect(result.calendarKey).toContain("-mine-");
-  });
-
   it("loads the route Project Calendar and ignores query project/source filters", async () => {
     const result = await loadWorkspaceCalendarPage({
       projectId: PROJECT.id,
@@ -276,7 +265,7 @@ describe("loadWorkspaceCalendarPage", () => {
         date: "2026-06-18",
         projectId: "project-2",
         sourceId: "workspace:workspace-1",
-        scope: "mine",
+        scope: "owned",
         status: "READY",
       }),
     });
@@ -286,7 +275,7 @@ describe("loadWorkspaceCalendarPage", () => {
       PROJECT.id,
       expect.objectContaining({
         assigneeId: "coworker-1",
-        scope: "mine",
+        scope: "owned",
         status: "READY",
       }),
     );

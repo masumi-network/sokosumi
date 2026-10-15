@@ -15,7 +15,7 @@ afterAll(async () => {
 
 const migrationSql = readFileSync(
   new URL(
-    "../../../../packages/database/prisma/migrations/20261015095500_record_work_creator_and_requester/migration.sql",
+    "../../../../packages/database/prisma/migrations/20261015095500_record_job_creator/migration.sql",
     import.meta.url,
   ),
   "utf8",
@@ -94,7 +94,6 @@ interface WorkRow {
   creatorUserId: string | null;
   creatorCoworkerId: string | null;
   creatorSokoBotId: string | null;
-  requestedByUserId: string | null;
 }
 
 async function withMigratedSchema(
@@ -119,7 +118,7 @@ async function withMigratedSchema(
 function rows(tx: Prisma.TransactionClient, table: string) {
   return tx.$queryRawUnsafe<WorkRow[]>(
     `SELECT id::text AS id, "ownerId", "creatorUserId", "creatorCoworkerId",
-            "creatorSokoBotId"::text AS "creatorSokoBotId", "requestedByUserId"
+            "creatorSokoBotId"::text AS "creatorSokoBotId"
      FROM ${table} ORDER BY id`,
   );
 }
@@ -134,10 +133,10 @@ async function expectRefused(
   await tx.$executeRawUnsafe("ROLLBACK TO SAVEPOINT refused");
 }
 
-// Opt-in real Postgres proof of the migration that records who made and who
-// asked for work. It runs on stub tables in a throwaway schema.
-describe.skipIf(!enabled)("work Creator and Requester migration", () => {
-  it("backfills the Requester and Job Creator and leaves every Owner as it was", async () => {
+// Opt-in real Postgres proof of the migration that records who made a Job.
+// It runs on stub tables in a throwaway schema.
+describe.skipIf(!enabled)("Job Creator migration", () => {
+  it("backfills the Job Creator and leaves every Owner and Task Creator as it was", async () => {
     await withMigratedSchema(async (tx) => {
       expect(await rows(tx, "task")).toEqual([
         {
@@ -146,7 +145,6 @@ describe.skipIf(!enabled)("work Creator and Requester migration", () => {
           creatorUserId: null,
           creatorCoworkerId: null,
           creatorSokoBotId: BOT,
-          requestedByUserId: "bob",
         },
         {
           id: "task-coworker",
@@ -154,7 +152,6 @@ describe.skipIf(!enabled)("work Creator and Requester migration", () => {
           creatorUserId: null,
           creatorCoworkerId: "cow",
           creatorSokoBotId: null,
-          requestedByUserId: "ada",
         },
         {
           id: "task-person",
@@ -162,19 +159,18 @@ describe.skipIf(!enabled)("work Creator and Requester migration", () => {
           creatorUserId: "ada",
           creatorCoworkerId: null,
           creatorSokoBotId: null,
-          requestedByUserId: null,
         },
       ]);
       expect(
         (await rows(tx, "task_schedule")).map((row) => [
           row.id,
           row.ownerId,
-          row.requestedByUserId,
+          row.creatorUserId,
         ]),
       ).toEqual([
-        [SCHEDULE_PERSON, "ada", null],
-        [SCHEDULE_COWORKER, "ada", "ada"],
-        [SCHEDULE_BOT, "bob", "bob"],
+        [SCHEDULE_PERSON, "ada", "ada"],
+        [SCHEDULE_COWORKER, "ada", null],
+        [SCHEDULE_BOT, "bob", null],
       ]);
       expect(await rows(tx, '"Job"')).toEqual([
         {
@@ -183,7 +179,6 @@ describe.skipIf(!enabled)("work Creator and Requester migration", () => {
           creatorUserId: null,
           creatorCoworkerId: null,
           creatorSokoBotId: BOT,
-          requestedByUserId: "bob",
         },
         {
           id: "job-person",
@@ -191,25 +186,18 @@ describe.skipIf(!enabled)("work Creator and Requester migration", () => {
           creatorUserId: "ada",
           creatorCoworkerId: null,
           creatorSokoBotId: null,
-          requestedByUserId: null,
         },
       ]);
     });
   });
 
-  it("refuses a Requester beside a person Creator, and more than one Creator", async () => {
+  it("refuses more than one Creator", async () => {
     await withMigratedSchema(async (tx) => {
       for (const [table, id, prefix] of [
         ["task", "'task-new'", "task"],
         ["task_schedule", "gen_random_uuid()", "task_schedule"],
         ['"Job"', "'job-new'", "Job"],
       ] as const) {
-        await expectRefused(
-          tx,
-          `INSERT INTO ${table} (id, "ownerId", "creatorUserId", "requestedByUserId")
-           VALUES (${id}, 'ada', 'ada', 'bob')`,
-          `${prefix}_requester_not_person_creator_check`,
-        );
         await expectRefused(
           tx,
           `INSERT INTO ${table} (id, "ownerId", "creatorUserId", "creatorCoworkerId")
@@ -220,34 +208,30 @@ describe.skipIf(!enabled)("work Creator and Requester migration", () => {
     });
   });
 
-  it("empties a deleted person's Creator and Requester columns instead of failing", async () => {
+  it("empties a deleted person's Creator column instead of failing", async () => {
     await withMigratedSchema(async (tx) => {
       await tx.$executeRawUnsafe(`
         INSERT INTO "user" VALUES ('cy');
         INSERT INTO task (id, "ownerId", "creatorUserId") VALUES ('made-by-cy', 'ada', 'cy');
-        INSERT INTO task (id, "ownerId", "creatorCoworkerId", "requestedByUserId") VALUES ('asked-by-cy', 'ada', 'cow', 'cy');
         INSERT INTO task_schedule (id, "ownerId", "creatorUserId") VALUES (gen_random_uuid(), 'ada', 'cy');
         INSERT INTO "Job" (id, "ownerId", "creatorUserId") VALUES ('job-made-by-cy', 'ada', 'cy');
-        INSERT INTO "Job" (id, "ownerId", "creatorSokoBotId", "requestedByUserId") VALUES ('job-asked-by-cy', 'ada', '${BOT}', 'cy');
       `);
 
       await tx.$executeRawUnsafe(`DELETE FROM "user" WHERE id = 'cy'`);
 
       const left = await tx.$queryRawUnsafe<{ refs: bigint }[]>(`
         SELECT count(*) AS refs FROM (
-          SELECT "creatorUserId", "requestedByUserId" FROM task
-          UNION ALL SELECT "creatorUserId", "requestedByUserId" FROM task_schedule
-          UNION ALL SELECT "creatorUserId", "requestedByUserId" FROM "Job"
-        ) refs WHERE 'cy' IN ("creatorUserId", "requestedByUserId")`);
+          SELECT "creatorUserId" FROM task
+          UNION ALL SELECT "creatorUserId" FROM task_schedule
+          UNION ALL SELECT "creatorUserId" FROM "Job"
+        ) refs WHERE "creatorUserId" = 'cy'`);
       expect(left[0]?.refs).toBe(0n);
       const kept = await tx.$queryRawUnsafe<{ id: string }[]>(
-        `SELECT id FROM task WHERE id IN ('made-by-cy', 'asked-by-cy')
-         UNION ALL SELECT id FROM "Job" WHERE id IN ('job-made-by-cy', 'job-asked-by-cy')
+        `SELECT id FROM task WHERE id = 'made-by-cy'
+         UNION ALL SELECT id FROM "Job" WHERE id = 'job-made-by-cy'
          ORDER BY id`,
       );
       expect(kept.map((row) => row.id)).toEqual([
-        "asked-by-cy",
-        "job-asked-by-cy",
         "job-made-by-cy",
         "made-by-cy",
       ]);

@@ -137,8 +137,6 @@ function buildMapTaskResponse(task: {
     assignee: null,
     coworkerId: null,
     coworker: null,
-    requester: null,
-    responsibleUserId: "user_123",
     creator: {
       type: "user" as const,
       id: "user_123",

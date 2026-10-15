@@ -15,10 +15,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
-import {
-  publicWorkMadeBy,
-  WORK_MAKERS,
-} from "@/test-fixtures/responsible-work";
+import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 import { taskEventApiInclude } from "@/types/task";
 
 import mountPatchTask, { patchTaskRequestSchema } from "./patch";
@@ -147,8 +144,6 @@ function createTaskApi(projectId: string | null = null) {
     assignee: null,
     coworkerId: null,
     coworker: null,
-    requester: null,
-    responsibleUserId: "user_123",
     creator: {
       type: "user" as const,
       id: "user_123",
@@ -1334,31 +1329,25 @@ describe("PATCH /tasks/{id} Run at", () => {
   });
 
   it.each([
-    ["the Requester", { requestedByUserId: "user_asker" }, "user_asker"],
-    ["the person who made it", { creatorUserId: "user_maker" }, "user_maker"],
-    ["nobody", {}, null],
-  ])(
-    "sends the live update for a queued Task nobody owns to %s",
-    async (_who, ownership, expectedUserId) => {
-      taskEventCreateMock.mockResolvedValue(
-        createdStatusEvent(TaskStatus.QUEUED),
-      );
-      taskUpdateMock.mockResolvedValue({
-        ...createTaskApi(null),
-        ownerId: null,
-        creatorUserId: null,
-        requestedByUserId: null,
-        ...ownership,
-      });
+    ["its Owner", "user_owner"],
+    ["nobody when it has no Owner", null],
+  ])("sends the live update for a queued Task to %s", async (_who, ownerId) => {
+    taskEventCreateMock.mockResolvedValue(
+      createdStatusEvent(TaskStatus.QUEUED),
+    );
+    taskUpdateMock.mockResolvedValue({
+      ...createTaskApi(null),
+      ownerId,
+      creatorUserId: null,
+    });
 
-      const response = await patch({ runAt: RUN_AT });
+    const response = await patch({ runAt: RUN_AT });
 
-      expect(response.status).toBe(200);
-      expect(
-        publishTaskEventDataMock.mock.calls.map(([input]) => input.userId),
-      ).toEqual(expectedUserId ? [expectedUserId] : []);
-    },
-  );
+    expect(response.status).toBe(200);
+    expect(
+      publishTaskEventDataMock.mock.calls.map(([input]) => input.userId),
+    ).toEqual(ownerId ? [ownerId] : []);
+  });
 
   it("moves the Run at of a Queued Task without a status event", async () => {
     mockTask({ status: TaskStatus.QUEUED, runAt: new Date(RUN_AT) });
@@ -1482,7 +1471,7 @@ describe("PATCH /tasks/{id} Run at", () => {
   });
 });
 
-describe("PATCH /tasks/{id} Seat check of the responsible person (ADR 0056)", () => {
+describe("PATCH /tasks/{id} Seat check of the Owner (ADR 0057)", () => {
   function patch(body: Record<string, unknown>) {
     const app = createApp();
     app.onError(errorHandler);
@@ -1506,7 +1495,7 @@ describe("PATCH /tasks/{id} Seat check of the responsible person (ADR 0056)", ()
   });
 
   it.each(WORK_MAKERS)(
-    "seats the responsible person of public work made by a %s on the billing organization",
+    "seats the Owner of public work made by a %s on the billing organization",
     async (maker) => {
       requireTaskWriteAccessMock.mockResolvedValue({
         id: "tsk_123",
@@ -1534,7 +1523,7 @@ describe("PATCH /tasks/{id} Seat check of the responsible person (ADR 0056)", ()
     },
   );
 
-  it("leaves a member who is not responsible to the write-access Seat check", async () => {
+  it("leaves a member who is not the Owner to the write-access Seat check", async () => {
     requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
@@ -1548,6 +1537,28 @@ describe("PATCH /tasks/{id} Seat check of the responsible person (ADR 0056)", ()
       visibility: TaskVisibility.PUBLIC,
       runAt: null,
       ...publicWorkMadeBy("person", "user_other"),
+    });
+
+    const response = await patch({ name: "Renamed" });
+
+    expect(response.status).toBe(200);
+    expect(requireAssignedOrganizationSeat).not.toHaveBeenCalled();
+  });
+
+  it("checks no Owner Seat on a Task without an Owner", async () => {
+    requireTaskWriteAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: null,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_billing",
+      description: null,
+      visibility: TaskVisibility.PUBLIC,
+      runAt: null,
+      ...publicWorkMadeBy("sokoBot", null),
     });
 
     const response = await patch({ name: "Renamed" });

@@ -15,9 +15,7 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import {
   buildHumanTaskVisibilityWhere,
-  buildResponsibleUserWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
-  resolveResponsibleUserId,
 } from "@/helpers/task-visibility";
 import {
   buildCoworkerTaskListAccessFilter,
@@ -28,7 +26,6 @@ import {
   type AuthenticationContext,
   resolveUserContext,
 } from "@/middleware/auth";
-import type { WorkScope } from "@/schemas/work-scope.schema";
 import {
   socialPostCalendarItemSchema,
   workspaceCalendarEntrySchema,
@@ -57,7 +54,7 @@ export interface WorkspaceCalendarReadQuery {
   cursor: CalendarCursor | null;
   requestedCursor: string | null;
   limit: number;
-  scope: WorkScope;
+  scope: "owned" | "workspace";
   status?: TaskStatus;
 }
 
@@ -268,9 +265,7 @@ export async function readWorkspaceCalendar(
   const maxCandidates = query.limit + 1;
   const sourceFilter = getNonProjectSourceFilter(workspaceId, options.sourceId);
   const assigneeFilter = {
-    ...(query.scope === "mine"
-      ? { AND: [buildResponsibleUserWhere(userId)] }
-      : {}),
+    ...(query.scope === "owned" ? { ownerId: userId } : {}),
     ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
     ...(query.assigneeUserId ? { assigneeUserId: query.assigneeUserId } : {}),
   };
@@ -380,8 +375,6 @@ export async function readWorkspaceCalendar(
             id: true,
             name: true,
             ownerId: true,
-            creatorUserId: true,
-            requestedByUserId: true,
             visibility: true,
             state: true,
             revision: true,
@@ -396,8 +389,6 @@ export async function readWorkspaceCalendar(
             id: true,
             name: true,
             ownerId: true,
-            creatorUserId: true,
-            requestedByUserId: true,
             status: true,
             assigneeId: true,
             assigneeUserId: true,
@@ -417,8 +408,6 @@ export async function readWorkspaceCalendar(
             id: true,
             name: true,
             ownerId: true,
-            creatorUserId: true,
-            requestedByUserId: true,
             status: true,
             assigneeId: true,
             assigneeUserId: true,
@@ -457,8 +446,7 @@ export async function readWorkspaceCalendar(
         taskStatus: task?.status ?? null,
         taskAssigneeId: blueprint.assigneeId,
         taskAssigneeUserId: blueprint.assigneeUserId,
-        taskOwnerId: resolveResponsibleUserId(blueprint),
-        responsibleUserId: resolveResponsibleUserId(blueprint),
+        taskOwnerId: blueprint.ownerId,
         scheduledAt: run.effectiveScheduledAt.toISOString(),
         originalScheduledAt: run.originalScheduledAt?.toISOString() ?? null,
         state: run.state,
@@ -492,8 +480,7 @@ export async function readWorkspaceCalendar(
         taskStatus: task.status,
         taskAssigneeId: task.assigneeId,
         taskAssigneeUserId: task.assigneeUserId,
-        taskOwnerId: resolveResponsibleUserId(task),
-        responsibleUserId: resolveResponsibleUserId(task),
+        taskOwnerId: task.ownerId,
         scheduledAt: runAt.toISOString(),
         originalScheduledAt: null,
         state: TaskScheduleRunState.PLANNED,
@@ -511,7 +498,7 @@ export async function readWorkspaceCalendar(
   const socialBaseWhere: Prisma.SocialPostWhereInput = {
     workspaceId,
     ...(options.projectId ? { projectId: options.projectId } : {}),
-    ...(query.scope === "mine" ? { scheduledByUserId: userId } : {}),
+    ...(query.scope === "owned" ? { scheduledByUserId: userId } : {}),
     // The agenda view shows only what is still to come: a scheduled or
     // publishing post whose `scheduledAt` is today or later (the `from` bound
     // below). Everything else is history the agenda would filter out anyway.

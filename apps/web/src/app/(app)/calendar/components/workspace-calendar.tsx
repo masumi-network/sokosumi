@@ -41,7 +41,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
-  createParser,
   parseAsBoolean,
   parseAsString,
   parseAsStringEnum,
@@ -98,7 +97,6 @@ import {
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import { cn } from "@/lib/utils";
 import { schedulableRunAtLocalIso } from "@/lib/utils/task-schedule";
-import { readWorkScopeParam } from "@/lib/utils/work-scope";
 import {
   type ChangeableRun,
   changeRun,
@@ -147,10 +145,10 @@ export interface CalendarCoworker {
 
 interface CalendarPeople {
   assignee: TaskAssigneeView | null;
-  responsible: CalendarCoworker | null;
+  owner: CalendarCoworker | null;
 }
 
-/** Joins an item's assignee and responsible person against the workspace roster. */
+/** Joins an item's assignee and owner ids against the workspace roster. */
 function findCalendarPeople(
   item: WorkspaceCalendarItem,
   coworkers: CalendarCoworker[],
@@ -168,9 +166,9 @@ function findCalendarPeople(
     assignee: assigneeCoworker
       ? { ...assigneeCoworker, kind: assigneeCoworker.kind ?? "coworker" }
       : null,
-    responsible:
+    owner:
       coworkers.find(
-        ({ id, kind }) => kind === "user" && id === item.responsibleUserId,
+        ({ id, kind }) => kind === "user" && id === item.taskOwnerId,
       ) ?? null,
   };
 }
@@ -202,22 +200,13 @@ interface WorkspaceCalendarProps {
   workspaceId?: string | null;
 }
 
-/** `scope`, reading a saved URL's old `owned` as `mine`. */
-const parseAsCalendarScope = createParser<"mine" | "workspace">({
-  parse: (value) => {
-    const scope = readWorkScopeParam(value);
-    return scope === "mine" || scope === "workspace" ? scope : null;
-  },
-  serialize: (scope) => scope,
-});
-
 const calendarParsers = {
   assigneeId: parseAsString,
   assigneeUserId: parseAsString,
   date: parseAsString,
   projectId: parseAsString,
   sourceId: parseAsString,
-  scope: parseAsCalendarScope.withDefault("workspace"),
+  scope: parseAsStringLiteral(["owned", "workspace"]).withDefault("workspace"),
   socialOnly: parseAsBoolean.withDefault(false),
   status: parseAsStringEnum<TaskStatusValue>(CALENDAR_STATUSES),
   postStatus:
@@ -346,7 +335,7 @@ function CalendarEvent({
   const sourceMarker = (
     <SourceMarker decorative source={source} sourceName={sourceName} />
   );
-  const peopleNames = [people.assignee?.name, people.responsible?.name]
+  const peopleNames = [people.assignee?.name, people.owner?.name]
     .filter((name): name is string => Boolean(name?.trim()))
     .join(", ");
   const peopleStack = peopleNames ? (
@@ -358,11 +347,11 @@ function CalendarEvent({
         title={peopleNames}
       >
         {people.assignee ? <AssigneeAvatar assignee={people.assignee} /> : null}
-        {people.responsible ? (
+        {people.owner ? (
           <UserProfileAvatar
             className="z-10"
-            image={people.responsible.image}
-            name={people.responsible.name}
+            image={people.owner.image}
+            name={people.owner.name}
           />
         ) : null}
       </span>
@@ -1275,11 +1264,11 @@ export function WorkspaceCalendar({
             value: state.scope,
             options: [
               { value: "workspace", label: tFilters("scopeWorkspace") },
-              { value: "mine", label: tFilters("scopeMine") },
+              { value: "owned", label: tFilters("scopeOwned") },
             ],
             onChange: (scope: string | null) =>
               void setState(
-                { scope: scope === "mine" ? "mine" : "workspace" },
+                { scope: scope === "owned" ? "owned" : "workspace" },
                 { shallow: false },
               ),
           },
@@ -1506,7 +1495,7 @@ export function WorkspaceCalendar({
                   : undefined
               }
               showActiveIndicator={
-                state.scope === "mine" ||
+                state.scope === "owned" ||
                 (!socialOnly &&
                   (state.assigneeId !== null ||
                     state.assigneeUserId !== null ||

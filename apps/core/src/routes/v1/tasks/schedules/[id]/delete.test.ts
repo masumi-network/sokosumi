@@ -1,10 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import {
-  publicWorkMadeBy,
-  WORK_MAKERS,
-} from "@/test-fixtures/responsible-work";
-
 import {
   MEMBER_ID,
   PROJECT_ID,
@@ -18,6 +12,7 @@ import {
   createTaskScheduleTestApp,
   jsonRequest,
 } from "@/test-fixtures/task-schedule-app";
+import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 import mountDeleteTaskSchedule from "./delete";
 
@@ -112,7 +107,7 @@ describe("DELETE /tasks/schedules/{id}", () => {
     expect(response.status).toBe(404);
   });
 
-  describe("who may delete a schedule (ADR 0056)", () => {
+  describe("who may delete a schedule (ADR 0057)", () => {
     beforeEach(() => {
       resolveMemberOrganizationByIdMock.mockResolvedValue({
         organization: { id: "org_123" },
@@ -125,7 +120,7 @@ describe("DELETE /tasks/schedules/{id}", () => {
     }
 
     it.each(WORK_MAKERS)(
-      "lets the responsible person delete a schedule made by a %s",
+      "lets the Owner delete a schedule made by a %s",
       async (maker) => {
         const schedule = seedPublicSchedule(publicWorkMadeBy(maker, MEMBER_ID));
 
@@ -143,7 +138,7 @@ describe("DELETE /tasks/schedules/{id}", () => {
     );
 
     it.each(["owner", "admin"])(
-      "lets an Organization %s delete a schedule nobody is responsible for",
+      "lets an Organization %s delete a schedule without an Owner",
       async (role) => {
         const schedule = seedPublicSchedule(publicWorkMadeBy("sokoBot", null));
         resolveMemberOrganizationByIdMock.mockResolvedValue({
@@ -164,7 +159,7 @@ describe("DELETE /tasks/schedules/{id}", () => {
       },
     );
 
-    it("refuses a plain member a schedule nobody is responsible for", async () => {
+    it("refuses a plain member a schedule without an Owner", async () => {
       const schedule = seedPublicSchedule(publicWorkMadeBy("person", null));
 
       const response = await remove(

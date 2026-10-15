@@ -13,10 +13,11 @@ import {
 } from "@/schemas/domain-enums.schema";
 import { organizationSummarySchema } from "@/schemas/organization.schema";
 import {
-  deprecatedWorkOwnerIdSchema,
-  deprecatedWorkOwnerSchema,
-  responsibleUserIdField,
-  workCreatorRequesterFields,
+  deprecatedWorkUserIdSchema,
+  deprecatedWorkUserSchema,
+  workCreatorField,
+  workOwnerIdSchema,
+  workOwnerSchema,
 } from "@/schemas/work-creator.schema";
 
 import { fileSchema } from "./file.schema.js";
@@ -60,16 +61,13 @@ export const jobSummarySchema = z
     updatedAt: dateTimeSchema,
     completedAt: dateTimeSchema.nullish(),
     agentId: z.string().openapi({ example: "agent_123" }),
-    /** @deprecated Use `responsibleUserId`. */
-    ownerId: deprecatedWorkOwnerIdSchema,
-    /** @deprecated Use `responsibleUserId`. */
-    owner: deprecatedWorkOwnerSchema,
-    ...workCreatorRequesterFields,
-    ...responsibleUserIdField,
-    /** @deprecated Use `responsibleUserId`. */
-    userId: deprecatedWorkOwnerIdSchema,
-    /** @deprecated Use `responsibleUserId`. */
-    user: deprecatedWorkOwnerSchema,
+    ownerId: workOwnerIdSchema,
+    owner: workOwnerSchema,
+    ...workCreatorField,
+    /** @deprecated Use `ownerId`. */
+    userId: deprecatedWorkUserIdSchema,
+    /** @deprecated Use `owner`. */
+    user: deprecatedWorkUserSchema,
     organizationId: z
       .string()
       .nullish()
@@ -195,16 +193,13 @@ export const jobSchema = z
     updatedAt: dateTimeSchema,
     completedAt: dateTimeSchema.nullish(),
     agentId: z.string().openapi({ example: "agent_123" }),
-    /** @deprecated Use `responsibleUserId`. */
-    ownerId: deprecatedWorkOwnerIdSchema,
-    /** @deprecated Use `responsibleUserId`. */
-    owner: deprecatedWorkOwnerSchema,
-    ...workCreatorRequesterFields,
-    ...responsibleUserIdField,
-    /** @deprecated Use `responsibleUserId`. */
-    userId: deprecatedWorkOwnerIdSchema,
-    /** @deprecated Use `responsibleUserId`. */
-    user: deprecatedWorkOwnerSchema,
+    ownerId: workOwnerIdSchema,
+    owner: workOwnerSchema,
+    ...workCreatorField,
+    /** @deprecated Use `ownerId`. */
+    userId: deprecatedWorkUserIdSchema,
+    /** @deprecated Use `owner`. */
+    user: deprecatedWorkUserSchema,
     organizationId: z
       .string()
       .nullish()

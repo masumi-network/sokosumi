@@ -22,7 +22,6 @@ model User {
   transactions     Transaction[]
   ownedJobs        Job[]             @relation("JobOwner")
   createdJobs      Job[]             @relation("JobCreatorUser")
-  requestedJobs    Job[]             @relation("JobRequestedByUser")
 
   stripeCustomerId        String?
   preferredOrganizationId String?
@@ -73,13 +72,11 @@ model User {
 
   ownedTasks              Task[]                   @relation("TaskOwner")
   createdTasks            Task[]                   @relation("TaskCreatorUser")
-  requestedTasks          Task[]                   @relation("TaskRequestedByUser")
   createdSocialPosts      SocialPost[]             @relation("SocialPostCreatorUser")
   scheduledSocialPosts    SocialPost[]             @relation("SocialPostScheduledByUser")
   assignedTasks           Task[]                   @relation("TaskAssigneeUser")
   ownedTaskSchedules      TaskSchedule[]           @relation("TaskScheduleOwner")
   createdTaskSchedules    TaskSchedule[]           @relation("TaskScheduleCreatorUser")
-  requestedTaskSchedules  TaskSchedule[]           @relation("TaskScheduleRequestedByUser")
   assignedTaskSchedules   TaskSchedule[]           @relation("TaskScheduleAssigneeUser")
   taskParticipations      TaskParticipant[]        @relation("TaskParticipantUser")
   taskEvents              TaskEvent[]

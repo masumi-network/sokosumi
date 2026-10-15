@@ -12,8 +12,8 @@ function componentSchemas(router: typeof adminTasksRouter) {
   );
 }
 
-// `owner` stays and carries the responsible person; `responsibleUser`
-// replaces it (ADR 0056).
+// `owner` keeps its meaning and is null for a Task without an Owner
+// (ADR 0057).
 describe("admin and developer task OpenAPI contract", () => {
   it.each([
     ["AdminTaskListItem", adminTasksRouter],
@@ -21,25 +21,18 @@ describe("admin and developer task OpenAPI contract", () => {
     ["DeveloperTaskListItem", developerTasksRouter],
     ["DeveloperTaskDetail", developerTasksRouter],
   ] as const)(
-    "marks owner of %s deprecated in favour of responsibleUser",
+    "documents a nullable, not deprecated owner on %s",
     (name, router) => {
       const schema = componentSchemas(router)[name] as {
-        properties: Record<
-          string,
-          { deprecated?: boolean; description?: string }
-        >;
+        properties: Record<string, { deprecated?: boolean }>;
         required: string[];
       };
 
-      expect(schema.properties.owner).toMatchObject({
-        deprecated: true,
-        description: "Deprecated. Use responsibleUser.",
-      });
-      expect(schema.properties.responsibleUser).toBeDefined();
-      expect(schema.properties.responsibleUser?.deprecated).toBeUndefined();
-      expect(schema.required).toEqual(
-        expect.arrayContaining(["owner", "responsibleUser"]),
-      );
+      expect(schema.properties.owner).toBeDefined();
+      expect(schema.properties.owner?.deprecated).toBeUndefined();
+      expect(JSON.stringify(schema.properties.owner)).toContain('"null"');
+      expect(schema.properties).not.toHaveProperty("responsibleUser");
+      expect(schema.required).toContain("owner");
     },
   );
 });

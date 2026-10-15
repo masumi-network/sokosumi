@@ -1,6 +1,6 @@
 import {
   type Prisma,
-  workCreatorRequesterInclude,
+  workCreatorInclude,
   workspaceRelationInclude,
 } from "@sokosumi/database";
 import { jobListSummaryInclude } from "@sokosumi/database/types/job";
@@ -51,7 +51,7 @@ const taskOwnerAssigneeCreatorInclude = {
   assignee: taskEventApiInclude.coworker,
   assigneeSokoBot: taskEventApiInclude.sokoBot,
   assigneeUser: taskEventApiInclude.user,
-  ...workCreatorRequesterInclude,
+  ...workCreatorInclude,
   ...taskParticipantsInclude,
 } as const;
 

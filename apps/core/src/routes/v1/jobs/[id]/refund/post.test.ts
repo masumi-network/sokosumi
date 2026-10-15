@@ -4,10 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forbidden } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  publicWorkMadeBy,
-  WORK_MAKERS,
-} from "@/test-fixtures/responsible-work";
+import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 import mountPostJobRefund from "./post";
 
@@ -353,7 +350,7 @@ describe("POST /jobs/{id}/refund", () => {
     expect(updateJobPurchaseByExternalIdMock).not.toHaveBeenCalled();
   });
 
-  describe("who may refund a job (ADR 0056)", () => {
+  describe("who may refund a job (ADR 0057)", () => {
     beforeEach(async () => {
       const actual = await vi.importActual<
         typeof import("@/helpers/access-control")
@@ -384,7 +381,7 @@ describe("POST /jobs/{id}/refund", () => {
     }
 
     it.each(WORK_MAKERS)(
-      "lets the responsible person refund a job made by a %s",
+      "lets the Owner refund a job made by a %s",
       async (maker) => {
         jobFindFirstMock.mockResolvedValue(
           standaloneJob(publicWorkMadeBy(maker, "user_123")),
@@ -412,7 +409,7 @@ describe("POST /jobs/{id}/refund", () => {
     );
 
     it.each(["owner", "admin"])(
-      "lets an Organization %s refund a job nobody is responsible for",
+      "lets an Organization %s refund a job without an Owner",
       async (role) => {
         jobFindFirstMock.mockResolvedValue(
           standaloneJob(publicWorkMadeBy("sokoBot", null)),
@@ -429,7 +426,7 @@ describe("POST /jobs/{id}/refund", () => {
       },
     );
 
-    it("refuses a plain member a job nobody is responsible for", async () => {
+    it("refuses a plain member a job without an Owner", async () => {
       jobFindFirstMock.mockResolvedValue(
         standaloneJob(publicWorkMadeBy("sokoBot", null)),
       );

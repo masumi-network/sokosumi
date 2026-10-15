@@ -34,12 +34,15 @@ import {
   historyListSchema,
 } from "@/schemas/history.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-import { workScopeQuerySchema } from "@/schemas/work-scope.schema";
 
-const historyScopeQuerySchema = workScopeQuerySchema({
-  defaultScope: "mine",
-  description: "Which task and job rows to list.",
-});
+const historyScopeQuerySchema = z
+  .enum(["workspace", "owned"])
+  .default("owned")
+  .openapi({
+    param: { name: "scope", in: "query" },
+    description: "Workspace visibility scope for task and job rows.",
+    example: "workspace",
+  });
 
 const historySearchQuerySchema = z
   .string()

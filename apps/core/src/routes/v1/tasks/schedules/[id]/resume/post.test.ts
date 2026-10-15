@@ -202,7 +202,7 @@ describe("POST /tasks/schedules/{id}/resume", () => {
     },
   );
 
-  it("makes the member who resumes a schedule nobody is responsible for its Requester", async () => {
+  it("makes the member who resumes a schedule without an Owner its Owner", async () => {
     // A public schedule whose person deleted their account.
     const schedule = seedTaskSchedule({
       state: "PAUSED",
@@ -220,14 +220,14 @@ describe("POST /tasks/schedules/{id}/resume", () => {
     expect(response.status).toBe(200);
     expect(stored(schedule.id)).toMatchObject({
       state: "ACTIVE",
-      requestedByUserId: MEMBER_ID,
+      ownerId: MEMBER_ID,
     });
     expect(await response.json()).toMatchObject({
-      data: { responsibleUserId: MEMBER_ID, ownerId: MEMBER_ID },
+      data: { ownerId: MEMBER_ID },
     });
   });
 
-  it("records no Requester when resuming ends a schedule nobody is responsible for", async () => {
+  it("sets no Owner when resuming ends a schedule without an Owner", async () => {
     const schedule = seedTaskSchedule({
       state: "PAUSED",
       nextRunAt: null,
@@ -246,11 +246,11 @@ describe("POST /tasks/schedules/{id}/resume", () => {
     expect(response.status).toBe(200);
     expect(stored(schedule.id)).toMatchObject({
       state: "ENDED",
-      requestedByUserId: null,
+      ownerId: null,
     });
   });
 
-  it("keeps the responsible person of a schedule someone is responsible for", async () => {
+  it("keeps the Owner of a schedule that has one", async () => {
     const schedule = seedTaskSchedule({ state: "PAUSED", nextRunAt: null });
 
     const response = await send(
@@ -260,8 +260,8 @@ describe("POST /tasks/schedules/{id}/resume", () => {
 
     expect(response.status).toBe(200);
     expect(stored(schedule.id)).toMatchObject({
+      state: "ACTIVE",
       ownerId: OWNER_ID,
-      requestedByUserId: null,
     });
   });
 });

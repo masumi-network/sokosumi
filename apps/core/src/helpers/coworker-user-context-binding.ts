@@ -13,7 +13,6 @@ import {
 import type { UserWorkspaces } from "@/schemas/user-workspace.schema";
 
 import { forbidden } from "./error";
-import { buildResponsibleUserWhere } from "./task-visibility";
 import {
   getWorkspaceGrant,
   isGrantDeniedOrRevoked,
@@ -22,8 +21,8 @@ import {
 import { buildCoworkerSiblingTaskListFilter } from "./vendor-siblings";
 
 /**
- * Baseline access: a non-DRAFT task the user is responsible for in the
- * workspace (ADR 0056), assigned to this coworker or a same-vendor sibling.
+ * Baseline access: a non-DRAFT task the user owns in the workspace, assigned
+ * to this coworker or a same-vendor sibling.
  */
 function baselineTaskWhere(
   authContext: CoworkerAuthenticationContext,
@@ -31,7 +30,7 @@ function baselineTaskWhere(
   workspaceId: string | { in: string[] },
 ): Prisma.TaskWhereInput {
   return {
-    AND: [buildResponsibleUserWhere(userId)],
+    ownerId: userId,
     workspaceId,
     archivedAt: null,
     status: { not: TaskStatus.DRAFT },
@@ -50,8 +49,7 @@ function baselineTaskWhere(
  * 1. **DENIED / REVOKED** grant → reject (terminal; assignment does not override).
  * 2. **GRANTED** grant → allow.
  * 3. Else baseline access (assignee / same-vendor sibling on a non-DRAFT task
- *    that user is responsible for in the workspace) → allow when no terminal
- *    denial.
+ *    owned by that user in the workspace) → allow when no terminal denial.
  * 4. Else reject.
  *
  * Handlers should call {@link requireAuthorizedUserContext} rather than this

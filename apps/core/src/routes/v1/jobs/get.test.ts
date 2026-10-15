@@ -87,7 +87,7 @@ describe("GET /jobs", () => {
     expect(getUserJobsMock).not.toHaveBeenCalled();
   });
 
-  it("defaults to mine scope when the query parameter is omitted", async () => {
+  it("defaults to owned scope when the query parameter is omitted", async () => {
     const app = new OpenAPIHonoWithAuth();
 
     app.use("*", async (c, next) => {
@@ -131,42 +131,11 @@ describe("GET /jobs", () => {
         agentId: undefined,
         projectId: undefined,
         status: "COMPLETED",
-        scope: "mine",
+        scope: "owned",
         cursor: undefined,
         take: 20,
         skip: undefined,
       },
-    );
-  });
-
-  it.each(["mine", "owned"])("reads scope=%s as mine", async (scope) => {
-    const app = new OpenAPIHonoWithAuth();
-
-    app.use("*", async (c, next) => {
-      c.set("isAuthenticated", true);
-      c.set("authContext", {
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-        role: "user",
-      });
-      c.set("workspaceContext", {
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-        userId: null,
-        organizationId: "org_123",
-      });
-
-      return await next();
-    });
-
-    mountGetJobs(app);
-
-    const response = await app.request(`http://localhost/?scope=${scope}`);
-
-    expect(response.status).toBe(200);
-    expect(getUserJobsMock).toHaveBeenCalledWith(
-      expect.any(Object),
-      expect.objectContaining({ scope: "mine" }),
     );
   });
 
@@ -248,7 +217,7 @@ describe("GET /jobs", () => {
         agentId: undefined,
         projectId: undefined,
         status: undefined,
-        scope: "mine",
+        scope: "owned",
         coworkerId: "cow_123",
         coworkerVendorId: TEST_VENDOR_ID,
         cursor: undefined,

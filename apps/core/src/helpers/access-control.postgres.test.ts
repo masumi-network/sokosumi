@@ -38,7 +38,7 @@ async function createUser(id: string) {
 }
 
 // Real Prisma against the migrated schema: the filters decide who reaches a
-// row, so they are checked where they run (ADR 0056).
+// row, so they are checked where they run (ADR 0057).
 describe.skipIf(!enabled)("private work against PostgreSQL", () => {
   beforeAll(async () => {
     await createUser(ownerId);

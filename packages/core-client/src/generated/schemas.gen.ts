@@ -5636,38 +5636,7 @@ export const AdminTaskListItemSchema = {
                     type: 'null'
                 }
             ],
-            deprecated: true,
-            description: 'Deprecated. Use responsibleUser.'
-        },
-        responsibleUser: {
-            anyOf: [
-                {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'string',
-                            example: 'user_123'
-                        },
-                        name: {
-                            type: 'string',
-                            example: 'Ada Lovelace'
-                        },
-                        email: {
-                            type: 'string',
-                            example: 'ada@example.com'
-                        }
-                    },
-                    required: [
-                        'id',
-                        'name',
-                        'email'
-                    ]
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'The person responsible for the task, with their email address; null only when nobody is responsible for the work.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         organization: {
             type: [
@@ -5701,7 +5670,6 @@ export const AdminTaskListItemSchema = {
         'status',
         'createdAt',
         'owner',
-        'responsibleUser',
         'organization'
     ]
 } as const;
@@ -5761,38 +5729,7 @@ export const AdminTaskDetailSchema = {
                     type: 'null'
                 }
             ],
-            deprecated: true,
-            description: 'Deprecated. Use responsibleUser.'
-        },
-        responsibleUser: {
-            anyOf: [
-                {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'string',
-                            example: 'user_123'
-                        },
-                        name: {
-                            type: 'string',
-                            example: 'Ada Lovelace'
-                        },
-                        email: {
-                            type: 'string',
-                            example: 'ada@example.com'
-                        }
-                    },
-                    required: [
-                        'id',
-                        'name',
-                        'email'
-                    ]
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'The person responsible for the task, with their email address; null only when nobody is responsible for the work.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         organization: {
             type: [
@@ -5823,7 +5760,6 @@ export const AdminTaskDetailSchema = {
     required: [
         'task',
         'owner',
-        'responsibleUser',
         'organization'
     ]
 } as const;
@@ -5855,8 +5791,7 @@ export const TaskSchema = {
                 }
             ],
             example: 'user_123',
-            deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         owner: {
             anyOf: [
@@ -5867,8 +5802,7 @@ export const TaskSchema = {
                     type: 'null'
                 }
             ],
-            deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         userId: {
             anyOf: [
@@ -5881,7 +5815,7 @@ export const TaskSchema = {
             ],
             example: 'user_123',
             deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'Deprecated. Use ownerId instead.'
         },
         user: {
             anyOf: [
@@ -5893,7 +5827,7 @@ export const TaskSchema = {
                 }
             ],
             deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'Deprecated. Use owner instead.'
         },
         organizationId: {
             type: [
@@ -6013,29 +5947,6 @@ export const TaskSchema = {
                 }
             ],
             description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
-        },
-        requester: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/UserSummary'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
-        },
-        responsibleUserId: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            example: 'user_123',
-            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
         },
         sokoBotId: {
             type: [
@@ -6227,8 +6138,6 @@ export const TaskSchema = {
         'coworkerId',
         'coworker',
         'creator',
-        'requester',
-        'responsibleUserId',
         'sokoBotId',
         'sokoBot',
         'number',
@@ -7044,8 +6953,7 @@ export const JobSummarySchema = {
                 }
             ],
             example: 'user_123',
-            deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         owner: {
             anyOf: [
@@ -7056,8 +6964,7 @@ export const JobSummarySchema = {
                     type: 'null'
                 }
             ],
-            deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         creator: {
             anyOf: [
@@ -7076,29 +6983,6 @@ export const JobSummarySchema = {
             ],
             description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
         },
-        requester: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/UserSummary'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
-        },
-        responsibleUserId: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            example: 'user_123',
-            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
-        },
         userId: {
             anyOf: [
                 {
@@ -7110,7 +6994,7 @@ export const JobSummarySchema = {
             ],
             example: 'user_123',
             deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'Deprecated. Use ownerId instead.'
         },
         user: {
             anyOf: [
@@ -7122,7 +7006,7 @@ export const JobSummarySchema = {
                 }
             ],
             deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'Deprecated. Use owner instead.'
         },
         organizationId: {
             type: [
@@ -7260,8 +7144,6 @@ export const JobSummarySchema = {
         'ownerId',
         'owner',
         'creator',
-        'requester',
-        'responsibleUserId',
         'userId',
         'user',
         'workspace',
@@ -12715,38 +12597,7 @@ export const DeveloperTaskListItemSchema = {
                     type: 'null'
                 }
             ],
-            deprecated: true,
-            description: 'Deprecated. Use responsibleUser.'
-        },
-        responsibleUser: {
-            anyOf: [
-                {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'string',
-                            example: 'user_123'
-                        },
-                        name: {
-                            type: 'string',
-                            example: 'Ada Lovelace'
-                        },
-                        email: {
-                            type: 'string',
-                            example: 'ada@example.com'
-                        }
-                    },
-                    required: [
-                        'id',
-                        'name',
-                        'email'
-                    ]
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'The person responsible for the task, with their email address; null only when nobody is responsible for the work.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         organization: {
             type: [
@@ -12783,7 +12634,6 @@ export const DeveloperTaskListItemSchema = {
         'assignee',
         'creatorCoworker',
         'owner',
-        'responsibleUser',
         'organization'
     ]
 } as const;
@@ -12848,38 +12698,7 @@ export const DeveloperTaskDetailSchema = {
                     type: 'null'
                 }
             ],
-            deprecated: true,
-            description: 'Deprecated. Use responsibleUser.'
-        },
-        responsibleUser: {
-            anyOf: [
-                {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'string',
-                            example: 'user_123'
-                        },
-                        name: {
-                            type: 'string',
-                            example: 'Ada Lovelace'
-                        },
-                        email: {
-                            type: 'string',
-                            example: 'ada@example.com'
-                        }
-                    },
-                    required: [
-                        'id',
-                        'name',
-                        'email'
-                    ]
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'The person responsible for the task, with their email address; null only when nobody is responsible for the work.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         organization: {
             type: [
@@ -12910,7 +12729,6 @@ export const DeveloperTaskDetailSchema = {
     required: [
         'task',
         'owner',
-        'responsibleUser',
         'organization'
     ]
 } as const;
@@ -19681,21 +19499,8 @@ export const WorkspaceCalendarItemSchema = {
                     type: 'null'
                 }
             ],
-            deprecated: true,
-            description: 'Deprecated. Use responsibleUserId. The person responsible for the Task Schedule and the Tasks it creates; null only when nobody is responsible for the work.',
+            description: 'Owner of the Task Schedule and the Tasks it creates; null when it has none',
             example: 'user_123'
-        },
-        responsibleUserId: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            example: 'user_123',
-            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
         },
         scheduledAt: {
             type: 'string',
@@ -19759,7 +19564,6 @@ export const WorkspaceCalendarItemSchema = {
         'taskStatus',
         'taskAssigneeId',
         'taskOwnerId',
-        'responsibleUserId',
         'scheduledAt',
         'originalScheduledAt',
         'state',
@@ -23758,8 +23562,7 @@ export const JobSchema = {
                 }
             ],
             example: 'user_123',
-            deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         owner: {
             anyOf: [
@@ -23770,8 +23573,7 @@ export const JobSchema = {
                     type: 'null'
                 }
             ],
-            deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         creator: {
             anyOf: [
@@ -23790,29 +23592,6 @@ export const JobSchema = {
             ],
             description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
         },
-        requester: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/UserSummary'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
-        },
-        responsibleUserId: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            example: 'user_123',
-            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
-        },
         userId: {
             anyOf: [
                 {
@@ -23824,7 +23603,7 @@ export const JobSchema = {
             ],
             example: 'user_123',
             deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'Deprecated. Use ownerId instead.'
         },
         user: {
             anyOf: [
@@ -23836,7 +23615,7 @@ export const JobSchema = {
                 }
             ],
             deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'Deprecated. Use owner instead.'
         },
         organizationId: {
             type: [
@@ -24221,8 +24000,6 @@ export const JobSchema = {
         'ownerId',
         'owner',
         'creator',
-        'requester',
-        'responsibleUserId',
         'userId',
         'user',
         'projectId',
@@ -27650,8 +27427,7 @@ export const TaskListItemSchema = {
                 }
             ],
             example: 'user_123',
-            deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         owner: {
             anyOf: [
@@ -27662,8 +27438,7 @@ export const TaskListItemSchema = {
                     type: 'null'
                 }
             ],
-            deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         userId: {
             anyOf: [
@@ -27676,7 +27451,7 @@ export const TaskListItemSchema = {
             ],
             example: 'user_123',
             deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'Deprecated. Use ownerId instead.'
         },
         user: {
             anyOf: [
@@ -27688,7 +27463,7 @@ export const TaskListItemSchema = {
                 }
             ],
             deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'Deprecated. Use owner instead.'
         },
         organizationId: {
             type: [
@@ -27808,29 +27583,6 @@ export const TaskListItemSchema = {
                 }
             ],
             description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
-        },
-        requester: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/UserSummary'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
-        },
-        responsibleUserId: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            example: 'user_123',
-            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
         },
         sokoBotId: {
             type: [
@@ -27976,8 +27728,6 @@ export const TaskListItemSchema = {
         'coworkerId',
         'coworker',
         'creator',
-        'requester',
-        'responsibleUserId',
         'sokoBotId',
         'sokoBot',
         'number',
@@ -28111,8 +27861,7 @@ export const TaskScheduleSchema = {
                 }
             ],
             example: 'user_123',
-            deprecated: true,
-            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         creatorUserId: {
             type: [
@@ -28149,29 +27898,6 @@ export const TaskScheduleSchema = {
                 }
             ],
             description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
-        },
-        requester: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/UserSummary'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
-        },
-        responsibleUserId: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            example: 'user_123',
-            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
         },
         state: {
             $ref: '#/components/schemas/TaskScheduleState'
@@ -28305,8 +28031,6 @@ export const TaskScheduleSchema = {
         'creatorCoworkerId',
         'creatorSokoBotId',
         'creator',
-        'requester',
-        'responsibleUserId',
         'state',
         'rule',
         'ruleEffectiveFrom',

@@ -42,8 +42,6 @@ vi.mock("@/services/soko-bot-activity-stats.service", async (original) => ({
   activityStats: statsMock,
 }));
 
-import { buildResponsibleUserWhere } from "@/helpers/task-visibility";
-
 import { buildRhythmPacket, dueSoonBlock } from "./soko-bot-rhythms.service";
 
 const bot = {
@@ -243,22 +241,6 @@ describe("end of day", () => {
     expect(text).toContain('## Done today\n- "Ship brief" · Hannah');
     expect(text).toContain('"Budget" (id task-2) · asked by Jamal');
     expect(text).toContain("Board sync");
-  });
-
-  it("reads the work the bot's person is responsible for, or the bot is assigned", async () => {
-    await buildRhythmPacket({
-      key: "end-of-day",
-      bot,
-      now: new Date("2026-10-01T17:30:00.000Z"),
-      dayStart: new Date("2026-10-01T00:00:00.000Z"),
-    });
-    for (const [args] of taskFindManyMock.mock.calls) {
-      expect(args.where.OR).toEqual([
-        buildResponsibleUserWhere(bot.userId),
-        { assigneeSokoBotId: bot.id },
-      ]);
-    }
-    expect(taskFindManyMock).toHaveBeenCalledTimes(2);
   });
 });
 

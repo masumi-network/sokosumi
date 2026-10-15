@@ -6,10 +6,7 @@ import { errorHandler } from "@/helpers/error-handler.js";
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
-import {
-  publicWorkMadeBy,
-  WORK_MAKERS,
-} from "@/test-fixtures/responsible-work";
+import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 import mountPutTaskWorkspace, { putTaskWorkspaceRequestSchema } from "./put";
 
@@ -63,8 +60,7 @@ vi.mock("@/helpers/access-control", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/helpers/access-control")>();
   return {
-    requireResponsiblePersonForPersonalWorkspace:
-      actual.requireResponsiblePersonForPersonalWorkspace,
+    requireOwnerForPersonalWorkspace: actual.requireOwnerForPersonalWorkspace,
     requireTaskMoveAccess: actual.requireTaskMoveAccess,
     requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
     requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
@@ -203,8 +199,6 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
       image: null,
       slug: "current-coworker",
     },
-    requester: null,
-    responsibleUserId: "user_123",
     creator: {
       type: "user" as const,
       id: "user_123",
@@ -996,7 +990,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
-  describe("who may move a Task (ADR 0056)", () => {
+  describe("who may move a Task (ADR 0057)", () => {
     function requestMove(organizationId: string | null = "org_target") {
       return createApp("org_current").request(
         "http://localhost/tsk_123/workspace",
@@ -1013,7 +1007,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     }
 
     it.each(WORK_MAKERS)(
-      "lets the responsible person move a Task made by a %s",
+      "lets the Owner move a Task made by a %s",
       async (maker) => {
         taskFindFirstMock.mockResolvedValue(
           currentTask(publicWorkMadeBy(maker, "user_123")),
@@ -1041,7 +1035,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     );
 
     it.each(["owner", "admin"])(
-      "lets an Organization %s move a Task nobody is responsible for",
+      "lets an Organization %s move a Task without an Owner",
       async (role) => {
         taskFindFirstMock.mockResolvedValue(
           currentTask(publicWorkMadeBy("sokoBot", null)),
@@ -1058,7 +1052,7 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
     );
 
-    it("refuses a plain member a Task nobody is responsible for", async () => {
+    it("refuses a plain member a Task without an Owner", async () => {
       taskFindFirstMock.mockResolvedValue(
         currentTask(publicWorkMadeBy("sokoBot", null)),
       );
@@ -1069,7 +1063,7 @@ describe("PUT /tasks/{id}/workspace", () => {
       expect(taskUpdateMock).not.toHaveBeenCalled();
     });
 
-    it("keeps a Task nobody is responsible for out of a personal workspace", async () => {
+    it("keeps a Task without an Owner out of a personal workspace", async () => {
       taskFindFirstMock.mockResolvedValue(
         currentTask(publicWorkMadeBy("sokoBot", null)),
       );

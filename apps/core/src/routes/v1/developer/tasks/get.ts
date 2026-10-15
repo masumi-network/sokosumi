@@ -13,10 +13,6 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import {
-  mapResponsibleUserWithEmail,
-  responsibleUserWithEmailInclude,
-} from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -28,7 +24,7 @@ import {
 const developerTaskListInclude = {
   assignee: { select: { id: true, name: true, slug: true } },
   creatorCoworker: { select: { id: true, name: true, slug: true } },
-  ...responsibleUserWithEmailInclude,
+  owner: { select: { id: true, name: true, email: true } },
   organization: { select: { id: true, name: true, slug: true } },
 } as const;
 
@@ -85,21 +81,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ]);
 
     const hasMore = tasks.length === takePlusOne;
-    const items = tasks.slice(0, take).map((task) => {
-      const responsibleUser = mapResponsibleUserWithEmail(task);
-      return {
-        id: task.id,
-        name: task.name,
-        status: task.status,
-        createdAt: task.createdAt,
-        updatedAt: task.updatedAt,
-        assignee: task.assignee,
-        creatorCoworker: task.creatorCoworker,
-        owner: responsibleUser,
-        responsibleUser,
-        organization: task.organization,
-      };
-    });
+    const items = tasks.slice(0, take).map((task) => ({
+      id: task.id,
+      name: task.name,
+      status: task.status,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+      assignee: task.assignee,
+      creatorCoworker: task.creatorCoworker,
+      owner: task.owner,
+      organization: task.organization,
+    }));
 
     const paginationMeta = createPaginationMeta(
       items,

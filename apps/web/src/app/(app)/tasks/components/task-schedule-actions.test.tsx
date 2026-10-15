@@ -49,8 +49,6 @@ function schedule(state: TaskSchedule["state"]): TaskSchedule {
   return {
     id: SCHEDULE_ID,
     creator: null,
-    requester: null,
-    responsibleUserId: "user_1",
     workspaceId: "11111111-1111-7111-8111-111111111111",
     organizationId: null,
     ownerId: "user_1",

@@ -281,41 +281,29 @@ describe("committed effect outbox", () => {
     );
   });
 
-  /**
-   * A Soko Bot acts for a person (its Requester) or for nobody. The live
-   * update reaches the responsible person, not the Owner column.
-   */
+  /** The live update reaches the Task's Owner; a Task without one has nobody. */
   it.each([
-    ["the Requester", { requestedByUserId: "asker" }, "asker"],
-    ["the person who made it", { creatorUserId: "maker" }, "maker"],
-    ["nobody", {}, null],
-  ])(
-    "publishes a Soko Bot Task event to %s",
-    async (_who, ownership, expectedUserId) => {
-      mocks.taskPublish.mockClear();
-      mocks.find.mockResolvedValue(
-        effect({
-          purpose: "TASK_EVENT",
-          payload: { taskId: "task", eventId: "event" },
-        }),
-      );
-      mocks.event.mockResolvedValue({
-        id: "event",
-        taskId: "task",
-        status: null,
-        task: {
-          ownerId: null,
-          creatorUserId: null,
-          requestedByUserId: null,
-          ...ownership,
-        },
-      });
+    ["its Owner", "asker"],
+    ["nobody when it has no Owner", null],
+  ])("publishes a Soko Bot Task event to %s", async (_who, ownerId) => {
+    mocks.taskPublish.mockClear();
+    mocks.find.mockResolvedValue(
+      effect({
+        purpose: "TASK_EVENT",
+        payload: { taskId: "task", eventId: "event" },
+      }),
+    );
+    mocks.event.mockResolvedValue({
+      id: "event",
+      taskId: "task",
+      status: null,
+      task: { ownerId, creatorUserId: null },
+    });
 
-      expect(await deliverSokoBotEffect("effect")).toBe(true);
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
 
-      expect(
-        mocks.taskPublish.mock.calls.map(([input]) => input.userId),
-      ).toEqual(expectedUserId ? [expectedUserId] : []);
-    },
-  );
+    expect(mocks.taskPublish.mock.calls.map(([input]) => input.userId)).toEqual(
+      ownerId ? [ownerId] : [],
+    );
+  });
 });

@@ -277,12 +277,10 @@ function createTask(
     assigneeSokoBotId: string | null;
     assigneeUserId: string | null;
     status: TaskStatus;
-    /** Null only once SOK-1462 makes the Owner column nullable. */
     ownerId: string | null;
     creatorUserId: string | null;
     creatorCoworkerId: string | null;
     creatorSokoBotId: string | null;
-    requestedByUserId: string | null;
     workspaceId: string;
     projectId: string | null;
     runAt: Date | null;
@@ -300,7 +298,6 @@ function createTask(
     creatorUserId: null,
     creatorCoworkerId: null,
     creatorSokoBotId: null,
-    requestedByUserId: null,
     workspaceId: "ws_123",
     organizationId: null,
     projectId: null,
@@ -3185,21 +3182,18 @@ describe("POST /{id}/events", () => {
   });
 
   /**
-   * The responsible person (ADR 0056) takes over from the Owner: a Task a
-   * Coworker made for a person has no Owner, and that person is told and gets
-   * the live update. Work nobody is responsible for tells no one.
+   * The Owner (ADR 0057) is told and gets the live update; a Task without an
+   * Owner tells no one.
    */
   it.each([
-    ["the Requester", { requestedByUserId: "user_asker" }, "user_asker"],
-    ["the person who made it", { creatorUserId: "user_maker" }, "user_maker"],
-    ["nobody", {}, null],
+    ["its Owner", "user_owner"],
+    ["nobody when it has no Owner", null],
   ])(
     "sends a canceled Task's notification and live update to %s",
-    async (_who, ownership, expectedUserId) => {
+    async (_who, ownerId) => {
       const task = createTask({
         status: TaskStatus.RUNNING,
-        ownerId: null,
-        ...ownership,
+        ownerId,
       });
       requireTaskStatusWriteAccessMock.mockResolvedValue(task);
       prismaTaskFindUniqueMock.mockResolvedValue({
@@ -3243,7 +3237,7 @@ describe("POST /{id}/events", () => {
       const published = publishTaskEventDataMock.mock.calls.map(
         ([input]) => input.userId,
       );
-      const expected = expectedUserId ? [expectedUserId] : [];
+      const expected = ownerId ? [ownerId] : [];
       expect(notified).toEqual(expected);
       expect(published).toEqual(expected);
     },
@@ -4410,13 +4404,13 @@ describe("POST /{id}/events", () => {
   });
 });
 
-describe("POST /{id}/events charges the responsible person (ADR 0056)", () => {
+describe("POST /{id}/events charges the Owner (ADR 0057)", () => {
   const ORGANIZATION_ID = "org_charges";
 
   beforeEach(() => {
     vi.clearAllMocks();
     waitUntilCapturedPromises.length = 0;
-    createTaskEventTransactionMock.mockResolvedValue("txn_responsible");
+    createTaskEventTransactionMock.mockResolvedValue("txn_owner");
   });
 
   async function chargeCredits(task: ReturnType<typeof createTask>) {
@@ -4428,7 +4422,7 @@ describe("POST /{id}/events charges the responsible person (ADR 0056)", () => {
           createTaskEvent({
             status: TaskStatus.RUNNING,
             cents: convertCreditsToCents(2),
-            transactionId: "txn_responsible",
+            transactionId: "txn_owner",
           }),
         ),
       },
@@ -4449,54 +4443,43 @@ describe("POST /{id}/events charges the responsible person (ADR 0056)", () => {
   }
 
   it.each([
-    {
-      madeBy: "a person",
-      columns: { creatorUserId: "user_creator" },
-      responsible: "user_creator",
-    },
+    { madeBy: "a person", columns: { creatorUserId: "user_owner" } },
     {
       madeBy: "a Coworker for a person",
-      columns: {
-        creatorCoworkerId: COWORKER_ID,
-        requestedByUserId: "user_requester",
-      },
-      responsible: "user_requester",
+      columns: { creatorCoworkerId: COWORKER_ID },
     },
     {
       madeBy: "a Soko Bot for a person",
-      columns: {
-        creatorSokoBotId: "bot_123",
-        requestedByUserId: "user_requester",
-      },
-      responsible: "user_requester",
+      columns: { creatorSokoBotId: "bot_123" },
     },
   ])(
-    "charges public work made by $madeBy to its responsible person and checks their Seat",
-    async ({ columns, responsible }) => {
+    "charges public work made by $madeBy to its Owner and checks their Seat",
+    async ({ columns }) => {
+      const owner = "user_owner";
       const response = await chargeCredits(
         createTask({
           status: TaskStatus.READY,
           organizationId: ORGANIZATION_ID,
-          ownerId: null,
+          ownerId: owner,
           ...columns,
         }),
       );
 
       expect(response.status).toBe(201);
       expect(requireAssignedOrganizationSeat).toHaveBeenCalledWith(
-        responsible,
+        owner,
         ORGANIZATION_ID,
         expect.anything(),
       );
       expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          userId: responsible,
+          userId: owner,
           organizationId: ORGANIZATION_ID,
           cents: convertCreditsToCents(2),
         }),
       );
       expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-        userId: responsible,
+        userId: owner,
         organizationId: ORGANIZATION_ID,
       });
     },
@@ -4510,7 +4493,6 @@ describe("POST /{id}/events charges the responsible person (ADR 0056)", () => {
         visibility: TaskVisibility.PRIVATE,
         ownerId: "user_owner",
         creatorSokoBotId: "bot_123",
-        requestedByUserId: "user_owner",
       }),
     );
 
@@ -4520,7 +4502,7 @@ describe("POST /{id}/events charges the responsible person (ADR 0056)", () => {
     );
   });
 
-  it("charges a Soko Bot's own work to the Organization pool with no member and no Seat check", async () => {
+  it("charges a Task without an Owner to the Organization pool with no member and no Seat check", async () => {
     const response = await chargeCredits(
       createTask({
         status: TaskStatus.READY,
@@ -4544,7 +4526,7 @@ describe("POST /{id}/events charges the responsible person (ADR 0056)", () => {
     });
   });
 
-  it("refuses a Task Schedule Run's charge when its responsible person lost their Seat", async () => {
+  it("refuses a Task Schedule Run's charge when its Owner lost their Seat", async () => {
     vi.mocked(requireAssignedOrganizationSeat).mockImplementationOnce(
       async (userId) => {
         if (userId === "user_unseated") {
@@ -4563,7 +4545,7 @@ describe("POST /{id}/events charges the responsible person (ADR 0056)", () => {
         status: TaskStatus.READY,
         organizationId: ORGANIZATION_ID,
         scheduleId: "sched_123",
-        ownerId: null,
+        ownerId: "user_unseated",
         creatorUserId: "user_unseated",
       }),
     );

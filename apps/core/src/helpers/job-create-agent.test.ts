@@ -390,7 +390,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledTimes(1);
   });
 
-  it("records the person who hires as the Job's Creator, with no Requester", async () => {
+  it("records the person who hires as the Job's Creator", async () => {
     await createAgentJobForUser(
       createInput({ creator: { kind: "user", userId: "user_1" } }),
     );
@@ -399,7 +399,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     expect(data.creatorUser).toEqual({ connect: { id: "user_1" } });
     expect(data.creatorCoworker).toBeUndefined();
     expect(data.creatorSokoBot).toBeUndefined();
-    expect(data.requestedByUser).toBeUndefined();
+    expect(data.owner).toEqual({ connect: { id: "user_1" } });
   });
 
   it.each([
@@ -415,7 +415,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       },
     ],
   ])(
-    "records a Soko Bot hiring for a person as Creator and the person as Requester (%s)",
+    "records a Soko Bot hiring for a person as Creator and the person as Owner (%s)",
     async (_kind, arrange) => {
       arrange();
 
@@ -425,7 +425,6 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
 
       const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
       expect(data.creatorSokoBot).toEqual({ connect: { id: "bot_1" } });
-      expect(data.requestedByUser).toEqual({ connect: { id: "user_1" } });
       expect(data.creatorUser).toBeUndefined();
       expect(data.owner).toEqual({ connect: { id: "user_1" } });
     },
@@ -436,7 +435,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     { kind: "coworker" as const, coworkerId: "cow_1" },
     { kind: "soko_bot" as const, sokoBotId: "bot_1" },
   ])(
-    "charges a paid Job made by a $kind to its responsible person and checks their Seat",
+    "charges a paid Job made by a $kind to its Owner and checks their Seat",
     async (creator) => {
       agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
       getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
@@ -470,19 +469,19 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     },
   );
 
-  it("records a Coworker hiring for a person as Creator and the person as Requester", async () => {
+  it("records a Coworker hiring for a person as Creator and the person as Owner", async () => {
     await createAgentJobForUser(
       createInput({ creator: { kind: "coworker", coworkerId: "cow_1" } }),
     );
 
     const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
     expect(data.creatorCoworker).toEqual({ connect: { id: "cow_1" } });
-    expect(data.requestedByUser).toEqual({ connect: { id: "user_1" } });
+    expect(data.owner).toEqual({ connect: { id: "user_1" } });
     expect(data.creatorUser).toBeUndefined();
   });
 
-  it("makes a Job for the Requester of work nobody owns and charges them", async () => {
-    // A Run of a public Task Schedule a member resumed after its person left.
+  it("charges a Job without an Owner to the Organization pool with no member and no Seat check", async () => {
+    // A Soko Bot hiring on its own for public work.
     agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
     getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
     createAgentClientMock.mockReturnValue({
@@ -493,19 +492,23 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       createInput({
         owner: {
           ownerId: null,
-          personId: "user_resumer",
           organizationId: "org_1",
           workspaceId: "11111111-1111-7111-8111-111111111111",
         },
-        creator: { kind: "coworker", coworkerId: "cow_1" },
+        creator: { kind: "soko_bot", sokoBotId: "bot_1" },
       }),
     ).catch(() => undefined);
 
     const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
     expect(data.owner).toBeUndefined();
-    expect(data.requestedByUser).toEqual({ connect: { id: "user_resumer" } });
+    expect(data.creatorSokoBot).toEqual({ connect: { id: "bot_1" } });
+    expect(data.transaction.create.user).toBeUndefined();
+    expect(data.transaction.create.organization).toEqual({
+      connect: { id: "org_1" },
+    });
+    expect(requireAssignedOrganizationSeat).not.toHaveBeenCalled();
     expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
-      "user_resumer",
+      null,
       "org_1",
       BigInt(5),
       expect.anything(),

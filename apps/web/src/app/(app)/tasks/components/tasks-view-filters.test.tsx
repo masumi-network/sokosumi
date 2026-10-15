@@ -31,7 +31,7 @@ const labels = {
   emptyResults: "No results found.",
   all: "All",
   scopeLabel: "Scope",
-  scopeMine: "My tasks",
+  scopeOwned: "My tasks",
   scopeWorkspace: "Workspace",
   coworkerLabel: "Coworker",
   statusLabel: "Status",

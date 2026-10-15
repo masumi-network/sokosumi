@@ -48,7 +48,6 @@ import {
   canCancelTaskForViewer,
   canCommentOnTaskForViewer,
   isReadOnlyForViewer,
-  isResponsibleUser,
 } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
@@ -389,7 +388,7 @@ async function TaskVendorGrantApprovalBannerSlot({
     organizationId: orgId,
     isAuthenticated: true,
     viewerMembership,
-    responsibleUserId: task.responsibleUserId,
+    taskOwnerId: task.ownerId,
     sessionUserId: session.user.id,
   });
 
@@ -642,7 +641,7 @@ async function TaskDetailActionsSlot({
   });
   const canCancelTask = canCancelTaskForViewer({
     taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-    responsibleUserId: task.responsibleUserId,
+    taskOwnerId: task.ownerId,
     sessionUserId: session?.user.id,
     forceReadOnly,
     taskStatus: task.status,
@@ -672,10 +671,7 @@ async function TaskDetailActionsSlot({
       isReadOnly={isReadOnlyWorkspaceView}
       canCancel={canCancelTask}
       forceReadOnly={forceReadOnly}
-      isResponsible={isResponsibleUser(
-        task.responsibleUserId,
-        session?.user.id,
-      )}
+      isTaskOwner={session?.user.id === task.ownerId}
       hasAssignedSeat={hasAssignedSeat}
       repeatBlueprint={
         !forceReadOnly && hasAssignedSeat
@@ -843,7 +839,7 @@ async function TaskActivitySectionContent({
       actionCommentedLabel={t("actionCommented")}
       actionUpdatedStatusLabel={t("actionUpdatedStatus")}
       actionCreatedTaskLabel={t("actionCreatedTask")}
-      responsibleUserId={task.responsibleUserId}
+      taskOwnerId={task.ownerId}
       events={activityEvents.events}
       commentCount={activityEvents.pagination.commentCount}
       latestCommentId={activityEvents.pagination.latestCommentId}
@@ -860,7 +856,7 @@ async function TaskActivitySectionContent({
       participants={task.participants}
       canComment={canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-        responsibleUserId: task.responsibleUserId,
+        taskOwnerId: task.ownerId,
         sessionUserId: session?.user.id,
         forceReadOnly,
         taskStatus: task.status,

@@ -466,9 +466,9 @@ describe("mapTask", () => {
     expect(result.share).toEqual(share);
   });
 
-  it("returns the responsible person, the Owner for existing work", () => {
+  it("returns the Owner of a Task a Coworker made for them", () => {
     const task = {
-      id: "tsk_responsible",
+      id: "tsk_made_for",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
@@ -485,8 +485,6 @@ describe("mapTask", () => {
       creatorCoworker: defaultTaskCoworker,
       creatorSokoBotId: null,
       creatorSokoBot: null,
-      requestedByUserId: "user_456",
-      requestedByUser: { id: "user_456", name: "Asker", image: null },
       name: "Made by a Coworker",
       description: null,
       status: TaskStatus.READY,
@@ -505,34 +503,22 @@ describe("mapTask", () => {
 
     expect(mapTask(task, TEST_USER_AUTH)).toMatchObject({
       ownerId: "user_123",
-      responsibleUserId: "user_123",
+      creator: { type: "coworker", id: "cow_123" },
     });
     expect(
       mapTaskListItem({
         ...task,
         _count: { jobs: 0, events: 0 },
       } as unknown as TaskListItemWithIncludes),
-    ).toMatchObject({ ownerId: "user_123", responsibleUserId: "user_123" });
+    ).toMatchObject({
+      ownerId: "user_123",
+      creator: { type: "coworker", id: "cow_123" },
+    });
   });
 
-  it.each([
-    {
-      case: "names the Requester as Owner once the Owner is gone",
-      columns: {
-        requestedByUserId: "user_456",
-        requestedByUser: { id: "user_456", name: "Asker", image: null },
-      },
-      owner: { id: "user_456", name: "Asker", image: null },
-    },
-    {
-      case: "returns a null Owner when nobody is responsible for the work",
-      columns: { requestedByUserId: null, requestedByUser: null },
-      owner: null,
-    },
-  ])("$case", ({ columns, owner }) => {
-    // A public Task made by a Coworker whose person deleted their account.
+  it("returns a null Owner and Creator once the person who made a public Task is deleted", () => {
     const task = {
-      id: "tsk_ownerless",
+      id: "tsk_without_owner",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: null,
@@ -545,11 +531,10 @@ describe("mapTask", () => {
       assignee: defaultTaskCoworker,
       creatorUserId: null,
       creatorUser: null,
-      creatorCoworkerId: "cow_123",
-      creatorCoworker: defaultTaskCoworker,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
       creatorSokoBotId: null,
       creatorSokoBot: null,
-      ...columns,
       name: "Left behind",
       description: null,
       status: TaskStatus.COMPLETED,
@@ -566,23 +551,23 @@ describe("mapTask", () => {
       },
     } as unknown as TaskWithIncludes;
 
-    // The response schema accepts the null Owner it now documents.
+    // The response schema accepts the null Owner and Creator it documents.
     const mapped = taskSchema
       .pick({
         ownerId: true,
         owner: true,
         userId: true,
         user: true,
-        responsibleUserId: true,
+        creator: true,
       })
       .parse(mapTask(task, TEST_USER_AUTH));
 
-    expect(mapped).toMatchObject({
-      ownerId: owner?.id ?? null,
-      owner,
-      userId: owner?.id ?? null,
-      user: owner,
-      responsibleUserId: owner?.id ?? null,
+    expect(mapped).toEqual({
+      ownerId: null,
+      owner: null,
+      userId: null,
+      user: null,
+      creator: null,
     });
   });
 

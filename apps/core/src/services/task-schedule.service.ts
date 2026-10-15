@@ -8,7 +8,7 @@ import {
   TaskScheduleState,
   TaskVisibility,
   VendorGrantStatus,
-  workCreatorRequesterInclude,
+  workCreatorInclude,
 } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
@@ -16,7 +16,7 @@ import { HTTPException } from "hono/http-exception";
 import {
   requireCoworkerCapability,
   requireGrantedWorkspaceAccessOrRequest,
-  requireRightIfNobodyIsResponsible,
+  requireRightOnWorkWithoutOwner,
   requireTaskAssignableSokoBot,
 } from "@/helpers/access-control";
 import {
@@ -45,14 +45,9 @@ import {
   buildCoworkerPrivateTaskVisibilityWhere,
   buildHumanTaskVisibilityWhere,
   isPrivateTaskVisibleToCoworker,
-  resolveResponsibleUserId,
 } from "@/helpers/task-visibility";
 import { getWorkspaceGrant } from "@/helpers/vendor-grants";
-import {
-  creatorFields,
-  mapWorkCreator,
-  mapWorkRequester,
-} from "@/helpers/work-creator";
+import { creatorFields, mapWorkCreator } from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import {
@@ -249,12 +244,7 @@ export async function createTaskSchedule(
 ): Promise<TaskScheduleView> {
   const actor = await resolveScheduleActor(vars);
   const domainActor = toDomainActor(actor);
-  // The Requester follows from the Creator, so it stays out of the replay
-  // fingerprint and retries made before it was recorded still match.
-  const { requestedByUserId, ...creator } = {
-    ownerId: actor.userId,
-    ...creatorFields(domainActor, actor.userId),
-  };
+  const creator = { ownerId: actor.userId, ...creatorFields(domainActor) };
   const { operationId, ...request } = input;
   const replay = operationId
     ? createOperationReplay(actor.workspace.workspaceId, operationId, {
@@ -300,7 +290,6 @@ export async function createTaskSchedule(
           workspaceId: actor.workspace.workspaceId,
           organizationId: actor.workspace.organizationId,
           ...creator,
-          requestedByUserId,
           ...rule,
           name: input.name,
           description: input.description ?? null,
@@ -392,11 +381,11 @@ function readableWhere(actor: ScheduleActor): Prisma.TaskScheduleWhereInput {
 
 /**
  * What `canWriteTaskSchedule` reads beyond the schedule's own columns, and the
- * Creator and Requester a response maps.
+ * Creator a response maps.
  */
 const SCHEDULE_ASSIGNEE_VENDOR = {
   assignee: { select: { vendorId: true } },
-  ...workCreatorRequesterInclude,
+  ...workCreatorInclude,
 } as const;
 
 type ScheduleWithAssigneeVendor = Prisma.TaskScheduleGetPayload<{
@@ -717,8 +706,8 @@ const STATE_ACTIONS: Record<
  * first Run after now (missed ones are not made up), or Ends the
  * schedule when its end rule passed meanwhile; end is final. Pause drops the
  * planned Runs but keeps skips and moves; resume plans again. End
- * cancels skips and moves into the history. Resuming a schedule nobody is
- * responsible for makes the member resuming it its Requester.
+ * cancels skips and moves into the history. Resuming a schedule without an
+ * Owner makes the member resuming it its Owner.
  */
 export async function changeTaskScheduleState(
   vars: RouteVars,
@@ -760,17 +749,15 @@ export async function changeTaskScheduleState(
       });
     }
 
-    // The member who resumes a schedule nobody is responsible for, because
-    // its person left, becomes its Requester (ADR 0056); not when the resume
-    // ends it instead.
-    const requester =
-      state === TaskScheduleState.ACTIVE &&
-      resolveResponsibleUserId(current) === null
-        ? { requestedByUserId: actor.userId }
+    // The member who resumes a schedule without an Owner, because its Owner
+    // left, becomes its Owner (ADR 0057); not when the resume ends it instead.
+    const owner =
+      state === TaskScheduleState.ACTIVE && current.ownerId === null
+        ? { ownerId: actor.userId }
         : {};
     const { count } = await tx.taskSchedule.updateMany({
       where: { id, state: current.state },
-      data: { state, nextRunAt, revision: { increment: 1 }, ...requester },
+      data: { state, nextRunAt, revision: { increment: 1 }, ...owner },
     });
     if (count === 0) {
       throw conflict("Task Schedule changed since it was read", {
@@ -994,8 +981,8 @@ export async function runTaskScheduleNow(
 
 /**
  * Tasks the schedule created stay; the database sets their `scheduleId` to
- * null (ADR 0041). A schedule nobody is responsible for is deleted only by an
- * Organization owner or admin (ADR 0056).
+ * null (ADR 0041). A schedule without an Owner is deleted only by an Organization
+ * owner or admin (ADR 0057).
  */
 export async function deleteTaskSchedule(
   vars: RouteVars,
@@ -1005,12 +992,7 @@ export async function deleteTaskSchedule(
   await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);
-    await requireRightIfNobodyIsResponsible(
-      actor.userId,
-      current,
-      "manage",
-      tx,
-    );
+    await requireRightOnWorkWithoutOwner(actor.userId, current, "manage", tx);
     await requireOpenScheduleProjects(tx, current.workspaceId, [
       current.projectId,
     ]);
@@ -1023,14 +1005,11 @@ export function mapTaskSchedule(schedule: TaskScheduleView) {
     id: schedule.id,
     workspaceId: schedule.workspaceId,
     organizationId: schedule.organizationId,
-    // Deprecated: carries the responsible person.
-    ownerId: resolveResponsibleUserId(schedule),
-    responsibleUserId: resolveResponsibleUserId(schedule),
+    ownerId: schedule.ownerId,
     creatorUserId: schedule.creatorUserId,
     creatorCoworkerId: schedule.creatorCoworkerId,
     creatorSokoBotId: schedule.creatorSokoBotId,
     creator: mapWorkCreator(`TaskSchedule ${schedule.id}`, schedule),
-    requester: mapWorkRequester(`TaskSchedule ${schedule.id}`, schedule),
     state: schedule.state,
     rule: {
       expr: schedule.expr,

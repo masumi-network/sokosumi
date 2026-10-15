@@ -55,9 +55,9 @@ describe("agents routes OpenAPI scope contract", () => {
       },
     });
 
-    const description = getScopeDescriptionFromGetOperation(doc, "/{id}/jobs");
-    expect(description).toContain("workspace");
-    expect(description).toContain("owned': Deprecated. Use mine.");
+    expect(getScopeDescriptionFromGetOperation(doc, "/{id}/jobs")).toContain(
+      "workspace visibility scope",
+    );
   });
 
   it("exposes category query parameter for list agents endpoint", () => {

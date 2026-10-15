@@ -2,11 +2,8 @@ const personSummarySelect = {
   select: { id: true, name: true, image: true },
 } as const;
 
-/**
- * The Creator and Requester relations a Task, Task Schedule or Job response
- * maps (ADR 0056).
- */
-export const workCreatorRequesterInclude = {
+/** The Creator relations a Task, Task Schedule or Job response maps. */
+export const workCreatorInclude = {
   creatorUser: personSummarySelect,
   creatorCoworker: {
     select: { id: true, name: true, image: true, slug: true, vendorId: true },
@@ -21,5 +18,4 @@ export const workCreatorRequesterInclude = {
       user: personSummarySelect,
     },
   },
-  requestedByUser: personSummarySelect,
 } as const;

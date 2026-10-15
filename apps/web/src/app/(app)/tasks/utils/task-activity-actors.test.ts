@@ -113,15 +113,15 @@ describe("getEventActorInfo", () => {
 });
 
 describe("getEventActorInfo creation fallback", () => {
-  const ada = { name: "Ada Lovelace", image: null };
-  const userById = { "user-1": ada };
+  const owner = { name: "Ada Lovelace", image: null };
+  const userById = { "owner-1": owner };
 
-  it("attributes an actorless creation event to the responsible person", () => {
+  it("attributes an actorless creation event to the task owner", () => {
     const event = { status: TaskEventStatus.CREATED, actor: null } as TaskEvent;
 
     expect(
-      getEventActorInfo(event, userById, undefined, undefined, "user-1"),
-    ).toEqual(ada);
+      getEventActorInfo(event, userById, undefined, undefined, "owner-1"),
+    ).toEqual(owner);
   });
 
   it("keeps the event's own actor on a creation event", () => {
@@ -135,7 +135,7 @@ describe("getEventActorInfo creation fallback", () => {
     } as TaskEvent;
 
     expect(
-      getEventActorInfo(event, userById, undefined, undefined, "user-1"),
+      getEventActorInfo(event, userById, undefined, undefined, "owner-1"),
     ).toEqual({ name: "Grace Hopper", image: null });
   });
 
@@ -143,7 +143,7 @@ describe("getEventActorInfo creation fallback", () => {
     const event = { status: TaskStatus.RUNNING, actor: null } as TaskEvent;
 
     expect(
-      getEventActorInfo(event, userById, undefined, undefined, "user-1"),
+      getEventActorInfo(event, userById, undefined, undefined, "owner-1"),
     ).toBeUndefined();
   });
 });
@@ -152,8 +152,7 @@ describe("buildTaskActivityActors", () => {
   it("builds actor maps from task and embedded event summaries", () => {
     const adaAvatar = "ipfs://bafyada";
     const task = {
-      // Hermes made the Task for Ada, its Requester.
-      requester: {
+      owner: {
         id: "user-1",
         name: "Ada Lovelace",
         image: adaAvatar,
@@ -295,7 +294,7 @@ describe("buildTaskActivityActors", () => {
           status: "READY",
         },
       ],
-    } satisfies Pick<Task, "assignee" | "creator" | "requester" | "events">;
+    } satisfies Pick<Task, "owner" | "assignee" | "creator" | "events">;
 
     const result = buildTaskActivityActors(task);
 
@@ -339,7 +338,7 @@ describe("buildTaskActivityActors", () => {
 
   it("records a user assignee as a user actor (SOK-868)", () => {
     const task = {
-      requester: null,
+      owner: { id: "user-1", name: "Ada Lovelace", image: null },
       assignee: {
         type: "user" as const,
         id: "user-2",
@@ -351,14 +350,26 @@ describe("buildTaskActivityActors", () => {
         user: { id: "user-1", name: "Ada Lovelace", image: null },
       },
       events: [],
-    } satisfies Pick<Task, "assignee" | "creator" | "requester" | "events">;
+    } satisfies Pick<Task, "owner" | "assignee" | "creator" | "events">;
 
     const result = buildTaskActivityActors(task);
 
     expect(result.userById).toMatchObject({
-      "user-1": { name: "Ada Lovelace", image: null },
       "user-2": { name: "Bob", image: null },
     });
     expect(result.coworkerById).toBeUndefined();
+  });
+
+  it("names nobody for a Task whose Owner and Creator deleted their account", () => {
+    const task = {
+      owner: null,
+      assignee: null,
+      creator: null,
+      events: [],
+    } satisfies Pick<Task, "owner" | "assignee" | "creator" | "events">;
+
+    const result = buildTaskActivityActors(task);
+
+    expect(result.userById).toEqual({});
   });
 });

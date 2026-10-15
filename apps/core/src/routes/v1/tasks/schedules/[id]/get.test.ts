@@ -69,18 +69,31 @@ describe("GET /tasks/schedules/{id}", () => {
     });
   });
 
-  it("returns the responsible person, the Owner for existing work", async () => {
+  it("returns the Owner of a schedule a Coworker made for them", async () => {
     const schedule = seedTaskSchedule({
       ownerId: OWNER_ID,
       creatorUserId: null,
       creatorCoworkerId: COWORKER_ID,
-      requestedByUserId: MEMBER_ID,
     });
 
     const response = await get(schedule.id);
 
     expect(await response.json()).toMatchObject({
-      data: { ownerId: OWNER_ID, responsibleUserId: OWNER_ID },
+      data: {
+        ownerId: OWNER_ID,
+        creator: { type: "coworker", id: COWORKER_ID },
+      },
+    });
+  });
+
+  it("returns a null Owner and Creator for a schedule without an Owner", async () => {
+    const schedule = seedTaskSchedule({ ownerId: null, creatorUserId: null });
+
+    const response = await get(schedule.id);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: { ownerId: null, creatorUserId: null, creator: null },
     });
   });
 

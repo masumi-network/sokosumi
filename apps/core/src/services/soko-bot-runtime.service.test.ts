@@ -544,10 +544,7 @@ vi.mock("@sokosumi/masumi", () => ({
   createAgentClient: createAgentClientMock,
 }));
 
-import {
-  buildResponsibleUserWhere,
-  buildSokoBotAudienceTaskVisibilityWhere,
-} from "@/helpers/task-visibility";
+import { buildSokoBotAudienceTaskVisibilityWhere } from "@/helpers/task-visibility";
 import {
   MAX_CHAT_CHAIN_DEPTH,
   ROOM_BOT_MESSAGES_PER_HOUR,
@@ -561,10 +558,7 @@ import {
   SokoBotRuntimeValidationError,
   sokoBotToolCallLimit,
 } from "@/services/soko-bot-runtime.service";
-import {
-  publicWorkMadeBy,
-  WORK_MAKERS,
-} from "@/test-fixtures/responsible-work";
+import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 const SCOPE = {
   userId: "user_1",
@@ -1366,7 +1360,7 @@ describe("SokoBotRuntimeService authorization", () => {
     );
   });
 
-  it("opens archive history only on work the asking person is responsible for", async () => {
+  it("opens archive history only on work the person it acts for owns", async () => {
     taskFindFirstMock.mockResolvedValue(null);
 
     await new SokoBotRuntimeService()["readTask"](
@@ -1382,10 +1376,7 @@ describe("SokoBotRuntimeService authorization", () => {
         where: expect.objectContaining({
           AND: [
             {
-              OR: [
-                { archivedAt: null },
-                buildResponsibleUserWhere(SCOPE.userId),
-              ],
+              OR: [{ archivedAt: null }, { ownerId: SCOPE.userId }],
             },
           ],
         }),
@@ -1841,8 +1832,11 @@ describe("SokoBotRuntimeService authorization", () => {
       expect.objectContaining({
         where: {
           AND: [
-            { id: "job_1", workspaceId: SCOPE.workspaceId },
-            buildResponsibleUserWhere(SCOPE.userId),
+            {
+              id: "job_1",
+              ownerId: SCOPE.userId,
+              workspaceId: SCOPE.workspaceId,
+            },
             {
               OR: [
                 { taskId: null },
@@ -2367,11 +2361,11 @@ describe("SokoBotRuntimeService authorization", () => {
         { taskId: "task_1", comment: "Stop", status: "CANCELED" },
         "call_cancel_other",
       ),
-    ).rejects.toThrow(/Only Tasks the person you act for is responsible for/);
+    ).rejects.toThrow(/owner's own Tasks/);
     expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
   });
 
-  describe("cancelling follows the responsible person (ADR 0056)", () => {
+  describe("cancelling follows the Owner (ADR 0057)", () => {
     function cancel() {
       return new SokoBotRuntimeService()["replyToTask"](
         {
@@ -2384,7 +2378,7 @@ describe("SokoBotRuntimeService authorization", () => {
           },
         } as never,
         { taskId: "task_1", comment: "Stop", status: "CANCELED" },
-        "call_cancel_responsible",
+        "call_cancel_owner",
       );
     }
 
@@ -2400,7 +2394,7 @@ describe("SokoBotRuntimeService authorization", () => {
     }
 
     it.each(WORK_MAKERS)(
-      "cancels a Task made by a %s that its person is responsible for",
+      "cancels a Task made by a %s for the person it acts for",
       async (maker) => {
         transactionTaskFindFirstMock.mockResolvedValue(
           storedTask(publicWorkMadeBy(maker, SCOPE.userId)),
@@ -2413,23 +2407,23 @@ describe("SokoBotRuntimeService authorization", () => {
     );
 
     it.each(WORK_MAKERS)(
-      "does not cancel a Task made by a %s that someone else is responsible for",
+      "does not cancel a Task made by a %s that someone else owns",
       async (maker) => {
         transactionTaskFindFirstMock.mockResolvedValue(
           storedTask(publicWorkMadeBy(maker, "someone-else")),
         );
 
-        await expect(cancel()).rejects.toThrow(/responsible for/);
+        await expect(cancel()).rejects.toThrow(/owner's own Tasks/);
         expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
       },
     );
 
-    it("does not cancel a Task nobody is responsible for", async () => {
+    it("does not cancel a Task without an Owner", async () => {
       transactionTaskFindFirstMock.mockResolvedValue(
         storedTask(publicWorkMadeBy("sokoBot", null)),
       );
 
-      await expect(cancel()).rejects.toThrow(/responsible for/);
+      await expect(cancel()).rejects.toThrow(/owner's own Tasks/);
       expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
     });
   });

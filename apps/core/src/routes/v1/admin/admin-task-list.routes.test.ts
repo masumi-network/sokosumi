@@ -95,16 +95,7 @@ function makeTask(overrides: Record<string, unknown> = {}) {
     name: "Quarterly report",
     status: "RUNNING",
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
-    ownerId: "user_1",
     owner: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
-    creatorUserId: "user_1",
-    creatorUser: {
-      id: "user_1",
-      name: "Ada Lovelace",
-      email: "ada@example.com",
-    },
-    requestedByUserId: null,
-    requestedByUser: null,
     organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
     ...overrides,
   };
@@ -133,11 +124,6 @@ describe("GET /v1/admin/tasks", () => {
         status: "RUNNING",
         createdAt: "2025-01-01T00:00:00.000Z",
         owner: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
-        responsibleUser: {
-          id: "user_1",
-          name: "Ada Lovelace",
-          email: "ada@example.com",
-        },
         organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
       },
     ]);
@@ -151,43 +137,14 @@ describe("GET /v1/admin/tasks", () => {
     );
   });
 
-  it("names the Requester when the Task has no Owner", async () => {
-    const grace = { id: "user_2", name: "Grace Hopper", email: "grace@x.io" };
-    taskFindManyMock.mockResolvedValue([
-      makeTask({
-        ownerId: null,
-        owner: null,
-        creatorUserId: null,
-        creatorUser: null,
-        requestedByUserId: grace.id,
-        requestedByUser: grace,
-      }),
-    ]);
-
-    const res = await createApp(mountListAdminTasks).request("/");
-
-    expect(res.status).toBe(200);
-    const [item] = (await res.json()).data;
-    expect(item.owner).toEqual(grace);
-    expect(item.responsibleUser).toEqual(grace);
-  });
-
-  it("returns a null owner for a public Task whose person deleted their account", async () => {
-    taskFindManyMock.mockResolvedValue([
-      makeTask({
-        ownerId: null,
-        owner: null,
-        creatorUserId: null,
-        creatorUser: null,
-      }),
-    ]);
+  it("returns a null owner for a Task without an Owner", async () => {
+    taskFindManyMock.mockResolvedValue([makeTask({ owner: null })]);
 
     const res = await createApp(mountListAdminTasks).request("/");
 
     expect(res.status).toBe(200);
     const [item] = (await res.json()).data;
     expect(item.owner).toBeNull();
-    expect(item.responsibleUser).toBeNull();
   });
 
   it("returns null organization for personal tasks", async () => {
@@ -201,15 +158,9 @@ describe("GET /v1/admin/tasks", () => {
     expect(body.data[0].organization).toBeNull();
   });
 
-  it("builds an OR filter across id, name, responsible person, and organization", async () => {
+  it("builds an OR filter across id, name, user, and organization", async () => {
     const app = createApp(mountListAdminTasks);
     const res = await app.request("/?query=acme");
-    const person = {
-      OR: [
-        { name: { contains: "acme", mode: "insensitive" } },
-        { email: { contains: "acme", mode: "insensitive" } },
-      ],
-    };
 
     expect(res.status).toBe(200);
     expect(taskFindManyMock).toHaveBeenCalledWith(
@@ -218,18 +169,13 @@ describe("GET /v1/admin/tasks", () => {
           OR: [
             { id: "acme" },
             { name: { contains: "acme", mode: "insensitive" } },
-            // The person the list names: Owner, else person Creator, else
-            // Requester (ADR 0056).
             {
-              OR: [
-                { owner: { is: person } },
-                { owner: { is: null }, creatorUser: { is: person } },
-                {
-                  owner: { is: null },
-                  creatorUserId: null,
-                  requestedByUser: { is: person },
-                },
-              ],
+              owner: {
+                OR: [
+                  { name: { contains: "acme", mode: "insensitive" } },
+                  { email: { contains: "acme", mode: "insensitive" } },
+                ],
+              },
             },
             {
               organization: {

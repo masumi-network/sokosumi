@@ -16,7 +16,6 @@ import {
 import { APIError } from "better-auth/api";
 import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
-import { buildResponsibleUserWhere } from "@/helpers/task-visibility";
 import { isLastWorkspace } from "@/helpers/workspace-access";
 
 export const USER_DELETION_BLOCKER_CODES = [
@@ -116,7 +115,9 @@ const IN_FLIGHT_TASK_STATUSES_EXCLUDED: TaskStatus[] = [
   ...SETTLED_TASK_STATUSES,
 ];
 
-function inFlightJobWhere(scope: Prisma.JobWhereInput): Prisma.JobWhereInput {
+function inFlightJobWhere(
+  scope: Pick<Prisma.JobWhereInput, "ownerId" | "organizationId">,
+): Prisma.JobWhereInput {
   return {
     ...scope,
     events: {
@@ -126,7 +127,7 @@ function inFlightJobWhere(scope: Prisma.JobWhereInput): Prisma.JobWhereInput {
 }
 
 function unsettledOnChainJobWhere(
-  scope: Prisma.JobWhereInput,
+  scope: Pick<Prisma.JobWhereInput, "ownerId" | "organizationId">,
 ): Prisma.JobWhereInput {
   return {
     ...scope,
@@ -140,7 +141,7 @@ function unsettledOnChainJobWhere(
 }
 
 function inFlightTaskWhere(
-  scope: Prisma.TaskWhereInput,
+  scope: Pick<Prisma.TaskWhereInput, "ownerId" | "organizationId">,
 ): Prisma.TaskWhereInput {
   return {
     ...scope,
@@ -217,15 +218,15 @@ export async function evaluateUserDeletion(
       select: { id: true },
     }),
     prisma.job.findFirst({
-      where: inFlightJobWhere(buildResponsibleUserWhere(userId)),
+      where: inFlightJobWhere({ ownerId: userId }),
       select: idSelect,
     }),
     prisma.job.findFirst({
-      where: unsettledOnChainJobWhere(buildResponsibleUserWhere(userId)),
+      where: unsettledOnChainJobWhere({ ownerId: userId }),
       select: idSelect,
     }),
     prisma.task.findFirst({
-      where: inFlightTaskWhere(buildResponsibleUserWhere(userId)),
+      where: inFlightTaskWhere({ ownerId: userId }),
       select: idSelect,
     }),
     prisma.taskPaymentClaim.findFirst({
@@ -283,7 +284,7 @@ export async function evaluateUserDeletion(
     OR: [
       { transaction: { userId } },
       { refundTransaction: { userId } },
-      { task: buildResponsibleUserWhere(userId) },
+      { task: { ownerId: userId } },
     ],
   };
 
@@ -335,10 +336,7 @@ export async function evaluateUserDeletion(
     where: {
       status: { in: [...SWEEPABLE_X402_STATUSES] },
       transaction: { userId: { not: userId } },
-      OR: [
-        { refundTransaction: { userId } },
-        { task: buildResponsibleUserWhere(userId) },
-      ],
+      OR: [{ refundTransaction: { userId } }, { task: { ownerId: userId } }],
     },
     select: {
       id: true,
@@ -500,7 +498,7 @@ export function throwIfUserDeletionBlocked(
           taskId: evaluation.foreignChargePayment?.taskId,
           chargedUserId: evaluation.foreignChargePayment?.chargedUserId,
           repair:
-            "No admin endpoint clears this. Repair the ownership mismatch manually (align the Task's responsible person with the charge Transaction's userId, or reassign the charge), then have the user retry deletion.",
+            "No admin endpoint clears this. Repair the ownership mismatch manually (align Task.ownerId with the charge Transaction's userId, or reassign the charge), then have the user retry deletion.",
         },
       },
     );

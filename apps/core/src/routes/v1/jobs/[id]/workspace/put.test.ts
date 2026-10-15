@@ -3,10 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler.js";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  publicWorkMadeBy,
-  WORK_MAKERS,
-} from "@/test-fixtures/responsible-work";
+import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 import mountPutJobWorkspace, { putJobWorkspaceRequestSchema } from "./put";
 
@@ -129,8 +126,6 @@ function createJobApi(overrides: Partial<Record<string, unknown>> = {}) {
     ownerId: "user_123",
     owner,
     creator: null,
-    requester: null,
-    responsibleUserId: "user_123",
     userId: "user_123",
     organizationId: "org_billing",
     projectId: null,
@@ -405,7 +400,7 @@ describe("PUT /jobs/{id}/workspace", () => {
     expect(jobUpdateMock).not.toHaveBeenCalled();
   });
 
-  describe("who may move a job (ADR 0056)", () => {
+  describe("who may move a job (ADR 0057)", () => {
     const workspaceFindUniqueMock = vi.fn();
 
     beforeEach(() => {
@@ -443,7 +438,7 @@ describe("PUT /jobs/{id}/workspace", () => {
     }
 
     it.each(WORK_MAKERS)(
-      "lets the responsible person move a job made by a %s",
+      "lets the Owner move a job made by a %s",
       async (maker) => {
         jobFindFirstMock.mockResolvedValue(
           currentJob(publicWorkMadeBy(maker, "user_123")),
@@ -471,7 +466,7 @@ describe("PUT /jobs/{id}/workspace", () => {
     );
 
     it.each(["owner", "admin"])(
-      "lets an Organization %s move a job nobody is responsible for",
+      "lets an Organization %s move a job without an Owner",
       async (role) => {
         jobFindFirstMock.mockResolvedValue(
           currentJob(publicWorkMadeBy("sokoBot", null)),
@@ -488,7 +483,7 @@ describe("PUT /jobs/{id}/workspace", () => {
       },
     );
 
-    it("refuses a plain member a job nobody is responsible for", async () => {
+    it("refuses a plain member a job without an Owner", async () => {
       jobFindFirstMock.mockResolvedValue(
         currentJob(publicWorkMadeBy("sokoBot", null)),
       );
@@ -499,7 +494,7 @@ describe("PUT /jobs/{id}/workspace", () => {
       expect(jobUpdateMock).not.toHaveBeenCalled();
     });
 
-    it("keeps a job nobody is responsible for out of a personal workspace", async () => {
+    it("keeps a job without an Owner out of a personal workspace", async () => {
       jobFindFirstMock.mockResolvedValue(
         currentJob(publicWorkMadeBy("sokoBot", null)),
       );

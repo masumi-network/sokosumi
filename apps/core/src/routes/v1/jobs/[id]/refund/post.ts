@@ -28,7 +28,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/{id}/refund",
     description:
-      "Request a refund for a paid job via Masumi. Updates local purchase state so job sync can reconcile. Only the person responsible for the job may request it; for a job nobody is responsible for, an organization owner or admin.",
+      "Request a refund for a paid job via Masumi. Updates local purchase state so job sync can reconcile. Only the job's owner may request it; for a job without an owner, an organization owner or admin.",
     tags: ["Jobs"],
     request: {
       params,
@@ -113,7 +113,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { blockchainIdentifier, externalId } = await prisma.$transaction(
       async (tx) => {
-        // Refunding belongs to the job's responsible person (ADR 0056).
+        // Refunding belongs to the job's Owner (ADR 0057).
         await requireJobCollaboration(c.var.authContext, id, tx, {
           right: "manage",
         });

@@ -2,7 +2,8 @@ import type { Prisma } from "@sokosumi/database";
 
 /**
  * Owner filters that `owner-filter-guard.test.ts` must reject, so the guard
- * is shown to fail on them. Nothing imports or runs this file.
+ * is shown to fail on them, and a deliberate "without an Owner" filter it
+ * must accept. Nothing imports or runs this file.
  */
 
 interface WorkWhere {
@@ -30,4 +31,10 @@ export function buildOptionalOwnerWhere(input: {
   ownerId?: string;
 }): Prisma.TaskWhereInput {
   return { ownerId: input.ownerId };
+}
+
+/** Asks for work without an Owner on purpose; the guard accepts it. */
+export function filterByNoOwner(): void {
+  findWork({ where: { ownerId: null } });
+  findWork({ where: { ownerId: { not: null } } });
 }

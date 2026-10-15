@@ -2,8 +2,8 @@ import { TaskStatus } from "@sokosumi/core-client";
 
 interface ReadOnlyForViewerParams {
   /**
-   * Locks the view read-only regardless of who is responsible. Set by the admin
-   * task detail view, where the viewer is never responsible and must not be able to
+   * Locks the view read-only regardless of ownership. Set by the admin task
+   * detail view, where the viewer is never the owner and must not be able to
    * edit, comment, or mutate the task.
    */
   forceReadOnly: boolean;
@@ -18,21 +18,10 @@ interface ReadOnlyForViewerParams {
 interface OrgCollaboratorViewerParams extends ReadOnlyForViewerParams {
   /** Organization of the task's workspace; `null` for a personal workspace. */
   taskWorkspaceOrganizationId: string | null;
-  /** Responsible person of the task, from Core; `null` when nobody is. */
-  responsibleUserId: string | null;
+  /** Owner of the task; `null` when it has none. */
+  taskOwnerId: string | null;
   /** Viewer's user id, or null/undefined when unauthenticated. */
   sessionUserId: string | null | undefined;
-}
-
-/**
- * Whether `userId` is the Task's responsible person, from Core's
- * `responsibleUserId`. Work nobody is responsible for matches nobody.
- */
-export function isResponsibleUser(
-  responsibleUserId: string | null,
-  userId: string | null | undefined,
-): boolean {
-  return responsibleUserId !== null && userId === responsibleUserId;
 }
 
 function isGrantPendingStatus(status: string): boolean {
@@ -41,9 +30,8 @@ function isGrantPendingStatus(status: string): boolean {
 
 /**
  * Whether the task detail view is read-only for this viewer. Every member may
- * act on an organization-workspace task, not just the responsible person; a
- * personal-workspace task is only reachable by its Owner, who is then the
- * responsible person.
+ * act on an organization-workspace task, not just its owner; a
+ * personal-workspace task is only reachable by its owner.
  *
  * Read-only for the admin view (`forceReadOnly`), a parked task, or a viewer
  * without an assigned seat.
@@ -57,19 +45,19 @@ export function isReadOnlyForViewer({
 }
 
 /**
- * A parked task can still be archived: by its responsible person, or by any seated member
+ * A parked task can still be archived: by its owner, or by any seated member
  * when it sits in an organization workspace.
  */
 export function canArchiveParkedTaskForViewer({
   forceReadOnly,
   taskStatus,
-  isResponsible,
+  isTaskOwner,
   isOrganizationTask,
   hasAssignedSeat,
 }: {
   forceReadOnly: boolean;
   taskStatus: string;
-  isResponsible: boolean;
+  isTaskOwner: boolean;
   isOrganizationTask: boolean;
   hasAssignedSeat: boolean;
 }): boolean {
@@ -77,17 +65,16 @@ export function canArchiveParkedTaskForViewer({
     return false;
   }
 
-  return isResponsible || (isOrganizationTask && hasAssignedSeat);
+  return isTaskOwner || (isOrganizationTask && hasAssignedSeat);
 }
 
 /**
- * Responsible person or authenticated org-workspace collaborator, excluding
- * force-read-only and parked (`GRANT_PENDING`) tasks. Shared by comment and
- * cancel gates.
+ * Owner or authenticated org-workspace collaborator, excluding force-read-only
+ * and parked (`GRANT_PENDING`) tasks. Shared by comment and cancel gates.
  */
 function canOrgCollaboratorActOnTaskForViewer({
   taskWorkspaceOrganizationId,
-  responsibleUserId,
+  taskOwnerId,
   sessionUserId,
   forceReadOnly,
   taskStatus,
@@ -96,7 +83,7 @@ function canOrgCollaboratorActOnTaskForViewer({
     return false;
   }
 
-  if (isResponsibleUser(responsibleUserId, sessionUserId)) {
+  if (taskOwnerId !== null && sessionUserId === taskOwnerId) {
     return true;
   }
 
@@ -108,7 +95,7 @@ function canOrgCollaboratorActOnTaskForViewer({
 }
 
 /**
- * Organization workspace collaborators may comment without being responsible for the task,
+ * Organization workspace collaborators may comment without owning the task,
  * given an assigned seat. Other mutations use {@link isReadOnlyForViewer}.
  */
 export function canCommentOnTaskForViewer(
@@ -121,7 +108,7 @@ export function canCommentOnTaskForViewer(
 }
 
 /**
- * Organization workspace collaborators may cancel without being responsible for the task,
+ * Organization workspace collaborators may cancel without owning the task,
  * even without an assigned seat. Other mutations use
  * {@link isReadOnlyForViewer}.
  */

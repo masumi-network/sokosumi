@@ -4,7 +4,6 @@ import {
   getCreditExpiryDate,
 } from "@sokosumi/database/helpers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildResponsibleUserWhere } from "@/helpers/task-visibility";
 
 const getUserByStripeCustomerIdMock = vi.fn();
 const getOrganizationByStripeCustomerIdMock = vi.fn();
@@ -1908,7 +1907,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(findOutOfCreditsTasksMock).toHaveBeenCalledWith({
       where: {
         status: "OUT_OF_CREDITS",
-        ...buildResponsibleUserWhere("user-1"),
+        ownerId: "user-1",
       },
       select: {
         id: true,

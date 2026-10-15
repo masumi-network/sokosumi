@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskVisibility } from "@sokosumi/database";
 import {
-  requireResponsiblePersonForPersonalWorkspace,
+  requireOwnerForPersonalWorkspace,
   requireTaskAssignableCoworker,
   requireTaskAssignableSokoBot,
   requireTaskMoveAccess,
@@ -36,7 +36,7 @@ const route = createRoute({
   method: "put",
   path: "/{id}/workspace",
   description:
-    "Change task workspace. Only the person responsible for the task may move it. A task nobody is responsible for needs an organization owner or admin and cannot move to a personal workspace.",
+    "Change task workspace. Only the task's owner may move it. A task without an owner needs an organization owner or admin and cannot move to a personal workspace.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -97,10 +97,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("Private Tasks cannot move to a personal workspace");
       }
 
-      requireResponsiblePersonForPersonalWorkspace(
-        movedTask,
-        targetOrganizationId,
-      );
+      requireOwnerForPersonalWorkspace(movedTask, targetOrganizationId);
 
       // `null` targets the authenticated user's personal workspace.
       if (targetOrganizationId !== null) {

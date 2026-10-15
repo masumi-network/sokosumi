@@ -17,7 +17,6 @@ import {
 } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
-import { buildResponsibleUserWhere } from "@/helpers/task-visibility";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -257,41 +256,17 @@ describe("GET /workspaces/calendar", () => {
     vi.useRealTimers();
   });
 
-  it("names the responsible person of a schedule nobody owns any more", async () => {
+  it("returns a null taskOwnerId for a schedule without an Owner", async () => {
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([
-      createRun({
-        schedule: {
-          ownerId: null,
-          creatorUserId: null,
-          requestedByUserId: "user_resumer",
-        },
-      }),
-      createRun({
-        id: "00000000-0000-7000-8000-000000000002",
-        schedule: {
-          ownerId: null,
-          creatorUserId: null,
-          requestedByUserId: null,
-        },
-      }),
+      createRun({ schedule: { ownerId: null } }),
     ]);
-    taskScheduleOccurrenceCountMock.mockResolvedValue(2);
+    taskScheduleOccurrenceCountMock.mockResolvedValue(1);
 
     const response = await requestCalendar(createApp());
 
     expect(response.status).toBe(200);
     const { data } = await response.json();
-    expect(
-      data.map(
-        (item: {
-          responsibleUserId: string | null;
-          taskOwnerId: string | null;
-        }) => [item.responsibleUserId, item.taskOwnerId],
-      ),
-    ).toEqual([
-      ["user_resumer", "user_resumer"],
-      [null, null],
-    ]);
+    expect(data).toEqual([expect.objectContaining({ taskOwnerId: null })]);
   });
 
   it("returns an upcoming Task Schedule Run in range", async () => {
@@ -315,7 +290,6 @@ describe("GET /workspaces/calendar", () => {
           taskAssigneeId: "coworker_123",
           taskAssigneeUserId: null,
           taskOwnerId: "user_123",
-          responsibleUserId: "user_123",
           scheduledAt: "2026-06-03T09:00:00.000Z",
           originalScheduledAt: "2026-06-03T09:00:00.000Z",
           state: "PLANNED",
@@ -477,44 +451,38 @@ describe("GET /workspaces/calendar", () => {
     expect(items).toEqual([expect.objectContaining({ canChangeRun: true })]);
   });
 
-  it.each(["mine", "owned"])(
-    "applies responsible-user and assignee filters to schedules and created Tasks for scope=%s",
-    async (scope) => {
-      await requestCalendar(
-        createApp(),
-        `from=${FROM}&to=${TO}&scope=${scope}&assigneeId=${PROJECT_ID}`,
-      );
+  it("applies owner and assignee filters to schedules and created Tasks", async () => {
+    await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&scope=owned&assigneeId=${PROJECT_ID}`,
+    );
 
-      const filter = {
-        AND: [buildResponsibleUserWhere("user_123")],
-        assigneeId: PROJECT_ID,
-      };
-      expect(lastRunWhere().AND).toEqual([
-        {
-          OR: [
-            {
-              state: TaskScheduleRunState.PLANNED,
-              schedule: {
-                is: {
-                  AND: [
-                    { state: TaskScheduleState.ACTIVE },
-                    HUMAN_VISIBILITY,
-                    filter,
-                  ],
-                },
+    const filter = { ownerId: "user_123", assigneeId: PROJECT_ID };
+    expect(lastRunWhere().AND).toEqual([
+      {
+        OR: [
+          {
+            state: TaskScheduleRunState.PLANNED,
+            schedule: {
+              is: {
+                AND: [
+                  { state: TaskScheduleState.ACTIVE },
+                  HUMAN_VISIBILITY,
+                  filter,
+                ],
               },
             },
-            {
-              state: TaskScheduleRunState.RELEASED,
-              releasedTask: {
-                is: { AND: [{ archivedAt: null }, HUMAN_VISIBILITY, filter] },
-              },
+          },
+          {
+            state: TaskScheduleRunState.RELEASED,
+            releasedTask: {
+              is: { AND: [{ archivedAt: null }, HUMAN_VISIBILITY, filter] },
             },
-          ],
-        },
-      ]);
-    },
-  );
+          },
+        ],
+      },
+    ]);
+  });
 
   it("keeps only Runs whose created Task has the requested status", async () => {
     await requestCalendar(createApp(), `from=${FROM}&to=${TO}&status=READY`);
@@ -832,7 +800,6 @@ describe("GET /workspaces/calendar", () => {
         taskAssigneeId: null,
         taskAssigneeUserId: "user_456",
         taskOwnerId: "user_123",
-        responsibleUserId: "user_123",
         scheduledAt: "2026-06-04T08:00:00.000Z",
         originalScheduledAt: null,
         state: "PLANNED",

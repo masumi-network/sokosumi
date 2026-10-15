@@ -166,7 +166,7 @@ describe("loadMoreTasksColumn", () => {
     await loadMoreTasksColumn({
       columnId: "todo",
       cursor: null,
-      scope: "mine",
+      scope: "owned",
       assigneeId: "removed-coworker",
       assigneeSokoBotId: null,
       assigneeUserId: null,
@@ -203,7 +203,7 @@ describe("loadMoreTasksColumn", () => {
     });
 
     // Default session has an active org (org-1), so the fallback is now
-    // workspace, not mine.
+    // workspace, not owned.
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
       scope: "workspace",
     });
@@ -232,7 +232,7 @@ describe("loadMoreTasksColumn", () => {
     });
 
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
-      scope: "mine",
+      scope: "owned",
     });
   });
 
@@ -246,7 +246,7 @@ describe("loadMoreTasksColumn", () => {
     await loadMoreTasksColumn({
       columnId: "todo",
       cursor: null,
-      scope: "mine",
+      scope: "owned",
       assigneeId: null,
       assigneeSokoBotId: null,
       assigneeUserId: null,
@@ -270,7 +270,7 @@ describe("loadMoreTasksColumn", () => {
     await loadMoreTasksColumn({
       columnId: "todo",
       cursor: null,
-      scope: "mine",
+      scope: "owned",
       assigneeId: null,
       assigneeSokoBotId: null,
       assigneeUserId: null,
@@ -352,7 +352,7 @@ describe("loadMoreTasksList", () => {
 
     await loadMoreTasksList({
       cursor: null,
-      scope: "mine",
+      scope: "owned",
       assigneeId: "removed-coworker",
       assigneeSokoBotId: null,
       assigneeUserId: null,
@@ -414,7 +414,7 @@ describe("loadMoreTasksList", () => {
     });
 
     expect(getTasksListPageMock.mock.calls[0][0]).toMatchObject({
-      scope: "mine",
+      scope: "owned",
     });
   });
 
@@ -427,7 +427,7 @@ describe("loadMoreTasksList", () => {
 
     await loadMoreTasksList({
       cursor: null,
-      scope: "mine",
+      scope: "owned",
       assigneeId: null,
       assigneeSokoBotId: null,
       assigneeUserId: null,

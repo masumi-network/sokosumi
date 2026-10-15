@@ -2,10 +2,7 @@ import { type Task, TaskPriority, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notFound } from "@/helpers/error";
-import {
-  publicWorkMadeBy,
-  WORK_MAKERS,
-} from "@/test-fixtures/responsible-work";
+import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 import { createTaskForActor, updateTaskForActor } from "./task-domain.service";
 
@@ -174,7 +171,7 @@ describe("a Soko Bot archiving a Task", () => {
   });
 });
 
-describe("a person changing a Task through the domain update (ADR 0056)", () => {
+describe("a person changing a Task through the domain update (ADR 0057)", () => {
   const tx = { task: { findFirst: vi.fn(), update: vi.fn() } };
   const rename = () =>
     updateTaskForActor(
@@ -212,33 +209,27 @@ describe("a person changing a Task through the domain update (ADR 0056)", () => 
   });
 
   it.each(WORK_MAKERS)(
-    "lets the responsible person change a Task made by a %s",
+    "lets the Owner change a Task made by a %s",
     async (maker) => {
       tx.task.findFirst.mockResolvedValue(
         storedTask(publicWorkMadeBy(maker, "user_123")),
       );
 
       await expect(rename()).resolves.toMatchObject({ name: "Renamed" });
+      expect(tx.task.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: "task_1",
+            ownerId: "user_123",
+          }),
+        }),
+      );
       expect(tx.task.update).toHaveBeenCalledOnce();
     },
   );
 
-  it.each(WORK_MAKERS)(
-    "refuses anyone else a Task made by a %s",
-    async (maker) => {
-      tx.task.findFirst.mockResolvedValue(
-        storedTask(publicWorkMadeBy(maker, "user_other")),
-      );
-
-      await expect(rename()).rejects.toMatchObject({ status: 404 });
-      expect(tx.task.update).not.toHaveBeenCalled();
-    },
-  );
-
-  it("refuses everyone a Task nobody is responsible for", async () => {
-    tx.task.findFirst.mockResolvedValue(
-      storedTask(publicWorkMadeBy("sokoBot", null)),
-    );
+  it("refuses a Task the person does not own, with or without an Owner", async () => {
+    tx.task.findFirst.mockResolvedValue(null);
 
     await expect(rename()).rejects.toMatchObject({ status: 404 });
     expect(tx.task.update).not.toHaveBeenCalled();

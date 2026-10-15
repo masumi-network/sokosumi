@@ -111,11 +111,11 @@ export function DeveloperTaskList({ initialPage }: DeveloperTaskListProps) {
                     </TableCell>
                     <TableCell>
                       <span className="flex flex-col">
-                        {task.responsibleUser ? (
+                        {task.owner ? (
                           <>
-                            <span>{task.responsibleUser.name}</span>
+                            <span>{task.owner.name}</span>
                             <span className="text-muted-foreground text-xs">
-                              {task.responsibleUser.email}
+                              {task.owner.email}
                             </span>
                           </>
                         ) : (

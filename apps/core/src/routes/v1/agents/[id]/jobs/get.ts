@@ -22,7 +22,6 @@ import { organizationProductSeatMiddleware } from "@/middleware/organization-pro
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { jobSummariesSchema } from "@/schemas/job.schema.js";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-import { workScopeQuerySchema } from "@/schemas/work-scope.schema";
 
 const params = z.object({
   id: z.string().openapi({
@@ -33,10 +32,15 @@ const params = z.object({
 
 const query = z.object({
   ...cursorPaginationQuerySchema.shape,
-  scope: workScopeQuerySchema({
-    defaultScope: "mine",
-    description: "Which of the agent's jobs to list.",
-  }),
+  scope: z
+    .enum(["workspace", "owned"])
+    .default("owned")
+    .openapi({
+      param: { name: "scope", in: "query" },
+      description:
+        "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all jobs in the active workspace.",
+      example: "workspace",
+    }),
 });
 
 const route = withCoworkerContextHeaderParameters(

@@ -19,18 +19,19 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
  * Does Core ever filter by the Owner with a value that may be null or
  * undefined?
  *
- * Prisma reads `where: { ownerId: null }` as "has no Owner", which is every
- * public Task, Task Schedule and Job once public work has none (ADR 0056),
- * and it drops `where: { ownerId: undefined }` altogether, which matches
- * every row. Either turns "work this person owns" into "everyone's work"
- * without an error. A person's id that can be missing, such as the
- * Requester of a Soko Bot turn, must not reach an Owner filter.
+ * Prisma reads `where: { ownerId: null }` as "has no Owner", which is all
+ * work without an Owner (ADR 0057), and it drops
+ * `where: { ownerId: undefined }` altogether, which matches every row. Either
+ * turns "work this person owns" into "everyone's work" without an error. A
+ * person's id that can be missing, such as the Requester of a Soko Bot turn,
+ * must not reach an Owner filter.
  *
  * The check asks the TypeScript checker for the type of every value given to
  * an `ownerId` filter in Core's source: the `ownerId` of an object inside a
  * `where`, or of an object typed as a Task, Task Schedule or Job filter, and
  * the `equals` and `not` it nests. A type that admits null, undefined, any or
- * unknown fails. Raw SQL is not checked: `"ownerId" = NULL` matches no row.
+ * unknown fails. A literal `null` passes: it asks for work without an Owner
+ * on purpose. Raw SQL is not checked: `"ownerId" = NULL` matches no row.
  */
 
 const CORE_ROOT = fileURLToPath(new URL("../..", import.meta.url));
@@ -109,6 +110,9 @@ function filteredValues(property: Node): Node[] {
     return [];
   }
   const value = property.initializer;
+  if (value.kind === SyntaxKind.NullKeyword) {
+    return [];
+  }
   if (!isObjectLiteralExpression(value)) {
     return [value];
   }
@@ -183,10 +187,10 @@ describe("Owner filters", { timeout: 180_000 }, () => {
 
   it("rejects a filter fed from a value that may be null or undefined", () => {
     expect(nullableOwnerFilters([FIXTURE])).toEqual([
-      "test/nullable-owner-filter.fixture.ts:16 (string | undefined)",
-      "test/nullable-owner-filter.fixture.ts:22 (string | null)",
-      "test/nullable-owner-filter.fixture.ts:26 (string | undefined)",
-      "test/nullable-owner-filter.fixture.ts:32 (string | undefined)",
+      "test/nullable-owner-filter.fixture.ts:17 (string | undefined)",
+      "test/nullable-owner-filter.fixture.ts:23 (string | null)",
+      "test/nullable-owner-filter.fixture.ts:27 (string | undefined)",
+      "test/nullable-owner-filter.fixture.ts:33 (string | undefined)",
     ]);
   });
 

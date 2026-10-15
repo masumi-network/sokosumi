@@ -1,8 +1,3 @@
-import { isResponsibleUser } from "@/helpers/task-visibility";
-import {
-  pickResponsibleUser,
-  responsibleUserNameSelect,
-} from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 
 export const TASK_ID_IN_TEXT =
@@ -11,9 +6,8 @@ export const TASK_ID_IN_TEXT =
 export interface MemoryTask {
   id: string;
   name: string;
-  /** The responsible person's name (ADR 0056). */
-  responsibleName: string;
-  /** Neither the bot's person's responsibility nor assigned to the bot. */
+  ownerName: string;
+  /** Neither owned by the bot's owner nor assigned to the bot. */
   foreign: boolean;
   closed: boolean;
 }
@@ -43,8 +37,9 @@ export async function memoryTasks(
       name: true,
       status: true,
       archivedAt: true,
+      ownerId: true,
       assigneeSokoBotId: true,
-      ...responsibleUserNameSelect,
+      owner: { select: { name: true } },
     },
   });
   return new Map(
@@ -53,11 +48,9 @@ export async function memoryTasks(
       {
         id: task.id,
         name: task.name ?? "Untitled task",
-        responsibleName:
-          pickResponsibleUser(task)?.name?.trim() || "a teammate",
+        ownerName: task.owner?.name?.trim() || "a teammate",
         foreign:
-          !isResponsibleUser(task, bot.userId) &&
-          task.assigneeSokoBotId !== bot.id,
+          task.ownerId !== bot.userId && task.assigneeSokoBotId !== bot.id,
         closed:
           task.archivedAt !== null ||
           task.status === "COMPLETED" ||
@@ -87,7 +80,7 @@ export function foreignTasksBlock(known: Map<string, MemoryTask>): string[] {
     "## Named in your memory, but not your owner's Tasks",
     ...foreign.map(
       (task) =>
-        `- "${task.name}" (id ${task.id}) belongs to ${task.responsibleName}.`,
+        `- "${task.name}" (id ${task.id}) belongs to ${task.ownerName}.`,
     ),
     "These are not your owner's to answer: never present them as theirs. Remove them from your goals, decisions, blockers and follow-ups.",
     "",

@@ -135,7 +135,7 @@ describe("GET /history", () => {
     );
   });
 
-  it("reads the viewer's history rows from the history table by default", async () => {
+  it("reads owned history rows from the history table by default", async () => {
     const row = createHistoryRow();
     historyFindManyMock.mockResolvedValue([row]);
     historyCountMock.mockResolvedValue(1);
@@ -184,40 +184,6 @@ describe("GET /history", () => {
     expect(body.meta.pagination.total).toBe(1);
     expect(body.meta.pagination.nextCursor).toBeNull();
   });
-
-  it.each(["mine", "owned"])(
-    "reads the viewer's history rows for scope=%s",
-    async (scope) => {
-      const app = createApp();
-      const response = await app.request(`http://localhost/?scope=${scope}`);
-
-      expect(response.status).toBe(200);
-      expect(historyFindManyMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            AND: [
-              { archivedAt: null },
-              {
-                OR: [
-                  {
-                    kind: {
-                      in: [
-                        HistoryKind.TASK,
-                        HistoryKind.JOB,
-                        HistoryKind.IMAGE,
-                      ],
-                    },
-                    userId: "user_123",
-                    workspaceId: WORKSPACE_CONTEXT.workspaceId,
-                  },
-                ],
-              },
-            ],
-          },
-        }),
-      );
-    },
-  );
 
   it("uses workspace scope without user filter when scope=workspace", async () => {
     const app = createApp();

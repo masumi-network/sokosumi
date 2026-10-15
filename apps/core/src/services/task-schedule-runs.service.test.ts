@@ -172,51 +172,17 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     });
   });
 
-  it("carries the schedule's Requester onto the Task as Requester and Task participant", async () => {
-    const schedule = seedTaskSchedule({
-      nextRunAt: MONDAY_9,
-      creatorUserId: null,
-      creatorCoworkerId: COWORKER_ID,
-      requestedByUserId: OWNER_ID,
-    });
-    seedRun(schedule, MONDAY_9);
-
-    await release();
-
-    const task = taskScheduleTestDb.tasks[0];
-    expect(task?.requestedByUserId).toBe(OWNER_ID);
-    expect(task?.participants).toEqual([{ userId: OWNER_ID }]);
-  });
-
   describe("live update for the released Task", () => {
     beforeEach(() => {
       vi.mocked(publishTaskEventData).mockClear();
     });
 
-    it("reaches the person who made the schedule", async () => {
+    it("reaches the schedule's Owner", async () => {
       const schedule = seedTaskSchedule({
         nextRunAt: MONDAY_9,
-        ownerId: null,
-        creatorUserId: MEMBER_ID,
-      });
-      seedRun(schedule, MONDAY_9);
-
-      await release();
-
-      expect(publishTaskEventData).toHaveBeenCalledWith({
-        userId: MEMBER_ID,
-        taskId: taskScheduleTestDb.tasks[0]?.id,
-        eventType: "task_event",
-      });
-    });
-
-    it("reaches the Requester of a Coworker's schedule", async () => {
-      const schedule = seedTaskSchedule({
-        nextRunAt: MONDAY_9,
-        ownerId: null,
+        ownerId: MEMBER_ID,
         creatorUserId: null,
         creatorCoworkerId: COWORKER_ID,
-        requestedByUserId: MEMBER_ID,
       });
       seedRun(schedule, MONDAY_9);
 
@@ -229,7 +195,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
       });
     });
 
-    it("reaches nobody when nobody is responsible", async () => {
+    it("reaches nobody for a schedule without an Owner", async () => {
       const schedule = seedTaskSchedule({
         nextRunAt: MONDAY_9,
         ownerId: null,
@@ -241,19 +207,9 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
       await release();
 
       expect(taskScheduleTestDb.tasks).toHaveLength(1);
+      expect(taskScheduleTestDb.tasks[0]?.ownerId).toBeNull();
       expect(publishTaskEventData).not.toHaveBeenCalled();
     });
-  });
-
-  it("adds no Task participant for a schedule a person made", async () => {
-    const schedule = seedTaskSchedule({ nextRunAt: MONDAY_9 });
-    seedRun(schedule, MONDAY_9);
-
-    await release();
-
-    const task = taskScheduleTestDb.tasks[0];
-    expect(task?.requestedByUserId).toBeNull();
-    expect(task?.participants).toBeUndefined();
   });
 
   it("lands the Task in the blueprint's project", async () => {
@@ -703,21 +659,16 @@ describe("taskScheduleReleaseService.releaseDueRunAts", () => {
   });
 
   it.each([
-    ["the person who made it", { creatorUserId: MEMBER_ID }, MEMBER_ID],
-    [
-      "the Requester",
-      { creatorUserId: null, requestedByUserId: MEMBER_ID },
-      MEMBER_ID,
-    ],
-    ["nobody", { creatorUserId: null, requestedByUserId: null }, null],
+    ["its Owner", MEMBER_ID],
+    ["nobody when it has no Owner", null],
   ])(
     "writes the Ready event of a public Task in the name of %s",
-    async (_who, columns, expectedUserId) => {
+    async (_who, ownerId) => {
       seedTask({
         status: TaskStatus.QUEUED,
         runAt: MONDAY_9,
-        ownerId: null,
-        ...columns,
+        ownerId,
+        creatorUserId: null,
       });
 
       await releaseRunAts();
@@ -725,7 +676,7 @@ describe("taskScheduleReleaseService.releaseDueRunAts", () => {
       expect(taskScheduleTestDb.tasks[0]?.events).toEqual([
         expect.objectContaining({
           status: TaskStatus.READY,
-          userId: expectedUserId,
+          userId: ownerId,
         }),
       ]);
     },

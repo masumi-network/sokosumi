@@ -12,7 +12,6 @@ import {
   type HistoryRowForApi,
   mapHistoryRow,
 } from "./history";
-import { buildResponsibleUserWhere } from "./task-visibility";
 
 type HistoryPrismaClient = Pick<typeof prisma, "$queryRaw" | "job" | "task">;
 
@@ -396,7 +395,7 @@ describe("findJobHistoryEntityIdsMatchingStatuses", () => {
     const entityIds = await findJobHistoryEntityIdsMatchingStatuses(
       {
         projectId: null,
-        scope: "mine",
+        scope: "owned",
         statuses: [SokosumiJobStatus.PAYMENT_FAILED],
         types: [HistoryKind.JOB],
         userContext: { source: "session", ...orgAuthContext },
@@ -520,7 +519,7 @@ describe("loadComputedJobStatusByEntityId", () => {
 describe("buildHistoryWhere search", () => {
   const params = {
     q: "invoice",
-    scope: "mine" as const,
+    scope: "owned" as const,
     types: [HistoryKind.JOB],
     userContext: { ...orgAuthContext, source: "session" as const },
     workspaceContext: {
@@ -540,7 +539,7 @@ describe("buildHistoryWhere search", () => {
       expect.objectContaining({
         where: {
           workspaceId: params.workspaceContext.workspaceId,
-          ...buildResponsibleUserWhere("user_123"),
+          ownerId: "user_123",
           events: {
             some: { result: { contains: "invoice", mode: "insensitive" } },
           },

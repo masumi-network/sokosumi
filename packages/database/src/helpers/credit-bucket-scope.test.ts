@@ -270,7 +270,7 @@ describe("resolveCreditBucketScopeContext", () => {
     });
   });
 
-  // Work nobody is responsible for (ADR 0056): no member, no Seat.
+  // Work without an Owner (ADR 0057): no member, no Seat.
   it("opens the enterprise pool to a charge with no member under consumable enterprise", async () => {
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       mode: "enterprise_contract",

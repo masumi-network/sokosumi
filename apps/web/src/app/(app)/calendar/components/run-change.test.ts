@@ -20,7 +20,6 @@ function run(
     taskStatus: "QUEUED",
     taskAssigneeId: null,
     taskOwnerId: "user-1",
-    responsibleUserId: "user-1",
     scheduledAt: new Date("2026-10-11T12:00:00.000Z"),
     originalScheduledAt: null,
     state: "PLANNED",

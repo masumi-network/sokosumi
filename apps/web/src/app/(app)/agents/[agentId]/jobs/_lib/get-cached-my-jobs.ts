@@ -16,7 +16,7 @@ export async function getOwnedAgentJobsPage(
   const response = await coreClient.getAgentJobs(agentId, {
     ...(cursor ? { cursor } : {}),
     limit: PAGE_SIZE,
-    scope: "mine",
+    scope: "owned",
   });
 
   return {

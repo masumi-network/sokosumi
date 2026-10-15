@@ -41,7 +41,7 @@ const VENDOR_ID = "dddddddd-dddd-4ddd-8ddd-ddddddddddd6";
 const CREDIT = 10_000_000_000n;
 
 const personalScope = {
-  scope: "mine",
+  scope: "owned",
   userContext: { source: "context", userId: USER_ID, organizationId: null },
   workspaceContext: {
     workspaceId: WORKSPACE_ID,
@@ -399,13 +399,13 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
       );
       expect(workspaceRows.rows.map((row) => row.id)).toEqual(["tx-org"]);
 
-      // `mine` narrows the same workspace to this user, who did not spend it.
-      const mineRows = await findTransactionHistoryPage(
-        { ...organizationParams, scope: "mine" },
+      // `owned` narrows the same workspace to this user, who did not spend it.
+      const ownedRows = await findTransactionHistoryPage(
+        { ...organizationParams, scope: "owned" },
         { take: 20 },
         tx,
       );
-      expect(mineRows.rows).toHaveLength(0);
+      expect(ownedRows.rows).toHaveLength(0);
     });
   });
 });

@@ -1,5 +1,5 @@
 -- Soko Bot schedules, turns and pending decisions name their Requester, the
--- member who asked (ADR 0056). A pure rename: existing rows keep their value.
+-- member who asked (ADR 0057). A pure rename: existing rows keep their value.
 ALTER TABLE "soko_bot_schedule" RENAME COLUMN "userId" TO "requestedByUserId";
 ALTER TABLE "soko_bot_schedule" RENAME CONSTRAINT "soko_bot_schedule_userId_fkey" TO "soko_bot_schedule_requestedByUserId_fkey";
 ALTER INDEX "soko_bot_schedule_userId_createdAt_idx" RENAME TO "soko_bot_schedule_requestedByUserId_createdAt_idx";

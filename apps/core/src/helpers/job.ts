@@ -48,13 +48,12 @@ import {
 } from "@/helpers/agent-cost";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import { registerJobPurchase } from "@/helpers/job-purchase-registration";
-import { requireResponsibleUserSeat } from "@/helpers/responsible-user-seat";
+import { requireOwnerSeat } from "@/helpers/owner-seat";
 import { creatorFields, type WorkCreator } from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
-import type { WorkScope } from "@/schemas/work-scope.schema";
 import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent-cost";
@@ -62,8 +61,6 @@ import { badRequest, notFound, unprocessableEntity } from "./error";
 import {
   buildCoworkerJobParentTaskWhere,
   buildHumanParentTaskVisibilityWhere,
-  buildResponsibleUserWhere,
-  resolveResponsibleUserId,
 } from "./task-visibility";
 
 export interface JobContext {
@@ -95,15 +92,14 @@ async function validateCreditBalance(
   }
 }
 
-/** The Job's Creator and Requester, made for `personId` (ADR 0056). */
-function creatorConnect(creator: WorkCreator, personId: string | null) {
-  const fields = creatorFields(creator, personId);
+/** The Job's Creator (ADR 0057). */
+function creatorConnect(creator: WorkCreator) {
+  const fields = creatorFields(creator);
   const connect = (id: string | null) => (id ? { connect: { id } } : undefined);
   return {
     creatorUser: connect(fields.creatorUserId),
     creatorCoworker: connect(fields.creatorCoworkerId),
     creatorSokoBot: connect(fields.creatorSokoBotId),
-    requestedByUser: connect(fields.requestedByUserId),
   };
 }
 
@@ -117,11 +113,7 @@ async function createPaidJob(
     agentBlockchainIdentifier: string;
     agentApiBaseUrl: string;
     ownerId: string | null;
-    /** The person a Coworker or Soko Bot makes the Job for. */
-    personId: string | null;
     creator: WorkCreator;
-    /** Pays for the Job; null charges the Organization pool with no member. */
-    responsibleUserId: string | null;
     organizationId: string | null;
     workspaceId: string;
     inputData: InputSchemaType;
@@ -144,7 +136,7 @@ async function createPaidJob(
 ): Promise<JobWithListSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   const consumptions = await creditBucketRepository.prepareConsumption(
-    input.responsibleUserId,
+    input.ownerId,
     input.organizationId,
     cost.cents,
     tx,
@@ -156,7 +148,7 @@ async function createPaidJob(
       jobType: JobType.PAID,
       agent: { connect: { id: input.agentId } },
       ...(input.ownerId && { owner: { connect: { id: input.ownerId } } }),
-      ...creatorConnect(input.creator, input.personId),
+      ...creatorConnect(input.creator),
       ...(input.organizationId && {
         organization: { connect: { id: input.organizationId } },
       }),
@@ -183,8 +175,8 @@ async function createPaidJob(
       transaction: {
         create: {
           amount: -cost.cents,
-          ...(input.responsibleUserId && {
-            user: { connect: { id: input.responsibleUserId } },
+          ...(input.ownerId && {
+            user: { connect: { id: input.ownerId } },
           }),
           ...(input.organizationId && {
             organization: { connect: { id: input.organizationId } },
@@ -237,8 +229,6 @@ async function createFreeJob(
     agentBlockchainIdentifier: string;
     agentApiBaseUrl: string;
     ownerId: string | null;
-    /** The person a Coworker or Soko Bot makes the Job for. */
-    personId: string | null;
     creator: WorkCreator;
     organizationId: string | null;
     workspaceId: string;
@@ -258,7 +248,7 @@ async function createFreeJob(
       jobType: JobType.FREE,
       agent: { connect: { id: input.agentId } },
       ...(input.ownerId && { owner: { connect: { id: input.ownerId } } }),
-      ...creatorConnect(input.creator, input.personId),
+      ...creatorConnect(input.creator),
       ...(input.organizationId && {
         organization: { connect: { id: input.organizationId } },
       }),
@@ -342,11 +332,6 @@ interface CreateAgentJobInput {
 
 export interface JobOwnerContext {
   ownerId: string | null;
-  /**
-   * The person the Job is made for: its Requester when a Coworker or Soko
-   * Bot makes it. The Owner when omitted.
-   */
-  personId?: string | null;
   organizationId: string | null;
   workspaceId: string;
 }
@@ -493,13 +478,7 @@ export async function createAgentJobForUser(
   input: CreateAgentJobInput,
 ): Promise<JobWithListSummaryRelations> {
   const { owner, agentInput, taskContext } = input;
-  // The Job's charge and Seat check follow its responsible person (ADR 0056).
-  const personId = owner.personId ?? owner.ownerId;
-  const responsibleUserId = resolveResponsibleUserId({
-    ownerId: owner.ownerId,
-    ...creatorFields(input.creator, personId),
-  });
-  await requireResponsibleUserSeat(responsibleUserId, owner.organizationId);
+  await requireOwnerSeat(owner.ownerId, owner.organizationId);
   const maxCents =
     agentInput.maxAcceptedCents ??
     (agentInput.maxCredits
@@ -609,7 +588,6 @@ export async function createAgentJobForUser(
     agentBlockchainIdentifier: masumiAgent.blockchainIdentifier,
     agentApiBaseUrl: masumiAgent.apiBaseUrl,
     ownerId: owner.ownerId,
-    personId,
     creator: input.creator,
     organizationId: owner.organizationId,
     workspaceId: owner.workspaceId,
@@ -626,7 +604,7 @@ export async function createAgentJobForUser(
     await serializableTransaction(
       async (tx) =>
         validateCreditBalance(
-          responsibleUserId,
+          owner.ownerId,
           owner.organizationId,
           cost.cents,
           tx,
@@ -889,13 +867,9 @@ export async function createAgentJobForUser(
   }
 
   const job = await serializableTransaction(async (tx) => {
-    await requireResponsibleUserSeat(
-      responsibleUserId,
-      owner.organizationId,
-      tx,
-    );
+    await requireOwnerSeat(owner.ownerId, owner.organizationId, tx);
     await validateCreditBalance(
-      responsibleUserId,
+      owner.ownerId,
       owner.organizationId,
       cost.cents,
       tx,
@@ -922,7 +896,7 @@ export async function createAgentJobForUser(
       }
 
       createdJob = await createPaidJob(
-        { ...jobInput, name: jobName, responsibleUserId },
+        { ...jobInput, name: jobName },
         cost,
         paidJobResult,
         identifierFromPurchaser,
@@ -941,7 +915,7 @@ export async function createAgentJobForUser(
   // charge that landed.
   if (cost.cents > 0n) {
     await notifyLowBalanceAfterCharge({
-      userId: responsibleUserId,
+      userId: owner.ownerId,
       organizationId: owner.organizationId,
     });
   }
@@ -1011,7 +985,7 @@ export async function getUserJobs(
     agentId?: string;
     projectId?: string | null;
     status?: AgentJobStatus;
-    scope?: WorkScope;
+    scope?: "workspace" | "owned";
     coworkerId?: string;
     coworkerVendorId?: string;
     sokoBotId?: string;
@@ -1029,7 +1003,7 @@ export async function getUserJobs(
     agentId,
     projectId,
     status,
-    scope = "mine",
+    scope = "owned",
     coworkerId,
     coworkerVendorId,
     sokoBotId,
@@ -1064,9 +1038,7 @@ export async function getUserJobs(
     AND: [
       {
         workspaceId: workspaceContext.workspaceId,
-        ...(scope === "mine"
-          ? buildResponsibleUserWhere(userContext.userId)
-          : {}),
+        ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
       },
       ...humanParentTaskVisibility,
       ...(agentId ? [{ agentId }] : []),

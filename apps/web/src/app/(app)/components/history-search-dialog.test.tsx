@@ -126,7 +126,7 @@ describe("HistorySearchDialog", () => {
     vi.useRealTimers();
   });
 
-  it("requests mine scope for organization users", async () => {
+  it("requests owned scope for organization users", async () => {
     renderWithQuery(
       <HistorySearchDialog
         open
@@ -140,13 +140,13 @@ describe("HistorySearchDialog", () => {
       expect(getHistoryMock).toHaveBeenCalledWith({
         q: undefined,
         limit: HISTORY_SEARCH_PAGE_SIZE,
-        scope: "mine",
+        scope: "owned",
         types: ["task", "job", "image"],
       });
     });
   });
 
-  it("requests mine scope for personal workspace users", async () => {
+  it("requests owned scope for personal workspace users", async () => {
     renderWithQuery(
       <HistorySearchDialog
         open
@@ -160,7 +160,7 @@ describe("HistorySearchDialog", () => {
       expect(getHistoryMock).toHaveBeenCalledWith({
         q: undefined,
         limit: HISTORY_SEARCH_PAGE_SIZE,
-        scope: "mine",
+        scope: "owned",
         types: ["task", "job", "image"],
       });
     });
@@ -242,7 +242,7 @@ describe("HistorySearchDialog", () => {
       expect(getHistoryMock).toHaveBeenLastCalledWith({
         q: "new",
         limit: HISTORY_SEARCH_PAGE_SIZE,
-        scope: "mine",
+        scope: "owned",
         types: ["task", "job", "image"],
       });
     });

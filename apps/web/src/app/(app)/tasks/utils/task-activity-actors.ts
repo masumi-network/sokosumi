@@ -26,7 +26,7 @@ export type TaskEventActorKind = "user" | "coworker" | "sokoBot";
 
 type TaskActivityActorSource = Pick<
   Task,
-  "assignee" | "creator" | "requester" | "events"
+  "owner" | "assignee" | "creator" | "events"
 >;
 
 type SokoBotActorSummary = {
@@ -69,14 +69,14 @@ export function resolveTaskEventActorKind(
 
 /**
  * The creation event can come from the system or a schedule and then has no
- * actor; it is attributed to the Task's responsible person instead.
+ * actor; it is attributed to the Task owner (`taskOwnerId`) instead.
  */
 export function getEventActorInfo(
   event: TaskEvent,
   userById?: Record<string, TaskActivityActorInfo>,
   coworkerById?: Record<string, TaskActivityActorInfo>,
   sokoBotById?: Record<string, TaskActivityActorInfo>,
-  responsibleUserId?: string | null,
+  taskOwnerId?: string | null,
 ): TaskActivityActorInfo | undefined {
   const actor = resolveEventActorInfo(
     event,
@@ -84,10 +84,10 @@ export function getEventActorInfo(
     coworkerById,
     sokoBotById,
   );
-  if (actor || event.status !== TaskEventStatus.CREATED || !responsibleUserId) {
+  if (actor || event.status !== TaskEventStatus.CREATED || !taskOwnerId) {
     return actor;
   }
-  return userById?.[responsibleUserId];
+  return userById?.[taskOwnerId];
 }
 
 function resolveEventActorInfo(
@@ -166,9 +166,7 @@ export function buildTaskActivityActors(
   const coworkerById: Record<string, TaskActivityActorInfo> = {};
   const sokoBotById: Record<string, TaskActivityActorInfo> = {};
 
-  // The responsible person is the person Creator or the Requester (ADR
-  // 0056), so both name them.
-  addUserActor(userById, task.requester);
+  addUserActor(userById, task.owner);
 
   if (task.assignee) {
     if (task.assignee.type === "sokoBot") {
@@ -182,21 +180,27 @@ export function buildTaskActivityActors(
 
   // A person who deleted their account leaves no Creator.
   const creator = task.creator;
-  if (creator) {
-    switch (creator.type) {
-      case "user":
+  switch (creator?.type) {
+    case undefined:
+      break;
+    case "user":
+      if (creator.id !== task.owner?.id) {
         addUserActor(userById, creator.user);
-        break;
-      case "coworker":
-        addCoworkerActor(coworkerById, creator.coworker);
-        break;
-      case "sokoBot":
-        addSokoBotActor(sokoBotById, creator.sokoBot);
-        break;
-      default: {
-        const _exhaustive: never = creator;
-        void _exhaustive;
       }
+      break;
+    case "coworker":
+      if (creator.coworker) {
+        addCoworkerActor(coworkerById, creator.coworker);
+      }
+      break;
+    case "sokoBot":
+      if (creator.sokoBot) {
+        addSokoBotActor(sokoBotById, creator.sokoBot);
+      }
+      break;
+    default: {
+      const _exhaustive: never = creator;
+      void _exhaustive;
     }
   }
 
@@ -270,7 +274,7 @@ function addUserActor(
     image?: string | null;
   } | null,
 ) {
-  // Nobody is named once the person deleted their account.
+  // A Task without an Owner names nobody here.
   if (!user) return;
   userById[user.id] = {
     name: user.name,

@@ -9,17 +9,14 @@ import {
   requireParentTaskNotParked,
 } from "./access-control";
 import { notFound } from "./error";
-import {
-  buildHumanParentTaskVisibilityWhere,
-  buildResponsibleUserWhere,
-} from "./task-visibility";
+import { buildHumanParentTaskVisibilityWhere } from "./task-visibility";
 
 /**
  * Public-share write access for a job: create, update, or revoke the share.
  *
- * A human caller qualifies as the job's responsible person (ADR 0056), or as
- * a member of the job's workspace (SOK-1030). The workspace half is what
- * widens sharing beyond the responsible person, so an organization workspace admits every member of that organization
+ * A human caller qualifies as the job owner, or as a member of the job's
+ * workspace (SOK-1030). The workspace half is what widens sharing beyond the
+ * owner, so an organization workspace admits every member of that organization
  * while a personal workspace admits only its owner.
  *
  * Jobs whose parent Task is private follow SOK-1046: only the private Task's
@@ -32,10 +29,10 @@ import {
  * caller's current `Member` row on both paths, so a caller can neither name an
  * organization they do not belong to nor keep one they were removed from.
  *
- * Responsibility stays in the predicate because API key and OAuth callers
- * carry no active organization (`organizationId: null` in their auth
- * context), so their workspace resolves to the personal one. Dropping it
- * would stop them sharing the organization jobs they are responsible for.
+ * Ownership stays in the predicate because API key and OAuth callers carry no
+ * active organization (`organizationId: null` in their auth context), so their
+ * workspace resolves to the personal one. Dropping ownership would stop them
+ * sharing their own organization jobs.
  *
  * Deliberately separate from {@link requireJobCollaboration}, which also guards
  * refund, workspace move, metadata patch, and input submission. Widening that
@@ -69,7 +66,7 @@ export async function requireJobShareCollaboration(
       AND: [
         {
           OR: [
-            buildResponsibleUserWhere(userContext.userId),
+            { ownerId: userContext.userId },
             ...(workspaceContext
               ? [{ workspaceId: workspaceContext.workspaceId }]
               : []),

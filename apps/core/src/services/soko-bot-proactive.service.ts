@@ -8,15 +8,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
-import {
-  buildNotResponsibleUserWhere,
-  buildResponsibleUserWhere,
-  buildSokoBotOwnerTaskVisibilityWhere,
-} from "@/helpers/task-visibility";
-import {
-  pickResponsibleUser,
-  responsibleUserNameSelect,
-} from "@/helpers/work-creator";
+import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -248,21 +240,14 @@ export async function findAttentionItems(bot: {
           ),
         ),
       },
-      // Nudges stay on delegated work its person is responsible for, whatever
+      // Nudges stay on work this bot owns or delegated, whatever
       // `followWholeBoard` says. Following the board is for awareness — it
       // lets the bot answer when a comment names it. Sweeping every stuck or
       // failed Task in the workspace made it chase a week of other people's
       // abandoned work and, now that it can act rather than draft, restart it.
       id: { in: delegatedIds },
-      AND: [
-        buildResponsibleUserWhere(bot.userId),
-        {
-          OR: [
-            { assigneeSokoBotId: null },
-            { assigneeSokoBotId: { not: bot.id } },
-          ],
-        },
-      ],
+      ownerId: bot.userId,
+      OR: [{ assigneeSokoBotId: null }, { assigneeSokoBotId: { not: bot.id } }],
     },
     select: {
       id: true,
@@ -538,10 +523,7 @@ export async function buildSystemBeatMessage(input: {
     nudgeKeys.push(...items.map((item) => item.key));
   }
   const visible = buildSokoBotOwnerTaskVisibilityWhere(bot.userId);
-  const ownTasks = [
-    buildResponsibleUserWhere(bot.userId),
-    { assigneeSokoBotId: bot.id },
-  ];
+  const ownTasks = [{ ownerId: bot.userId }, { assigneeSokoBotId: bot.id }];
   const open = await prisma.task.findMany({
     where: {
       workspaceId: bot.workspaceId,
@@ -578,7 +560,7 @@ export async function buildSystemBeatMessage(input: {
         // in it are null.
         AND: [
           visible,
-          buildNotResponsibleUserWhere(bot.userId),
+          { OR: [{ ownerId: { not: bot.userId } }, { ownerId: null }] },
           {
             OR: [
               { assigneeSokoBotId: null },
@@ -590,7 +572,7 @@ export async function buildSystemBeatMessage(input: {
       select: {
         name: true,
         status: true,
-        ...responsibleUserNameSelect,
+        owner: { select: { name: true } },
         assignee: { select: { name: true } },
       },
       orderBy: { updatedAt: "desc" },
@@ -600,7 +582,7 @@ export async function buildSystemBeatMessage(input: {
       lines.push("## Team activity (last 24h)");
       for (const task of team) {
         lines.push(
-          `- ${pickResponsibleUser(task)?.name ?? "A teammate"} · ${task.status} · "${task.name ?? "Untitled task"}"${task.assignee ? ` · with ${task.assignee.name}` : ""}`,
+          `- ${task.owner?.name ?? "A teammate"} · ${task.status} · "${task.name ?? "Untitled task"}"${task.assignee ? ` · with ${task.assignee.name}` : ""}`,
         );
       }
       lines.push("");

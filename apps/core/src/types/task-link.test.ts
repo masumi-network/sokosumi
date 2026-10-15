@@ -1,8 +1,6 @@
 import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
-import { buildResponsibleUserWhere } from "@/helpers/task-visibility";
-
 import { buildVisibleTaskLinksInclude } from "./task-link";
 
 const VENDOR_ID = "01960001-0001-7001-8001-000000000001";
@@ -45,7 +43,7 @@ describe("buildVisibleTaskLinksInclude", () => {
 
   it("scopes delegated coworker peers by delegated userId when workspaceId is absent", () => {
     const peerWhere = {
-      AND: [buildResponsibleUserWhere("user_delegated")],
+      ownerId: "user_delegated",
       archivedAt: null,
       status: { not: TaskStatus.DRAFT },
       OR: [

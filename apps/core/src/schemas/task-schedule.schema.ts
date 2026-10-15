@@ -12,9 +12,8 @@ import {
 } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
-  deprecatedWorkOwnerIdSchema,
-  responsibleUserIdField,
-  workCreatorRequesterFields,
+  workCreatorField,
+  workOwnerIdSchema,
 } from "@/schemas/work-creator.schema";
 
 /**
@@ -203,13 +202,11 @@ export const taskScheduleSchema = z
     id: z.string().uuid(),
     workspaceId: z.string().uuid(),
     organizationId: z.string().nullable(),
-    /** @deprecated Use `responsibleUserId`. */
-    ownerId: deprecatedWorkOwnerIdSchema,
+    ownerId: workOwnerIdSchema,
     creatorUserId: z.string().nullable(),
     creatorCoworkerId: z.string().nullable(),
     creatorSokoBotId: z.string().uuid().nullable(),
-    ...workCreatorRequesterFields,
-    ...responsibleUserIdField,
+    ...workCreatorField,
     state: taskScheduleStateSchema,
     rule: z.object({
       expr: z.string(),

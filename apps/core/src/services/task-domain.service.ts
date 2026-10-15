@@ -33,7 +33,6 @@ import {
 } from "@/helpers/error";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import { taskCreationEvents } from "@/helpers/task-creation-events";
-import { isResponsibleUser } from "@/helpers/task-visibility";
 import {
   isGrantDeniedOrRevoked,
   parseGrantResumeStatus,
@@ -324,8 +323,6 @@ export async function createTaskForActor(
       ? (input.description ?? null)
       : await input.resolveDescription(tx);
 
-  const creator = creatorFields(input.actor, input.ownerId);
-
   return tx.task.create({
     data: {
       ownerId: input.ownerId,
@@ -337,11 +334,7 @@ export async function createTaskForActor(
       assigneeId: assigneeId ?? null,
       assigneeSokoBotId: input.assigneeSokoBotId ?? null,
       assigneeUserId: input.assigneeUserId ?? null,
-      ...creator,
-      // The Requester follows the Task they asked for (ADR 0056).
-      ...(creator.requestedByUserId
-        ? { participants: { create: { userId: creator.requestedByUserId } } }
-        : {}),
+      ...creatorFields(input.actor),
       status,
       visibility,
       priority: input.priority,
@@ -369,11 +362,10 @@ function sokoBotEditableStatuses(
 }
 
 /**
- * The live Task an actor may change. A user changes the Tasks they are
- * responsible for here (ADR 0056); a Soko Bot changes what its person could
- * change in the app (the Tasks they are responsible for, and public Tasks of
- * an organization they hold a seat in), and only inside the bot's own
- * workspace. Archiving is managing the Task.
+ * The live Task an actor may change. A user changes their own Tasks here; a
+ * Soko Bot changes what its owner could change in the app (their own Tasks,
+ * and public Tasks of an organization they hold a seat in), and only inside
+ * the bot's own workspace. Archiving is managing the Task.
  */
 async function findActorTask(
   input: UpdateTaskDomainInput,
@@ -393,12 +385,12 @@ async function findActorTask(
   const task = await tx.task.findFirst({
     where: {
       id: input.taskId,
+      ownerId: input.userId,
       archivedAt: null,
       ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
     },
   });
-  if (!task || !isResponsibleUser(task, input.userId))
-    throw notFound("Task not found");
+  if (!task) throw notFound("Task not found");
   return task;
 }
 

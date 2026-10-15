@@ -107,13 +107,6 @@ function mockLedger(rows: TransactionHistoryRow[], count = rows.length) {
     .mockResolvedValueOnce([{ count: BigInt(count) }]);
 }
 
-/** Every bound value the endpoint sent to Postgres, nested fragments included. */
-function sentValues(): unknown[] {
-  return prismaQueryRawMock.mock.calls.flatMap(([, ...fragments]) =>
-    fragments.flatMap((fragment) => fragment?.values ?? []),
-  );
-}
-
 describe("GET /transactions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -329,58 +322,5 @@ describe("GET /transactions", () => {
 
     expect(response.status).toBe(422);
     expect(prismaQueryRawMock).not.toHaveBeenCalled();
-  });
-
-  describe.each(["mine", "owned"])("scope=%s", (scope) => {
-    it("narrows an organization workspace to the calling user", async () => {
-      const response = await createApp().request(
-        `http://localhost/?scope=${scope}`,
-      );
-
-      expect(response.status).toBe(200);
-      expect(sentValues()).toContain("user_123");
-    });
-  });
-
-  it("defaults to the calling user's rows", async () => {
-    await createApp().request("http://localhost/");
-
-    expect(sentValues()).toContain("user_123");
-  });
-
-  it("keeps every row of the workspace for scope=workspace", async () => {
-    const response = await createApp().request(
-      "http://localhost/?scope=workspace",
-    );
-
-    expect(response.status).toBe(200);
-    expect(sentValues()).not.toContain("user_123");
-  });
-
-  it("rejects an unknown scope", async () => {
-    const response = await createApp().request(
-      "http://localhost/?scope=everyone",
-    );
-
-    expect(response.status).toBe(422);
-  });
-
-  it("documents owned as a deprecated alias of mine", () => {
-    const document = createApp().getOpenAPI31Document({
-      openapi: "3.1.0",
-      info: { title: "test", version: "0" },
-    });
-    const parameters = document.paths?.["/"]?.get?.parameters ?? [];
-    const scope = parameters.find(
-      (parameter) => "name" in parameter && parameter.name === "scope",
-    );
-
-    expect(scope).toMatchObject({
-      schema: { enum: ["workspace", "mine", "owned"], default: "mine" },
-    });
-    expect(scope).toHaveProperty(
-      "description",
-      expect.stringContaining("'owned': Deprecated. Use mine."),
-    );
   });
 });

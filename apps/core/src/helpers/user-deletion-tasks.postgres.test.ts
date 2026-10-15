@@ -7,7 +7,6 @@ import {
 import { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { evaluateUserDeletion } from "./deletion-evaluate";
 import { prepareTasksForUserDeletion } from "./user-deletion-tasks";
 
 const url = process.env.DATABASE_URL;
@@ -108,10 +107,9 @@ async function seedWorkspaceWork(tx: Tx) {
   const privateTask = await task("Ada's private task", {
     visibility: TaskVisibility.PRIVATE,
   });
-  const askedTask = await task("Asked by Ada", {
+  const madeForAdaTask = await task("Made for Ada by a Coworker", {
     creatorUserId: null,
     creatorCoworkerId: coworkerId,
-    requestedByUserId: ada,
   });
   const bobsPrivateTask = await task("Bob's private task", {
     ownerId: bob,
@@ -187,7 +185,7 @@ async function seedWorkspaceWork(tx: Tx) {
     tasks: {
       publicTask,
       privateTask,
-      askedTask,
+      madeForAdaTask,
       bobsPrivateTask,
       personalTask,
     },
@@ -221,9 +219,9 @@ function deleteAccount(tx: Tx, userId: string) {
 // Real Postgres: foreign keys, CHECKs and the history triggers decide what
 // survives an account deletion, so a mocked client cannot prove it.
 describe.skipIf(!enabled)("account deletion keeps public work", () => {
-  it("deletes the person's private work and keeps their public work with nobody named", async () => {
+  it("deletes the person's private work and keeps their public work without an Owner", async () => {
     await inRolledBackTransaction(async (tx) => {
-      const { ada, bob, tasks, jobs } = await seedWorkspaceWork(tx);
+      const { ada, bob, coworkerId, tasks, jobs } = await seedWorkspaceWork(tx);
 
       await deleteAccount(tx, ada);
 
@@ -234,7 +232,6 @@ describe.skipIf(!enabled)("account deletion keeps public work", () => {
           ownerId: true,
           creatorUserId: true,
           creatorCoworkerId: true,
-          requestedByUserId: true,
         },
         orderBy: { name: "asc" },
       });
@@ -244,21 +241,18 @@ describe.skipIf(!enabled)("account deletion keeps public work", () => {
           ownerId: null,
           creatorUserId: null,
           creatorCoworkerId: null,
-          requestedByUserId: null,
-        },
-        {
-          id: tasks.askedTask.id,
-          ownerId: null,
-          creatorUserId: null,
-          creatorCoworkerId: expect.any(String),
-          requestedByUserId: null,
         },
         {
           id: tasks.bobsPrivateTask.id,
           ownerId: bob,
           creatorUserId: bob,
           creatorCoworkerId: null,
-          requestedByUserId: null,
+        },
+        {
+          id: tasks.madeForAdaTask.id,
+          ownerId: null,
+          creatorUserId: null,
+          creatorCoworkerId: coworkerId,
         },
       ]);
 
@@ -274,7 +268,7 @@ describe.skipIf(!enabled)("account deletion keeps public work", () => {
     });
   });
 
-  it("keeps the public work in the workspace history with nobody responsible", async () => {
+  it("keeps the public work in the workspace history without a member", async () => {
     await inRolledBackTransaction(async (tx) => {
       const { ada, tasks, jobs } = await seedWorkspaceWork(tx);
 
@@ -303,7 +297,7 @@ describe.skipIf(!enabled)("account deletion keeps public work", () => {
     });
   });
 
-  it("pauses the public Task Schedules the person was responsible for and deletes their private ones", async () => {
+  it("pauses the public Task Schedules the person owned and deletes their private ones", async () => {
     await inRolledBackTransaction(async (tx) => {
       const { ada, schedules } = await seedWorkspaceWork(tx);
 
@@ -328,83 +322,6 @@ describe.skipIf(!enabled)("account deletion keeps public work", () => {
           ownerId: expect.any(String),
         },
       ]);
-    });
-  });
-
-  it("is blocked by a pending x402 payment on work the person is responsible for but does not own", async () => {
-    await inRolledBackTransaction(async (tx) => {
-      const { ada, agentId, workspaceId, organizationId } =
-        await seedWorkspaceWork(tx);
-      const task = await tx.task.create({
-        data: {
-          name: "Made by Ada, owned by nobody",
-          workspaceId,
-          organizationId,
-          ownerId: null,
-          creatorUserId: ada,
-        },
-      });
-      const charge = await tx.transaction.create({
-        data: { amount: -1n, organizationId },
-      });
-      await tx.taskX402Payment.create({
-        data: {
-          idempotencyKey: randomUUID(),
-          caip2Network: "eip155:8453",
-          asset: "0x0000000000000000000000000000000000000001",
-          amount: "1",
-          payTo: "0x0000000000000000000000000000000000000002",
-          taskId: task.id,
-          agentId,
-          transactionId: charge.id,
-        },
-      });
-
-      await expect(deleteAccount(tx, ada)).rejects.toMatchObject({
-        body: { code: "TASK_X402_PAYMENT_PENDING" },
-      });
-    });
-  });
-
-  it("is blocked by running work the person is responsible for but does not own", async () => {
-    await inRolledBackTransaction(async (tx) => {
-      const { ada, agentId, coworkerId, workspaceId, organizationId, tasks } =
-        await seedWorkspaceWork(tx);
-      // Settle the seeded work so only the unowned work below is in flight.
-      await tx.task.updateMany({
-        where: { id: { in: Object.values(tasks).map((task) => task.id) } },
-        data: { status: "COMPLETED" },
-      });
-      await tx.job.deleteMany({ where: { agentId } });
-      await tx.task.create({
-        data: {
-          name: "Made by Ada, owned by nobody",
-          workspaceId,
-          organizationId,
-          ownerId: null,
-          creatorUserId: ada,
-          status: "RUNNING",
-        },
-      });
-      await tx.job.create({
-        data: {
-          name: "Asked for by Ada, owned by nobody",
-          agentId,
-          agentJobId: randomUUID(),
-          jobType: "FREE",
-          workspaceId,
-          organizationId,
-          ownerId: null,
-          creatorCoworkerId: coworkerId,
-          requestedByUserId: ada,
-        },
-      });
-
-      const { blockers } = await evaluateUserDeletion(ada, tx);
-
-      expect(blockers).toEqual(
-        expect.arrayContaining(["IN_FLIGHT_JOB", "IN_FLIGHT_TASK"]),
-      );
     });
   });
 });

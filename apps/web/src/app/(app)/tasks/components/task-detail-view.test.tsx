@@ -157,7 +157,6 @@ function createTask(
     visibility: "WORKSPACE",
     ownerId: "user_owner",
     owner: { id: "user_owner", name: "Owner", image: null },
-    responsibleUserId: "user_owner",
     creator: {
       type: "user",
       id: "user_owner",
@@ -250,7 +249,7 @@ describe("TaskDetailView (forceReadOnly: admin and developer views)", () => {
   });
 });
 
-describe("TaskDetailView (rights follow the responsible person)", () => {
+describe("TaskDetailView (rights follow the Owner)", () => {
   const personalWorkspace = { id: "ws_personal", organizationId: null };
 
   beforeEach(() => {
@@ -271,48 +270,36 @@ describe("TaskDetailView (rights follow the responsible person)", () => {
     };
   }
 
-  it("treats the responsible person as mine when the Owner is someone else", async () => {
+  it("gives the Owner of a personal task its controls", async () => {
     const { actions, activity } = await renderFor(
       createTask([], {
-        responsibleUserId: "user_viewer",
+        ownerId: "user_viewer",
+        owner: { id: "user_viewer", name: "Viewer", image: null },
         workspace: personalWorkspace,
       }),
     );
 
-    expect(actions).toMatchObject({ isResponsible: true, canCancel: true });
+    expect(actions).toMatchObject({ isTaskOwner: true, canCancel: true });
     expect(activity.canComment).toBe(true);
   });
 
   it("gives another member of the organization workspace no 'mine' controls but still lets them comment and cancel", async () => {
     const { actions, activity } = await renderFor(createTask([]));
 
-    expect(actions).toMatchObject({ isResponsible: false, canCancel: true });
+    expect(actions).toMatchObject({ isTaskOwner: false, canCancel: true });
     expect(activity.canComment).toBe(true);
   });
 
-  it("gives a viewer who is not responsible for a personal task no controls", async () => {
+  it("gives a viewer who does not own a personal task no controls", async () => {
     const { actions, activity } = await renderFor(
       createTask([], { workspace: personalWorkspace }),
     );
 
-    expect(actions).toMatchObject({ isResponsible: false, canCancel: false });
+    expect(actions).toMatchObject({ isTaskOwner: false, canCancel: false });
     expect(activity.canComment).toBe(false);
   });
 
-  it("ignores the Owner when it differs from the responsible person", async () => {
-    const { actions } = await renderFor(
-      createTask([], {
-        ownerId: "user_viewer",
-        owner: { id: "user_viewer", name: "Viewer", image: null },
-        responsibleUserId: "user_owner",
-        workspace: personalWorkspace,
-      }),
-    );
-
-    expect(actions).toMatchObject({ isResponsible: false, canCancel: false });
-  });
-
-  it("shows a public Task whose person deleted their account", async () => {
+  it("shows a public Task whose Owner deleted their account", async () => {
     const { actions, activity } = await renderFor(
       createTask([], {
         ownerId: null,
@@ -320,23 +307,23 @@ describe("TaskDetailView (rights follow the responsible person)", () => {
         userId: null,
         user: null,
         creator: null,
-        responsibleUserId: null,
       }),
     );
 
-    expect(actions).toMatchObject({ isResponsible: false });
+    expect(actions).toMatchObject({ isTaskOwner: false });
     expect(activity.canComment).toBe(true);
   });
 
-  it("gives nobody a personal-workspace right when nobody is responsible", async () => {
+  it("gives nobody a personal-workspace right on a Task without an Owner", async () => {
     const { actions, activity } = await renderFor(
       createTask([], {
-        responsibleUserId: null,
+        ownerId: null,
+        owner: null,
         workspace: personalWorkspace,
       }),
     );
 
-    expect(actions).toMatchObject({ isResponsible: false, canCancel: false });
+    expect(actions).toMatchObject({ isTaskOwner: false, canCancel: false });
     expect(activity.canComment).toBe(false);
   });
 });

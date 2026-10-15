@@ -10,11 +10,6 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import { buildResponsibleUserMatchingWhere } from "@/helpers/task-visibility";
-import {
-  mapResponsibleUserWithEmail,
-  responsibleUserWithEmailInclude,
-} from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -53,13 +48,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           OR: [
             { id: term },
             { name: { contains: term, mode: "insensitive" } },
-            // The person the list names as `owner` (ADR 0056).
-            buildResponsibleUserMatchingWhere({
-              OR: [
-                { name: { contains: term, mode: "insensitive" } },
-                { email: { contains: term, mode: "insensitive" } },
-              ],
-            }),
+            {
+              owner: {
+                OR: [
+                  { name: { contains: term, mode: "insensitive" } },
+                  { email: { contains: term, mode: "insensitive" } },
+                ],
+              },
+            },
             {
               organization: {
                 OR: [
@@ -81,7 +77,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         include: {
-          ...responsibleUserWithEmailInclude,
+          owner: { select: { id: true, name: true, email: true } },
           organization: { select: { id: true, name: true, slug: true } },
         },
       }),
@@ -89,18 +85,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ]);
 
     const hasMore = tasks.length === takePlusOne;
-    const items = tasks.slice(0, take).map((task) => {
-      const responsibleUser = mapResponsibleUserWithEmail(task);
-      return {
-        id: task.id,
-        name: task.name,
-        status: task.status,
-        createdAt: task.createdAt,
-        owner: responsibleUser,
-        responsibleUser,
-        organization: task.organization,
-      };
-    });
+    const items = tasks.slice(0, take).map((task) => ({
+      id: task.id,
+      name: task.name,
+      status: task.status,
+      createdAt: task.createdAt,
+      owner: task.owner,
+      organization: task.organization,
+    }));
 
     const paginationMeta = createPaginationMeta(
       items,

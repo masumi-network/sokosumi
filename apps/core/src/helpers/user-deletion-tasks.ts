@@ -22,10 +22,6 @@ import {
 } from "@/helpers/deletion-evaluate";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
-import {
-  buildResponsibleUserSql,
-  buildResponsibleUserWhere,
-} from "@/helpers/task-visibility";
 import { prepareVendorsForMemberDeletion } from "@/helpers/vendor-membership";
 import { stopPlannedTaskScheduleRuns } from "@/services/task-schedule-runs.service";
 
@@ -55,42 +51,8 @@ function throwPendingX402PaymentDeletionBlocker(
 }
 
 /**
- * Clear deletion blockers and delete the user in one transaction.
- *
- * - The private Tasks, Task Schedules and Jobs this user owns are deleted,
- *   and so is the work in their personal workspace.
- * - Public work stays with its workspace (ADR 0056); the database empties
- *   this user's Owner, Creator and Requester columns on it. Public Task
- *   Schedules this user was responsible for are paused, so nothing keeps
- *   running with nobody behind it; the member who resumes one becomes its
- *   Requester.
- * - Payment-claim blockers are previewed by `evaluateUserDeletion` and
- *   re-checked here under lock. Terminal claims are removed so their RESTRICT
- *   transaction relations do not block user cascade.
- * - Pending x402 payments block deletion: their debit must survive so support
- *   can compensate it. The admin resolve lever
- *   (`POST /v1/admin/task-x402-payments/{id}/resolve`) bounds the block by an
- *   operator's response time, so the guard pages ops with that endpoint and
- *   routes the user to support. A payment in a status this code does not
- *   recognize blocks the same way, fail-closed, instead of being swept. A
- *   signed payment whose bearer authorization may still settle also blocks
- *   deletion until expiry or header purge, including a goodwill-refunded
- *   payment whose header remains live. Known-terminal x402 payments are
- *   removed because their RESTRICT task and transaction relations would
- *   otherwise block both the owned-task delete and the user cascade. A swept
- *   payment whose charge belongs to another user blocks deletion and pages
- *   Sentry — it means the Task's responsible person was not the billing
- *   owner, and repair is manual (no admin endpoint changes payment
- *   ownership).
- * - Chat rooms this user created re-point `createdByUserId` to another remaining
- *   human member. Rooms with no other human member are deleted so Restrict does
- *   not 500 an allowed wipe.
- * - Public blob files for deleted tasks are best-effort deleted after the DB
- *   cascade (URLs remain public if blob GC fails).
- */
-/**
- * Pause, as a member would, the public Task Schedules nobody will be
- * responsible for once `userId` is gone.
+ * Pause, as a member would, the public Task Schedules that will have no Owner
+ * once `userId` is gone.
  */
 async function pausePublicTaskSchedules(
   tx: Prisma.TransactionClient,
@@ -98,7 +60,7 @@ async function pausePublicTaskSchedules(
 ): Promise<void> {
   const schedules = await tx.taskSchedule.findMany({
     where: {
-      ...buildResponsibleUserWhere(userId),
+      ownerId: userId,
       visibility: TaskVisibility.PUBLIC,
       state: TaskScheduleState.ACTIVE,
     },
@@ -121,6 +83,38 @@ async function pausePublicTaskSchedules(
   });
 }
 
+/**
+ * Clear deletion blockers and delete the user in one transaction.
+ *
+ * - The private Tasks, Task Schedules and Jobs this user owns are deleted,
+ *   and so is the work in their personal workspace.
+ * - Public work stays with its workspace (ADR 0057); the database empties
+ *   this user's Owner and Creator columns on it. Public Task Schedules this
+ *   user owned are paused, so nothing keeps running with nobody behind it;
+ *   the member who resumes one becomes its Owner.
+ * - Payment-claim blockers are previewed by `evaluateUserDeletion` and
+ *   re-checked here under lock. Terminal claims are removed so their RESTRICT
+ *   transaction relations do not block user cascade.
+ * - Pending x402 payments block deletion: their debit must survive so support
+ *   can compensate it. The admin resolve lever
+ *   (`POST /v1/admin/task-x402-payments/{id}/resolve`) bounds the block by an
+ *   operator's response time, so the guard pages ops with that endpoint and
+ *   routes the user to support. A payment in a status this code does not
+ *   recognize blocks the same way, fail-closed, instead of being swept. A
+ *   signed payment whose bearer authorization may still settle also blocks
+ *   deletion until expiry or header purge, including a goodwill-refunded
+ *   payment whose header remains live. Known-terminal x402 payments are
+ *   removed because their RESTRICT task and transaction relations would
+ *   otherwise block both the owned-task delete and the user cascade. A swept
+ *   payment whose charge belongs to another user blocks deletion and pages
+ *   Sentry — it means Task.ownerId was not the billing owner, and repair is
+ *   manual (no admin endpoint changes payment ownership).
+ * - Chat rooms this user created re-point `createdByUserId` to another remaining
+ *   human member. Rooms with no other human member are deleted so Restrict does
+ *   not 500 an allowed wipe.
+ * - Public blob files for deleted tasks are best-effort deleted after the DB
+ *   cascade (URLs remain public if blob GC fails).
+ */
 export async function prepareTasksForUserDeletion(
   userId: string,
   prisma: PrismaClient,
@@ -215,9 +209,8 @@ export async function prepareTasksForUserDeletion(
         // joined relations cannot be served by any index, so the single-query
         // form had to build and filter the full payments join on every account
         // deletion — while holding the user and task locks above. Each arm here
-        // seeks (Transaction has a userId-leading index, task has ownerId,
-        // creatorUserId and requestedByUserId indexes for the responsible
-        // person's three branches, and the payment side is reached over its transactionId/refundTransactionId
+        // seeks (Transaction has a userId-leading index, task has ownerId, and
+        // the payment side is reached over its transactionId/refundTransactionId
         // uniques and the taskId unique prefix). Only the outer SELECT takes
         // locks, exactly like FOR UPDATE OF payment did on the join.
         await tx.$queryRaw`
@@ -240,7 +233,7 @@ export async function prepareTasksForUserDeletion(
             FROM "task_x402_payment" AS task_payment
             INNER JOIN "task" AS payment_task
               ON payment_task."id" = task_payment."taskId"
-            WHERE ${buildResponsibleUserSql(userId, "payment_task")}
+            WHERE payment_task."ownerId" = ${userId}
           )
           FOR UPDATE OF payment
         `;
@@ -336,7 +329,7 @@ export async function prepareTasksForUserDeletion(
             OR: [
               { transaction: { userId } },
               { refundTransaction: { userId } },
-              { task: buildResponsibleUserWhere(userId) },
+              { task: { ownerId: userId } },
             ],
           },
           select: { id: true, status: true },
@@ -409,7 +402,7 @@ export async function prepareTasksForUserDeletion(
                   OR: [
                     { transaction: { userId } },
                     { refundTransaction: { userId } },
-                    { task: buildResponsibleUserWhere(userId) },
+                    { task: { ownerId: userId } },
                   ],
                 },
               ],
@@ -425,9 +418,9 @@ export async function prepareTasksForUserDeletion(
           });
         }
 
-        // The sweep below deletes on the Task's responsible person regardless
-        // of who was charged. Task charges go to the responsible person, so a
-        // row swept through the task (or refund) branch whose charge belongs
+        // The sweep below deletes on `task.ownerId` regardless of who was
+        // charged. Task.ownerId is documented as always the billing owner, so a
+        // row swept through the task-owner (or refund) branch whose charge belongs
         // to someone else should be unreachable — but nothing enforces that. If it
         // ever happens, continuing would let one user's account deletion destroy a
         // different live user's payment record: the charge Transaction survives,
@@ -444,7 +437,7 @@ export async function prepareTasksForUserDeletion(
             // `transaction: { userId }` branch is this user's own by definition.
             OR: [
               { refundTransaction: { userId } },
-              { task: buildResponsibleUserWhere(userId) },
+              { task: { ownerId: userId } },
             ],
           },
           select: {
@@ -479,7 +472,7 @@ export async function prepareTasksForUserDeletion(
                 // the detector's predicate. Spell that out for whoever this
                 // pages, or the on-call's first two attempts will both fail.
                 repair:
-                  "No admin endpoint clears this. Repair the ownership mismatch manually (align the Task's responsible person with the charge Transaction's userId, or reassign the charge), then have the user retry deletion.",
+                  "No admin endpoint clears this. Repair the ownership mismatch manually (align Task.ownerId with the charge Transaction's userId, or reassign the charge), then have the user retry deletion.",
               },
             },
           );
@@ -508,7 +501,7 @@ export async function prepareTasksForUserDeletion(
             OR: [
               { transaction: { userId } },
               { refundTransaction: { userId } },
-              { task: buildResponsibleUserWhere(userId) },
+              { task: { ownerId: userId } },
             ],
           },
         });
@@ -606,8 +599,9 @@ export async function prepareTasksForUserDeletion(
       // Prisma's default interactive-transaction timeout is 5 s, and this
       // callback stopped being a handful of indexed lookups when the x402
       // locks, guards and sweeps moved in: lock waits behind an in-flight
-      // charge and the per-row sweeps all count against the same budget. On expiry Prisma throws P2028, which the conflict
-      // mapping below does not (and should not) match, so a heavy account
+      // charge and the per-row sweeps all count against the same budget. On
+      // expiry Prisma throws P2028, which the conflict mapping below does not
+      // (and should not) match, so a heavy account
       // would 500 deterministically on every retry. 30 s is headroom, not a
       // target — the transaction stays atomic either way.
       { maxWait: 5_000, timeout: 30_000 },
@@ -648,7 +642,8 @@ export async function prepareTasksForUserDeletion(
     if (isPrismaTransactionConflict(error)) {
       // Deliberately NOT an x402-specific code: this catch wraps the whole
       // transaction, and a write conflict or deadlock can just as well come
-      // from the claim sweep, the owned-task delete, or the user-row lock contending with an unrelated FK insert.
+      // from the claim sweep, the owned-task delete, or the user-row lock
+      // contending with an unrelated FK insert.
       // Naming a task payment here would send support chasing a payment that
       // may not exist.
       throw new APIError("BAD_REQUEST", {

@@ -21,12 +21,16 @@ import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { jobSummariesSchema } from "@/schemas/job.schema.js";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-import { workScopeQuerySchema } from "@/schemas/work-scope.schema";
 
-const jobsScopeQuerySchema = workScopeQuerySchema({
-  defaultScope: "mine",
-  description: "Which jobs to list.",
-});
+const jobsScopeQuerySchema = z
+  .enum(["workspace", "owned"])
+  .default("owned")
+  .openapi({
+    param: { name: "scope", in: "query" },
+    description:
+      "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all jobs in the active workspace.",
+    example: "workspace",
+  });
 
 const projectIdQuerySchema = z
   .union([z.string().uuid(), z.literal("null")])

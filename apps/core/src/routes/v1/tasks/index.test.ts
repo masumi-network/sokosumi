@@ -97,7 +97,7 @@ describe("tasks routes OpenAPI query contract", () => {
     });
 
     expect(getQueryDescriptionFromGetOperation(doc, "/", "scope")).toContain(
-      "'owned': Deprecated. Use mine.",
+      "workspace visibility scope",
     );
     expect(getQueryDescriptionFromGetOperation(doc, "/{id}", "scope")).toBe("");
     expect(

@@ -10,7 +10,6 @@ import type { UserAuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 
 import { getUserJobs, type JobContext } from "./job";
-import { buildResponsibleUserWhere } from "./task-visibility";
 
 function createTransactionClient() {
   return {
@@ -76,37 +75,13 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              ...buildResponsibleUserWhere("user_123"),
+              ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             humanParentTaskVisibilityWhere,
           ],
         },
         include: jobListSummaryInclude,
-      }),
-    );
-  });
-
-  it("filters jobs by the responsible user when scope=mine", async () => {
-    const tx = createTransactionClient();
-
-    await getUserJobs(orgJobContext, {
-      take: 20,
-      scope: "mine",
-      tx,
-    });
-
-    expect(tx.job.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          AND: [
-            {
-              ...buildResponsibleUserWhere("user_123"),
-              workspaceId: orgWorkspaceContext.workspaceId,
-            },
-            humanParentTaskVisibilityWhere,
-          ],
-        },
       }),
     );
   });
@@ -164,7 +139,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              ...buildResponsibleUserWhere("user_123"),
+              ownerId: "user_123",
               workspaceId: personalWorkspaceContext.workspaceId,
             },
             humanParentTaskVisibilityWhere,
@@ -188,7 +163,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              ...buildResponsibleUserWhere("user_123"),
+              ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             humanParentTaskVisibilityWhere,
@@ -218,7 +193,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              ...buildResponsibleUserWhere("user_123"),
+              ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             humanParentTaskVisibilityWhere,
@@ -243,7 +218,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              ...buildResponsibleUserWhere("user_123"),
+              ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             humanParentTaskVisibilityWhere,
@@ -289,7 +264,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              ...buildResponsibleUserWhere("user_123"),
+              ownerId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             {

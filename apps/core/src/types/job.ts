@@ -13,33 +13,25 @@ import {
 } from "@sokosumi/database/helpers";
 import { getJobDetailsAgentOverrideFields } from "@/helpers/agent";
 import { organizationSummaryFromLoadedRelation } from "@/helpers/loaded-relation-summaries";
-import { resolveResponsibleUserId } from "@/helpers/task-visibility";
-import {
-  mapResponsibleUserSummary,
-  mapWorkCreator,
-  mapWorkRequester,
-} from "@/helpers/work-creator";
+import { mapOwnerSummary, mapWorkCreator } from "@/helpers/work-creator";
 import { mapWorkspaceSummary } from "@/helpers/workspace";
 
 export function flattenJob(
   job: JobWithSummaryRelations | JobWithListSummaryRelations,
 ) {
   const completedAt = getCompletedAt(job);
-  const responsibleUserId = resolveResponsibleUserId(job);
-  const owner = mapResponsibleUserSummary(`Job ${job.id}`, job);
+  const owner = mapOwnerSummary(`Job ${job.id}`, job);
 
   return {
     id: job.id,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     agentId: job.agentId,
-    // Deprecated: the Owner fields carry the responsible person.
-    ownerId: responsibleUserId,
+    ownerId: job.ownerId,
     owner,
-    responsibleUserId,
     creator: mapWorkCreator(`Job ${job.id}`, job),
-    requester: mapWorkRequester(`Job ${job.id}`, job),
-    userId: responsibleUserId,
+    // Deprecated aliases — keep until clients migrate.
+    userId: job.ownerId,
     user: owner,
     organizationId: job.organizationId,
     projectId: job.projectId ?? null,
@@ -70,8 +62,7 @@ export function flattenJob(
 }
 
 export function serializeJobDetails(job: JobWithSokosumiStatus) {
-  const responsibleUserId = resolveResponsibleUserId(job);
-  const owner = mapResponsibleUserSummary(`Job ${job.id}`, job);
+  const owner = mapOwnerSummary(`Job ${job.id}`, job);
 
   return {
     id: job.id,
@@ -79,13 +70,11 @@ export function serializeJobDetails(job: JobWithSokosumiStatus) {
     updatedAt: job.updatedAt,
     completedAt: job.completedAt,
     agentId: job.agentId,
-    // Deprecated: the Owner fields carry the responsible person.
-    ownerId: responsibleUserId,
+    ownerId: job.ownerId,
     owner,
-    responsibleUserId,
     creator: mapWorkCreator(`Job ${job.id}`, job),
-    requester: mapWorkRequester(`Job ${job.id}`, job),
-    userId: responsibleUserId,
+    // Deprecated aliases — keep until clients migrate.
+    userId: job.ownerId,
     user: owner,
     organizationId: job.organizationId,
     projectId: job.projectId ?? null,

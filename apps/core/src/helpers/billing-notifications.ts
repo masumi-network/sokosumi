@@ -34,7 +34,7 @@ import prisma from "@/lib/db/prisma";
  * member is the subject. On a low-balance check it names the member charged,
  * because the balance an organization member can spend depends on their
  * seat; null there reads the Organization pool a charge with no member draws
- * on (ADR 0056).
+ * on (ADR 0057).
  */
 export interface BillingWallet {
   userId: string | null;

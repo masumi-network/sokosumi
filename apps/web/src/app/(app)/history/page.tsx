@@ -102,7 +102,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
               emptyResults: t("Filters.emptyResults"),
               all: t("Filters.all"),
               scopeLabel: t("Filters.scopeLabel"),
-              scopeMine: t("Filters.scopeMine"),
+              scopeOwned: t("Filters.scopeOwned"),
               scopeWorkspace: t("Filters.scopeWorkspace"),
               typeLabel: t("Filters.typeLabel"),
               projectLabel: t("Filters.projectLabel"),

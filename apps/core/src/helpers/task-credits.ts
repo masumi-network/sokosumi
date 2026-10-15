@@ -11,8 +11,8 @@ import { unprocessableEntity } from "./error";
 
 interface CreateTaskEventTransactionInput {
   /**
-   * The member charged: the work's responsible person. Null charges the
-   * Organization pool with no member (ADR 0056).
+   * The member charged: the work's Owner. Null charges the Organization pool
+   * with no member (ADR 0057).
    */
   userId: string | null;
   organizationId: string | null;

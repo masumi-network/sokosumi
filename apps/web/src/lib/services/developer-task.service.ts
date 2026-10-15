@@ -8,7 +8,7 @@ import type {
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { TaskStatus } from "@/lib/types/core-dto";
 
-interface DeveloperTaskResponsibleUser {
+interface DeveloperTaskOwner {
   id: string;
   name: string;
   email: string;
@@ -23,8 +23,8 @@ export interface DeveloperTaskListRow {
   updatedAt: Date;
   assignee: DeveloperCoworkerRef;
   creatorCoworker: DeveloperCoworkerRef;
-  /** The responsible person; null when nobody is responsible. */
-  responsibleUser: DeveloperTaskResponsibleUser | null;
+  /** The Owner; null when the task has none. */
+  owner: DeveloperTaskOwner | null;
   /** Null for tasks in a personal workspace. */
   organization: {
     id: string;
@@ -33,11 +33,11 @@ export interface DeveloperTaskListRow {
   } | null;
 }
 
-/** Full task payload plus responsible person and organization context for developer views. */
+/** Full task payload plus owner/organization context for developer views. */
 export interface DeveloperTaskDetail {
   task: Task;
-  /** The responsible person; null when nobody is responsible. */
-  responsibleUser: DeveloperTaskResponsibleUser | null;
+  /** The Owner; null when the task has none. */
+  owner: DeveloperTaskOwner | null;
   /** Null for tasks in a personal workspace. */
   organization: {
     id: string;
@@ -67,7 +67,7 @@ function mapListItem(task: DeveloperTaskListItem): DeveloperTaskListRow {
     updatedAt: task.updatedAt,
     assignee: task.assignee,
     creatorCoworker: task.creatorCoworker,
-    responsibleUser: task.responsibleUser,
+    owner: task.owner,
     organization: task.organization,
   };
 }
@@ -91,7 +91,7 @@ export const developerTaskService = {
 
       return {
         task: result.data.task,
-        responsibleUser: result.data.responsibleUser,
+        owner: result.data.owner,
         organization: result.data.organization,
       };
     } catch (error) {

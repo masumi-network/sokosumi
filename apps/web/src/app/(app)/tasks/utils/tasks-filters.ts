@@ -1,7 +1,6 @@
 import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
-import { readWorkScopeParam } from "@/lib/utils/work-scope";
 
-export const TASKS_SCOPE_VALUES = ["mine", "workspace"] as const;
+export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
 
 export type TasksScope = (typeof TASKS_SCOPE_VALUES)[number];
 
@@ -134,7 +133,7 @@ export function getDefaultTasksScope(
   // members see the shared board first; personal context has no workspace
   // to show, so it stays on the user's own tasks. Drives Tasks + Calendar,
   // server render + client, and the initial fetch (scope feeds the query).
-  return activeOrganizationId !== null ? "workspace" : "mine";
+  return activeOrganizationId !== null ? "workspace" : "owned";
 }
 
 /**
@@ -149,7 +148,7 @@ export function sanitizeTasksScopeInput(
   if (typeof raw !== "string") {
     return defaultScope;
   }
-  const requestedScope = readWorkScopeParam(raw);
+  const requestedScope = raw.trim();
   if (
     !requestedScope ||
     !TASKS_SCOPE_VALUES.includes(requestedScope as TasksScope)
@@ -363,13 +362,13 @@ export function getTasksFiltersResetKey(
  * Determines whether to show the active filter indicator dot.
  *
  * Business logic:
- * - Organization boards: Show the dot when `scope` is "mine" or "workspace"
+ * - Organization boards: Show the dot when `scope` is "owned" or "workspace"
  *   (either explicit choice signals the board is scoped — "My Tasks" or "All
  *   workspace tasks" — as opposed to a hypothetical unfiltered view). The
  *   default here is "workspace". Also show when assigneeId or status is set.
  *   `projectId` is owned by the project switcher, not the Filters panel.
  * - Personal boards: Show the dot only when a non-default filter is applied
- *   (assigneeId or status). The default "mine" scope alone does
+ *   (assigneeId or status). The default "owned" scope alone does
  *   not show the dot, as there's no workspace context to distinguish from.
  */
 export function hasActiveTasksFilters(
@@ -386,7 +385,7 @@ export function hasActiveTasksFilters(
 
   if (activeOrganizationId !== null) {
     return (
-      filters.scope === "mine" ||
+      filters.scope === "owned" ||
       filters.scope === "workspace" ||
       hasNonScopeFilter
     );

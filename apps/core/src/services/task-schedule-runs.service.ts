@@ -15,7 +15,6 @@ import { computeNextRun } from "@/helpers/cron";
 import { taskCreationEvents } from "@/helpers/task-creation-events";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { computeIntervalNextRun } from "@/helpers/task-schedule";
-import { resolveResponsibleUserId } from "@/helpers/task-visibility";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
@@ -376,8 +375,6 @@ class ReleaseClaimLostError extends Error {
 export interface ReleasedTask {
   id: string;
   ownerId: string | null;
-  creatorUserId: string | null;
-  requestedByUserId: string | null;
   assigneeUserId: string | null;
 }
 
@@ -423,11 +420,6 @@ function createTaskFromBlueprint(
       creatorUserId: schedule.creatorUserId,
       creatorCoworkerId: schedule.creatorCoworkerId,
       creatorSokoBotId: schedule.creatorSokoBotId,
-      requestedByUserId: schedule.requestedByUserId,
-      // The Requester follows the Task they asked for (ADR 0056).
-      ...(schedule.requestedByUserId
-        ? { participants: { create: { userId: schedule.requestedByUserId } } }
-        : {}),
       status: TaskStatus.READY,
       events: {
         create: taskCreationEvents({
@@ -441,13 +433,7 @@ function createTaskFromBlueprint(
         }),
       },
     },
-    select: {
-      id: true,
-      ownerId: true,
-      creatorUserId: true,
-      requestedByUserId: true,
-      assigneeUserId: true,
-    },
+    select: { id: true, ownerId: true, assigneeUserId: true },
   });
 }
 
@@ -652,11 +638,11 @@ export async function announceReleasedTasks(
 ): Promise<void> {
   await Promise.all(
     tasks.map(async (task) => {
-      const responsibleUserId = resolveResponsibleUserId(task);
-      if (responsibleUserId) {
+      const ownerId = task.ownerId;
+      if (ownerId) {
         try {
           await publishTaskEventData({
-            userId: responsibleUserId,
+            userId: ownerId,
             taskId: task.id,
             eventType: "task_event",
           });
@@ -702,7 +688,7 @@ async function releaseRunAt(
         taskId: task.id,
         status: TaskStatus.READY,
         channel: Channel.SOKOSUMI,
-        userId: resolveResponsibleUserId(task),
+        userId: task.ownerId,
       },
     });
     return true;
@@ -784,14 +770,7 @@ export const taskScheduleReleaseService = {
         },
         orderBy: [{ runAt: "asc" }, { id: "asc" }],
         take: TASK_SCHEDULE_RELEASE_BATCH_SIZE,
-        select: {
-          id: true,
-          runAt: true,
-          ownerId: true,
-          creatorUserId: true,
-          requestedByUserId: true,
-          assigneeUserId: true,
-        },
+        select: { id: true, runAt: true, ownerId: true, assigneeUserId: true },
       });
       if (batch.length === 0) break;
 

@@ -33,7 +33,7 @@ const filterLabels = {
   emptyResults: "Empty",
   all: "All",
   scopeLabel: "Scope",
-  scopeMine: "My transactions",
+  scopeOwned: "Owned",
   scopeWorkspace: "Workspace",
   typeLabel: "Source",
   projectLabel: "Project",
@@ -53,7 +53,7 @@ describe("HistoryToolbar", () => {
     const { container } = render(
       <HistoryToolbar
         activeOrganizationId={null}
-        filters={{ q: null, scope: "mine", type: null, projectId: null }}
+        filters={{ q: null, scope: "owned", type: null, projectId: null }}
         projectOptions={[]}
         resultsCountLabel="3 results found"
         labels={{
@@ -78,7 +78,7 @@ describe("HistoryToolbar", () => {
     const { container } = render(
       <HistoryToolbar
         activeOrganizationId={null}
-        filters={{ q: null, scope: "mine", type: null, projectId: null }}
+        filters={{ q: null, scope: "owned", type: null, projectId: null }}
         projectOptions={[]}
         resultsCountLabel="3 results found"
         labels={{

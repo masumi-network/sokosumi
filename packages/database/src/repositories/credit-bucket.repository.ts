@@ -34,7 +34,7 @@ export const creditBucketRepository = {
   /**
    * What `userId` can spend in this workspace. A null user with an
    * organization reads the Organization pool a charge with no member draws on
-   * (ADR 0056).
+   * (ADR 0057).
    */
   async getBalance(
     userId: string | null,
@@ -236,7 +236,7 @@ export const creditBucketRepository = {
   /**
    * FIFO consume in list order until `cents` is covered. Throws if
    * insufficient. A null user with an organization consumes the Organization
-   * pool with no member and no Seat (ADR 0056).
+   * pool with no member and no Seat (ADR 0057).
    */
   async prepareConsumption(
     userId: string | null,

@@ -42,8 +42,6 @@ describe("GET /share/{token}", () => {
         agentId: "agent_123",
         ownerId: "user_123",
         creator: null,
-        requester: null,
-        responsibleUserId: "user_123",
         owner: {
           id: "user_123",
           name: "Ada Lovelace",
@@ -136,8 +134,6 @@ describe("GET /share/{token}", () => {
         agentId: "agent_123",
         ownerId: "user_123",
         creator: null,
-        requester: null,
-        responsibleUserId: "user_123",
         owner: {
           id: "user_123",
           name: "Ada Lovelace",

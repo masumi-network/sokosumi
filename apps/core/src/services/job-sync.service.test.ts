@@ -1712,7 +1712,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(notificationUpdateManyAndReturnMock).not.toHaveBeenCalled();
   });
 
-  describe("live status reaches the responsible person", () => {
+  describe("live status reaches the Owner", () => {
     async function syncCompletion(ownership: Record<string, unknown>) {
       const completedJob = createJob({
         status: SokosumiJobStatus.COMPLETED,
@@ -1742,19 +1742,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
     }
 
-    it("publishes to the person who made a Job nobody owns", async () => {
-      await syncCompletion({ ownerId: null, creatorUserId: "user_maker" });
-
-      expect(publishJobStatusDataMock).toHaveBeenCalledWith(
-        expect.objectContaining({ userId: "user_maker", jobId: "job_1" }),
-      );
-    });
-
-    it("publishes to the Requester when a Coworker made the Job for them", async () => {
+    it("publishes to the Owner a Coworker made the Job for", async () => {
       await syncCompletion({
-        ownerId: null,
+        ownerId: "user_asker",
+        creatorUserId: null,
         creatorCoworkerId: "coworker_1",
-        requestedByUserId: "user_asker",
       });
 
       expect(publishJobStatusDataMock).toHaveBeenCalledWith(
@@ -1762,8 +1754,12 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       );
     });
 
-    it("publishes to nobody when nobody is responsible", async () => {
-      await syncCompletion({ ownerId: null, creatorSokoBotId: "bot_1" });
+    it("publishes to nobody for a Job without an Owner", async () => {
+      await syncCompletion({
+        ownerId: null,
+        creatorUserId: null,
+        creatorSokoBotId: "bot_1",
+      });
 
       expect(publishJobStatusDataMock).not.toHaveBeenCalled();
     });

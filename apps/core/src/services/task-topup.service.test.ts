@@ -1,8 +1,6 @@
 import { TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildResponsibleUserWhere } from "@/helpers/task-visibility";
-
 import { markOutOfCreditsTasksAsToppedUp } from "./task-topup.service";
 
 vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
@@ -29,7 +27,7 @@ describe("markOutOfCreditsTasksAsToppedUp", () => {
     vi.clearAllMocks();
   });
 
-  it("resumes the personal Tasks the topped-up person is responsible for (ADR 0056)", async () => {
+  it("resumes the personal Tasks the topped-up person owns", async () => {
     const tx = createTx();
 
     await markOutOfCreditsTasksAsToppedUp({
@@ -41,7 +39,7 @@ describe("markOutOfCreditsTasksAsToppedUp", () => {
     expect(tx.task.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          ...buildResponsibleUserWhere("user_1"),
+          ownerId: "user_1",
           status: TaskStatus.OUT_OF_CREDITS,
         },
       }),
@@ -56,7 +54,7 @@ describe("markOutOfCreditsTasksAsToppedUp", () => {
     );
   });
 
-  it("resumes every out-of-credits Task of an Organization, whoever is responsible", async () => {
+  it("resumes every out-of-credits Task of an Organization, with or without an Owner", async () => {
     const tx = createTx();
 
     await markOutOfCreditsTasksAsToppedUp({

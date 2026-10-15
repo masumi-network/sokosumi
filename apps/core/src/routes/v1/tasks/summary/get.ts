@@ -3,11 +3,7 @@ import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import {
-  buildHumanTaskVisibilityWhere,
-  buildResponsibleUserSql,
-  buildResponsibleUserWhere,
-} from "@/helpers/task-visibility";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -16,16 +12,19 @@ import {
   TASK_AWAITING_INPUT_STATUSES,
   taskSummaryResponseSchema,
 } from "@/schemas/task.schema";
-import { workScopeQuerySchema } from "@/schemas/work-scope.schema";
 
 /** The one reporting window. The 24h before it is the trend baseline. */
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const query = z.object({
-  scope: workScopeQuerySchema({
-    defaultScope: "mine",
-    description: "Which tasks to count.",
-  }),
+  scope: z
+    .enum(["owned", "workspace"])
+    .default("owned")
+    .openapi({
+      param: { name: "scope", in: "query" },
+      description:
+        "`owned` counts only the caller's own tasks; `workspace` counts every task in the active workspace.",
+    }),
 });
 
 const route = createRoute({
@@ -78,9 +77,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const base = {
       archivedAt: null,
       workspaceId: workspaceContext.workspaceId,
-      ...(scope === "mine"
-        ? { AND: [buildResponsibleUserWhere(userContext.userId)] }
-        : {}),
+      ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
       ...buildHumanTaskVisibilityWhere(userContext.userId),
     };
     const range = (from: Date, to: Date) => ({ gte: from, lt: to });
@@ -89,9 +86,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // RUNNING event is paired with whatever event superseded it. There is no
     // duration column anywhere, and elapsed created→completed would count
     // nights and weekends a task merely sat around waiting.
-    const responsibleFilter =
-      scope === "mine"
-        ? PrismaRaw.sql`AND ${buildResponsibleUserSql(userContext.userId)}`
+    const ownerFilter =
+      scope === "owned"
+        ? PrismaRaw.sql`AND t."ownerId" = ${userContext.userId}`
         : PrismaRaw.empty;
     const visibilityFilter = PrismaRaw.sql`
       AND (
@@ -116,7 +113,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
     // Only an organization workspace has other humans in it. Honours `scope`
-    // via `base`: under `mine` this is "tasks I am responsible for that a teammate created".
+    // via `base`: under `owned` this is "tasks I own that a teammate created".
     const byOthersIn = (from: Date, to: Date) =>
       workspaceContext.organizationId
         ? prisma.task.count({
@@ -177,7 +174,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ) ev
           WHERE t."archivedAt" IS NULL
             AND t."workspaceId" = ${workspaceContext.workspaceId}
-            ${responsibleFilter}
+            ${ownerFilter}
             ${visibilityFilter}
             -- Skip tasks that cannot contribute a RUNNING span in/after the
             -- window: still-running, recently written, or with a status event

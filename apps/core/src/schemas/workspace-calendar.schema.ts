@@ -11,8 +11,6 @@ import { dateTimeSchema } from "@/helpers/datetime";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostProviderSchema } from "@/schemas/social-post.schema";
-import { responsibleUserIdField } from "@/schemas/work-creator.schema";
-import { workScopeQuerySchema } from "@/schemas/work-scope.schema";
 
 const workspaceCalendarQueryObjectSchema = z.object({
   from: z.iso.datetime().openapi({
@@ -34,9 +32,9 @@ const workspaceCalendarQueryObjectSchema = z.object({
     description:
       "Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.",
   }),
-  scope: workScopeQuerySchema({
-    defaultScope: "workspace",
-    description: "Whether to show only the work you are responsible for.",
+  scope: z.enum(["owned", "workspace"]).default("workspace").openapi({
+    description: "Whether to show only the caller's tasks or the workspace",
+    example: "workspace",
   }),
   assigneeId: z.uuid().optional().openapi({
     description: "Only items whose Task Schedule or Task has this coworker",
@@ -139,14 +137,11 @@ export const workspaceCalendarItemSchema = z
       .nullable()
       .optional()
       .openapi({ example: "user_123" }),
-    /** @deprecated Use `responsibleUserId`. */
     taskOwnerId: z.union([z.string(), z.null()]).openapi({
-      deprecated: true,
       description:
-        "Deprecated. Use responsibleUserId. The person responsible for the Task Schedule and the Tasks it creates; null only when nobody is responsible for the work.",
+        "Owner of the Task Schedule and the Tasks it creates; null when it has none",
       example: "user_123",
     }),
-    ...responsibleUserIdField,
     scheduledAt: dateTimeSchema.openapi({
       description: "Effective time at which the item appears in the Calendar",
     }),

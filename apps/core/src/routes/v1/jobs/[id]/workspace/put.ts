@@ -4,7 +4,7 @@ import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import {
   readWorkspaceOrganizationId,
   requireJobCollaboration,
-  requireResponsiblePersonForPersonalWorkspace,
+  requireOwnerForPersonalWorkspace,
 } from "@/helpers/access-control";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -36,7 +36,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "put",
     path: "/{id}/workspace",
     description:
-      "Change job workspace. Only the person responsible for the job may move it. A job nobody is responsible for needs an organization owner or admin and cannot move to a personal workspace.",
+      "Change job workspace. Only the job's owner may move it. A job without an owner needs an organization owner or admin and cannot move to a personal workspace.",
     tags: ["Jobs"],
     request: {
       params: paramsSchema,
@@ -66,7 +66,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { organizationId: targetOrganizationId } = c.req.valid("json");
 
     const job = await serializableTransaction(async (tx) => {
-      // Moving belongs to the job's responsible person (ADR 0056). A
+      // Moving belongs to the job's Owner (ADR 0057). A
       // delegated coworker may only move a job whose task is assigned to it.
       const accessibleJob = await requireJobCollaboration(
         c.var.authContext,
@@ -97,10 +97,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       // `null` targets the authenticated user's personal workspace.
-      requireResponsiblePersonForPersonalWorkspace(
-        accessibleJob,
-        targetOrganizationId,
-      );
+      requireOwnerForPersonalWorkspace(accessibleJob, targetOrganizationId);
       if (targetOrganizationId !== null) {
         await resolveMemberOrganizationById({
           id: targetOrganizationId,

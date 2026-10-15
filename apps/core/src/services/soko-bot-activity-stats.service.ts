@@ -1,14 +1,6 @@
 import { convertCentsToCredits } from "@sokosumi/utils";
 
-import {
-  buildNotResponsibleUserWhere,
-  buildResponsibleUserWhere,
-  buildSokoBotOwnerTaskVisibilityWhere,
-} from "@/helpers/task-visibility";
-import {
-  pickResponsibleUser,
-  responsibleUserNameSelect,
-} from "@/helpers/work-creator";
+import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { roundCredits } from "@/lib/soko-bot/task-charges";
 
@@ -41,18 +33,7 @@ export async function activityStats(
   until: Date,
 ): Promise<ActivityStats> {
   const window = { gte: since, lt: until };
-  // Work the bot's person is responsible for, and everyone else's (ADR 0056).
-  const ownTask = {
-    workspaceId: bot.workspaceId,
-    AND: [buildResponsibleUserWhere(bot.userId)],
-  };
-  const teamTask = {
-    workspaceId: bot.workspaceId,
-    AND: [
-      buildSokoBotOwnerTaskVisibilityWhere(bot.userId),
-      buildNotResponsibleUserWhere(bot.userId),
-    ],
-  };
+  const ownTask = { workspaceId: bot.workspaceId, ownerId: bot.userId };
   const finished = (status: "COMPLETED" | "FAILED", extra: object = {}) =>
     prisma.taskEvent
       .findMany({
@@ -61,6 +42,7 @@ export async function activityStats(
         distinct: ["taskId"],
       })
       .then((rows) => rows.length);
+  const visible = buildSokoBotOwnerTaskVisibilityWhere(bot.userId);
   const [
     created,
     completed,
@@ -105,19 +87,29 @@ export async function activityStats(
       },
     }),
     prisma.task.findMany({
-      where: { ...teamTask, createdAt: window },
-      select: responsibleUserNameSelect,
+      where: {
+        workspaceId: bot.workspaceId,
+        createdAt: window,
+        // Work without an Owner (ADR 0057) is the team's too; `NOT` drops it.
+        OR: [{ ownerId: { not: bot.userId } }, { ownerId: null }],
+        AND: [visible],
+      },
+      select: { owner: { select: { name: true } } },
       take: 1000,
     }),
     prisma.taskEvent.findMany({
       where: {
         status: "COMPLETED",
         createdAt: window,
-        task: teamTask,
+        task: {
+          workspaceId: bot.workspaceId,
+          OR: [{ ownerId: { not: bot.userId } }, { ownerId: null }],
+          AND: [visible],
+        },
       },
       select: {
         taskId: true,
-        task: { select: responsibleUserNameSelect },
+        task: { select: { owner: { select: { name: true } } } },
       },
       distinct: ["taskId"],
       take: 1000,
@@ -138,13 +130,15 @@ export async function activityStats(
   const team = new Map<string, { completed: number; created: number }>();
   const person = (name: string | null) => name?.trim() || "A teammate";
   for (const task of teamCreated) {
-    const name = person(pickResponsibleUser(task)?.name ?? null);
-    const row = team.get(name) ?? { completed: 0, created: 0 };
+    const row = team.get(person(task.owner?.name ?? null)) ?? {
+      completed: 0,
+      created: 0,
+    };
     row.created += 1;
-    team.set(name, row);
+    team.set(person(task.owner?.name ?? null), row);
   }
   for (const event of teamCompleted) {
-    const name = person(pickResponsibleUser(event.task)?.name ?? null);
+    const name = person(event.task.owner?.name ?? null);
     const row = team.get(name) ?? { completed: 0, created: 0 };
     row.completed += 1;
     team.set(name, row);

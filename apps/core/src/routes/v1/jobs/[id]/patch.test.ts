@@ -133,8 +133,6 @@ function createSerializedJob(overrides: Record<string, unknown> = {}) {
     agentId: "agent_123",
     ownerId: "user_123",
     creator: null,
-    requester: null,
-    responsibleUserId: "user_123",
     owner: {
       id: "user_123",
       name: "Ada Lovelace",

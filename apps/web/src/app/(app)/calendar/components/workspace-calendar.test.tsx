@@ -94,7 +94,6 @@ const ITEMS: WorkspaceCalendarItem[] = [
     taskStatus: null,
     taskAssigneeId: "coworker-1",
     taskOwnerId: "user-1",
-    responsibleUserId: "user-1",
     scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
     originalScheduledAt: new Date("2026-08-18T09:00:00.000Z"),
     state: "PLANNED",
@@ -476,13 +475,13 @@ describe("WorkspaceCalendar", () => {
       },
     ]);
 
-    props.sections.find((section) => section.id === "scope")?.onChange("mine");
+    props.sections.find((section) => section.id === "scope")?.onChange("owned");
     await waitFor(() => expect(onUrlUpdate).toHaveBeenCalledTimes(1));
 
     const updates = onUrlUpdate.mock.calls.map(([event]) =>
       event.searchParams.toString(),
     );
-    expect(new URLSearchParams(updates.at(-1)).get("scope")).toBe("mine");
+    expect(new URLSearchParams(updates.at(-1)).get("scope")).toBe("owned");
   });
 
   it("provides profile pictures for coworker and human filter options", () => {
@@ -548,7 +547,7 @@ describe("WorkspaceCalendar", () => {
 
     render(
       <NuqsTestingAdapter
-        searchParams="?timezone=UTC&scope=mine"
+        searchParams="?timezone=UTC&scope=owned"
         onUrlUpdate={onUrlUpdate}
       >
         <WorkspaceCalendar
@@ -575,7 +574,7 @@ describe("WorkspaceCalendar", () => {
       event.searchParams.toString(),
     );
     const updatedSearchParams = new URLSearchParams(updates.at(-1));
-    expect(updatedSearchParams.get("scope")).toBe("mine");
+    expect(updatedSearchParams.get("scope")).toBe("owned");
     expect(updatedSearchParams.get("assigneeId")).toBe("coworker-1");
   });
 
@@ -968,29 +967,6 @@ describe("WorkspaceCalendar", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("loads more of a saved owned-scope URL as mine", async () => {
-    getProjectCalendarMock.mockResolvedValueOnce({
-      data: [{ ...ITEMS[0], id: "later", taskName: "Later task" }],
-      meta: { pagination: { nextCursor: null } },
-    });
-    render(
-      <NuqsTestingAdapter searchParams="?view=agenda&timezone=UTC&scope=owned">
-        <WorkspaceCalendar
-          initialDate="2026-08-18"
-          items={ITEMS}
-          lockedProjectId="project-1"
-          {...CALENDAR_PAGE}
-        />
-      </NuqsTestingAdapter>,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "agenda.loadMore" }));
-    await screen.findByText("Later task");
-    expect(getProjectCalendarMock).toHaveBeenLastCalledWith(
-      "project-1",
-      expect.objectContaining({ scope: "mine" }),
-    );
-  });
-
   it("keeps loaded agenda items on failure and retries with the project and filters", async () => {
     getProjectCalendarMock
       .mockRejectedValueOnce(new Error("offline"))
@@ -999,7 +975,7 @@ describe("WorkspaceCalendar", () => {
         meta: { pagination: { nextCursor: null } },
       });
     render(
-      <NuqsTestingAdapter searchParams="?view=agenda&timezone=UTC&scope=mine&assigneeId=coworker-1">
+      <NuqsTestingAdapter searchParams="?view=agenda&timezone=UTC&scope=owned&assigneeId=coworker-1">
         <WorkspaceCalendar
           initialDate="2026-08-18"
           items={ITEMS}
@@ -1018,7 +994,7 @@ describe("WorkspaceCalendar", () => {
     expect(getProjectCalendarMock).toHaveBeenLastCalledWith(
       "project-1",
       expect.objectContaining({
-        scope: "mine",
+        scope: "owned",
         assigneeId: "coworker-1",
         limit: 10,
       }),
@@ -1244,7 +1220,7 @@ describe("WorkspaceCalendar", () => {
       });
 
       render(
-        <NuqsTestingAdapter searchParams="?assigneeId=coworker-1&scope=mine&status=QUEUED&projectId=project-2&sourceId=workspace%3Aworkspace-1">
+        <NuqsTestingAdapter searchParams="?assigneeId=coworker-1&scope=owned&status=QUEUED&projectId=project-2&sourceId=workspace%3Aworkspace-1">
           <WorkspaceCalendar
             includeSocialPosts={includeSocialPosts}
             initialDate="2026-08-18"
@@ -1263,7 +1239,7 @@ describe("WorkspaceCalendar", () => {
           agendaOnly: undefined,
           cursor: "cursor-2",
           limit: 100,
-          scope: "mine",
+          scope: "owned",
           assigneeId: "coworker-1",
           status: "QUEUED",
         }),

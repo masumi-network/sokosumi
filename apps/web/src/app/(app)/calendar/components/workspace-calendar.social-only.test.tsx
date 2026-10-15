@@ -127,7 +127,6 @@ const RUN: WorkspaceCalendarItem = {
   taskStatus: "COMPLETED",
   taskAssigneeId: "coworker-1",
   taskOwnerId: "user-1",
-  responsibleUserId: "user-1",
   scheduledAt: new Date("2030-01-02T09:00:00.000Z"),
   originalScheduledAt: new Date("2030-01-02T09:00:00.000Z"),
   state: "RELEASED",

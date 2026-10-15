@@ -193,7 +193,7 @@ const labels = {
     emptyResults: "No results",
     all: "All",
     scopeLabel: "Scope",
-    scopeMine: "Owned",
+    scopeOwned: "Owned",
     scopeWorkspace: "Workspace",
     coworkerLabel: "Coworker",
     statusLabel: "Status",
@@ -232,7 +232,7 @@ const labels = {
 } satisfies ComponentProps<typeof TasksView>["labels"];
 
 const EMPTY_FILTERS: TasksFilters = {
-  scope: "mine",
+  scope: "owned",
   assigneeId: null,
   assigneeSokoBotId: null,
   assigneeUserId: null,

@@ -6,7 +6,7 @@ export const HISTORY_SEARCH_KINDS = ["task", "job", "image"] as const;
 
 export type HistorySearchKind = (typeof HISTORY_SEARCH_KINDS)[number];
 
-export type HistorySearchScope = "mine" | "workspace";
+export type HistorySearchScope = "owned" | "workspace";
 
 /**
  * Personal scope, in an organization too: the palette is "things I did", and
@@ -15,5 +15,5 @@ export type HistorySearchScope = "mine" | "workspace";
 export function getHistorySearchScope(
   _activeOrganizationId: string | null,
 ): HistorySearchScope {
-  return "mine";
+  return "owned";
 }

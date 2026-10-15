@@ -107,10 +107,8 @@ import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import {
-  buildResponsibleUserWhere,
   buildSokoBotAudienceJobParentTaskWhere,
   buildSokoBotAudienceTaskVisibilityWhere,
-  isResponsibleUser,
   readSokoBotPacketAudience,
   type SokoBotPacketAudience,
 } from "@/helpers/task-visibility";
@@ -499,7 +497,7 @@ export interface SokoBotActionContext {
     sokoBotId: string;
     /** Who the turn acts for; see `sokoBotActingUserId`. */
     actingUserId: string;
-    /** The member who asked (ADR 0056); null when the bot started on its own. */
+    /** The member who asked (ADR 0057); null when the bot started on its own. */
     requestedByUserId: string | null;
     workspaceId: string;
     eveSessionId: string | null;
@@ -2561,16 +2559,15 @@ export class SokoBotRuntimeService {
       where: {
         id: taskId,
         workspaceId: authorized.turn.workspaceId,
-        // The bot's own person may inspect the retained archive history of
-        // work they are responsible for; shared audience reads and
-        // related-task discovery still exclude archives.
+        // Explicit owner reads may inspect retained archive history; shared
+        // audience reads and related-task discovery still exclude archives.
         ...(authorized.askedByKind === "OWNER"
           ? {
               AND: [
                 {
                   OR: [
                     { archivedAt: null },
-                    buildResponsibleUserWhere(authorized.turn.actingUserId),
+                    { ownerId: authorized.turn.actingUserId },
                   ],
                 },
               ],
@@ -2919,8 +2916,6 @@ export class SokoBotRuntimeService {
           id: true,
           name: true,
           ownerId: true,
-          creatorUserId: true,
-          requestedByUserId: true,
           status: true,
           assigneeId: true,
           assigneeSokoBotId: true,
@@ -2961,12 +2956,11 @@ export class SokoBotRuntimeService {
       }
       const cancel =
         input.status === "CANCELED" && task.status !== TaskStatus.CANCELED;
-      // Cancelling stops the work for good, so it is the call of the person
-      // responsible for the Task (ADR 0056), and only when that is the person
-      // this bot acts for; commenting stays open to any visible one.
-      if (cancel && !isResponsibleUser(task, authorized.turn.actingUserId))
+      // Cancelling stops the work for good, so it is the owner's call and
+      // only on the owner's own Tasks; commenting stays open to any visible one.
+      if (cancel && task.ownerId !== authorized.turn.actingUserId)
         throw new SokoBotRuntimeValidationError(
-          "Only Tasks the person you act for is responsible for can be canceled; comment instead",
+          "Only the owner's own Tasks can be canceled; comment instead",
         );
       const changeStatus =
         input.status === "READY" &&
@@ -5081,9 +5075,9 @@ export class SokoBotRuntimeService {
             AND: [
               {
                 id: jobId,
+                ownerId: authorized.turn.actingUserId,
                 workspaceId: authorized.turn.workspaceId,
               },
-              buildResponsibleUserWhere(authorized.turn.actingUserId),
               buildSokoBotAudienceJobParentTaskWhere(
                 authorized.turn.actingUserId,
                 authorized.askedByKind,
@@ -5447,7 +5441,7 @@ export class SokoBotRuntimeService {
     confirmationTurnId?: string,
   ) {
     // The member who asked answers a decision, and so may an Organization
-    // owner or admin; one nobody asked for only they can answer (ADR 0056).
+    // owner or admin; one nobody asked for only they can answer (ADR 0057).
     // Without a person (`ownerConfirmed` false) the runtime accepts the
     // decision its own turn just made, so there is no answerer to check.
     const decision = await prisma.sokoBotPendingDecision.findFirst({
@@ -5945,10 +5939,7 @@ export class SokoBotRuntimeService {
               id: input.eventId,
               jobId: input.jobId,
               status: AgentJobStatus.AWAITING_INPUT,
-              job: {
-                workspaceId: decision.workspaceId,
-                AND: [buildResponsibleUserWhere(actingUserId)],
-              },
+              job: { ownerId: actingUserId, workspaceId: decision.workspaceId },
             },
             include: {
               input: true,

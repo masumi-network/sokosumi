@@ -98,13 +98,13 @@ describe("POST /tasks/schedules", () => {
     expect(taskScheduleTestDb.schedules).toHaveLength(1);
   });
 
-  it("returns the person who makes a schedule as Creator, with no Requester", async () => {
+  it("returns the person who makes a schedule as Creator and Owner", async () => {
     const response = await post({ name: "Weekly report", rule: WEEKLY_RULE });
 
     expect(response.status).toBe(201);
     const { data } = await response.json();
     expect(data.creator).toMatchObject({ type: "user", id: OWNER_ID });
-    expect(data.requester).toBeNull();
+    expect(data.ownerId).toBe(OWNER_ID);
   });
 
   describe("Runs", () => {
@@ -384,7 +384,7 @@ describe("POST /tasks/schedules", () => {
       });
     });
 
-    it("returns the Coworker as Creator and the person it acted for as Requester", async () => {
+    it("returns the Coworker as Creator and the person it acted for as Owner", async () => {
       const response = await post(
         { name: "Weekly report", rule: WEEKLY_RULE, assigneeId: COWORKER_ID },
         createTaskScheduleTestApp(mountPostTaskSchedule, COWORKER_AUTH),
@@ -396,7 +396,6 @@ describe("POST /tasks/schedules", () => {
         type: "coworker",
         id: COWORKER_ID,
       });
-      expect(data.requester).toMatchObject({ id: OWNER_ID });
       expect(data.ownerId).toBe(OWNER_ID);
     });
 

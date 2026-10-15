@@ -116,7 +116,6 @@ function createListTask() {
       slug: "ops-agent",
     },
     creatorCoworker: null,
-    ownerId: "user_workspace",
     owner: {
       id: "user_workspace",
       name: "Workspace User",
@@ -177,11 +176,6 @@ describe("GET /developer/tasks", () => {
         name: "Workspace User",
         email: "workspace@example.com",
       },
-      responsibleUser: {
-        id: "user_workspace",
-        name: "Workspace User",
-        email: "workspace@example.com",
-      },
       organization: {
         id: "org_123",
         name: "Acme Corp",
@@ -190,18 +184,8 @@ describe("GET /developer/tasks", () => {
     });
   });
 
-  it("returns a null responsible person when nobody is responsible", async () => {
-    taskFindManyMock.mockResolvedValue([
-      {
-        ...createListTask(),
-        ownerId: null,
-        owner: null,
-        creatorUserId: null,
-        creatorUser: null,
-        requestedByUserId: null,
-        requestedByUser: null,
-      },
-    ]);
+  it("returns a null owner for a Task without an Owner", async () => {
+    taskFindManyMock.mockResolvedValue([{ ...createListTask(), owner: null }]);
     taskCountMock.mockResolvedValue(1);
 
     const response = await createApp().request("/");
@@ -209,7 +193,6 @@ describe("GET /developer/tasks", () => {
     expect(response.status).toBe(200);
     const [item] = (await response.json()).data;
     expect(item.owner).toBeNull();
-    expect(item.responsibleUser).toBeNull();
   });
 
   it("filters by owned coworkerId when provided", async () => {

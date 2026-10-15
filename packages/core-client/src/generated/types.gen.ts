@@ -1370,19 +1370,9 @@ export type AdminTaskListItem = {
     status: TaskStatus;
     createdAt: Date;
     /**
-     * Deprecated. Use responsibleUser.
-     *
-     * @deprecated
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     owner: {
-        id: string;
-        name: string;
-        email: string;
-    } | null;
-    /**
-     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
-     */
-    responsibleUser: {
         id: string;
         name: string;
         email: string;
@@ -1416,19 +1406,9 @@ export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
 export type AdminTaskDetail = {
     task: Task;
     /**
-     * Deprecated. Use responsibleUser.
-     *
-     * @deprecated
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     owner: {
-        id: string;
-        name: string;
-        email: string;
-    } | null;
-    /**
-     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
-     */
-    responsibleUser: {
         id: string;
         name: string;
         email: string;
@@ -1445,25 +1425,21 @@ export type Task = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
-     *
-     * @deprecated
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     ownerId: string | null;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
-     *
-     * @deprecated
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     owner: UserSummary | null;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
     userId: string | null;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     * Deprecated. Use owner instead.
      *
      * @deprecated
      */
@@ -1511,14 +1487,6 @@ export type Task = {
      * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
      */
     creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
-    /**
-     * The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.
-     */
-    requester: UserSummary | null;
-    /**
-     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
-     */
-    responsibleUserId: string | null;
     /**
      * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
@@ -1845,15 +1813,11 @@ export type JobSummary = {
     completedAt?: Date | null;
     agentId: string;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
-     *
-     * @deprecated
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     ownerId: string | null;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
-     *
-     * @deprecated
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     owner: UserSummary | null;
     /**
@@ -1861,21 +1825,13 @@ export type JobSummary = {
      */
     creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     /**
-     * The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.
-     */
-    requester: UserSummary | null;
-    /**
-     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
-     */
-    responsibleUserId: string | null;
-    /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
     userId: string | null;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     * Deprecated. Use owner instead.
      *
      * @deprecated
      */
@@ -3525,19 +3481,9 @@ export type DeveloperTaskListItem = {
     assignee: DeveloperCoworkerRef;
     creatorCoworker: DeveloperCoworkerRef;
     /**
-     * Deprecated. Use responsibleUser.
-     *
-     * @deprecated
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     owner: {
-        id: string;
-        name: string;
-        email: string;
-    } | null;
-    /**
-     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
-     */
-    responsibleUser: {
         id: string;
         name: string;
         email: string;
@@ -3558,19 +3504,9 @@ export type DeveloperCoworkerRef = {
 export type DeveloperTaskDetail = {
     task: Task;
     /**
-     * Deprecated. Use responsibleUser.
-     *
-     * @deprecated
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     owner: {
-        id: string;
-        name: string;
-        email: string;
-    } | null;
-    /**
-     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
-     */
-    responsibleUser: {
         id: string;
         name: string;
         email: string;
@@ -5759,15 +5695,9 @@ export type WorkspaceCalendarItem = {
     taskAssigneeId: string | null;
     taskAssigneeUserId?: string | null;
     /**
-     * Deprecated. Use responsibleUserId. The person responsible for the Task Schedule and the Tasks it creates; null only when nobody is responsible for the work.
-     *
-     * @deprecated
+     * Owner of the Task Schedule and the Tasks it creates; null when it has none
      */
     taskOwnerId: string | null;
-    /**
-     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
-     */
-    responsibleUserId: string | null;
     /**
      * Effective time at which the item appears in the Calendar
      */
@@ -6917,15 +6847,11 @@ export type Job = {
     completedAt?: Date | null;
     agentId: string;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
-     *
-     * @deprecated
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     ownerId: string | null;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
-     *
-     * @deprecated
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     owner: UserSummary | null;
     /**
@@ -6933,21 +6859,13 @@ export type Job = {
      */
     creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     /**
-     * The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.
-     */
-    requester: UserSummary | null;
-    /**
-     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
-     */
-    responsibleUserId: string | null;
-    /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
     userId: string | null;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     * Deprecated. Use owner instead.
      *
      * @deprecated
      */
@@ -7878,25 +7796,21 @@ export type TaskListItem = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
-     *
-     * @deprecated
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     ownerId: string | null;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
-     *
-     * @deprecated
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     owner: UserSummary | null;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
     userId: string | null;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     * Deprecated. Use owner instead.
      *
      * @deprecated
      */
@@ -7944,14 +7858,6 @@ export type TaskListItem = {
      * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
      */
     creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
-    /**
-     * The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.
-     */
-    requester: UserSummary | null;
-    /**
-     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
-     */
-    responsibleUserId: string | null;
     /**
      * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
@@ -8040,9 +7946,7 @@ export type TaskSchedule = {
     workspaceId: string;
     organizationId: string | null;
     /**
-     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
-     *
-     * @deprecated
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     ownerId: string | null;
     creatorUserId: string | null;
@@ -8052,14 +7956,6 @@ export type TaskSchedule = {
      * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
      */
     creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
-    /**
-     * The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.
-     */
-    requester: UserSummary | null;
-    /**
-     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
-     */
-    responsibleUserId: string | null;
     state: TaskScheduleState;
     rule: {
         expr: string;
@@ -16625,9 +16521,9 @@ export type GetAgentsByIdJobsData = {
          */
         limit?: number;
         /**
-         * Which of the agent's jobs to list. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
+         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all jobs in the active workspace.
          */
-        scope?: 'workspace' | 'mine' | 'owned';
+        scope?: 'workspace' | 'owned';
     };
     url: '/agents/{id}/jobs';
 };
@@ -31821,9 +31717,9 @@ export type GetHistoryData = {
          */
         q?: string;
         /**
-         * Which task and job rows to list. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
+         * Workspace visibility scope for task and job rows.
          */
-        scope?: 'workspace' | 'mine' | 'owned';
+        scope?: 'workspace' | 'owned';
         /**
          * Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task, job and image rows match. Image rows have no status of their own, so a filter naming task or job states excludes them.
          */
@@ -41304,9 +41200,9 @@ export type GetProjectsByIdCalendarData = {
          */
         agendaOnly?: 'true' | 'false';
         /**
-         * Whether to show only the work you are responsible for. Defaults to 'workspace'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
+         * Whether to show only the caller's tasks or the workspace
          */
-        scope?: 'workspace' | 'mine' | 'owned';
+        scope?: 'owned' | 'workspace';
         /**
          * Only items whose Task Schedule or Task has this coworker
          */
@@ -47756,9 +47652,9 @@ export type GetJobsData = {
          */
         status?: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
         /**
-         * Which jobs to list. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
+         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all jobs in the active workspace.
          */
-        scope?: 'workspace' | 'mine' | 'owned';
+        scope?: 'workspace' | 'owned';
         /**
          * Filter jobs by project ID. Use the literal value 'null' to return jobs that are not assigned to a project.
          */
@@ -55585,9 +55481,9 @@ export type GetTasksData = {
          */
         status?: Array<TaskStatus>;
         /**
-         * Which tasks to list. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
+         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.
          */
-        scope?: 'workspace' | 'mine' | 'owned';
+        scope?: 'workspace' | 'owned';
         /**
          * Filter tasks by project ID. Use the literal value 'null' to return tasks that are not assigned to a project.
          */
@@ -55864,9 +55760,9 @@ export type GetTasksSummaryData = {
     path?: never;
     query?: {
         /**
-         * Which tasks to count. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
+         * `owned` counts only the caller's own tasks; `workspace` counts every task in the active workspace.
          */
-        scope?: 'workspace' | 'mine' | 'owned';
+        scope?: 'owned' | 'workspace';
     };
     url: '/tasks/summary';
 };
@@ -60783,9 +60679,9 @@ export type GetTransactionsData = {
          */
         q?: string;
         /**
-         * Which ledger rows to list. Defaults to 'mine'. 'mine': transactions charged through you. 'workspace': every transaction in the active workspace, including organization-level ones charged through nobody. 'owned': Deprecated. Use mine.
+         * owned: only ledger rows belonging to the calling user. workspace: every ledger row in the active workspace, including organization-level ones with no user.
          */
-        scope?: 'workspace' | 'mine' | 'owned';
+        scope?: 'workspace' | 'owned';
         /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
@@ -60902,9 +60798,9 @@ export type GetTransactionsDailyData = {
          */
         q?: string;
         /**
-         * Which ledger rows to list. Defaults to 'mine'. 'mine': transactions charged through you. 'workspace': every transaction in the active workspace, including organization-level ones charged through nobody. 'owned': Deprecated. Use mine.
+         * owned: only ledger rows belonging to the calling user. workspace: every ledger row in the active workspace, including organization-level ones with no user.
          */
-        scope?: 'workspace' | 'mine' | 'owned';
+        scope?: 'workspace' | 'owned';
         /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
@@ -61021,9 +60917,9 @@ export type GetTransactionsExportData = {
          */
         q?: string;
         /**
-         * Which ledger rows to list. Defaults to 'mine'. 'mine': transactions charged through you. 'workspace': every transaction in the active workspace, including organization-level ones charged through nobody. 'owned': Deprecated. Use mine.
+         * owned: only ledger rows belonging to the calling user. workspace: every ledger row in the active workspace, including organization-level ones with no user.
          */
-        scope?: 'workspace' | 'mine' | 'owned';
+        scope?: 'workspace' | 'owned';
         /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
@@ -63420,9 +63316,9 @@ export type GetWorkspacesCalendarData = {
          */
         agendaOnly?: 'true' | 'false';
         /**
-         * Whether to show only the work you are responsible for. Defaults to 'workspace'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
+         * Whether to show only the caller's tasks or the workspace
          */
-        scope?: 'workspace' | 'mine' | 'owned';
+        scope?: 'owned' | 'workspace';
         /**
          * Only items whose Task Schedule or Task has this coworker
          */

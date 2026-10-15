@@ -28,12 +28,7 @@ import {
   userSummaryFromLoadedRelation,
 } from "./loaded-relation-summaries";
 import { mapTaskLinksForTask } from "./task-link";
-import { resolveResponsibleUserId } from "./task-visibility";
-import {
-  mapResponsibleUserSummary,
-  mapWorkCreator,
-  mapWorkRequester,
-} from "./work-creator";
+import { mapOwnerSummary, mapWorkCreator } from "./work-creator";
 import { mapWorkspaceSummary } from "./workspace";
 
 type TaskFileForMapping = TaskWithIncludes["files"][number];
@@ -393,8 +388,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     task.organization ?? null,
   );
 
-  const responsibleUserId = resolveResponsibleUserId(task);
-  const responsibleUser = mapResponsibleUserSummary(`Task ${task.id}`, task);
+  const taskOwnerSummary = mapOwnerSummary(`Task ${task.id}`, task);
 
   const assignee = mapTaskAssignee(task);
   const creator = mapWorkCreator(`Task ${task.id}`, task);
@@ -403,12 +397,11 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     id: task.id,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
-    // Deprecated: the Owner fields carry the responsible person.
-    ownerId: responsibleUserId,
-    owner: responsibleUser,
-    responsibleUserId,
-    userId: responsibleUserId,
-    user: responsibleUser,
+    ownerId: task.ownerId,
+    owner: taskOwnerSummary,
+    // Deprecated aliases — keep until clients migrate.
+    userId: task.ownerId,
+    user: taskOwnerSummary,
     organizationId: task.organizationId,
     projectId: task.projectId,
     project: projectSummaryFromLoadedRelation(
@@ -424,7 +417,6 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     coworkerId: task.assigneeId,
     coworker: assignee?.type === "coworker" ? assignee.coworker : null,
     creator,
-    requester: mapWorkRequester(`Task ${task.id}`, task),
     // Deprecated aliases for legacy sokoBot-created tasks.
     sokoBotId: creator?.type === "sokoBot" ? creator.id : null,
     sokoBot: creator?.type === "sokoBot" ? creator.sokoBot : null,

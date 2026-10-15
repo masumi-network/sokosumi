@@ -824,7 +824,7 @@ describe("TaskActivitySection", () => {
       render(
         <TaskActivitySection
           {...baseProps}
-          responsibleUserId="user-9"
+          taskOwnerId="user-9"
           userById={{ "user-9": owner }}
           events={[
             createEvent("created", {
@@ -850,7 +850,7 @@ describe("TaskActivitySection", () => {
       render(
         <TaskActivitySection
           {...baseProps}
-          responsibleUserId="user-9"
+          taskOwnerId="user-9"
           userById={{ "user-9": owner }}
           events={[
             createEvent("later", {

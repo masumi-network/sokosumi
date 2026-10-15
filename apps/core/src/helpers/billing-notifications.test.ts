@@ -232,7 +232,7 @@ describe("notifyLowBalanceAfterCharge", () => {
     ]);
   });
 
-  it("reads the Organization pool after a charge with no member (ADR 0056)", async () => {
+  it("reads the Organization pool after a charge with no member (ADR 0057)", async () => {
     getBalanceMock.mockResolvedValue(convertCreditsToCents(5));
 
     await notifyLowBalanceAfterCharge({

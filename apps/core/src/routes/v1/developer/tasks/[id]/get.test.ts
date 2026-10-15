@@ -190,7 +190,6 @@ describe("GET /developer/tasks/{id}", () => {
       name: "Workspace User",
       email: "workspace@example.com",
     });
-    expect(body.data.responsibleUser).toEqual(body.data.owner);
     expect(body.data.organization).toEqual({
       id: "org_123",
       name: "Acme Corp",
@@ -199,15 +198,11 @@ describe("GET /developer/tasks/{id}", () => {
     expect(body.data.user).toBeUndefined();
   });
 
-  it("returns a null responsible person when nobody is responsible", async () => {
+  it("returns a null owner for a Task without an Owner", async () => {
     taskFindFirstMock.mockResolvedValue({
       ...createTask(),
       ownerId: null,
       owner: null,
-      creatorUserId: null,
-      creatorUser: null,
-      requestedByUserId: null,
-      requestedByUser: null,
     });
 
     const response = await createApp().request(
@@ -217,7 +212,7 @@ describe("GET /developer/tasks/{id}", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data.owner).toBeNull();
-    expect(body.data.responsibleUser).toBeNull();
+    expect(body.data.task.ownerId).toBeNull();
   });
 
   it("returns 404 when the task is not visible to the developer", async () => {

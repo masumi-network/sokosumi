@@ -46,10 +46,6 @@ import {
   markTaskAssignedRead,
   notifyTaskHumanAssignee,
 } from "@/helpers/task-notifications";
-import {
-  isResponsibleUser,
-  resolveResponsibleUserId,
-} from "@/helpers/task-visibility";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -215,9 +211,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const task = await requireMutableTaskWriteAccess(userContext, id, tx);
-      // Write access seats everyone else, on the workspace org. The
-      // responsible person is seated here, on the billing organizationId.
-      if (isResponsibleUser(task, userContext.userId)) {
+      // Non-owners are seated inside write access, on the workspace org.
+      // The owner check stays on the billing organizationId.
+      if (task.ownerId === userContext.userId) {
         await requireAssignedOrganizationSeat(
           userContext.userId,
           task.organizationId,
@@ -324,7 +320,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           context,
           description: removeTaskContextAttachmentLinks(proseSource) || null,
           organizationId: task.organizationId,
-          ownerId: resolveResponsibleUserId(task) ?? userContext.userId,
+          ownerId: task.ownerId ?? userContext.userId,
           actorUserId: userContext.userId,
           project: healedProject,
           preservedBrandUrl,
@@ -381,11 +377,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await deliverCalendarInvalidationsNow(result.workspaceId);
     // Same signal as POST /tasks/{id}/events: open boards refresh on it.
     // A Run at time move stays Queued, so it does not publish.
-    const responsibleUserId = resolveResponsibleUserId(result.task);
-    if (result.statusChanged && responsibleUserId) {
+    const ownerId = result.task.ownerId;
+    if (result.statusChanged && ownerId) {
       try {
         await publishTaskEventData({
-          userId: responsibleUserId,
+          userId: ownerId,
           taskId: result.task.id,
           eventType: "task_event",
         });
@@ -394,7 +390,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           tags: { error_type: "publish_task_event" },
           extra: {
             taskId: result.task.id,
-            userId: responsibleUserId,
+            userId: ownerId,
           },
         });
       }

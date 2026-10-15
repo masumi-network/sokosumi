@@ -378,7 +378,7 @@ model History {
   id             String      @id @default(uuid(7))
   kind           HistoryKind
   entityId       String
-  /// The responsible person for TASK and JOB rows; null when nobody is.
+  /// The Owner of TASK and JOB rows; null when they have none.
   userId         String?
   workspaceId    String?     @db.Uuid
   organizationId String?
@@ -1478,15 +1478,13 @@ model Job {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  /// The responsible person while every Job still has one; set only when the
-  /// Job's Task is private once the data move lands (ADR 0056). Emptied when
-  /// that person is deleted.
+  /// The Owner: the person who answers for the Job (ADR 0057). Null when a
+  /// Soko Bot hired it on its own or the Owner deleted their account.
   ownerId String?
   owner   User?   @relation("JobOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
-  /// Creator and Requester, as on Task. At most one creator FK is set (DB
-  /// check `Job_creator_at_most_one_check`); a Requester is never set beside a
-  /// person Creator (`Job_requester_not_person_creator_check`).
+  /// Creator, as on Task. At most one creator FK is set (DB check
+  /// `Job_creator_at_most_one_check`).
   creatorUserId String?
   creatorUser   User?   @relation("JobCreatorUser", fields: [creatorUserId], references: [id], onDelete: SetNull)
 
@@ -1495,9 +1493,6 @@ model Job {
 
   creatorSokoBotId String?  @db.Uuid
   creatorSokoBot   SokoBot? @relation("JobCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
-
-  requestedByUserId String?
-  requestedByUser   User?   @relation("JobRequestedByUser", fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
@@ -1554,7 +1549,6 @@ model Job {
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])
-  @@index([requestedByUserId])
   @@index([jobType])
   @@index([taskId])
   @@index([workspaceId])
@@ -2424,7 +2418,7 @@ model SokoBotTurn {
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
-  /// Requester: the member who asked (ADR 0056). Null for built-in rhythms
+  /// Requester: the member who asked (ADR 0057). Null for built-in rhythms
   /// and work the bot started on its own. Never changed after creation.
   requestedByUserId String?
   requestedBy       User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
@@ -2895,7 +2889,7 @@ model SokoBotPendingDecision {
   turnId String      @db.Uuid
   turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
 
-  /// Requester: the member who asked (ADR 0056). Null for built-in rhythms
+  /// Requester: the member who asked (ADR 0057). Null for built-in rhythms
   /// and work the bot started on its own. Never changed after creation.
   requestedByUserId String?
   requestedBy       User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
@@ -2926,7 +2920,7 @@ model SokoBotSchedule {
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
-  /// Requester: the member who asked (ADR 0056). Null for built-in rhythms
+  /// Requester: the member who asked (ADR 0057). Null for built-in rhythms
   /// and work the bot started on its own. Never changed after creation.
   requestedByUserId String?
   requestedBy       User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
@@ -3049,8 +3043,10 @@ model Task {
   updatedAt       DateTime                 @updatedAt
   archivedAt      DateTime?
 
-  /// The one reader of private work (ADR 0056). Account deletion deletes the
-  /// private Tasks a person owns; on public ones the Owner is emptied.
+  /// The Owner: the person who answers for the Task, and the only reader of a
+  /// private one (ADR 0057). Private Tasks always have one (DB check
+  /// `task_private_has_owner_check`). Account deletion deletes the private
+  /// Tasks a person owns; on public ones the Owner is emptied.
   ownerId String?
   owner   User?   @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
@@ -3103,12 +3099,6 @@ model Task {
 
   creatorSokoBotId String?  @db.Uuid
   creatorSokoBot   SokoBot? @relation("TaskCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
-
-  /// Requester: the person a Coworker or Soko Bot made this Task for. A record
-  /// only; it grants nothing. Never set beside a person Creator (DB check
-  /// `task_requester_not_person_creator_check`).
-  requestedByUserId String?
-  requestedByUser   User?   @relation("TaskRequestedByUser", fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
@@ -3170,7 +3160,6 @@ model Task {
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])
-  @@index([requestedByUserId])
   @@index([workspaceId, visibility])
   @@index([scheduleId])
   @@index([status, runAt])
@@ -3204,7 +3193,8 @@ model TaskSchedule {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  /// As on Task: emptied on public schedules when the person is deleted.
+  /// As on Task (DB check `task_schedule_private_has_owner_check`): emptied
+  /// on public schedules when the Owner is deleted.
   ownerId String?
   owner   User?   @relation("TaskScheduleOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
@@ -3218,11 +3208,6 @@ model TaskSchedule {
 
   creatorSokoBotId String?  @db.Uuid
   creatorSokoBot   SokoBot? @relation("TaskScheduleCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
-
-  /// Requester, as on Task (DB check
-  /// `task_schedule_requester_not_person_creator_check`).
-  requestedByUserId String?
-  requestedByUser   User?   @relation("TaskScheduleRequestedByUser", fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   state TaskScheduleState @default(ACTIVE)
 
@@ -3273,7 +3258,6 @@ model TaskSchedule {
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])
-  @@index([requestedByUserId])
   @@index([assigneeId])
   @@index([assigneeSokoBotId])
   @@index([assigneeUserId])

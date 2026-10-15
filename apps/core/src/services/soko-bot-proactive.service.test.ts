@@ -2,11 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  buildNotResponsibleUserWhere,
-  buildResponsibleUserWhere,
-  buildSokoBotOwnerTaskVisibilityWhere,
-} from "@/helpers/task-visibility";
+import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 
 const {
   botFindUniqueOrThrowMock,
@@ -239,7 +235,7 @@ describe("buildSystemBeatMessage private Task visibility", () => {
 });
 
 describe("buildSystemBeatMessage stand-up board", () => {
-  it("lists only the person's open Tasks and adds a short team note", async () => {
+  it("lists only the Owner's open Tasks and adds a short team note", async () => {
     const integrations = await import(
       "@/services/soko-bot-integrations.service"
     );
@@ -262,15 +258,18 @@ describe("buildSystemBeatMessage stand-up board", () => {
           ];
         }
         if (args.where?.AND) {
-          // A public Task: named after the person who made it (ADR 0056).
           return [
             {
               name: "Pricing research",
               status: "RUNNING",
-              ownerId: null,
-              creatorUserId: "albina",
-              creatorUser: { name: "Albina" },
+              owner: { name: "Albina" },
               assignee: { name: "Hannah" },
+            },
+            {
+              name: "Weekly digest",
+              status: "COMPLETED",
+              owner: null,
+              assignee: null,
             },
           ];
         }
@@ -290,10 +289,7 @@ describe("buildSystemBeatMessage stand-up board", () => {
       now: new Date("2026-09-16T06:00:00.000Z"),
     });
     const own = {
-      OR: [
-        buildResponsibleUserWhere(ALICE_USER_ID),
-        { assigneeSokoBotId: ALICE_BOT_ID },
-      ],
+      OR: [{ ownerId: ALICE_USER_ID }, { assigneeSokoBotId: ALICE_BOT_ID }],
     };
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining(own) }),
@@ -303,7 +299,7 @@ describe("buildSystemBeatMessage stand-up board", () => {
         where: expect.objectContaining({
           AND: [
             buildSokoBotOwnerTaskVisibilityWhere(ALICE_USER_ID),
-            buildNotResponsibleUserWhere(ALICE_USER_ID),
+            { OR: [{ ownerId: { not: ALICE_USER_ID } }, { ownerId: null }] },
             {
               OR: [
                 { assigneeSokoBotId: null },
@@ -320,11 +316,13 @@ describe("buildSystemBeatMessage stand-up board", () => {
     expect(beat.message).toContain(
       'Albina · RUNNING · "Pricing research" · with Hannah',
     );
+    // Work without an Owner is still the team's.
+    expect(beat.message).toContain('A teammate · COMPLETED · "Weekly digest"');
   });
 });
 
 describe("findAttentionItems ownership", () => {
-  it("only chases the person's Tasks from turns they asked for or the bot started", async () => {
+  it("only chases the Owner's Tasks from turns they asked for or the bot started", async () => {
     delegationFindManyMock.mockResolvedValue([{ taskId: "t1" }]);
     taskFindManyMock.mockResolvedValue([]);
     await findAttentionItems({
@@ -346,9 +344,7 @@ describe("findAttentionItems ownership", () => {
     );
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          AND: expect.arrayContaining([buildResponsibleUserWhere("andreas")]),
-        }),
+        where: expect.objectContaining({ ownerId: "andreas" }),
       }),
     );
   });

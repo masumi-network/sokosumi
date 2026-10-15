@@ -134,7 +134,6 @@ export function seedTaskSchedule(
     creatorUserId: OWNER_ID,
     creatorCoworkerId: null,
     creatorSokoBotId: null,
-    requestedByUserId: null,
     state: TaskScheduleState.ACTIVE,
     expr: "0 9 * * 1",
     timezone: "UTC",
@@ -350,8 +349,8 @@ function person(id: string | null) {
   return id ? { id, name: `Person ${id}`, image: null } : null;
 }
 
-/** The Creator and Requester relations a schedule response maps. */
-function creatorRequester(row: TaskSchedule) {
+/** The Creator relations a schedule response maps. */
+function creatorRelations(row: TaskSchedule) {
   const coworker = row.creatorCoworkerId
     ? taskScheduleTestDb.coworkers.get(row.creatorCoworkerId)
     : undefined;
@@ -381,7 +380,6 @@ function creatorRequester(row: TaskSchedule) {
             user: person(sokoBot.userId),
           }
         : null,
-    requestedByUser: person(row.requestedByUserId),
   };
 }
 
@@ -393,7 +391,7 @@ function withInclude(row: TaskSchedule, include?: Record<string, unknown>) {
   return {
     ...row,
     ...(include.assignee ? { assignee } : {}),
-    ...(include.creatorUser ? creatorRequester(row) : {}),
+    ...(include.creatorUser ? creatorRelations(row) : {}),
   };
 }
 
@@ -416,7 +414,6 @@ const taskSchedule = {
         creatorUserId: null,
         creatorCoworkerId: null,
         creatorSokoBotId: null,
-        requestedByUserId: null,
         state: TaskScheduleState.ACTIVE,
         intervalDays: null,
         endsMode: TaskScheduleEndsMode.NEVER,

@@ -18,14 +18,13 @@ import {
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
+import { requireOwnerSeat } from "@/helpers/owner-seat";
 import { isIdempotencyKeyUniqueConstraintError } from "@/helpers/prisma";
-import { requireResponsibleUserSeat } from "@/helpers/responsible-user-seat";
 import {
   applyGuardedTaskStatusUpdate,
   chargeTaskCreditsOrMarkOutOfCredits,
 } from "@/helpers/task-event-charge";
 import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
-import { resolveResponsibleUserId } from "@/helpers/task-visibility";
 import { buildX402AgentPricingListing } from "@/helpers/x402-agent-listing";
 import { verifyX402DemandAgainstAgentSources } from "@/helpers/x402-payment-verify";
 import { calculateCentsFromX402Amount } from "@/helpers/x402-pricing";
@@ -183,18 +182,13 @@ async function runX402ChargePhase(
     // immutable and stay on the unlocked client.
     if (preflightPayment.status === TaskX402PaymentStatus.VERIFIED) {
       return await prisma.$transaction(async (tx) =>
-        resolveExistingPayment(
-          preflightPayment,
-          replayArgs,
-          resolveResponsibleUserId(task),
-          tx,
-        ),
+        resolveExistingPayment(preflightPayment, replayArgs, task.ownerId, tx),
       );
     }
     return await resolveExistingPayment(
       preflightPayment,
       replayArgs,
-      resolveResponsibleUserId(task),
+      task.ownerId,
       prisma,
     );
   }
@@ -226,7 +220,7 @@ async function runX402ChargePhase(
         return await resolveExistingPayment(
           existing,
           replayInput,
-          resolveResponsibleUserId(task),
+          task.ownerId,
           tx,
         );
       }
@@ -339,15 +333,10 @@ async function runX402ChargePhase(
       );
 
       // The charge draws from the same task pool as every other task charge,
-      // through the exact machinery the task-events masumiPayment branch uses:
-      // the Task's responsible person (ADR 0056).
-      await requireResponsibleUserSeat(
-        resolveResponsibleUserId(task),
-        task.organizationId,
-        tx,
-      );
+      // through the exact machinery the task-events masumiPayment branch uses.
+      await requireOwnerSeat(task.ownerId, task.organizationId, tx);
       const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-        userId: resolveResponsibleUserId(task),
+        userId: task.ownerId,
         organizationId: task.organizationId,
         cents,
         currentStatus: task.status,
@@ -377,7 +366,7 @@ async function runX402ChargePhase(
         return {
           kind: "out_of_credits",
           attemptedCredits: convertCentsToCredits(cents),
-          responsibleUserId: resolveResponsibleUserId(task),
+          taskOwnerId: task.ownerId,
           taskEventId: pauseEvent.id,
         };
       }
@@ -435,7 +424,7 @@ async function runX402ChargePhase(
       return {
         kind: "sign",
         paymentId: record.id,
-        responsibleUserId: resolveResponsibleUserId(task),
+        taskOwnerId: task.ownerId,
         chargedNow: true,
         signStartedAt,
         // Only the verified entry is forwarded — the node must not be handed
@@ -473,7 +462,7 @@ async function runX402ChargePhase(
     // After the commit: the wallet the charge came out of is the task's.
     waitUntil(
       notifyLowBalanceAfterCharge({
-        userId: resolveResponsibleUserId(task),
+        userId: task.ownerId,
         organizationId: task.organizationId,
       }),
     );
@@ -484,22 +473,22 @@ async function runX402ChargePhase(
 
 function schedulePostCommitFanout(
   taskId: string,
-  responsibleUserId: string | null,
+  taskOwnerId: string | null,
   outOfCreditsEventId?: string,
 ): void {
-  if (responsibleUserId) {
+  if (taskOwnerId) {
     waitUntil(
       (async () => {
         try {
           await publishTaskEventData({
-            userId: responsibleUserId,
+            userId: taskOwnerId,
             taskId,
             eventType: "task_event",
           });
         } catch (error) {
           Sentry.captureException(error, {
             tags: { error_type: "publish_task_event" },
-            extra: { taskId, userId: responsibleUserId },
+            extra: { taskId, userId: taskOwnerId },
           });
         }
       })(),
@@ -561,11 +550,7 @@ export async function payTaskX402(
   }
 
   if (outcome.kind === "out_of_credits") {
-    schedulePostCommitFanout(
-      taskId,
-      outcome.responsibleUserId,
-      outcome.taskEventId,
-    );
+    schedulePostCommitFanout(taskId, outcome.taskOwnerId, outcome.taskEventId);
     return {
       outcome: "out_of_credits",
       attemptedCredits: outcome.attemptedCredits,
@@ -575,7 +560,7 @@ export async function payTaskX402(
   if (outcome.chargedNow) {
     // The charge event is committed; surface it on the task timeline even if
     // the sign below fails.
-    schedulePostCommitFanout(taskId, outcome.responsibleUserId);
+    schedulePostCommitFanout(taskId, outcome.taskOwnerId);
   }
 
   // Fence-soundness guard: both persisted fences (`processingAt` lease,

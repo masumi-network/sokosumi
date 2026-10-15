@@ -34,9 +34,9 @@ import {
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { requireOwnerSeat } from "@/helpers/owner-seat";
 import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
-import { requireResponsibleUserSeat } from "@/helpers/responsible-user-seat";
 import {
   mapTaskEvent,
   validateQueuedRequiresRunAt,
@@ -54,10 +54,6 @@ import {
 } from "@/helpers/task-notifications";
 import { addTaskParticipantsFromComment } from "@/helpers/task-participants";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
-import {
-  type ResponsibleUserColumns,
-  resolveResponsibleUserId,
-} from "@/helpers/task-visibility";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -84,7 +80,8 @@ const paramsSchema = z.object({
 });
 
 interface SettleTaskEventChargeParams {
-  task: ResponsibleUserColumns & {
+  task: {
+    ownerId: string | null;
     organizationId: string | null;
     status: TaskStatus;
   };
@@ -162,7 +159,7 @@ async function settleTaskEventCharge({
       );
     }
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-      userId: resolveResponsibleUserId(task),
+      userId: task.ownerId,
       organizationId: task.organizationId,
       cents,
       currentStatus: task.status,
@@ -192,7 +189,7 @@ async function settleTaskEventCharge({
       );
     }
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-      userId: resolveResponsibleUserId(task),
+      userId: task.ownerId,
       organizationId: task.organizationId,
       cents,
       currentStatus: task.status,
@@ -310,12 +307,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (!isCancelOnlyWrite) {
         if (isAgent) {
-          // Agents spend the task billing org for its responsible person.
-          await requireResponsibleUserSeat(
-            resolveResponsibleUserId(task),
-            task.organizationId,
-            tx,
-          );
+          // Agents spend the task billing org for its Owner.
+          await requireOwnerSeat(task.ownerId, task.organizationId, tx);
         } else {
           // A person acts in the workspace the task currently lives in (move
           // does not rewrite billing org).
@@ -515,10 +508,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
         addedParticipantUserIds,
+        userId: task.ownerId,
         organizationId: task.organizationId,
         workspaceId: task.workspaceId,
         projectId: task.projectId,
-        responsibleUserId: resolveResponsibleUserId(task),
         masumiPayment: payment,
         taskPaymentClaimId,
         pausedForInsufficientBalance,
@@ -538,10 +531,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const {
       event,
       addedParticipantUserIds,
+      userId,
       organizationId,
       workspaceId,
       projectId,
-      responsibleUserId,
       masumiPayment,
       taskPaymentClaimId,
       pausedForInsufficientBalance,
@@ -593,12 +586,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (charged) {
-      waitUntil(
-        notifyLowBalanceAfterCharge({
-          userId: responsibleUserId,
-          organizationId,
-        }),
-      );
+      waitUntil(notifyLowBalanceAfterCharge({ userId, organizationId }));
     }
 
     // Unreachable by construction (a charged payment always writes its claim
@@ -715,10 +703,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       waitUntil(masumiPurchasePromise);
     }
 
-    // Live updates go to the responsible person; nobody's work has no one.
-    const taskIdsToPublish = responsibleUserId
-      ? [{ userId: responsibleUserId, taskId }]
-      : [];
+    // Live updates go to the Owner; work without one has nobody to tell.
+    const taskIdsToPublish = userId ? [{ userId, taskId }] : [];
 
     await Promise.all(
       taskIdsToPublish.map(

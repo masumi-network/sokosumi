@@ -1,12 +1,12 @@
 /**
- * Real-Postgres proof of who a Task charge is booked to (ADR 0056).
+ * Real-Postgres proof of who a Task charge is booked to (ADR 0057).
  *
  *   RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… \
  *     pnpm --filter core test src/helpers/task-event-charge.postgres.test.ts
  *
- * The responsible person is the transaction's member and spends what they
- * can spend in the Organization. Work nobody is responsible for draws on the
- * Organization pool with no member. The bucket scope is SQL, so only a real
+ * The Owner is the transaction's member and spends what they can spend in
+ * the Organization. Work without an Owner draws on the Organization pool with
+ * no member. The bucket scope is SQL, so only a real
  * database proves the charge lands on the right buckets. Every fixture is
  * written inside a transaction that always rolls back.
  */
@@ -81,7 +81,7 @@ async function seedOrganizationPool(tx: Tx): Promise<string> {
 }
 
 describe.skipIf(!enabled)("chargeTaskCreditsOrMarkOutOfCredits", () => {
-  it("books the responsible person as the transaction's member", async () => {
+  it("books the Owner as the transaction's member", async () => {
     await withRollback(async (tx) => {
       const bucketId = await seedOrganizationPool(tx);
 
@@ -108,7 +108,7 @@ describe.skipIf(!enabled)("chargeTaskCreditsOrMarkOutOfCredits", () => {
     });
   });
 
-  it("charges work nobody is responsible for to the Organization pool with no member", async () => {
+  it("charges work without an Owner to the Organization pool with no member", async () => {
     await withRollback(async (tx) => {
       const bucketId = await seedOrganizationPool(tx);
 
@@ -136,7 +136,7 @@ describe.skipIf(!enabled)("chargeTaskCreditsOrMarkOutOfCredits", () => {
     });
   });
 
-  it("pauses work nobody is responsible for when the Organization pool runs dry", async () => {
+  it("pauses work without an Owner when the Organization pool runs dry", async () => {
     await withRollback(async (tx) => {
       await seedOrganizationPool(tx);
 

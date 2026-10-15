@@ -25,8 +25,6 @@ function jobRow(overrides: Record<string, unknown> = {}) {
     creatorCoworker: null,
     creatorSokoBotId: null,
     creatorSokoBot: null,
-    requestedByUserId: null,
-    requestedByUser: null,
     organizationId: null,
     organization: null,
     projectId: null,
@@ -59,22 +57,46 @@ describe.each([
     (row: object) =>
       serializeJobDetails(row as unknown as JobWithSokosumiStatus),
   ],
-])("%s responsibleUserId", (_name, serialize) => {
-  it("is the Owner for existing work", () => {
+])("%s Owner and Creator", (_name, serialize) => {
+  it("names the Owner a Coworker made the Job for, and the Coworker as Creator", () => {
     const result = serialize(
       jobRow({
         creatorUserId: null,
         creatorUser: null,
         creatorCoworkerId: "cow_1",
-        creatorCoworker: { id: "cow_1", name: "Cow", image: null, slug: "cow" },
-        requestedByUserId: "user_requester",
-        requestedByUser: person("user_requester"),
+        creatorCoworker: {
+          id: "cow_1",
+          name: "Cow",
+          image: null,
+          slug: "cow",
+          vendorId: "vendor_1",
+        },
       }),
     );
 
     expect(result).toMatchObject({
       ownerId: "user_owner",
-      responsibleUserId: "user_owner",
+      owner: { id: "user_owner" },
+      creator: { type: "coworker", id: "cow_1" },
+    });
+  });
+
+  it("returns a null Owner and Creator once the person who made it is deleted", () => {
+    const result = serialize(
+      jobRow({
+        ownerId: null,
+        owner: null,
+        creatorUserId: null,
+        creatorUser: null,
+      }),
+    );
+
+    expect(result).toMatchObject({
+      ownerId: null,
+      owner: null,
+      userId: null,
+      user: null,
+      creator: null,
     });
   });
 });

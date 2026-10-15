@@ -87,7 +87,7 @@ interface TaskActivityProps {
   actionUpdatedStatusLabel: string;
   actionCreatedTaskLabel: string;
   /** Names the creation event when it has no actor (system, schedule). */
-  responsibleUserId?: string | null;
+  taskOwnerId?: string | null;
   events: TaskEvent[];
   /** Total comment events on the Task (Core meta); drives grouping. */
   commentCount?: number;
@@ -204,7 +204,7 @@ export function TaskActivitySection({
   actionCommentedLabel,
   actionUpdatedStatusLabel,
   actionCreatedTaskLabel,
-  responsibleUserId,
+  taskOwnerId,
   events,
   commentCount: commentCountProp,
   latestCommentId: latestCommentIdProp,
@@ -505,7 +505,7 @@ export function TaskActivitySection({
               userById,
               coworkerById,
               sokoBotById,
-              responsibleUserId,
+              taskOwnerId,
             );
             const actorName =
               actorInfo?.ownerName != null

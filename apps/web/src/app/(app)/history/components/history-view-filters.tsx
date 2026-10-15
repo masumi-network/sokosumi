@@ -26,7 +26,7 @@ interface HistoryViewFiltersProps {
     emptyResults: string;
     all: string;
     scopeLabel: string;
-    scopeMine: string;
+    scopeOwned: string;
     scopeWorkspace: string;
     typeLabel: string;
     projectLabel: string;
@@ -96,8 +96,8 @@ export function HistoryViewFilters({
             label: labels.scopeWorkspace,
           },
           {
-            value: "mine",
-            label: labels.scopeMine,
+            value: "owned",
+            label: labels.scopeOwned,
           },
         ],
       });
@@ -142,7 +142,7 @@ export function HistoryViewFilters({
     labels.all,
     labels.projectLabel,
     labels.scopeLabel,
-    labels.scopeMine,
+    labels.scopeOwned,
     labels.scopeWorkspace,
     labels.typeLabel,
     labels.typeOptions,

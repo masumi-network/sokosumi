@@ -69,8 +69,6 @@ function createJob(): Job {
   return {
     id: "job-1",
     creator: null,
-    requester: null,
-    responsibleUserId: owner.id,
     createdAt: new Date("2026-03-26T10:00:00.000Z"),
     updatedAt: new Date("2026-03-26T10:05:00.000Z"),
     completedAt: new Date("2026-03-26T10:06:00.000Z"),

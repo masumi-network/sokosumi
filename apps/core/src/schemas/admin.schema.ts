@@ -10,10 +10,7 @@ import {
 } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskSchema } from "@/schemas/task.schema";
-import {
-  deprecatedResponsibleUserWithEmailSchema,
-  responsibleUserWithEmailSchema,
-} from "@/schemas/work-creator.schema";
+import { workOwnerWithEmailSchema } from "@/schemas/work-creator.schema";
 
 /**
  * Lower page-size cap than the global pagination limit: every overview row
@@ -522,9 +519,7 @@ const adminTaskListItemSchema = z
     name: z.string().openapi({ example: "Quarterly report" }),
     status: taskStatusSchema.openapi({ example: TaskStatus.RUNNING }),
     createdAt: dateTimeSchema,
-    /** @deprecated Use `responsibleUser`. */
-    owner: deprecatedResponsibleUserWithEmailSchema,
-    responsibleUser: responsibleUserWithEmailSchema,
+    owner: workOwnerWithEmailSchema,
     organization: z
       .object({
         id: z.string().openapi({ example: "org_123" }),
@@ -551,9 +546,7 @@ export const adminTaskIdParamSchema = z.object({
 export const adminTaskDetailSchema = z
   .object({
     task: taskSchema,
-    /** @deprecated Use `responsibleUser`. */
-    owner: deprecatedResponsibleUserWithEmailSchema,
-    responsibleUser: responsibleUserWithEmailSchema,
+    owner: workOwnerWithEmailSchema,
     organization: z
       .object({
         id: z.string().openapi({ example: "org_123" }),

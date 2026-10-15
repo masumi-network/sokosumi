@@ -16,7 +16,7 @@ export interface OrganizationCreditBucketScopeContext {
   workspace: "organization";
   /**
    * The member charged. Null charges the Organization pool with no member,
-   * for work nobody is responsible for (ADR 0056); no Seat applies.
+   * for work without an Owner (ADR 0057); no Seat applies.
    */
   userId: string | null;
   organizationId: string;

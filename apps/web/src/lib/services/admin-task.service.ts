@@ -4,7 +4,7 @@ import type { Task } from "@sokosumi/core-client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { TaskStatus } from "@/lib/types/core-dto";
 
-interface AdminTaskResponsibleUser {
+interface AdminTaskOwner {
   id: string;
   name: string;
   email: string;
@@ -16,8 +16,8 @@ export interface AdminTaskListItem {
   name: string;
   status: TaskStatus;
   createdAt: Date;
-  /** The responsible person; null when nobody is responsible. */
-  responsibleUser: AdminTaskResponsibleUser | null;
+  /** The Owner; null when the task has none. */
+  owner: AdminTaskOwner | null;
   /** Null for tasks in a personal workspace. */
   organization: {
     id: string;
@@ -26,11 +26,11 @@ export interface AdminTaskListItem {
   } | null;
 }
 
-/** Full task payload plus responsible person and organization context for admin views. */
+/** Full task payload plus owner/organization context for admin views. */
 export interface AdminTaskDetail {
   task: Task;
-  /** The responsible person; null when nobody is responsible. */
-  responsibleUser: AdminTaskResponsibleUser | null;
+  /** The Owner; null when the task has none. */
+  owner: AdminTaskOwner | null;
   /** Null for tasks in a personal workspace. */
   organization: {
     id: string;
@@ -63,7 +63,7 @@ export const adminTaskService = {
         name: task.name,
         status: task.status,
         createdAt: task.createdAt,
-        responsibleUser: task.responsibleUser,
+        owner: task.owner,
         organization: task.organization,
       })),
       total: result.meta.pagination.total,
@@ -77,7 +77,7 @@ export const adminTaskService = {
 
       return {
         task: result.data.task,
-        responsibleUser: result.data.responsibleUser,
+        owner: result.data.owner,
         organization: result.data.organization,
       };
     } catch (error) {

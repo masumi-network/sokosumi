@@ -6,10 +6,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
-import {
-  publicWorkMadeBy,
-  WORK_MAKERS,
-} from "@/test-fixtures/responsible-work";
+import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 import mountDeleteTask from "./delete";
 
@@ -97,8 +94,6 @@ const {
                 },
               }
             : null),
-      requester: null,
-      responsibleUserId: t.ownerId,
       creator: (() => {
         const creatorSokoBotId =
           (t.creatorSokoBotId as string | null | undefined) ?? null;
@@ -531,7 +526,7 @@ describe("DELETE /tasks/{id}", () => {
     expect(requireTaskWriteAccessMock).not.toHaveBeenCalled();
   });
 
-  describe("who may archive a Task (ADR 0056)", () => {
+  describe("who may archive a Task (ADR 0057)", () => {
     const taskUpdateManyMock = vi.fn();
 
     beforeEach(async () => {
@@ -581,7 +576,7 @@ describe("DELETE /tasks/{id}", () => {
     }
 
     it.each(WORK_MAKERS)(
-      "lets the responsible person archive a Task made by a %s",
+      "lets the Owner archive a Task made by a %s",
       async (maker) => {
         mockStoredTask(publicWorkMadeBy(maker, "user_123"));
 
@@ -609,7 +604,7 @@ describe("DELETE /tasks/{id}", () => {
     );
 
     it.each(["owner", "admin"])(
-      "lets an Organization %s archive a Task nobody is responsible for",
+      "lets an Organization %s archive a Task without an Owner",
       async (role) => {
         mockStoredTask(publicWorkMadeBy("sokoBot", null));
         resolveMemberOrganizationByIdMock.mockResolvedValue({
@@ -624,7 +619,7 @@ describe("DELETE /tasks/{id}", () => {
       },
     );
 
-    it("refuses a plain member a Task nobody is responsible for", async () => {
+    it("refuses a plain member a Task without an Owner", async () => {
       mockStoredTask(publicWorkMadeBy("sokoBot", null));
 
       const response = await requestArchive();

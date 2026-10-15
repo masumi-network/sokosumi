@@ -1,4 +1,4 @@
-/** Soko Bot records name their Requester (ADR 0056), against a migrated, disposable PostgreSQL database.
+/** Soko Bot records name their Requester (ADR 0057), against a migrated, disposable PostgreSQL database.
  * RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter @sokosumi/core test src/services/soko-bot-requester.postgres.test.ts
  */
 import { randomUUID } from "node:crypto";

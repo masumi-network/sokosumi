@@ -54,7 +54,7 @@ describe("HistoryList month headings", () => {
         ]}
         nextCursor={null}
         filterResetKey="k"
-        filters={{ q: null, scope: "mine", type: null, projectId: null }}
+        filters={{ q: null, scope: "owned", type: null, projectId: null }}
         labels={labels}
         activeOrganizationId={null}
       />,
