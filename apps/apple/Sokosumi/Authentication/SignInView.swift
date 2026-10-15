@@ -26,6 +26,9 @@ struct SignInView: View {
           auth.startSignIn()
         }
         .buttonStyle(.borderedProminent)
+        #if DEBUG
+          ServerChoiceSection()
+        #endif
       case .signingIn:
         ProgressView("Contacting Sokosumi…")
         Button("Cancel") {
