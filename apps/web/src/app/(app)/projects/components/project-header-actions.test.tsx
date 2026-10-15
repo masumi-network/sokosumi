@@ -21,7 +21,10 @@ vi.mock("@/app/projects/components/project-detail-actions", () => ({
     projectRevision,
   }: {
     isClosingOrClosed: boolean;
-    labels: { moreActions: string };
+    labels: {
+      moreActions: string;
+      closeDialog: { scheduledPostsWarning?: string };
+    };
     projectRevision?: number;
   }) => (
     <div
@@ -30,6 +33,9 @@ vi.mock("@/app/projects/components/project-detail-actions", () => ({
       data-testid="menu"
     >
       {labels.moreActions}
+      {labels.closeDialog.scheduledPostsWarning ? (
+        <span>{labels.closeDialog.scheduledPostsWarning}</span>
+      ) : null}
     </div>
   ),
 }));
@@ -44,6 +50,9 @@ describe("ProjectHeaderActions", () => {
     expect(screen.getByTestId("menu")).toHaveTextContent(
       "App.Projects.Detail.actions.moreActions",
     );
+    expect(screen.getByTestId("menu")).not.toHaveTextContent(
+      "scheduledPostsWarning",
+    );
   });
 
   it("treats a closing project as closed for both controls", async () => {
@@ -56,6 +65,20 @@ describe("ProjectHeaderActions", () => {
 
     expect(screen.getByTestId("pin")).toHaveAttribute("data-closed", "true");
     expect(screen.getByTestId("menu")).toHaveAttribute("data-closed", "true");
+  });
+
+  it("passes scheduled-post warning copy when any will be canceled", async () => {
+    render(
+      await ProjectHeaderActions({
+        projectId: "p1",
+        projectRevision: 3,
+        scheduledSocialPostCount: 3,
+      }),
+    );
+
+    expect(screen.getByTestId("menu")).toHaveTextContent(
+      "App.Projects.Detail.close.dialog.scheduledPostsWarning",
+    );
   });
 
   it("treats a closed project as closed", async () => {

@@ -200,6 +200,16 @@ export const projectSchema = z
       description: "Revision used for optimistic Project mutations",
       example: 0,
     }),
+    scheduledSocialPostCount: z
+      .number()
+      .int()
+      .nonnegative()
+      .default(0)
+      .openapi({
+        description:
+          "Scheduled Social posts this Project still holds. Close cancels them.",
+        example: 0,
+      }),
     closingAt: dateTimeSchema.nullable().default(null).openapi({
       description: "Exclusive release cutoff while the Project is closing",
       example: null,
@@ -447,6 +457,7 @@ export function mapProjectContextMdForApi(
 export function mapProjectForApi(
   project: DatabaseProject,
   now: Date = new Date(),
+  scheduledSocialPostCount = 0,
 ): Project {
   const env = getEnv();
   const updatingSinceMs = project.contextMdUpdatingSince?.getTime();
@@ -495,6 +506,7 @@ export function mapProjectForApi(
       updatingSinceMs !== undefined &&
       now.getTime() - updatingSinceMs < PROJECT_MEMORY_UPDATING_WINDOW_MS,
     projectRevision: project.projectRevision ?? 0,
+    scheduledSocialPostCount,
     closingAt: project.closingAt ?? null,
     closedAt: project.closedAt ?? null,
     createdAt: project.createdAt,

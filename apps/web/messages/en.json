@@ -2935,6 +2935,7 @@
           "dialog": {
             "title": "Close project?",
             "description": "Work scheduled before the close cutoff will finish. Work at or after the cutoff will be canceled, and the project cannot be reopened.",
+            "scheduledPostsWarning": "{count, plural, one {# scheduled post will be canceled.} other {# scheduled posts will be canceled.}}",
             "reasonLabel": "Reason (optional)",
             "reasonPlaceholder": "Why is this project closing?",
             "confirm": "Close project",

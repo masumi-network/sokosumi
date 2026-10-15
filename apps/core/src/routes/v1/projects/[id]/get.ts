@@ -45,14 +45,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
-    const project = await prisma.project.findFirst({
-      where: { id, workspaceId: workspaceContext.workspaceId },
-    });
+    const [project, scheduledSocialPostCount] = await Promise.all([
+      prisma.project.findFirst({
+        where: { id, workspaceId: workspaceContext.workspaceId },
+      }),
+      prisma.socialPost.count({
+        where: {
+          projectId: id,
+          workspaceId: workspaceContext.workspaceId,
+          status: "SCHEDULED",
+        },
+      }),
+    ]);
 
     if (!project) {
       throw notFound("Project not found");
     }
 
-    return ok(c, mapProjectForApi(project));
+    return ok(
+      c,
+      mapProjectForApi(project, new Date(), scheduledSocialPostCount),
+    );
   });
 }

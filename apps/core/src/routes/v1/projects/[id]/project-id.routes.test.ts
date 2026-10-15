@@ -24,6 +24,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const {
   deliverCalendarInvalidationsNowMock,
   projectFindFirstMock,
+  socialPostCountMock,
   projectUpdateManyMock,
   projectDeleteManyMock,
   taskScheduleOccurrenceFindFirstMock,
@@ -38,6 +39,7 @@ const {
 } = vi.hoisted(() => ({
   deliverCalendarInvalidationsNowMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
+  socialPostCountMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
   projectDeleteManyMock: vi.fn(),
   taskScheduleOccurrenceFindFirstMock: vi.fn(),
@@ -69,6 +71,9 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: projectFindFirstMock,
       updateMany: projectUpdateManyMock,
       deleteMany: projectDeleteManyMock,
+    },
+    socialPost: {
+      count: socialPostCountMock,
     },
     job: {
       findFirst: jobFindFirstMock,
@@ -154,6 +159,7 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
 describe("GET /projects/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    socialPostCountMock.mockResolvedValue(0);
   });
 
   it("returns 404 when project is missing", async () => {
@@ -172,6 +178,26 @@ describe("GET /projects/{id}", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: { id: string } };
     expect(body.data.id).toBe(PROJECT_ID);
+  });
+
+  it("counts scheduled Social posts for the close warning", async () => {
+    projectFindFirstMock.mockResolvedValue(sampleProject);
+    socialPostCountMock.mockResolvedValue(3);
+    const app = createApp();
+    mountGetProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { scheduledSocialPostCount: number };
+    };
+    expect(body.data.scheduledSocialPostCount).toBe(3);
+    expect(socialPostCountMock).toHaveBeenCalledWith({
+      where: {
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        status: "SCHEDULED",
+      },
+    });
   });
 });
 
