@@ -3568,6 +3568,7 @@ describe("ProjectSocialPosts", () => {
       id: "post-failed-2",
       text: "Second failure",
       revision: 3,
+      lastAttemptAt: new Date("2026-08-01T10:00:00.000Z"),
       updatedAt: new Date("2026-08-01T10:00:00.000Z"),
     };
     vi.mocked(publishProjectSocialPost).mockImplementation(async (input) => {
@@ -3646,7 +3647,10 @@ describe("ProjectSocialPosts", () => {
     ).toHaveTextContent("Published");
     expect(
       within(results).getByTestId("social-bulk-retry-result-post-failed-2"),
-    ).toHaveTextContent("X is unavailable");
+    ).toHaveTextContent("The platform rejected this post.");
+    expect(
+      within(results).queryByText("X is unavailable"),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("social-post-post-failed-2")).toBeInTheDocument();
     expect(
       screen.queryByTestId("social-post-post-failed"),

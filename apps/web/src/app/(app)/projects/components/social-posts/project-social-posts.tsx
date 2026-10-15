@@ -549,10 +549,7 @@ export function ProjectSocialPosts({
           postId: post.id,
           label: retryLabel(post),
           ok: false,
-          error:
-            next.lastAttempt?.outcome === "authorization_revoked"
-              ? t("outcomes.authorizationRevoked")
-              : (next.lastError ?? t("toasts.failed")),
+          error: publishFailureCopy(next, t) ?? t("toasts.failed"),
         });
       } catch (error) {
         const actionError = toActionRejectionError(error);
@@ -1244,7 +1241,10 @@ export function ProjectSocialPosts({
           }
         }}
       >
-        <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
+        <AlertDialogContent
+          className="max-h-[min(40rem,calc(100dvh-2rem))] overflow-y-auto overscroll-contain"
+          onCloseAutoFocus={handleCloseAutoFocus}
+        >
           {bulkRetryResults ? (
             <>
               <AlertDialogHeader>
