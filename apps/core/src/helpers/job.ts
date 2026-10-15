@@ -54,6 +54,7 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
+import type { WorkScope } from "@/schemas/work-scope.schema";
 import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent-cost";
@@ -61,6 +62,7 @@ import { badRequest, notFound, unprocessableEntity } from "./error";
 import {
   buildCoworkerJobParentTaskWhere,
   buildHumanParentTaskVisibilityWhere,
+  buildResponsibleUserWhere,
 } from "./task-visibility";
 
 export interface JobContext {
@@ -988,7 +990,7 @@ export async function getUserJobs(
     agentId?: string;
     projectId?: string | null;
     status?: AgentJobStatus;
-    scope?: "workspace" | "owned";
+    scope?: WorkScope;
     coworkerId?: string;
     coworkerVendorId?: string;
     sokoBotId?: string;
@@ -1006,7 +1008,7 @@ export async function getUserJobs(
     agentId,
     projectId,
     status,
-    scope = "owned",
+    scope = "mine",
     coworkerId,
     coworkerVendorId,
     sokoBotId,
@@ -1041,7 +1043,9 @@ export async function getUserJobs(
     AND: [
       {
         workspaceId: workspaceContext.workspaceId,
-        ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
+        ...(scope === "mine"
+          ? buildResponsibleUserWhere(userContext.userId)
+          : {}),
       },
       ...humanParentTaskVisibility,
       ...(agentId ? [{ agentId }] : []),

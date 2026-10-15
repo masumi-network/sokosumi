@@ -31,10 +31,10 @@ describe("tasks-filters", () => {
     });
   });
 
-  it("defaults to owned scope in personal context", () => {
-    expect(getDefaultTasksScope(null)).toBe("owned");
+  it("defaults to mine scope in personal context", () => {
+    expect(getDefaultTasksScope(null)).toBe("mine");
     expect(parseTasksFilters({}, null)).toEqual({
-      scope: "owned",
+      scope: "mine",
       assigneeId: null,
       assigneeSokoBotId: null,
       assigneeUserId: null,
@@ -44,9 +44,9 @@ describe("tasks-filters", () => {
     });
   });
 
-  it("coerces invalid workspace scope back to owned in personal context", () => {
+  it("coerces invalid workspace scope back to mine in personal context", () => {
     expect(parseTasksFilters({ scope: "workspace" }, null)).toEqual({
-      scope: "owned",
+      scope: "mine",
       assigneeId: null,
       assigneeSokoBotId: null,
       assigneeUserId: null,
@@ -63,13 +63,13 @@ describe("tasks-filters", () => {
       expect(sanitizeTasksScopeInput(123, "org-1")).toBe("workspace");
       expect(sanitizeTasksScopeInput("not-a-scope", "org-1")).toBe("workspace");
       expect(sanitizeTasksScopeInput("", "org-1")).toBe("workspace");
-      // Personal context stays on owned.
-      expect(sanitizeTasksScopeInput("not-a-scope", null)).toBe("owned");
+      // Personal context stays on mine.
+      expect(sanitizeTasksScopeInput("not-a-scope", null)).toBe("mine");
     });
 
     it("allows workspace only when an organization is active", () => {
       expect(sanitizeTasksScopeInput("workspace", "org-1")).toBe("workspace");
-      expect(sanitizeTasksScopeInput("workspace", null)).toBe("owned");
+      expect(sanitizeTasksScopeInput("workspace", null)).toBe("mine");
     });
   });
 
@@ -103,7 +103,7 @@ describe("tasks-filters", () => {
 
   it("maps URL search params to filters with coworker allowlist", () => {
     const params = new URLSearchParams({
-      scope: "owned",
+      scope: "mine",
       assigneeId: "coworker-1",
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
@@ -112,7 +112,7 @@ describe("tasks-filters", () => {
     expect(
       getTasksFiltersFromSearchParams(params, "org-1", [{ id: "coworker-1" }]),
     ).toEqual({
-      scope: "owned",
+      scope: "mine",
       assigneeId: "coworker-1",
       assigneeSokoBotId: null,
       assigneeUserId: null,
@@ -124,7 +124,7 @@ describe("tasks-filters", () => {
     expect(
       getTasksFiltersFromSearchParams(params, "org-1", [{ id: "other" }]),
     ).toEqual({
-      scope: "owned",
+      scope: "mine",
       assigneeId: null,
       assigneeSokoBotId: null,
       assigneeUserId: null,
@@ -136,7 +136,7 @@ describe("tasks-filters", () => {
 
   it("maps URL search params to filters with a user allowlist (SOK-868)", () => {
     const params = new URLSearchParams({
-      scope: "owned",
+      scope: "mine",
       assigneeUserId: "user-1",
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
@@ -147,7 +147,7 @@ describe("tasks-filters", () => {
         { id: "user-1", kind: "user" },
       ]),
     ).toEqual({
-      scope: "owned",
+      scope: "mine",
       assigneeId: null,
       assigneeSokoBotId: null,
       assigneeUserId: "user-1",
@@ -161,7 +161,7 @@ describe("tasks-filters", () => {
         { id: "other", kind: "user" },
       ]),
     ).toEqual({
-      scope: "owned",
+      scope: "mine",
       assigneeId: null,
       assigneeSokoBotId: null,
       assigneeUserId: null,
@@ -232,7 +232,7 @@ describe("tasks-filters", () => {
     expect(
       parseTasksFilters(
         {
-          scope: "owned",
+          scope: "mine",
           assigneeId: "coworker-1",
           status: TaskStatus.READY,
           projectId: PROJECT_ID,
@@ -240,7 +240,7 @@ describe("tasks-filters", () => {
         "org-1",
       ),
     ).toEqual({
-      scope: "owned",
+      scope: "mine",
       assigneeId: "coworker-1",
       assigneeSokoBotId: null,
       assigneeUserId: null,
@@ -254,7 +254,7 @@ describe("tasks-filters", () => {
     expect(
       parseTasksFilters(
         {
-          scope: ["workspace", "owned"],
+          scope: ["workspace", "mine"],
           assigneeId: ["coworker-1", "coworker-2"],
           status: [TaskStatus.READY, TaskStatus.FAILED],
           projectId: [PROJECT_ID, "44444444-4444-4444-8444-444444444444"],
@@ -281,7 +281,7 @@ describe("tasks-filters", () => {
     const nextSearchParams = buildTasksFiltersSearchParams(
       currentSearchParams,
       {
-        scope: "owned",
+        scope: "mine",
         assigneeId: "coworker-1",
         assigneeSokoBotId: null,
         assigneeUserId: null,
@@ -292,9 +292,9 @@ describe("tasks-filters", () => {
       "org-1",
     );
 
-    // `owned` is now the non-default in an org, so it is written explicitly.
+    // `mine` is now the non-default in an org, so it is written explicitly.
     expect(nextSearchParams.toString()).toBe(
-      "create=true&coworker=elena&scope=owned&assigneeId=coworker-1&status=READY&projectId=33333333-3333-4333-8333-333333333333",
+      "create=true&coworker=elena&scope=mine&assigneeId=coworker-1&status=READY&projectId=33333333-3333-4333-8333-333333333333",
     );
   });
 
@@ -363,7 +363,7 @@ describe("tasks-filters", () => {
 
   describe("hasActiveTasksFilters", () => {
     const defaultFilters = {
-      scope: "owned" as const,
+      scope: "mine" as const,
       assigneeId: null,
       assigneeSokoBotId: null,
       assigneeUserId: null,
@@ -372,7 +372,7 @@ describe("tasks-filters", () => {
       visibility: null,
     };
 
-    it("shows the indicator for org boards with owned scope", () => {
+    it("shows the indicator for org boards with mine scope", () => {
       expect(hasActiveTasksFilters(defaultFilters, "org-1")).toBe(true);
     });
 
@@ -385,7 +385,7 @@ describe("tasks-filters", () => {
       ).toBe(true);
     });
 
-    it("hides the indicator for personal boards with owned scope only", () => {
+    it("hides the indicator for personal boards with mine scope only", () => {
       expect(hasActiveTasksFilters(defaultFilters, null)).toBe(false);
     });
 

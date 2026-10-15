@@ -34,7 +34,7 @@ describe("CalendarPage", () => {
           timezone: "Europe/Berlin",
           assigneeId: "coworker-1",
           status: "READY",
-          scope: "owned",
+          scope: "mine",
           socialOnly: "true",
           postStatus: "FAILED",
           sourceId: "workspace:workspace-1",
@@ -52,7 +52,7 @@ describe("CalendarPage", () => {
     expect(params.get("timezone")).toBe("Europe/Berlin");
     expect(params.get("assigneeId")).toBe("coworker-1");
     expect(params.get("status")).toBe("READY");
-    expect(params.get("scope")).toBe("owned");
+    expect(params.get("scope")).toBe("mine");
     expect(params.get("socialOnly")).toBe("true");
     expect(params.get("postStatus")).toBe("FAILED");
     expect(params.get("sourceId")).toBe("workspace:workspace-1");

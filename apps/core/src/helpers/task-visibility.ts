@@ -85,6 +85,14 @@ export function buildResponsibleUserWhere(
   return { ownerId: userId };
 }
 
+/**
+ * Raw SQL twin of `buildResponsibleUserWhere` for queries that alias the
+ * `task` table as `t`. Change both together.
+ */
+export function buildResponsibleUserSql(userId: string): PrismaRaw.Sql {
+  return PrismaRaw.sql`t."ownerId" = ${userId}`;
+}
+
 export function isPrivateTaskVisibleToHuman(
   task: Pick<
     { visibility: TaskVisibility; ownerId: string },
