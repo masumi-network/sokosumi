@@ -8,7 +8,7 @@ import { LIMITS } from "@/config/constants";
  * generic "your" wording for the personal fallback) without re-deriving the
  * same organization-membership resolution Core already did.
  */
-export const designMdOwnerInfoSchema = z
+const designMdOwnerInfoSchema = z
   .discriminatedUnion("type", [
     z.object({
       type: z.literal("organization"),

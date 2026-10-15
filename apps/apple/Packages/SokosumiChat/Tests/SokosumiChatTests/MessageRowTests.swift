@@ -217,7 +217,7 @@ struct MessageRowTests {
   @Test func aReadOnlyDirectKeepsEditAndDeleteOnly() {
     let readOnly = TranscriptContext(room: Self.room(kind: .direct, readOnly: true), viewerId: "ada", allowsPins: false,
                                      allowsThreads: true)
-    #expect(readOnly.isReadOnlyDirect)
+    #expect(!readOnly.takesNewMessages)
     let actions = Self.row(in: readOnly).actions
     #expect(!actions.canReact && !actions.canQuote && !actions.canReply)
     #expect(actions.canEdit && actions.canDelete && actions.canCopyLink && actions.canSendToSelf)
@@ -247,7 +247,7 @@ struct MessageRowTests {
   /// A thinking shell has no actions (web `showActions`) and no link; a failed one keeps Quote, Reactions and its link.
   @Test func aThinkingShellOffersNothingAndAFailedOneKeepsQuote() throws {
     let thinking = try Self.row(Self.coworkerShell(["streaming": true, "mention_id": "mention_1"]))
-    #expect(thinking.mentionShell?.isThinking == true)
+    #expect(thinking.body == [.thought(startedAt: Self.created, shellWorking: true)])
     #expect(thinking.actions.isEmpty)
     #expect(!thinking.showsActionBar)
     #expect(thinking.threadReplyBar == nil)
@@ -384,7 +384,7 @@ struct MessageRowTests {
     var editing = Self.channel
     editing.editingMessageId = message.id
     let row = Self.row(message, in: editing)
-    #expect(row.isEditing)
+    #expect(row.body == [.editComposer])
     #expect(row.skills.isEmpty)
   }
 
