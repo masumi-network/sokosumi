@@ -26,7 +26,7 @@ export function SocialPostMetrics({
     if (value == null) return [];
     return [{ key, value }];
   });
-  if (compact && entries.length === 0) return null;
+  if (compact && entries.length === 0 && !statistics?.error) return null;
   return (
     <div className="space-y-2">
       <dl
@@ -46,24 +46,22 @@ export function SocialPostMetrics({
         ))}
       </dl>
       {compact ? null : (
-        <>
-          <p className="text-muted-foreground text-xs">
-            {statistics?.fetchedAt
-              ? t("updatedAt", {
-                  date: formatter.dateTime(
-                    new Date(statistics.fetchedAt),
-                    "dateTime",
-                  ),
-                })
-              : t("notFetched")}
-          </p>
-          {statistics?.error ? (
-            <p role="status" className="text-semantic-warning text-xs">
-              {t("refreshFailed")}
-            </p>
-          ) : null}
-        </>
+        <p className="text-muted-foreground text-xs">
+          {statistics?.fetchedAt
+            ? t("updatedAt", {
+                date: formatter.dateTime(
+                  new Date(statistics.fetchedAt),
+                  "dateTime",
+                ),
+              })
+            : t("notFetched")}
+        </p>
       )}
+      {statistics?.error ? (
+        <p role="status" className="text-semantic-warning text-xs">
+          {t("refreshFailed")}
+        </p>
+      ) : null}
     </div>
   );
 }
