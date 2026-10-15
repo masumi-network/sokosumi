@@ -2,9 +2,9 @@ export function isHarvestReportOnly(argv: string[]): boolean {
   return argv.includes("--report-only");
 }
 
-export const CREDENTIAL_ISSUER = "local:credential";
-export const GOOGLE_ISSUER = "https://accounts.google.com";
-export const MICROSOFT_ISSUER_PREFIX = "https://login.microsoftonline.com/";
+const CREDENTIAL_ISSUER = "local:credential";
+const GOOGLE_ISSUER = "https://accounts.google.com";
+const MICROSOFT_ISSUER_PREFIX = "https://login.microsoftonline.com/";
 
 export interface AccountIdentityInput {
   id: string;

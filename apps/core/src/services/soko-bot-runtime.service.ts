@@ -63,11 +63,14 @@ import {
 import {
   buildOrganizationDriveFilePathname,
   buildOrganizationDriveFilePathnameWithFolder,
+  buildTaskFilePathname,
   buildUserDriveFilePathname,
   buildUserDriveFilePathnameWithFolder,
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
+  clampTaskFileName,
   createDataTableSchema,
   parseChatRoomFileUrl,
+  resolveTaskFileContentType,
   resolveUserUploadContentType,
   socialPostMediaKindForMime,
   tableBatchSchema,
@@ -267,6 +270,8 @@ function toolAssigneeFields(
 }
 
 const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;
+/** The longest Task description or comment the tool schemas accept. */
+const TASK_TEXT_MAX_CHARS = 20_000;
 
 const ACTIVE_STATUSES = ["STARTING", "RUNNING", "CANCEL_REQUESTED"] as const;
 const DECISION_TTL_MS = 24 * 60 * 60 * 1_000;
@@ -2090,6 +2095,106 @@ export class SokoBotRuntimeService {
   }
 
   /** The text the catalog extracted from one Drive file. */
+  /**
+   * The text of attached files, appended to a brief or comment. A Coworker
+   * works from a Task's text: Hannah saw neither the Task's file list nor
+   * the attachment the bot made, and asked three times for the brief.
+   */
+  private async withInlineFiles(
+    authorized: AuthorizedSokoBotRuntime,
+    text: string,
+    fileIds: readonly string[] | undefined,
+  ): Promise<string> {
+    let room = TASK_TEXT_MAX_CHARS - text.length;
+    const parts = [text];
+    for (const fileId of new Set(fileIds ?? [])) {
+      if (room < 200) break;
+      const file = await this.readFile(authorized, { fileId }).catch(
+        () => null,
+      );
+      if (!file?.text) continue;
+      const header = `\n\n--- ${file.name} ---\n`;
+      const body = file.text.slice(0, room - header.length - 40);
+      parts.push(
+        header +
+          body +
+          (body.length < file.text.length
+            ? "\n[… cut; the full file is attached]"
+            : ""),
+      );
+      room -= header.length + body.length + 40;
+    }
+    return parts.join("");
+  }
+
+  /**
+   * Copies Drive files onto a Task as its inputs. A Coworker reads the Task,
+   * not the owner's Files: "review index.html in your Files" left Hannah
+   * with nothing to open. Called after the action that proved write access.
+   */
+  private async attachDriveFiles(
+    authorized: AuthorizedSokoBotRuntime,
+    taskId: string,
+    fileIds: readonly string[],
+  ) {
+    const drive = await this.ownerDrive(authorized);
+    const files = await loadLiveResources({
+      workspaceId: drive.key.workspaceId,
+      actor: drive.actor,
+      resourceIds: [...new Set(fileIds)],
+    });
+    const attached: { fileId: string; name: string }[] = [];
+    const skipped: { fileId: string; reason: string }[] = [];
+    for (const fileId of new Set(fileIds)) {
+      const file = files.find((candidate) => candidate.id === fileId);
+      if (!file) {
+        skipped.push({
+          fileId,
+          reason: "not found; use an id from list_files",
+        });
+        continue;
+      }
+      const name = clampTaskFileName(file.displayName);
+      // A page the bot built is attached as its source text: Task files are
+      // public blobs, and served as HTML they would run in a reader's browser.
+      const contentType =
+        resolveTaskFileContentType(name, file.mimeType ?? "") ??
+        (isTextMimeType(file.mimeType)
+          ? resolveTaskFileContentType(name, "text/plain")
+          : null);
+      const bytes =
+        file.sourceKind === "DRIVE_UPLOAD" && contentType
+          ? await downloadBlob(file.sourceId)
+          : null;
+      if (!bytes || !contentType) {
+        skipped.push({
+          fileId,
+          reason: "this kind of file cannot be attached",
+        });
+        continue;
+      }
+      const blob = await put(
+        buildTaskFilePathname(taskId, name),
+        Buffer.from(bytes),
+        { access: "public", contentType, addRandomSuffix: true },
+      );
+      await prisma.taskFile.upsert({
+        where: { taskId_fileUrl: { taskId, fileUrl: blob.url } },
+        create: {
+          taskId,
+          name,
+          fileUrl: blob.url,
+          mimeType: contentType,
+          size: BigInt(bytes.byteLength),
+          uploadedBySokoBotId: authorized.turn.sokoBotId,
+        },
+        update: {},
+      });
+      attached.push({ fileId, name });
+    }
+    return { attached, ...(skipped.length ? { skipped } : {}) };
+  }
+
   private async readFile(
     authorized: AuthorizedSokoBotRuntime,
     input: { fileId: string; maxChars?: number },
@@ -4957,8 +5062,31 @@ export class SokoBotRuntimeService {
           },
         });
       }
-      case "create_task":
-        return this.createTask(authorized, input.input, input.toolCallId);
+      case "create_task": {
+        const { fileIds, ...task } = taskCreateInputSchema.parse(input.input);
+        const created = await this.createTask(
+          authorized,
+          {
+            ...task,
+            description: await this.withInlineFiles(
+              authorized,
+              task.description ?? "",
+              fileIds,
+            ),
+          },
+          input.toolCallId,
+        );
+        return fileIds?.length
+          ? {
+              ...created,
+              attachedFiles: await this.attachDriveFiles(
+                authorized,
+                created.id,
+                fileIds,
+              ),
+            }
+          : created;
+      }
       case "update_task":
       case "archive_task":
         return this.mutateTask(authorized, input.input, input.toolCallId, {
@@ -4978,8 +5106,31 @@ export class SokoBotRuntimeService {
           input.input,
           input.toolCallId,
         );
-      case "reply_to_task":
-        return this.replyToTask(authorized, input.input, input.toolCallId);
+      case "reply_to_task": {
+        const { fileIds, ...reply } = replyToTaskInputSchema.parse(input.input);
+        const replied = await this.replyToTask(
+          authorized,
+          {
+            ...reply,
+            comment: await this.withInlineFiles(
+              authorized,
+              reply.comment,
+              fileIds,
+            ),
+          },
+          input.toolCallId,
+        );
+        return fileIds?.length
+          ? {
+              ...replied,
+              attachedFiles: await this.attachDriveFiles(
+                authorized,
+                reply.taskId,
+                fileIds,
+              ),
+            }
+          : replied;
+      }
       case "link_tasks":
         return this.linkTasks(authorized, input.input, input.toolCallId);
       case "find_agents": {

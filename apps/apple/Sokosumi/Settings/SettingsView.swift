@@ -4,7 +4,7 @@ import SokosumiWorkspace
 import SwiftUI
 
 /// Minimal Settings: account identity, chat display preferences, automatic
-/// update checks (publish build only), the Core endpoint in use and sign out.
+/// update checks (publish build only), the Core and web endpoints in use and sign out.
 struct SettingsView: View {
   @ObservedObject var updater: AppUpdater
   @EnvironmentObject private var auth: AuthState
@@ -53,6 +53,11 @@ struct SettingsView: View {
       Section("Core") {
         LabeledContent("Base URL") {
           Text(CoreSettings.baseURL.absoluteString)
+            .font(.caption)
+            .textSelection(.enabled)
+        }
+        LabeledContent("Web") {
+          Text(CoreSettings.webBaseURL.absoluteString)
             .font(.caption)
             .textSelection(.enabled)
         }

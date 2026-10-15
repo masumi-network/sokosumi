@@ -60,6 +60,42 @@ describe("SocialPostPreview", () => {
     ).toBeVisible();
   });
 
+  it("keeps a wrapping closing bracket out of a shortened URL", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="See [https://www.example.com/launch]"
+        timestamp={null}
+      />,
+    );
+
+    const link = screen.getByText("example.com/launch");
+    expect(link).toHaveClass("text-social-x-link");
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "example.com/launch]",
+    );
+  });
+
+  it("keeps a wrapping angle bracket out of a shortened URL", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="See <https://www.example.com/launch>"
+        timestamp={null}
+      />,
+    );
+
+    const link = screen.getByText("example.com/launch");
+    expect(link).toHaveClass("text-social-x-link");
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "example.com/launch>",
+    );
+  });
+
   it("keeps trailing punctuation out of a shortened URL", () => {
     render(
       <SocialPostPreview
@@ -75,6 +111,50 @@ describe("SocialPostPreview", () => {
     expect(link).toHaveClass("text-social-x-link");
     expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
       "example.com/launch.",
+    );
+  });
+
+  it("highlights an uppercase HTTPS address and leaves the period as text", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="See HTTPS://WWW.example.com/launch."
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByText("example.com/launch")).toHaveClass(
+      "text-social-x-link",
+    );
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "See example.com/launch.",
+    );
+  });
+
+  it("keeps wrapping quotes out of a shortened URL", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text={
+          "See \"https://www.example.com/launch\" or 'www.example.com/press'"
+        }
+        timestamp={null}
+      />,
+    );
+
+    const httpsLink = screen.getByText("example.com/launch");
+    const wwwLink = screen.getByText("example.com/press");
+    expect(httpsLink).toHaveClass("text-social-x-link");
+    expect(wwwLink).toHaveClass("text-social-x-link");
+    expect(httpsLink).toHaveTextContent("example.com/launch");
+    expect(httpsLink).not.toHaveTextContent('"');
+    expect(wwwLink).not.toHaveTextContent("'");
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "See \"example.com/launch\" or 'example.com/press'",
     );
   });
 
@@ -97,6 +177,75 @@ describe("SocialPostPreview", () => {
     );
   });
 
+  it("highlights an X cashtag and leaves a dollar amount as text", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Buy $AAPL or save $20"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByText("$AAPL")).toHaveClass("text-social-x-link");
+    expect(screen.queryByText("$20")).not.toBeInTheDocument();
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "Buy $AAPL or save $20",
+    );
+  });
+
+  it.each(["$BRK.B", "$BRK.A", "$BRK_B"])(
+    "highlights the complete X cashtag %s",
+    (cashtag) => {
+      render(
+        <SocialPostPreview
+          account={ACCOUNT}
+          media={[]}
+          provider="x"
+          text={`Watching ${cashtag} today`}
+          timestamp={null}
+        />,
+      );
+
+      expect(screen.getByText(cashtag)).toHaveClass("text-social-x-link");
+    },
+  );
+
+  it("does not highlight a partial X cashtag before digits", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Watching $AAPL20 today"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.queryByText("$AAPL")).not.toBeInTheDocument();
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "Watching $AAPL20 today",
+    );
+  });
+
+  it("does not highlight a cashtag on LinkedIn", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="linkedin"
+        text="Buy $AAPL today"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.queryByText("$AAPL")).not.toBeInTheDocument();
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "Buy $AAPL today",
+    );
+  });
+
   it("does not treat an email address as a mention", () => {
     render(
       <SocialPostPreview
@@ -113,6 +262,67 @@ describe("SocialPostPreview", () => {
     expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
       "hello@example.com",
     );
+  });
+
+  it("keeps a trailing period out of a mention", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Ping @alice. Next"
+        timestamp={null}
+      />,
+    );
+
+    const mention = screen.getByText("@alice");
+    expect(mention).toHaveClass("text-social-x-link");
+    expect(screen.getByTestId("social-post-preview")).toHaveTextContent(
+      "Ping @alice. Next",
+    );
+    expect(mention).not.toHaveTextContent(".");
+  });
+
+  it("shows a recent X time as relative", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Launch day"
+        timestamp={new Date(Date.now() - 3 * 60 * 60 * 1000)}
+      />,
+    );
+
+    expect(screen.getByText("@sokosumi · 3 hours ago")).toBeVisible();
+  });
+
+  it("shows a scheduled X time as relative", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Launch day"
+        timestamp={new Date(Date.now() + 3 * 60 * 60 * 1000)}
+      />,
+    );
+
+    expect(screen.getByText("@sokosumi · in 3 hours")).toBeVisible();
+  });
+
+  it("keeps an older X time as a short date", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="x"
+        text="Launch day"
+        timestamp={new Date("2026-09-01T12:00:00.000Z")}
+      />,
+    );
+
+    expect(screen.getByText("@sokosumi · Sep 1")).toBeVisible();
   });
 
   it("keeps the X handle and time when the display name is long", () => {
@@ -263,6 +473,30 @@ describe("SocialPostPreview", () => {
     expect(
       screen.getByTestId("social-post-preview-instagram-frame"),
     ).toHaveClass("aspect-[4/5]", "bg-media-ground");
+    expect(screen.queryByLabelText("instagram.slide")).not.toBeInTheDocument();
+  });
+
+  it("marks extra Instagram slides on the first frame", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[
+          IMAGE,
+          { ...IMAGE, pathname: "drive/b.png", name: "b.png" },
+          { ...IMAGE, pathname: "drive/c.png", name: "c.png" },
+        ]}
+        provider="instagram"
+        text="Caption"
+        timestamp={null}
+      />,
+    );
+    expect(screen.getByLabelText("instagram.slide")).toHaveTextContent(
+      "instagram.slideIndex",
+    );
+    expect(screen.getByRole("img", { name: "a.png" })).toBeVisible();
+    expect(
+      screen.queryByRole("img", { name: "b.png" }),
+    ).not.toBeInTheDocument();
   });
 
   it("marks a GIF with a GIF badge", () => {
@@ -331,6 +565,38 @@ describe("SocialPostPreview", () => {
     expect(preview).toHaveTextContent("facebook.share");
   });
 
+  it("enlarges a short Facebook status with no media", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[]}
+        provider="facebook"
+        text="Launch day is here."
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByText("Launch day is here.").closest("p")).toHaveClass(
+      "text-3xl",
+    );
+  });
+
+  it("keeps usual type on a short Facebook post with a photo", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[IMAGE]}
+        provider="facebook"
+        text="Launch day is here."
+        timestamp={null}
+      />,
+    );
+
+    expect(
+      screen.getByText("Launch day is here.").closest("p"),
+    ).not.toHaveClass("text-3xl");
+  });
+
   it("folds long Facebook text behind see more", async () => {
     const user = userEvent.setup();
     render(
@@ -373,6 +639,38 @@ describe("SocialPostPreview", () => {
       "src",
       VIDEO.fileUrl,
     );
+  });
+
+  it("keeps leftover title text in the YouTube description", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="youtube"
+        text={"T".repeat(120)}
+        timestamp={null}
+      />,
+    );
+
+    const preview = screen.getByTestId("social-post-preview");
+    expect(within(preview).getByText("T".repeat(100))).toBeVisible();
+    expect(within(preview).getByText("T".repeat(20))).toBeVisible();
+  });
+
+  it("uses the first non-empty line as the YouTube title", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO]}
+        provider="youtube"
+        text={"\n  Launch today  \nmore text"}
+        timestamp={null}
+      />,
+    );
+
+    const preview = screen.getByTestId("social-post-preview");
+    expect(within(preview).getByText("Launch today")).toBeVisible();
+    expect(within(preview).getByText("more text")).toBeVisible();
   });
 
   it("asks for a video when YouTube has no media", () => {
@@ -481,6 +779,24 @@ describe("SocialPostPreview", () => {
     expect(screen.getByText("tiktok.videoRequired")).toHaveClass(
       "text-on-media-muted",
     );
+    expect(screen.getByText("@sokosumi")).toBeVisible();
+    expect(screen.getByText("Clip")).toBeVisible();
+  });
+
+  it("uses the display name when TikTok has no handle", () => {
+    render(
+      <SocialPostPreview
+        account={{ handle: null, displayName: "Sokosumi HQ", avatarUrl: null }}
+        media={[]}
+        provider="tiktok"
+        text="Launch day"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByText("Sokosumi HQ")).toBeVisible();
+    expect(screen.queryByText("@Sokosumi HQ")).not.toBeInTheDocument();
+    expect(screen.getByText("Launch day")).toBeVisible();
   });
 
   it("folds long TikTok caption behind more", async () => {

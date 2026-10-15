@@ -112,6 +112,9 @@ describe("Social calendar previews", () => {
     expect(
       screen.getByTestId("social-calendar-preview-skeleton"),
     ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("social-calendar-preview-platform-mark"),
+    ).toBeInTheDocument();
     await user.keyboard("{Escape}");
     await waitFor(() => expect(trigger).toHaveFocus());
     expect(onUrlUpdate).not.toHaveBeenCalled();

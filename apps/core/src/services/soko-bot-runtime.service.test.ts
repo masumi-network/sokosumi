@@ -138,6 +138,7 @@ const {
     assetFindFirst: vi.fn(),
   },
   files: {
+    taskFileUpsert: vi.fn(),
     resourceFindUnique: vi.fn(),
     list: vi.fn(),
     put: vi.fn(),
@@ -329,6 +330,7 @@ vi.mock("@/lib/db/prisma", () => ({
     taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
     fileResource: { findUnique: files.resourceFindUnique },
+    taskFile: { upsert: files.taskFileUpsert },
     projectImageAsset: { findFirst: images.assetFindFirst },
     $transaction: transactionMock,
     user: { findUnique: social.owner },
@@ -5593,6 +5595,69 @@ describe("Drive file tools", () => {
         },
       ],
     });
+  });
+
+  it("attaches a page the bot built to a Coworker's Task as plain text", async () => {
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "page",
+        displayName: "index.html",
+        mimeType: "text/html",
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: "drive/index.html",
+      },
+    ]);
+    files.download.mockResolvedValueOnce(
+      new TextEncoder().encode("<h1>Hi</h1>"),
+    );
+    files.put.mockResolvedValueOnce({
+      url: "https://blob/tasks/task-1/index.html",
+    });
+    const result = await service["attachDriveFiles"](
+      { turn: { ...authorized.turn, sokoBotId: SCOPE.sokoBotId } } as never,
+      "task-1",
+      ["page", "missing"],
+    );
+    expect(files.put).toHaveBeenCalledWith(
+      expect.stringContaining("task-1"),
+      expect.any(Buffer),
+      expect.objectContaining({ contentType: "text/plain" }),
+    );
+    expect(files.taskFileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          taskId: "task-1",
+          name: "index.html",
+          mimeType: "text/plain",
+          uploadedBySokoBotId: SCOPE.sokoBotId,
+        }),
+      }),
+    );
+    expect(result).toEqual({
+      attached: [{ fileId: "page", name: "index.html" }],
+      skipped: [
+        { fileId: "missing", reason: "not found; use an id from list_files" },
+      ],
+    });
+  });
+
+  it("puts an attached file's text into the brief a Coworker reads", async () => {
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "brief",
+        displayName: "brief.md",
+        mimeType: "text/markdown",
+        contentRevision: 1,
+        extractionState: "SUCCEEDED",
+        extractionReason: null,
+      },
+    ]);
+    files.chunks.mockResolvedValueOnce([{ text: "- Article 50 applies" }]);
+    await expect(
+      service["withInlineFiles"](authorized as never, "Review this.", [
+        "brief",
+      ]),
+    ).resolves.toBe("Review this.\n\n--- brief.md ---\n- Article 50 applies");
   });
 
   it("reads a file's extracted text, and explains when there is none", async () => {

@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.1.0](https://github.com/masumi-network/sokosumi/compare/macos-v1.0.1...macos-v1.1.0) (2026-10-15)
+
+
+### Features
+
+* **apple:** pick the server on the sign-in screen in debug builds ([#6399](https://github.com/masumi-network/sokosumi/issues/6399)) ([c8a3989](https://github.com/masumi-network/sokosumi/commit/c8a39890d3593814ced269587a241a54472d7b96))
+* **apple:** put the caret in the composer when a room is clicked ([#6393](https://github.com/masumi-network/sokosumi/issues/6393)) ([6a019a7](https://github.com/masumi-network/sokosumi/commit/6a019a7aed11d444ff85276e57283c9d4ae66106))
+* send the Mac app's sign-up to the website ([#6398](https://github.com/masumi-network/sokosumi/issues/6398)) ([adaaca3](https://github.com/masumi-network/sokosumi/commit/adaaca3995cf3ee4286e9df3a0767514b9d0f65d))
+
+
+### Bug Fixes
+
+* **apple:** cut the presence dot's halo out of the avatar ([#6397](https://github.com/masumi-network/sokosumi/issues/6397)) ([111064c](https://github.com/masumi-network/sokosumi/commit/111064c6712f0eefdbe31e4ef386105cd4904277))
+* **apple:** keep the room composer mounted when the transcript loads ([#6395](https://github.com/masumi-network/sokosumi/issues/6395)) ([689cc3f](https://github.com/masumi-network/sokosumi/commit/689cc3fc1d7b3339a3433b7142f69416e998b1b9))
+
+## [1.0.1](https://github.com/masumi-network/sokosumi/compare/macos-v1.0.0...macos-v1.0.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **apple:** make bare URLs, www hosts and emails in messages clickable ([#6360](https://github.com/masumi-network/sokosumi/issues/6360)) ([92dda28](https://github.com/masumi-network/sokosumi/commit/92dda28a7d771620ede39c2c51d97228358e526c))
+* **apple:** read realtime channel names from the token capability ([#6377](https://github.com/masumi-network/sokosumi/issues/6377)) ([8f03335](https://github.com/masumi-network/sokosumi/commit/8f0333579e4bd6abbf82d4ef21099c1f8d6118ac))
+* **apple:** say who reacted the moment the pointer is on a reaction chip ([#6374](https://github.com/masumi-network/sokosumi/issues/6374)) ([7b6d5a3](https://github.com/masumi-network/sokosumi/commit/7b6d5a32b3d78e5682716b815ae47a2e2866f414))
+* **apple:** say who reacted when a reaction chip holds keyboard focus ([#6376](https://github.com/masumi-network/sokosumi/issues/6376)) ([6d152ac](https://github.com/masumi-network/sokosumi/commit/6d152ac69fd2f1ab650cb8b97475143e701d7ea2))
+
 ## 1.0.0 (2026-10-14)
 
 

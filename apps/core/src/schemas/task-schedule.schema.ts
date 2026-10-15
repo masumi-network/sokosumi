@@ -95,7 +95,7 @@ function refineTaskScheduleRule(
 }
 
 /** Create: timezone and endsMode default to UTC and NEVER. */
-export const taskScheduleRuleSchema = taskScheduleRuleFieldsSchema
+const taskScheduleRuleSchema = taskScheduleRuleFieldsSchema
   .extend({
     timezone: taskScheduleRuleFieldsSchema.shape.timezone.default("UTC"),
     endsMode: taskScheduleRuleFieldsSchema.shape.endsMode.default(
@@ -109,7 +109,7 @@ export const taskScheduleRuleSchema = taskScheduleRuleFieldsSchema
  * PATCH replaces the whole rule, so nothing defaults: an omitted timezone or
  * end mode would otherwise silently reset to UTC or NEVER.
  */
-export const taskScheduleRuleReplacementSchema = taskScheduleRuleFieldsSchema
+const taskScheduleRuleReplacementSchema = taskScheduleRuleFieldsSchema
   .superRefine(refineTaskScheduleRule)
   .openapi("TaskScheduleRuleReplacement");
 

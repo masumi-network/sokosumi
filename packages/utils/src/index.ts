@@ -392,6 +392,7 @@ export {
   socialPostMediaKindForMime,
   socialPostMimeForFileName,
   socialPostProviderLabel,
+  splitYouTubePostText,
   validateSocialPostMedia,
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";

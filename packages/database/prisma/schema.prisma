@@ -482,6 +482,11 @@ model Project {
 
   sokoBots SokoBot[]
   cmoHire  CmoHire?
+  adConnections     ProjectAdConnection[]
+  adAccounts        ProjectAdAccount[]
+  adMarketProfile   ProjectAdMarketProfile?
+  adMarketSnapshots ProjectAdMarketSnapshot[]
+  adMarketAdsJob    ProjectAdMarketAdsJob?
 
   imageSessions ProjectImageSession[]
   imageJobs     ProjectImageJob[]
@@ -660,6 +665,117 @@ model ProjectSocialConnectionAudit {
 
   @@index([projectSocialConnectionId, createdAt])
   @@map("project_social_connection_audit")
+}
+
+/// One Composio OAuth grant to an ads provider (`google_ads` | `meta_ads`) for a
+/// Project. The ad accounts the user picked from it are ProjectAdAccount rows.
+model ProjectAdConnection {
+  id                         String   @id @default(uuid(7)) @db.Uuid
+  projectId                  String   @db.Uuid
+  provider                   String
+  /// Unique so a retried finalize cannot create a second connection for one grant.
+  composioConnectedAccountId String   @unique
+  connectorUserId            String
+  /// `active` | `reauthorization_required` | `disconnected`, as ProjectSocialConnection.
+  status                     String
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  project  Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  accounts ProjectAdAccount[]
+
+  @@index([projectId])
+  @@map("project_ad_connection")
+}
+
+/// An ad account a Project manages through one ProjectAdConnection: a Google
+/// customer id or a Meta `act_…` id.
+model ProjectAdAccount {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  projectId         String   @db.Uuid
+  connectionId      String   @db.Uuid
+  /// Copy of connection.provider, kept for the unique key.
+  provider          String
+  externalAccountId String
+  /// Google manager account id sent as `login-customer-id`; null for direct access and Meta.
+  loginCustomerId   String?
+  name              String
+  /// ISO 4217 code; money in API responses is a decimal in this currency.
+  currency          String
+  timeZone          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  project    Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  connection ProjectAdConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, provider, externalAccountId])
+  @@index([connectionId])
+  @@map("project_ad_account")
+}
+
+/// A Project's market profile: what the market keyword and ads lookups search for.
+model ProjectAdMarketProfile {
+  projectId    String   @id @db.Uuid
+  keywords     String[]
+  /// DataForSEO location code (country).
+  locationCode Int
+  languageCode String
+  updatedAt    DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_ad_market_profile")
+}
+
+/// Cached DataForSEO response for a Project's market profile. `requestKey` is a
+/// hash of the profile; rows older than 24h are refetched.
+model ProjectAdMarketSnapshot {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  projectId  String   @db.Uuid
+  /// `keywords` | `ads`.
+  kind       String
+  requestKey String
+  payload    Json
+  fetchedAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, kind, requestKey])
+  @@map("project_ad_market_snapshot")
+}
+
+enum ProjectAdMarketAdsJobStage {
+  /// Organic SERP tasks, to find the search competitors.
+  SERP
+  /// Ads Transparency tasks, one per competitor domain.
+  ADS
+  /// Every task of a stage failed; kept for an hour so polling does not repost.
+  FAILED
+}
+
+/// The queued DataForSEO tasks that build a Project's market ads. One row per
+/// Project, advanced by the polling client and deleted once the ads snapshot is
+/// written.
+model ProjectAdMarketAdsJob {
+  projectId      String                     @id @db.Uuid
+  /// Hash of the market profile the job was started for.
+  requestKey     String
+  stage          ProjectAdMarketAdsJobStage
+  /// DataForSEO task ids of the current stage not yet collected.
+  pendingTaskIds String[]
+  /// What the finished tasks gave, one entry per finished task: `{domain, rank}[][]`
+  /// in SERP, `MarketAd[][]` in ADS.
+  collected      Json
+  /// Start of the current stage.
+  startedAt      DateTime
+  /// No check before this time. A request claims the job by moving it ahead
+  /// (a lease longer than a check) and writes only while the value is its own.
+  nextCheckAt    DateTime
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_ad_market_ads_job")
 }
 
 enum SocialPostStatus {

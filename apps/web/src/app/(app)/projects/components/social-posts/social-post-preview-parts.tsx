@@ -55,34 +55,51 @@ export function PreviewAvatar({
 }
 
 const TOKEN_PATTERN =
-  /(https?:\/\/[^\s]+|www\.[^\s]+|#[\p{L}\p{N}_]+|(?<![\p{L}\p{N}_])@[\p{L}\p{N}_.]+)/gu;
+  /(https?:\/\/[^\s]+|www\.[^\s]+|#[\p{L}\p{N}_]+|(?<![\p{L}\p{N}_])@[\p{L}\p{N}_.]+)/giu;
+const TOKEN_PATTERN_WITH_CASHTAG =
+  /(https?:\/\/[^\s]+|www\.[^\s]+|#[\p{L}\p{N}_]+|(?<![\p{L}\p{N}_])@[\p{L}\p{N}_.]+|(?<![\p{L}\p{N}])\$[A-Za-z]{1,6}(?:[._][A-Za-z]{1,2})?(?![A-Za-z0-9]))/giu;
 const URL_DISPLAY_MAX = 25;
 
 /** Links show without their scheme and shortened, the way X and LinkedIn do. */
 function displayUrl(url: string): string {
-  const bare = url.replace(/^(https?:\/\/)?(www\.)?/, "");
+  const bare = url.replace(/^(https?:\/\/)?(www\.)?/i, "");
   return bare.length > URL_DISPLAY_MAX
     ? `${bare.slice(0, URL_DISPLAY_MAX - 1)}…`
     : bare;
 }
 
-const URL_TRAILING_PUNCT = /[.,;:!?)]+$/;
+const URL_TRAILING_PUNCT = /[.,;:!?)>\]"'\u201d\u2019]+$/;
 
 /** Post text with links, hashtags and mentions in the platform's link color. */
 export function PreviewRichText({
   text,
   linkClassName,
+  cashtags = false,
 }: {
   text: string;
   linkClassName: string;
+  /** X colors $TICKER the way the live feed does. */
+  cashtags?: boolean;
 }) {
-  const parts = text.split(TOKEN_PATTERN);
+  const parts = text.split(
+    cashtags ? TOKEN_PATTERN_WITH_CASHTAG : TOKEN_PATTERN,
+  );
   return parts.map((part, index) => {
     // split() with one capture group puts matches at odd indexes.
     if (index % 2 === 0) {
       return <Fragment key={index}>{part}</Fragment>;
     }
-    if (part.startsWith("www.") || part.startsWith("http")) {
+    if (part.startsWith("@")) {
+      const mention = part.replace(URL_TRAILING_PUNCT, "");
+      const trail = part.slice(mention.length);
+      return (
+        <Fragment key={index}>
+          <span className={linkClassName}>{mention}</span>
+          {trail}
+        </Fragment>
+      );
+    }
+    if (/^www\./i.test(part) || /^https?:/i.test(part)) {
       const url = part.replace(URL_TRAILING_PUNCT, "");
       const trail = part.slice(url.length);
       return (

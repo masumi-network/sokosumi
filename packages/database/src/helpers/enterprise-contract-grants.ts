@@ -3,19 +3,15 @@ import {
   type Prisma,
 } from "../generated/prisma/client.js";
 
-export function buildEnterprisePeriodCreditReferenceId(
-  periodId: string,
-): string {
+function buildEnterprisePeriodCreditReferenceId(periodId: string): string {
   return periodId;
 }
 
-export function buildEnterpriseTopUpCreditReferenceId(
-  contractId: string,
-): string {
+function buildEnterpriseTopUpCreditReferenceId(contractId: string): string {
   return contractId;
 }
 
-export interface CreateEnterprisePeriodCreditBucketParams {
+interface CreateEnterprisePeriodCreditBucketParams {
   activatesAt: Date;
   amount: bigint;
   expiresAt: Date;
@@ -79,7 +75,7 @@ export async function createEnterprisePeriodCreditBucket(
   return { bucketId, created: true };
 }
 
-export interface CreateEnterpriseTopUpCreditBucketParams {
+interface CreateEnterpriseTopUpCreditBucketParams {
   activatesAt: Date;
   amount: bigint;
   contractId: string;
