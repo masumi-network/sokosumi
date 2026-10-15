@@ -19517,11 +19517,24 @@ export const SocialPostCalendarItemSchema = {
                 'CANCELED'
             ]
         },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        },
         externalHandle: {
             type: [
                 'string',
                 'null'
             ]
+        },
+        avatarUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            description: 'Profile picture copy in Sokosumi storage',
+            example: 'https://abc.public.blob.vercel-storage.com/social-avatars/p/image-x-1.jpg'
         },
         projectName: {
             type: 'string'
@@ -19621,7 +19634,9 @@ export const SocialPostCalendarItemSchema = {
         'provider',
         'text',
         'status',
+        'revision',
         'externalHandle',
+        'avatarUrl',
         'projectName',
         'scheduledByName',
         'scheduledByImage',

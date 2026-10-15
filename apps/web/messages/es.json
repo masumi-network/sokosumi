@@ -2714,7 +2714,8 @@
             "legendMore": "Más",
             "moreActions": "Más acciones",
             "exportCsv": "Exportar CSV",
-            "exportXlsx": "Exportar hoja de cálculo"
+            "exportXlsx": "Exportar hoja de cálculo",
+            "legendUnknown": "Desconocido"
           },
           "accountsTitle": "Cuentas conectadas",
           "postsTitle": "Publicaciones de las cuentas",

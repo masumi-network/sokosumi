@@ -2714,7 +2714,8 @@
             "legendMore": "More",
             "moreActions": "More actions",
             "exportCsv": "Export CSV",
-            "exportXlsx": "Export spreadsheet"
+            "exportXlsx": "Export spreadsheet",
+            "legendUnknown": "Unknown"
           },
           "accountsTitle": "Connected accounts",
           "postsTitle": "Published account posts",
