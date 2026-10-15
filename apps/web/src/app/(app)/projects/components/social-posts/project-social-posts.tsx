@@ -88,6 +88,7 @@ import {
   SOCIAL_TABS_LIST_CLASS_NAME,
   type SocialTab,
 } from "./constants";
+import { accountChipLabel } from "./social-post-account-chip-label";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
@@ -171,11 +172,6 @@ function sortSection(posts: SocialPost[], section: SectionKey): SocialPost[] {
   return [...posts].sort((a, b) => timeOf(b.updatedAt) - timeOf(a.updatedAt));
 }
 
-function formatHandle(handle: string | null): string | null {
-  if (!handle) return null;
-  return handle.startsWith("@") ? handle : `@${handle}`;
-}
-
 /** Same `yyyy-MM-dd` WorkspaceCalendar reads from `?date=`. */
 function calendarDateParam(date: Date, timeZone: string): string {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -192,7 +188,6 @@ function calendarDateParam(date: Date, timeZone: string): string {
   }
   return `${values.year}-${values.month}-${values.day}`;
 }
-
 function isRevisionConflict(error: ActionError): boolean {
   return error.kind === CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT;
 }
@@ -853,7 +848,10 @@ export function ProjectSocialPosts({
   }
 
   function renderPost(post: SocialPost) {
-    const handle = formatHandle(post.socialConnection?.externalHandle ?? null);
+    const accountLabel = accountChipLabel(
+      post.socialConnection,
+      t("noAccount"),
+    );
     const creatorLabel = post.creator.name
       ? `${t(`creator.${post.creator.kind}`)} · ${post.creator.name}`
       : t(`creator.${post.creator.kind}`);
@@ -905,7 +903,7 @@ export function ProjectSocialPosts({
                 })}
               </time>
             ) : null}
-            <span className="min-w-0 truncate">{handle ?? t("noAccount")}</span>
+            <span className="min-w-0 truncate">{accountLabel}</span>
             <SocialPostStatusBadge
               className="order-first"
               label={t(`status.${post.status}`)}

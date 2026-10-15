@@ -1105,6 +1105,55 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
+  it("prefers the account name on an attention row and keeps the handle when there is no name", async () => {
+    const user = userEvent.setup();
+    const named = buildPost({
+      status: "FAILED",
+      socialConnection: {
+        id: "connection-1",
+        externalHandle: "sokosumi",
+        displayName: "Sokosumi HQ",
+        avatarUrl: null,
+        status: "active",
+      },
+    });
+    const { rerender } = render(
+      <ProjectSocialPosts
+        connections={[buildConnection({ displayName: "Sokosumi HQ" })]}
+        posts={[named]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    const namedRow = screen.getByTestId("social-post-post-draft");
+    expect(within(namedRow).getByText("Sokosumi HQ")).toBeVisible();
+    expect(within(namedRow).queryByText("@sokosumi")).not.toBeInTheDocument();
+
+    rerender(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({
+            status: "FAILED",
+            socialConnection: {
+              id: "connection-1",
+              externalHandle: "sokosumi",
+              displayName: null,
+              avatarUrl: null,
+              status: "active",
+            },
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    const handleRow = screen.getByTestId("social-post-post-draft");
+    expect(within(handleRow).getByText("@sokosumi")).toBeVisible();
+  });
+
   it("opens Social on its calendar, with Accounts as the last tab", async () => {
     const user = userEvent.setup();
     render(
