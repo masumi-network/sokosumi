@@ -125,6 +125,9 @@ export async function requireSokoBotTurnFunding(
         sokoBotId,
         requestedByUserId: userId,
         status: "COMPLETED",
+        // A six-hour background run costs what a hundred chat turns do; as
+        // the yardstick it paused the bot with credits left.
+        parentTurnId: null,
       },
       select: { id: true },
       orderBy: { completedAt: "desc" },
