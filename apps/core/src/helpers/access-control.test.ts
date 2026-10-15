@@ -2437,6 +2437,20 @@ describe("requireJobCollaboration", () => {
       ).resolves.toMatchObject({ id: "job_123" });
     });
 
+    it("refuses to let an Organization admin without a Seat manage it", async () => {
+      const tx = createTransactionClient();
+      jobWithoutOwner(tx);
+      requireAssignedOrganizationSeatMock.mockRejectedValueOnce(
+        new HTTPException(403, { message: "Seat required" }),
+      );
+
+      await expect(
+        requireJobCollaboration(userAuthContext, "job_123", tx, {
+          right: "manage",
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
     it("refuses to let a plain member manage it", async () => {
       const tx = createTransactionClient();
       jobWithoutOwner(tx);

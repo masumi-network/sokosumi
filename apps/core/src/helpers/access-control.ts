@@ -80,9 +80,9 @@ export async function requireRightOnWorkWithoutOwner(
   if (!organizationId) {
     throw forbidden("This work has no Owner");
   }
-  // A seat needs a membership, so the Seat check also refuses non-members.
+  // Both rights need a Seat (ADR 0020), which also refuses non-members.
+  await requireAssignedOrganizationSeat(userId, organizationId, tx);
   if (right === "edit") {
-    await requireAssignedOrganizationSeat(userId, organizationId, tx);
     return;
   }
   const { role } = await resolveMemberOrganizationById({

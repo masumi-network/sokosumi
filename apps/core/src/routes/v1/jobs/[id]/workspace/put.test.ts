@@ -7,6 +7,11 @@ import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 import mountPutJobWorkspace, { putJobWorkspaceRequestSchema } from "./put";
 
+// Every caller here holds a Seat; access-control tests cover the refusal.
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: vi.fn(async () => undefined),
+}));
+
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
   const { stubAuthMiddleware } = await import(

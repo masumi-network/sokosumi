@@ -40,6 +40,11 @@ const {
   updateJobPurchaseByExternalIdMock: vi.fn(),
 }));
 
+// Every caller here holds a Seat; access-control tests cover the refusal.
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: vi.fn(async () => undefined),
+}));
+
 vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@sokosumi/database/repositories")>();
