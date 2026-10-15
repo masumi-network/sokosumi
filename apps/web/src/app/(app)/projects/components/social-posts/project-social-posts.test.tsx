@@ -85,6 +85,8 @@ const MESSAGES: Record<string, string> = {
   title: "Social posts",
   loadMore: "Load more",
   loadMoreError: "Couldn't load more.",
+  loadMoreOffline: "You're offline.",
+  loadMoreTimeout: "Timed out.",
   loading: "Loading…",
   description: "Draft text posts for X and schedule them from this Project.",
   newPost: "New post",
@@ -4307,6 +4309,46 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.queryByTestId("social-load-more-error"),
     ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      name: "names an offline Load more",
+      online: false,
+      error: new Error("Failed to fetch"),
+      copy: "You're offline.",
+    },
+    {
+      name: "names a timed-out Load more",
+      online: true,
+      error: Object.assign(new Error("The operation timed out."), {
+        name: "TimeoutError",
+      }),
+      copy: "Timed out.",
+    },
+  ])("$name", async ({ online, error, copy }) => {
+    Object.defineProperty(navigator, "onLine", {
+      configurable: true,
+      value: online,
+    });
+    vi.mocked(loadMoreSocialPosts).mockRejectedValueOnce(error);
+    render(
+      <ProjectSocialPosts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        nextCursors={{ drafts: "drafts-cursor" }}
+      />,
+    );
+
+    const user = userEvent.setup();
+    await openTab(user, "Drafts");
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+
+    expect(
+      await screen.findByTestId("social-load-more-error"),
+    ).toHaveTextContent(copy);
+    expect(toastErrorMock).not.toHaveBeenCalled();
   });
 
   it("keeps Load more labeled and shows row skeletons while the next page loads", async () => {
