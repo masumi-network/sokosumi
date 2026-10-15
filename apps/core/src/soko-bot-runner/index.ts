@@ -35,7 +35,9 @@ import {
 } from "./local-tools";
 import {
   isFinalReport,
+  isIdleRound,
   KEEP_GOING_PROMPT,
+  MAX_IDLE_ROUNDS,
   MAX_KEEP_GOING_ROUNDS,
   MIN_ROUND_TIME_MS,
   reportText,
@@ -307,6 +309,7 @@ async function main(): Promise<void> {
     const steps: { reasoningText?: string | undefined }[] = [];
     let text = "";
     let finishReason = "";
+    let idleRounds = 0;
     for (let round = 0; ; round++) {
       const result = await generateText({
         model: gateway(start.model),
@@ -335,9 +338,17 @@ async function main(): Promise<void> {
         result.text ||
         (result.steps.findLast((step) => step.text.trim())?.text ?? "");
       finishReason = result.finishReason;
+      idleRounds = isIdleRound(
+        result.steps.flatMap((step) =>
+          step.toolCalls.map((call) => call.toolName),
+        ),
+      )
+        ? idleRounds + 1
+        : 0;
       const keepGoing =
         start.background &&
         !isFinalReport(text) &&
+        idleRounds < MAX_IDLE_ROUNDS &&
         round < MAX_KEEP_GOING_ROUNDS &&
         stepsLeft > 0 &&
         deadline - Date.now() > MIN_ROUND_TIME_MS;
