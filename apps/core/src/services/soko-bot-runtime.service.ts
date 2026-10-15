@@ -5293,10 +5293,10 @@ export class SokoBotRuntimeService {
     ownerConfirmed = true,
     confirmationTurnId?: string,
   ) {
-    // A person answers a decision they asked for; one nobody asked for is
-    // answered by an Organization owner or admin (ADR 0056). Without a person
-    // (`ownerConfirmed` false) the runtime accepts the decision its own turn
-    // just made, so there is no answerer to check.
+    // The member who asked answers a decision, and so may an Organization
+    // owner or admin; one nobody asked for only they can answer (ADR 0056).
+    // Without a person (`ownerConfirmed` false) the runtime accepts the
+    // decision its own turn just made, so there is no answerer to check.
     const decision = await prisma.sokoBotPendingDecision.findFirst({
       where: {
         id: decisionId,
@@ -5304,10 +5304,7 @@ export class SokoBotRuntimeService {
           ? {
               OR: [
                 { requestedByUserId: userId },
-                {
-                  requestedByUserId: null,
-                  workspace: organizationOwnerOrAdminWorkspaceWhere(userId),
-                },
+                { workspace: organizationOwnerOrAdminWorkspaceWhere(userId) },
               ],
             }
           : {}),

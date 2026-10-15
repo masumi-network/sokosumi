@@ -187,6 +187,25 @@ describe.skipIf(!enabled)("Soko Bot records name who asked", () => {
     expect(answered.status).toBe("REJECTED");
   });
 
+  it.each([
+    ["owner", "owner"],
+    ["admin", "admin"],
+  ] as const)(
+    "lets an Organization %s answer a pending decision another member asked for",
+    async (_label, role) => {
+      const asked = await decision(people.member);
+
+      const answered = await sokoBotRuntimeService.resolveDecision(
+        people[role],
+        asked.id,
+        false,
+      );
+
+      expect(answered.status).toBe("REJECTED");
+      expect(answered.resolvedByUserId).toBe(people[role]);
+    },
+  );
+
   it("refuses a different member for a pending decision with a Requester", async () => {
     const asked = await decision(people.admin);
 
