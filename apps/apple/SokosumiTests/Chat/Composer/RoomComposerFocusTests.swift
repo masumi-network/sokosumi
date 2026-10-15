@@ -69,6 +69,10 @@
         _ = try await waitForView(in: host, timeoutMessage: "The composer never took focus") {
           Self.focusedEditor(in: host, window: window)
         }
+        #expect(!request.take("fixture"), "The composer consumed the request")
+        try await Task.sleep(for: .milliseconds(500))
+        host.layoutSubtreeIfNeeded()
+        #expect(Self.focusedEditor(in: host, window: window) != nil, "The composer keeps focus once the room has settled")
       }
 
       @Test func aRoomOpenedWithoutAClickLeavesFocusAlone() async throws {
