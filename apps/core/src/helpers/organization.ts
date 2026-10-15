@@ -113,3 +113,19 @@ export async function resolveMemberOrganizationBySlug(
 
   return await resolveMemberAccess(organization, input);
 }
+
+/**
+ * Workspaces of an Organization in which `userId` is an owner or admin: the
+ * people who answer for work nobody else is responsible for (ADR 0056).
+ */
+export function organizationOwnerOrAdminWorkspaceWhere(
+  userId: string,
+): Prisma.WorkspaceWhereInput {
+  return {
+    organization: {
+      members: {
+        some: { userId, role: { in: [MemberRole.OWNER, MemberRole.ADMIN] } },
+      },
+    },
+  };
+}

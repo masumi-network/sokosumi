@@ -32,6 +32,7 @@ const authorized = {
   turn: {
     id: "parent-turn",
     sokoBotId: "bot",
+    actingUserId: "owner",
     requestedByUserId: "owner",
     workspaceId: "workspace",
     versionId: "v24",

@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
-
 import type { Prisma } from "@sokosumi/database";
 import { z } from "zod";
-
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 
 const chatPayload = z.object({
   messageId: z.string(),
@@ -53,7 +52,13 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
   if (owned.count !== 1) return false;
   const effect = await prisma.sokoBotEffectOutbox.findUniqueOrThrow({
     where: { id },
-    include: { receipt: { include: { turn: true } } },
+    include: {
+      receipt: {
+        include: {
+          turn: { include: { sokoBot: { select: { userId: true } } } },
+        },
+      },
+    },
   });
   async function renewLease() {
     const renewed = await prisma.sokoBotEffectOutbox.updateMany({
@@ -103,14 +108,15 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
   }
   try {
     const turn = effect.receipt.turn;
+    const actingUserId = sokoBotActingUserId(turn);
     const workspace = await prisma.workspace.findFirst({
       where: {
         id: turn.workspaceId,
         OR: [
-          { userId: turn.requestedByUserId },
+          { userId: actingUserId },
           {
             organization: {
-              members: { some: { userId: turn.requestedByUserId } },
+              members: { some: { userId: actingUserId } },
             },
           },
         ],
@@ -120,7 +126,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
     const bot = await prisma.sokoBot.findFirst({
       where: {
         id: turn.sokoBotId,
-        userId: turn.requestedByUserId,
+        userId: actingUserId,
         workspaceId: turn.workspaceId,
         archivedAt: null,
       },
@@ -201,7 +207,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
         const authority = await tx.sokoBot.findFirst({
           where: {
             id: turn.sokoBotId,
-            userId: turn.requestedByUserId,
+            userId: actingUserId,
             workspaceId: turn.workspaceId,
             archivedAt: null,
           },
@@ -211,10 +217,10 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
           where: {
             id: turn.workspaceId,
             OR: [
-              { userId: turn.requestedByUserId },
+              { userId: actingUserId },
               {
                 organization: {
-                  members: { some: { userId: turn.requestedByUserId } },
+                  members: { some: { userId: actingUserId } },
                 },
               },
             ],

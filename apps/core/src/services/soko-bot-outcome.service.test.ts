@@ -385,6 +385,7 @@ describe("evidence-backed intent fulfillment", () => {
   it("scopes receipt evidence to the intent revision, bot and workspace", async () => {
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
       id: "turn-one",
+      requestedByUserId: "owner-one",
       intentRevision: 2,
       sokoBotId: "bot-one",
       workspaceId: "workspace-one",
@@ -420,6 +421,7 @@ describe("evidence-backed intent fulfillment", () => {
   it("fulfills a MANAGE_WORK request from the action it committed", async () => {
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
       id: "turn-one",
+      requestedByUserId: "owner-one",
       route: "MANAGE_WORK",
       intentRevision: 2,
       sokoBotId: "bot-one",
@@ -479,6 +481,7 @@ describe("evidence-backed intent fulfillment", () => {
   it("does not fulfill a MANAGE_WORK request with no committed action", async () => {
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
       id: "turn-one",
+      requestedByUserId: "owner-one",
       route: "MANAGE_WORK",
       intentRevision: 2,
       sokoBotId: "bot-one",
@@ -526,6 +529,7 @@ describe("evidence-backed intent fulfillment", () => {
   it("does not take a preparatory action as proof when the requested one failed", async () => {
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
       id: "turn-one",
+      requestedByUserId: "owner-one",
       route: "MANAGE_WORK",
       intentRevision: 2,
       sokoBotId: "bot-one",
@@ -584,6 +588,7 @@ describe("evidence-backed intent fulfillment", () => {
   it("keeps delegated task creation waiting for independent verification", async () => {
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
       id: "turn-one",
+      requestedByUserId: "owner-one",
       route: "MANAGE_WORK",
       intentRevision: 2,
       sokoBotId: "bot-one",
@@ -637,6 +642,7 @@ describe("evidence-backed intent fulfillment", () => {
     const invalidatedAt = new Date("2026-09-28T12:30:00Z");
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
       id: "turn-one",
+      requestedByUserId: "owner-one",
       route: "MANAGE_WORK",
       intentRevision: 2,
       sokoBotId: "bot-one",

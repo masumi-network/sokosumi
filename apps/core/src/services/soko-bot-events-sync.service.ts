@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { getEnv } from "@/config/env";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
@@ -192,6 +193,7 @@ export class SokoBotEventsSyncService {
             select: {
               sokoBotId: true,
               requestedByUserId: true,
+              sokoBot: { select: { userId: true } },
               workspaceId: true,
               parentTurnId: true,
               status: true,
@@ -211,18 +213,18 @@ export class SokoBotEventsSyncService {
           delegation.task.workspaceId !== delegation.turn.workspaceId ||
           !isPrivateTaskVisibleToHuman(
             delegation.task,
-            delegation.turn.requestedByUserId,
+            sokoBotActingUserId(delegation.turn),
           ))
       )
         continue;
       if (
         delegation.job &&
         (delegation.job.workspaceId !== delegation.turn.workspaceId ||
-          delegation.job.ownerId !== delegation.turn.requestedByUserId ||
+          delegation.job.ownerId !== sokoBotActingUserId(delegation.turn) ||
           (delegation.job.task &&
             !isPrivateTaskVisibleToHuman(
               delegation.job.task,
-              delegation.turn.requestedByUserId,
+              sokoBotActingUserId(delegation.turn),
             )))
       )
         continue;
@@ -254,7 +256,7 @@ export class SokoBotEventsSyncService {
       }
       const work = byBot.get(delegation.turn.sokoBotId) ?? {
         sokoBotId: delegation.turn.sokoBotId,
-        userId: delegation.turn.requestedByUserId,
+        userId: sokoBotActingUserId(delegation.turn),
         workspaceId: delegation.turn.workspaceId,
         changes: [],
         baselines: [],
@@ -343,7 +345,8 @@ export class SokoBotEventsSyncService {
             eventAt: event.createdAt,
             designatedHandlerBotId: delegation.task
               ? (delegation.task.assigneeSokoBotId ??
-                (delegation.task.ownerId === delegation.turn.requestedByUserId
+                (delegation.task.ownerId ===
+                sokoBotActingUserId(delegation.turn)
                   ? delegation.turn.sokoBotId
                   : null))
               : delegation.turn.sokoBotId,
@@ -388,7 +391,7 @@ export class SokoBotEventsSyncService {
         eventAt: current.eventAt,
         designatedHandlerBotId: delegation.task
           ? (delegation.task.assigneeSokoBotId ??
-            (delegation.task.ownerId === delegation.turn.requestedByUserId
+            (delegation.task.ownerId === sokoBotActingUserId(delegation.turn)
               ? delegation.turn.sokoBotId
               : null))
           : delegation.turn.sokoBotId,

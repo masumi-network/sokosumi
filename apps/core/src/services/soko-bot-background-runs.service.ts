@@ -72,7 +72,7 @@ export async function startBackgroundRun(
     "@/services/soko-bot-control-plane.service"
   );
   const started = await sokoBotControlPlane.startTurn({
-    userId: authorized.turn.requestedByUserId,
+    userId: authorized.turn.actingUserId,
     workspaceId: authorized.turn.workspaceId,
     clientTurnId: `background:${authorized.turn.id}:${key}`,
     message: runMessage(input.title, input.brief),
@@ -188,9 +188,6 @@ export async function stopBackgroundRun(
   const { sokoBotControlPlane } = await import(
     "@/services/soko-bot-control-plane.service"
   );
-  await sokoBotControlPlane.cancelTurn(
-    authorized.turn.requestedByUserId,
-    run.id,
-  );
+  await sokoBotControlPlane.cancelTurn(authorized.turn.actingUserId, run.id);
   return { runId: run.id, stopped: true, previousStatus: run.status };
 }

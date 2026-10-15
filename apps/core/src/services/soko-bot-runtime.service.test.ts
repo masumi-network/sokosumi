@@ -2276,6 +2276,7 @@ describe("SokoBotRuntimeService authorization", () => {
         turn: {
           id: SCOPE.turnId,
           sokoBotId: SCOPE.sokoBotId,
+          actingUserId: SCOPE.userId,
           requestedByUserId: SCOPE.userId,
           workspaceId: SCOPE.workspaceId,
         },
@@ -2325,6 +2326,7 @@ describe("SokoBotRuntimeService authorization", () => {
           turn: {
             id: SCOPE.turnId,
             sokoBotId: SCOPE.sokoBotId,
+            actingUserId: SCOPE.userId,
             requestedByUserId: SCOPE.userId,
             workspaceId: SCOPE.workspaceId,
           },
@@ -2351,6 +2353,7 @@ describe("SokoBotRuntimeService authorization", () => {
         turn: {
           id: SCOPE.turnId,
           sokoBotId: SCOPE.sokoBotId,
+          actingUserId: SCOPE.userId,
           requestedByUserId: SCOPE.userId,
           workspaceId: SCOPE.workspaceId,
         },
@@ -3475,6 +3478,7 @@ describe("SokoBotRuntimeService chat reading", () => {
   const SCOPE_TURN = {
     id: SCOPE.turnId,
     sokoBotId: SCOPE.sokoBotId,
+    actingUserId: SCOPE.userId,
     requestedByUserId: SCOPE.userId,
     workspaceId: SCOPE.workspaceId,
     eveSessionId: SCOPE.sessionId,
@@ -3726,6 +3730,7 @@ describe("post_chat chain depth", () => {
   const SCOPE_TURN = {
     id: SCOPE.turnId,
     sokoBotId: SCOPE.sokoBotId,
+    actingUserId: SCOPE.userId,
     requestedByUserId: SCOPE.userId,
     workspaceId: SCOPE.workspaceId,
     eveSessionId: SCOPE.sessionId,
@@ -4031,6 +4036,7 @@ describe("open_direct_chat", () => {
   const SCOPE_TURN = {
     id: SCOPE.turnId,
     sokoBotId: SCOPE.sokoBotId,
+    actingUserId: SCOPE.userId,
     requestedByUserId: SCOPE.userId,
     workspaceId: SCOPE.workspaceId,
     eveSessionId: SCOPE.sessionId,
@@ -4560,6 +4566,7 @@ describe("external effect receipt finalization", () => {
       turn: {
         id: SCOPE.turnId,
         sokoBotId: SCOPE.sokoBotId,
+        actingUserId: SCOPE.userId,
         requestedByUserId: SCOPE.userId,
         workspaceId: SCOPE.workspaceId,
       },
@@ -5538,7 +5545,11 @@ describe("Soko Bot project social tools", () => {
 
 describe("Drive file tools", () => {
   const authorized = {
-    turn: { requestedByUserId: SCOPE.userId, workspaceId: SCOPE.workspaceId },
+    turn: {
+      actingUserId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+    },
   };
   const service = new SokoBotRuntimeService();
   beforeEach(() => {
@@ -5821,6 +5832,7 @@ describe("Drive file tools", () => {
     const url = `https://abc.public.blob.vercel-storage.com/users/${SCOPE.userId}/chats/${roomId}/1-sign-in-x7Yq.png`;
     const chatAuthorized = {
       turn: {
+        actingUserId: SCOPE.userId,
         requestedByUserId: SCOPE.userId,
         workspaceId: SCOPE.workspaceId,
         sokoBotId: SCOPE.sokoBotId,
@@ -5981,6 +5993,7 @@ describe("Content Studio image tools", () => {
     askedByKind: "OWNER",
     turn: {
       id: SCOPE.turnId,
+      actingUserId: SCOPE.userId,
       requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       source: "CHAT",
@@ -6348,6 +6361,7 @@ describe("create_task on an event turn", () => {
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       workspaceId: SCOPE.workspaceId,
+      actingUserId: SCOPE.userId,
       requestedByUserId: SCOPE.userId,
       source: "EVENT",
     },
@@ -6521,6 +6535,7 @@ describe("archive_task without approval cards", () => {
         {
           turn: {
             id: "turn_1",
+            actingUserId: "u",
             requestedByUserId: "u",
             workspaceId: "w",
             sokoBotId: "bot",

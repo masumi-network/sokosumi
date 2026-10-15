@@ -2282,9 +2282,10 @@ model SokoBotTurn {
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
-  /// Requester: the member who asked (ADR 0056).
-  requestedByUserId String
-  requestedBy       User   @relation(fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  /// Requester: the member who asked (ADR 0056). Null for built-in rhythms
+  /// and work the bot started on its own. Never changed after creation.
+  requestedByUserId String?
+  requestedBy       User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2752,9 +2753,10 @@ model SokoBotPendingDecision {
   turnId String      @db.Uuid
   turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
 
-  /// Requester: the member who asked (ADR 0056).
-  requestedByUserId String
-  requestedBy       User   @relation(fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  /// Requester: the member who asked (ADR 0056). Null for built-in rhythms
+  /// and work the bot started on its own. Never changed after creation.
+  requestedByUserId String?
+  requestedBy       User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2782,9 +2784,10 @@ model SokoBotSchedule {
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
-  /// Requester: the member who asked (ADR 0056).
-  requestedByUserId String
-  requestedBy       User   @relation(fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  /// Requester: the member who asked (ADR 0056). Null for built-in rhythms
+  /// and work the bot started on its own. Never changed after creation.
+  requestedByUserId String?
+  requestedBy       User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

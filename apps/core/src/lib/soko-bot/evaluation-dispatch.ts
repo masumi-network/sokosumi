@@ -8,6 +8,7 @@ import type {
 } from "ai";
 import { z } from "zod";
 import { getEnv } from "@/config/env";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import type { ClassifierContextSummary } from "./classifier";
 
 const MAX_CALLS = 10;
@@ -440,8 +441,12 @@ export async function withEvaluationTurn<T>(turnId: string, run: () => T) {
   const { default: prisma } = await import("@/lib/db/prisma");
   const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: turnId },
+    include: { sokoBot: { select: { userId: true } } },
   });
-  return withEvaluationActor({ ...turn, userId: turn.requestedByUserId }, run);
+  return withEvaluationActor(
+    { ...turn, userId: sokoBotActingUserId(turn) },
+    run,
+  );
 }
 
 export async function evaluationEvidence(

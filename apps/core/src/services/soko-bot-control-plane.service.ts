@@ -43,6 +43,7 @@ import {
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   ACTION_CAPABILITIES,
   actionInputHash,
@@ -1106,7 +1107,7 @@ export class SokoBotControlPlane {
     const capabilities = turn.capabilityNames as SokoBotCapability[];
     const expectedSessionId = `pending:${turn.id}`;
     const tokenScope = {
-      userId: turn.requestedByUserId,
+      userId: sokoBotActingUserId({ ...turn, sokoBot: bot }),
       sokoBotId: turn.sokoBotId,
       workspaceId: turn.workspaceId,
       sessionId: expectedSessionId,
@@ -1220,7 +1221,7 @@ export class SokoBotControlPlane {
     if (!turn.parentTurnId)
       await this.resetSupersededRuntimeSession({
         bot,
-        userId: turn.requestedByUserId,
+        userId: sokoBotActingUserId({ ...turn, sokoBot: bot }),
         workspaceId: turn.workspaceId,
         turnId: turn.id,
         currentSessionId: runtimeTurn.sessionId,
@@ -1793,6 +1794,7 @@ export class SokoBotControlPlane {
         select: {
           sokoBotId: true,
           requestedByUserId: true,
+          sokoBot: { select: { userId: true } },
           workspaceId: true,
           versionId: true,
           askedByUserId: true,
@@ -1831,14 +1833,14 @@ export class SokoBotControlPlane {
         {
           turnId: input.turnId,
           sokoBotId: turn.sokoBotId,
-          userId: turn.requestedByUserId,
+          userId: sokoBotActingUserId(turn),
           costUsdMicros: turn.costUsdMicros,
           ranModel: turnRanModel(turn.usage),
         },
         tx,
       );
       if (usageCharge.chargedCents > 0n) {
-        chargedUserId = turn.requestedByUserId;
+        chargedUserId = sokoBotActingUserId(turn);
       }
       // Runtime work already happened before settlement. A late billing
       // shortfall must be visible and block later funded turns, but discarding
@@ -2049,7 +2051,7 @@ export class SokoBotControlPlane {
 
   private async deliverRuntimeCancellation(turn: {
     id: string;
-    requestedByUserId: string;
+    requestedByUserId: string | null;
     sokoBotId: string;
     workspaceId: string;
     eveSessionId: string | null;
@@ -4088,7 +4090,7 @@ export class SokoBotControlPlane {
     if (input.action === "PAUSE") {
       let active: {
         id: string;
-        requestedByUserId: string;
+        requestedByUserId: string | null;
         sokoBotId: string;
         workspaceId: string;
         eveSessionId: string | null;

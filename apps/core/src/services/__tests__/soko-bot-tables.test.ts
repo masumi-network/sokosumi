@@ -45,6 +45,7 @@ const authorized: AuthorizedSokoBotRuntime = {
   toolCallLimit: 64,
   turn: {
     id: turnId,
+    actingUserId: userId,
     requestedByUserId: userId,
     workspaceId,
     sokoBotId,

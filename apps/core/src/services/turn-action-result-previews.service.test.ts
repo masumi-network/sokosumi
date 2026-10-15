@@ -22,6 +22,7 @@ import { prepareTurnActionResultPreviews } from "./turn-action-result-previews.s
 
 const turn = {
   requestedByUserId: "owner",
+  sokoBot: { userId: "owner" },
   workspaceId: "workspace",
   versionId: "v21",
   askedByUserId: null,

@@ -106,7 +106,7 @@ function completedTurn(overrides: Record<string, unknown> = {}) {
     chatMentionId: "mention-a",
     chatResponseMessageId: "response-a",
     chainDepth: 0,
-    userId: "owner-a",
+    requestedByUserId: "owner-a",
     askedByUserId: null,
     chatMention: {
       id: "mention-a",

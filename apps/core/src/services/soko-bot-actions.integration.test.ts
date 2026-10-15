@@ -74,6 +74,7 @@ describe.skipIf(!databaseUrl)(
         toolCallLimit: 64,
         turn: {
           id: turnId,
+          actingUserId: userId,
           requestedByUserId: userId,
           workspaceId,
           sokoBotId: botId,

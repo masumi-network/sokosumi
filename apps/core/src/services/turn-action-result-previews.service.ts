@@ -7,6 +7,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { actionInputHash } from "@/lib/soko-bot/action-receipts";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
@@ -42,12 +43,12 @@ export async function prepareTurnActionResultPreviews(
     | "versionId"
     | "askedByUserId"
     | "chainDepth"
-  >,
+  > & { sokoBot: { userId: string } },
   tx: Prisma.TransactionClient,
 ) {
   if (
     turn.chainDepth > 0 ||
-    (turn.askedByUserId && turn.askedByUserId !== turn.requestedByUserId)
+    (turn.askedByUserId && turn.askedByUserId !== sokoBotActingUserId(turn))
   )
     return;
   if (
@@ -116,7 +117,7 @@ export async function prepareTurnActionResultPreviews(
         {
           reference,
           actor: {
-            userId: turn.requestedByUserId,
+            userId: sokoBotActingUserId(turn),
             workspaceId: turn.workspaceId,
             kind: "soko_bot",
           },
