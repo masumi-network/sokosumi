@@ -2349,7 +2349,8 @@ describe("SokoBotRuntimeService authorization", () => {
           turn: {
             id: SCOPE.turnId,
             sokoBotId: SCOPE.sokoBotId,
-            userId: SCOPE.userId,
+            actingUserId: SCOPE.userId,
+            requestedByUserId: SCOPE.userId,
             workspaceId: SCOPE.workspaceId,
           },
         } as never,
