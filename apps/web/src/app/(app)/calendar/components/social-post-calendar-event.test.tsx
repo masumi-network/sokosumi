@@ -247,7 +247,6 @@ describe("Social post calendar event", () => {
   });
   it.each([
     ["SCHEDULED", "Scheduled"],
-    ["PUBLISHING", "Publishing"],
     ["PUBLISHED", "Published"],
   ] as const)(
     "uses an accessible icon instead of text for %s",
@@ -264,7 +263,8 @@ describe("Social post calendar event", () => {
     ["FAILED", "Failed"],
     ["MISSED", "Missed"],
     ["CANCELED", "Canceled"],
-  ] as const)("names %s on the card so a retry is obvious", (status, label) => {
+    ["PUBLISHING", "Publishing"],
+  ] as const)("names %s on the card", (status, label) => {
     renderCard({ status });
     expect(screen.getByText(label)).toBeVisible();
     expect(screen.queryByRole("img", { name: label })).not.toBeInTheDocument();
@@ -276,6 +276,13 @@ describe("Social post calendar event", () => {
   it("names a canceled post on the compact workspace chip too", () => {
     renderCard({ status: "CANCELED" }, "compact");
     expect(screen.getByText("Canceled")).toBeVisible();
+  });
+  it("names a publishing post on the compact workspace chip too", () => {
+    renderCard({ status: "PUBLISHING" }, "compact");
+    expect(screen.getByText("Publishing")).toBeVisible();
+    expect(
+      screen.queryByTestId("social-post-status-reason"),
+    ).not.toBeInTheDocument();
   });
   it("describes a failed chip without showing the provider error", () => {
     renderCard({
