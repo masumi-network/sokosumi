@@ -35,7 +35,7 @@ import UniformTypeIdentifiers
     private let savedDraft: SavedComposeDraft
     private let quoteFocusRequest: String?
     /// The room's messages or empty state are on screen: a sidebar click's focus request waits for them, as web's
-    /// `focusOnMount={!messagesPending}`, because the composer mounts again when the loading view gives way.
+    /// `focusOnMount={!messagesPending}`.
     private let transcriptShown: Bool
     private let roomId: String
     private let parentMessageId: String?

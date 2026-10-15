@@ -21,14 +21,17 @@
         ((view as? NSTextView).flatMap { $0.isEditable ? [$0] : nil } ?? []) + view.subviews.flatMap(editableTextViews)
       }
 
-      /// The composer is mounted again once the loading view gives way, so its editor is looked up each time.
       private static func focusedEditor(in host: NSView, window: NSWindow) -> NSTextView? {
         editableTextViews(host).first { window.firstResponder === $0 }
       }
 
-      private static func host(_ request: ComposerFocusRequest) async throws -> (NSHostingView<some View>, NSWindow) {
+      private static func host(_ request: ComposerFocusRequest, empty: Bool = false) async throws -> (NSHostingView<some View>, NSWindow) {
         let state = try TranscriptScrollingTests.fixtureState(thread: false, media: false)
         state.rooms = [room]
+        if empty {
+          state.openRoom.room.timeline.messages = []
+          state.openRoom.room.timeline.errorMessage = nil
+        }
         let host = NSHostingView(rootView: RoomTimelineView(roomId: "fixture")
           .background(.background).environment(\.locale, Locale(identifier: "en"))
           .environment(\.composerFocusRequest, request).environmentObject(state).environmentObject(AuthState()))
@@ -36,7 +39,9 @@
         window.ignoresMouseEvents = true
         window.contentView = host
         window.orderFront(nil)
-        _ = try await loadedTranscriptScrollView(in: host)
+        if !empty {
+          _ = try await loadedTranscriptScrollView(in: host)
+        }
         _ = try await waitForView(in: host, timeoutMessage: "The composer never mounted") { editableTextViews(host).first }
         return (host, window)
       }
@@ -45,6 +50,21 @@
         let request = ComposerFocusRequest()
         try request.roomPicked("fixture", by: ComposerFocusRequestTests.mouse(.leftMouseUp))
         let (host, window) = try await Self.host(request)
+        defer { window.orderOut(nil) }
+        _ = try await waitForView(in: host, timeoutMessage: "The composer never took focus") {
+          Self.focusedEditor(in: host, window: window)
+        }
+        #expect(!request.take("fixture"), "The composer consumed the request")
+        try await Task.sleep(for: .milliseconds(500))
+        host.layoutSubtreeIfNeeded()
+        #expect(Self.focusedEditor(in: host, window: window) != nil, "The composer keeps focus once the room has settled")
+      }
+
+      /// An empty room shows its empty state at once, so the composer is asked as it appears.
+      @Test func aClickedEmptyRoomOpensReadyToType() async throws {
+        let request = ComposerFocusRequest()
+        try request.roomPicked("fixture", by: ComposerFocusRequestTests.mouse(.leftMouseUp))
+        let (host, window) = try await Self.host(request, empty: true)
         defer { window.orderOut(nil) }
         _ = try await waitForView(in: host, timeoutMessage: "The composer never took focus") {
           Self.focusedEditor(in: host, window: window)

@@ -108,16 +108,7 @@ import SwiftUI
         }
       }
       .task(id: takesFocus == nil) {
-        guard let takesFocus else { return }
-        // The room composer mounts again when its transcript replaces the loading view, in the update that sets
-        // `takesFocus` here. Waiting lets that update cancel the editor it replaces and put the new one in the window.
-        for _ in 0 ..< 30 {
-          do { try await Task.sleep(for: .milliseconds(10)) } catch { return }
-          if commands.input?.window != nil {
-            break
-          }
-        }
-        guard let window = commands.input?.window, takesFocus() else { return }
+        guard let takesFocus, let window = commands.input?.window, takesFocus() else { return }
         // A slow room may land after the reader moved on to another field; never take the caret from it.
         if !(window.firstResponder is NSTextView) {
           commands.focus()
