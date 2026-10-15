@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   attachAdAccounts,
@@ -36,6 +37,9 @@ import { useComposioConnection } from "@/lib/composio/use-composio-connection";
 import { AdAccountPickerDialog } from "./ad-account-picker-dialog";
 
 const PROVIDERS = Object.values(ProjectAdProvider);
+const COMING_SOON_PROVIDERS = new Set<ProjectAdProvider>([
+  ProjectAdProvider.META_ADS,
+]);
 
 interface PickerState {
   accounts: AvailableAdAccount[];
@@ -202,23 +206,31 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
     <div className="flex flex-col gap-3">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start">
         {PROVIDERS.map((provider) => {
+          const isComingSoon = COMING_SOON_PROVIDERS.has(provider);
           const isUnavailable = unavailable.includes(provider);
-          const noteId = `ads-unavailable-${provider}`;
+          const noteId = isComingSoon
+            ? `ads-coming-soon-${provider}`
+            : `ads-unavailable-${provider}`;
+          const showNote = isComingSoon || isUnavailable;
           return (
             <div
               key={provider}
               className="flex flex-col items-stretch gap-1.5 sm:items-start"
             >
               <Button
-                aria-describedby={isUnavailable ? noteId : undefined}
-                disabled={isUnavailable || connecting !== null}
+                aria-describedby={showNote ? noteId : undefined}
+                disabled={isComingSoon || isUnavailable || connecting !== null}
                 loading={connecting === provider}
                 onClick={() => void handleConnect(provider)}
                 type="button"
               >
                 {t("connect", { provider: providerName(provider) })}
               </Button>
-              {isUnavailable ? (
+              {isComingSoon ? (
+                <Badge id={noteId} variant="secondary">
+                  {t("comingSoon")}
+                </Badge>
+              ) : isUnavailable ? (
                 <p className="text-muted-foreground text-xs" id={noteId}>
                   {t("unavailable", { provider: providerName(provider) })}
                 </p>

@@ -3573,6 +3573,7 @@
         "emptyTitle": "Aún no hay cuentas publicitarias conectadas",
         "emptyBody": "Conecta Google Ads o Meta Ads para gestionar las campañas de este proyecto.",
         "connect": "Conectar {provider}",
+        "comingSoon": "Próximamente",
         "unavailable": "{provider} aún no está disponible",
         "noAccountsFound": "No se encontraron cuentas publicitarias para este inicio de sesión",
         "sectionLabel": "Cuentas publicitarias",

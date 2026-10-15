@@ -3573,6 +3573,7 @@
         "emptyTitle": "Noch keine Werbekonten verbunden",
         "emptyBody": "Verbinde Google Ads oder Meta Ads, um die Kampagnen dieses Projekts zu verwalten.",
         "connect": "{provider} verbinden",
+        "comingSoon": "Demnächst verfügbar",
         "unavailable": "{provider} ist noch nicht verfügbar",
         "noAccountsFound": "Für diesen Login wurden keine Werbekonten gefunden",
         "sectionLabel": "Werbekonten",

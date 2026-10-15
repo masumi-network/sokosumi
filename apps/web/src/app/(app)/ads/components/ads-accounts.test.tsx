@@ -152,7 +152,7 @@ describe("AdsAccounts", () => {
   });
 
   describe("empty state", () => {
-    it("offers both connect buttons as its next step", () => {
+    it("offers Google Ads connect and marks Meta Ads as coming soon", () => {
       renderAccounts();
 
       expect(screen.getByText("No ad accounts connected yet")).toBeVisible();
@@ -161,7 +161,8 @@ describe("AdsAccounts", () => {
       ).toBeEnabled();
       expect(
         screen.getByRole("button", { name: "Connect Meta Ads" }),
-      ).toBeEnabled();
+      ).toBeDisabled();
+      expect(screen.getByText("Coming soon")).toBeVisible();
     });
   });
 
@@ -177,14 +178,14 @@ describe("AdsAccounts", () => {
       renderAccounts();
 
       await user.click(
-        screen.getByRole("button", { name: "Connect Meta Ads" }),
+        screen.getByRole("button", { name: "Connect Google Ads" }),
       );
 
-      const button = screen.getByRole("button", { name: "Connect Meta Ads" });
+      const button = screen.getByRole("button", { name: "Connect Google Ads" });
       expect(button).toHaveAttribute("aria-busy", "true");
       expect(button).toHaveAttribute("aria-disabled", "true");
       expect(
-        screen.getByRole("button", { name: "Connect Google Ads" }),
+        screen.getByRole("button", { name: "Connect Meta Ads" }),
       ).toBeDisabled();
 
       finish({ kind: "cancelled" });
@@ -278,7 +279,7 @@ describe("AdsAccounts", () => {
       renderAccounts();
 
       await user.click(
-        screen.getByRole("button", { name: "Connect Meta Ads" }),
+        screen.getByRole("button", { name: "Connect Google Ads" }),
       );
 
       expect(
@@ -405,7 +406,7 @@ describe("AdsAccounts", () => {
       expect(screen.getByRole("dialog")).toBeVisible();
     });
 
-    it("notes that a provider isn't available when Core is not configured, keeping the other usable", async () => {
+    it("notes that a provider isn't available when Core is not configured", async () => {
       vi.mocked(initiateAdConnection).mockResolvedValue({
         ok: false,
         error: {
@@ -429,7 +430,7 @@ describe("AdsAccounts", () => {
       ).toBeDisabled();
       expect(
         screen.getByRole("button", { name: "Connect Meta Ads" }),
-      ).toBeEnabled();
+      ).toBeDisabled();
     });
 
     it("toasts any other failure to start", async () => {
@@ -441,12 +442,12 @@ describe("AdsAccounts", () => {
       renderAccounts();
 
       await user.click(
-        screen.getByRole("button", { name: "Connect Meta Ads" }),
+        screen.getByRole("button", { name: "Connect Google Ads" }),
       );
 
       await waitFor(() =>
         expect(toastErrorMock).toHaveBeenCalledWith(
-          "Failed to connect Meta Ads",
+          "Failed to connect Google Ads",
         ),
       );
       expect(screen.queryByText(/isn't available yet/)).toBeNull();

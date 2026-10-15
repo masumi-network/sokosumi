@@ -3573,6 +3573,7 @@
         "emptyTitle": "No ad accounts connected yet",
         "emptyBody": "Connect Google Ads or Meta Ads to manage this project's campaigns.",
         "connect": "Connect {provider}",
+        "comingSoon": "Coming soon",
         "unavailable": "{provider} isn't available yet",
         "noAccountsFound": "No ad accounts found for this login",
         "sectionLabel": "Ad accounts",
