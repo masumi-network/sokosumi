@@ -4,17 +4,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forbidden } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  publicWorkMadeBy,
+  WORK_MAKERS,
+} from "@/test-fixtures/responsible-work";
 
 import mountPostJobRefund from "./post";
 
 const {
   authContextState,
   prismaTransactionMock,
+  jobFindFirstMock,
   jobFindUniqueMock,
+  resolveMemberOrganizationByIdMock,
+  workspaceFindUniqueMock,
   updateJobPurchaseByExternalIdMock,
   requireJobCollaborationMock,
 } = vi.hoisted(() => ({
-  requireJobCollaborationMock: vi.fn(async () => undefined),
+  requireJobCollaborationMock: vi.fn(),
   authContextState: {
     current: {
       actor: "user",
@@ -29,7 +36,10 @@ const {
     } | null,
   },
   prismaTransactionMock: vi.fn(),
+  jobFindFirstMock: vi.fn(),
   jobFindUniqueMock: vi.fn(),
+  resolveMemberOrganizationByIdMock: vi.fn(),
+  workspaceFindUniqueMock: vi.fn(),
   updateJobPurchaseByExternalIdMock: vi.fn(),
 }));
 
@@ -108,6 +118,10 @@ vi.mock("@/middleware/auth", () => ({
 
 vi.mock("@/helpers/access-control.js", () => ({
   requireJobCollaboration: requireJobCollaborationMock,
+}));
+
+vi.mock("@/helpers/organization", () => ({
+  resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
 }));
 
 const requestRefundMock = vi.fn();
@@ -233,7 +247,11 @@ describe("POST /jobs/{id}/refund", () => {
     prismaTransactionMock.mockImplementation(
       async (
         callback: (tx: {
-          job: { findUnique: typeof jobFindUniqueMock };
+          job: {
+            findFirst: typeof jobFindFirstMock;
+            findUnique: typeof jobFindUniqueMock;
+          };
+          workspace: { findUnique: typeof workspaceFindUniqueMock };
         }) => Promise<unknown>,
       ) => {
         if (transactionPhase === "preflight") {
@@ -251,8 +269,10 @@ describe("POST /jobs/{id}/refund", () => {
         }
         return await callback({
           job: {
+            findFirst: jobFindFirstMock,
             findUnique: jobFindUniqueMock,
           },
+          workspace: { findUnique: workspaceFindUniqueMock },
         });
       },
     );
@@ -331,5 +351,93 @@ describe("POST /jobs/{id}/refund", () => {
 
     expect(response.status).toBe(422);
     expect(updateJobPurchaseByExternalIdMock).not.toHaveBeenCalled();
+  });
+
+  describe("who may refund a job (ADR 0056)", () => {
+    beforeEach(async () => {
+      const actual = await vi.importActual<
+        typeof import("@/helpers/access-control")
+      >("@/helpers/access-control");
+      requireJobCollaborationMock.mockImplementation(
+        actual.requireJobCollaboration,
+      );
+      workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_123" });
+      resolveMemberOrganizationByIdMock.mockResolvedValue({
+        organization: { id: "org_123" },
+        role: "member",
+      });
+    });
+
+    function standaloneJob(columns: ReturnType<typeof publicWorkMadeBy>) {
+      return {
+        id: "job_123",
+        taskId: null,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        ...columns,
+      };
+    }
+
+    function requestRefund() {
+      return createApp().request("http://localhost/job_123/refund", {
+        method: "POST",
+      });
+    }
+
+    it.each(WORK_MAKERS)(
+      "lets the responsible person refund a job made by a %s",
+      async (maker) => {
+        jobFindFirstMock.mockResolvedValue(
+          standaloneJob(publicWorkMadeBy(maker, "user_123")),
+        );
+
+        const response = await requestRefund();
+
+        expect(response.status).toBe(200);
+        expect(requestRefundMock).toHaveBeenCalledWith("purchase_bc_1");
+      },
+    );
+
+    it.each(WORK_MAKERS)(
+      "refuses anyone else a job made by a %s",
+      async (maker) => {
+        jobFindFirstMock.mockResolvedValue(
+          standaloneJob(publicWorkMadeBy(maker, "user_other")),
+        );
+
+        const response = await requestRefund();
+
+        expect(response.status).toBe(403);
+        expect(requestRefundMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["owner", "admin"])(
+      "lets an Organization %s refund a job nobody is responsible for",
+      async (role) => {
+        jobFindFirstMock.mockResolvedValue(
+          standaloneJob(publicWorkMadeBy("sokoBot", null)),
+        );
+        resolveMemberOrganizationByIdMock.mockResolvedValue({
+          organization: { id: "org_123" },
+          role,
+        });
+
+        const response = await requestRefund();
+
+        expect(response.status).toBe(200);
+        expect(requestRefundMock).toHaveBeenCalledWith("purchase_bc_1");
+      },
+    );
+
+    it("refuses a plain member a job nobody is responsible for", async () => {
+      jobFindFirstMock.mockResolvedValue(
+        standaloneJob(publicWorkMadeBy("sokoBot", null)),
+      );
+
+      const response = await requestRefund();
+
+      expect(response.status).toBe(403);
+      expect(requestRefundMock).not.toHaveBeenCalled();
+    });
   });
 });

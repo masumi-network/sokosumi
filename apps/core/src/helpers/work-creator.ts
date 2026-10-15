@@ -21,7 +21,7 @@ export type WorkCreator =
  * or Soko Bot acts for that person, who becomes the Requester; a person who
  * makes their own work is never its Requester.
  */
-export function creatorFields(creator: WorkCreator, personId: string) {
+export function creatorFields(creator: WorkCreator, personId: string | null) {
   switch (creator.kind) {
     case "user":
       return {

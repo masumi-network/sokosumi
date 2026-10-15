@@ -2,6 +2,11 @@ import { TaskVisibility } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import {
+  publicWorkMadeBy,
+  WORK_MAKERS,
+} from "@/test-fixtures/responsible-work";
+
+import {
   buildCoworkerJobParentTaskWhere,
   buildCoworkerPrivateTaskVisibilityWhere,
   buildHumanJobParentVisibilityWhere,
@@ -13,6 +18,7 @@ import {
   buildSokoBotOwnerTaskVisibilityWhere,
   isPrivateTaskVisibleToCoworker,
   isPrivateTaskVisibleToHuman,
+  isResponsibleUser,
   readSokoBotPacketAudience,
   resolveResponsibleUserId,
 } from "./task-visibility";
@@ -235,6 +241,33 @@ describe("resolveResponsibleUserId", () => {
 
   it("treats omitted columns as absent", () => {
     expect(resolveResponsibleUserId({})).toBeNull();
+  });
+});
+
+describe("isResponsibleUser", () => {
+  it.each(WORK_MAKERS)(
+    "matches the person behind work made by a %s",
+    (maker) => {
+      const work = publicWorkMadeBy(maker, "user_1");
+      expect(isResponsibleUser(work, "user_1")).toBe(true);
+      expect(isResponsibleUser(work, "user_2")).toBe(false);
+    },
+  );
+
+  it("matches the Owner of private work", () => {
+    expect(
+      isResponsibleUser(
+        { ...publicWorkMadeBy("sokoBot", "user_1"), ownerId: "user_1" },
+        "user_1",
+      ),
+    ).toBe(true);
+  });
+
+  it("matches nobody, not even a missing person, for work nobody is responsible for", () => {
+    const work = publicWorkMadeBy("sokoBot", null);
+    expect(isResponsibleUser(work, "user_1")).toBe(false);
+    expect(isResponsibleUser(work, null)).toBe(false);
+    expect(isResponsibleUser(work, undefined)).toBe(false);
   });
 });
 

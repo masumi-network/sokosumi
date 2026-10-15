@@ -17,6 +17,7 @@ import {
   requireCoworkerCapability,
   requireGrantedWorkspaceAccessOrRequest,
   requireTaskAssignableSokoBot,
+  requireUnattendedWorkRight,
 } from "@/helpers/access-control";
 import {
   lockCalendarScope,
@@ -992,7 +993,8 @@ export async function runTaskScheduleNow(
 
 /**
  * Tasks the schedule created stay; the database sets their `scheduleId` to
- * null (ADR 0041).
+ * null (ADR 0041). A schedule nobody is responsible for is deleted only by an
+ * Organization owner or admin (ADR 0056).
  */
 export async function deleteTaskSchedule(
   vars: RouteVars,
@@ -1002,6 +1004,14 @@ export async function deleteTaskSchedule(
   await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);
+    if (resolveResponsibleUserId(current) === null) {
+      await requireUnattendedWorkRight(
+        actor.userId,
+        current.workspaceId,
+        "manage",
+        tx,
+      );
+    }
     await requireOpenScheduleProjects(tx, current.workspaceId, [
       current.projectId,
     ]);

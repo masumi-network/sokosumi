@@ -36,13 +36,13 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
+import { requireResponsibleUserSeat } from "@/helpers/responsible-user-seat";
 import {
   mapTaskEvent,
   validateQueuedRequiresRunAt,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "@/helpers/task";
-import { requireTaskChargeUserId } from "@/helpers/task-credits";
 import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import {
   applyGuardedTaskStatusUpdate,
@@ -162,7 +162,7 @@ async function settleTaskEventCharge({
       );
     }
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-      userId: requireTaskChargeUserId(task),
+      userId: resolveResponsibleUserId(task),
       organizationId: task.organizationId,
       cents,
       currentStatus: task.status,
@@ -192,7 +192,7 @@ async function settleTaskEventCharge({
       );
     }
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-      userId: requireTaskChargeUserId(task),
+      userId: resolveResponsibleUserId(task),
       organizationId: task.organizationId,
       cents,
       currentStatus: task.status,
@@ -309,19 +309,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const isAgent = isAgentAuthContext(authContext);
 
       if (!isCancelOnlyWrite) {
-        const assignedSeatUserId = isAgent
-          ? requireTaskChargeUserId(task)
-          : requireUserContext(authContext).userId;
-        // Agents spend the task billing org. A person acts in the workspace
-        // the task currently lives in (move does not rewrite billing org).
-        const seatOrganizationId = isAgent
-          ? task.organizationId
-          : await readTaskWorkspaceOrganizationId(task.workspaceId, tx);
-        await requireAssignedOrganizationSeat(
-          assignedSeatUserId,
-          seatOrganizationId,
-          tx,
-        );
+        if (isAgent) {
+          // Agents spend the task billing org for its responsible person.
+          await requireResponsibleUserSeat(
+            resolveResponsibleUserId(task),
+            task.organizationId,
+            tx,
+          );
+        } else {
+          // A person acts in the workspace the task currently lives in (move
+          // does not rewrite billing org).
+          await requireAssignedOrganizationSeat(
+            requireUserContext(authContext).userId,
+            await readTaskWorkspaceOrganizationId(task.workspaceId, tx),
+            tx,
+          );
+        }
       }
 
       if (!isAgent && credits != null) {
@@ -512,10 +515,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
         addedParticipantUserIds,
-        userId: resolveResponsibleUserId(task),
         organizationId: task.organizationId,
         workspaceId: task.workspaceId,
         projectId: task.projectId,
+        responsibleUserId: resolveResponsibleUserId(task),
         masumiPayment: payment,
         taskPaymentClaimId,
         pausedForInsufficientBalance,
@@ -535,10 +538,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const {
       event,
       addedParticipantUserIds,
-      userId,
       organizationId,
       workspaceId,
       projectId,
+      responsibleUserId,
       masumiPayment,
       taskPaymentClaimId,
       pausedForInsufficientBalance,
@@ -589,8 +592,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    if (charged && userId) {
-      waitUntil(notifyLowBalanceAfterCharge({ userId, organizationId }));
+    if (charged) {
+      waitUntil(
+        notifyLowBalanceAfterCharge({
+          userId: responsibleUserId,
+          organizationId,
+        }),
+      );
     }
 
     // Unreachable by construction (a charged payment always writes its claim
@@ -707,7 +715,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       waitUntil(masumiPurchasePromise);
     }
 
-    const taskIdsToPublish = userId ? [{ userId, taskId }] : [];
+    // Live updates go to the responsible person; nobody's work has no one.
+    const taskIdsToPublish = responsibleUserId
+      ? [{ userId: responsibleUserId, taskId }]
+      : [];
 
     await Promise.all(
       taskIdsToPublish.map(

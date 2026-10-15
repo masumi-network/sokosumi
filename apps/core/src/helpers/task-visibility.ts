@@ -70,6 +70,18 @@ export function resolveResponsibleUserId(
 }
 
 /**
+ * Whether `userId` is the responsible person for the work. Work nobody is
+ * responsible for matches no one, so a missing user never matches it.
+ */
+export function isResponsibleUser(
+  work: ResponsibleUserColumns,
+  userId: string | null | undefined,
+): boolean {
+  const responsibleUserId = resolveResponsibleUserId(work);
+  return responsibleUserId !== null && responsibleUserId === userId;
+}
+
+/**
  * Prisma filter for work `userId` is responsible for: the database twin of
  * `resolveResponsibleUserId`, with the same precedence. Every "mine" filter,
  * reach check and sweep that selects work by its responsible person uses

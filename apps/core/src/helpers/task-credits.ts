@@ -8,30 +8,16 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
 import { unprocessableEntity } from "./error";
-import {
-  type ResponsibleUserColumns,
-  resolveResponsibleUserId,
-} from "./task-visibility";
 
 interface CreateTaskEventTransactionInput {
-  userId: string;
+  /**
+   * The member charged: the work's responsible person. Null charges the
+   * Organization pool with no member (ADR 0056).
+   */
+  userId: string | null;
   organizationId: string | null;
   cents: bigint;
   tx: Prisma.TransactionClient;
-}
-
-/**
- * The person a Task's charge and Seat check run on: its responsible person
- * (ADR 0056). A Task nobody is responsible for has nobody to charge.
- */
-export function requireTaskChargeUserId(task: ResponsibleUserColumns): string {
-  const userId = resolveResponsibleUserId(task);
-  if (userId == null) {
-    throw unprocessableEntity(
-      "Nobody is responsible for this Task, so it cannot be charged",
-    );
-  }
-  return userId;
 }
 
 export function isInsufficientBalanceError(error: unknown): boolean {
@@ -78,7 +64,7 @@ export async function createTaskEventTransaction(
   const transaction = await input.tx.transaction.create({
     data: {
       amount: input.cents * BigInt(-1),
-      user: { connect: { id: input.userId } },
+      ...(input.userId ? { user: { connect: { id: input.userId } } } : {}),
       ...(input.organizationId
         ? { organization: { connect: { id: input.organizationId } } }
         : {}),

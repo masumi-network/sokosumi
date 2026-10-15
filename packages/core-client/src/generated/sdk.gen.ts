@@ -3398,7 +3398,7 @@ export const patchJobsById = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
- * Request a refund for a paid job via Masumi. Updates local purchase state so job sync can reconcile.
+ * Request a refund for a paid job via Masumi. Updates local purchase state so job sync can reconcile. Only the person responsible for the job may request it; for a job nobody is responsible for, an organization owner or admin.
  */
 export const postJobsByIdRefund = <ThrowOnError extends boolean = false>(options: Options<PostJobsByIdRefundData, ThrowOnError>): RequestResult<PostJobsByIdRefundResponses, PostJobsByIdRefundErrors, ThrowOnError> => (options.client ?? client).post<PostJobsByIdRefundResponses, PostJobsByIdRefundErrors, ThrowOnError>({
     responseTransformer: postJobsByIdRefundResponseTransformer,
@@ -3483,7 +3483,7 @@ export const putJobsByIdShare = <ThrowOnError extends boolean = false>(options: 
 });
 
 /**
- * Change job workspace
+ * Change job workspace. Only the person responsible for the job may move it. A job nobody is responsible for needs an organization owner or admin and cannot move to a personal workspace.
  */
 export const putJobsByIdWorkspace = <ThrowOnError extends boolean = false>(options: Options<PutJobsByIdWorkspaceData, ThrowOnError>): RequestResult<PutJobsByIdWorkspaceResponses, PutJobsByIdWorkspaceErrors, ThrowOnError> => (options.client ?? client).put<PutJobsByIdWorkspaceResponses, PutJobsByIdWorkspaceErrors, ThrowOnError>({
     responseTransformer: putJobsByIdWorkspaceResponseTransformer,
@@ -4276,7 +4276,7 @@ export const getTaskScheduleAssignees = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Delete a Task Schedule. Tasks it already created stay and stop pointing to it.
+ * Delete a Task Schedule. Tasks it already created stay and stop pointing to it. A Task Schedule nobody is responsible for can be deleted only by an organization owner or admin.
  */
 export const deleteTasksSchedulesById = <ThrowOnError extends boolean = false>(options: Options<DeleteTasksSchedulesByIdData, ThrowOnError>): RequestResult<DeleteTasksSchedulesByIdResponses, DeleteTasksSchedulesByIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTasksSchedulesByIdResponses, DeleteTasksSchedulesByIdErrors, ThrowOnError>({ url: '/tasks/schedules/{id}', ...options });
 
@@ -4476,7 +4476,7 @@ export const deleteTasksByIdParticipantsByUserId = <ThrowOnError extends boolean
 });
 
 /**
- * Archive task. The owner, or any member of the task's organization for a public task, may archive it, including a parked task awaiting vendor workspace grant approval. A Task created by a Task Schedule archives like any other Task.
+ * Archive task. The person responsible for the task, or any member of the task's organization for a public task, may archive it, including a parked task awaiting vendor workspace grant approval. A public task nobody is responsible for needs an organization owner or admin. A Task created by a Task Schedule archives like any other Task.
  */
 export const deleteTasksById = <ThrowOnError extends boolean = false>(options: Options<DeleteTasksByIdData, ThrowOnError>): RequestResult<DeleteTasksByIdResponses, DeleteTasksByIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTasksByIdResponses, DeleteTasksByIdErrors, ThrowOnError>({
     responseTransformer: deleteTasksByIdResponseTransformer,
@@ -4547,7 +4547,7 @@ export const getTasksByIdWorkspace = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * Change task workspace
+ * Change task workspace. Only the person responsible for the task may move it. A task nobody is responsible for needs an organization owner or admin and cannot move to a personal workspace.
  */
 export const putTasksByIdWorkspace = <ThrowOnError extends boolean = false>(options: Options<PutTasksByIdWorkspaceData, ThrowOnError>): RequestResult<PutTasksByIdWorkspaceResponses, PutTasksByIdWorkspaceErrors, ThrowOnError> => (options.client ?? client).put<PutTasksByIdWorkspaceResponses, PutTasksByIdWorkspaceErrors, ThrowOnError>({
     responseTransformer: putTasksByIdWorkspaceResponseTransformer,

@@ -5,7 +5,7 @@ import { forbidden } from "@/helpers/error";
 import { createAgentJobForUser } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import { requireTaskChargeUserId } from "@/helpers/task-credits";
+import { resolveResponsibleUserId } from "@/helpers/task-visibility";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
 import { jobSummarySchema } from "@/schemas/job.schema";
@@ -68,7 +68,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const job = await createAgentJobForUser({
       owner: {
-        ownerId: requireTaskChargeUserId(task),
+        ownerId: task.ownerId,
+        // Made for the Task's responsible person, who pays for it.
+        requestedByUserId: resolveResponsibleUserId(task),
         organizationId: task.organizationId,
         workspaceId: task.workspaceId,
       },

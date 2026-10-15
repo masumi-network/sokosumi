@@ -378,11 +378,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await deliverCalendarInvalidationsNow(result.workspaceId);
     // Same signal as POST /tasks/{id}/events: open boards refresh on it.
     // A Run at time move stays Queued, so it does not publish.
-    const publishUserId = result.task.ownerId;
-    if (result.statusChanged && publishUserId) {
+    const responsibleUserId = resolveResponsibleUserId(result.task);
+    if (result.statusChanged && responsibleUserId) {
       try {
         await publishTaskEventData({
-          userId: publishUserId,
+          userId: responsibleUserId,
           taskId: result.task.id,
           eventType: "task_event",
         });
@@ -391,7 +391,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           tags: { error_type: "publish_task_event" },
           extra: {
             taskId: result.task.id,
-            userId: result.task.ownerId,
+            userId: responsibleUserId,
           },
         });
       }

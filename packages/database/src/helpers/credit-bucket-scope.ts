@@ -14,7 +14,11 @@ export type OrganizationCreditPoolAccess = "none" | "shared" | "enterprise";
 
 export interface OrganizationCreditBucketScopeContext {
   workspace: "organization";
-  userId: string;
+  /**
+   * The member charged. Null charges the Organization pool with no member,
+   * for work nobody is responsible for (ADR 0056); no Seat applies.
+   */
+  userId: string | null;
   organizationId: string;
   poolAccess: OrganizationCreditPoolAccess;
 }
@@ -24,12 +28,15 @@ export type CreditBucketScopeContext =
   | OrganizationCreditBucketScopeContext;
 
 export async function resolveCreditBucketScopeContext(
-  userId: string,
+  userId: string | null,
   organizationId: string | null,
   tx: Prisma.TransactionClient,
   now: Date = new Date(),
 ): Promise<CreditBucketScopeContext> {
   if (!organizationId) {
+    if (userId === null) {
+      throw new Error("A personal credit balance needs a user");
+    }
     return {
       workspace: "personal",
       userId,
@@ -46,6 +53,15 @@ export async function resolveCreditBucketScopeContext(
   const requiresAssignedSeat =
     billingPlan.mode === "enterprise_contract" ||
     (billingPlan.mode === "self_serve" && billingPlan.plan !== "free");
+
+  if (userId === null) {
+    return {
+      workspace: "organization",
+      userId,
+      organizationId,
+      poolAccess: isConsumableEnterprise ? "enterprise" : "shared",
+    };
+  }
 
   const member = await memberRepository.getMemberByUserIdAndOrganizationId(
     userId,

@@ -16,27 +16,32 @@ import type {
 } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import {
+  publicWorkMadeBy,
+  WORK_MAKERS,
+} from "@/test-fixtures/responsible-work";
+import {
   buildCoworkerUsableInWorkspaceWhere,
   requireCoworkerCapability,
   requireCoworkerChatCapabilityInWorkspace,
   requireCoworkerTaskCollaboration,
   requireJobCollaboration,
-  requireJobOwnership,
   requireJobRead,
   requireJobReadForRouteVars,
+  requireJobResponsibility,
   requireMutableTaskWriteAccess,
   requireTaskAssignableCoworker,
   requireTaskAssignableSokoBot,
   requireTaskAssignableUser,
   requireTaskCollaboration,
   requireTaskCommentAccess,
-  requireTaskOwnership,
   requireTaskReadForRouteVars,
   requireTaskReadForWorkspace,
+  requireTaskResponsibility,
   requireTaskStatusWriteAccess,
   requireTaskWorkspaceMapping,
   requireTaskWriteAccess,
 } from "./access-control";
+
 import { buildHumanTaskVisibilityWhere } from "./task-visibility";
 import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 
@@ -153,22 +158,50 @@ const jobReadWorkspaceContext: WorkspaceContext = {
   organizationId: "org_123",
 };
 
-describe("requireTaskOwnership", () => {
-  it("uses owner-only task access", async () => {
+describe("requireTaskResponsibility", () => {
+  it.each(WORK_MAKERS)(
+    "reaches a live Task made by a %s that the user is responsible for",
+    async (maker) => {
+      const tx = createTransactionClient();
+      vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+        id: "tsk_123",
+        ...publicWorkMadeBy(maker, "user_123"),
+      } as never);
+
+      await expect(
+        requireTaskResponsibility(sessionUserContext, "tsk_123", tx),
+      ).resolves.toMatchObject({ id: "tsk_123" });
+      expect(tx.task.findFirst).toHaveBeenCalledWith({
+        where: { id: "tsk_123", archivedAt: null },
+      });
+    },
+  );
+
+  it.each(WORK_MAKERS)(
+    "does not find a Task made by a %s that someone else is responsible for",
+    async (maker) => {
+      const tx = createTransactionClient();
+      vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+        id: "tsk_123",
+        ...publicWorkMadeBy(maker, "user_other"),
+      } as never);
+
+      await expect(
+        requireTaskResponsibility(sessionUserContext, "tsk_123", tx),
+      ).rejects.toThrow("Task not found");
+    },
+  );
+
+  it("does not find a Task nobody is responsible for", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
+      ...publicWorkMadeBy("sokoBot", null),
     } as never);
 
-    await requireTaskOwnership(sessionUserContext, "tsk_123", tx);
-
-    expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        ownerId: "user_123",
-        archivedAt: null,
-      },
-    });
+    await expect(
+      requireTaskResponsibility(sessionUserContext, "tsk_123", tx),
+    ).rejects.toThrow("Task not found");
   });
 });
 
@@ -797,6 +830,8 @@ describe("requireTaskWorkspaceMapping", () => {
       select: {
         name: true,
         ownerId: true,
+        creatorUserId: true,
+        requestedByUserId: true,
         workspaceId: true,
         workspace: { select: { organizationId: true } },
       },
@@ -862,6 +897,8 @@ describe("requireTaskWorkspaceMapping", () => {
       select: {
         name: true,
         ownerId: true,
+        creatorUserId: true,
+        requestedByUserId: true,
         workspaceId: true,
         workspace: { select: { organizationId: true } },
       },
@@ -1634,6 +1671,107 @@ describe("requireTaskCollaboration sibling writes", () => {
   });
 });
 
+describe("a Coworker acting for a person (ADR 0056)", () => {
+  const actingFor = createCoworkerContext("cow_123", {
+    userId: "user_delegate",
+    organizationId: "org_123",
+  });
+
+  function withCapability(tx: Prisma.TransactionClient) {
+    vi.mocked(tx.coworker.findFirst).mockResolvedValue({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+  }
+
+  describe.each(WORK_MAKERS)("on work made by a %s", (maker) => {
+    it("reaches the Task its person is responsible for", async () => {
+      const tx = createTransactionClient();
+      withCapability(tx);
+      vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+        id: "tsk_123",
+        assigneeId: "cow_123",
+        status: TaskStatus.READY,
+        ...publicWorkMadeBy(maker, "user_delegate"),
+      } as never);
+
+      await expect(
+        requireTaskCollaboration(actingFor, "tsk_123", tx),
+      ).resolves.toMatchObject({ id: "tsk_123" });
+    });
+
+    it("does not reach a Task someone else is responsible for", async () => {
+      const tx = createTransactionClient();
+      withCapability(tx);
+      vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+        id: "tsk_123",
+        assigneeId: "cow_123",
+        status: TaskStatus.READY,
+        ...publicWorkMadeBy(maker, "user_other"),
+      } as never);
+
+      await expect(
+        requireTaskCollaboration(actingFor, "tsk_123", tx),
+      ).rejects.toThrow("Task not found");
+    });
+
+    it("reaches the job its person is responsible for", async () => {
+      const tx = createTransactionClient();
+      withCapability(tx);
+      vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+        id: "job_123",
+        taskId: "tsk_123",
+        ...publicWorkMadeBy(maker, "user_delegate"),
+      } as never);
+      vi.mocked(tx.task.findFirst)
+        .mockResolvedValueOnce({ assigneeId: "cow_123" } as never)
+        .mockResolvedValueOnce({ status: TaskStatus.READY } as never);
+
+      await expect(
+        requireJobCollaboration(actingFor, "job_123", tx),
+      ).resolves.toMatchObject({ id: "job_123" });
+    });
+
+    it("does not reach a job someone else is responsible for", async () => {
+      const tx = createTransactionClient();
+      withCapability(tx);
+      vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+        id: "job_123",
+        taskId: "tsk_123",
+        ...publicWorkMadeBy(maker, "user_other"),
+      } as never);
+
+      await expect(
+        requireJobCollaboration(actingFor, "job_123", tx),
+      ).rejects.toThrow("You can only access your own jobs");
+    });
+  });
+
+  it("reaches no work nobody is responsible for", async () => {
+    const tx = createTransactionClient();
+    withCapability(tx);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      assigneeId: "cow_123",
+      status: TaskStatus.READY,
+      ...publicWorkMadeBy("coworker", null),
+    } as never);
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      taskId: "tsk_123",
+      ...publicWorkMadeBy("coworker", null),
+    } as never);
+
+    await expect(
+      requireTaskCollaboration(actingFor, "tsk_123", tx),
+    ).rejects.toThrow("Task not found");
+    await expect(
+      requireJobCollaboration(actingFor, "job_123", tx),
+    ).rejects.toThrow("You can only access your own jobs");
+  });
+});
+
 describe("requireCoworkerTaskCollaboration", () => {
   it("loads non-draft tasks assigned to the coworker", async () => {
     const tx = createTransactionClient();
@@ -2054,29 +2192,51 @@ describe("requireJobRead", () => {
   });
 });
 
-describe("requireJobOwnership", () => {
-  it("allows only owned jobs", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
-      id: "job_123",
-    } as never);
-
-    await requireJobOwnership(sessionUserContext, "job_123", tx);
-
-    expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: {
+describe("requireJobResponsibility", () => {
+  it.each(WORK_MAKERS)(
+    "allows a job made by a %s that the user is responsible for",
+    async (maker) => {
+      const tx = createTransactionClient();
+      vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
         id: "job_123",
-        ownerId: "user_123",
-      },
-    });
-  });
+        ...publicWorkMadeBy(maker, "user_123"),
+      } as never);
 
-  it("rejects jobs that are not owned by the current user", async () => {
+      await expect(
+        requireJobResponsibility(sessionUserContext, "job_123", tx),
+      ).resolves.toMatchObject({ id: "job_123" });
+    },
+  );
+
+  it.each(WORK_MAKERS)(
+    "rejects a job made by a %s that someone else is responsible for",
+    async (maker) => {
+      const tx = createTransactionClient();
+      vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+        id: "job_123",
+        ...publicWorkMadeBy(maker, "user_other"),
+      } as never);
+
+      await expect(
+        requireJobResponsibility(sessionUserContext, "job_123", tx),
+      ).rejects.toThrow("You can only access your own jobs");
+    },
+  );
+
+  it("rejects a job nobody is responsible for and a missing job", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
+    vi.mocked(tx.job.findFirst)
+      .mockResolvedValueOnce({
+        id: "job_123",
+        ...publicWorkMadeBy("sokoBot", null),
+      } as never)
+      .mockResolvedValueOnce(null);
 
     await expect(
-      requireJobOwnership(sessionUserContext, "job_123", tx),
+      requireJobResponsibility(sessionUserContext, "job_123", tx),
+    ).rejects.toThrow("You can only access your own jobs");
+    await expect(
+      requireJobResponsibility(sessionUserContext, "job_missing", tx),
     ).rejects.toThrow("You can only access your own jobs");
   });
 });
@@ -2352,17 +2512,17 @@ describe("requireJobReadForRouteVars", () => {
 });
 
 describe("requireJobCollaboration", () => {
-  it("uses ownership for users", async () => {
+  it("allows the job's responsible person", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
+      ownerId: "user_123",
+      taskId: null,
     } as never);
 
-    await requireJobCollaboration(userAuthContext, "job_123", tx);
-
-    expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: { id: "job_123", ownerId: "user_123" },
-    });
+    await expect(
+      requireJobCollaboration(userAuthContext, "job_123", tx),
+    ).resolves.toMatchObject({ id: "job_123" });
   });
 
   it("rejects users that do not own the job", async () => {
@@ -2376,10 +2536,15 @@ describe("requireJobCollaboration", () => {
 
   // SOK-1030 widened job *sharing* to any workspace member via
   // `requireJobShareCollaboration`. This helper still guards refund, workspace
-  // move, metadata patch, and input submission, so it must stay owner-only.
-  it("stays owner-only for a member of the same organization", async () => {
+  // move, metadata patch, and input submission, so it stays with the job's
+  // responsible person (ADR 0056).
+  it("refuses a member of the same organization a job someone else is responsible for", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_of_another_member",
+      ownerId: "user_123",
+      taskId: null,
+    } as never);
 
     await expect(
       requireJobCollaboration(
@@ -2388,10 +2553,6 @@ describe("requireJobCollaboration", () => {
         tx,
       ),
     ).rejects.toThrow("You can only access your own jobs");
-
-    expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: { id: "job_of_another_member", ownerId: "member_456" },
-    });
   });
 
   it("allows a delegated coworker to act on a job assigned to it", async () => {
@@ -2404,6 +2565,7 @@ describe("requireJobCollaboration", () => {
     } as never);
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
+      ownerId: "user_delegate",
       taskId: "tsk_123",
     } as never);
     vi.mocked(tx.task.findFirst)
@@ -2416,9 +2578,6 @@ describe("requireJobCollaboration", () => {
 
     await requireJobCollaboration(delegatedCoworkerContext, "job_123", tx);
 
-    expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: { id: "job_123", ownerId: "user_delegate" },
-    });
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: { id: "tsk_123" },
       select: { assigneeId: true },
@@ -2429,6 +2588,7 @@ describe("requireJobCollaboration", () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
+      ownerId: "user_123",
       taskId: "tsk_123",
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
@@ -2456,6 +2616,7 @@ describe("requireJobCollaboration", () => {
     } as never);
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
+      ownerId: "user_delegate",
       taskId: "tsk_123",
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({

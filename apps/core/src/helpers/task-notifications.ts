@@ -1,6 +1,10 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind, TaskStatus } from "@sokosumi/database";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
+import {
+  type ResponsibleUserColumns,
+  resolveResponsibleUserId,
+} from "@/helpers/task-visibility";
 
 import prisma from "@/lib/db/prisma";
 
@@ -47,33 +51,35 @@ function taskNotificationPayload(task: {
 /**
  * The readers a task's attention rows can belong to.
  *
- * The owner, plus the member it is assigned to when that is somebody else.
- * The owner comes first and once, because the two are the same person on
- * every task nobody delegated.
+ * The responsible person (ADR 0056), plus the member it is assigned to when
+ * that is somebody else. The responsible person comes first and once, because
+ * the two are the same person on every task nobody delegated. Work nobody is
+ * responsible for has the assignee alone. Task participants hold only their
+ * added row, which `markParticipantAddedRead` clears.
  */
-function taskReaderIds(task: {
-  ownerId: string | null;
-  assigneeUserId: string | null;
-}): string[] {
-  return [
-    ...new Set(
-      [task.ownerId, task.assigneeUserId].filter(
-        (userId): userId is string => userId != null,
-      ),
-    ),
-  ];
+function taskReaderIds(
+  task: ResponsibleUserColumns & { assigneeUserId: string | null },
+): string[] {
+  const responsibleUserId = resolveResponsibleUserId(task);
+  if (!responsibleUserId) {
+    return task.assigneeUserId ? [task.assigneeUserId] : [];
+  }
+  if (!task.assigneeUserId || task.assigneeUserId === responsibleUserId) {
+    return [responsibleUserId];
+  }
+
+  return [responsibleUserId, task.assigneeUserId];
 }
 
 /**
  * Task-status notification dispatch, extracted from the task-events route so
- * the x402 pay endpoint's OUT_OF_CREDITS pause notifies the owner through the
+ * the x402 pay endpoint's OUT_OF_CREDITS pause notifies the responsible person through the
  * exact same path. Best-effort by design: a notification failure must never
  * fail the request that committed the event.
  */
 export async function dispatchTaskNotification(
-  task: {
+  task: ResponsibleUserColumns & {
     id: string;
-    ownerId: string | null;
     assigneeUserId: string | null;
     name: string | null;
     assignee: { name: string } | null;
@@ -167,14 +173,21 @@ export async function dispatchTaskNotification(
       await markParticipantAddedRead(task.id);
     }
 
-    // The owner set this status themselves, so there is nothing to tell them;
-    // a Task nobody owns any more has nobody to tell.
-    if (task.ownerId == null || actorUserId === task.ownerId) {
+    // Nobody is responsible for this work, so nobody is told beyond its
+    // assignee and Task participants, who hear through their own rows.
+    const responsibleUserId = resolveResponsibleUserId(task);
+    if (!responsibleUserId) {
+      return;
+    }
+
+    // The responsible person set this status themselves, so there is nothing
+    // to tell them.
+    if (actorUserId === responsibleUserId) {
       return;
     }
 
     await createNotification({
-      userId: task.ownerId,
+      userId: responsibleUserId,
       kind: NotificationKind.TASK,
       referenceId: task.id,
       eventId,
@@ -188,7 +201,7 @@ export async function dispatchTaskNotification(
     Sentry.captureException(error, {
       extra: {
         taskId: task.id,
-        userId: task.ownerId,
+        userId: resolveResponsibleUserId(task),
         notificationType: "task-notification",
       },
     });
@@ -215,6 +228,8 @@ export async function notifyTaskStatusEvent(
       select: {
         id: true,
         ownerId: true,
+        creatorUserId: true,
+        requestedByUserId: true,
         assigneeUserId: true,
         name: true,
         projectId: true,
@@ -443,7 +458,7 @@ export async function notifyTaskHumanAssignee(
  * they do not have (SOK-916, the reasoning of user stories 14 and 15).
  *
  * That one key and no more, because the previous holder is sometimes the
- * owner, and the owner's other attention rows are about a task that is still
+ * responsible person, whose other attention rows are about a task that is still
  * theirs and still waiting.
  */
 export async function markTaskAssignedRead(
@@ -474,11 +489,12 @@ export async function markTaskAssignedRead(
  * archiving ends the task for all of them at once. That is what separates it
  * from a reassignment, which ends one row for one person.
  */
-export async function markTaskArchivedRead(task: {
-  id: string;
-  ownerId: string | null;
-  assigneeUserId: string | null;
-}): Promise<void> {
+export async function markTaskArchivedRead(
+  task: ResponsibleUserColumns & {
+    id: string;
+    assigneeUserId: string | null;
+  },
+): Promise<void> {
   for (const readerId of taskReaderIds(task)) {
     await markAttentionRead(
       readerId,

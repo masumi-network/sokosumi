@@ -33,6 +33,7 @@ import {
 } from "@/helpers/error";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import { taskCreationEvents } from "@/helpers/task-creation-events";
+import { isResponsibleUser } from "@/helpers/task-visibility";
 import {
   isGrantDeniedOrRevoked,
   parseGrantResumeStatus,
@@ -84,7 +85,8 @@ export interface CreateTaskDomainInput {
 
 export interface UpdateTaskDomainInput {
   actor: TaskDomainActor;
-  ownerId: string;
+  /** The person the actor acts as: the user, or the Soko Bot's person. */
+  userId: string;
   /** Required for Soko Bot. User routes retain owner-scoped PATCH semantics. */
   workspaceId?: string;
   taskId: string;
@@ -367,10 +369,11 @@ function sokoBotEditableStatuses(
 }
 
 /**
- * The live Task an actor may change. A user changes their own Tasks here; a
- * Soko Bot changes what its owner could change in the app (their own Tasks,
- * and public Tasks of an organization they hold a seat in), and only inside
- * the bot's own workspace.
+ * The live Task an actor may change. A user changes the Tasks they are
+ * responsible for here (ADR 0056); a Soko Bot changes what its person could
+ * change in the app (the Tasks they are responsible for, and public Tasks of
+ * an organization they hold a seat in), and only inside the bot's own
+ * workspace. Archiving is managing the Task.
  */
 async function findActorTask(
   input: UpdateTaskDomainInput,
@@ -378,9 +381,10 @@ async function findActorTask(
 ): Promise<Task> {
   if (input.actor.kind === "soko_bot") {
     const task = await requireTaskWriteAccess(
-      { source: "context", userId: input.ownerId, organizationId: null },
+      { source: "context", userId: input.userId, organizationId: null },
       input.taskId,
       tx,
+      { right: input.archive ? "manage" : "edit" },
     );
     if (task.workspaceId !== input.workspaceId)
       throw notFound("Task not found");
@@ -389,12 +393,12 @@ async function findActorTask(
   const task = await tx.task.findFirst({
     where: {
       id: input.taskId,
-      ownerId: input.ownerId,
       archivedAt: null,
       ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
     },
   });
-  if (!task) throw notFound("Task not found");
+  if (!task || !isResponsibleUser(task, input.userId))
+    throw notFound("Task not found");
   return task;
 }
 
@@ -615,7 +619,6 @@ export async function updateTaskForActor(
   return tx.task.update({
     where: {
       id: task.id,
-      ownerId: input.ownerId,
       archivedAt: null,
       status: { in: [...allowedStatuses] },
       ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),

@@ -59,8 +59,13 @@ export async function applyGuardedTaskStatusUpdate(params: {
   }
 }
 
+/**
+ * Charges a Task to its responsible person (ADR 0056): their balance in the
+ * Task's Organization, or their personal credits. `userId` null is work
+ * nobody is responsible for, charged to the Organization pool with no member.
+ */
 export async function chargeTaskCreditsOrMarkOutOfCredits(params: {
-  userId: string;
+  userId: string | null;
   organizationId: string | null;
   cents: bigint;
   currentStatus: TaskStatus;
