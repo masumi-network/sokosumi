@@ -1015,12 +1015,15 @@ struct DirectRoomAvatarStack: View {
             name: participant.name,
             size: Self.faceSize
           )
-          .overlay {
-            Circle()
-              .strokeBorder(.background, lineWidth: 1)
-          }
           .grayscale(isDimmed ? 1 : 0)
           .opacity(isDimmed ? 0.5 : 1)
+          // Web's `border-sidebar` ring, cut out of this face and the one under
+          // it, since a Mac sidebar has no single colour to paint it in.
+          .overlay {
+            Circle()
+              .strokeBorder(.black, lineWidth: 1)
+              .blendMode(.destinationOut)
+          }
           .overlay(alignment: .bottomTrailing) {
             if showsPresence {
               PresenceDot(presence: presence(for: participant), size: Self.markSize).offset(x: 2, y: 2)
@@ -1029,6 +1032,8 @@ struct DirectRoomAvatarStack: View {
           .zIndex(Double(participants.count - index))
         }
       }
+      // Bounds the rings' and marks' knockouts to the faces.
+      .compositingGroup()
     }
   }
 
