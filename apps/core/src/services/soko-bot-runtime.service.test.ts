@@ -138,6 +138,7 @@ const {
     assetFindFirst: vi.fn(),
   },
   files: {
+    taskFileUpsert: vi.fn(),
     resourceFindUnique: vi.fn(),
     list: vi.fn(),
     put: vi.fn(),
@@ -329,6 +330,7 @@ vi.mock("@/lib/db/prisma", () => ({
     taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
     fileResource: { findUnique: files.resourceFindUnique },
+    taskFile: { upsert: files.taskFileUpsert },
     projectImageAsset: { findFirst: images.assetFindFirst },
     $transaction: transactionMock,
     user: { findUnique: social.owner },
@@ -5590,6 +5592,50 @@ describe("Drive file tools", () => {
           passage: "Launch on the 15th",
           extraction: "SUCCEEDED",
         },
+      ],
+    });
+  });
+
+  it("attaches a page the bot built to a Coworker's Task as plain text", async () => {
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "page",
+        displayName: "index.html",
+        mimeType: "text/html",
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: "drive/index.html",
+      },
+    ]);
+    files.download.mockResolvedValueOnce(
+      new TextEncoder().encode("<h1>Hi</h1>"),
+    );
+    files.put.mockResolvedValueOnce({
+      url: "https://blob/tasks/task-1/index.html",
+    });
+    const result = await service["attachDriveFiles"](
+      { turn: { ...authorized.turn, sokoBotId: SCOPE.sokoBotId } } as never,
+      "task-1",
+      ["page", "missing"],
+    );
+    expect(files.put).toHaveBeenCalledWith(
+      expect.stringContaining("task-1"),
+      expect.any(Buffer),
+      expect.objectContaining({ contentType: "text/plain" }),
+    );
+    expect(files.taskFileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          taskId: "task-1",
+          name: "index.html",
+          mimeType: "text/plain",
+          uploadedBySokoBotId: SCOPE.sokoBotId,
+        }),
+      }),
+    );
+    expect(result).toEqual({
+      attached: [{ fileId: "page", name: "index.html" }],
+      skipped: [
+        { fileId: "missing", reason: "not found; use an id from list_files" },
       ],
     });
   });
