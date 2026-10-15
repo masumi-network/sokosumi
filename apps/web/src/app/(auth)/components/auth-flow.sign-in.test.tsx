@@ -515,12 +515,16 @@ describe("AuthFlow signIn", () => {
 
   it("sends the Apple app's sign-up to the website in a new window", async () => {
     const user = userEvent.setup();
-    mockSearchParams = new URLSearchParams({
-      client_id: "apple",
-      redirect_uri: "https://app.sokosumi.com/auth/apple/callback",
-      exp: "1772367377",
-      sig: "signed-value",
-    });
+    // As Core's authorize redirect signs it: every parameter named in ba_param.
+    mockSearchParams = new URLSearchParams([
+      ["client_id", "apple"],
+      ["redirect_uri", "https://app.sokosumi.com/auth/apple/callback"],
+      ["exp", "1772367377"],
+      ["ba_param", "client_id"],
+      ["ba_param", "redirect_uri"],
+      ["ba_param", "exp"],
+      ["sig", "signed-value"],
+    ]);
     emailStatusMock.mockResolvedValue({
       data: { exists: false, captchaPass: CAPTCHA_PASS },
       error: null,

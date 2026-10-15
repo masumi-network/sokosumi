@@ -338,14 +338,14 @@ export default function AuthFlow({
           <span className="text-muted-foreground text-sm">
             {signInT("RegisterOnWebsite.message")}
           </span>
-          <a
+          <Link
             href="/signup"
             target="_blank"
             rel="noopener"
             className="text-primary text-sm font-medium hover:underline"
           >
             {signInT("RegisterOnWebsite.link")}
-          </a>
+          </Link>
         </div>
       ) : isSignIn ? (
         <div className="flex flex-row items-center justify-center gap-2">
