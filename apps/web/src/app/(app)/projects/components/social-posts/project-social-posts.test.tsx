@@ -3492,7 +3492,9 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
 
     await user.click(
-      within(dialog).getByRole("button", { name: "Post actions" }),
+      within(dialog).getByRole("button", {
+        name: "Post actions for @sokosumi",
+      }),
     );
     expect(screen.getByRole("menuitem", { name: "Publish now" })).toBeVisible();
     expect(screen.getByRole("menuitem", { name: "Cancel post" })).toBeVisible();
@@ -3520,7 +3522,7 @@ describe("ProjectSocialPosts", () => {
       within(dialog).getByRole("button", { name: /^Reschedule/ }),
     ).toBeVisible();
     expect(
-      within(dialog).queryByRole("button", { name: "Post actions" }),
+      within(dialog).queryByRole("button", { name: /^Post actions/ }),
     ).not.toBeInTheDocument();
   });
 
