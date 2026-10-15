@@ -5,7 +5,7 @@
  * nudge instead of being taken as the report.
  */
 export const KEEP_GOING_PROMPT =
-  "Check the brief against what you have actually finished. If anything is left — date ranges not searched, pages not followed (nextPageToken), rows not written, Jobs not checked — keep working on it now with your tools; do not report yet. Only when all of it is done, or the rest is impossible, write your final report and start it with DONE:";
+  "Check the brief against what you have actually finished. If a step of the brief is left, keep working on it now with your tools; do not report yet. Do not look for work the brief did not ask for. When every step is done, or the rest is impossible, write your final report now and start it with DONE:";
 
 /** Most nudges a run gets; the step and time budgets usually end it first. */
 export const MAX_KEEP_GOING_ROUNDS = 40;
