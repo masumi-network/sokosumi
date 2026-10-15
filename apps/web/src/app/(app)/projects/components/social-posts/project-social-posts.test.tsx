@@ -707,7 +707,12 @@ describe("ProjectSocialPosts", () => {
       "sm:grid-cols-2",
       "xl:grid-cols-3",
     );
-
+    expect(
+      within(draftRow).getByRole("button", { name: "Preview" }),
+    ).toHaveClass("size-11", "md:size-10");
+    expect(
+      within(draftRow).getByRole("button", { name: "Post actions" }),
+    ).toHaveClass("size-11", "md:size-10");
     expect(
       screen.queryByTestId("social-post-post-scheduled"),
     ).not.toBeInTheDocument();
