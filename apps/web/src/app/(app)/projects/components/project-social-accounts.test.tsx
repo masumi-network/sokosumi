@@ -192,8 +192,6 @@ async function connectProvider(
 }
 
 describe("ProjectSocialAccounts", () => {
-  // The mocked messages stand in for the catalog; a key renamed there but not
-  // here would render as its raw path in the app while every test stays green.
   it("only uses message keys the catalog defines", () => {
     const catalog = messages.App.Projects.ProjectSocialAccounts;
     expect(catalog.connectAccount).toBe("Connect account");
@@ -944,12 +942,10 @@ describe("ProjectSocialAccounts", () => {
       error: {
         code: "BAD_REQUEST",
         kind: "social_facebook_page_required",
-        // Copy Core is free to change; the kind is what the page matches.
         message: "Facebook identity rejected",
       },
     });
 
-    // New Facebook connects are coming soon; reconnect still hits this gate.
     render(
       <ProjectSocialAccounts
         projectId={PROJECT_ID}

@@ -11,11 +11,9 @@ import {
 
 export const SOCIAL_PROVIDERS = [
   { id: "x", name: "X", Icon: SiX },
-  // Not offered yet: publishing needs TikTok's app review first.
   { id: "tiktok", name: "TikTok", Icon: TikTokIcon, comingSoon: true },
   { id: "instagram", name: "Instagram", Icon: InstagramIcon },
   { id: "linkedin", name: "LinkedIn", Icon: LinkedInIcon },
-  // Not offered yet: Facebook Page selection needs a product pass first.
   { id: "facebook", name: "Facebook", Icon: FacebookIcon, comingSoon: true },
   { id: "youtube", name: "YouTube", Icon: YouTubeIcon },
 ] as const satisfies readonly {
