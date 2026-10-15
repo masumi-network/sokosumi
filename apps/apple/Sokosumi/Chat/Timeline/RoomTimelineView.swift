@@ -125,7 +125,9 @@ import SwiftUI
     }
 
     var body: some View {
-      transcriptBody
+      // One container, so the modifiers below apply once. On the bare if/else each branch gets its own copy, and the
+      // switch from loading or the empty state to the list mounts the composer, its toolbar state and tasks again.
+      ZStack { transcriptBody }
         .scrollEdgeEffectStyle(.hard, for: .top)
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
