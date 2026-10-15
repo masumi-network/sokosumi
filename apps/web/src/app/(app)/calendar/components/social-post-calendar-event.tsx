@@ -18,9 +18,9 @@ import {
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import { cn } from "@/lib/utils";
 
-/** Failed and missed posts need the word, not only a coloured mark. */
+/** Failed, missed, and canceled posts need the word, not only a coloured mark. */
 function needsStatusLabel(status: SocialPostCalendarItem["status"]) {
-  return status === "FAILED" || status === "MISSED";
+  return status === "FAILED" || status === "MISSED" || status === "CANCELED";
 }
 
 function CalendarSocialPostStatus({
@@ -45,7 +45,7 @@ function CalendarSocialPostStatus({
       showLabel={labeled}
     />
   );
-  if (!needsStatusLabel(item.status)) return badge;
+  if (item.status !== "FAILED" && item.status !== "MISSED") return badge;
   return (
     <SocialPostStatusReasonTooltip
       label={label}
