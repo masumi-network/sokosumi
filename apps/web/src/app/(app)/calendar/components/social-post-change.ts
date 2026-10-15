@@ -41,9 +41,12 @@ export function useReportSocialRescheduleFailure() {
   return (error?: ActionError) => {
     if (error?.kind === CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT) {
       router.refresh();
-      toast.error(t("conflict"), { duration: Infinity });
+      toast.error(t("conflict"), { duration: Infinity, closeButton: true });
       return;
     }
-    toast.error(error?.message || t("failed"), { duration: Infinity });
+    toast.error(error?.message || t("failed"), {
+      duration: Infinity,
+      closeButton: true,
+    });
   };
 }

@@ -578,10 +578,21 @@ function CalendarView({
   const [pendingMoves, setPendingMoves] = useState<
     Record<string, { item: WorkspaceCalendarEntry; scheduledAt: Date }>
   >({});
-  // Fresh server items retire their overlays; local filtering preserves the items.
-  const retainedMoves = Object.entries(pendingMoves).filter(([, move]) =>
-    items.includes(move.item),
-  );
+  // Unchanged server snapshots retain the move until its time or revision changes.
+  const retainedMoves = Object.entries(pendingMoves).filter(([, move]) => {
+    const current = items.find((item) => item.id === move.item.id);
+    if (
+      !current ||
+      current.scheduledAt.getTime() !== move.item.scheduledAt.getTime()
+    ) {
+      return false;
+    }
+    return current.kind === "socialPost"
+      ? move.item.kind === "socialPost" &&
+          current.revision === move.item.revision
+      : move.item.kind !== "socialPost" &&
+          current.scheduleRevision === move.item.scheduleRevision;
+  });
   if (retainedMoves.length !== Object.keys(pendingMoves).length) {
     setPendingMoves(Object.fromEntries(retainedMoves));
   }

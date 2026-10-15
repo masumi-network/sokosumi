@@ -1143,11 +1143,17 @@ describe("WorkspaceCalendar editing", () => {
     rerender(calendar(SOCIAL_POST));
     expect(renderedStart()).toBe(droppedAt.toISOString());
 
+    rerender(calendar({ ...SOCIAL_POST }));
+    expect(renderedStart()).toBe(droppedAt.toISOString());
+
     await act(async () => {
       request.resolve({ ok: true, value: { id: "post-1" } });
       await request.promise;
     });
     expect(refreshMock).toHaveBeenCalledOnce();
+    expect(renderedStart()).toBe(droppedAt.toISOString());
+
+    rerender(calendar({ ...SOCIAL_POST }));
     expect(renderedStart()).toBe(droppedAt.toISOString());
 
     rerender(calendar({ ...SOCIAL_POST, scheduledAt: droppedAt }));
@@ -1184,7 +1190,7 @@ describe("WorkspaceCalendar editing", () => {
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith(
         "Social post cannot be scheduled",
-        { duration: Infinity },
+        { duration: Infinity, closeButton: true },
       ),
     );
     expect(revert).toHaveBeenCalledOnce();
@@ -1222,6 +1228,7 @@ describe("WorkspaceCalendar editing", () => {
     expect(revert).toHaveBeenCalledOnce();
     expect(toastErrorMock).toHaveBeenCalledWith("conflict", {
       duration: Infinity,
+      closeButton: true,
     });
   });
 });
