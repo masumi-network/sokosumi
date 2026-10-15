@@ -227,7 +227,9 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
                 ) : null}
                 <Button
                   aria-describedby={showNote ? noteId : undefined}
-                  disabled={isComingSoon || isUnavailable || connecting !== null}
+                  disabled={
+                    isComingSoon || isUnavailable || connecting !== null
+                  }
                   loading={connecting === provider}
                   onClick={() => void handleConnect(provider)}
                   type="button"
