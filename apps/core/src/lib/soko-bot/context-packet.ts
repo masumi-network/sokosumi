@@ -731,7 +731,7 @@ export class ContextPacketBuilder {
           sokoBotId: input.sokoBotId,
           expiresAt: { gt: new Date() },
           turn: {
-            requestedByUserId:
+            askedByUserId:
               input.askedByUserId && input.askedByUserId !== input.userId
                 ? input.askedByUserId
                 : null,
@@ -756,7 +756,7 @@ export class ContextPacketBuilder {
           userId: input.userId,
           workspaceId: input.workspaceId,
           status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
-          requestedByUserId:
+          askedByUserId:
             input.askedByUserId && input.askedByUserId !== input.userId
               ? input.askedByUserId
               : null,
@@ -833,7 +833,7 @@ export class ContextPacketBuilder {
           sokoBotId: input.sokoBotId,
           expiresAt: { gt: new Date() },
           turn: {
-            requestedByUserId:
+            askedByUserId:
               input.askedByUserId && input.askedByUserId !== input.userId
                 ? input.askedByUserId
                 : null,
@@ -849,7 +849,7 @@ export class ContextPacketBuilder {
           userId: input.userId,
           workspaceId: input.workspaceId,
           status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
-          requestedByUserId:
+          askedByUserId:
             input.askedByUserId && input.askedByUserId !== input.userId
               ? input.askedByUserId
               : null,

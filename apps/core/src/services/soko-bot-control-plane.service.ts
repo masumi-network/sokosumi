@@ -263,7 +263,7 @@ export interface StartSokoBotTurnInput {
     mentionId: string;
     responseMessageId: string;
     /** Teammate who asked; turns they trigger are read-only. */
-    requestedByUserId?: string | null;
+    askedByUserId?: string | null;
     /**
      * Another bot asked. Read-only like a teammate — it answers into a room
      * neither of them owns — and counted against the allowance for unprompted
@@ -675,7 +675,7 @@ function safeEventProjection(type: string, data: Record<string, unknown>) {
 
 /** Who asked and where, for chat-started turns (console attribution). */
 const TURN_CHAT_ATTRIBUTION_INCLUDE = {
-  requestedBy: { select: { id: true, name: true, image: true } },
+  askedBy: { select: { id: true, name: true, image: true } },
   chatMention: {
     select: {
       message: {
@@ -937,7 +937,7 @@ export class SokoBotControlPlane {
       !turn ||
       turn.source !== "CHAT" ||
       turn.chainDepth !== 0 ||
-      (turn.requestedByUserId && turn.requestedByUserId !== turn.userId) ||
+      (turn.askedByUserId && turn.askedByUserId !== turn.userId) ||
       storedContinuation(turn.classification) !== "CONTINUE" ||
       !turn.intent ||
       turn.intent.requesterId !== turn.userId ||
@@ -1791,7 +1791,7 @@ export class SokoBotControlPlane {
           userId: true,
           workspaceId: true,
           versionId: true,
-          requestedByUserId: true,
+          askedByUserId: true,
           chainDepth: true,
           eveSessionId: true,
           startedAt: true,
@@ -2150,8 +2150,8 @@ export class SokoBotControlPlane {
     if (
       evaluationBinding() &&
       (input.chat?.askedByBot ||
-        (input.chat?.requestedByUserId &&
-          input.chat.requestedByUserId !== input.userId))
+        (input.chat?.askedByUserId &&
+          input.chat.askedByUserId !== input.userId))
     )
       throw new SokoBotValidationError(
         "Evaluation requires the designated owner",
@@ -2263,10 +2263,10 @@ export class SokoBotControlPlane {
       throw error;
     }
 
-    const requestedByTeammate =
+    const askedByTeammate =
       input.chat?.askedByBot === true ||
-      (!!input.chat?.requestedByUserId &&
-        input.chat.requestedByUserId !== input.userId);
+      (!!input.chat?.askedByUserId &&
+        input.chat.askedByUserId !== input.userId);
     const conversationMention = input.chat?.mentionId
       ? await prisma.chatRoomMention.findUnique({
           where: { id: input.chat.mentionId },
@@ -2304,7 +2304,7 @@ export class SokoBotControlPlane {
       sokoBotId: bot.id,
       workspaceId: input.workspaceId,
       roomId: conversationMention?.message.roomId ?? null,
-      requesterId: input.chat?.requestedByUserId ?? input.userId,
+      requesterId: input.chat?.askedByUserId ?? input.userId,
     };
     // A person asking, owner or teammate, has their own offers in this
     // room: intents are scoped to (room, requester), so a teammate's "yes"
@@ -2354,9 +2354,7 @@ export class SokoBotControlPlane {
               createdAt: {
                 gte: new Date(Date.now() - PREVIOUS_REPLY_WINDOW_MS),
               },
-              requestedByUserId: requestedByTeammate
-                ? input.chat?.requestedByUserId
-                : null,
+              askedByUserId: askedByTeammate ? input.chat?.askedByUserId : null,
               ...(conversationMention?.message.roomId
                 ? {
                     chatMention: {
@@ -2372,7 +2370,7 @@ export class SokoBotControlPlane {
     const classifierContext = await this.classificationContext(
       input.userId,
       input.workspaceId,
-      requestedByTeammate ? "TEAMMATE" : "OWNER",
+      askedByTeammate ? "TEAMMATE" : "OWNER",
       [
         input.chat?.classifyMessage ?? message,
         ...pendingIntents.flatMap((intent) =>
@@ -2557,13 +2555,13 @@ export class SokoBotControlPlane {
       workspaceId: input.workspaceId,
       source: input.source ?? "CHAT",
       classification: classification.classification,
-      audience: requestedByTeammate ? "TEAMMATE" : "OWNER",
+      audience: askedByTeammate ? "TEAMMATE" : "OWNER",
       askedByKind: input.chat?.askedByBot
         ? "ASSISTANT"
-        : requestedByTeammate
+        : askedByTeammate
           ? "TEAMMATE"
           : "OWNER",
-      askedByUserId: input.chat?.requestedByUserId ?? null,
+      askedByUserId: input.chat?.askedByUserId ?? null,
       roomId: conversationMention?.message.roomId ?? null,
       referencedTaskIds: [
         ...new Set([
@@ -2706,9 +2704,7 @@ export class SokoBotControlPlane {
               : undefined,
             chatMentionId: input.chat?.mentionId,
             chatResponseMessageId: input.chat?.responseMessageId,
-            requestedByUserId: requestedByTeammate
-              ? input.chat?.requestedByUserId
-              : null,
+            askedByUserId: askedByTeammate ? input.chat?.askedByUserId : null,
             chainDepth: input.chat?.chainDepth ?? 0,
             parentTurnId: input.background?.parentTurnId ?? null,
             backgroundTitle: input.background?.title ?? null,
@@ -2970,7 +2966,7 @@ export class SokoBotControlPlane {
       if (
         classification.classification.selectedIntentId &&
         source === "CHAT" &&
-        !requestedByTeammate &&
+        !askedByTeammate &&
         !input.chat?.askedByBot &&
         (input.chat?.chainDepth ?? 0) === 0 &&
         (await this.settleOwnerConfirmation(turn.id, leaseToken))
@@ -4667,12 +4663,12 @@ export class SokoBotControlPlane {
           // failed depth-1 turn another assistant asked for — read-only, and
           // its message written by that assistant — into an owner-audience
           // turn holding the whole route ceiling.
-          ...(failed.chainDepth > 0 || failed.requestedByUserId
+          ...(failed.chainDepth > 0 || failed.askedByUserId
             ? {
                 chat: {
                   mentionId: failed.chatMentionId ?? "",
                   responseMessageId: failed.chatResponseMessageId ?? "",
-                  requestedByUserId: failed.requestedByUserId,
+                  askedByUserId: failed.askedByUserId,
                   askedByBot: failed.chainDepth > 0,
                   chainDepth: failed.chainDepth,
                 },

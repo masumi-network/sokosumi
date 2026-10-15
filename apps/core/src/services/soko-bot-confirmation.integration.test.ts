@@ -168,7 +168,7 @@ describe.skipIf(!process.env.LOCAL_RELIABILITY_DATABASE_URL)(
           status: "STARTING",
           clientTurnId: randomUUID(),
           userMessage: "yes",
-          requestedByUserId: userId,
+          askedByUserId: userId,
           intentId: intent.id,
           intentRevision: 1,
           deadlineAt,

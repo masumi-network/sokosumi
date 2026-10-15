@@ -79,11 +79,11 @@ async function publishRealtime(
  */
 function thoughtSteps(turn: {
   userId: string;
-  requestedByUserId: string | null;
+  askedByUserId: string | null;
   events: { type: string; toolName: string | null; summary: string | null }[];
 }): string[] {
   const ownerAsked =
-    turn.requestedByUserId === null || turn.requestedByUserId === turn.userId;
+    turn.askedByUserId === null || turn.askedByUserId === turn.userId;
   const summaries = ownerAsked
     ? turn.events.flatMap((event) =>
         event.type === "reasoning.completed" && event.summary
@@ -132,7 +132,7 @@ async function loadChatLinkedTurn(
         },
       },
       userId: true,
-      requestedByUserId: true,
+      askedByUserId: true,
       events: {
         where: { type: { in: ["actions.requested", "reasoning.completed"] } },
         orderBy: { sequence: "asc" },

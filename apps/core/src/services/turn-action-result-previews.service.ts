@@ -37,13 +37,13 @@ export async function prepareTurnActionResultPreviews(
   turnId: string,
   turn: Pick<
     SokoBotTurn,
-    "userId" | "workspaceId" | "versionId" | "requestedByUserId" | "chainDepth"
+    "userId" | "workspaceId" | "versionId" | "askedByUserId" | "chainDepth"
   >,
   tx: Prisma.TransactionClient,
 ) {
   if (
     turn.chainDepth > 0 ||
-    (turn.requestedByUserId && turn.requestedByUserId !== turn.userId)
+    (turn.askedByUserId && turn.askedByUserId !== turn.userId)
   )
     return;
   if (

@@ -895,7 +895,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       userId: "user_1",
       workspaceId: "workspace_1",
       source: "CHAT",
-      requestedByUserId: null,
+      askedByUserId: null,
       chatMentionId: null,
     });
     expect(turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames).toContain(
@@ -944,7 +944,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       chat: {
         mentionId: "mention_1",
         responseMessageId: "message_1",
-        requestedByUserId: "user_teammate",
+        askedByUserId: "user_teammate",
         classifyMessage: "yes",
       },
     });
@@ -958,7 +958,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       ([query]) => query?.where?.source === "CHAT",
     )?.[0];
     expect(replyQuery.where).toMatchObject({
-      requestedByUserId: "user_teammate",
+      askedByUserId: "user_teammate",
       chatMention: { message: { roomId: "room-1" } },
     });
     expect(intentFindManyMock).toHaveBeenCalledWith(
@@ -1669,7 +1669,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       chat: {
         mentionId: "mention_1",
         responseMessageId: "message_1",
-        requestedByUserId: "user_teammate",
+        askedByUserId: "user_teammate",
       },
     });
 
@@ -2038,7 +2038,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         chat: {
           mentionId: "mention_2",
           responseMessageId: "message_2",
-          requestedByUserId: "user_other",
+          askedByUserId: "user_other",
           askedByBot: true,
           chainDepth: 1,
         },
@@ -2085,7 +2085,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       chat: {
         mentionId: "mention_3",
         responseMessageId: "message_3",
-        requestedByUserId: "user_other",
+        askedByUserId: "user_other",
         askedByBot: true,
         chainDepth: 1,
       },
@@ -2131,7 +2131,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       chat: {
         mentionId: "mention_1",
         responseMessageId: "message_1",
-        requestedByUserId: "user_1",
+        askedByUserId: "user_1",
       },
     });
 

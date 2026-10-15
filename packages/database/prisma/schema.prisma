@@ -2348,8 +2348,8 @@ model SokoBotTurn {
   errorDetail             String?
 
   /// Who asked, when a teammate (not the owner) mentioned the bot in chat.
-  requestedByUserId String?
-  requestedBy       User?   @relation("SokoBotTurnRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  askedByUserId String?
+  askedBy       User?   @relation("SokoBotTurnAskedBy", fields: [askedByUserId], references: [id], onDelete: SetNull)
 
   /// Bot-to-bot hops behind this turn (see ChatRoomMention.chainDepth). Above
   /// zero the turn exists because another bot spoke, not because a person did,

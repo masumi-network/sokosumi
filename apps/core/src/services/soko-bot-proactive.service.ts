@@ -220,7 +220,7 @@ export async function findAttentionItems(bot: {
       // Work done for a teammate is the teammate's to chase, not the owner's.
       turn: {
         sokoBotId: bot.id,
-        OR: [{ requestedByUserId: null }, { requestedByUserId: bot.userId }],
+        OR: [{ askedByUserId: null }, { askedByUserId: bot.userId }],
       },
     },
     select: { taskId: true },

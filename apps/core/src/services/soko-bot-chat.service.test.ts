@@ -107,7 +107,7 @@ function completedTurn(overrides: Record<string, unknown> = {}) {
     chatResponseMessageId: "response-a",
     chainDepth: 0,
     userId: "owner-a",
-    requestedByUserId: null,
+    askedByUserId: null,
     chatMention: {
       id: "mention-a",
       messageId: "source-a",
@@ -185,7 +185,7 @@ describe("persistSokoBotChatTurn", () => {
     // A teammate asking sees the tools used, never the owner-side summary.
     messageUpdate.mockClear();
     turnFindUnique.mockResolvedValue(
-      completedTurn({ events, requestedByUserId: "teammate-a" }),
+      completedTurn({ events, askedByUserId: "teammate-a" }),
     );
     await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     const teammateReasoning =

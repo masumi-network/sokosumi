@@ -462,7 +462,7 @@ describe("sandbox turn service", () => {
     turnFindUniqueMock.mockResolvedValue({
       source: "CHAT",
       parentTurnId: null,
-      requestedByUserId: null,
+      askedByUserId: null,
       chainDepth: 0,
       chatMentionId: "mention",
     });
@@ -480,7 +480,7 @@ describe("sandbox turn service", () => {
     turnFindUniqueMock.mockResolvedValue({
       source: "CHAT",
       parentTurnId: "parent",
-      requestedByUserId: null,
+      askedByUserId: null,
       chainDepth: 0,
       chatMentionId: null,
     });
@@ -505,7 +505,7 @@ describe("sandbox turn service", () => {
     turnFindUniqueMock.mockResolvedValue({
       source: "CHAT",
       parentTurnId: null,
-      requestedByUserId: "teammate",
+      askedByUserId: "teammate",
       chainDepth: 0,
       chatMentionId: "mention",
     });

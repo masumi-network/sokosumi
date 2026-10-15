@@ -166,7 +166,7 @@ describe("scoped task outcome reads", () => {
           intentId: "intent-one",
           intentRevision: 2,
           chainDepth: 0,
-          OR: [{ requestedByUserId: null }, { requestedByUserId: "owner-one" }],
+          OR: [{ askedByUserId: null }, { askedByUserId: "owner-one" }],
         },
       }),
     );

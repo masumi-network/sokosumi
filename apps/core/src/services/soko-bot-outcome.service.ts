@@ -698,7 +698,7 @@ export async function readSokoBotTaskOutcome(
       intentId: input.intentId,
       intentRevision: input.intentRevision,
       chainDepth: 0,
-      OR: [{ requestedByUserId: null }, { requestedByUserId: input.userId }],
+      OR: [{ askedByUserId: null }, { askedByUserId: input.userId }],
     },
     select: {
       contextSnapshot: { select: { packet: true } },

@@ -472,7 +472,7 @@ describe("durable delivery", () => {
       delivery({
         turn: turn({
           source: "CHAT",
-          requestedByUserId: "teammate",
+          askedByUserId: "teammate",
           chatResponseMessageId: "placeholder",
           chatMentionId: "mention",
           destinationAudience: {
