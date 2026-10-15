@@ -4,15 +4,18 @@ export function formatComposerHandle(handle: string | null): string {
 }
 
 export function accountChipLabel(
-  connection: {
-    displayName: string | null;
-    externalHandle: string | null;
-  },
+  connection:
+    | {
+        displayName: string | null;
+        externalHandle: string | null;
+      }
+    | null
+    | undefined,
   fallback: string,
 ): string {
   return (
-    connection.displayName?.trim() ||
-    formatComposerHandle(connection.externalHandle) ||
+    connection?.displayName?.trim() ||
+    formatComposerHandle(connection?.externalHandle ?? null) ||
     fallback
   );
 }

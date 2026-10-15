@@ -2434,10 +2434,14 @@
       },
       "SocialPosts": {
         "loadMore": "Cargar más",
+        "loadMoreError": "No se pudieron cargar más.",
+        "loadMoreOffline": "Estás sin conexión.",
+        "loadMoreTimeout": "Se agotó el tiempo.",
         "loading": "Cargando…",
         "title": "Publicaciones sociales",
         "newPost": "Nueva publicación",
-        "moreActions": "Acciones de la publicación",
+        "moreActionsNamed": "Acciones de la publicación para {handle}",
+        "thisDraft": "este borrador",
         "noAccount": "Sin cuenta",
         "outcomes": {
           "authorizationRevoked": "Se revocó el acceso de programación del Coworker. Reprograma esta publicación para publicarla.",
@@ -2461,8 +2465,12 @@
           "accounts": "Cuentas",
           "statistics": "Rendimiento"
         },
+        "filters": {
+          "platform": "Plataforma"
+        },
         "empty": {
-          "drafts": "Aún no hay borradores."
+          "drafts": "Aún no hay borradores.",
+          "more": "Hay más publicaciones."
         },
         "emptyHint": {
           "drafts": "Guarda una publicación como borrador para terminarla más tarde."
@@ -2588,6 +2596,7 @@
           "failed": "Algo salió mal. Inténtalo de nuevo.",
           "offline": "Estás sin conexión. Inténtalo de nuevo.",
           "timeout": "Se agotó el tiempo. Inténtalo de nuevo.",
+          "missingPost": "No se pudo abrir esta publicación.",
           "unauthenticated": "Inicia sesión para continuar.",
           "unauthenticatedAction": "Iniciar sesión",
           "published": "Publicación publicada.",
@@ -2616,6 +2625,17 @@
           "description": "La publicación saldrá ahora.",
           "confirm": "Reintentar"
         },
+        "bulkRetry": {
+          "selectPost": "Seleccionar esta publicación",
+          "selectAll": "Seleccionar todas las publicaciones que se pueden reintentar",
+          "selected": "{count} seleccionadas",
+          "retrySelected": "Reintentar selección",
+          "title": "¿Reintentar estas publicaciones ahora?",
+          "description": "Cada publicación seleccionada saldrá de inmediato. Después verás cuáles se publicaron y cuáles siguen necesitando atención.",
+          "confirm": "Reintentar selección",
+          "resultsTitle": "Resultado",
+          "published": "Publicada"
+        },
         "connectPrompt": {
           "title": "Conecta una cuenta para empezar a publicar",
           "body": "Las publicaciones salen de las cuentas de este proyecto.",
@@ -2631,6 +2651,7 @@
           "now": "ahora",
           "accountFallback": "Tu cuenta",
           "open": "Vista previa",
+          "openNamed": "Vista previa de {handle}",
           "accounts": "Cuenta de vista previa",
           "as": "Vista previa como {provider} {handle}",
           "dialogTitle": "Vista previa de la publicación",
@@ -2665,6 +2686,9 @@
           "tiktok": {
             "more": "más",
             "videoRequired": "TikTok necesita un video."
+          },
+          "x": {
+            "more": "Mostrar más"
           }
         },
         "statistics": {
@@ -3645,6 +3669,10 @@
       "accountsNeedProject": {
         "title": "Conecta tus cuentas de redes sociales",
         "body": "Reúne tus canales en un solo lugar. Elige un proyecto para conectar cuentas y luego crear, programar y publicar tus publicaciones."
+      },
+      "attentionNeedProject": {
+        "title": "Requiere atención",
+        "body": "Elige un proyecto para ver las publicaciones que fallaron o se omitieron."
       },
       "draftsNeedProject": {
         "title": "Borradores",
@@ -8071,7 +8099,8 @@
         "scheduledBy": "Programado por {name}",
         "unknownScheduler": "usuario desconocido",
         "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}",
-        "compactLabel": "{media, select, image {{count, plural, one {Publicación de {provider} con imagen} other {Publicación de {provider} con # imágenes}}} gif {Publicación de {provider} con GIF} video {Publicación de {provider} con vídeo} other {Publicación de {provider}}}"
+        "compactLabel": "{media, select, image {{count, plural, one {Publicación de {provider} con imagen} other {Publicación de {provider} con # imágenes}}} gif {Publicación de {provider} con GIF} video {Publicación de {provider} con vídeo} other {Publicación de {provider}}}",
+        "platform": "Plataforma"
       },
       "socialOnly": {
         "label": "Solo publicaciones sociales"

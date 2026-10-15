@@ -2434,10 +2434,14 @@
       },
       "SocialPosts": {
         "loadMore": "Load more",
+        "loadMoreError": "Couldn't load more.",
+        "loadMoreOffline": "You're offline.",
+        "loadMoreTimeout": "Timed out.",
         "loading": "Loading…",
         "title": "Social posts",
         "newPost": "New post",
-        "moreActions": "Post actions",
+        "moreActionsNamed": "Post actions for {handle}",
+        "thisDraft": "this draft",
         "noAccount": "No account",
         "outcomes": {
           "authorizationRevoked": "Coworker scheduling access was revoked. Reschedule this post to publish it.",
@@ -2461,8 +2465,12 @@
           "accounts": "Accounts",
           "statistics": "Performance"
         },
+        "filters": {
+          "platform": "Platform"
+        },
         "empty": {
-          "drafts": "No drafts yet."
+          "drafts": "No drafts yet.",
+          "more": "More posts are available."
         },
         "emptyHint": {
           "drafts": "Save a post as a draft to finish it later."
@@ -2588,6 +2596,7 @@
           "failed": "Something went wrong. Try again.",
           "offline": "You're offline. Try again.",
           "timeout": "Timed out. Try again.",
+          "missingPost": "Couldn't open this post.",
           "unauthenticated": "Please log in to continue.",
           "unauthenticatedAction": "Log in",
           "published": "Post published.",
@@ -2616,6 +2625,17 @@
           "description": "The post goes out now.",
           "confirm": "Retry"
         },
+        "bulkRetry": {
+          "selectPost": "Select this post",
+          "selectAll": "Select all posts that can be retried",
+          "selected": "{count} selected",
+          "retrySelected": "Retry selected",
+          "title": "Retry these posts now?",
+          "description": "Each selected post goes out right away. You will see which ones published and which still need attention.",
+          "confirm": "Retry selected",
+          "resultsTitle": "Retry results",
+          "published": "Published"
+        },
         "connectPrompt": {
           "title": "Connect an account to start posting",
           "body": "Posts go out from this project's accounts.",
@@ -2631,6 +2651,7 @@
           "now": "now",
           "accountFallback": "Your account",
           "open": "Preview",
+          "openNamed": "Preview {handle}",
           "accounts": "Preview account",
           "as": "Preview as {provider} {handle}",
           "dialogTitle": "Post preview",
@@ -2665,6 +2686,9 @@
           "tiktok": {
             "more": "more",
             "videoRequired": "TikTok needs a video."
+          },
+          "x": {
+            "more": "Show more"
           }
         },
         "statistics": {
@@ -3645,6 +3669,10 @@
       "accountsNeedProject": {
         "title": "Connect your social accounts",
         "body": "Bring your channels together. Choose a project to connect accounts, then draft, schedule, and publish your posts."
+      },
+      "attentionNeedProject": {
+        "title": "Needs attention",
+        "body": "Choose a project to see posts that failed or were missed."
       },
       "draftsNeedProject": {
         "title": "Drafts",
@@ -8071,7 +8099,8 @@
         "scheduledBy": "Scheduled by {name}",
         "unknownScheduler": "unknown user",
         "attachments": "{count, plural, one {# attachment} other {# attachments}}",
-        "compactLabel": "{media, select, image {{count, plural, one {{provider} post with image} other {{provider} post with # images}}} gif {{provider} post with GIF} video {{provider} post with video} other {{provider} post}}"
+        "compactLabel": "{media, select, image {{count, plural, one {{provider} post with image} other {{provider} post with # images}}} gif {{provider} post with GIF} video {{provider} post with video} other {{provider} post}}",
+        "platform": "Platform"
       },
       "socialOnly": {
         "label": "Social posts only"

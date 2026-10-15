@@ -1,12 +1,12 @@
 "use client";
 
-import type {
-  ProjectSocialConnection,
-  SocialPost,
-  SocialPostMediaRef,
-  SocialPostStatus,
+import {
+  type ProjectSocialConnection,
+  type ProjectSocialProvider as ProjectSocialProviderValue,
+  type SocialPost,
+  type SocialPostStatus,
 } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, isValidTimezone } from "@sokosumi/utils";
 import {
   AlertTriangle,
   ExternalLink,
@@ -20,14 +20,23 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { type ReactNode, useRef, useState } from "react";
+import {
+  parseAsString,
+  parseAsStringEnum,
+  parseAsStringLiteral,
+  useQueryState,
+} from "nuqs";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
 import { EmptyState } from "@/components/common/empty-state";
+import {
+  SOCIAL_POST_PROVIDERS,
+  SocialPlatformFilter,
+} from "@/components/social-platform-filter";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import {
   AlertDialog,
@@ -40,14 +49,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
   SEGMENTED_TABS_LIST_CLASS_NAME,
@@ -65,20 +74,26 @@ import {
   cancelProjectSocialPost,
   publishProjectSocialPost,
 } from "@/lib/actions/project/action";
+import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import { cn } from "@/lib/utils";
 import { loadMoreSocialPosts } from "./actions";
 import {
   SECTION_ORDER,
   SECTION_STATUSES,
   type SectionKey,
-  SOCIAL_TAB_TRIGGER_CLASS_NAME,
   SOCIAL_TABS,
-  SOCIAL_TABS_LIST_CLASS_NAME,
   type SocialTab,
 } from "./constants";
+import {
+  accountChipLabel,
+  formatComposerHandle,
+} from "./social-post-account-chip-label";
+import { socialPostCreatorLabel } from "./social-post-creator-label";
+import { SocialPostMediaThumb } from "./social-post-media-thumb";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
+import { publishFailureCopy } from "./social-post-publish-failure";
 import { SocialPostStatistics } from "./social-post-statistics";
 
 interface ProjectSocialPostsProps {
@@ -105,10 +120,36 @@ interface ProjectSocialPostsProps {
    * The post a link names (`?postId=`), opened in a preview without changing tabs.
    */
   selectedPostId?: string;
+  /** The same `?postId=` even when that post is gone, so the page can say so. */
+  requestedPostId?: string;
 }
 
 /** Statuses whose previous attempt already ran, so the publish action reads as a retry. */
 const RETRY_STATUSES: readonly SocialPostStatus[] = ["FAILED", "MISSED"];
+
+function canRetryPost(post: SocialPost): boolean {
+  return RETRY_STATUSES.includes(post.status) && post.canPublishNow;
+}
+
+function retryLabel(post: SocialPost): string {
+  const text = post.text.trim();
+  if (text) return text.length > 48 ? `${text.slice(0, 47)}…` : text;
+  return post.socialConnection?.externalHandle ?? post.provider;
+}
+
+interface BulkRetryResult {
+  postId: string;
+  label: string;
+  ok: boolean;
+  error?: string;
+}
+type LoadMoreErrorKind = "offline" | "timeout" | "failed";
+
+const LOAD_MORE_ERROR_COPY = {
+  offline: "loadMoreOffline",
+  timeout: "loadMoreTimeout",
+  failed: "loadMoreError",
+} as const;
 
 function timeOf(value: Date | null): number {
   return value ? new Date(value).getTime() : 0;
@@ -120,13 +161,43 @@ function sectionOf(post: SocialPost): SectionKey | undefined {
   );
 }
 
-function sortSection(posts: SocialPost[]): SocialPost[] {
+function sortSection(posts: SocialPost[], section: SectionKey): SocialPost[] {
+  if (section === "attention") {
+    return [...posts].sort(
+      (a, b) =>
+        timeOf(b.lastAttemptAt) - timeOf(a.lastAttemptAt) ||
+        timeOf(b.scheduledAt) - timeOf(a.scheduledAt) ||
+        b.id.localeCompare(a.id),
+    );
+  }
   return [...posts].sort((a, b) => timeOf(b.updatedAt) - timeOf(a.updatedAt));
 }
 
-function formatHandle(handle: string | null): string | null {
-  if (!handle) return null;
-  return handle.startsWith("@") ? handle : `@${handle}`;
+/** Same `yyyy-MM-dd` WorkspaceCalendar reads from `?date=`. */
+function calendarDateParam(date: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values: Partial<Record<Intl.DateTimeFormatPartTypes, string>> = {};
+  for (const part of parts) {
+    if (part.type !== "literal") {
+      values[part.type] = part.value;
+    }
+  }
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function actionSubject(post: SocialPost, untitled: string): string {
+  const handle = formatComposerHandle(
+    post.socialConnection?.externalHandle ?? null,
+  );
+  if (handle) return handle;
+  const name = post.socialConnection?.displayName?.trim();
+  if (name) return name;
+  return untitled;
 }
 
 function isRevisionConflict(error: ActionError): boolean {
@@ -169,39 +240,21 @@ function previewAccountFor(
   };
 }
 
-/**
- * Compact row thumbnail. Images and GIFs reuse the shared mini preview;
- * video shows its first frame in the same 48px frame.
- */
-function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
-  if (media.kind !== "video") {
-    return (
-      <FileChipMiniPreview
-        fileName={media.name}
-        mediaType={media.mimeType}
-        size={media.size}
-        sizeClass="size-12"
-        url={media.fileUrl}
-      />
-    );
-  }
-
+/** Same boxes as a list row so Load more does not jump the page. */
+function SocialPostRowSkeleton() {
   return (
-    <a
-      aria-label={media.name}
-      className="bg-card-background press hover:bg-card-background-hover focus-visible:ring-ring focus-visible:ring-2 relative block size-12 shrink-0 overflow-hidden rounded-xl border outline-none transition-[color,background-color,border-color,transform]"
-      href={media.fileUrl}
-      rel="noreferrer noopener"
-      target="_blank"
+    <li
+      aria-hidden
+      className="bg-background border-border flex items-start gap-3 rounded-lg border p-3"
+      data-testid="social-post-row-skeleton"
     >
-      <video
-        className="size-full object-cover"
-        muted
-        playsInline
-        preload="metadata"
-        src={media.fileUrl}
-      />
-    </a>
+      <Skeleton className="size-9 shrink-0 rounded-md" />
+      <div className="min-w-48 flex-1 space-y-1.5">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-3 w-24" />
+      </div>
+    </li>
   );
 }
 
@@ -215,6 +268,7 @@ export function ProjectSocialPosts({
   nextCursors,
   projectId,
   selectedPostId,
+  requestedPostId,
   previewOnly = false,
   returnFocus,
 }: ProjectSocialPostsProps) {
@@ -226,16 +280,27 @@ export function ProjectSocialPosts({
   const [posts, setPosts] = useState(initialPosts);
   const [cursors, setCursors] = useState(nextCursors ?? {});
   const [loadingSection, setLoadingSection] = useState<SectionKey | null>(null);
+  const [loadMoreError, setLoadMoreError] = useState<{
+    section: SectionKey;
+    kind: LoadMoreErrorKind;
+  } | null>(null);
   const [tabParam, setTabParam] = useQueryState(
     "tab",
     parseAsStringLiteral(SOCIAL_TABS),
   );
+  const [provider, setProvider] = useQueryState(
+    "provider",
+    parseAsStringEnum<ProjectSocialProviderValue>(SOCIAL_POST_PROVIDERS),
+  );
+  const [timezone] = useQueryState("timezone", parseAsString);
+  const [, setDate] = useQueryState("date", parseAsString);
   const sourceRef = useRef(initialPosts);
   sourceRef.current = initialPosts;
   if (syncedPosts !== initialPosts) {
     setSyncedPosts(initialPosts);
     setPosts(initialPosts);
     setCursors(nextCursors ?? {});
+    setLoadMoreError(null);
   }
   const [composer, setComposer] = useState<SocialPostComposerMode | null>(null);
   // Social's top-level New post menu opens a fresh composer through context.
@@ -246,6 +311,14 @@ export function ProjectSocialPosts({
   const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
   const [publishPending, setPublishPending] = useState(false);
+  const [selectedRetryIds, setSelectedRetryIds] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
+  const [bulkRetryOpen, setBulkRetryOpen] = useState(false);
+  const [bulkRetryPending, setBulkRetryPending] = useState(false);
+  const [bulkRetryResults, setBulkRetryResults] = useState<
+    BulkRetryResult[] | null
+  >(null);
   // The target outlives `previewOpen` so the dialog keeps its content while it
   // animates closed.
   const [previewTarget, setPreviewTarget] = useState<SocialPost | null>(
@@ -261,15 +334,25 @@ export function ProjectSocialPosts({
     setPreviewOpen(Boolean(linkedPost));
   }
 
+  useEffect(() => {
+    if (!requestedPostId || selectedPostId) return;
+    toast.error(t("toasts.missingPost"), {
+      duration: Infinity,
+      closeButton: true,
+    });
+  }, [requestedPostId, selectedPostId, t]);
+
   function handleCloseAutoFocus(event: Event) {
     if (!returnFocus) return;
     event.preventDefault();
-    if (!composerMode && !cancelTarget && !publishTarget) returnFocus();
+    if (!composerMode && !cancelTarget && !publishTarget && !bulkRetryOpen)
+      returnFocus();
   }
 
   function postsIn(section: SectionKey): SocialPost[] {
     return sortSection(
       posts.filter((post) => SECTION_STATUSES[section].includes(post.status)),
+      section,
     );
   }
 
@@ -295,6 +378,17 @@ export function ProjectSocialPosts({
         : connections.length === 0
           ? "reconnect"
           : null;
+  const retryablePosts = postsIn("attention").filter(
+    (post) =>
+      canRetryPost(post) && (provider === null || post.provider === provider),
+  );
+  const selectedRetryablePosts = retryablePosts.filter((post) =>
+    selectedRetryIds.has(post.id),
+  );
+  const allRetryableSelected =
+    retryablePosts.length > 0 &&
+    selectedRetryablePosts.length === retryablePosts.length;
+  const someRetryableSelected = selectedRetryablePosts.length > 0;
 
   function showTab(next: SocialTab | null): void {
     void setTabParam(next);
@@ -335,13 +429,21 @@ export function ProjectSocialPosts({
     if (!cursor || loadingSection) return;
     const source = initialPosts;
     setLoadingSection(section);
+    setLoadMoreError(null);
     try {
       const page = await loadMoreSocialPosts({ projectId, section, cursor });
       if (sourceRef.current !== source) return;
       setPosts((current) => page.posts.reduce(upsertPost, current));
       setCursors((current) => ({ ...current, [section]: page.nextCursor }));
-    } catch {
-      toast.error(t("toasts.failed"));
+    } catch (error) {
+      setLoadMoreError({
+        section,
+        kind: isBrowserOffline()
+          ? "offline"
+          : isTimeoutRejection(error)
+            ? "timeout"
+            : "failed",
+      });
     } finally {
       setLoadingSection(null);
     }
@@ -349,11 +451,41 @@ export function ProjectSocialPosts({
 
   function handleSaved(post: SocialPost): void {
     setPosts((current) => upsertPost(current, post));
-    // Follow the post to the tab that shows it now, so a new draft, a
-    // scheduled draft or a failed publish stays in view.
-    if (previewOnly) router.refresh();
-    else
-      showTab(sectionOf(post) ?? (calendar !== undefined ? "calendar" : null));
+    // Follow the post to the list that still shows it. A failed or missed
+    // post that just left that list should not yank the page to the calendar
+    // while other posts still need attention.
+    // Calendar entries are server-rendered, so refresh after every save.
+    router.refresh();
+    const nextSection = sectionOf(post);
+    const previous = posts.find((candidate) => candidate.id === post.id);
+    const attentionRemains = posts.some(
+      (candidate) =>
+        candidate.id !== post.id &&
+        SECTION_STATUSES.attention.includes(candidate.status),
+    );
+    const stayOnAttention =
+      previous !== undefined &&
+      RETRY_STATUSES.includes(previous.status) &&
+      attentionRemains;
+    const openCalendar =
+      nextSection === undefined &&
+      (previewOnly || (calendar !== undefined && !stayOnAttention));
+    if (openCalendar && post.scheduledAt) {
+      const zone =
+        timezone && isValidTimezone(timezone) ? timezone : getDefaultTimezone();
+      void setDate(calendarDateParam(post.scheduledAt, zone));
+    }
+    if (previewOnly) {
+      return;
+    }
+    if (nextSection) {
+      showTab(nextSection);
+      return;
+    }
+    if (stayOnAttention) {
+      return;
+    }
+    showTab(calendar !== undefined ? "calendar" : null);
   }
 
   async function handleConfirmCancel(): Promise<void> {
@@ -404,11 +536,8 @@ export function ProjectSocialPosts({
       handleSaved(post);
       if (post.status === "PUBLISHED") {
         toast.success(t("toasts.published"));
-      } else if (post.lastError) {
-        const error =
-          post.lastAttempt?.outcome === "authorization_revoked"
-            ? t("outcomes.authorizationRevoked")
-            : post.lastError;
+      } else if (post.lastError || post.lastAttempt?.errorKind) {
+        const error = publishFailureCopy(post, t) ?? t("toasts.failed");
         toast.error(t("toasts.publishFailed", { error }));
       } else {
         toast.error(t("toasts.failed"));
@@ -419,6 +548,97 @@ export function ProjectSocialPosts({
       setPublishPending(false);
       setPublishTarget(null);
     }
+  }
+
+  function toggleRetrySelection(postId: string, selected: boolean): void {
+    setSelectedRetryIds((current) => {
+      const next = new Set(current);
+      if (selected) next.add(postId);
+      else next.delete(postId);
+      return next;
+    });
+  }
+
+  function toggleRetryAll(selected: boolean): void {
+    setSelectedRetryIds(
+      selected ? new Set(retryablePosts.map((post) => post.id)) : new Set(),
+    );
+  }
+
+  async function handleConfirmBulkRetry(): Promise<void> {
+    const targets = selectedRetryablePosts;
+    if (targets.length === 0 || bulkRetryPending) return;
+    setBulkRetryPending(true);
+    const results: BulkRetryResult[] = [];
+    const updated: SocialPost[] = [];
+    let sawConflict = false;
+    for (const post of targets) {
+      try {
+        const result = await publishProjectSocialPost({
+          projectId,
+          postId: post.id,
+          revision: post.revision,
+        });
+        if (!result.ok) {
+          if (result.error.code === CommonErrorCode.UNAUTHENTICATED) {
+            handleActionError(result.error);
+            break;
+          }
+          if (isRevisionConflict(result.error)) {
+            sawConflict = true;
+            results.push({
+              postId: post.id,
+              label: retryLabel(post),
+              ok: false,
+              error: t("toasts.conflict"),
+            });
+            continue;
+          }
+          results.push({
+            postId: post.id,
+            label: retryLabel(post),
+            ok: false,
+            error: result.error.message || t("toasts.failed"),
+          });
+          continue;
+        }
+        const next = result.value;
+        updated.push(next);
+        if (next.status === "PUBLISHED") {
+          results.push({
+            postId: post.id,
+            label: retryLabel(post),
+            ok: true,
+          });
+          continue;
+        }
+        results.push({
+          postId: post.id,
+          label: retryLabel(post),
+          ok: false,
+          error: publishFailureCopy(next, t) ?? t("toasts.failed"),
+        });
+      } catch (error) {
+        const actionError = toActionRejectionError(error);
+        if (actionError.code === CommonErrorCode.UNAUTHENTICATED) {
+          handleActionError(actionError);
+          break;
+        }
+        results.push({
+          postId: post.id,
+          label: retryLabel(post),
+          ok: false,
+          error: actionError.message || t("toasts.failed"),
+        });
+      }
+    }
+    if (updated.length > 0) {
+      setPosts((current) => updated.reduce(upsertPost, current));
+    }
+    setSelectedRetryIds(new Set());
+    setBulkRetryResults(results);
+    setBulkRetryPending(false);
+    if (sawConflict) router.refresh();
   }
 
   function renderPostActions(post: SocialPost, preview = false) {
@@ -435,6 +655,7 @@ export function ProjectSocialPosts({
       (showComposeInMenu && post.canEdit) ||
       (showComposeInMenu && post.canSchedule) ||
       post.canCancel;
+    const subject = actionSubject(post, t("thisDraft"));
     return (
       <div
         className="ms-auto flex items-center gap-2"
@@ -445,7 +666,8 @@ export function ProjectSocialPosts({
             type="button"
             variant="ghost"
             size="icon"
-            aria-label={t("preview.open")}
+            className="size-11 md:size-10"
+            aria-label={t("preview.openNamed", { handle: subject })}
             data-testid={`social-post-preview-open-${post.id}`}
             onClick={() => {
               setPreviewTarget(post);
@@ -477,7 +699,8 @@ export function ProjectSocialPosts({
                 type="button"
                 variant="ghost"
                 size="icon"
-                aria-label={t("moreActions")}
+                className="size-11 md:size-10"
+                aria-label={t("moreActionsNamed", { handle: subject })}
               >
                 <MoreHorizontal className="size-4" aria-hidden />
               </Button>
@@ -577,37 +800,57 @@ export function ProjectSocialPosts({
   }
 
   function renderDraft(post: SocialPost) {
+    function openPreview() {
+      setPreviewTarget(post);
+      setPreviewOpen(true);
+    }
+
     return (
       <li
         key={post.id}
         id={`social-post-${post.id}`}
-        className="flex min-w-0 flex-col gap-2"
+        className="flex h-full min-w-0 flex-col gap-2"
         data-testid={`social-post-${post.id}`}
       >
         <SocialPostPreview
           account={previewAccountFor(post, connections)}
+          compact
           media={post.media}
+          onSeeMore={openPreview}
           provider={post.provider}
           text={post.text}
           timestamp={null}
         />
+        {post.status === "PUBLISHING" ? (
+          <SocialPostStatusBadge
+            label={t("status.PUBLISHING")}
+            status={post.status}
+          />
+        ) : null}
         {renderReconnectWarning(post)}
-        {renderPostActions(post)}
+        <div className="mt-auto">{renderPostActions(post)}</div>
       </li>
     );
   }
 
   function renderPost(post: SocialPost) {
-    const handle = formatHandle(post.socialConnection?.externalHandle ?? null);
-    const creatorLabel = post.creator.name
-      ? `${t(`creator.${post.creator.kind}`)} · ${post.creator.name}`
-      : t(`creator.${post.creator.kind}`);
+    const accountLabel = accountChipLabel(
+      post.socialConnection,
+      t("noAccount"),
+    );
+    const creatorLabel = socialPostCreatorLabel(
+      post.creator,
+      t(`creator.${post.creator.kind}`),
+    );
     const failedAt = post.lastAttempt?.finishedAt ?? null;
+    const leadingAt =
+      post.status === "FAILED" && failedAt ? failedAt : post.scheduledAt;
     const failureReason =
-      post.lastAttempt?.outcome === "authorization_revoked"
-        ? t("outcomes.authorizationRevoked")
-        : post.lastError;
+      post.status === "FAILED" || post.status === "MISSED"
+        ? publishFailureCopy(post, t)
+        : null;
 
+    const retryable = canRetryPost(post);
     return (
       <li
         key={post.id}
@@ -617,6 +860,17 @@ export function ProjectSocialPosts({
         className="bg-background border-border flex flex-wrap items-start gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] hover:border-primary hover:shadow-sm"
         data-testid={`social-post-${post.id}`}
       >
+        {retryable ? (
+          <Checkbox
+            aria-label={t("bulkRetry.selectPost")}
+            checked={selectedRetryIds.has(post.id)}
+            className="mt-2.5"
+            data-testid={`social-post-select-${post.id}`}
+            onCheckedChange={(value) =>
+              toggleRetrySelection(post.id, value === true)
+            }
+          />
+        ) : null}
         <span
           aria-hidden
           className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border"
@@ -625,18 +879,18 @@ export function ProjectSocialPosts({
         </span>
         <div className="min-w-48 flex-1 space-y-1.5">
           <p className="text-muted-foreground flex min-h-9 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            {post.scheduledAt ? (
+            {leadingAt ? (
               <time
                 className="text-foreground font-medium whitespace-nowrap tabular-nums"
-                dateTime={post.scheduledAt.toISOString()}
+                dateTime={leadingAt.toISOString()}
               >
                 {/* Named, so a reader in another zone does not misread it. */}
-                {formatter.dateTime(post.scheduledAt, "dateTime", {
+                {formatter.dateTime(leadingAt, "dateTime", {
                   timeZoneName: "short",
                 })}
               </time>
             ) : null}
-            <span className="min-w-0 truncate">{handle ?? t("noAccount")}</span>
+            <span className="min-w-0 truncate">{accountLabel}</span>
             <SocialPostStatusBadge
               className="order-first"
               label={t(`status.${post.status}`)}
@@ -686,12 +940,21 @@ export function ProjectSocialPosts({
               ) : null}
             </div>
           ) : null}
-          {post.status === "FAILED" ? (
+          {(post.status === "FAILED" || post.status === "MISSED") &&
+          (failureReason || failedAt) ? (
             <div className="space-y-0.5 text-xs">
               {failureReason ? (
-                <p className="text-destructive">{failureReason}</p>
+                <p
+                  className={
+                    post.status === "FAILED"
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+                  }
+                >
+                  {failureReason}
+                </p>
               ) : null}
-              {failedAt ? (
+              {post.status === "MISSED" && failedAt ? (
                 <time
                   className="text-muted-foreground"
                   dateTime={failedAt.toISOString()}
@@ -702,9 +965,6 @@ export function ProjectSocialPosts({
                 </time>
               ) : null}
             </div>
-          ) : null}
-          {post.status === "MISSED" && post.lastError ? (
-            <p className="text-muted-foreground text-xs">{post.lastError}</p>
           ) : null}
         </div>
         {renderPostActions(post)}
@@ -726,52 +986,59 @@ export function ProjectSocialPosts({
             }
           }}
         >
-          <div className="flex min-w-0 items-center gap-3">
-            <TabsList
-              aria-label={t("title")}
-              className={cn(
-                SEGMENTED_TABS_LIST_CLASS_NAME,
-                SOCIAL_TABS_LIST_CLASS_NAME,
-              )}
-            >
-              {tabs.map((candidate) => {
-                const count =
-                  candidate === "drafts" || candidate === "attention"
-                    ? postsIn(candidate).length
-                    : candidate === "accounts"
-                      ? listedAccountCount
-                      : 0;
-                return (
-                  <TabsTrigger
-                    key={candidate}
-                    className={cn(
-                      SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-                      SOCIAL_TAB_TRIGGER_CLASS_NAME,
-                    )}
-                    data-testid={`social-posts-tab-${candidate}`}
-                    value={candidate}
-                  >
-                    {candidate === "attention" ? (
-                      <AlertTriangle
-                        className="text-semantic-warning size-4"
-                        aria-hidden
-                      />
-                    ) : null}
-                    {t(`sections.${candidate}`)}{" "}
-                    {count > 0 ? (
-                      <span className="text-muted-foreground tabular-nums">
-                        {candidate !== "calendar" &&
-                        candidate !== "accounts" &&
-                        candidate !== "statistics" &&
-                        cursors[candidate]
-                          ? `${count}+`
-                          : count}
-                      </span>
-                    ) : null}
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
+          <div className="flex flex-row items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <TabsList
+                aria-label={t("title")}
+                className={cn(
+                  SEGMENTED_TABS_LIST_CLASS_NAME,
+                  "app-scrollbar w-fit min-w-0 max-w-full max-sm:justify-start max-sm:overflow-x-auto",
+                )}
+              >
+                {tabs.map((candidate) => {
+                  const count =
+                    candidate === "drafts" || candidate === "attention"
+                      ? postsIn(candidate).length
+                      : candidate === "accounts"
+                        ? listedAccountCount
+                        : 0;
+                  return (
+                    <TabsTrigger
+                      key={candidate}
+                      className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+                      data-testid={`social-posts-tab-${candidate}`}
+                      value={candidate}
+                    >
+                      {candidate === "attention" ? (
+                        <AlertTriangle
+                          className="text-semantic-warning size-4"
+                          aria-hidden
+                        />
+                      ) : null}
+                      {t(`sections.${candidate}`)}{" "}
+                      {count > 0 ? (
+                        <span className="text-muted-foreground tabular-nums">
+                          {candidate !== "calendar" &&
+                          candidate !== "accounts" &&
+                          candidate !== "statistics" &&
+                          cursors[candidate]
+                            ? `${count}+`
+                            : count}
+                        </span>
+                      ) : null}
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </div>
+            {tab === "drafts" || tab === "attention" ? (
+              <SocialPlatformFilter
+                value={provider}
+                onChange={(next) => {
+                  void setProvider(next);
+                }}
+              />
+            ) : null}
             {actions}
           </div>
 
@@ -825,7 +1092,9 @@ export function ProjectSocialPosts({
 
           {SECTION_ORDER.filter((section) => tabs.includes(section)).map(
             (section) => {
-              const sectionPosts = postsIn(section);
+              const sectionPosts = postsIn(section).filter(
+                (post) => provider === null || post.provider === provider,
+              );
               const cursor = cursors[section];
               return (
                 <TabsContent
@@ -834,11 +1103,54 @@ export function ProjectSocialPosts({
                   data-testid={`social-posts-section-${section}`}
                   value={section}
                 >
-                  {sectionPosts.length > 0 ? (
+                  {section === "attention" && retryablePosts.length > 0 ? (
+                    <div
+                      className="flex flex-wrap items-center gap-3"
+                      data-testid="social-bulk-retry"
+                    >
+                      <Checkbox
+                        aria-label={t("bulkRetry.selectAll")}
+                        checked={
+                          allRetryableSelected
+                            ? true
+                            : someRetryableSelected
+                              ? "indeterminate"
+                              : false
+                        }
+                        data-testid="social-bulk-retry-select-all"
+                        onCheckedChange={(value) =>
+                          toggleRetryAll(value === true)
+                        }
+                      />
+                      <span className="text-muted-foreground text-sm tabular-nums">
+                        {t("bulkRetry.selected", {
+                          count: selectedRetryablePosts.length,
+                        })}
+                      </span>
+                      <Button
+                        className="ms-auto"
+                        disabled={
+                          selectedRetryablePosts.length === 0 ||
+                          bulkRetryPending
+                        }
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setBulkRetryResults(null);
+                          setBulkRetryOpen(true);
+                        }}
+                      >
+                        <RotateCcw className="size-4" aria-hidden />
+                        {t("bulkRetry.retrySelected")}
+                      </Button>
+                    </div>
+                  ) : null}
+                  {sectionPosts.length > 0 || loadingSection === section ? (
                     <ul
                       className={
                         section === "drafts"
-                          ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                          ? "grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3"
                           : "grid gap-2"
                       }
                       data-testid={
@@ -850,6 +1162,12 @@ export function ProjectSocialPosts({
                       {sectionPosts.map(
                         section === "drafts" ? renderDraft : renderPost,
                       )}
+                      {loadingSection === section ? (
+                        <>
+                          <SocialPostRowSkeleton />
+                          <SocialPostRowSkeleton />
+                        </>
+                      ) : null}
                     </ul>
                   ) : cursor ? null : (
                     <EmptyState
@@ -858,21 +1176,38 @@ export function ProjectSocialPosts({
                       title={t(`empty.${section}`)}
                     />
                   )}
+                  {sectionPosts.length === 0 && cursor ? (
+                    <p className="text-muted-foreground text-sm">
+                      {t("empty.more")}
+                    </p>
+                  ) : null}
                   {cursor ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-11 md:h-8"
-                      disabled={loadingSection !== null}
-                      onClick={() => {
-                        void handleLoadMore(section);
-                      }}
-                    >
-                      {loadingSection === section
-                        ? t("loading")
-                        : t("loadMore")}
-                    </Button>
+                    <div className="space-y-2">
+                      {loadMoreError?.section === section ? (
+                        <p
+                          className="text-destructive text-sm"
+                          data-testid="social-load-more-error"
+                          role="alert"
+                        >
+                          {t(LOAD_MORE_ERROR_COPY[loadMoreError.kind])}
+                        </p>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-11 md:h-8"
+                        disabled={
+                          loadingSection !== null && loadingSection !== section
+                        }
+                        loading={loadingSection === section}
+                        onClick={() => {
+                          void handleLoadMore(section);
+                        }}
+                      >
+                        {t("loadMore")}
+                      </Button>
+                    </div>
                   ) : null}
                 </TabsContent>
               );
@@ -1013,6 +1348,85 @@ export function ProjectSocialPosts({
               {t(`${publishCopy}.confirm`)}
             </AlertDialogAction>
           </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={bulkRetryOpen}
+        onOpenChange={(open) => {
+          if (!open && !bulkRetryPending) {
+            setBulkRetryOpen(false);
+            setBulkRetryResults(null);
+          }
+        }}
+      >
+        <AlertDialogContent
+          className="max-h-[min(40rem,calc(100dvh-2rem))] overflow-y-auto overscroll-contain"
+          onCloseAutoFocus={handleCloseAutoFocus}
+        >
+          {bulkRetryResults ? (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t("bulkRetry.resultsTitle")}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("bulkRetry.description")}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <ul
+                className="grid gap-2 text-sm"
+                data-testid="social-bulk-retry-results"
+              >
+                {bulkRetryResults.map((result) => (
+                  <li
+                    key={result.postId}
+                    className="flex flex-col gap-0.5"
+                    data-testid={`social-bulk-retry-result-${result.postId}`}
+                  >
+                    <span className="text-foreground min-w-0 truncate">
+                      {result.label}
+                    </span>
+                    <span
+                      className={
+                        result.ok ? "text-muted-foreground" : "text-destructive"
+                      }
+                    >
+                      {result.ok
+                        ? t("bulkRetry.published")
+                        : (result.error ?? t("toasts.failed"))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t("composer.close")}</AlertDialogCancel>
+              </AlertDialogFooter>
+            </>
+          ) : (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t("bulkRetry.title")}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("bulkRetry.description")}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={bulkRetryPending}>
+                  {t("composer.close")}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  loading={bulkRetryPending}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    void handleConfirmBulkRetry();
+                  }}
+                >
+                  {t("bulkRetry.confirm")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
         </AlertDialogContent>
       </AlertDialog>
     </section>
