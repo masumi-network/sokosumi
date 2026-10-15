@@ -51,4 +51,11 @@ struct CoreSettingsTests {
     let production = try #require(URL(string: "https://app.sokosumi.com"))
     #expect(CoreSettings.setupURL(from: production).absoluteString == "https://app.sokosumi.com/setup")
   }
+
+  @Test func signUpURLAppendsPathToWebOrigin() throws {
+    let local = try #require(URL(string: "https://3877.web.sokosumi.localhost"))
+    #expect(CoreSettings.signUpURL(from: local).absoluteString == "https://3877.web.sokosumi.localhost/signup")
+    let production = try #require(URL(string: "https://app.sokosumi.com"))
+    #expect(CoreSettings.signUpURL(from: production).absoluteString == "https://app.sokosumi.com/signup")
+  }
 }

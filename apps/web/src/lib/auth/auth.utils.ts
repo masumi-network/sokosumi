@@ -429,6 +429,21 @@ export function oauthRequestRequiresSignIn(oauthQuery: string): boolean {
   );
 }
 
+/** Where the native Sokosumi app (`apps/apple`) takes its OAuth redirect. */
+const APPLE_APP_OAUTH_CALLBACK_PATH = "/auth/apple/callback";
+
+/**
+ * The signed request comes from the native Sokosumi app, whose sign-in sheet
+ * forgets everything once it closes. Its people register on the website, so
+ * the account goes through the website's onboarding, then sign in from the app.
+ */
+export function oauthRequestSignsUpOnWebsite(oauthQuery: string): boolean {
+  const redirectUri = new URLSearchParams(oauthQuery).get("redirect_uri");
+  return (
+    URL.parse(redirectUri ?? "")?.pathname === APPLE_APP_OAUTH_CALLBACK_PATH
+  );
+}
+
 /**
  * Less of the signed request's life is left than a new sign-in or sign-up
  * takes. Core signs a request for ten minutes (`exp`, in seconds, from its

@@ -52,6 +52,16 @@ enum CoreSettings {
   static func setupURL(from webBaseURL: URL) -> URL {
     webBaseURL.appending(path: "setup")
   }
+
+  /// Register on the website: the app's sign-in sheet forgets everything once
+  /// it closes, and the website's onboarding sets up the new account.
+  static var signUpURL: URL {
+    signUpURL(from: webBaseURL)
+  }
+
+  static func signUpURL(from webBaseURL: URL) -> URL {
+    webBaseURL.appending(path: "signup")
+  }
 }
 
 /// The Core API (including `/v1`) and web origin one build talks to.
