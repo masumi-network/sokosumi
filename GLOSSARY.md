@@ -142,6 +142,10 @@ _Avoid_: Owner, author
 The person a Coworker or Soko Bot acted for when it made a Task, Task Schedule or Job. A record only: it grants no access and no rights.
 _Avoid_: Context user, on-behalf-of user, initiator, owner
 
+**Responsible person**:
+The person who answers for a Task, Task Schedule or Job: its Owner when it is private, otherwise the person who made it, otherwise its Requester. Work a Soko Bot started on its own has none.
+_Avoid_: Owner, payer, assignee
+
 **Task participant**:
 A person who follows a Task to hear about it. Distinct from Participant, which belongs to Threads.
 _Avoid_: Participant (when meaning a Task), follower, watcher
