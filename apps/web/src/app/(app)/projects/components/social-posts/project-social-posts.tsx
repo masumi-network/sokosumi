@@ -485,9 +485,20 @@ export function ProjectSocialPosts({
     // while other posts still need attention.
     // Calendar entries are server-rendered, so refresh after every save.
     router.refresh();
-    const listed = sectionOf(post);
+    const nextSection = sectionOf(post);
+    const previous = posts.find((candidate) => candidate.id === post.id);
+    const attentionRemains = posts.some(
+      (candidate) =>
+        candidate.id !== post.id &&
+        SECTION_STATUSES.attention.includes(candidate.status),
+    );
+    const stayOnAttention =
+      previous !== undefined &&
+      RETRY_STATUSES.includes(previous.status) &&
+      attentionRemains;
     const openCalendar =
-      listed === undefined && (previewOnly || calendar !== undefined);
+      nextSection === undefined &&
+      (previewOnly || (calendar !== undefined && !stayOnAttention));
     if (openCalendar && post.scheduledAt) {
       const zone =
         timezone && isValidTimezone(timezone) ? timezone : getDefaultTimezone();
@@ -496,22 +507,11 @@ export function ProjectSocialPosts({
     if (previewOnly) {
       return;
     }
-    const nextSection = sectionOf(post);
     if (nextSection) {
       showTab(nextSection);
       return;
     }
-    const previous = posts.find((candidate) => candidate.id === post.id);
-    const attentionRemains = posts.some(
-      (candidate) =>
-        candidate.id !== post.id &&
-        SECTION_STATUSES.attention.includes(candidate.status),
-    );
-    if (
-      previous &&
-      RETRY_STATUSES.includes(previous.status) &&
-      attentionRemains
-    ) {
+    if (stayOnAttention) {
       return;
     }
     showTab(calendar !== undefined ? "calendar" : null);
