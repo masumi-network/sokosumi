@@ -35,9 +35,4 @@ public struct TranscriptContext: Equatable, Sendable {
     self.outbound = outbound
     self.editingMessageId = editingMessageId
   }
-
-  /// Web's Read-only Direct: everyone else left, so the room only reads.
-  public var isReadOnlyDirect: Bool {
-    !takesNewMessages
-  }
 }

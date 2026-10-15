@@ -30,7 +30,7 @@
 - complements web `/developer`. ⊥ replace it. [VISION.md constraints](VISION.md#constraints)
 
 - direction authority: docs/adr/0004-coworker-capabilities-and-graduation.md; implementation dependencies: docs/developer-cli-implementation-plan.md. Core owns policy, grants, waitlisting, promotion, and payment authorization.
-- [CORRECTION, REPORTED: user clarification, 2026-09-24] An earlier amendment proposed Preprod Vendor-admin Coworker creation. User clarified that this CLI work keeps Core permissions unchanged. The current create route requires platform admin [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:77-80`]. A platform admin must provision the record before an ordinary Vendor admin can use existing Coworker management routes. Global whitelist remains platform-admin-only.
+- [CORRECTION, REPORTED: user clarification, 2026-09-24] An earlier amendment proposed Preprod Vendor-admin Coworker creation. User clarified that this CLI work keeps Core permissions unchanged. The current create route allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin) [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:83-112`]. A platform admin must provision the record before an ordinary Vendor admin can use existing Coworker management routes. Global whitelist remains platform-admin-only.
 - historical external-bundle design constraint above applies only to deferred T27; no redesign prerequisite for integration.
 
 [CORRECTION, REPORTED: user direction, 2026-10-05] September admin-only creation decision above is superseded for Preprod. Participant may create a private Coworker under their own Vendor; TOKEN2049 Workspace approval remains separate. This describes local implementation, not verified deployment.

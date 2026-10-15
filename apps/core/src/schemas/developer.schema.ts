@@ -42,7 +42,7 @@ export const developerTaskListQuerySchema = z
   })
   .extend(cursorPaginationQuerySchema.shape);
 
-export const developerTaskListItemSchema = z
+const developerTaskListItemSchema = z
   .object({
     id: z.string().openapi({ example: "0195b9f4-7d35-7a4e-b14e-111111111111" }),
     name: z.string().openapi({ example: "Quarterly report" }),

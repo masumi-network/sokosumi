@@ -16,7 +16,7 @@ export const coworkerCapabilitiesSchema = z
       "Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.",
   });
 
-export const coworkerProfileSchema = z
+const coworkerProfileSchema = z
   .object({
     llm: z
       .array(z.string())

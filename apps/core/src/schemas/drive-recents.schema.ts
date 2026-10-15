@@ -4,7 +4,7 @@ import { dateTimeSchema } from "@/helpers/datetime";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
-export const driveRecentsDriveFileItemSchema = z
+const driveRecentsDriveFileItemSchema = z
   .object({
     kind: z.literal("drive-file").openapi({
       example: "drive-file",
@@ -33,7 +33,7 @@ export const driveRecentsDriveFileItemSchema = z
   })
   .openapi("DriveRecentsDriveFileItem");
 
-export const driveRecentsTaskOutputItemSchema = z
+const driveRecentsTaskOutputItemSchema = z
   .object({
     kind: z.literal("task-output").openapi({
       example: "task-output",
@@ -78,7 +78,7 @@ export const driveRecentsTaskOutputItemSchema = z
   })
   .openapi("DriveRecentsTaskOutputItem");
 
-export const driveRecentsItemSchema = z
+const driveRecentsItemSchema = z
   .discriminatedUnion("kind", [
     driveRecentsDriveFileItemSchema,
     driveRecentsTaskOutputItemSchema,
