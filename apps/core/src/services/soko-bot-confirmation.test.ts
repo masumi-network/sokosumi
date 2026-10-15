@@ -19,6 +19,9 @@ const {
   transaction: vi.fn(),
 }));
 const jevEvaluate = vi.hoisted(() => vi.fn());
+vi.mock("@/services/turn-action-result-previews.service", () => ({
+  prepareTurnActionResultPreviews: vi.fn(),
+}));
 vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),
   experimental_evaluate: jevEvaluate,

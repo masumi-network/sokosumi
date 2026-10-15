@@ -266,6 +266,8 @@ function toolAssigneeFields(
 }
 
 const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;
+/** The longest Task description or comment the tool schemas accept. */
+const TASK_TEXT_MAX_CHARS = 20_000;
 
 const ACTIVE_STATUSES = ["STARTING", "RUNNING", "CANCEL_REQUESTED"] as const;
 const DECISION_TTL_MS = 24 * 60 * 60 * 1_000;
@@ -2047,6 +2049,38 @@ export class SokoBotRuntimeService {
   }
 
   /** The text the catalog extracted from one Drive file. */
+  /**
+   * The text of attached files, appended to a brief or comment. A Coworker
+   * works from a Task's text: Hannah saw neither the Task's file list nor
+   * the attachment the bot made, and asked three times for the brief.
+   */
+  private async withInlineFiles(
+    authorized: AuthorizedSokoBotRuntime,
+    text: string,
+    fileIds: readonly string[] | undefined,
+  ): Promise<string> {
+    let room = TASK_TEXT_MAX_CHARS - text.length;
+    const parts = [text];
+    for (const fileId of new Set(fileIds ?? [])) {
+      if (room < 200) break;
+      const file = await this.readFile(authorized, { fileId }).catch(
+        () => null,
+      );
+      if (!file?.text) continue;
+      const header = `\n\n--- ${file.name} ---\n`;
+      const body = file.text.slice(0, room - header.length - 40);
+      parts.push(
+        header +
+          body +
+          (body.length < file.text.length
+            ? "\n[… cut; the full file is attached]"
+            : ""),
+      );
+      room -= header.length + body.length + 40;
+    }
+    return parts.join("");
+  }
+
   /**
    * Copies Drive files onto a Task as its inputs. A Coworker reads the Task,
    * not the owner's Files: "review index.html in your Files" left Hannah
@@ -4879,7 +4913,14 @@ export class SokoBotRuntimeService {
         const { fileIds, ...task } = taskCreateInputSchema.parse(input.input);
         const created = await this.createTask(
           authorized,
-          task,
+          {
+            ...task,
+            description: await this.withInlineFiles(
+              authorized,
+              task.description ?? "",
+              fileIds,
+            ),
+          },
           input.toolCallId,
         );
         return fileIds?.length
@@ -4916,7 +4957,14 @@ export class SokoBotRuntimeService {
         const { fileIds, ...reply } = replyToTaskInputSchema.parse(input.input);
         const replied = await this.replyToTask(
           authorized,
-          reply,
+          {
+            ...reply,
+            comment: await this.withInlineFiles(
+              authorized,
+              reply.comment,
+              fileIds,
+            ),
+          },
           input.toolCallId,
         );
         return fileIds?.length
