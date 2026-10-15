@@ -128,6 +128,24 @@ _Avoid_: Occurrence, instance
 A Run started by hand on an Active or Paused Task Schedule, in addition to the Runs its rule plans. It creates its Task at once and leaves the rule and the planned Runs unchanged.
 _Avoid_: Trigger, manual fire, pulling the next Run forward
 
+### Ownership of work
+
+**Owner**:
+The one person a private Task, Task Schedule or Job belongs to, and the only person who can see it. Public work has no Owner; it belongs to its workspace.
+_Avoid_: Creator, assignee, owner (when meaning the Organization owner role)
+
+**Creator**:
+The person, Coworker or Soko Bot that made a Task, Task Schedule or Job.
+_Avoid_: Owner, author
+
+**Requester**:
+The person a Coworker or Soko Bot acted for when it made a Task, Task Schedule or Job. A record only: it grants no access and no rights.
+_Avoid_: Context user, on-behalf-of user, initiator, owner
+
+**Task participant**:
+A person who follows a Task to hear about it. Distinct from Participant, which belongs to Threads.
+_Avoid_: Participant (when meaning a Task), follower, watcher
+
 ### Social publishing
 
 **Social account**:
