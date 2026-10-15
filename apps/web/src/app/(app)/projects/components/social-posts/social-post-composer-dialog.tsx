@@ -222,9 +222,16 @@ export function SocialPostComposerDialog({
     const initial = post?.socialConnection?.id ?? connections[0]?.id;
     return initial ? [initial] : [];
   });
-  const [scheduledAt, setScheduledAt] = useState(
-    post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
-  );
+  const [scheduledAt, setScheduledAt] = useState(() => {
+    if (!post?.scheduledAt) return "";
+    if (
+      post.scheduledAt.getTime() <=
+      Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS
+    ) {
+      return "";
+    }
+    return toScheduleValue(post.scheduledAt);
+  });
   const [pending, setPending] = useState<PendingSubmit>(null);
   const [uploadPending, setUploadPending] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);

@@ -465,7 +465,7 @@ const FAILED_POST = buildPost({
     finishedAt: new Date("2026-09-10T10:05:00.000Z"),
   },
   revision: 5,
-  canEdit: false,
+  canEdit: true,
   canSchedule: true,
   canCancel: true,
   canPublishNow: true,
@@ -4028,9 +4028,60 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.queryByRole("menuitem", { name: "Publish now" }),
     ).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toBeVisible();
+  });
+
+  it("edits a failed post and saves the new copy", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: {
+        ...FAILED_POST,
+        text: "Fixed copy",
+        lastError: null,
+        attemptCount: 0,
+        revision: 6,
+      },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[FAILED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    await openRowMenu(user, "post-failed");
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+
+    const dialog = screen.getByRole("dialog");
     expect(
-      screen.queryByRole("menuitem", { name: "Edit" }),
-    ).not.toBeInTheDocument();
+      within(dialog).getByRole("heading", { name: "Edit post" }),
+    ).toBeVisible();
+    const textarea = within(dialog).getByLabelText("Text");
+    expect(textarea).toHaveValue("Failed text");
+    expect(within(dialog).getByRole("button", { name: "Save" })).toBeEnabled();
+    await user.clear(textarea);
+    await user.type(textarea, "Fixed copy");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(updateProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-failed",
+        text: "Fixed copy",
+        media: [],
+        socialConnectionId: "connection-1",
+        revision: 5,
+      });
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Post updated.");
+    expect(
+      within(screen.getByTestId("social-post-post-failed")).getByText(
+        "Fixed copy",
+      ),
+    ).toBeVisible();
   });
 
   it("dismisses a FAILED post after confirmation and leaves Needs attention", async () => {

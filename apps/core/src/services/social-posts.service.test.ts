@@ -362,6 +362,7 @@ describe("social posts service", () => {
       connectionNeedsReconnect: false,
     });
     expect(posts[2]).toMatchObject({
+      canEdit: true,
       canPublishNow: true,
       connectionNeedsReconnect: false,
     });
@@ -1211,9 +1212,51 @@ describe("social posts service", () => {
         text: "Edited",
         revision: 0,
       }),
-    ).rejects.toMatchObject({ status: 409 });
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "This post can no longer be edited",
+    });
     expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
   });
+
+  it.each(["FAILED", "MISSED"] as const)(
+    "edits a %s post and clears its last error",
+    async (status) => {
+      socialPostFindFirstMock.mockResolvedValue({
+        ...scheduledPost,
+        status,
+        lastError: "X rejected the post",
+        attemptCount: 2,
+        nextAttemptAt: FUTURE,
+        revision: 3,
+      });
+      const { updateSocialPost } = await loadService();
+
+      await updateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        postId: POST_ID,
+        text: "Fixed copy",
+        revision: 3,
+      });
+
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            text: "Fixed copy",
+            lastError: null,
+            attemptCount: 0,
+            nextAttemptAt: null,
+          }),
+        }),
+      );
+      expect(
+        socialPostUpdateManyMock.mock.calls[0]?.[0].data,
+      ).not.toHaveProperty("scheduledByUserId");
+    },
+  );
 
   it.each([
     ["DRAFT", { ...draftPost, socialConnectionId: SOCIAL_CONNECTION_ID }],
