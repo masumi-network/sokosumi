@@ -68,6 +68,9 @@ describe("POST /tasks/{id}/jobs", () => {
       completedAt: null,
       agentId: "agent_123",
       ownerId: "user_123",
+      creator: null,
+      requester: null,
+      responsibleUserId: "user_123",
       owner: {
         id: "user_123",
         name: "Ada Lovelace",
@@ -150,6 +153,7 @@ describe("POST /tasks/{id}/jobs", () => {
         taskContext: {
           taskId: "tsk_123",
         },
+        creator: { kind: "coworker", coworkerId: "cow_123" },
       }),
     );
   });
@@ -207,6 +211,14 @@ describe("POST /tasks/{id}/jobs", () => {
         sokoBotId: "22222222-2222-7222-8222-222222222222",
       }),
       "tsk_123",
+    );
+    expect(createAgentJobForUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        creator: {
+          kind: "soko_bot",
+          sokoBotId: "22222222-2222-7222-8222-222222222222",
+        },
+      }),
     );
   });
 

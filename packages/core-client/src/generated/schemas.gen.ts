@@ -1820,6 +1820,10 @@ export const SokoBotDeletionResultSchema = {
                 taskSchedules: {
                     type: 'integer',
                     minimum: 0
+                },
+                jobs: {
+                    type: 'integer',
+                    minimum: 0
                 }
             },
             required: [
@@ -1828,7 +1832,8 @@ export const SokoBotDeletionResultSchema = {
                 'billingRecords',
                 'chatMessages',
                 'uploadedTaskFiles',
-                'taskSchedules'
+                'taskSchedules',
+                'jobs'
             ]
         }
     },
@@ -5888,7 +5893,44 @@ export const TaskSchema = {
             description: 'Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.'
         },
         creator: {
-            $ref: '#/components/schemas/TaskCreator'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
+        },
+        requester: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
+        },
+        responsibleUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
         },
         sokoBotId: {
             type: [
@@ -6080,6 +6122,8 @@ export const TaskSchema = {
         'coworkerId',
         'coworker',
         'creator',
+        'requester',
+        'responsibleUserId',
         'sokoBotId',
         'sokoBot',
         'number',
@@ -6356,30 +6400,7 @@ export const TaskParticipantSchema = {
     ]
 } as const;
 
-export const TaskCreatorSchema = {
-    oneOf: [
-        {
-            $ref: '#/components/schemas/TaskCreatorUser'
-        },
-        {
-            $ref: '#/components/schemas/TaskCreatorCoworker'
-        },
-        {
-            $ref: '#/components/schemas/TaskCreatorSokoBot'
-        }
-    ],
-    discriminator: {
-        propertyName: 'type',
-        mapping: {
-            user: '#/components/schemas/TaskCreatorUser',
-            coworker: '#/components/schemas/TaskCreatorCoworker',
-            sokoBot: '#/components/schemas/TaskCreatorSokoBot'
-        }
-    },
-    description: 'Actor that created the task. Exactly one of user, coworker, or sokoBot.'
-} as const;
-
-export const TaskCreatorUserSchema = {
+export const WorkCreatorUserSchema = {
     type: 'object',
     properties: {
         type: {
@@ -6403,7 +6424,7 @@ export const TaskCreatorUserSchema = {
     ]
 } as const;
 
-export const TaskCreatorCoworkerSchema = {
+export const WorkCreatorCoworkerSchema = {
     type: 'object',
     properties: {
         type: {
@@ -6427,7 +6448,7 @@ export const TaskCreatorCoworkerSchema = {
     ]
 } as const;
 
-export const TaskCreatorSokoBotSchema = {
+export const WorkCreatorSokoBotSchema = {
     type: 'object',
     properties: {
         type: {
@@ -6916,6 +6937,46 @@ export const JobSummarySchema = {
         owner: {
             $ref: '#/components/schemas/UserSummary'
         },
+        creator: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
+        },
+        requester: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
+        },
+        responsibleUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
+        },
         userId: {
             type: 'string',
             example: 'user_123',
@@ -7068,6 +7129,9 @@ export const JobSummarySchema = {
         'agentId',
         'ownerId',
         'owner',
+        'creator',
+        'requester',
+        'responsibleUserId',
         'userId',
         'user',
         'workspace',
@@ -21542,6 +21606,46 @@ export const JobSchema = {
         owner: {
             $ref: '#/components/schemas/UserSummary'
         },
+        creator: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
+        },
+        requester: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
+        },
+        responsibleUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
+        },
         userId: {
             type: 'string',
             example: 'user_123',
@@ -21941,6 +22045,9 @@ export const JobSchema = {
         'agentId',
         'ownerId',
         'owner',
+        'creator',
+        'requester',
+        'responsibleUserId',
         'userId',
         'user',
         'projectId',
@@ -25486,7 +25593,44 @@ export const TaskListItemSchema = {
             description: 'Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.'
         },
         creator: {
-            $ref: '#/components/schemas/TaskCreator'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
+        },
+        requester: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
+        },
+        responsibleUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
         },
         sokoBotId: {
             type: [
@@ -25632,6 +25776,8 @@ export const TaskListItemSchema = {
         'coworkerId',
         'coworker',
         'creator',
+        'requester',
+        'responsibleUserId',
         'sokoBotId',
         'sokoBot',
         'number',
@@ -25777,6 +25923,46 @@ export const TaskScheduleSchema = {
             ],
             format: 'uuid'
         },
+        creator: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
+        },
+        requester: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.'
+        },
+        responsibleUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
+        },
         state: {
             $ref: '#/components/schemas/TaskScheduleState'
         },
@@ -25908,6 +26094,9 @@ export const TaskScheduleSchema = {
         'creatorUserId',
         'creatorCoworkerId',
         'creatorSokoBotId',
+        'creator',
+        'requester',
+        'responsibleUserId',
         'state',
         'rule',
         'ruleEffectiveFrom',

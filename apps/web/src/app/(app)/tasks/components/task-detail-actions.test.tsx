@@ -672,7 +672,7 @@ function renderActions(
       organizations={sampleOrganizations}
       personalWorkspaceLabel={personalWorkspaceLabel}
       isReadOnly={false}
-      isTaskOwner
+      isResponsible
       {...props}
     />,
   );
@@ -830,12 +830,12 @@ describe("TaskDetailActions", () => {
     });
   });
 
-  it("shows archive for the task owner while vendor grant approval is pending", async () => {
+  it("shows archive for the responsible person while vendor grant approval is pending", async () => {
     const user = userEvent.setup();
     renderActions({
       status: "GRANT_PENDING" as TaskStatus,
       organizations: undefined,
-      isTaskOwner: true,
+      isResponsible: true,
       isReadOnly: true,
     });
 
@@ -853,7 +853,7 @@ describe("TaskDetailActions", () => {
     renderActions({
       status: "GRANT_PENDING" as TaskStatus,
       organizations: undefined,
-      isTaskOwner: true,
+      isResponsible: true,
       isReadOnly: true,
     });
 
@@ -1182,10 +1182,10 @@ describe("TaskDetailActions", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides move to workspace from a member who does not own the task", async () => {
+  it("hides move to workspace from a member who is not responsible for the task", async () => {
     const user = userEvent.setup();
 
-    renderActions({ isTaskOwner: false });
+    renderActions({ isResponsible: false });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
@@ -1202,7 +1202,7 @@ describe("TaskDetailActions", () => {
     renderActions({
       status: "GRANT_PENDING" as TaskStatus,
       currentOrganizationId: "org-1",
-      isTaskOwner: false,
+      isResponsible: false,
       hasAssignedSeat: true,
       isReadOnly: true,
     });

@@ -8,6 +8,7 @@ import {
   TaskScheduleState,
   TaskVisibility,
   VendorGrantStatus,
+  workCreatorRequesterInclude,
 } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
@@ -43,8 +44,14 @@ import {
   buildCoworkerPrivateTaskVisibilityWhere,
   buildHumanTaskVisibilityWhere,
   isPrivateTaskVisibleToCoworker,
+  resolveResponsibleUserId,
 } from "@/helpers/task-visibility";
 import { getWorkspaceGrant } from "@/helpers/vendor-grants";
+import {
+  creatorFields,
+  mapWorkCreator,
+  mapWorkRequester,
+} from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import {
@@ -66,7 +73,6 @@ import type {
   UpdateTaskScheduleRunRequest,
 } from "@/schemas/task-schedule.schema";
 import {
-  creatorFields,
   requireTaskReferences,
   type TaskDomainActor,
 } from "@/services/task-domain.service";
@@ -242,7 +248,12 @@ export async function createTaskSchedule(
 ): Promise<TaskScheduleView> {
   const actor = await resolveScheduleActor(vars);
   const domainActor = toDomainActor(actor);
-  const creator = { ownerId: actor.userId, ...creatorFields(domainActor) };
+  // The Requester follows from the Creator, so it stays out of the replay
+  // fingerprint and retries made before it was recorded still match.
+  const { requestedByUserId, ...creator } = {
+    ownerId: actor.userId,
+    ...creatorFields(domainActor, actor.userId),
+  };
   const { operationId, ...request } = input;
   const replay = operationId
     ? createOperationReplay(actor.workspace.workspaceId, operationId, {
@@ -288,6 +299,7 @@ export async function createTaskSchedule(
           workspaceId: actor.workspace.workspaceId,
           organizationId: actor.workspace.organizationId,
           ...creator,
+          requestedByUserId,
           ...rule,
           name: input.name,
           description: input.description ?? null,
@@ -377,9 +389,13 @@ function readableWhere(actor: ScheduleActor): Prisma.TaskScheduleWhereInput {
   };
 }
 
-/** What `canWriteTaskSchedule` reads beyond the schedule's own columns. */
+/**
+ * What `canWriteTaskSchedule` reads beyond the schedule's own columns, and the
+ * Creator and Requester a response maps.
+ */
 const SCHEDULE_ASSIGNEE_VENDOR = {
   assignee: { select: { vendorId: true } },
+  ...workCreatorRequesterInclude,
 } as const;
 
 type ScheduleWithAssigneeVendor = Prisma.TaskScheduleGetPayload<{
@@ -387,7 +403,9 @@ type ScheduleWithAssigneeVendor = Prisma.TaskScheduleGetPayload<{
 }>;
 
 /** A schedule as its reader gets it: with whether they may change it. */
-export type TaskScheduleView = TaskSchedule & { canWrite: boolean };
+export type TaskScheduleView = Omit<ScheduleWithAssigneeVendor, "assignee"> & {
+  canWrite: boolean;
+};
 
 function toTaskScheduleView(
   reader: TaskScheduleReader,
@@ -989,9 +1007,12 @@ export function mapTaskSchedule(schedule: TaskScheduleView) {
     workspaceId: schedule.workspaceId,
     organizationId: schedule.organizationId,
     ownerId: schedule.ownerId,
+    responsibleUserId: resolveResponsibleUserId(schedule),
     creatorUserId: schedule.creatorUserId,
     creatorCoworkerId: schedule.creatorCoworkerId,
     creatorSokoBotId: schedule.creatorSokoBotId,
+    creator: mapWorkCreator(`TaskSchedule ${schedule.id}`, schedule),
+    requester: mapWorkRequester(`TaskSchedule ${schedule.id}`, schedule),
     state: schedule.state,
     rule: {
       expr: schedule.expr,

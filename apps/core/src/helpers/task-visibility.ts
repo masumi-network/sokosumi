@@ -43,6 +43,48 @@ export function buildHumanJobParentVisibilityWhere(
   };
 }
 
+/**
+ * The columns that decide who is responsible for work. A row loaded without
+ * a relation filter carries them all; no include is needed.
+ */
+export interface ResponsibleUserColumns {
+  /** Set only for private work (ADR 0056). */
+  ownerId?: string | null;
+  creatorUserId?: string | null;
+  /** A Coworker or Soko Bot Creator is never responsible. */
+  creatorCoworkerId?: string | null;
+  creatorSokoBotId?: string | null;
+  requestedByUserId?: string | null;
+}
+
+/**
+ * Who is responsible for a Task, Task Schedule or Job (ADR 0056): the Owner,
+ * else the person Creator, else the Requester, else nobody. Worked out, never
+ * stored. Work a Soko Bot started on its own, or work whose person Creator
+ * deleted their account, has nobody.
+ */
+export function resolveResponsibleUserId(
+  work: ResponsibleUserColumns,
+): string | null {
+  return work.ownerId ?? work.creatorUserId ?? work.requestedByUserId ?? null;
+}
+
+/**
+ * Prisma filter for work `userId` is responsible for: the database twin of
+ * `resolveResponsibleUserId`. Every "mine" filter, reach check and sweep that
+ * selects work by its responsible person uses this, never `ownerId` directly.
+ * While the Owner column is required, every row has an Owner, so the Owner is
+ * the responsible person; the Creator and Requester branches join here once
+ * the column becomes nullable.
+ */
+export function buildResponsibleUserWhere(
+  userId: string,
+): Prisma.TaskWhereInput &
+  Prisma.TaskScheduleWhereInput &
+  Prisma.JobWhereInput {
+  return { ownerId: userId };
+}
+
 export function isPrivateTaskVisibleToHuman(
   task: Pick<
     { visibility: TaskVisibility; ownerId: string },

@@ -178,25 +178,25 @@ export function buildTaskActivityActors(
     }
   }
 
-  switch (task.creator.type) {
-    case "user":
-      if (task.creator.id !== task.owner.id) {
-        addUserActor(userById, task.creator.user);
+  // A person who deleted their account leaves no Creator.
+  const creator = task.creator;
+  if (creator) {
+    switch (creator.type) {
+      case "user":
+        if (creator.id !== task.owner.id) {
+          addUserActor(userById, creator.user);
+        }
+        break;
+      case "coworker":
+        addCoworkerActor(coworkerById, creator.coworker);
+        break;
+      case "sokoBot":
+        addSokoBotActor(sokoBotById, creator.sokoBot);
+        break;
+      default: {
+        const _exhaustive: never = creator;
+        void _exhaustive;
       }
-      break;
-    case "coworker":
-      if (task.creator.coworker) {
-        addCoworkerActor(coworkerById, task.creator.coworker);
-      }
-      break;
-    case "sokoBot":
-      if (task.creator.sokoBot) {
-        addSokoBotActor(sokoBotById, task.creator.sokoBot);
-      }
-      break;
-    default: {
-      const _exhaustive: never = task.creator;
-      void _exhaustive;
     }
   }
 

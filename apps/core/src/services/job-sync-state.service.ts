@@ -16,6 +16,7 @@ import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import { getAgentName } from "@/helpers/agent";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
+import { resolveResponsibleUserId } from "@/helpers/task-visibility";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { sourceImportService } from "@/services/source-import.service";
@@ -192,10 +193,10 @@ export async function finalizeJobSyncResult(
     return;
   }
 
-  // A job reaching a final status tells its owner nothing they can act on in
+  // A job reaching a final status tells the responsible person nothing they can act on in
   // the app: SOK-803 ended in-app Hire, so a job is started through the API
   // and read there (SOK-930). The failure alert stays because its audience is
-  // the agent author and the stakeholder list, not the owner (SOK-24).
+  // the agent author and the stakeholder list, not the responsible person (SOK-24).
   //
   // Await render+enqueue; Resend batch flush runs at end of syncUnfinishedJobs.
   switch (newJobStatus) {
@@ -207,10 +208,16 @@ export async function finalizeJobSyncResult(
       break;
   }
 
+  // The live channel is a person's: work nobody is responsible for has none.
+  const responsibleUserId = resolveResponsibleUserId(updatedJob);
+  if (!responsibleUserId) {
+    return;
+  }
+
   try {
     await publishJobStatusData({
       agentId: updatedJob.agentId,
-      userId: updatedJob.ownerId,
+      userId: responsibleUserId,
       jobId: updatedJob.id,
       jobStatus: updatedJob.status,
       jobStatusSettled: updatedJob.jobStatusSettled,

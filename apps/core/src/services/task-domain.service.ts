@@ -40,6 +40,7 @@ import {
   requireTaskNotParked,
   throwGrantAccessError,
 } from "@/helpers/vendor-grants";
+import { creatorFields } from "@/helpers/work-creator";
 
 export type TaskDomainActor =
   | { kind: "user"; userId: string }
@@ -219,29 +220,6 @@ export async function requireTaskReferences(
   }
 }
 
-export function creatorFields(actor: TaskDomainActor) {
-  switch (actor.kind) {
-    case "user":
-      return {
-        creatorUserId: actor.userId,
-        creatorCoworkerId: null,
-        creatorSokoBotId: null,
-      };
-    case "coworker":
-      return {
-        creatorUserId: null,
-        creatorCoworkerId: actor.coworkerId,
-        creatorSokoBotId: null,
-      };
-    case "soko_bot":
-      return {
-        creatorUserId: null,
-        creatorCoworkerId: null,
-        creatorSokoBotId: actor.sokoBotId,
-      };
-  }
-}
-
 function eventActorFields(actor: TaskDomainActor) {
   switch (actor.kind) {
     case "user":
@@ -344,6 +322,8 @@ export async function createTaskForActor(
       ? (input.description ?? null)
       : await input.resolveDescription(tx);
 
+  const creator = creatorFields(input.actor, input.ownerId);
+
   return tx.task.create({
     data: {
       ownerId: input.ownerId,
@@ -355,7 +335,11 @@ export async function createTaskForActor(
       assigneeId: assigneeId ?? null,
       assigneeSokoBotId: input.assigneeSokoBotId ?? null,
       assigneeUserId: input.assigneeUserId ?? null,
-      ...creatorFields(input.actor),
+      ...creator,
+      // The Requester follows the Task they asked for (ADR 0056).
+      ...(creator.requestedByUserId
+        ? { participants: { create: { userId: creator.requestedByUserId } } }
+        : {}),
       status,
       visibility,
       priority: input.priority,

@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { z } from "zod";
+
+import { resolveResponsibleUserId } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
@@ -147,6 +149,8 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
             select: {
               id: true,
               ownerId: true,
+              creatorUserId: true,
+              requestedByUserId: true,
               assigneeUserId: true,
               archivedAt: true,
             },
@@ -173,11 +177,14 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
         await markTaskArchivedRead(event.task);
       }
       if (!(await renewLease())) return false;
-      await publishTaskEventData({
-        userId: event.task.ownerId,
-        taskId: event.taskId,
-        eventType: "task_event",
-      });
+      const responsibleUserId = resolveResponsibleUserId(event.task);
+      if (responsibleUserId) {
+        await publishTaskEventData({
+          userId: responsibleUserId,
+          taskId: event.taskId,
+          eventType: "task_event",
+        });
+      }
       if (!(await renewLease())) return false;
       if (event.status)
         await notifyTaskStatusEvent(

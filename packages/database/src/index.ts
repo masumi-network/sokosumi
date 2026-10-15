@@ -23,4 +23,5 @@ export {
 } from "./types/job.js";
 export { membershipAgeOrderBy } from "./types/member.js";
 export { MemberRole } from "./types/organization.js";
+export { workCreatorRequesterInclude } from "./types/work-creator.js";
 export { workspaceRelationInclude } from "./types/workspace.js";

@@ -5650,6 +5650,7 @@ export class SokoBotRuntimeService {
             organizationId: workspace.organizationId,
             workspaceId: decision.workspaceId,
           },
+          creator: { kind: "soko_bot", sokoBotId: decision.sokoBotId },
           agentInput: hire,
           beforeSellerStart: async () => {
             sellerReservationMarker = createSellerReservationMarker(

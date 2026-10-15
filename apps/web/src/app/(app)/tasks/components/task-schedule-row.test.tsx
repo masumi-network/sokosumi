@@ -65,6 +65,9 @@ const PROJECT = { id: "project_1", name: "Release planning", logo: null };
 function schedule(overrides: Partial<TaskSchedule> = {}): TaskSchedule {
   return {
     id: "01960001-0001-7001-8001-000000000001",
+    creator: null,
+    requester: null,
+    responsibleUserId: OWNER.id,
     workspaceId: "11111111-1111-7111-8111-111111111111",
     organizationId: null,
     ownerId: OWNER.id,

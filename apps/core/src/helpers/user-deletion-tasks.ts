@@ -47,14 +47,11 @@ function throwPendingX402PaymentDeletionBlocker(
 }
 
 /**
- * Clear creator RESTRICT blockers and delete the user in one transaction.
+ * Clear deletion blockers and delete the user in one transaction.
  *
  * - Owned tasks and Task Schedules are deleted (owner cascade would anyway).
- * - Tasks and Task Schedules this user (or their assigned coworkers) created
- *   but do not own keep the row and re-point creator to the owner as a user
- *   creator.
- * - Coworker assignments cascade-delete with the user; creatorCoworkerId is
- *   RESTRICT, so those refs must be cleared first.
+ * - Work this user made or asked for but does not own keeps the row; the
+ *   database empties their Creator and Requester columns (ADR 0056).
  * - Payment-claim blockers are previewed by `evaluateUserDeletion` and
  *   re-checked here under lock. Terminal claims are removed so their RESTRICT
  *   transaction relations do not block user cascade.
@@ -469,53 +466,6 @@ export async function prepareTasksForUserDeletion(
           },
         });
 
-        const coworkerIds = (
-          await tx.coworkerAssignment.findMany({
-            where: { userId },
-            select: { coworkerId: true },
-          })
-        ).map((assignment) => assignment.coworkerId);
-
-        const createdByUser = [
-          { creatorUserId: userId },
-          ...(coworkerIds.length > 0
-            ? [{ creatorCoworkerId: { in: coworkerIds } }]
-            : []),
-        ];
-        const createdTasks = await tx.task.findMany({
-          where: { OR: createdByUser },
-          select: { id: true, ownerId: true },
-        });
-
-        for (const task of createdTasks) {
-          if (task.ownerId === userId) continue;
-
-          await tx.task.update({
-            where: { id: task.id },
-            data: {
-              creatorUserId: task.ownerId,
-              creatorCoworkerId: null,
-              creatorSokoBotId: null,
-            },
-          });
-        }
-
-        // Task Schedules carry the same RESTRICT creator FKs as Tasks.
-        const createdSchedules = await tx.taskSchedule.findMany({
-          where: { ownerId: { not: userId }, OR: createdByUser },
-          select: { id: true, ownerId: true },
-        });
-        for (const schedule of createdSchedules) {
-          await tx.taskSchedule.update({
-            where: { id: schedule.id },
-            data: {
-              creatorUserId: schedule.ownerId,
-              creatorCoworkerId: null,
-              creatorSokoBotId: null,
-            },
-          });
-        }
-
         const ownedFiles = await tx.taskFile.findMany({
           where: { task: { ownerId: userId } },
           select: { fileUrl: true, taskId: true },
@@ -598,8 +548,7 @@ export async function prepareTasksForUserDeletion(
       // Prisma's default interactive-transaction timeout is 5 s, and this
       // callback stopped being a handful of indexed lookups when the x402
       // locks, guards and sweeps moved in: lock waits behind an in-flight
-      // charge and the per-task creator-repoint loop both count against the
-      // same budget. On expiry Prisma throws P2028, which the conflict
+      // charge and the per-row sweeps all count against the same budget. On expiry Prisma throws P2028, which the conflict
       // mapping below does not (and should not) match, so a heavy account
       // would 500 deterministically on every retry. 30 s is headroom, not a
       // target — the transaction stays atomic either way.
@@ -641,8 +590,7 @@ export async function prepareTasksForUserDeletion(
     if (isPrismaTransactionConflict(error)) {
       // Deliberately NOT an x402-specific code: this catch wraps the whole
       // transaction, and a write conflict or deadlock can just as well come
-      // from the claim sweep, the creator-repoint loop, the owned-task
-      // delete, or the user-row lock contending with an unrelated FK insert.
+      // from the claim sweep, the owned-task delete, or the user-row lock contending with an unrelated FK insert.
       // Naming a task payment here would send support chasing a payment that
       // may not exist.
       throw new APIError("BAD_REQUEST", {

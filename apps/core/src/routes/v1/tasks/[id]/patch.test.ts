@@ -142,6 +142,8 @@ function createTaskApi(projectId: string | null = null) {
     assignee: null,
     coworkerId: null,
     coworker: null,
+    requester: null,
+    responsibleUserId: "user_123",
     creator: {
       type: "user" as const,
       id: "user_123",
@@ -1325,6 +1327,33 @@ describe("PATCH /tasks/{id} Run at", () => {
       eventType: "task_event",
     });
   });
+
+  it.each([
+    ["the Requester", { requestedByUserId: "user_asker" }, "user_asker"],
+    ["the person who made it", { creatorUserId: "user_maker" }, "user_maker"],
+    ["nobody", {}, null],
+  ])(
+    "sends the live update for a queued Task nobody owns to %s",
+    async (_who, ownership, expectedUserId) => {
+      taskEventCreateMock.mockResolvedValue(
+        createdStatusEvent(TaskStatus.QUEUED),
+      );
+      taskUpdateMock.mockResolvedValue({
+        ...createTaskApi(null),
+        ownerId: null,
+        creatorUserId: null,
+        requestedByUserId: null,
+        ...ownership,
+      });
+
+      const response = await patch({ runAt: RUN_AT });
+
+      expect(response.status).toBe(200);
+      expect(
+        publishTaskEventDataMock.mock.calls.map(([input]) => input.userId),
+      ).toEqual(expectedUserId ? [expectedUserId] : []);
+    },
+  );
 
   it("moves the Run at of a Queued Task without a status event", async () => {
     mockTask({ status: TaskStatus.QUEUED, runAt: new Date(RUN_AT) });

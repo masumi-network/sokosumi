@@ -388,7 +388,7 @@ async function TaskVendorGrantApprovalBannerSlot({
     organizationId: orgId,
     isAuthenticated: true,
     viewerMembership,
-    taskOwnerId: task.ownerId,
+    responsibleUserId: task.responsibleUserId,
     sessionUserId: session.user.id,
   });
 
@@ -641,7 +641,7 @@ async function TaskDetailActionsSlot({
   });
   const canCancelTask = canCancelTaskForViewer({
     taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-    taskOwnerId: task.ownerId,
+    responsibleUserId: task.responsibleUserId,
     sessionUserId: session?.user.id,
     forceReadOnly,
     taskStatus: task.status,
@@ -671,7 +671,10 @@ async function TaskDetailActionsSlot({
       isReadOnly={isReadOnlyWorkspaceView}
       canCancel={canCancelTask}
       forceReadOnly={forceReadOnly}
-      isTaskOwner={session?.user.id === task.ownerId}
+      isResponsible={
+        task.responsibleUserId !== null &&
+        session?.user.id === task.responsibleUserId
+      }
       hasAssignedSeat={hasAssignedSeat}
       repeatBlueprint={
         !forceReadOnly && hasAssignedSeat
@@ -856,7 +859,7 @@ async function TaskActivitySectionContent({
       participants={task.participants}
       canComment={canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-        taskOwnerId: task.ownerId,
+        responsibleUserId: task.responsibleUserId,
         sessionUserId: session?.user.id,
         forceReadOnly,
         taskStatus: task.status,

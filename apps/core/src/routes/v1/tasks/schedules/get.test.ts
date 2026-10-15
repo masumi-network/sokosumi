@@ -4,6 +4,7 @@ import {
   COWORKER_AUTH,
   COWORKER_ID,
   MEMBER_ID,
+  OWNER_ID,
   PERSONAL_WORKSPACE_ID,
   PROJECT_ID,
   resetTaskScheduleTestDb,
@@ -38,7 +39,11 @@ vi.mock("@/helpers/vendor-grants", async (importOriginal) => ({
 }));
 
 interface ListBody {
-  data: Array<{ id: string; canWrite: boolean }>;
+  data: Array<{
+    id: string;
+    canWrite: boolean;
+    responsibleUserId: string | null;
+  }>;
   meta: { pagination: { nextCursor: string | null; total: number } };
 }
 
@@ -72,6 +77,22 @@ describe("GET /tasks/schedules", () => {
       older.id,
     ]);
     expect(body.meta.pagination.total).toBe(2);
+  });
+
+  it("returns the responsible person of each schedule, the Owner for existing work", async () => {
+    seedTaskSchedule({ creatorUserId: MEMBER_ID });
+    seedTaskSchedule({
+      creatorUserId: null,
+      creatorCoworkerId: COWORKER_ID,
+      requestedByUserId: MEMBER_ID,
+    });
+
+    const { body } = await list();
+
+    expect(body.data.map((schedule) => schedule.responsibleUserId)).toEqual([
+      OWNER_ID,
+      OWNER_ID,
+    ]);
   });
 
   it("filters by project and state", async () => {

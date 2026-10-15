@@ -9,8 +9,9 @@ import { err, ok } from "neverthrow";
 import { privateKeyToAccount } from "viem/accounts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { unprocessableEntity } from "@/helpers/error";
+import { forbidden, unprocessableEntity } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { TASK_X402_MAX_SIGN_DISPATCH_DELAY_MS } from "@/services/task-x402-payment.replay";
@@ -3541,6 +3542,50 @@ describe("POST /{id}/x402-payments", () => {
       expect(publishTaskEventDataMock).toHaveBeenCalled();
     });
 
+    it.each([
+      ["the Requester", { requestedByUserId: "user_asker" }, "user_asker"],
+      ["the person who made it", { creatorUserId: "user_maker" }, "user_maker"],
+      ["nobody", {}, null],
+    ])(
+      "tells %s when a task nobody owns runs out of credits",
+      async (_who, ownership, expectedUserId) => {
+        const task = createTask({
+          ownerId: null,
+          creatorUserId: null,
+          requestedByUserId: null,
+          ...ownership,
+        });
+        requireTaskCollaborationMock.mockResolvedValue(task);
+        prismaTaskFindUniqueMock.mockResolvedValue({
+          ...task,
+          name: "Test task",
+          projectId: null,
+          workspaceId: null,
+          assignee: { name: "Test coworker" },
+          assigneeSokoBot: null,
+          project: null,
+        });
+        const app = createApp(COWORKER_AGENT_CONTEXT);
+
+        const response = await postPayment(app, validBody());
+
+        expect(response.status).toBe(422);
+        await Promise.all(waitUntilCapturedPromises);
+        const expected = expectedUserId ? [expectedUserId] : [];
+        expect(
+          createNotificationMock.mock.calls
+            .filter(
+              ([input]) =>
+                input.messageKey === "Notifications.Task.outOfCredits",
+            )
+            .map(([input]) => input.userId),
+        ).toEqual(expected);
+        expect(
+          publishTaskEventDataMock.mock.calls.map(([input]) => input.userId),
+        ).toEqual(expected);
+      },
+    );
+
     it("clears the Run at when a queued task runs out of credits", async () => {
       requireTaskCollaborationMock.mockResolvedValue(
         createTask({ status: TaskStatus.QUEUED }),
@@ -3568,6 +3613,110 @@ describe("POST /{id}/x402-payments", () => {
       expect(tx.taskEvent.create).not.toHaveBeenCalled();
       expect(tx.task.updateMany).not.toHaveBeenCalled();
       expect(payX402Mock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("charges the responsible person (ADR 0056)", () => {
+    const ORGANIZATION_ID = "org_x402";
+
+    it.each([
+      {
+        madeBy: "a person",
+        columns: { creatorUserId: "user_creator" },
+        responsible: "user_creator",
+      },
+      {
+        madeBy: "a Coworker for a person",
+        columns: {
+          creatorCoworkerId: COWORKER_ID,
+          requestedByUserId: "user_requester",
+        },
+        responsible: "user_requester",
+      },
+      {
+        madeBy: "a Soko Bot for a person",
+        columns: {
+          creatorSokoBotId: "bot_x402",
+          requestedByUserId: "user_requester",
+        },
+        responsible: "user_requester",
+      },
+    ])(
+      "charges public work made by $madeBy to its responsible person and checks their Seat",
+      async ({ columns, responsible }) => {
+        requireTaskCollaborationMock.mockResolvedValue(
+          createTask({
+            organizationId: ORGANIZATION_ID,
+            ownerId: null,
+            ...columns,
+          }),
+        );
+        const app = createApp(COWORKER_AGENT_CONTEXT);
+
+        const response = await postPayment(app, validBody());
+
+        expect(response.status).toBe(200);
+        expect(requireAssignedOrganizationSeat).toHaveBeenCalledWith(
+          responsible,
+          ORGANIZATION_ID,
+          expect.anything(),
+        );
+        expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            userId: responsible,
+            organizationId: ORGANIZATION_ID,
+          }),
+        );
+      },
+    );
+
+    it("charges a Soko Bot's own work to the Organization pool with no member and no Seat check", async () => {
+      requireTaskCollaborationMock.mockResolvedValue(
+        createTask({
+          organizationId: ORGANIZATION_ID,
+          ownerId: null,
+          creatorSokoBotId: "bot_x402",
+        }),
+      );
+      const app = createApp(COWORKER_AGENT_CONTEXT);
+
+      const response = await postPayment(app, validBody());
+
+      expect(response.status).toBe(200);
+      expect(requireAssignedOrganizationSeat).not.toHaveBeenCalled();
+      expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: null,
+          organizationId: ORGANIZATION_ID,
+        }),
+      );
+    });
+
+    it("refuses to charge when the responsible person lost their Seat", async () => {
+      requireTaskCollaborationMock.mockResolvedValue(
+        createTask({
+          organizationId: ORGANIZATION_ID,
+          ownerId: null,
+          scheduleId: "sched_x402",
+          creatorUserId: "user_unseated",
+        }),
+      );
+      vi.mocked(requireAssignedOrganizationSeat).mockImplementationOnce(
+        async (userId) => {
+          if (userId === "user_unseated") {
+            throw forbidden(
+              "An assigned seat is required to use this organization",
+              { kind: CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED },
+            );
+          }
+        },
+      );
+      const app = createApp(COWORKER_AGENT_CONTEXT);
+
+      const response = await postPayment(app, validBody());
+
+      expect(response.status).toBe(403);
+      expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     });
   });
 });

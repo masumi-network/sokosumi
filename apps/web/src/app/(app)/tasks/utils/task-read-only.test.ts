@@ -60,48 +60,48 @@ describe("isReadOnlyForViewer", () => {
 });
 
 describe("canArchiveParkedTaskForViewer", () => {
-  it("allows the task owner to archive while grant is pending", () => {
+  it("allows the responsible person to archive while grant is pending", () => {
     expect(
       canArchiveParkedTaskForViewer({
         forceReadOnly: false,
         taskStatus: TaskStatus.GRANT_PENDING,
-        isTaskOwner: true,
+        isResponsible: true,
         isOrganizationTask: false,
         hasAssignedSeat: true,
       }),
     ).toBe(true);
   });
 
-  it("allows any member to archive a grant-pending organization task they do not own", () => {
+  it("allows any member to archive a grant-pending organization task they are not responsible for", () => {
     expect(
       canArchiveParkedTaskForViewer({
         forceReadOnly: false,
         taskStatus: TaskStatus.GRANT_PENDING,
-        isTaskOwner: false,
+        isResponsible: false,
         isOrganizationTask: true,
         hasAssignedSeat: true,
       }),
     ).toBe(true);
   });
 
-  it("blocks archive for a non-owner of a personal task while grant is pending", () => {
+  it("blocks archive for a person who is not responsible for a personal task while grant is pending", () => {
     expect(
       canArchiveParkedTaskForViewer({
         forceReadOnly: false,
         taskStatus: TaskStatus.GRANT_PENDING,
-        isTaskOwner: false,
+        isResponsible: false,
         isOrganizationTask: false,
         hasAssignedSeat: true,
       }),
     ).toBe(false);
   });
 
-  it("blocks archive for an unseated member who does not own the task", () => {
+  it("blocks archive for an unseated member who is not responsible for the task", () => {
     expect(
       canArchiveParkedTaskForViewer({
         forceReadOnly: false,
         taskStatus: TaskStatus.GRANT_PENDING,
-        isTaskOwner: false,
+        isResponsible: false,
         isOrganizationTask: true,
         hasAssignedSeat: false,
       }),
@@ -113,7 +113,7 @@ describe("canArchiveParkedTaskForViewer", () => {
       canArchiveParkedTaskForViewer({
         forceReadOnly: true,
         taskStatus: TaskStatus.GRANT_PENDING,
-        isTaskOwner: true,
+        isResponsible: true,
         isOrganizationTask: true,
         hasAssignedSeat: true,
       }),
@@ -122,11 +122,11 @@ describe("canArchiveParkedTaskForViewer", () => {
 });
 
 describe("canCommentOnTaskForViewer", () => {
-  it("allows organization workspace collaborators to comment without ownership", () => {
+  it("allows organization workspace collaborators to comment without being responsible", () => {
     expect(
       canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
+        responsibleUserId: "owner_1",
         sessionUserId: "member_2",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
@@ -139,7 +139,7 @@ describe("canCommentOnTaskForViewer", () => {
     expect(
       canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
+        responsibleUserId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
@@ -151,7 +151,7 @@ describe("canCommentOnTaskForViewer", () => {
     expect(
       canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
+        responsibleUserId: "owner_1",
         sessionUserId: "member_2",
         forceReadOnly: true,
         taskStatus: TaskStatus.READY,
@@ -159,11 +159,11 @@ describe("canCommentOnTaskForViewer", () => {
     ).toBe(false);
   });
 
-  it("does not allow comments for non-owners on personal workspace tasks", () => {
+  it("does not allow comments for people who are not responsible on personal workspace tasks", () => {
     expect(
       canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: null,
-        taskOwnerId: "owner_1",
+        responsibleUserId: "owner_1",
         sessionUserId: "someone_else",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
@@ -175,7 +175,7 @@ describe("canCommentOnTaskForViewer", () => {
     expect(
       canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
+        responsibleUserId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
@@ -188,7 +188,7 @@ describe("canCommentOnTaskForViewer", () => {
     expect(
       canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
+        responsibleUserId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.GRANT_PENDING,
@@ -197,12 +197,40 @@ describe("canCommentOnTaskForViewer", () => {
   });
 });
 
+describe("work nobody is responsible for", () => {
+  it("lets an organization collaborator comment and cancel", () => {
+    const params = {
+      taskWorkspaceOrganizationId: "org_1",
+      responsibleUserId: null,
+      sessionUserId: "member_2",
+      forceReadOnly: false,
+      taskStatus: TaskStatus.RUNNING,
+      hasAssignedSeat: true,
+    };
+    expect(canCommentOnTaskForViewer(params)).toBe(true);
+    expect(canCancelTaskForViewer(params)).toBe(true);
+  });
+
+  it("gives nobody a personal workspace right, even a viewer with no session", () => {
+    const params = {
+      taskWorkspaceOrganizationId: null,
+      responsibleUserId: null,
+      sessionUserId: undefined,
+      forceReadOnly: false,
+      taskStatus: TaskStatus.RUNNING,
+      hasAssignedSeat: true,
+    };
+    expect(canCommentOnTaskForViewer(params)).toBe(false);
+    expect(canCancelTaskForViewer(params)).toBe(false);
+  });
+});
+
 describe("canCancelTaskForViewer", () => {
-  it("allows organization workspace collaborators to cancel without ownership", () => {
+  it("allows organization workspace collaborators to cancel without being responsible", () => {
     expect(
       canCancelTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
+        responsibleUserId: "owner_1",
         sessionUserId: "member_2",
         forceReadOnly: false,
         taskStatus: TaskStatus.RUNNING,
@@ -210,11 +238,11 @@ describe("canCancelTaskForViewer", () => {
     ).toBe(true);
   });
 
-  it("allows the task owner to cancel", () => {
+  it("allows the responsible person to cancel", () => {
     expect(
       canCancelTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
+        responsibleUserId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.RUNNING,
@@ -226,7 +254,7 @@ describe("canCancelTaskForViewer", () => {
     expect(
       canCancelTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
+        responsibleUserId: "owner_1",
         sessionUserId: "member_2",
         forceReadOnly: true,
         taskStatus: TaskStatus.RUNNING,
@@ -234,11 +262,11 @@ describe("canCancelTaskForViewer", () => {
     ).toBe(false);
   });
 
-  it("does not allow cancel for non-owners on personal workspace tasks", () => {
+  it("does not allow cancel for people who are not responsible on personal workspace tasks", () => {
     expect(
       canCancelTaskForViewer({
         taskWorkspaceOrganizationId: null,
-        taskOwnerId: "owner_1",
+        responsibleUserId: "owner_1",
         sessionUserId: "someone_else",
         forceReadOnly: false,
         taskStatus: TaskStatus.RUNNING,
@@ -250,7 +278,7 @@ describe("canCancelTaskForViewer", () => {
     expect(
       canCancelTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
+        responsibleUserId: "owner_1",
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.GRANT_PENDING,

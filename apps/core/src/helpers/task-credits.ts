@@ -10,7 +10,11 @@ import { HTTPException } from "hono/http-exception";
 import { unprocessableEntity } from "./error";
 
 interface CreateTaskEventTransactionInput {
-  userId: string;
+  /**
+   * The member charged: the work's responsible person. Null charges the
+   * Organization pool with no member (ADR 0056).
+   */
+  userId: string | null;
   organizationId: string | null;
   cents: bigint;
   tx: Prisma.TransactionClient;
@@ -60,7 +64,7 @@ export async function createTaskEventTransaction(
   const transaction = await input.tx.transaction.create({
     data: {
       amount: input.cents * BigInt(-1),
-      user: { connect: { id: input.userId } },
+      ...(input.userId ? { user: { connect: { id: input.userId } } } : {}),
       ...(input.organizationId
         ? { organization: { connect: { id: input.organizationId } } }
         : {}),
