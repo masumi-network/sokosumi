@@ -1,4 +1,5 @@
 #if DEBUG
+  import Combine
   import SokosumiAuth
   import SwiftUI
 
@@ -49,6 +50,8 @@
       CoreSettings.choose(choice)
       core = server.core.absoluteString
       web = server.web.absoluteString
+      // CoreSettings is not observable. Sign-in and Settings read it off this object.
+      auth.objectWillChange.send()
     }
   }
 #endif
