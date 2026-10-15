@@ -163,11 +163,13 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
         await markTaskArchivedRead(event.task);
       }
       if (!(await renewLease())) return false;
-      await publishTaskEventData({
-        userId: event.task.ownerId,
-        taskId: event.taskId,
-        eventType: "task_event",
-      });
+      if (event.task.ownerId) {
+        await publishTaskEventData({
+          userId: event.task.ownerId,
+          taskId: event.taskId,
+          eventType: "task_event",
+        });
+      }
       if (!(await renewLease())) return false;
       if (event.status)
         await notifyTaskStatusEvent(

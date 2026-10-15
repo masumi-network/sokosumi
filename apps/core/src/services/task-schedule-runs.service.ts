@@ -374,7 +374,7 @@ class ReleaseClaimLostError extends Error {
 
 export interface ReleasedTask {
   id: string;
-  ownerId: string;
+  ownerId: string | null;
   assigneeUserId: string | null;
 }
 
@@ -644,11 +644,13 @@ export async function announceReleasedTasks(
   await Promise.all(
     tasks.map(async (task) => {
       try {
-        await publishTaskEventData({
-          userId: task.ownerId,
-          taskId: task.id,
-          eventType: "task_event",
-        });
+        if (task.ownerId) {
+          await publishTaskEventData({
+            userId: task.ownerId,
+            taskId: task.id,
+            eventType: "task_event",
+          });
+        }
       } catch (error) {
         Sentry.captureException(error, {
           tags: { error_type: "publish_task_event" },

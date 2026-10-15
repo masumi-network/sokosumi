@@ -716,7 +716,8 @@ const STATE_ACTIONS: Record<
  * first Run after now (missed ones are not made up), or Ends the
  * schedule when its end rule passed meanwhile; end is final. Pause drops the
  * planned Runs but keeps skips and moves; resume plans again. End
- * cancels skips and moves into the history.
+ * cancels skips and moves into the history. Resuming a schedule nobody is
+ * responsible for makes the member resuming it its Requester.
  */
 export async function changeTaskScheduleState(
   vars: RouteVars,
@@ -758,9 +759,16 @@ export async function changeTaskScheduleState(
       });
     }
 
+    // The member who resumes a schedule nobody is responsible for, because
+    // its person left, becomes its Requester (ADR 0056).
+    const requester =
+      to === TaskScheduleState.ACTIVE &&
+      resolveResponsibleUserId(current) === null
+        ? { requestedByUserId: actor.userId }
+        : {};
     const { count } = await tx.taskSchedule.updateMany({
       where: { id, state: current.state },
-      data: { state, nextRunAt, revision: { increment: 1 } },
+      data: { state, nextRunAt, revision: { increment: 1 }, ...requester },
     });
     if (count === 0) {
       throw conflict("Task Schedule changed since it was read", {
@@ -1006,7 +1014,8 @@ export function mapTaskSchedule(schedule: TaskScheduleView) {
     id: schedule.id,
     workspaceId: schedule.workspaceId,
     organizationId: schedule.organizationId,
-    ownerId: schedule.ownerId,
+    // Deprecated: carries the responsible person.
+    ownerId: resolveResponsibleUserId(schedule),
     responsibleUserId: resolveResponsibleUserId(schedule),
     creatorUserId: schedule.creatorUserId,
     creatorCoworkerId: schedule.creatorCoworkerId,

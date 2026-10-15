@@ -116,6 +116,7 @@ function createListTask() {
       slug: "ops-agent",
     },
     creatorCoworker: null,
+    ownerId: "user_workspace",
     owner: {
       id: "user_workspace",
       name: "Workspace User",

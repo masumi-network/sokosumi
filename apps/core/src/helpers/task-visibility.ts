@@ -71,25 +71,46 @@ export function resolveResponsibleUserId(
 
 /**
  * Prisma filter for work `userId` is responsible for: the database twin of
- * `resolveResponsibleUserId`. Every "mine" filter, reach check and sweep that
- * selects work by its responsible person uses this, never `ownerId` directly.
- * While the Owner column is required, every row has an Owner, so the Owner is
- * the responsible person; the Creator and Requester branches join here once
- * the column becomes nullable.
+ * `resolveResponsibleUserId`, with the same precedence. Every "mine" filter,
+ * reach check and sweep that selects work by its responsible person uses
+ * this, never `ownerId` directly.
  */
 export function buildResponsibleUserWhere(
   userId: string,
 ): Prisma.TaskWhereInput &
   Prisma.TaskScheduleWhereInput &
   Prisma.JobWhereInput {
-  return { ownerId: userId };
+  return {
+    OR: [
+      { ownerId: userId },
+      { ownerId: null, creatorUserId: userId },
+      { ownerId: null, creatorUserId: null, requestedByUserId: userId },
+    ],
+  };
+}
+
+/**
+ * Raw-SQL twin of `buildResponsibleUserWhere` for the Task, Task Schedule or
+ * Job row aliased `alias`.
+ */
+export function buildResponsibleUserSql(
+  alias: string,
+  userId: string,
+): PrismaRaw.Sql {
+  const row = PrismaRaw.raw(alias);
+  return PrismaRaw.sql`(
+    ${row}."ownerId" = ${userId}
+    OR (${row}."ownerId" IS NULL AND ${row}."creatorUserId" = ${userId})
+    OR (
+      ${row}."ownerId" IS NULL
+      AND ${row}."creatorUserId" IS NULL
+      AND ${row}."requestedByUserId" = ${userId}
+    )
+  )`;
 }
 
 export function isPrivateTaskVisibleToHuman(
-  task: Pick<
-    { visibility: TaskVisibility; ownerId: string },
-    "visibility" | "ownerId"
-  >,
+  task: { visibility: TaskVisibility; ownerId: string | null },
   userId: string,
 ): boolean {
   if (task.visibility !== TaskVisibility.PRIVATE) {

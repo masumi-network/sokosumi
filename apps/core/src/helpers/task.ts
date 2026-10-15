@@ -29,7 +29,11 @@ import {
 } from "./loaded-relation-summaries";
 import { mapTaskLinksForTask } from "./task-link";
 import { resolveResponsibleUserId } from "./task-visibility";
-import { mapWorkCreator, mapWorkRequester } from "./work-creator";
+import {
+  mapResponsibleUserSummary,
+  mapWorkCreator,
+  mapWorkRequester,
+} from "./work-creator";
 import { mapWorkspaceSummary } from "./workspace";
 
 type TaskFileForMapping = TaskWithIncludes["files"][number];
@@ -389,11 +393,8 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     task.organization ?? null,
   );
 
-  const taskOwnerSummary = userSummaryFromLoadedRelation(
-    `Task ${task.id}`,
-    task.ownerId,
-    task.owner,
-  );
+  const responsibleUserId = resolveResponsibleUserId(task);
+  const responsibleUser = mapResponsibleUserSummary(`Task ${task.id}`, task);
 
   const assignee = mapTaskAssignee(task);
   const creator = mapWorkCreator(`Task ${task.id}`, task);
@@ -402,12 +403,12 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     id: task.id,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
-    ownerId: task.ownerId,
-    owner: taskOwnerSummary,
-    responsibleUserId: resolveResponsibleUserId(task),
-    // Deprecated aliases — keep until clients migrate.
-    userId: task.ownerId,
-    user: taskOwnerSummary,
+    // Deprecated: the Owner fields carry the responsible person.
+    ownerId: responsibleUserId,
+    owner: responsibleUser,
+    responsibleUserId,
+    userId: responsibleUserId,
+    user: responsibleUser,
     organizationId: task.organizationId,
     projectId: task.projectId,
     project: projectSummaryFromLoadedRelation(

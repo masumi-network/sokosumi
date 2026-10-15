@@ -8,12 +8,30 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
 import { unprocessableEntity } from "./error";
+import {
+  type ResponsibleUserColumns,
+  resolveResponsibleUserId,
+} from "./task-visibility";
 
 interface CreateTaskEventTransactionInput {
   userId: string;
   organizationId: string | null;
   cents: bigint;
   tx: Prisma.TransactionClient;
+}
+
+/**
+ * The person a Task's charge and Seat check run on: its responsible person
+ * (ADR 0056). A Task nobody is responsible for has nobody to charge.
+ */
+export function requireTaskChargeUserId(task: ResponsibleUserColumns): string {
+  const userId = resolveResponsibleUserId(task);
+  if (userId == null) {
+    throw unprocessableEntity(
+      "Nobody is responsible for this Task, so it cannot be charged",
+    );
+  }
+  return userId;
 }
 
 export function isInsufficientBalanceError(error: unknown): boolean {

@@ -42,6 +42,7 @@ import {
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "@/helpers/task";
+import { requireTaskChargeUserId } from "@/helpers/task-credits";
 import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import {
   applyGuardedTaskStatusUpdate,
@@ -53,6 +54,10 @@ import {
 } from "@/helpers/task-notifications";
 import { addTaskParticipantsFromComment } from "@/helpers/task-participants";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
+import {
+  type ResponsibleUserColumns,
+  resolveResponsibleUserId,
+} from "@/helpers/task-visibility";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -79,8 +84,7 @@ const paramsSchema = z.object({
 });
 
 interface SettleTaskEventChargeParams {
-  task: {
-    ownerId: string;
+  task: ResponsibleUserColumns & {
     organizationId: string | null;
     status: TaskStatus;
   };
@@ -158,7 +162,7 @@ async function settleTaskEventCharge({
       );
     }
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-      userId: task.ownerId,
+      userId: requireTaskChargeUserId(task),
       organizationId: task.organizationId,
       cents,
       currentStatus: task.status,
@@ -188,7 +192,7 @@ async function settleTaskEventCharge({
       );
     }
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-      userId: task.ownerId,
+      userId: requireTaskChargeUserId(task),
       organizationId: task.organizationId,
       cents,
       currentStatus: task.status,
@@ -306,7 +310,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (!isCancelOnlyWrite) {
         const assignedSeatUserId = isAgent
-          ? task.ownerId
+          ? requireTaskChargeUserId(task)
           : requireUserContext(authContext).userId;
         // Agents spend the task billing org. A person acts in the workspace
         // the task currently lives in (move does not rewrite billing org).
@@ -508,7 +512,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
         addedParticipantUserIds,
-        userId: task.ownerId,
+        userId: resolveResponsibleUserId(task),
         organizationId: task.organizationId,
         workspaceId: task.workspaceId,
         projectId: task.projectId,
@@ -585,7 +589,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    if (charged) {
+    if (charged && userId) {
       waitUntil(notifyLowBalanceAfterCharge({ userId, organizationId }));
     }
 
@@ -703,7 +707,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       waitUntil(masumiPurchasePromise);
     }
 
-    const taskIdsToPublish = [{ userId, taskId }];
+    const taskIdsToPublish = userId ? [{ userId, taskId }] : [];
 
     await Promise.all(
       taskIdsToPublish.map(

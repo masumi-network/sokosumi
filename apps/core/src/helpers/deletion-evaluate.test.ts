@@ -11,6 +11,7 @@ import {
   throwIfOrganizationDeletionBlocked,
   throwIfUserDeletionBlocked,
 } from "./deletion-evaluate";
+import { buildResponsibleUserWhere } from "./task-visibility";
 
 const {
   taskPaymentClaimFindFirstMock,
@@ -438,7 +439,7 @@ describe("evaluateUserDeletion", () => {
     expect(memberCountMock).not.toHaveBeenCalled();
   });
 
-  it("returns IN_FLIGHT_JOB when the User owns a Job with no terminal agent event", async () => {
+  it("returns IN_FLIGHT_JOB when the User is responsible for a Job with no terminal agent event", async () => {
     mockJobLookups({ inFlight: { id: "job_running" } });
 
     await expect(
@@ -450,7 +451,7 @@ describe("evaluateUserDeletion", () => {
     });
     expect(jobFindFirstMock).toHaveBeenCalledWith({
       where: {
-        ownerId: "user_delete",
+        ...buildResponsibleUserWhere("user_delete"),
         events: {
           none: { status: { in: finalizedAgentJobStatuses } },
         },
@@ -459,7 +460,7 @@ describe("evaluateUserDeletion", () => {
     });
   });
 
-  it("returns UNSETTLED_ON_CHAIN_JOB when the User owns a Job with a non-finalized purchase", async () => {
+  it("returns UNSETTLED_ON_CHAIN_JOB when the User is responsible for a Job with a non-finalized purchase", async () => {
     mockJobLookups({ unsettled: { id: "job_locked" } });
 
     await expect(
@@ -471,7 +472,7 @@ describe("evaluateUserDeletion", () => {
     });
     expect(jobFindFirstMock).toHaveBeenCalledWith({
       where: {
-        ownerId: "user_delete",
+        ...buildResponsibleUserWhere("user_delete"),
         purchase: {
           OR: [
             { onChainStatus: { notIn: finalizedOnChainJobStatuses } },
@@ -483,7 +484,7 @@ describe("evaluateUserDeletion", () => {
     });
   });
 
-  it("returns IN_FLIGHT_TASK when the User owns a Task that is not terminal", async () => {
+  it("returns IN_FLIGHT_TASK when the User is responsible for a Task that is not terminal", async () => {
     taskFindFirstMock.mockResolvedValue({ id: "task_running" });
 
     await expect(
@@ -495,14 +496,14 @@ describe("evaluateUserDeletion", () => {
     });
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
-        ownerId: "user_delete",
+        ...buildResponsibleUserWhere("user_delete"),
         status: { notIn: ["COMPLETED", "FAILED", "CANCELED"] },
       },
       select: { id: true },
     });
   });
 
-  it("returns user-owned in-flight Job and Task blockers regardless of organizationId", async () => {
+  it("returns in-flight Job and Task blockers regardless of organizationId", async () => {
     mockJobLookups({
       inFlight: { id: "job_other_org" },
       unsettled: { id: "job_other_org_locked" },
@@ -518,7 +519,9 @@ describe("evaluateUserDeletion", () => {
     });
     expect(jobFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ ownerId: "user_delete" }),
+        where: expect.objectContaining(
+          buildResponsibleUserWhere("user_delete"),
+        ),
       }),
     );
     expect(jobFindFirstMock).not.toHaveBeenCalledWith(
@@ -528,7 +531,9 @@ describe("evaluateUserDeletion", () => {
     );
     expect(taskFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ ownerId: "user_delete" }),
+        where: expect.objectContaining(
+          buildResponsibleUserWhere("user_delete"),
+        ),
       }),
     );
   });

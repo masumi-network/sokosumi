@@ -46,6 +46,7 @@ import {
   markTaskAssignedRead,
   notifyTaskHumanAssignee,
 } from "@/helpers/task-notifications";
+import { resolveResponsibleUserId } from "@/helpers/task-visibility";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -320,7 +321,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           context,
           description: removeTaskContextAttachmentLinks(proseSource) || null,
           organizationId: task.organizationId,
-          ownerId: task.ownerId,
+          ownerId: resolveResponsibleUserId(task) ?? userContext.userId,
           actorUserId: userContext.userId,
           project: healedProject,
           preservedBrandUrl,
@@ -377,10 +378,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await deliverCalendarInvalidationsNow(result.workspaceId);
     // Same signal as POST /tasks/{id}/events: open boards refresh on it.
     // A Run at time move stays Queued, so it does not publish.
-    if (result.statusChanged) {
+    const publishUserId = result.task.ownerId;
+    if (result.statusChanged && publishUserId) {
       try {
         await publishTaskEventData({
-          userId: result.task.ownerId,
+          userId: publishUserId,
           taskId: result.task.id,
           eventType: "task_event",
         });

@@ -28,6 +28,8 @@ import { taskFileSchema } from "@/schemas/task-file.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
 import {
+  deprecatedWorkOwnerIdSchema,
+  deprecatedWorkOwnerSchema,
   responsibleUserIdField,
   workCreatorRequesterFields,
 } from "@/schemas/work-creator.schema";
@@ -210,22 +212,14 @@ const taskBaseSchema = z.object({
   id: z.string().openapi({ example: "tsk_123" }),
   createdAt: dateTimeSchema,
   updatedAt: dateTimeSchema,
-  ownerId: z.string().openapi({
-    example: "user_123",
-    description: "Task owner. Always a user.",
-  }),
-  owner: userSummarySchema,
-  /** @deprecated Use `ownerId`. */
-  userId: z.string().openapi({
-    example: "user_123",
-    deprecated: true,
-    description: "Deprecated. Use ownerId instead.",
-  }),
-  /** @deprecated Use `owner`. */
-  user: userSummarySchema.openapi({
-    deprecated: true,
-    description: "Deprecated. Use owner instead.",
-  }),
+  /** @deprecated Use `responsibleUserId`. */
+  ownerId: deprecatedWorkOwnerIdSchema,
+  /** @deprecated Use `responsibleUserId`. */
+  owner: deprecatedWorkOwnerSchema,
+  /** @deprecated Use `responsibleUserId`. */
+  userId: deprecatedWorkOwnerIdSchema,
+  /** @deprecated Use `responsibleUserId`. */
+  user: deprecatedWorkOwnerSchema,
   organizationId: z.string().nullable().openapi({ example: "org_123" }),
   organization: organizationSummarySchema.nullable(),
   projectId: z.string().uuid().nullable().openapi({

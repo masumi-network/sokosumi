@@ -239,7 +239,13 @@ describe("resolveResponsibleUserId", () => {
 });
 
 describe("buildResponsibleUserWhere", () => {
-  it("selects work whose Owner is the person while every row has an Owner", () => {
-    expect(buildResponsibleUserWhere("user_1")).toEqual({ ownerId: "user_1" });
+  it("selects work by the same precedence as resolveResponsibleUserId", () => {
+    expect(buildResponsibleUserWhere("user_1")).toEqual({
+      OR: [
+        { ownerId: "user_1" },
+        { ownerId: null, creatorUserId: "user_1" },
+        { ownerId: null, creatorUserId: null, requestedByUserId: "user_1" },
+      ],
+    });
   });
 });

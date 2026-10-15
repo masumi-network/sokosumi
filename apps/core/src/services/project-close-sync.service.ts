@@ -268,7 +268,7 @@ async function processClaimedProjectClose(
           tx,
           operation.project.workspaceId,
           [operation.projectId],
-          candidateSchedule?.ownerId,
+          candidateSchedule?.ownerId ?? undefined,
         ))
       ) {
         return { kind: "lost" as const };

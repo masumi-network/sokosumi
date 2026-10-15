@@ -52,14 +52,16 @@ function taskNotificationPayload(task: {
  * every task nobody delegated.
  */
 function taskReaderIds(task: {
-  ownerId: string;
+  ownerId: string | null;
   assigneeUserId: string | null;
 }): string[] {
-  if (!task.assigneeUserId || task.assigneeUserId === task.ownerId) {
-    return [task.ownerId];
-  }
-
-  return [task.ownerId, task.assigneeUserId];
+  return [
+    ...new Set(
+      [task.ownerId, task.assigneeUserId].filter(
+        (userId): userId is string => userId != null,
+      ),
+    ),
+  ];
 }
 
 /**
@@ -71,7 +73,7 @@ function taskReaderIds(task: {
 export async function dispatchTaskNotification(
   task: {
     id: string;
-    ownerId: string;
+    ownerId: string | null;
     assigneeUserId: string | null;
     name: string | null;
     assignee: { name: string } | null;
@@ -165,8 +167,9 @@ export async function dispatchTaskNotification(
       await markParticipantAddedRead(task.id);
     }
 
-    // The owner set this status themselves, so there is nothing to tell them.
-    if (actorUserId === task.ownerId) {
+    // The owner set this status themselves, so there is nothing to tell them;
+    // a Task nobody owns any more has nobody to tell.
+    if (task.ownerId == null || actorUserId === task.ownerId) {
       return;
     }
 
@@ -473,7 +476,7 @@ export async function markTaskAssignedRead(
  */
 export async function markTaskArchivedRead(task: {
   id: string;
-  ownerId: string;
+  ownerId: string | null;
   assigneeUserId: string | null;
 }): Promise<void> {
   for (const readerId of taskReaderIds(task)) {

@@ -20,6 +20,7 @@ import {
 } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { isIdempotencyKeyUniqueConstraintError } from "@/helpers/prisma";
+import { requireTaskChargeUserId } from "@/helpers/task-credits";
 import {
   applyGuardedTaskStatusUpdate,
   chargeTaskCreditsOrMarkOutOfCredits,
@@ -182,13 +183,18 @@ async function runX402ChargePhase(
     // immutable and stay on the unlocked client.
     if (preflightPayment.status === TaskX402PaymentStatus.VERIFIED) {
       return await prisma.$transaction(async (tx) =>
-        resolveExistingPayment(preflightPayment, replayArgs, task.ownerId, tx),
+        resolveExistingPayment(
+          preflightPayment,
+          replayArgs,
+          requireTaskChargeUserId(task),
+          tx,
+        ),
       );
     }
     return await resolveExistingPayment(
       preflightPayment,
       replayArgs,
-      task.ownerId,
+      requireTaskChargeUserId(task),
       prisma,
     );
   }
@@ -212,6 +218,7 @@ async function runX402ChargePhase(
   const outcome = await serializableTransaction(
     async (tx): Promise<ChargePhaseOutcome> => {
       const task = await requireTaskCollaboration(authContext, taskId, tx);
+      const chargedUserId = requireTaskChargeUserId(task);
 
       const existing = await tx.taskX402Payment.findUnique({
         where: { taskId_idempotencyKey: { taskId, idempotencyKey } },
@@ -220,7 +227,7 @@ async function runX402ChargePhase(
         return await resolveExistingPayment(
           existing,
           replayInput,
-          task.ownerId,
+          chargedUserId,
           tx,
         );
       }
@@ -335,12 +342,12 @@ async function runX402ChargePhase(
       // The charge draws from the same task pool as every other task charge,
       // through the exact machinery the task-events masumiPayment branch uses.
       await requireAssignedOrganizationSeat(
-        task.ownerId,
+        chargedUserId,
         task.organizationId,
         tx,
       );
       const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-        userId: task.ownerId,
+        userId: chargedUserId,
         organizationId: task.organizationId,
         cents,
         currentStatus: task.status,
@@ -370,7 +377,7 @@ async function runX402ChargePhase(
         return {
           kind: "out_of_credits",
           attemptedCredits: convertCentsToCredits(cents),
-          taskOwnerId: task.ownerId,
+          taskOwnerId: chargedUserId,
           taskEventId: pauseEvent.id,
         };
       }
@@ -428,7 +435,7 @@ async function runX402ChargePhase(
       return {
         kind: "sign",
         paymentId: record.id,
-        taskOwnerId: task.ownerId,
+        taskOwnerId: chargedUserId,
         chargedNow: true,
         signStartedAt,
         // Only the verified entry is forwarded — the node must not be handed
@@ -466,7 +473,7 @@ async function runX402ChargePhase(
     // After the commit: the wallet the charge came out of is the task's.
     waitUntil(
       notifyLowBalanceAfterCharge({
-        userId: task.ownerId,
+        userId: outcome.taskOwnerId,
         organizationId: task.organizationId,
       }),
     );

@@ -13,6 +13,10 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
+import {
+  mapResponsibleUserWithEmail,
+  responsibleUserWithEmailInclude,
+} from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -24,7 +28,7 @@ import {
 const developerTaskListInclude = {
   assignee: { select: { id: true, name: true, slug: true } },
   creatorCoworker: { select: { id: true, name: true, slug: true } },
-  owner: { select: { id: true, name: true, email: true } },
+  ...responsibleUserWithEmailInclude,
   organization: { select: { id: true, name: true, slug: true } },
 } as const;
 
@@ -89,7 +93,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       updatedAt: task.updatedAt,
       assignee: task.assignee,
       creatorCoworker: task.creatorCoworker,
-      owner: task.owner,
+      owner: mapResponsibleUserWithEmail(task),
       organization: task.organization,
     }));
 
