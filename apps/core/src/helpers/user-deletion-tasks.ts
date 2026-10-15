@@ -240,7 +240,7 @@ export async function prepareTasksForUserDeletion(
             FROM "task_x402_payment" AS task_payment
             INNER JOIN "task" AS payment_task
               ON payment_task."id" = task_payment."taskId"
-            WHERE ${buildResponsibleUserSql("payment_task", userId)}
+            WHERE ${buildResponsibleUserSql(userId, "payment_task")}
           )
           FOR UPDATE OF payment
         `;

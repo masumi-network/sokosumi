@@ -481,6 +481,37 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     expect(data.creatorUser).toBeUndefined();
   });
 
+  it("makes a Job for the Requester of work nobody owns and charges them", async () => {
+    // A Run of a public Task Schedule a member resumed after its person left.
+    agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
+    getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: sellerResponding(paidV1JobResponse),
+    });
+
+    await createAgentJobForUser(
+      createInput({
+        owner: {
+          ownerId: null,
+          requestedByUserId: "user_resumer",
+          organizationId: "org_1",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        },
+        creator: { kind: "coworker", coworkerId: "cow_1" },
+      }),
+    ).catch(() => undefined);
+
+    const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
+    expect(data.owner).toBeUndefined();
+    expect(data.requestedByUser).toEqual({ connect: { id: "user_resumer" } });
+    expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+      "user_resumer",
+      "org_1",
+      BigInt(5),
+      expect.anything(),
+    );
+  });
+
   it("runs the local Job callback inside its creation transaction", async () => {
     let insideLocalTransaction = false;
     const transactionClient = {

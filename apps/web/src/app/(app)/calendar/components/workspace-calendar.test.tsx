@@ -475,13 +475,13 @@ describe("WorkspaceCalendar", () => {
       },
     ]);
 
-    props.sections.find((section) => section.id === "scope")?.onChange("owned");
+    props.sections.find((section) => section.id === "scope")?.onChange("mine");
     await waitFor(() => expect(onUrlUpdate).toHaveBeenCalledTimes(1));
 
     const updates = onUrlUpdate.mock.calls.map(([event]) =>
       event.searchParams.toString(),
     );
-    expect(new URLSearchParams(updates.at(-1)).get("scope")).toBe("owned");
+    expect(new URLSearchParams(updates.at(-1)).get("scope")).toBe("mine");
   });
 
   it("provides profile pictures for coworker and human filter options", () => {
@@ -547,7 +547,7 @@ describe("WorkspaceCalendar", () => {
 
     render(
       <NuqsTestingAdapter
-        searchParams="?timezone=UTC&scope=owned"
+        searchParams="?timezone=UTC&scope=mine"
         onUrlUpdate={onUrlUpdate}
       >
         <WorkspaceCalendar
@@ -574,7 +574,7 @@ describe("WorkspaceCalendar", () => {
       event.searchParams.toString(),
     );
     const updatedSearchParams = new URLSearchParams(updates.at(-1));
-    expect(updatedSearchParams.get("scope")).toBe("owned");
+    expect(updatedSearchParams.get("scope")).toBe("mine");
     expect(updatedSearchParams.get("assigneeId")).toBe("coworker-1");
   });
 
@@ -975,7 +975,7 @@ describe("WorkspaceCalendar", () => {
         meta: { pagination: { nextCursor: null } },
       });
     render(
-      <NuqsTestingAdapter searchParams="?view=agenda&timezone=UTC&scope=owned&assigneeId=coworker-1">
+      <NuqsTestingAdapter searchParams="?view=agenda&timezone=UTC&scope=mine&assigneeId=coworker-1">
         <WorkspaceCalendar
           initialDate="2026-08-18"
           items={ITEMS}
@@ -994,7 +994,7 @@ describe("WorkspaceCalendar", () => {
     expect(getProjectCalendarMock).toHaveBeenLastCalledWith(
       "project-1",
       expect.objectContaining({
-        scope: "owned",
+        scope: "mine",
         assigneeId: "coworker-1",
         limit: 10,
       }),
@@ -1220,7 +1220,7 @@ describe("WorkspaceCalendar", () => {
       });
 
       render(
-        <NuqsTestingAdapter searchParams="?assigneeId=coworker-1&scope=owned&status=QUEUED&projectId=project-2&sourceId=workspace%3Aworkspace-1">
+        <NuqsTestingAdapter searchParams="?assigneeId=coworker-1&scope=mine&status=QUEUED&projectId=project-2&sourceId=workspace%3Aworkspace-1">
           <WorkspaceCalendar
             includeSocialPosts={includeSocialPosts}
             initialDate="2026-08-18"
@@ -1239,7 +1239,7 @@ describe("WorkspaceCalendar", () => {
           agendaOnly: undefined,
           cursor: "cursor-2",
           limit: 100,
-          scope: "owned",
+          scope: "mine",
           assigneeId: "coworker-1",
           status: "QUEUED",
         }),

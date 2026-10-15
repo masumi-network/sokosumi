@@ -365,7 +365,7 @@ describe("task.service", () => {
 
     const { taskService } = await import("./task.service");
     await taskService.listTasks({
-      scope: "owned",
+      scope: "mine",
       limit: 20,
     });
 
@@ -373,7 +373,7 @@ describe("task.service", () => {
       status: undefined,
       assigneeId: undefined,
       q: undefined,
-      scope: "owned",
+      scope: "mine",
       cursor: undefined,
       limit: 20,
       projectId: undefined,
@@ -527,7 +527,7 @@ describe("task.service", () => {
     const { taskService } = await import("./task.service");
 
     await expect(
-      taskService.getActivitySummary({ scope: "owned" }),
+      taskService.getActivitySummary({ scope: "mine" }),
     ).resolves.toBeNull();
   });
 

@@ -42,7 +42,10 @@ import {
   requireTaskWriteAccess,
 } from "./access-control";
 
-import { buildHumanTaskVisibilityWhere } from "./task-visibility";
+import {
+  buildHumanTaskVisibilityWhere,
+  buildResponsibleUserWhere,
+} from "./task-visibility";
 import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 
 const {
@@ -207,7 +210,7 @@ describe("requireTaskResponsibility", () => {
 
 const writeAccessWhere = {
   OR: [
-    { ownerId: "user_123" },
+    buildResponsibleUserWhere("user_123"),
     {
       visibility: TaskVisibility.PUBLIC,
       workspace: {

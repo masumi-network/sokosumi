@@ -125,7 +125,7 @@ describe.skipIf(!enabled)("responsible-person filters", () => {
         (
           await tx.$queryRaw<Array<{ id: string }>>`
             SELECT t.id FROM "task" AS t
-            WHERE ${buildResponsibleUserSql("t", userId)}
+            WHERE ${buildResponsibleUserSql(userId)}
           `
         )
           .flatMap((task) => ids.get(task.id) ?? [])

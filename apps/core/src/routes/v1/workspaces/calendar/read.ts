@@ -15,6 +15,7 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import {
   buildHumanTaskVisibilityWhere,
+  buildResponsibleUserWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
   resolveResponsibleUserId,
 } from "@/helpers/task-visibility";
@@ -27,6 +28,7 @@ import {
   type AuthenticationContext,
   resolveUserContext,
 } from "@/middleware/auth";
+import type { WorkScope } from "@/schemas/work-scope.schema";
 import {
   socialPostCalendarItemSchema,
   workspaceCalendarEntrySchema,
@@ -55,7 +57,7 @@ export interface WorkspaceCalendarReadQuery {
   cursor: CalendarCursor | null;
   requestedCursor: string | null;
   limit: number;
-  scope: "owned" | "workspace";
+  scope: WorkScope;
   status?: TaskStatus;
 }
 
@@ -266,7 +268,9 @@ export async function readWorkspaceCalendar(
   const maxCandidates = query.limit + 1;
   const sourceFilter = getNonProjectSourceFilter(workspaceId, options.sourceId);
   const assigneeFilter = {
-    ...(query.scope === "owned" ? { ownerId: userId } : {}),
+    ...(query.scope === "mine"
+      ? { AND: [buildResponsibleUserWhere(userId)] }
+      : {}),
     ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
     ...(query.assigneeUserId ? { assigneeUserId: query.assigneeUserId } : {}),
   };
@@ -505,7 +509,7 @@ export async function readWorkspaceCalendar(
   const socialBaseWhere: Prisma.SocialPostWhereInput = {
     workspaceId,
     ...(options.projectId ? { projectId: options.projectId } : {}),
-    ...(query.scope === "owned" ? { scheduledByUserId: userId } : {}),
+    ...(query.scope === "mine" ? { scheduledByUserId: userId } : {}),
     // The agenda view shows only what is still to come: a scheduled or
     // publishing post whose `scheduledAt` is today or later (the `from` bound
     // below). Everything else is history the agenda would filter out anyway.

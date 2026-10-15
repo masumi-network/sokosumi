@@ -1,6 +1,5 @@
 import { type Prisma, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
-
 import type { EnvVariables } from "@/lib/hono";
 import type {
   CoworkerAuthenticationContext,
@@ -8,8 +7,8 @@ import type {
   UserAuthenticationContext,
 } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
-
 import { requireJobShareCollaboration } from "./access-control.job-share";
+import { buildResponsibleUserWhere } from "./task-visibility";
 
 const { requireJobCollaborationMock } = vi.hoisted(() => ({
   requireJobCollaborationMock: vi.fn(),
@@ -100,7 +99,7 @@ describe("requireJobShareCollaboration", () => {
         AND: [
           {
             OR: [
-              { ownerId: "member_456" },
+              buildResponsibleUserWhere("member_456"),
               { workspaceId: organizationWorkspaceId },
             ],
           },
@@ -156,7 +155,7 @@ describe("requireJobShareCollaboration", () => {
         AND: [
           {
             OR: [
-              { ownerId: "member_456" },
+              buildResponsibleUserWhere("member_456"),
               { workspaceId: personalWorkspaceId },
             ],
           },
@@ -200,7 +199,7 @@ describe("requireJobShareCollaboration", () => {
         id: "job_123",
         AND: [
           {
-            OR: [{ ownerId: "member_456" }],
+            OR: [buildResponsibleUserWhere("member_456")],
           },
           {
             OR: [

@@ -123,7 +123,7 @@ describe("getTasksListPage", () => {
     const page = await getTasksListPage({
       cursor: null,
       limit: 10,
-      scope: "owned",
+      scope: "mine",
       assigneeId: null,
       assigneeSokoBotId: null,
       assigneeUserId: null,
@@ -138,7 +138,7 @@ describe("getTasksListPage", () => {
     expect(page.nextCursor).toBeNull();
     expect(listTasksMock).toHaveBeenCalledWith({
       status: TaskStatus.READY,
-      scope: "owned",
+      scope: "mine",
       assigneeId: undefined,
       assigneeSokoBotId: undefined,
       assigneeUserId: undefined,
@@ -163,7 +163,7 @@ describe("getTasksListPage", () => {
     const page = await getTasksListPage({
       cursor: "cursor-1",
       limit: 1,
-      scope: "owned",
+      scope: "mine",
       assigneeId: null,
       assigneeSokoBotId: null,
       assigneeUserId: null,
@@ -178,7 +178,7 @@ describe("getTasksListPage", () => {
     expect(page.nextCursor).toBeNull();
     expect(listTasksMock).toHaveBeenCalledWith({
       status: undefined,
-      scope: "owned",
+      scope: "mine",
       assigneeId: undefined,
       assigneeSokoBotId: undefined,
       assigneeUserId: undefined,
@@ -203,7 +203,7 @@ describe("getTasksListPage", () => {
     const page = await getTasksListPage({
       cursor: null,
       limit: 10,
-      scope: "owned",
+      scope: "mine",
       assigneeId: null,
       assigneeSokoBotId: null,
       assigneeUserId: null,

@@ -92,22 +92,24 @@ export function buildResponsibleUserWhere(
 ): Prisma.TaskWhereInput &
   Prisma.TaskScheduleWhereInput &
   Prisma.JobWhereInput {
+  // "No Owner" is said through the relation: an `ownerId` filter fed null is
+  // the bug the Owner filter guard looks for everywhere else.
   return {
     OR: [
       { ownerId: userId },
-      { ownerId: null, creatorUserId: userId },
-      { ownerId: null, creatorUserId: null, requestedByUserId: userId },
+      { owner: { is: null }, creatorUserId: userId },
+      { owner: { is: null }, creatorUserId: null, requestedByUserId: userId },
     ],
   };
 }
 
 /**
- * Raw-SQL twin of `buildResponsibleUserWhere` for the Task, Task Schedule or
- * Job row aliased `alias`.
+ * Raw SQL twin of `buildResponsibleUserWhere` for the Task, Task Schedule or
+ * Job row aliased `alias` (`t` by default). Change both together.
  */
 export function buildResponsibleUserSql(
-  alias: string,
   userId: string,
+  alias = "t",
 ): PrismaRaw.Sql {
   const row = PrismaRaw.raw(alias);
   return PrismaRaw.sql`(

@@ -12,6 +12,7 @@ import {
   buildHumanJobParentVisibilityWhere,
   buildHumanParentTaskVisibilityWhere,
   buildHumanTaskVisibilityWhere,
+  buildResponsibleUserSql,
   buildResponsibleUserWhere,
   buildSokoBotAudienceJobParentTaskWhere,
   buildSokoBotAudienceTaskVisibilityWhere,
@@ -276,9 +277,21 @@ describe("buildResponsibleUserWhere", () => {
     expect(buildResponsibleUserWhere("user_1")).toEqual({
       OR: [
         { ownerId: "user_1" },
-        { ownerId: null, creatorUserId: "user_1" },
-        { ownerId: null, creatorUserId: null, requestedByUserId: "user_1" },
+        { owner: { is: null }, creatorUserId: "user_1" },
+        {
+          owner: { is: null },
+          creatorUserId: null,
+          requestedByUserId: "user_1",
+        },
       ],
     });
+  });
+
+  it("has a raw SQL twin for queries that alias the task table as t", () => {
+    const sql = buildResponsibleUserSql("user_1");
+
+    expect(sql.sql).toContain('t."ownerId" = ?');
+    expect(sql.sql).toContain('t."requestedByUserId" = ?');
+    expect(sql.values).toEqual(["user_1", "user_1", "user_1"]);
   });
 });

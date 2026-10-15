@@ -15933,9 +15933,9 @@ export type GetAgentsByIdJobsData = {
          */
         limit?: number;
         /**
-         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all jobs in the active workspace.
+         * Which of the agent's jobs to list. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
          */
-        scope?: 'workspace' | 'owned';
+        scope?: 'workspace' | 'mine' | 'owned';
     };
     url: '/agents/{id}/jobs';
 };
@@ -31129,9 +31129,9 @@ export type GetHistoryData = {
          */
         q?: string;
         /**
-         * Workspace visibility scope for task and job rows.
+         * Which task and job rows to list. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
          */
-        scope?: 'workspace' | 'owned';
+        scope?: 'workspace' | 'mine' | 'owned';
         /**
          * Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task, job and image rows match. Image rows have no status of their own, so a filter naming task or job states excludes them.
          */
@@ -40612,9 +40612,9 @@ export type GetProjectsByIdCalendarData = {
          */
         agendaOnly?: 'true' | 'false';
         /**
-         * Whether to show only the caller's tasks or the workspace
+         * Whether to show only the work you are responsible for. Defaults to 'workspace'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
          */
-        scope?: 'owned' | 'workspace';
+        scope?: 'workspace' | 'mine' | 'owned';
         /**
          * Only items whose Task Schedule or Task has this coworker
          */
@@ -44535,9 +44535,9 @@ export type GetJobsData = {
          */
         status?: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
         /**
-         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all jobs in the active workspace.
+         * Which jobs to list. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
          */
-        scope?: 'workspace' | 'owned';
+        scope?: 'workspace' | 'mine' | 'owned';
         /**
          * Filter jobs by project ID. Use the literal value 'null' to return jobs that are not assigned to a project.
          */
@@ -52364,9 +52364,9 @@ export type GetTasksData = {
          */
         status?: Array<TaskStatus>;
         /**
-         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.
+         * Which tasks to list. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
          */
-        scope?: 'workspace' | 'owned';
+        scope?: 'workspace' | 'mine' | 'owned';
         /**
          * Filter tasks by project ID. Use the literal value 'null' to return tasks that are not assigned to a project.
          */
@@ -52643,9 +52643,9 @@ export type GetTasksSummaryData = {
     path?: never;
     query?: {
         /**
-         * `owned` counts only the caller's own tasks; `workspace` counts every task in the active workspace.
+         * Which tasks to count. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
          */
-        scope?: 'owned' | 'workspace';
+        scope?: 'workspace' | 'mine' | 'owned';
     };
     url: '/tasks/summary';
 };
@@ -60199,9 +60199,9 @@ export type GetWorkspacesCalendarData = {
          */
         agendaOnly?: 'true' | 'false';
         /**
-         * Whether to show only the caller's tasks or the workspace
+         * Whether to show only the work you are responsible for. Defaults to 'workspace'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
          */
-        scope?: 'owned' | 'workspace';
+        scope?: 'workspace' | 'mine' | 'owned';
         /**
          * Only items whose Task Schedule or Task has this coworker
          */

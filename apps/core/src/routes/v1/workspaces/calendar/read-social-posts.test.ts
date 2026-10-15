@@ -191,7 +191,7 @@ describe("Social posts in the calendar", () => {
     await readWorkspaceCalendar(
       workspaceId,
       "user",
-      { ...query, scope: "owned" },
+      { ...query, scope: "mine" },
       { projectId },
     );
     expect(mocks.posts.mock.lastCall?.[0].where).toEqual({
