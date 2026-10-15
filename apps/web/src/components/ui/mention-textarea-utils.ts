@@ -50,7 +50,7 @@ export interface MentionSpanStyleOptions {
 
 export const POPUP_HEIGHT_PX = 240;
 export const POPUP_MIN_HEIGHT_PX = 80;
-export const POPUP_WIDTH_PX = 288;
+const POPUP_WIDTH_PX = 288;
 export const VIEWPORT_PADDING_PX = 8;
 export const MENTION_COMPOSER_GAP_PX = 4;
 export const MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX =
@@ -144,7 +144,7 @@ export function createChannelLinkSpan(
   return span;
 }
 
-export function isLineBreak(node: Node): node is HTMLBRElement {
+function isLineBreak(node: Node): node is HTMLBRElement {
   return node.nodeType === Node.ELEMENT_NODE && node.nodeName === "BR";
 }
 
@@ -261,14 +261,14 @@ export function deslugifyMentionSlug(slug: string): string {
   return slug.replace(/-/g, " ");
 }
 
-export function getMentionTokenLength(span: HTMLSpanElement): number {
+function getMentionTokenLength(span: HTMLSpanElement): number {
   return getMentionToken(
     span.dataset.mentionKey ?? "",
     span.dataset.mentionSlug ?? "",
   ).length;
 }
 
-export function getSerializedLength(node: Node): number {
+function getSerializedLength(node: Node): number {
   if (node.nodeType === Node.TEXT_NODE) {
     return node.textContent?.length ?? 0;
   }
@@ -292,7 +292,7 @@ export function getSerializedLength(node: Node): number {
   return 0;
 }
 
-export function getSerializedOffset(
+function getSerializedOffset(
   root: HTMLElement,
   targetNode: Node,
   targetOffset: number,
@@ -483,7 +483,7 @@ export function getActiveChannelTrigger(
 
 const EMOJI_SHORTCODE_QUERY_PATTERN = /^[a-z0-9_+-]*$/i;
 
-export const EMOJI_SHORTCODE_MIN_QUERY_LENGTH = 2;
+const EMOJI_SHORTCODE_MIN_QUERY_LENGTH = 2;
 
 /**
  * Detect in-progress emoji shortcode at caret.

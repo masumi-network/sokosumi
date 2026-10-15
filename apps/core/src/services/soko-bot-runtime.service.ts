@@ -50,6 +50,7 @@ import {
   sokoBotReadFileInputSchema,
   sokoBotRunIntegrationToolInputSchema,
   sokoBotSearchInboxInputSchema,
+  sokoBotStartBackgroundRunInputSchema,
   sokoBotUploadFileInputSchema,
   sokoBotArchiveTaskInputSchema as taskArchiveInputSchema,
   sokoBotAssignTaskInputSchema as taskAssignInputSchema,
@@ -227,7 +228,7 @@ import {
   activeIntegrationsForBot,
   fetchCalendarEvents,
   fetchInboxMessage,
-  fetchInboxMessages,
+  fetchInboxPage,
   listIntegrationTools,
   listSokoBotIntegrations,
   runIntegrationTool,
@@ -270,7 +271,23 @@ const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;
 const ACTIVE_STATUSES = ["STARTING", "RUNNING", "CANCEL_REQUESTED"] as const;
 const DECISION_TTL_MS = 24 * 60 * 60 * 1_000;
 const TOOL_CALL_STALE_MS = 2 * 60 * 1_000;
-const TOOL_CALL_LIMIT_PER_TURN = 64;
+const TOOL_CALLS_PER_FIFTEEN_MINUTES = 64;
+
+/**
+ * Core tool calls a turn may make, in proportion to how long it may run: a
+ * fixed 64 stopped a six-hour background run after eight minutes.
+ */
+export function sokoBotToolCallLimit(turn: {
+  createdAt: Date;
+  deadlineAt: Date;
+}): number {
+  const fifteenMinutes = 15 * 60 * 1_000;
+  const duration = turn.deadlineAt.getTime() - turn.createdAt.getTime();
+  return Math.max(
+    TOOL_CALLS_PER_FIFTEEN_MINUTES,
+    Math.round((duration / fifteenMinutes) * TOOL_CALLS_PER_FIFTEEN_MINUTES),
+  );
+}
 /** The limit is on Core's tools; sandbox reads are recorded but not counted. */
 const CORE_TOOL_CALLS = {
   capability: { notIn: [...SOKO_BOT_SANDBOX_CAPABILITIES] },
@@ -497,6 +514,7 @@ export interface SokoBotActionContext {
 
 export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
   grant: SokoBotTurnGrantClaims;
+  toolCallLimit: number;
   askedByKind?: SokoBotPacketAudience;
 }
 
@@ -798,6 +816,7 @@ export class SokoBotRuntimeService {
         chainDepth: true,
         intentId: true,
         intentRevision: true,
+        createdAt: true,
         deadlineAt: true,
         leaseExpiresAt: true,
         capabilityNames: true,
@@ -948,6 +967,7 @@ export class SokoBotRuntimeService {
 
     return {
       grant,
+      toolCallLimit: sokoBotToolCallLimit(turn),
       askedByKind: readSokoBotPacketAudience(turn.contextSnapshot?.packet),
       turn: {
         id: turn.id,
@@ -1271,7 +1291,7 @@ export class SokoBotRuntimeService {
         "Opening a chat with a colleague is for turns your owner asked for. Tell them who you would approach and why instead.",
       );
     }
-    // A turn may make 64 tool calls, so without a bound one instruction could
+    // A turn may make 64 tool calls or more, so without a bound one instruction could
     // put the bot in front of every member of the organization at once.
     const opened = await prisma.sokoBotToolCall.count({
       where: {
@@ -3952,7 +3972,7 @@ export class SokoBotRuntimeService {
         const callCount = await tx.sokoBotToolCall.count({
           where: { turnId: input.turnId, ...CORE_TOOL_CALLS },
         });
-        if (callCount >= TOOL_CALL_LIMIT_PER_TURN) {
+        if (callCount >= authorized.toolCallLimit) {
           throw new SokoBotRuntimeConflictError(
             "Soko Bot turn tool-call limit reached",
           );
@@ -4662,6 +4682,25 @@ export class SokoBotRuntimeService {
       case "cancel_social_post":
       case "publish_social_post":
         return this.executeSocialTool(input, authorized);
+      case "start_background_run":
+      case "list_background_runs":
+      case "stop_background_run": {
+        const runs = await import(
+          "@/services/soko-bot-background-runs.service"
+        );
+        if (input.capability === "list_background_runs")
+          return runs.listBackgroundRuns(authorized);
+        if (input.capability === "stop_background_run")
+          return runs.stopBackgroundRun(
+            authorized,
+            SOKO_BOT_TOOL_INPUT_SCHEMAS.stop_background_run.parse(input.input)
+              .runId,
+          );
+        return runs.startBackgroundRun(
+          authorized,
+          sokoBotStartBackgroundRunInputSchema.parse(input.input),
+        );
+      }
       case "list_tables":
       case "read_table":
       case "create_table":
@@ -4787,7 +4826,7 @@ export class SokoBotRuntimeService {
               if (
                 (await tx.sokoBotToolCall.count({
                   where: { turnId: authorized.turn.id, ...CORE_TOOL_CALLS },
-                })) > TOOL_CALL_LIMIT_PER_TURN
+                })) > authorized.toolCallLimit
               ) {
                 throw new SokoBotRuntimeConflictError(
                   "Soko Bot turn tool-call limit reached",
@@ -5198,6 +5237,13 @@ export class SokoBotRuntimeService {
           parsed.provider,
         );
         const limit = parsed.limit ?? 20;
+        // A token belongs to one mailbox; across several, a merged page cut
+        // to the limit would skip mail the token has already moved past.
+        if (parsed.pageToken && integrations.length !== 1)
+          throw new SokoBotRuntimeValidationError(
+            "pageToken needs the provider of the page it came from",
+          );
+        let nextPageToken: string | null = null;
         const result = await readSokoBotSource({
           source: "MAIL",
           filters: {
@@ -5205,15 +5251,17 @@ export class SokoBotRuntimeService {
             since: parsed.since ?? "",
             unreadOnly: String(parsed.unreadOnly ?? false),
           },
-          queries: integrations.map(
-            (integration) => () =>
-              fetchInboxMessages(integration, {
-                query: parsed.query,
-                since: parsed.since ? new Date(parsed.since) : undefined,
-                unreadOnly: parsed.unreadOnly,
-                limit,
-              }),
-          ),
+          queries: integrations.map((integration) => async () => {
+            const page = await fetchInboxPage(integration, {
+              query: parsed.query,
+              since: parsed.since ? new Date(parsed.since) : undefined,
+              unreadOnly: parsed.unreadOnly,
+              limit,
+              pageToken: parsed.pageToken,
+            });
+            if (integrations.length === 1) nextPageToken = page.nextPageToken;
+            return page.messages;
+          }),
         });
         return {
           coverage: {
@@ -5226,6 +5274,7 @@ export class SokoBotRuntimeService {
           messages: result.rows
             .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
             .slice(0, limit),
+          nextPageToken,
         };
       }
       case "read_email": {
@@ -5362,6 +5411,7 @@ export class SokoBotRuntimeService {
                     {
                       ...scope,
                       ...createScheduleInputSchema.parse(input.input),
+                      capabilityNames: authorized.grant.capabilities,
                     },
                     tx,
                   )

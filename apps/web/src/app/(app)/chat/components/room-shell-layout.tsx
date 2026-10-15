@@ -30,7 +30,7 @@ export const ROOM_SHELL_DESKTOP_HEADER_SLOT_CLASSNAME =
   "hidden h-16 shrink-0 border-b md:flex";
 
 /**
- * Bottom-anchored native scroller. Its one child carries `shrink-0`
+ * Native scroller. Its one child carries `shrink-0`
  * (`ROOM_MESSAGE_LIST_CONTENT_CLASSNAME`): a flex column would otherwise
  * clamp it to the scroller's height and the list could not scroll up.
  */

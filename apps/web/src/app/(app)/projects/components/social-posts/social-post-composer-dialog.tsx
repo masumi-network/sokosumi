@@ -16,14 +16,31 @@ import {
 } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ImagePlus, Plus, Upload } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
+import { RoomFileDropZone } from "@/app/chat/components/room-file-drop-zone";
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
+import { AccountChipMark } from "@/components/social-account-chip-mark";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   type ActionError,
@@ -44,10 +61,21 @@ import {
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
 import {
+  accountChipLabel,
+  formatComposerHandle,
+} from "./social-post-account-chip-label";
+import {
+  initialCreateConnectionIds,
+  readRememberedComposerAccounts,
+  writeRememberedComposerAccounts,
+} from "./social-post-composer-accounts";
+import {
   socialPostComposerAccept,
+  socialPostComposerDraftIssue,
   socialPostComposerFormat,
   socialPostComposerIssue,
   socialPostComposerProviders,
+  socialPostComposerRequirements,
 } from "./social-post-composer-rules";
 import {
   buildSocialPostMediaRef,
@@ -56,6 +84,7 @@ import {
   socialPostMediaRefFromDriveFile,
 } from "./social-post-media";
 import { SocialPostPreview } from "./social-post-preview";
+import { publishFailureCopy } from "./social-post-publish-failure";
 import {
   SocialPostSchedulePicker,
   toScheduleValue,
@@ -82,13 +111,33 @@ interface SocialPostComposerDialogProps {
 
 type PendingSubmit = "save" | "schedule" | "publish" | null;
 
-function formatHandle(handle: string | null): string {
-  if (!handle) return "";
-  return handle.startsWith("@") ? handle : `@${handle}`;
+function accountLabel(connection: ProjectSocialConnection): string {
+  return (
+    formatComposerHandle(connection.externalHandle) ||
+    connection.displayName ||
+    socialPostProviderLabel(connection.provider)
+  );
 }
 
-/** An IANA zone as people read it: `America/New_York` → `America/New York`. */
-function zoneName(timezone: string): string {
+/** The zone as people read it: `America/New_York` → `Eastern Time`. */
+function zoneName(
+  timezone: string,
+  locale: string,
+  at: Date = new Date(),
+): string {
+  try {
+    const nameFor = (timeZoneName: "longGeneric" | "long") =>
+      new Intl.DateTimeFormat(locale, { timeZone: timezone, timeZoneName })
+        .formatToParts(at)
+        .find((part) => part.type === "timeZoneName")?.value;
+    const generic = nameFor("longGeneric");
+    // UTC's generic name is an offset (`GMT+00:00`); the long name is words.
+    if (generic && !/^(?:GMT|UTC)[+-]/.test(generic)) return generic;
+    const longName = nameFor("long");
+    if (longName) return longName;
+  } catch {
+    // Unknown IANA zone from an old post.
+  }
   return timezone.replaceAll("_", " ");
 }
 
@@ -108,6 +157,7 @@ export function SocialPostComposerDialog({
   projectId,
 }: SocialPostComposerDialogProps) {
   const t = useTranslations("App.Projects.SocialPosts");
+  const locale = useLocale();
   const formatter = useFormatter();
   const viewerTimezone = resolveTimezone();
   const textId = useId();
@@ -115,6 +165,8 @@ export function SocialPostComposerDialog({
   const accountsLabelId = useId();
   const scheduledAtId = useId();
   const scheduledAtErrorId = useId();
+  const tooLongId = useId();
+  const publishHintId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadInFlightRef = useRef(false);
@@ -150,9 +202,8 @@ export function SocialPostComposerDialog({
       )?.avatarUrl ??
       null,
   }));
-  const driveStore = driveStoreForActiveWorkspace(
-    session?.session.activeOrganizationId ?? null,
-  );
+  const organizationId = session?.session.activeOrganizationId ?? null;
+  const driveStore = driveStoreForActiveWorkspace(organizationId);
 
   const [text, setText] = useState(post?.text ?? "");
   const [media, setMedia] = useState<SocialPostMediaRef[]>(
@@ -162,6 +213,12 @@ export function SocialPostComposerDialog({
   // post belongs to one account.
   const multiAccount = mode.kind === "create";
   const [connectionIds, setConnectionIds] = useState<string[]>(() => {
+    if (mode.kind === "create") {
+      return initialCreateConnectionIds(
+        connections,
+        readRememberedComposerAccounts(organizationId, projectId),
+      );
+    }
     const initial = post?.socialConnection?.id ?? connections[0]?.id;
     return initial ? [initial] : [];
   });
@@ -171,6 +228,16 @@ export function SocialPostComposerDialog({
   const [pending, setPending] = useState<PendingSubmit>(null);
   const [uploadPending, setUploadPending] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [previewConnectionId, setPreviewConnectionId] = useState<string | null>(
+    null,
+  );
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [initial] = useState(() => ({
+    text: post?.text ?? "",
+    media: post?.media ?? [],
+    scheduledAt: post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
+    connectionId: post?.socialConnection?.id ?? connections[0]?.id ?? "",
+  }));
 
   const isScheduleOnly = mode.kind === "schedule";
   const isBusy = pending !== null || uploadPending;
@@ -178,9 +245,12 @@ export function SocialPostComposerDialog({
     connectionIds.includes(connection.id),
   );
   const connectionId = selectedConnections[0]?.id ?? "";
-  // The preview draws one network's feed: the first picked account's, or the
-  // post's own account while none is picked.
+  // One feed at a time: the account the reader picked, else the first still
+  // selected, else the post's own account while none is picked.
   const previewConnection =
+    selectedConnections.find(
+      (connection) => connection.id === previewConnectionId,
+    ) ??
     selectedConnections[0] ??
     (post?.socialConnection && connectionIds.includes(post.socialConnection.id)
       ? post.socialConnection
@@ -195,7 +265,14 @@ export function SocialPostComposerDialog({
   const providers = socialPostComposerProviders(
     post?.provider,
     selectedConnections.map((connection) => connection.provider),
+    connections.map((connection) => connection.provider),
   );
+  const previewProvider =
+    selectedConnections.find(
+      (connection) => connection.id === previewConnection?.id,
+    )?.provider ??
+    post?.provider ??
+    providers[0];
   // One text goes to every selected account, so the strictest one rules.
   const provider = providers.reduce((strictest, candidate) =>
     SOCIAL_POST_TEXT_LIMITS[candidate] < SOCIAL_POST_TEXT_LIMITS[strictest]
@@ -209,19 +286,28 @@ export function SocialPostComposerDialog({
       (candidate) => socialPostComposerIssue(candidate, text, media) !== null,
     ) ?? provider;
   const composerIssue = socialPostComposerIssue(issueProvider, text, media);
+  const draftIssueProvider =
+    providers.find(
+      (candidate) =>
+        socialPostComposerDraftIssue(candidate, text, media) !== null,
+    ) ?? provider;
+  const draftIssue = socialPostComposerDraftIssue(
+    draftIssueProvider,
+    text,
+    media,
+  );
+  const requirementHints = socialPostComposerRequirements(
+    providers,
+    text,
+    media,
+  );
   const trimmedText = text.trim();
   const overLimit = text.length > textLimit;
   const mediaValid = providers.every(
     (candidate) => validateSocialPostMedia(candidate, media).ok,
   );
   const textValid = isScheduleOnly || (composerIssue === null && !overLimit);
-  // An empty composer explains itself: its button is off until there is text.
-  const requirementHint =
-    composerIssue === "text_required" ||
-    composerIssue === "media_required" ||
-    composerIssue === "video_required"
-      ? composerIssue
-      : null;
+  const draftValid = isScheduleOnly || (draftIssue === null && !overLimit);
   const earliestScheduledAt = Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
   const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
   const scheduledAtTooSoon =
@@ -238,7 +324,7 @@ export function SocialPostComposerDialog({
     connectionId !== "" &&
     scheduledAtValid &&
     !isBusy;
-  const canSave = textValid && !isBusy;
+  const canSave = draftValid && !isBusy;
   // Posting now is for a new post: the fastest path is open, type, post.
   const canPublishNow =
     mode.kind === "create" &&
@@ -255,6 +341,13 @@ export function SocialPostComposerDialog({
         ? current.filter((candidate) => candidate !== id)
         : [...current, id];
     });
+  }
+
+  function rememberCreateAccounts(): void {
+    if (mode.kind !== "create") return;
+    const ids = selectedConnections.map((connection) => connection.id);
+    if (ids.length === 0) return;
+    writeRememberedComposerAccounts(organizationId, projectId, ids);
   }
 
   const title =
@@ -317,8 +410,10 @@ export function SocialPostComposerDialog({
     setMedia((current) => current.filter((ref) => ref.pathname !== pathname));
   }
 
-  async function handleUpload(file: File): Promise<void> {
-    if (isBusy || uploadInFlightRef.current) return;
+  async function uploadOne(
+    file: File,
+    attached: SocialPostMediaRef[],
+  ): Promise<SocialPostMediaRef | null> {
     const candidate = buildSocialPostMediaRef({
       name: file.name,
       size: file.size,
@@ -331,16 +426,13 @@ export function SocialPostComposerDialog({
           provider: socialPostProviderLabel(provider),
         }),
       );
-      return;
+      return null;
     }
-    const rejection = mediaRejection([...media, candidate]);
+    const rejection = mediaRejection([...attached, candidate]);
     if (rejection) {
       toast.error(mediaErrorText(rejection.reason, rejection.by));
-      return;
+      return null;
     }
-
-    uploadInFlightRef.current = true;
-    setUploadPending(true);
     try {
       const uploaded = await uploadDriveFile(file, driveStore);
       const ref = buildSocialPostMediaRef({
@@ -351,15 +443,30 @@ export function SocialPostComposerDialog({
       });
       if (!ref || !uploaded.fileUrl) {
         toast.error(t("composer.media.uploadFailed"));
-        return;
+        return null;
       }
       setMedia((current) => [...current, ref]);
+      return ref;
     } catch (error) {
       toast.error(
         isDriveFileUploadDuplicate(error)
           ? t("composer.media.uploadDuplicate")
           : t("composer.media.uploadFailed"),
       );
+      return null;
+    }
+  }
+
+  async function handleUploadFiles(files: readonly File[]): Promise<void> {
+    if (files.length === 0 || isBusy || uploadInFlightRef.current) return;
+    uploadInFlightRef.current = true;
+    setUploadPending(true);
+    let attached = media;
+    try {
+      for (const file of files) {
+        const ref = await uploadOne(file, attached);
+        if (ref) attached = [...attached, ref];
+      }
     } finally {
       uploadInFlightRef.current = false;
       setUploadPending(false);
@@ -405,16 +512,27 @@ export function SocialPostComposerDialog({
     }
   }
 
+  function nameIfMany(
+    connection: ProjectSocialConnection,
+    error: string,
+  ): string {
+    if (selectedConnections.length <= 1) return error;
+    return t("toasts.publishFailedItem", {
+      account: accountLabel(connection),
+      error,
+    });
+  }
+
   /**
    * Creates the post for each picked account and publishes it at once. A
    * post that fails to publish stays in Needs attention to retry, so the
-   * reader loses nothing; the toast names the first failure.
+   * reader loses nothing. The toast names every failed account.
    */
   async function handlePublishNow(): Promise<void> {
     if (!canPublishNow) return;
     setPending("publish");
     let published = 0;
-    let failure: string | null = null;
+    const failures: string[] = [];
     // Accounts whose post now exists, live or in Needs attention. If the run
     // stops early they leave the selection, so Post now again never posts a
     // second copy to them.
@@ -428,7 +546,13 @@ export function SocialPostComposerDialog({
           socialConnectionId: connection.id,
         });
         if (!created.ok) {
-          onError(created.error);
+          onError({
+            ...created.error,
+            message: nameIfMany(
+              connection,
+              created.error.message ?? t("toasts.failed"),
+            ),
+          });
           return;
         }
         const result = await publishProjectSocialPost({
@@ -439,24 +563,30 @@ export function SocialPostComposerDialog({
         done.push(connection.id);
         if (!result.ok) {
           onSaved(created.value);
-          onError(result.error);
+          onError({
+            ...result.error,
+            message: nameIfMany(
+              connection,
+              result.error.message ?? t("toasts.failed"),
+            ),
+          });
           return;
         }
         onSaved(result.value);
         if (result.value.status === "PUBLISHED") {
           published += 1;
         } else {
-          failure ??=
-            result.value.lastAttempt?.outcome === "authorization_revoked"
-              ? t("outcomes.authorizationRevoked")
-              : (result.value.lastError ?? t("toasts.failed"));
+          const reason =
+            publishFailureCopy(result.value, t) ?? t("toasts.failed");
+          failures.push(nameIfMany(connection, reason));
         }
       }
-      if (failure) {
-        toast.error(t("toasts.publishFailed", { error: failure }));
+      if (failures.length > 0) {
+        toast.error(t("toasts.publishFailed", { error: failures.join("; ") }));
       } else {
         toast.success(t("toasts.publishedMany", { count: published }));
       }
+      rememberCreateAccounts();
       onOpenChange(false);
     } catch (error) {
       onError(toActionRejectionError(error));
@@ -550,6 +680,7 @@ export function SocialPostComposerDialog({
         }),
       );
       if (created === 0) return;
+      rememberCreateAccounts();
       toast.success(t("toasts.created", { count: created }));
       onOpenChange(false);
     } catch (error) {
@@ -577,6 +708,7 @@ export function SocialPostComposerDialog({
           }),
         );
         if (created === 0) return;
+        rememberCreateAccounts();
         toast.success(t("toasts.scheduled", { count: created }));
         onOpenChange(false);
         return;
@@ -648,24 +780,69 @@ export function SocialPostComposerDialog({
   );
 
   const hasContent = trimmedText !== "" || media.length > 0;
+  const isDirty =
+    mode.kind === "create"
+      ? trimmedText !== "" || media.length > 0 || scheduledAt !== ""
+      : text !== initial.text ||
+        !sameSocialPostMedia(media, initial.media) ||
+        scheduledAt !== initial.scheduledAt ||
+        (connectionIds[0] ?? "") !== initial.connectionId;
+
+  function handleComposerOpenChange(nextOpen: boolean): void {
+    if (!nextOpen && isDirty) {
+      setDiscardOpen(true);
+      return;
+    }
+    onOpenChange(nextOpen);
+  }
+
   const footerMessage = scheduledAtTooSoon ? (
     <p id={scheduledAtErrorId} className="text-destructive">
       {t("composer.scheduledAtTooSoon")}
     </p>
-  ) : requirementHint && !isScheduleOnly ? (
-    <p data-testid="social-post-requirement-hint">
-      {t(`composer.requirements.${requirementHint}`, {
-        provider: socialPostProviderLabel(issueProvider),
-      })}
-    </p>
   ) : needsAccount ? (
     <p>{t("composer.pickAccount")}</p>
   ) : null;
+  const requirementHintLines = requirementHints.map(
+    ({ provider: neededBy, issue }) => ({
+      key: `${neededBy}-${issue}`,
+      text: t(`composer.requirements.${issue}`, {
+        provider: socialPostProviderLabel(neededBy),
+      }),
+    }),
+  );
+  // Post now or Schedule is off because the draft still needs text or
+  // media. The disabled button ignores pointer events, so the tooltip
+  // lives on a focusable wrapper.
+  const showRequirementHint =
+    (primaryAction === "publish" || primaryAction === "schedule") &&
+    !primaryEnabled &&
+    requirementHintLines.length > 0;
+  const primaryButton = (
+    <Button
+      type="button"
+      className="min-w-28"
+      disabled={!primaryEnabled}
+      loading={pending === primaryAction}
+      onClick={runPrimary}
+      aria-describedby={showRequirementHint ? publishHintId : undefined}
+    >
+      {primaryLabel}
+      {primaryEnabled ? (
+        <kbd
+          aria-hidden
+          className="hidden font-sans text-xs opacity-70 sm:inline"
+        >
+          ⌘↵
+        </kbd>
+      ) : null}
+    </Button>
+  );
 
   return (
     <TaskFormModal
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleComposerOpenChange}
       onCloseAutoFocus={onCloseAutoFocus}
       title={title}
       cancelLabel={t("composer.dismiss")}
@@ -677,349 +854,459 @@ export function SocialPostComposerDialog({
         textareaRef.current?.focus();
       }}
     >
-      <div
+      <RoomFileDropZone
         className="flex min-h-0 flex-1 flex-col"
-        onKeyDown={(event) => {
-          if (
-            event.key === "Enter" &&
-            (event.metaKey || event.ctrlKey) &&
-            !event.nativeEvent.isComposing &&
-            // Keys bubble through portals: ⌘Enter in the Drive picker or a
-            // date or time popover belongs to them, not to this dialog.
-            !pickerOpen &&
-            event.target instanceof Node &&
-            event.currentTarget.contains(event.target)
-          ) {
-            event.preventDefault();
-            runPrimary();
-          }
+        enabled={!isBusy && !isScheduleOnly}
+        label={t("composer.media.drop")}
+        onFiles={(files) => {
+          void handleUploadFiles(files);
         }}
       >
-        <div className="app-scrollbar grid auto-rows-min min-h-0 flex-1 grid-cols-1 overflow-y-auto md:flex md:flex-row md:overflow-hidden">
-          <form
-            className="contents md:app-scrollbar md:flex md:min-w-0 md:flex-1 md:flex-col md:overflow-y-auto"
-            data-testid="social-post-composer"
-            onSubmit={(event) => {
+        <div
+          className="flex min-h-0 flex-1 flex-col"
+          data-testid="social-post-composer-surface"
+          onKeyDown={(event) => {
+            if (
+              event.key === "Enter" &&
+              (event.metaKey || event.ctrlKey) &&
+              !event.nativeEvent.isComposing &&
+              // Keys bubble through portals: ⌘Enter in the Drive picker or a
+              // date or time popover belongs to them, not to this dialog.
+              !pickerOpen &&
+              event.target instanceof Node &&
+              event.currentTarget.contains(event.target)
+            ) {
               event.preventDefault();
-            }}
-          >
-            <div className="order-first flex flex-wrap items-center gap-x-3 gap-y-2 px-6 py-4 md:order-none md:px-8">
-              <span
-                className="text-muted-foreground text-sm font-medium"
-                id={accountsLabelId}
-              >
-                {multiAccount ? t("composer.accounts") : t("composer.account")}
-              </span>
-              {connections.length === 0 ? (
-                <div
-                  className="flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3"
-                  data-testid="social-post-no-accounts"
+              runPrimary();
+            }
+          }}
+        >
+          <div className="app-scrollbar grid auto-rows-min min-h-0 flex-1 grid-cols-1 overflow-y-auto md:flex md:flex-row md:overflow-hidden">
+            <form
+              className="contents md:app-scrollbar md:flex md:min-w-0 md:flex-1 md:flex-col md:overflow-y-auto"
+              data-testid="social-post-composer"
+              onSubmit={(event) => {
+                event.preventDefault();
+              }}
+            >
+              <div className="order-first flex flex-wrap items-center gap-x-3 gap-y-2 px-6 py-4 md:order-none md:px-8">
+                <span
+                  className="text-muted-foreground text-sm font-medium"
+                  id={accountsLabelId}
                 >
-                  <div className="min-w-0 space-y-0.5">
-                    <p className="text-sm font-medium">
-                      {t("composer.noAccountsTitle")}
-                    </p>
-                    <p className="text-muted-foreground text-xs text-pretty">
-                      {t("composer.noAccounts")}
-                    </p>
-                  </div>
-                  {onConnectAccount ? (
-                    <Button
-                      onClick={onConnectAccount}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      <Plus className="size-4" aria-hidden />
-                      {t("composer.connectAccount")}
-                    </Button>
-                  ) : null}
-                </div>
-              ) : (
-                <div
-                  aria-labelledby={accountsLabelId}
-                  className="flex flex-wrap items-center gap-2"
-                  data-testid="social-post-accounts"
-                  role="group"
-                >
-                  {connections.map((connection) => {
-                    const selected = connectionIds.includes(connection.id);
-                    const handle =
-                      formatHandle(connection.externalHandle) ||
-                      t("composer.unknownHandle");
-                    return (
-                      <button
-                        aria-label={t("composer.accountOption", {
-                          provider: socialPostProviderLabel(
-                            connection.provider,
-                          ),
-                          handle,
-                        })}
-                        aria-pressed={selected}
-                        className={cn(
-                          "focus-visible:ring-ring inline-flex h-8 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50",
-                          selected
-                            ? "border-foreground text-foreground"
-                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                        )}
-                        disabled={isBusy}
-                        key={connection.id}
-                        onClick={() => toggleConnection(connection.id)}
+                  {multiAccount
+                    ? t("composer.accounts")
+                    : t("composer.account")}
+                </span>
+                {connections.length === 0 ? (
+                  <div
+                    className="flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3"
+                    data-testid="social-post-no-accounts"
+                  >
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="text-sm font-medium">
+                        {t("composer.noAccountsTitle")}
+                      </p>
+                      <p className="text-muted-foreground text-xs text-pretty">
+                        {t("composer.noAccounts")}
+                      </p>
+                    </div>
+                    {onConnectAccount ? (
+                      <Button
+                        onClick={onConnectAccount}
+                        size="sm"
+                        className="h-11 md:h-8"
                         type="button"
+                        variant="outline"
                       >
-                        <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
-                          <SocialPostProviderIcon
-                            aria-hidden
-                            className="size-3.5"
+                        <Plus className="size-4" aria-hidden />
+                        {t("composer.connectAccount")}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div
+                    aria-invalid={needsAccount || undefined}
+                    aria-labelledby={accountsLabelId}
+                    className="flex flex-wrap items-center gap-2"
+                    data-testid="social-post-accounts"
+                    role="group"
+                  >
+                    {connections.map((connection) => {
+                      const selected = connectionIds.includes(connection.id);
+                      const handle = accountChipLabel(
+                        connection,
+                        t("composer.unknownHandle"),
+                      );
+                      return (
+                        <button
+                          aria-label={t("composer.accountOption", {
+                            provider: socialPostProviderLabel(
+                              connection.provider,
+                            ),
+                            handle,
+                          })}
+                          aria-pressed={selected}
+                          className={cn(
+                            "focus-visible:ring-ring inline-flex h-11 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 md:h-8",
+                            selected
+                              ? "border-foreground text-foreground"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                          )}
+                          disabled={isBusy}
+                          key={connection.id}
+                          onClick={() => toggleConnection(connection.id)}
+                          type="button"
+                        >
+                          <AccountChipMark
+                            avatarUrl={connection.avatarUrl}
                             provider={connection.provider}
                           />
-                        </span>
-                        <span className="max-w-40 truncate">{handle}</span>
-                        {selected ? (
-                          <Check className="size-3.5" aria-hidden />
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {isScheduleOnly ? null : (
-              <div className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8">
-                <textarea
-                  id={textId}
-                  aria-invalid={overLimit || undefined}
-                  aria-label={t("composer.text")}
-                  className="placeholder:text-muted-foreground field-sizing-content min-h-40 w-full resize-none border-0 bg-transparent px-0 text-base leading-relaxed shadow-none outline-none"
-                  disabled={isBusy}
-                  onChange={(event) => setText(event.target.value)}
-                  placeholder={t("composer.textPlaceholder")}
-                  ref={textareaRef}
-                  value={text}
-                />
-                {media.length > 0 ? mediaStrip : null}
-                <div className="flex flex-wrap items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground"
-                    disabled={isBusy}
-                    onClick={() => setPickerOpen(true)}
-                  >
-                    <ImagePlus className="size-4" aria-hidden />
-                    {t("composer.media.addFromDrive")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground"
-                    disabled={isBusy}
-                    loading={uploadPending}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="size-4" aria-hidden />
-                    {t("composer.media.upload")}
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    accept={accept}
-                    className="hidden"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      event.target.value = "";
-                      if (file) {
-                        void handleUpload(file);
-                      }
-                    }}
-                    type="file"
-                  />
-                  <span
-                    aria-live="polite"
-                    className={cn(
-                      "ms-auto text-xs tabular-nums",
-                      overLimit ? "text-destructive" : "text-muted-foreground",
-                    )}
-                    data-testid="social-post-character-count"
-                  >
-                    {t("composer.characters", {
-                      count: text.length,
-                      limit: textLimit,
-                    })}
-                  </span>
-                </div>
-                {/* One platform: the count above already is its limit. */}
-                {providers.length > 1 ? (
-                  <ul
-                    aria-label={t("composer.platforms")}
-                    className="flex flex-wrap gap-x-4 gap-y-1 text-xs"
-                    data-testid="social-post-platforms"
-                  >
-                    {providers.map((candidate) => {
-                      const limit = SOCIAL_POST_TEXT_LIMITS[candidate];
-                      const over = text.length > limit;
-                      return (
-                        <li
-                          className={cn(
-                            "inline-flex items-center gap-1.5",
-                            over ? "text-destructive" : "text-muted-foreground",
-                          )}
-                          data-testid={`social-post-platform-${candidate}`}
-                          key={candidate}
-                        >
-                          <SocialPostProviderIcon
-                            aria-hidden
-                            className="size-3.5"
-                            provider={candidate}
-                          />
-                          <span>
-                            {t("composer.platformLimit", {
-                              provider: socialPostProviderLabel(candidate),
-                              format: t(
-                                `composer.formats.${socialPostComposerFormat(candidate)}`,
-                              ),
-                              count: text.length,
-                              limit,
-                            })}
-                          </span>
-                        </li>
+                          <span className="max-w-40 truncate">{handle}</span>
+                          {selected ? (
+                            <Check className="size-3.5" aria-hidden />
+                          ) : null}
+                        </button>
                       );
                     })}
-                  </ul>
-                ) : null}
+                    {needsAccount ? (
+                      <p
+                        className="text-destructive basis-full text-sm"
+                        data-testid="social-post-pick-account"
+                      >
+                        {t("composer.pickAccount")}
+                      </p>
+                    ) : null}
+                  </div>
+                )}
               </div>
-            )}
 
-            <section
-              aria-labelledby={scheduledAtId}
-              className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8"
-            >
-              <div className="space-y-1">
-                <h3 id={scheduledAtId} className="text-sm font-semibold">
-                  {t("composer.when")}
-                </h3>
-                {mode.kind === "edit" ? (
-                  <p className="text-muted-foreground text-xs">
-                    {t("composer.whenOptional")}
-                  </p>
-                ) : null}
-              </div>
-              <SocialPostSchedulePicker
-                allowNow={canPostNow}
-                describedBy={
-                  scheduledAtTooSoon ? scheduledAtErrorId : undefined
-                }
-                disabled={isBusy}
-                earliest={new Date(earliestScheduledAt)}
-                invalid={scheduledAtTooSoon}
-                labelledBy={scheduledAtId}
-                onChange={setScheduledAt}
-                value={scheduledAt}
-              />
-              <div
-                className="text-muted-foreground space-y-0.5 text-xs"
-                data-testid="social-post-timezone"
-              >
-                {/* A post goes out at one instant; the picker and this line
-                  read it in the viewer's zone, and name that zone. */}
-                <p>
-                  {scheduledAtValid && scheduledDate
-                    ? t("composer.timezone.goesOut", {
-                        date: formatter.dateTime(
-                          scheduledDate,
-                          "dateTimeWithYear",
-                        ),
-                        zone: zoneName(viewerTimezone),
-                      })
-                    : t("composer.timezone.yours", {
-                        zone: zoneName(viewerTimezone),
+              {isScheduleOnly ? null : (
+                <div
+                  className="order-1 space-y-3 border-t px-6 py-5 md:order-none md:px-8"
+                  data-testid="social-post-composer-editor"
+                >
+                  <textarea
+                    id={textId}
+                    aria-describedby={overLimit ? tooLongId : undefined}
+                    aria-invalid={overLimit || undefined}
+                    aria-label={t("composer.text")}
+                    className="placeholder:text-muted-foreground field-sizing-content min-h-40 w-full resize-none border-0 bg-transparent px-0 text-base leading-relaxed shadow-none outline-none"
+                    disabled={isBusy}
+                    onChange={(event) => setText(event.target.value)}
+                    placeholder={t("composer.textPlaceholder")}
+                    ref={textareaRef}
+                    value={text}
+                  />
+                  {media.length > 0 ? mediaStrip : null}
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground h-11 md:h-8"
+                      disabled={isBusy}
+                      onClick={() => setPickerOpen(true)}
+                    >
+                      <ImagePlus className="size-4" aria-hidden />
+                      {t("composer.media.addFromDrive")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground h-11 md:h-8"
+                      disabled={isBusy}
+                      loading={uploadPending}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="size-4" aria-hidden />
+                      {t("composer.media.upload")}
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      accept={accept}
+                      className="hidden"
+                      multiple
+                      onChange={(event) => {
+                        const files = Array.from(event.target.files ?? []);
+                        event.target.value = "";
+                        void handleUploadFiles(files);
+                      }}
+                      type="file"
+                    />
+                    <span className="ms-auto flex flex-col items-end gap-0.5">
+                      <span
+                        aria-live="polite"
+                        className={cn(
+                          "text-xs tabular-nums",
+                          overLimit
+                            ? "text-destructive"
+                            : "text-muted-foreground",
+                        )}
+                        data-testid="social-post-character-count"
+                      >
+                        {t("composer.characters", {
+                          count: text.length,
+                          limit: textLimit,
+                        })}
+                      </span>
+                      {overLimit ? (
+                        <p
+                          className="text-destructive text-xs"
+                          data-testid="social-post-too-long"
+                          id={tooLongId}
+                        >
+                          {t("composer.tooLong")}
+                        </p>
+                      ) : null}
+                    </span>
+                  </div>
+                  {/* One platform: the count above already is its limit. */}
+                  {providers.length > 1 ? (
+                    <ul
+                      aria-label={t("composer.platforms")}
+                      className="flex flex-wrap gap-x-4 gap-y-1 text-xs"
+                      data-testid="social-post-platforms"
+                    >
+                      {providers.map((candidate) => {
+                        const limit = SOCIAL_POST_TEXT_LIMITS[candidate];
+                        const over = text.length > limit;
+                        return (
+                          <li
+                            className={cn(
+                              "inline-flex items-center gap-1.5",
+                              over
+                                ? "text-destructive"
+                                : "text-muted-foreground",
+                            )}
+                            data-testid={`social-post-platform-${candidate}`}
+                            key={candidate}
+                          >
+                            <SocialPostProviderIcon
+                              aria-hidden
+                              className="size-3.5"
+                              provider={candidate}
+                            />
+                            <span>
+                              {t("composer.platformLimit", {
+                                provider: socialPostProviderLabel(candidate),
+                                format: t(
+                                  `composer.formats.${socialPostComposerFormat(candidate)}`,
+                                ),
+                                count: text.length,
+                                limit,
+                              })}
+                            </span>
+                          </li>
+                        );
                       })}
-                </p>
-                {post?.scheduledAt &&
-                post.timezone &&
-                post.timezone !== viewerTimezone ? (
-                  <p>
-                    {t("composer.timezone.postZone", {
-                      date: formatter.dateTime(
-                        post.scheduledAt,
-                        "dateTimeWithYear",
-                        { timeZone: post.timezone },
-                      ),
-                      zone: zoneName(post.timezone),
-                    })}
+                    </ul>
+                  ) : null}
+                </div>
+              )}
+
+              <section
+                aria-labelledby={scheduledAtId}
+                className="order-3 space-y-3 border-t px-6 py-5 md:order-none md:px-8"
+                data-testid="social-post-composer-when"
+              >
+                <div className="space-y-1">
+                  <h3 id={scheduledAtId} className="text-sm font-semibold">
+                    {t("composer.when")}
+                  </h3>
+                  {mode.kind === "edit" ? (
+                    <p className="text-muted-foreground text-xs">
+                      {t("composer.whenOptional")}
+                    </p>
+                  ) : null}
+                </div>
+                <SocialPostSchedulePicker
+                  allowNow={canPostNow}
+                  describedBy={
+                    scheduledAtTooSoon ? scheduledAtErrorId : undefined
+                  }
+                  disabled={isBusy}
+                  earliest={new Date(earliestScheduledAt)}
+                  invalid={scheduledAtTooSoon}
+                  labelledBy={scheduledAtId}
+                  onChange={setScheduledAt}
+                  value={scheduledAt}
+                />
+                {scheduledAtTooSoon ? (
+                  <p
+                    className="text-destructive text-sm"
+                    data-testid="social-post-scheduled-too-soon"
+                    id={scheduledAtErrorId}
+                  >
+                    {t("composer.scheduledAtTooSoon")}
                   </p>
                 ) : null}
-              </div>
-            </section>
-          </form>
+                <div
+                  className="text-muted-foreground space-y-0.5 text-xs"
+                  data-testid="social-post-timezone"
+                >
+                  {/* A post goes out at one instant; the picker and this line
+                  read it in the viewer's zone, and name that zone. */}
+                  <p>
+                    {scheduledAtValid && scheduledDate
+                      ? t("composer.timezone.goesOut", {
+                          date: formatter.dateTime(
+                            scheduledDate,
+                            "dateTimeWithYear",
+                          ),
+                          zone: zoneName(viewerTimezone, locale, scheduledDate),
+                        })
+                      : t("composer.timezone.yours", {
+                          zone: zoneName(viewerTimezone, locale),
+                        })}
+                  </p>
+                  {post?.scheduledAt &&
+                  post.timezone &&
+                  post.timezone !== viewerTimezone ? (
+                    <p>
+                      {t("composer.timezone.postZone", {
+                        date: formatter.dateTime(
+                          post.scheduledAt,
+                          "dateTimeWithYear",
+                          { timeZone: post.timezone },
+                        ),
+                        zone: zoneName(post.timezone, locale, post.scheduledAt),
+                      })}
+                    </p>
+                  ) : null}
+                </div>
+              </section>
+            </form>
 
-          {previewAccount || hasContent ? (
-            <aside
-              aria-label={t("preview.open")}
-              className="bg-background-muted order-1 flex shrink-0 flex-col gap-3 border-t px-6 py-5 md:order-none md:app-scrollbar md:w-96 md:overflow-y-auto md:border-t-0 md:border-s md:px-6"
-            >
-              <p className="text-muted-foreground text-xs font-medium">
-                {t("preview.open")}
-              </p>
-              <SocialPostPreview
-                account={previewAccount}
-                className={cn(!hasContent && "opacity-60")}
-                media={media}
-                provider={selectedConnections[0]?.provider ?? providers[0]}
-                text={hasContent ? text : t("composer.previewEmpty")}
-                timestamp={scheduledAtValid ? scheduledDate : null}
-              />
-            </aside>
-          ) : null}
-        </div>
-
-        <div className="flex shrink-0 flex-col items-stretch gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8">
-          <div
-            aria-live="polite"
-            className="text-muted-foreground min-w-0 flex-1 text-sm"
-          >
-            {footerMessage}
-          </div>
-          <div className="flex items-center justify-end gap-2">
-            {!isScheduleOnly && primaryAction !== "save" ? (
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={!canSave}
-                loading={pending === "save"}
-                onClick={() => {
-                  void handleSaveDraft();
-                }}
+            {previewAccount || hasContent ? (
+              <aside
+                aria-label={t("preview.open")}
+                className="bg-background-muted order-2 flex shrink-0 flex-col gap-3 border-t px-6 py-5 md:order-none md:app-scrollbar md:w-96 md:overflow-y-auto md:border-t-0 md:border-s md:px-6"
               >
-                {saveLabel}
-              </Button>
+                <p className="text-muted-foreground text-xs font-medium">
+                  {t("preview.open")}
+                </p>
+                {selectedConnections.length > 1 ? (
+                  <div
+                    aria-label={t("preview.accounts")}
+                    className="flex flex-wrap items-center gap-1"
+                    data-testid="social-post-preview-accounts"
+                    role="group"
+                  >
+                    {selectedConnections.map((connection) => {
+                      const handle =
+                        formatComposerHandle(connection.externalHandle) ||
+                        t("composer.unknownHandle");
+                      const active = previewConnection?.id === connection.id;
+                      return (
+                        <button
+                          aria-label={t("preview.as", { handle })}
+                          aria-pressed={active}
+                          className={cn(
+                            "focus-visible:ring-ring inline-flex h-11 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 md:h-8",
+                            active
+                              ? "border-foreground text-foreground"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                          )}
+                          key={connection.id}
+                          onClick={() => setPreviewConnectionId(connection.id)}
+                          type="button"
+                        >
+                          <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
+                            <SocialPostProviderIcon
+                              aria-hidden
+                              className="size-3.5"
+                              provider={connection.provider}
+                            />
+                          </span>
+                          <span className="max-w-32 truncate">{handle}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+                <SocialPostPreview
+                  account={previewAccount}
+                  className={cn(!hasContent && "opacity-60")}
+                  media={media}
+                  provider={previewProvider}
+                  text={hasContent ? text : t("composer.previewEmpty")}
+                  timestamp={scheduledAtValid ? scheduledDate : null}
+                />
+              </aside>
             ) : null}
-            <Button
-              type="button"
-              className="min-w-28"
-              disabled={!primaryEnabled}
-              loading={pending === primaryAction}
-              onClick={runPrimary}
+          </div>
+
+          <div className="flex shrink-0 flex-col items-stretch gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8">
+            <div
+              aria-live="polite"
+              className="text-muted-foreground min-w-0 flex-1 text-sm"
             >
-              {primaryLabel}
-              <kbd
-                aria-hidden
-                className="hidden font-sans text-xs opacity-70 sm:inline"
-              >
-                ⌘↵
-              </kbd>
-            </Button>
+              {footerMessage}
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              {!isScheduleOnly && primaryAction !== "save" ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={!canSave}
+                  loading={pending === "save"}
+                  onClick={() => {
+                    void handleSaveDraft();
+                  }}
+                >
+                  {saveLabel}
+                </Button>
+              ) : null}
+              {showRequirementHint ? (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span tabIndex={0} className="inline-flex">
+                        {primaryButton}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {requirementHintLines.map((line) => (
+                        <p key={line.key}>{line.text}</p>
+                      ))}
+                    </TooltipContent>
+                  </Tooltip>
+                  <span className="sr-only" id={publishHintId}>
+                    {requirementHintLines.map((line) => line.text).join(" ")}
+                  </span>
+                </>
+              ) : (
+                primaryButton
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </RoomFileDropZone>
 
       <DriveFilePicker
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         onSelect={handleSelectDriveFile}
       />
+
+      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <AlertDialogContent data-task-form-portal="">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("composer.discardTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("composer.discardDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("composer.keepEditing")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onOpenChange(false)}>
+              {t("composer.discard")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TaskFormModal>
   );
 }

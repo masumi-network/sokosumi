@@ -1,5 +1,4 @@
 import CoreAPI
-import SokosumiAuth
 import SokosumiChat
 import SokosumiWorkspace
 import SwiftUI
@@ -10,100 +9,124 @@ import SwiftUI
   struct RoomTimelineView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @State private var preparedTranscript: PreparedTranscript?
+    /// An older page, prepared and waiting for the list to land it (M6). Rows inserted above the realized ones make the
+    /// lazy list measure every realized row again, a dropped frame in mid-flick, so they land once the scroll rests,
+    /// and the list puts the rows the reader saw back where they were.
+    @State private var waitingTranscript: PreparedTranscript?
+    @State private var scrollActivity = TranscriptScrollActivity()
     let roomId: String
 
     private var preparationInput: PreparedTranscript.Input {
       let room = workspaces.rooms.first { $0.id == roomId }
-      return .init(scope: [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.timeline.generation)],
-                   messages: workspaces.displayedTranscript, mentions: room.map(MessageMentions.init),
+      return .init(scope: [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.openRoom.room.timeline.generation)],
+                   messages: workspaces.openRoom.displayedTranscript, mentions: room.map(MessageMentions.init),
                    channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
     }
 
     var body: some View {
       let input = preparationInput
       let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
+      let waiting = waitingTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
+      let messages = prepared?.overlaying(input.messages) ?? []
+      // Projection is a live suffix: a shorter nonempty suffix means its older prefix still waits.
+      let olderPageWaits = !messages.isEmpty && messages.count < input.messages.count
       // Keep scroll state below this boundary so scrolling does not rebuild the projection.
-      RoomTranscriptContent(roomId: roomId, messages: prepared?.overlaying(input.messages) ?? [],
-                            hasLiveMessages: !input.messages.isEmpty, preparedTranscript: prepared)
-        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: roomId))
-        .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
-        .task(id: input) {
-          guard let prepared = try? await PreparedTranscript.prepare(input, reusing: preparedTranscript), !Task.isCancelled else { return }
-          preparedTranscript = prepared
+      RoomTranscriptContent(roomId: roomId, messages: messages,
+                            hasLiveMessages: !input.messages.isEmpty, preparedTranscript: waiting ?? prepared,
+                            scrollActivity: scrollActivity, olderPageWaits: olderPageWaits,
+                            hasWaitingPage: waiting != nil) {
+        if let waiting = waitingTranscript, waiting.input.scope == preparationInput.scope, scrollActivity.isAtRest {
+          waitingTranscript = nil
+          preparedTranscript = waiting
+          return true
         }
+        return false
+      }
+      .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: roomId))
+      .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
+      .task(id: input) {
+        guard let next = try? await PreparedTranscript.prepare(input, reusing: waitingTranscript ?? preparedTranscript), !Task.isCancelled else { return }
+        if next.prependsRows(to: preparedTranscript) {
+          waitingTranscript = next
+        } else {
+          waitingTranscript = nil
+          preparedTranscript = next
+        }
+      }
     }
   }
 
   private struct RoomTranscriptContent: View {
     @EnvironmentObject private var workspaces: WorkspaceState
-    @EnvironmentObject private var auth: AuthState
     @Environment(\.jumpMarkClock) private var jumpMarkClock
     /// Eager first layout can report near-top before the bottom anchor
     /// lands. Require a trip away from the top before auto-loading.
     @State private var transcriptWasAwayFromTop = false
-    @State private var scrollIntent = TimelineScrollIntent()
-    @State private var userIsScrolling = false
-    @State private var pendingBottomAlignment = false
+    @State private var scroll = TranscriptScroll()
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
-    /// The mark the last jump left on the row it landed on (row 25b1). The open thread keeps its own.
-    @State private var jumpMark: JumpMark?
-    /// The Thread's parent a reply jump marked while the Thread covered the room (row 25c). The rows behind the
-    /// Thread are not laid out, so the room lands on it when the Thread closes (user decision, 2026-10-04).
-    @State private var parentBehindThread: String?
     @State private var jumpError: String?
-    @State private var jumpCompletion: CheckedContinuation<Bool, Never>?
-    @State private var quoteTarget: String?
     @State private var scrollPosition = ScrollPosition(idType: String.self)
+    @State private var firstRows = FirstRowsPlacement()
     @State private var quoteFocusRequest: String?
 
     let roomId: String
     let messages: [Components.Schemas.ChatRoomMessage]
     let hasLiveMessages: Bool
     let preparedTranscript: PreparedTranscript?
+    /// Whether the reader drives the list; the room view reads it to hold an older page (M6).
+    let scrollActivity: TranscriptScrollActivity
+    /// An older page is preparing or waits for the scroll to rest: its boundary row stays loading and asks for no
+    /// further page.
+    let olderPageWaits: Bool
+    /// An older page is prepared and waits for the list to land it.
+    let hasWaitingPage: Bool
+    /// Lands the waiting page's rows unless the reader scrolls; true when it did.
+    let landWaitingPage: () -> Bool
 
     private var room: Components.Schemas.ChatRoom? {
       workspaces.rooms.first { $0.id == roomId }
     }
 
-    private func unfurlAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
-      guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
-      return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
+    private var userIsScrolling: Bool {
+      scrollActivity.isScrolling
     }
 
-    private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
-      guard canReactToMessage(message), roomTakesNewMessages(room) else { return nil }
-      return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
+    /// The list follows the latest message again. The position the reader scrolled to is dropped first: while it names a
+    /// row, the list holds that row and a scroll to the bottom does not land.
+    private func followLatest() {
+      scrollPosition = ScrollPosition(idType: String.self)
+      scroll.followLatest()
     }
 
-    /// The turn's thumbs send through the coordinator, which keeps the rating for the session (row 38b).
-    private func sokoBotFeedbackAction(for message: Components.Schemas.ChatRoomMessage) -> ((Bool) async throws -> Void)? {
-      guard let turnId = SokoBotFeedback.turnId(for: message) else { return nil }
-      return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful, auth: auth) }
+    /// The room shows a jumped-to page; read live, never stored, so a page change and its anchor arrive together.
+    private var anchored: Bool {
+      workspaces.openRoom.room.timeline.historicalAnchor != nil
     }
 
-    /// Row 38e1: a settled row with result descriptors reads its cards through the coordinator.
-    private func resultPreviewsAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> [Components.Schemas.ChatResultPreview])? {
-      guard !MessageResultPreviews.descriptorIds(of: message).isEmpty else { return nil }
-      return { try await workspaces.messageResultPreviews(message, auth: auth) }
+    /// The mark the last jump left on the row it landed on (row 25b1). The open thread keeps its own.
+    private var jumpMark: JumpMark? {
+      workspaces.openRoom.room.jumpTarget?.mark
     }
 
-    private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
-      guard workspaces.canSendToSelf(message) else { return nil }
-      return { try await workspaces.sendMessageToSelf(message, auth: auth) }
+    /// The row a jump still has to scroll to. The Thread's parent a reply jump marked waits while the Thread covers the
+    /// room, because the rows behind it are not laid out (row 25c, user decision 2026-10-04).
+    private var scrollTarget: TranscriptSession.JumpTarget? {
+      guard let target = workspaces.openRoom.room.jumpTarget, !target.hasLanded,
+            !target.isCovered || workspaces.openRoom.thread.parent == nil else { return nil }
+      return target
     }
 
-    private func deletionAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
-      guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
-      return { try await workspaces.deleteMessage(message, auth: auth) }
-    }
-
-    private func mentionRetryAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
-      guard workspaces.canRetryMention(message) else { return nil }
-      return { try await workspaces.retryMention(message, auth: auth, now: Date()) }
+    /// The room's answer to its rows: its outbox, its composer for quotes, its jump alert.
+    private var rowActions: TranscriptRowActions {
+      TranscriptRowActions(workspaces: workspaces, transcript: workspaces.openRoom.room, quote: { message in
+        pendingQuote = messageQuote(from: message)
+        quoteFocusRequest = UUID().uuidString
+      }, jumpFailed: { jumpError = $0 })
     }
 
     var body: some View {
       transcriptBody
+        .scrollEdgeEffectStyle(.hard, for: .top)
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
           if let notice = ReadOnlyDirectNotice(room: room) {
@@ -112,41 +135,34 @@ import SwiftUI
             ChatComposerView(
               userId: workspaces.currentUserId,
               organizationId: workspaces.selection?.workspace.organizationId,
-              roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest
+              roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
+              onAccepted: { followLatest() }
             )
             .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
           }
         }
         .modifier(RoomToolsModifier(roomId: roomId, jump: { try await jumpToMessage($0) }))
-        .task(id: workspaces.messageJump) {
-          guard let target = workspaces.messageJump, target.roomId == roomId else { return }
-          scrollIntent.readOlder()
+        .task(id: workspaces.openRoom.messageJump) {
+          guard let target = workspaces.openRoom.messageJump, target.roomId == roomId else { return }
+          scroll.readOlder()
           if target.isThreadParent {
-            // Row 25c: the Thread's parent, marked now on the room's own clock (web's `landOn`), so its hold runs
-            // under the Thread; the room lands on it when the Thread closes. It replaces a room jump still landing.
-            quoteTarget = nil
-            jumpCompletion?.resume(returning: false)
-            jumpCompletion = nil
-            jumpMark = JumpMark(messageId: target.messageId, landedAt: jumpMarkClock.now)
-            parentBehindThread = target.messageId
+            // Row 25c: the Thread's parent, marked now so its hold runs under the Thread; the room lands on it when
+            // the Thread closes. It replaces a room jump still landing.
+            workspaces.openRoom.room.markCovered(target.messageId)
           } else {
-            parentBehindThread = nil
-            quoteTarget = target.messageId
+            workspaces.openRoom.room.requestJump(to: target.messageId)
           }
-          workspaces.consumeMessageJump(target.requestId)
+          workspaces.openRoom.consumeMessageJump(target.requestId)
         }
-        .onChange(of: workspaces.thread.parent == nil) { _, closed in
-          guard closed, let parent = parentBehindThread else { return }
-          if workspaces.displayedTranscript.contains(where: { $0.id == parent }) {
-            quoteTarget = parent
-          } else {
-            // Gone from the loaded rows while the Thread was open: nothing to land on, so forget it.
-            parentBehindThread = nil
-          }
+        .onChange(of: workspaces.openRoom.thread.parent == nil) { _, closed in
+          guard closed, let target = workspaces.openRoom.room.jumpTarget, target.isCovered, !target.hasLanded,
+                !workspaces.openRoom.displayedTranscript.contains(where: { $0.id == target.messageId }) else { return }
+          // Gone from the loaded rows while the Thread was open: nothing to land on, so forget it.
+          Task { @MainActor in workspaces.openRoom.room.clearJump() }
         }
         .task(id: roomId) {
           if room?.kind == .channel {
-            try? await workspaces.loadPins(auth: auth)
+            try? await workspaces.openRoom.loadPins()
           }
         }
         .alert("Couldn’t load message", isPresented: Binding(get: { jumpError != nil }, set: {
@@ -156,36 +172,38 @@ import SwiftUI
         })) {
           Button("OK", role: .cancel) {}
         } message: { Text(jumpError ?? "") }
-        .onChange(of: workspaces.timeline.historicalAnchor) { old, new in
+        .onChange(of: workspaces.openRoom.room.timeline.historicalAnchor) { old, new in
           if old != nil, new == nil {
-            scrollIntent.followLatest()
-            jumpMark = nil
+            scroll.followLatest()
+            Task { @MainActor in workspaces.openRoom.room.clearJump() }
           }
         }
-        .onDisappear { jumpCompletion?.resume(returning: false)
-          jumpCompletion = nil
+        .onDisappear {
+          // A jump this list never reached ends with it; another room's Transcript has already dropped it.
+          let shownRoom = roomId
+          Task { @MainActor in
+            if workspaces.openRoom.room.timeline.roomId == shownRoom {
+              workspaces.openRoom.room.clearJump()
+            }
+          }
+          // The room view outlives this list (another workspace or room swaps it): no scroll is left driving it.
+          scrollActivity.update(for: .idle)
         }
         .onChange(of: roomId) { _, _ in
-          jumpMark = nil
-          parentBehindThread = nil
-          jumpCompletion?.resume(returning: false)
-          jumpCompletion = nil
           pendingQuote = nil
-          quoteTarget = nil
           scrollPosition = ScrollPosition(idType: String.self)
           transcriptWasAwayFromTop = false
-          scrollIntent = TimelineScrollIntent()
-          pendingBottomAlignment = false
+          scroll = TranscriptScroll()
         }
     }
 
     @ViewBuilder
     private var transcriptBody: some View {
-      if workspaces.transcriptRoomId != roomId || (workspaces.transcriptLoading && !hasLiveMessages) {
+      if workspaces.openRoom.room.timeline.roomId != roomId || (workspaces.openRoom.room.timeline.isLoading && !hasLiveMessages) {
         ProgressView("Loading messages…")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else if !hasLiveMessages {
-        if let error = workspaces.transcriptError {
+        if let error = workspaces.openRoom.room.timeline.errorMessage {
           transcriptError(error, retryOlder: false)
         } else if room?.isSelfDirect == true {
           // Web's private-notes empty state (`rooms-client.tsx`:3219-3230).
@@ -222,101 +240,83 @@ import SwiftUI
       return ScrollViewReader { proxy in
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
-            if workspaces.transcriptHasMore {
-              PageBoundaryRow(copy: .transcript(isGap: false), status: workspaces.timeline.oldestBoundaryStatus) {
-                scrollIntent.readOlder()
-                workspaces.loadOlderMessages(auth: auth)
+            if workspaces.openRoom.room.timeline.hasMore || olderPageWaits {
+              PageBoundaryRow(copy: .transcript(isGap: false), status: olderPageWaits ? .loading : workspaces.openRoom.room.timeline.oldestBoundaryStatus) {
+                scroll.readOlder()
+                workspaces.openRoom.loadOlder()
               }
             }
             // An older page's failure is on its row; the banner is for the latest page.
-            if let error = workspaces.transcriptError, workspaces.timeline.failedPage != .older {
+            if let error = workspaces.openRoom.room.timeline.errorMessage, workspaces.openRoom.room.timeline.failedPage != .older {
               inlineError(error)
                 .padding(.horizontal, 12)
             }
-            if workspaces.directStream.parentMessageId == nil, let error = workspaces.directStream.errorMessage {
+            if workspaces.openRoom.directStream.parentMessageId == nil, let error = workspaces.openRoom.directStream.errorMessage {
               Text(error)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
             }
-            let gaps = workspaces.timeline.historyGapMessageIds
+            let rowContext = TranscriptContext(
+              room: transcriptRoom, viewerId: workspaces.currentUserId, allowsPins: workspaces.openRoom.canUsePins, allowsThreads: true,
+              outbound: workspaces.openRoom.room.outbox.shells, editingMessageId: workspaces.openRoom.messageEditing.source?.id
+            )
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
-              let previous = index > 0 ? messages[index - 1] : nil
-              let hasGap = gaps.contains(message.id)
+              let row = workspaces.openRoom.room.row(at: index, of: messages, context: rowContext, streamBusy: workspaces.openRoom.directStream.isBusy,
+                                                     newestId: newestMessageId, now: Date())
               // Unary row: a top-level if (day pill) plus the bubble made the
               // lazy path reserve blank slots. One container per message id.
               VStack(alignment: .leading, spacing: 0) {
-                if hasGap {
+                if let gap = row.gap {
                   // Web's `useLoadWhenVisible`: the row loads itself once it scrolls into
                   // view; a failure stays on it with Try again, never in the jump alert.
-                  PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.timeline.boundaryLoads.status(of: message.id)) {
-                    workspaces.loadHistoryGap(before: message.id, auth: auth)
+                  PageBoundaryRow(copy: .transcript(isGap: true), status: gap) {
+                    workspaces.loadHistoryGap(before: message.id)
                   }
                   .onScrollVisibilityChange(threshold: 0.01) { visible in
                     Task { @MainActor in
-                      workspaces.setHistoryGapVisible(before: message.id, visible, auth: auth)
+                      workspaces.setHistoryGapVisible(before: message.id, visible)
                     }
                   }
                 }
-                if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt, now: Date()) {
+                if let label = row.dayLabel {
                   DaySeparatorRow(label: label)
                 }
-                if let status = roomStatusText(message) {
-                  RoomStatusRow(text: status)
-                    .padding(.horizontal, 12)
-                    .jumpSpotlightRow(messageId: message.id)
-                } else {
-                  let outbound = workspaces.outboundShells.first { $0.id == message.id }
+                switch row.content {
+                case .status:
+                  if let status = roomStatusText(message) {
+                    RoomStatusRow(text: status)
+                      .padding(.horizontal, 12)
+                      .jumpSpotlightRow(messageId: message.id)
+                  }
+                case let .bubble(bubble):
                   MessageRowView(channels: channels, room: transcriptRoom, preparedDocument: preparedTranscript?.document(for: message),
                                  message: message,
-                                 isContinuation: isMessageContinuation(previous: hasGap ? nil : previous, current: message),
-                                 outbound: outbound,
-                                 sentAt: workspaces.outbox.sentAt[message.id],
-                                 onRetry: outbound.map { shell in
-                                   { workspaces.retryOutbound(clientTurnId: shell.clientTurnId) }
-                                 },
-                                 onRemove: outbound.map { shell in
-                                   { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
-                                 },
-                                 onRetryMention: mentionRetryAction(for: message),
-                                 // Web hides the thread button on stream overlays and mention shells (`shouldShowChatRoomThreadButton`),
-                                 // and in a Read-only Direct on a message with no replies yet (`canOpenThread`).
-                                 onReply: outbound == nil && !message.id.hasPrefix("stream:") && MentionThoughtShell(message: message) == nil
-                                   && canOpenThread(message, in: transcriptRoom)
-                                   ? { workspaces.openThread(message, auth: auth) } : nil,
-                                 // Quoting fills the composer, which a Read-only Direct lacks.
-                                 onQuote: canQuoteMessage(message) && roomTakesNewMessages(transcriptRoom) ? { pendingQuote = messageQuote(from: message)
-                                   quoteFocusRequest = UUID().uuidString
-                                 } : nil,
-                                 onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
-                                 jumpMark: jumpMark?.messageId == message.id ? jumpMark : nil,
-                                 isPinned: workspaces.canUsePins && workspaces.isPinned(message),
-                                 isUpdatingPin: workspaces.isUpdatingPin(message.id),
-                                 onTogglePin: pinAction(for: message),
-                                 onDelete: deletionAction(for: message),
-                                 onRemoveUnfurl: unfurlAction(for: message),
-                                 onToggleReaction: reactionAction(for: message),
-                                 editing: workspaces.messageEditing,
-                                 onQuoteJump: { id in Task {
-                                   do {
-                                     // Same-room quote: no Thread parent marked (row 25c).
-                                     if try await workspaces.openMessage(id, auth: auth, marksThreadParent: false) == .unavailable {
-                                       jumpError = "This message is no longer available."
-                                     }
-                                   } catch { jumpError = friendlyMessage(for: error) }
-                                 } },
-                                 onSendToSelf: sendToSelfAction(for: message),
+                                 row: bubble.row,
+                                 outbound: bubble.outbound,
+                                 sentAt: bubble.sentAt,
+                                 perform: { rowActions.perform($0, on: message) },
+                                 canRetryMention: workspaces.openRoom.canRetryMention(message),
+                                 jumpMark: bubble.jumpMark,
+                                 isPinned: workspaces.openRoom.canUsePins && workspaces.openRoom.isPinned(message),
+                                 isUpdatingPin: workspaces.openRoom.isUpdatingPin(message.id),
+                                 editing: workspaces.openRoom.messageEditing,
+                                 onSendToSelf: { try await workspaces.sendMessageToSelf(message) },
                                  sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
-                                 onSokoBotFeedback: sokoBotFeedbackAction(for: message),
-                                 loadResultPreviews: resultPreviewsAction(for: message),
+                                 loadResultPreviews: { try await workspaces.messageResultPreviews(message) },
                                  horizontalInset: 12,
-                                 streamThinking: isCoworkerStreamOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
-                                 newestEndsInAttachment: message.id == newestMessageId && MessageMarkdown.endsWithAttachmentRun(message.content),
+                                 streamThinking: bubble.thinking,
                                  seenBy: readReceipts.seenBy(messageId: message.id, createdAt: message.createdAt, newestMessageId: newestMessageId))
                     .jumpSpotlightRow(messageId: message.id)
                 }
               }
               .background {
-                if quoteTarget == message.id {
+                // Where the first rows sit in the viewport, so an older page landing above them can leave them there.
+                if index < 2 || message.id == firstRows.landingAnchor {
+                  Color.clear.onGeometryChange(for: CGRect.self) { $0.frame(in: .scrollView) } action: { frame in
+                    firstRows.record(index, id: message.id, frame: frame)
+                  }
+                }
+                if scrollTarget?.messageId == message.id {
                   Color.clear.onScrollVisibilityChange(threshold: 0.01) { visible in
                     if visible {
                       completeVisibleJump(message.id)
@@ -332,6 +332,7 @@ import SwiftUI
             Color.clear.frame(height: 9).id("timeline-bottom")
           }
           .scrollTargetLayout()
+          .environment(\.transcriptScrollActivity, scrollActivity)
           .padding(.top, 8)
         }
         // Row 25b2: the other rows step back while the mark holds.
@@ -339,57 +340,64 @@ import SwiftUI
         .task {
           // Position after the lazy list mounts. A default initial bottom
           // anchor can leave the viewport unrealized on macOS 27.
-          guard workspaces.timeline.historicalAnchor == nil, quoteTarget == nil else { return }
+          guard workspaces.openRoom.room.timeline.historicalAnchor == nil, scrollTarget == nil else { return }
           proxy.scrollTo("timeline-bottom", anchor: .bottom)
         }
         .scrollPosition($scrollPosition)
-        .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
-        .onChange(of: messages.contains(where: { $0.id == quoteTarget }) ? quoteTarget : nil, initial: true) { _, target in
-          guard let target else { return }
-          guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
-            quoteTarget = nil
-            if parentBehindThread == target {
-              parentBehindThread = nil
+        .defaultScrollAnchor(scroll.followsLatest ? .bottom : nil, for: .sizeChanges)
+        .onChange(of: hasWaitingPage) { _, waits in
+          if waits, scrollActivity.isAtRest {
+            Task { @MainActor in
+              landWaitingPageInPlace()
             }
-            jumpCompletion?.resume(returning: false)
-            jumpCompletion = nil
+          }
+        }
+        .onChange(of: scrollTarget.flatMap { target in messages.contains { $0.id == target.messageId } ? target.messageId : nil }, initial: true) { _, target in
+          guard let target else { return }
+          guard workspaces.openRoom.displayedTranscript.contains(where: { $0.id == target }) else {
+            Task { @MainActor in workspaces.openRoom.room.clearJump() }
             return
           }
-          scrollIntent.readOlder()
+          scroll.readOlder()
           scrollPosition.scrollTo(id: target, anchor: .center)
         }
-        .task(id: pendingBottomAlignment && !userIsScrolling && scrollIntent.followsLatest && workspaces.timeline.historicalAnchor == nil) {
-          guard pendingBottomAlignment, !userIsScrolling, scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil else { return }
-          pendingBottomAlignment = false
-          proxy.scrollTo("timeline-bottom", anchor: .bottom)
+        .task(id: scroll.alignsToBottom(userIsScrolling: userIsScrolling, anchored: anchored)) {
+          if scroll.takeBottomAlignment(userIsScrolling: userIsScrolling, anchored: anchored) {
+            proxy.scrollTo("timeline-bottom", anchor: .bottom)
+          }
         }
         .onScrollPhaseChange { _, phase in
-          userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
+          scrollActivity.update(for: phase)
+          // Only a list at rest takes the rows: a jump's scroll animation is motion too.
+          if phase == .idle, hasWaitingPage {
+            Task { @MainActor in
+              landWaitingPageInPlace()
+            }
+          }
           if phase.endsJumpMark {
-            jumpMark = jumpMark?.readerScrolled(at: jumpMarkClock.now)
+            Task { @MainActor in workspaces.openRoom.room.readerScrolled() }
           }
         }
         .task(id: jumpMark) {
           guard let mark = jumpMark else { return }
           try? await jumpMarkClock.sleep(until: mark.endsAt)
           if !Task.isCancelled, jumpMark == mark {
-            jumpMark = nil
+            workspaces.openRoom.room.endJumpIfMarkEnded()
           }
         }
         .onChange(of: messages.last?.id) { _, _ in
-          if scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil {
+          if scroll.followsNewMessages(anchored: anchored) {
             proxy.scrollTo("timeline-bottom", anchor: .bottom)
           }
         }
         .overlay(alignment: .bottom) {
-          if !scrollIntent.followsLatest || workspaces.timeline.historicalAnchor != nil {
+          if scroll.showsJumpToLatest(anchored: anchored) {
             JumpToLatestButton {
               Task { @MainActor in
                 do {
-                  if try await workspaces.returnToLatest(auth: auth) {
-                    scrollPosition = ScrollPosition(idType: String.self)
-                    scrollIntent.followLatest()
-                    jumpMark = nil
+                  if try await workspaces.openRoom.room.returnToLatest() {
+                    followLatest()
+                    workspaces.openRoom.room.clearJump()
                     proxy.scrollTo("timeline-bottom", anchor: .bottom)
                   }
                 } catch { jumpError = friendlyMessage(for: error) }
@@ -406,84 +414,77 @@ import SwiftUI
           }
         }
         .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
-          if workspaces.timeline.historicalAnchor == nil,
-             oldEdges.offsetY != edges.offsetY,
-             userIsScrolling || oldEdges.nearBottom != edges.nearBottom {
-            if scrollIntent.followsLatest != edges.nearBottom {
-              scrollIntent.userScrolled(isNearBottom: edges.nearBottom)
-              if !edges.nearBottom {
-                pendingBottomAlignment = false
-              }
-            }
-          } else if !oldEdges.hasSameSize(as: edges), scrollIntent.followsLatest, edges.needsBottomAlignment, workspaces.timeline.historicalAnchor == nil {
-            if !pendingBottomAlignment {
-              pendingBottomAlignment = true
-            }
+          firstRows.viewport = (edges.topInset, edges.viewportHeight)
+          firstRows.offset = edges.offsetY
+          // Every scroll step lands here: write the state only when it changed.
+          var next = scroll
+          next.edgesChanged(from: oldEdges, to: edges, userIsScrolling: userIsScrolling, anchored: anchored)
+          if !edges.nearTop, !transcriptWasAwayFromTop {
+            transcriptWasAwayFromTop = true
           }
-          let isNearTop = edges.nearTop
-          if !isNearTop {
-            if !transcriptWasAwayFromTop {
-              transcriptWasAwayFromTop = true
+          let loadsOlder = edges.nearTop && transcriptWasAwayFromTop && workspaces.openRoom.room.timeline.errorMessage == nil
+            && next.beginAutomaticOlderPage(
+              userIsScrolling: userIsScrolling,
+              isNearTop: true,
+              hasMore: workspaces.openRoom.room.timeline.hasMore,
+              isLoading: workspaces.openRoom.room.timeline.isLoading || workspaces.openRoom.room.timeline.isLoadingOlder || olderPageWaits
+            )
+          if next != scroll {
+            scroll = next
+          }
+          if loadsOlder {
+            Task { @MainActor in
+              workspaces.openRoom.loadOlder()
             }
-            return
-          }
-          var nextIntent = scrollIntent
-          guard transcriptWasAwayFromTop, workspaces.transcriptError == nil,
-                nextIntent.beginAutomaticOlderPage(
-                  userIsScrolling: userIsScrolling,
-                  isNearTop: isNearTop,
-                  hasMore: workspaces.transcriptHasMore,
-                  isLoading: workspaces.transcriptLoading || workspaces.transcriptLoadingOlder
-                ) else { return }
-          if nextIntent != scrollIntent {
-            scrollIntent = nextIntent
-          }
-          Task { @MainActor in
-            workspaces.loadOlderMessages(auth: auth)
           }
         }
       }
     }
 
-    private func pinAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
-      guard workspaces.canUsePins, message.parentMessageId == nil, canReactToMessage(message) else { return nil }
-      return { try await workspaces.setPinned(!workspaces.isPinned(message), messageId: message.id, auth: auth) }
+    /// Lands the waiting older page and puts the rows that were first back where they sat in the viewport (row 04). The
+    /// list does not do it by itself: its scroll position names the first row as the page lands, yet the reader ended up
+    /// on the page's own first rows (a real trackpad, the paging harness, the CI runner).
+    private func landWaitingPageInPlace() {
+      let placement = firstRows.placement
+      firstRows.landingAnchor = placement?.id
+      firstRows.forgetAnchorFrame()
+      guard landWaitingPage(), let placement else {
+        firstRows.landingAnchor = nil
+        return
+      }
+      scrollPosition.scrollTo(id: placement.id, anchor: placement.anchor)
+      // The anchor's fraction is measured against the visible rows; where the list lines it up against more (the CI
+      // runner put the row 66 pt low), move it the rest of the way once it has settled.
+      Task { @MainActor in
+        defer { firstRows.landingAnchor = nil }
+        guard await (try? Task.sleep(for: .milliseconds(150))) != nil, scrollActivity.isAtRest,
+              let offset = firstRows.settledOffset(for: placement.id, was: placement.minY) else { return }
+        scrollPosition.scrollTo(y: offset)
+      }
     }
 
+    /// The row came into view: the jump lands. The Thread's parent keeps the mark it got when the jump arrived.
     private func completeVisibleJump(_ target: String) {
-      guard quoteTarget == target else { return }
-      // The Thread's parent keeps the mark it got when the jump arrived, or none once that hold has run out.
-      if parentBehindThread == target {
-        parentBehindThread = nil
-      } else {
-        jumpMark = JumpMark(messageId: target, landedAt: jumpMarkClock.now)
-      }
-      quoteTarget = nil
-      jumpCompletion?.resume(returning: true)
-      jumpCompletion = nil
+      guard let jump = scrollTarget, jump.messageId == target else { return }
+      Task { @MainActor in workspaces.openRoom.room.landJump(jump.requestId) }
     }
 
     private func jumpToMessage(_ id: String) async throws -> MessageNavigationResult {
       let expectedRoom = roomId
-      scrollIntent.readOlder()
-      let result = try await workspaces.openMessage(id, auth: auth)
-      guard result == .opened, workspaces.transcriptRoomId == expectedRoom else {
+      scroll.readOlder()
+      let result = try await workspaces.openRoom.openMessage(id)
+      guard result == .opened, workspaces.openRoom.room.timeline.roomId == expectedRoom else {
         return result == .opened ? .superseded : result
       }
-      jumpCompletion?.resume(returning: false)
-      let landed = await withCheckedContinuation { completion in
-        jumpCompletion = completion
-        quoteTarget = id
-      }
-      return landed ? .opened : .superseded
+      return await workspaces.openRoom.room.jump(to: id) ? .opened : .superseded
     }
 
     private func transcriptError(_ error: String, retryOlder: Bool) -> some View {
       errorBanner(error) {
         if retryOlder {
-          workspaces.loadOlderMessages(auth: auth)
+          workspaces.openRoom.loadOlder()
         } else if let room {
-          workspaces.openRoom(room, auth: auth)
+          workspaces.enterRoom(room)
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -493,7 +494,7 @@ import SwiftUI
     /// is illegal inside the scroll view.
     private func inlineError(_ error: String) -> some View {
       errorBanner(error) {
-        workspaces.refreshTranscript(auth: auth)
+        workspaces.openRoom.refresh()
       }
       .frame(maxWidth: .infinity)
     }
@@ -507,4 +508,58 @@ import SwiftUI
     }
   }
 
+  /// Where the transcript's first two rows sit in the viewport, and the row an older page's landing keeps in place
+  /// (M6, row 04). A plain object: the geometry callbacks write it on every change without updating the view.
+  @MainActor private final class FirstRowsPlacement {
+    /// The inset above the visible rows and their height.
+    var viewport: (topInset: CGFloat, height: CGFloat) = (0, 0)
+    /// The list's content offset, as the last geometry change reported it.
+    var offset: CGFloat = 0
+    /// The row a landing keeps in place, tracked until it has settled.
+    var landingAnchor: String?
+    private var rows: [Int: (id: String, frame: CGRect)] = [:]
+    private var anchorFrame: CGRect?
+
+    struct Placement {
+      let id: String
+      /// The point of the row lined up with the same point of the viewport.
+      let anchor: UnitPoint
+      /// Where the row's top sat.
+      let minY: CGFloat
+    }
+
+    /// A row on screen and where it sat. The second row first: the first row can lose its day pill once rows from the
+    /// same day land above it, which moves its text by the pill.
+    var placement: Placement? {
+      guard viewport.height > 0 else { return nil }
+      for index in [1, 0] {
+        guard let row = rows[index], row.frame.maxY > viewport.topInset,
+              row.frame.minY < viewport.topInset + viewport.height else { continue }
+        // `scrollTo(id:anchor:)` lines the row's point at `anchor` up with the viewport's: top + f × (H − h) = top.
+        let room = viewport.height - row.frame.height
+        let fraction = abs(room) < 1 ? 0 : (row.frame.minY - viewport.topInset) / room
+        return Placement(id: row.id, anchor: UnitPoint(x: 0, y: fraction), minY: row.frame.minY)
+      }
+      return nil
+    }
+
+    /// The content offset that puts the landing anchor back at `minY`, when it settled elsewhere.
+    func settledOffset(for id: String, was minY: CGFloat) -> CGFloat? {
+      guard id == landingAnchor, let frame = anchorFrame, abs(frame.minY - minY) > 1 else { return nil }
+      return offset + frame.minY - minY
+    }
+
+    func forgetAnchorFrame() {
+      anchorFrame = nil
+    }
+
+    func record(_ index: Int, id: String, frame: CGRect) {
+      if id == landingAnchor {
+        anchorFrame = frame
+      }
+      if index < 2 {
+        rows[index] = (id, frame)
+      }
+    }
+  }
 #endif

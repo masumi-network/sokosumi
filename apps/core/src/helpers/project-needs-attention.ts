@@ -20,7 +20,7 @@ import {
 } from "@/types/project";
 
 /** Lower is more urgent. Exclude is not a tier — those rows never enter the list. */
-export const NeedsAttentionTier = {
+const NeedsAttentionTier = {
   mustAct: 0,
   failed: 1,
   inFlight: 2,
@@ -73,7 +73,7 @@ const TIER_BY_CLASS: Record<
   in_flight: NeedsAttentionTier.inFlight,
 };
 
-export const TASK_ATTENTION_STATUSES = Object.entries(TASK_ATTENTION_CLASS)
+const TASK_ATTENTION_STATUSES = Object.entries(TASK_ATTENTION_CLASS)
   .filter(([, attentionClass]) => attentionClass !== "exclude")
   .map(([status]) => status as TaskStatus);
 

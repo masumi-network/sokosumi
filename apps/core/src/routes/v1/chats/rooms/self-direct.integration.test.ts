@@ -41,11 +41,17 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   );
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
-const { dispatch, realtime, background } = vi.hoisted(() => ({
-  dispatch: vi.fn(),
-  realtime: vi.fn().mockResolvedValue(undefined),
-  background: [] as Promise<unknown>[],
-}));
+const { dispatch, realtime, background, TEST_CHANNEL_ENVIRONMENT } = vi.hoisted(
+  () => ({
+    dispatch: vi.fn(),
+    realtime: vi.fn().mockResolvedValue(undefined),
+    background: [] as Promise<unknown>[],
+    TEST_CHANNEL_ENVIRONMENT: {
+      network: "Preprod" as const,
+      vercelEnv: "production" as const,
+    },
+  }),
+);
 vi.mock("@/config/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/config/env")>();
   return {
@@ -84,7 +90,7 @@ vi.mock("@/lib/ably/create-token-request", async () => {
       capability: JSON.stringify(
         buildAblyClientCapability({
           ...input,
-          notificationChannelEnvironment: { network: "Preprod" },
+          channelEnvironment: TEST_CHANNEL_ENVIRONMENT,
         }),
       ),
     }),
@@ -379,7 +385,9 @@ describeWithDb("Self Direct through chat HTTP handlers with Postgres", () => {
         expect(token.status).toBe(200);
         expect(
           JSON.parse((await token.json()).data.capability),
-        ).not.toHaveProperty(makeChatRoomChannelName(room.id));
+        ).not.toHaveProperty(
+          makeChatRoomChannelName(room.id, TEST_CHANNEL_ENVIRONMENT),
+        );
       } else {
         expect(list.status).toBe(403);
         expect(
@@ -430,7 +438,7 @@ describeWithDb("Self Direct through chat HTTP handlers with Postgres", () => {
     ).toBe(200);
     const token = await app.request("/ably-token", { method: "POST" });
     expect(JSON.parse((await token.json()).data.capability)).toHaveProperty(
-      makeChatRoomChannelName(room.id),
+      makeChatRoomChannelName(room.id, TEST_CHANNEL_ENVIRONMENT),
     );
     await prisma.chatRoom.update({
       where: { id: room.id },

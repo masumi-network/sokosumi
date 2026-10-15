@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, FolderKanban } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -22,7 +23,7 @@ import {
 } from "@/components/ui/popover";
 
 interface SocialAccountsProjectPromptProps {
-  kind?: "accounts" | "drafts" | "statistics";
+  kind?: "accounts" | "drafts";
   notice?: string;
 }
 
@@ -31,12 +32,7 @@ export function SocialAccountsProjectPrompt({
   kind = "accounts",
   notice,
 }: SocialAccountsProjectPromptProps) {
-  const copy =
-    kind === "drafts"
-      ? "draftsNeedProject"
-      : kind === "statistics"
-        ? "statisticsNeedProject"
-        : "accountsNeedProject";
+  const copy = kind === "drafts" ? "draftsNeedProject" : "accountsNeedProject";
   const t = useTranslations("App.Social");
   const router = useRouter();
   const { projectId, switchHref } = useProjectScope();
@@ -75,7 +71,7 @@ export function SocialAccountsProjectPrompt({
       </p>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button className="mt-6" type="button">
+          <Button className="mt-6 min-h-11 md:min-h-10" type="button">
             <FolderKanban className="size-4" aria-hidden />
             {t("pickProject")}
             <ChevronDown className="size-4" aria-hidden />
@@ -102,6 +98,7 @@ export function SocialAccountsProjectPrompt({
 function SocialPlatformCarousel() {
   const t = useTranslations("App.Social");
   const accounts = useTranslations("App.Projects.ProjectSocialAccounts");
+  const reduceMotion = useReducedMotion();
 
   return (
     <Carousel
@@ -110,7 +107,7 @@ function SocialPlatformCarousel() {
       tabIndex={0}
       opts={{
         align: "start",
-        loop: true,
+        loop: !reduceMotion,
         breakpoints: { "(prefers-reduced-motion: reduce)": { duration: 0 } },
       }}
     >

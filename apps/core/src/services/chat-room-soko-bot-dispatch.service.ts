@@ -2,6 +2,7 @@ import prisma from "@/lib/db/prisma";
 import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
 import {
   ACTIVE_TURN_STATUSES,
+  FOREGROUND_TURN,
   SokoBotTurnInProgressError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
@@ -57,7 +58,11 @@ export async function acceptOnceIdle<T>(
     while (Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, pollMs));
       const running = await prisma.sokoBotTurn.findFirst({
-        where: { sokoBotId, status: { in: [...ACTIVE_TURN_STATUSES] } },
+        where: {
+          sokoBotId,
+          ...FOREGROUND_TURN,
+          status: { in: [...ACTIVE_TURN_STATUSES] },
+        },
         select: { id: true },
       });
       if (!running) break;

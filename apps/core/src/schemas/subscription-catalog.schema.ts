@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
 
-export const subscriptionCatalogPlanSchema = z
+const subscriptionCatalogPlanSchema = z
   .object({
     credits: z.number().openapi({ example: 100 }),
     currency: z.string().openapi({ example: "eur" }),

@@ -234,7 +234,7 @@ async function topSkills(): Promise<SkillCatalogItem[]> {
 }
 
 /** Only results that contain the query; name matches first, then by installs. */
-export function rankSkillMatches(
+function rankSkillMatches(
   items: readonly SkillCatalogItem[],
   query: string,
 ): SkillCatalogItem[] {
@@ -341,7 +341,7 @@ function capContent(markdown: string): string {
 }
 
 /** One skill's SKILL.md and display fields, from the catalog cache or GitHub. */
-export async function resolveSkill(id: string): Promise<ResolvedSkill> {
+async function resolveSkill(id: string): Promise<ResolvedSkill> {
   const source = parseSkillSource(id);
   if (!source.skillName)
     throw new SokoBotSkillError("Use a skill id like owner/repo/skill");

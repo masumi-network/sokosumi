@@ -197,7 +197,6 @@ function getDefaultEnv() {
     SIGNUP_BONUS_TTL_DAYS: 30,
     VERCEL_ENV: undefined,
     VERCEL_GIT_COMMIT_REF: "",
-    REQUIRE_PERSONAL_WORKSPACE: false,
   };
 }
 
@@ -356,7 +355,7 @@ vi.mock("@/services/stripe-backed-subscription.service", () => ({
     reconcileActiveStripeBackedSubscriptionMock(...args),
 }));
 
-vi.mock("@/services/preferred-organization.service", () => ({
+vi.mock("@/services/preferred-workspace.service", () => ({
   resolveActiveOrganizationIdForSession: (...args: unknown[]) =>
     resolveActiveOrganizationIdForSessionMock(...args),
 }));

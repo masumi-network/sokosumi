@@ -321,7 +321,7 @@ For internal async-ack sync routes (immediate `200` response + background execut
 
 ## Common Patterns
 
-Before adding or changing a `/v1` route (new route files, OpenAPI definitions, `/{id}` to `/me` migration, cursor pagination, job files and links), read [Core route patterns](../../docs/agents/core-route-patterns.md).
+Before adding, changing, or removing a `/v1` route (new route files, OpenAPI definitions, `/{id}` to `/me` migration, operation removal, cursor pagination, job files and links), read [Core route patterns](../../docs/agents/core-route-patterns.md).
 
 **Note**: New Core routes use direct Prisma via the Core singleton (`import prisma from "@/lib/db/prisma"`) with type-safe includes and flatten helpers. Do not import a default `prisma` from `@sokosumi/database/client` in routes — that module exports `createPrismaClient` (used by `src/lib/db/prisma.ts`, tests, and scripts). Repositories may still appear in legacy services — do not introduce new repository usage in routes.
 
@@ -474,5 +474,5 @@ The evlog block above is the generic convention. This app narrows it:
 - Do **not** add `log.audit` unless a ticket asks for an audit trail (see `build-audit-logs`).
 - Skills: `apps/core/.agents/skills/review-logging-patterns`, `build-audit-logs`, `analyze-logs`. `analyze-logs` reads `.evlog/logs/`; this app drains to stdout and Sentry Logs, not the filesystem.
 - Do not run `evlog agents` at the repo root. Re-run from `apps/core` with `--no-skills`.
-- CLI is a Core devDependency (`@evlog/cli` 0.9.0). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
+- CLI is a Core devDependency (`@evlog/cli` 0.10.0). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
 

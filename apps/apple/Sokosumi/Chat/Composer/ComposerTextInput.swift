@@ -9,7 +9,6 @@ import SwiftUI
     @Binding var text: String
     @State private var emojiPickerRequest = 0
     @StateObject private var commands = MacComposerCommands()
-    @State private var toolbarVisible = ComposerPreferences().toolbarVisible
     let submit: () -> Bool
     var focusRequest: String?
     var cancelEdit: (() -> Void)?
@@ -47,7 +46,7 @@ import SwiftUI
             commands.focus()
           }
         }
-        if toolbarVisible {
+        if commands.toolbar.isVisible {
           ComposerFormatToolbar(commands: commands)
         }
       } actions: {
@@ -66,9 +65,8 @@ import SwiftUI
           .help("Attach files")
           .accessibilityLabel("Attach files")
         }
-        ComposerToolbarButton(title: toolbarVisible ? "Hide formatting" : "Show formatting", symbol: "textformat", selected: toolbarVisible) {
-          toolbarVisible.toggle()
-          ComposerPreferences().toolbarVisible = toolbarVisible
+        ComposerToolbarButton(title: commands.toolbar.isVisible ? "Hide formatting" : "Show formatting", symbol: "textformat", selected: commands.toolbar.isVisible) {
+          commands.toolbar.toggle()
         }
         ComposerToolbarButton(title: "Emoji & Symbols", symbol: "face.smiling") {
           emojiPickerRequest += 1

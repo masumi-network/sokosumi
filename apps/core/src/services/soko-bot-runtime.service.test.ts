@@ -555,6 +555,7 @@ import {
   SokoBotRuntimeConflictError,
   SokoBotRuntimeService,
   SokoBotRuntimeValidationError,
+  sokoBotToolCallLimit,
 } from "@/services/soko-bot-runtime.service";
 
 const SCOPE = {
@@ -730,6 +731,7 @@ describe("SokoBotRuntimeService authorization", () => {
         },
         eveSessionId: SCOPE.sessionId,
         status: "RUNNING",
+        createdAt: new Date(),
         deadlineAt: new Date(Date.now() + 60_000),
         leaseExpiresAt: new Date(Date.now() + 60_000),
         sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -796,6 +798,7 @@ describe("SokoBotRuntimeService authorization", () => {
         },
         eveSessionId: SCOPE.sessionId,
         status: "RUNNING",
+        createdAt: new Date(),
         deadlineAt: new Date(Date.now() + 60_000),
         leaseExpiresAt: new Date(Date.now() + 60_000),
         sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -822,6 +825,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "CANCEL_REQUESTED",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -857,6 +861,7 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       versionId: "inbox-tuned",
       source: "SCHEDULE",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -889,6 +894,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "CANCEL_REQUESTED",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -919,6 +925,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: null,
       status: "STARTING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -972,6 +979,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: null,
       status: "STARTING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1036,6 +1044,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: null,
       status: "STARTING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1083,6 +1092,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: null,
       status: "STARTING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1124,6 +1134,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: null,
       status: "STARTING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1182,6 +1193,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1269,6 +1281,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1362,6 +1375,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1420,6 +1434,7 @@ describe("SokoBotRuntimeService authorization", () => {
         },
         eveSessionId: SCOPE.sessionId,
         status: "RUNNING",
+        createdAt: new Date(),
         deadlineAt: new Date(Date.now() + 60_000),
         leaseExpiresAt: new Date(Date.now() + 60_000),
         sokoBot: {
@@ -1549,6 +1564,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -1652,6 +1668,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -1712,6 +1729,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -1756,6 +1774,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1818,6 +1837,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1862,6 +1882,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check task",
       classification: { confidence: 1 },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1885,6 +1906,19 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(taskFindFirstMock).not.toHaveBeenCalled();
   });
 
+  it("gives a turn tool calls in proportion to how long it may run", () => {
+    const createdAt = new Date("2026-10-14T12:00:00.000Z");
+    const after = (minutes: number) =>
+      new Date(createdAt.getTime() + minutes * 60_000);
+    expect(sokoBotToolCallLimit({ createdAt, deadlineAt: after(15) })).toBe(64);
+    expect(sokoBotToolCallLimit({ createdAt, deadlineAt: after(60) })).toBe(
+      256,
+    );
+    expect(sokoBotToolCallLimit({ createdAt, deadlineAt: after(360) })).toBe(
+      1_536,
+    );
+  });
+
   it("returns raw tool result but persists bounded redacted evidence", async () => {
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
@@ -1900,6 +1934,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check task",
       classification: { confidence: 1 },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1958,6 +1993,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check task",
       classification: { confidence: 1 },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1999,6 +2035,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -2065,6 +2102,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -2113,6 +2151,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Assign it",
       classification: { confidence: 0.3 },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -2173,6 +2212,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Actually make it unassigned",
       classification: { confidence: 1 },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -2356,6 +2396,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -2401,6 +2442,7 @@ describe("SokoBotRuntimeService authorization", () => {
       eveSessionId: SCOPE.sessionId,
       classification: { confidence: 1 },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -2437,6 +2479,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -2482,6 +2525,7 @@ describe("SokoBotRuntimeService memory updates", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -4413,6 +4457,7 @@ describe("get_agent_input_schema", () => {
       userMessage: "What does this agent need?",
       classification: { confidence: 1 },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -4933,6 +4978,7 @@ describe("Soko Bot project social tools", () => {
         },
       },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, adminPausedAt: null, status: "RUNNING" },
@@ -6375,6 +6421,7 @@ describe("find_agents", () => {
       contextSnapshot: { id: "snapshot", packet: { memory: { version: 1 } } },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },

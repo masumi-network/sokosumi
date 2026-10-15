@@ -1,11 +1,13 @@
 import { SOKO_BOT_CMO_CAPABILITIES } from "../policy.js";
 import type { SokoBotVersion } from "./types.js";
 import { v19 } from "./v19.js";
+import { v25 } from "./v25.js";
 
 /**
- * Cuso, the AI CMO behind cmo.xyz. v19's operating contract and model with a
- * marketing persona, the CMO skills, and the tools a marketer needs. Personal
- * mail and calendar stay out: Cuso works for the business, not the inbox.
+ * Cuso, the AI CMO behind cmo.xyz. v25's operating contract (chained work,
+ * no splitting a request into questions) on v19's model, with a marketing
+ * persona, the CMO skills, and the tools a marketer needs. Personal mail and
+ * calendar stay out: Cuso works for the business, not the inbox.
  */
 export const cmoV1: SokoBotVersion = {
   id: "cmo-v1",
@@ -21,6 +23,8 @@ export const cmoV1: SokoBotVersion = {
     "cmo-strategy",
     "cmo-measurement",
     "social-posts",
+    "long-work",
+    "chained-work",
   ],
   capabilities: [
     "refresh_context",
@@ -72,9 +76,13 @@ export const cmoV1: SokoBotVersion = {
     "workspace_search",
     "update_plan",
     "run_subagent",
+    "bash",
+    "start_background_run",
+    "list_background_runs",
+    "stop_background_run",
     ...SOKO_BOT_CMO_CAPABILITIES,
   ],
-  systemPrompt: `${v19.systemPrompt}
+  systemPrompt: `${v25.systemPrompt}
 
 # You are Cuso
 

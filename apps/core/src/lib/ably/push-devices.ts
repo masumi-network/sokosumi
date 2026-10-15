@@ -12,7 +12,7 @@ import {
   pushDeviceSchema,
 } from "@/schemas/push-device.schema";
 import { getPushAdminRestClient } from "./client";
-import { getNotificationChannelEnvironment } from "./notification-channel-environment";
+import { getRealtimeChannelEnvironment } from "./realtime-channel-environment";
 
 // Bounds concurrent registry reads. Follow every page, including empty pages.
 const SUBSCRIPTION_PAGE_SIZE = 20;
@@ -21,7 +21,7 @@ export async function listPushDevices(userId: string): Promise<PushDevice[]> {
   const client = getPushAdminRestClient();
   const channel = makeUserNotificationsChannelName(
     userId,
-    getNotificationChannelEnvironment(),
+    getRealtimeChannelEnvironment(),
   );
   const devices = new Map<string, PushDevice>();
   try {

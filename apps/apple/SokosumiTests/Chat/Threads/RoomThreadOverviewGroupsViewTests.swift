@@ -81,7 +81,7 @@
       private static func render(threads: [ThreadOverviewFixtureRow], dark: Bool, name: String?) async throws -> NSBitmapImageRep {
         let transport = try GroupsOverviewTransport(body: threadOverviewPageBody(threads, nextCursor: nil))
         let overview = RoomThreadOverview()
-        try await overview.load(client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport), roomId: "room", organizationSlug: nil)
+        try await overview.load(client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport), roomId: "room", organizationSlug: nil)
         try #require(overview.items.count == threads.count)
         let host = NSHostingView(rootView: RoomThreadOverviewView(overview: overview, open: { _ in }, older: {}, markAllRead: {}, retry: {}, close: {})
           .frame(width: width, height: 330).background(.background)

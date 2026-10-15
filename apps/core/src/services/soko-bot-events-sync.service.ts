@@ -98,6 +98,13 @@ export function buildEventMessage(changes: Change[]): string {
   ].join("\n");
 }
 
+const BACKGROUND_RUN_ACTIVE_STATUSES = new Set<string>([
+  "QUEUED",
+  "STARTING",
+  "RUNNING",
+  "CANCEL_REQUESTED",
+]);
+
 /**
  * Wakes a Soko Bot when Tasks or Jobs it delegated reach a status that
  * needs attention. Polls delegations instead of hooking every mutation
@@ -182,7 +189,13 @@ export class SokoBotEventsSyncService {
             },
           },
           turn: {
-            select: { sokoBotId: true, userId: true, workspaceId: true },
+            select: {
+              sokoBotId: true,
+              userId: true,
+              workspaceId: true,
+              parentTurnId: true,
+              status: true,
+            },
           },
         },
       });
@@ -244,6 +257,20 @@ export class SokoBotEventsSyncService {
         baselines: [],
       };
       byBot.set(delegation.turn.sokoBotId, work);
+      // A background run follows the Tasks and Jobs it started itself; an
+      // event turn beside it would act on the same result without its plan.
+      if (
+        delegation.turn.parentTurnId &&
+        BACKGROUND_RUN_ACTIVE_STATUSES.has(delegation.turn.status)
+      ) {
+        work.baselines.push({
+          delegationId: delegation.id,
+          status: current.status,
+          eventId: current.eventId,
+          eventAt: current.eventAt ?? scan.createdAt,
+        });
+        continue;
+      }
       if (
         (!delegation.lastSeenEventAt &&
           delegation.lastSeenStatus === null &&

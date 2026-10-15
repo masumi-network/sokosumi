@@ -442,13 +442,15 @@ describe("SokoBotControlPlane lifecycle", () => {
   });
 
   it.each([
-    { capability: "create_schedule", guarded: true },
-    { capability: "post_chat", guarded: true },
-    { capability: "update_memory", guarded: true },
-    { capability: "read_memory", guarded: false },
+    { capability: "create_schedule", route: "MANAGE_WORK", guarded: true },
+    { capability: "post_chat", route: "DELEGATE_TASK", guarded: true },
+    { capability: "update_memory", route: "MANAGE_WORK", guarded: true },
+    { capability: "read_memory", route: "MANAGE_WORK", guarded: false },
+    // A person's question carries every tool; the route says nothing was asked.
+    { capability: "create_task", route: "DIRECT_RESPONSE", guarded: false },
   ])(
-    "uses actual granted capability $capability at settlement",
-    async ({ capability, guarded }) => {
+    "uses actual granted capability $capability on $route at settlement",
+    async ({ capability, route, guarded }) => {
       turnFindUniqueMock.mockResolvedValueOnce({
         sokoBotId: BOT_ID,
         userId: "user_1",
@@ -457,7 +459,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         costUsdMicros: 0n,
         status: "RUNNING",
         finalAnswer: "Unsupported success claim",
-        route: "DIRECT_RESPONSE",
+        route,
         capabilityNames: [capability],
         leaseToken: null,
         cancellationRequestedAt: null,
@@ -739,14 +741,13 @@ describe("SokoBotControlPlane lifecycle", () => {
   );
 
   it.each([
-    ["Remember my preference for short replies", "MEMORY", "update_memory"],
-    ["Remind me tomorrow", "SCHEDULE", "create_schedule"],
-    ["Send a message to the team", "CHAT", "post_chat"],
-    ["Upload the file to Drive", "FILE", "upload_file"],
-    ["Send an email to Nina", "INTEGRATION", "run_integration_tool"],
+    ["Remember my preference for short replies", "MEMORY"],
+    ["Remind me tomorrow", "SCHEDULE"],
+    ["yes", "INTEGRATION"],
+    ["Send an email to Nina", "INTEGRATION"],
   ] as const)(
-    "persists narrowed runtime authority for %s",
-    async (message, writeScope, allowed) => {
+    "grants a person's chat turn every tool whatever Jev reads: %s",
+    async (message, writeScope) => {
       jevEvaluate.mockResolvedValue(jevRoute("MANAGE_WORK", { writeScope }));
       botFindFirstMock.mockResolvedValue(adminBot());
       botFindUniqueMock.mockResolvedValue(adminBot());
@@ -777,19 +778,20 @@ describe("SokoBotControlPlane lifecycle", () => {
       });
       const capabilities =
         turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames;
-      expect(capabilities).toContain(allowed);
-      // The owner asked: the sandbox comes with every owner route.
-      expect(capabilities).toContain("bash");
-      expect(capabilities).toContain("web_search");
-      for (const denied of [
-        "create_task",
-        "update_task",
-        "archive_task",
-        "assign_task",
-        "hire_agent",
-      ])
-        expect(capabilities).not.toContain(denied);
+      expect(capabilities).toEqual(
+        expect.arrayContaining([
+          "create_table",
+          "write_table_rows",
+          "search_inbox",
+          "create_task",
+          "bash",
+        ]),
+      );
       expect(result.capabilities).toEqual(capabilities);
+      const deadlineAt = turnCreateMock.mock.calls[0]?.[0]?.data?.deadlineAt;
+      expect(deadlineAt.getTime() - Date.now()).toBeGreaterThan(
+        55 * 60 * 1_000,
+      );
     },
   );
 
@@ -1841,6 +1843,138 @@ describe("SokoBotControlPlane lifecycle", () => {
     // Core wrote this prompt from mail; no shell or web for it.
     expect(data?.capabilityNames).not.toContain("bash");
     expect(data?.capabilityNames).not.toContain("web_fetch");
+  });
+
+  it("gives a bot-written follow-up exactly the tools it was written with", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    chatRoomFindFirstMock.mockResolvedValue({ id: "room-owner" });
+    turnCreateMock.mockResolvedValue({ id: "follow-turn", leaseToken: "l" });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "follow-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "follow-client",
+      message: "Continue the Gmail CRM table from April 2024.",
+      source: "SCHEDULE",
+      presetRoute: {
+        route: "DELEGATE_TASK",
+        reason: "Follow-up",
+        capabilities: ["search_inbox", "write_table_rows", "bash"],
+        sandbox: true,
+      },
+    });
+    const data = turnCreateMock.mock.calls[0]?.[0]?.data;
+    expect([...data.capabilityNames].sort()).toEqual([
+      "bash",
+      "search_inbox",
+      "write_table_rows",
+    ]);
+    // Only a person waiting in chat gets the hour.
+    expect(data.deadlineAt.getTime() - Date.now()).toBeLessThanOrEqual(
+      15 * 60 * 1_000,
+    );
+  });
+
+  it("starts a background run beside a busy chat without taking its session", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    // The chat is mid-turn: a foreground start would be refused.
+    turnFindFirstMock.mockResolvedValue({ id: "chat-turn" });
+    turnCountMock.mockResolvedValue(0);
+    turnCreateMock.mockResolvedValue({ id: "run-turn", leaseToken: "l" });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "run-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "background:parent:key",
+      message: "Background run: Gmail CRM",
+      presetRoute: {
+        route: "DELEGATE_TASK",
+        reason: "Background run",
+        capabilities: ["search_inbox", "write_table_rows"],
+      },
+      background: {
+        parentTurnId: "parent",
+        title: "Gmail CRM",
+        destinationRoomId: "room-owner",
+      },
+    });
+    const data = turnCreateMock.mock.calls[0]?.[0]?.data;
+    expect(data).toMatchObject({
+      parentTurnId: "parent",
+      backgroundTitle: "Gmail CRM",
+      destinationRoomId: "room-owner",
+    });
+    expect(data.deadlineAt.getTime() - Date.now()).toBeGreaterThan(
+      5 * 60 * 60 * 1_000,
+    );
+    for (const [call] of botUpdateManyMock.mock.calls) {
+      expect(call.data).not.toHaveProperty("eveSessionId");
+      expect(call.data).not.toHaveProperty("status");
+    }
+  });
+
+  it("refuses a fourth background run", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCountMock.mockResolvedValue(3);
+    const runtime = runtimeWithReset(vi.fn());
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await expect(
+      new SokoBotControlPlane(
+        runtime,
+        builder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "background:parent:other",
+        message: "Background run: more",
+        presetRoute: {
+          route: "DELEGATE_TASK",
+          reason: "Background run",
+          capabilities: ["search_inbox"],
+        },
+        background: {
+          parentTurnId: "parent",
+          title: "more",
+          destinationRoomId: "room-owner",
+        },
+      }),
+    ).rejects.toThrow(/background runs are already working/);
+    expect(turnCreateMock).not.toHaveBeenCalled();
   });
 
   it("opens the owner's chat for a proactive turn when there is none", async () => {

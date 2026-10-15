@@ -566,6 +566,14 @@ _Avoid_: Channel, conversation, inbox, treating a thread as a room
 The per-room list of that room’s threads, shown in the thread side panel. Every thread in the room, sorted with unread threads first, then by last reply. The overflow target for the sidebar's capped inset rows. Still per-room: not a cross-room inbox.
 _Avoid_: Unread threads (as the name of this list), treating this as a cross-room surface
 
+**Transcript**:
+The ordered messages of a Room or a Thread as the reader sees them: confirmed history plus Pending messages and Failed sends. A room's main transcript excludes Thread replies; a Thread's transcript holds only its replies, below the parent.
+_Avoid_: Timeline (the loaded history alone), feed, history (when Pending messages are meant too)
+
+**Open room**:
+The one room whose Transcript a client shows, with what lives and dies with it: the open Thread, Pins, the Thread overview and where a jump lands. Opening another room starts it clean.
+_Avoid_: Selected room (the sidebar's pick, which can differ while the Threads view covers it), current conversation
+
 **Look**:
 The user’s high-water mark in a Thread: they opened it, and that moment is stored. Distinct from Room last-read and from being a Participant. Look clears; it does not opt a lurker into unread. Opening the Thread, posting a reply, or Mark all threads Looks it. Advancing Room last-read does not Look.
 _Avoid_: Replied, Participant, lastLookedAt, Room read receipt (that is a different mark on a different table). Do not use “looked” in product UI (say unread / mark as read)
@@ -626,3 +634,13 @@ _Avoid_: Presence (reachability in the organization, not activity in one room), 
 **Typing line**:
 How a room says who is Typing: one name, two names, or the fact that there are more than two. Named in the order people started, so a new typist joins the end rather than resorting the line; somebody who went quiet long enough to disappear and then types again is starting afresh, and joins the end. Sits below the composer where there is already room beneath it, and above the composer where there is not — narrow layouts, where it holds its space, because the composer must not move under someone mid-sentence. Either way it costs the transcript nothing it was not already spending. The open room only — Typing never reaches the sidebar, where bold, the mention badge and the Rail attention pill already compete for a row.
 _Avoid_: "N users are typing" (rooms hold people, and a count is not what the reader wants), an animated indicator (it reads as a coworker thinking), a Typing dot on a sidebar row, spelling out three or more names (they truncate, and a truncated name is worse than none)
+
+### Mac app releases
+
+**Stable release**:
+A numbered version of the Mac app, such as 1.0.0, that every direct-download install is offered as an update. The only kind of build that updates itself.
+_Avoid_: Production build, GA, latest (the newest build of any kind)
+
+**Beta build**:
+The newest build of the Mac app from main, signed and notarized for direct download but never offered as an update. Testers install it by hand and leave it when a newer Stable release reaches them.
+_Avoid_: Prerelease (the GitHub mechanism, not the product term), nightly, Alpha build (the TestFlight track was removed on 2026-10-09)

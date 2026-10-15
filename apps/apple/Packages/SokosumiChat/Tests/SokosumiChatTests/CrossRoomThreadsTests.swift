@@ -92,15 +92,37 @@ struct CrossRoomThreadsTests {
     #expect(threads.earlierRows(rooms: rooms).map(\.lastReplyId) == ["e1-last"])
   }
 
+  /// A Thread whose newest reply moved between two pages comes back on the older page too. Each list holds
+  /// it once, as first read, like the room's own Thread list.
+  @Test func anOlderPageDoesNotRepeatAHeldThread() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [unreadJSON("u1", room: alphaRoomId, replies: 2), unreadJSON("u2", room: betaRoomId)], nextCursor: "u2")),
+      (200, testMessagesPageBody(messages: [unreadJSON("u1", room: alphaRoomId, replies: 5), unreadJSON("u3", room: alphaRoomId)], nextCursor: nil)),
+      (200, testMessagesPageBody(messages: [earlierJSON("e1", room: alphaRoomId, replies: 4)], nextCursor: "e1")),
+      (200, testMessagesPageBody(messages: [earlierJSON("e1", room: alphaRoomId, replies: 9), earlierJSON("e2", room: betaRoomId)], nextCursor: nil))
+    ])
+    let client = try makeTestClient(transport)
+    let threads = CrossRoomThreads()
+    try await threads.load(.unread, rooms: rooms, scope: "w", client: client, organizationSlug: nil)
+    try await threads.load(.unread, older: true, rooms: rooms, scope: "w", client: client, organizationSlug: nil)
+    try await threads.load(.earlier, rooms: rooms, scope: "w", client: client, organizationSlug: nil)
+    try await threads.load(.earlier, older: true, rooms: rooms, scope: "w", client: client, organizationSlug: nil)
+    #expect(threads.unread.items.map(\.parentMessageId) == ["u1", "u2", "u3"])
+    #expect(threads.unread.items.first?.unreadReplyCount == 2, "The first-held copy stays.")
+    #expect(threads.earlier.items.map(\.parentMessageId) == ["e1", "e2"])
+    #expect(threads.earlier.items.first?.replyCount == 4, "The first-held copy stays.")
+    #expect(threads.unreadRows(rooms: rooms).map(\.parentMessageId) == ["u1", "u2", "u3"])
+    #expect(threads.earlierRows(rooms: rooms).map(\.parentMessageId) == ["e1", "e2"])
+  }
+
   // MARK: Rows
 
-  /// Web drops a row whose room the sidebar no longer lists or the reader muted since the page was read,
-  /// and a Thread a later page repeats.
-  @Test func rowsDropUnlistedAndMutedRoomsAndRepeats() async throws {
+  /// Web drops a row whose room the sidebar no longer lists or the reader muted since the page was read.
+  @Test func rowsDropUnlistedAndMutedRooms() async throws {
     let transport = TestTransport([
       (200, testMessagesPageBody(messages: [
         unreadJSON("u1", room: alphaRoomId), unreadJSON("gone", room: "550e8400-e29b-41d4-a716-446655440d04"),
-        unreadJSON("quiet", room: mutedRoomId), unreadJSON("u1", room: alphaRoomId)
+        unreadJSON("quiet", room: mutedRoomId)
       ], nextCursor: nil)),
       (200, testMessagesPageBody(messages: [earlierJSON("e1", room: mutedRoomId), earlierJSON("e2", room: betaRoomId)], nextCursor: nil))
     ])
@@ -189,7 +211,7 @@ struct CrossRoomThreadsTests {
       (200, testMessagesPageBody(messages: [unreadJSON("u1", room: alphaRoomId)], nextCursor: nil))
     ])), organizationSlug: nil)
     let held = PausedThreadsTransport(body: testMessagesPageBody(messages: [unreadJSON("u2", room: betaRoomId)], nextCursor: nil))
-    let heldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let heldClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: held)
     let reread = Task { try await threads.load(.unread, rooms: rooms, scope: "w", client: heldClient, organizationSlug: nil) }
     await held.waitForRequest()
     #expect(threads.unreadRows(rooms: rooms).map(\.parentMessageId) == ["u1"])
@@ -257,7 +279,7 @@ struct CrossRoomThreadsTests {
     try await threads.load(.unread, rooms: rooms, scope: "first", client: client, organizationSlug: nil)
     try await threads.load(.earlier, rooms: rooms, scope: "first", client: client, organizationSlug: nil)
     let held = PausedThreadsTransport(body: testMessagesPageBody(messages: [], nextCursor: nil))
-    let heldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let heldClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: held)
     let next = Task { try await threads.load(.unread, rooms: rooms, scope: "second", client: heldClient, organizationSlug: "other") }
     await held.waitForRequest()
     #expect(threads.unreadRows(rooms: rooms).isEmpty && threads.unread.nextCursor == nil)
@@ -271,7 +293,7 @@ struct CrossRoomThreadsTests {
   @Test func resetDropsALatePage() async throws {
     let threads = CrossRoomThreads()
     let held = PausedThreadsTransport(body: testMessagesPageBody(messages: [unreadJSON("late", room: alphaRoomId)], nextCursor: nil))
-    let heldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let heldClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: held)
     let late = Task { try await threads.load(.unread, rooms: rooms, scope: "w", client: heldClient, organizationSlug: nil) }
     await held.waitForRequest()
     threads.reset()
@@ -296,6 +318,16 @@ struct UnreadThreadsAttentionTests {
     #expect(resolveUnreadThreadsAttention([room(alphaRoomId, name: "general", unreadThreads: 1, threadMentions: 0)]).accessibilityLabel == "1 unread thread")
     #expect(resolveUnreadThreadsAttention([room(alphaRoomId, name: "general", unreadThreads: 120, threadMentions: 1)]).accessibilityLabel == "1 mention, More than 99 unread threads")
     #expect(resolveUnreadThreadsAttention([]) == .init(threadCount: 0, mentionCount: 0))
+  }
+
+  /// Web's `hasCount` (`ChatUnreadNavRows`): the row reads unread only while an unmuted room holds an unread
+  /// Thread; at zero it rests muted, a muted room's Threads count for nothing, and a mention changes only the number.
+  @Test func theThreadsEntryReadsUnreadOnlyWhileAThreadIsUnread() {
+    #expect(!resolveUnreadThreadsAttention([]).isUnread)
+    #expect(!resolveUnreadThreadsAttention([room(alphaRoomId, name: "general")]).isUnread)
+    #expect(!resolveUnreadThreadsAttention([room(mutedRoomId, name: "noise", unreadThreads: 4, threadMentions: 1, muted: true)]).isUnread)
+    #expect(resolveUnreadThreadsAttention([room(alphaRoomId, name: "general", unreadThreads: 1, threadMentions: 0)]).isUnread)
+    #expect(resolveUnreadThreadsAttention([room(alphaRoomId, name: "general", unreadThreads: 1, threadMentions: 1)]).isUnread)
   }
 
   /// The lists read Core again exactly when a Thread is read, muted or gains a reply; Earlier also when a

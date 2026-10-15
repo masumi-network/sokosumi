@@ -11,8 +11,10 @@ import {
   AlertTriangle,
   ExternalLink,
   Eye,
+  FileText,
   Link2,
   MoreHorizontal,
+  RefreshCw,
   RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
@@ -25,6 +27,7 @@ import type { SocialPostComposerMode } from "@/app/projects/components/social-po
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
+import { EmptyState } from "@/components/common/empty-state";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import {
   AlertDialog,
@@ -68,10 +71,13 @@ import {
   SECTION_ORDER,
   SECTION_STATUSES,
   type SectionKey,
+  SOCIAL_TAB_TRIGGER_CLASS_NAME,
   SOCIAL_TABS,
+  SOCIAL_TABS_LIST_CLASS_NAME,
   type SocialTab,
 } from "./constants";
 import { SocialPostMetrics } from "./social-post-metrics";
+import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
 import { SocialPostStatistics } from "./social-post-statistics";
 
@@ -84,6 +90,11 @@ interface ProjectSocialPostsProps {
   actions?: ReactNode;
   /** Active connections only; drives the account picker. */
   connections: ProjectSocialConnection[];
+  /**
+   * Managed accounts on the Accounts tab (active, pending, reconnect).
+   * Defaults to `connections.length` when the page only loaded actives.
+   */
+  accountCount?: number;
   posts: SocialPost[];
   nextCursors?: Partial<Record<SectionKey, string | null>>;
   projectId: string;
@@ -122,10 +133,40 @@ function isRevisionConflict(error: ActionError): boolean {
   return error.kind === CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT;
 }
 
+function isBrowserOffline(): boolean {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+function isTimeoutRejection(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const name = "name" in error ? error.name : undefined;
+  if (name === "AbortError" || name === "TimeoutError") return true;
+  const message =
+    "message" in error && typeof error.message === "string"
+      ? error.message.toLowerCase()
+      : "";
+  return message.includes("timed out") || message.includes("timeout");
+}
+
 function upsertPost(posts: SocialPost[], next: SocialPost): SocialPost[] {
   const index = posts.findIndex((post) => post.id === next.id);
   if (index === -1) return [next, ...posts];
   return posts.map((post) => (post.id === next.id ? next : post));
+}
+
+function previewAccountFor(
+  post: SocialPost,
+  connections: ProjectSocialConnection[],
+) {
+  const connection = post.socialConnection;
+  if (!connection) return null;
+  return {
+    handle: connection.externalHandle,
+    displayName: connection.displayName,
+    avatarUrl:
+      connections.find((candidate) => candidate.id === connection.id)
+        ?.avatarUrl ?? connection.avatarUrl,
+  };
 }
 
 /**
@@ -166,6 +207,7 @@ function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
 
 export function ProjectSocialPosts({
   accounts,
+  accountCount,
   actions,
   calendar,
   connections,
@@ -177,6 +219,7 @@ export function ProjectSocialPosts({
   returnFocus,
 }: ProjectSocialPostsProps) {
   const router = useRouter();
+  const accountsHref = `/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`;
   const t = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
   const [syncedPosts, setSyncedPosts] = useState(initialPosts);
@@ -243,12 +286,21 @@ export function ProjectSocialPosts({
   });
   const tab: SocialTab =
     tabParam && tabs.includes(tabParam) ? tabParam : tabs[0];
+  const listedAccountCount = accountCount ?? connections.length;
+  const accountPrompt =
+    accounts === undefined || tab === "accounts"
+      ? null
+      : listedAccountCount === 0
+        ? "connect"
+        : connections.length === 0
+          ? "reconnect"
+          : null;
 
   function showTab(next: SocialTab | null): void {
     void setTabParam(next);
   }
 
-  function handleActionError(error: ActionError): void {
+  function handleActionError(error: ActionError, cause?: unknown): void {
     if (error.code === CommonErrorCode.UNAUTHENTICATED) {
       toast.error(t("toasts.unauthenticated"), {
         action: {
@@ -265,6 +317,14 @@ export function ProjectSocialPosts({
       compose?.setOpen(false);
       setCancelTarget(null);
       router.refresh();
+      return;
+    }
+    if (isBrowserOffline()) {
+      toast.error(t("toasts.offline"));
+      return;
+    }
+    if (isTimeoutRejection(cause)) {
+      toast.error(t("toasts.timeout"));
       return;
     }
     toast.error(error.message || t("toasts.failed"));
@@ -310,10 +370,16 @@ export function ProjectSocialPosts({
         handleActionError(result.error);
         return;
       }
-      toast.success(t("toasts.canceled"));
+      toast.success(
+        t(
+          RETRY_STATUSES.includes(target.status)
+            ? "toasts.dismissed"
+            : "toasts.canceled",
+        ),
+      );
       handleSaved(result.value);
     } catch (error) {
-      handleActionError(toActionRejectionError(error));
+      handleActionError(toActionRejectionError(error), error);
     } finally {
       setCancelPending(false);
       setCancelTarget(null);
@@ -347,6 +413,8 @@ export function ProjectSocialPosts({
       } else {
         toast.error(t("toasts.failed"));
       }
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
     } finally {
       setPublishPending(false);
       setPublishTarget(null);
@@ -386,6 +454,7 @@ export function ProjectSocialPosts({
             type="button"
             variant="outline"
             size="sm"
+            className="h-11 md:h-8"
             onClick={() => {
               if (preview) setPreviewOpen(false);
               setPublishTarget(post);
@@ -410,6 +479,7 @@ export function ProjectSocialPosts({
             <DropdownMenuContent align="end">
               {canPublishNow ? (
                 <DropdownMenuItem
+                  className="min-h-11"
                   onSelect={() => {
                     if (preview) setPreviewOpen(false);
                     setPublishTarget(post);
@@ -420,6 +490,7 @@ export function ProjectSocialPosts({
               ) : null}
               {post.canEdit ? (
                 <DropdownMenuItem
+                  className="min-h-11"
                   onSelect={() => {
                     if (preview) setPreviewOpen(false);
                     setComposer({ kind: "edit", post });
@@ -430,6 +501,7 @@ export function ProjectSocialPosts({
               ) : null}
               {post.canSchedule ? (
                 <DropdownMenuItem
+                  className="min-h-11"
                   onSelect={() => {
                     if (preview) setPreviewOpen(false);
                     setComposer({ kind: "schedule", post });
@@ -442,19 +514,82 @@ export function ProjectSocialPosts({
               ) : null}
               {post.canCancel ? (
                 <DropdownMenuItem
+                  className="min-h-11"
                   variant="destructive"
                   onSelect={() => {
                     if (preview) setPreviewOpen(false);
                     setCancelTarget(post);
                   }}
                 >
-                  {t("composer.cancel")}
+                  {isRetry ? t("actions.dismiss") : t("composer.cancel")}
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
       </div>
+    );
+  }
+
+  const publishCopy =
+    publishTarget && RETRY_STATUSES.includes(publishTarget.status)
+      ? "retryDialog"
+      : "publishDialog";
+  const cancelCopy =
+    cancelTarget && RETRY_STATUSES.includes(cancelTarget.status)
+      ? "dismissDialog"
+      : "cancelDialog";
+
+  function renderReconnectWarning(post: SocialPost) {
+    if (!post.connectionNeedsReconnect) return null;
+    return (
+      <p
+        className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
+        data-testid="social-post-needs-reconnect"
+        role="status"
+      >
+        <span className="inline-flex items-center gap-1">
+          <AlertTriangle className="size-3" aria-hidden />
+          {t("needsReconnect")}
+        </span>
+        {accounts !== undefined ? (
+          <button
+            className="font-medium underline-offset-4 hover:underline"
+            onClick={() => showTab("accounts")}
+            type="button"
+          >
+            {t("needsReconnectLink")}
+          </button>
+        ) : (
+          <Link
+            className="font-medium underline-offset-4 hover:underline"
+            href={accountsHref}
+          >
+            {t("needsReconnectLink")}
+          </Link>
+        )}
+      </p>
+    );
+  }
+
+  function renderDraft(post: SocialPost) {
+    return (
+      <li
+        key={post.id}
+        id={`social-post-${post.id}`}
+        className="flex min-w-0 flex-col gap-2"
+        data-testid={`social-post-${post.id}`}
+      >
+        <SocialPostPreview
+          account={previewAccountFor(post, connections)}
+          media={post.media}
+          provider={post.provider}
+          text={post.text}
+          timestamp={null}
+        />
+        {renderReconnectWarning(post)}
+        {renderPostActions(post)}
+      </li>
     );
   }
 
@@ -521,34 +656,7 @@ export function ProjectSocialPosts({
               <span>{t("attempts", { count: post.attemptCount })}</span>
             ) : null}
           </p>
-          {post.connectionNeedsReconnect ? (
-            <p
-              className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
-              data-testid="social-post-needs-reconnect"
-              role="status"
-            >
-              <span className="inline-flex items-center gap-1">
-                <AlertTriangle className="size-3" aria-hidden />
-                {t("needsReconnect")}
-              </span>
-              {accounts !== undefined ? (
-                <button
-                  className="font-medium underline-offset-4 hover:underline"
-                  onClick={() => showTab("accounts")}
-                  type="button"
-                >
-                  {t("needsReconnectLink")}
-                </button>
-              ) : (
-                <Link
-                  className="font-medium underline-offset-4 hover:underline"
-                  href="#social-accounts"
-                >
-                  {t("needsReconnectLink")}
-                </Link>
-              )}
-            </p>
-          ) : null}
+          {renderReconnectWarning(post)}
           {post.status === "PUBLISHED" ? (
             <SocialPostMetrics statistics={post.statistics} compact />
           ) : null}
@@ -614,12 +722,12 @@ export function ProjectSocialPosts({
             }
           }}
         >
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-3">
             <TabsList
               aria-label={t("title")}
               className={cn(
                 SEGMENTED_TABS_LIST_CLASS_NAME,
-                "app-scrollbar w-full min-w-0 max-w-full overflow-x-auto md:w-fit",
+                SOCIAL_TABS_LIST_CLASS_NAME,
               )}
             >
               {tabs.map((candidate) => {
@@ -627,12 +735,15 @@ export function ProjectSocialPosts({
                   candidate === "drafts" || candidate === "attention"
                     ? postsIn(candidate).length
                     : candidate === "accounts"
-                      ? connections.length
+                      ? listedAccountCount
                       : 0;
                 return (
                   <TabsTrigger
                     key={candidate}
-                    className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+                    className={cn(
+                      SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+                      SOCIAL_TAB_TRIGGER_CLASS_NAME,
+                    )}
                     data-testid={`social-posts-tab-${candidate}`}
                     value={candidate}
                   >
@@ -660,29 +771,41 @@ export function ProjectSocialPosts({
             {actions}
           </div>
 
-          {accounts !== undefined &&
-          connections.length === 0 &&
-          tab !== "accounts" ? (
+          {accountPrompt ? (
             <div
               className="bg-card-background flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
-              data-testid="social-connect-prompt"
+              data-testid={
+                accountPrompt === "reconnect"
+                  ? "social-reconnect-prompt"
+                  : "social-connect-prompt"
+              }
             >
               <div className="space-y-1">
                 <p className="text-sm font-medium">
-                  {t("connectPrompt.title")}
+                  {accountPrompt === "reconnect"
+                    ? t("reconnectPrompt.title")
+                    : t("connectPrompt.title")}
                 </p>
                 <p className="text-muted-foreground text-sm text-pretty">
-                  {t("connectPrompt.body")}
+                  {accountPrompt === "reconnect"
+                    ? t("reconnectPrompt.body")
+                    : t("connectPrompt.body")}
                 </p>
               </div>
               <Button
-                className="shrink-0"
+                className="h-11 shrink-0 md:h-8"
                 onClick={() => showTab("accounts")}
                 size="sm"
                 type="button"
               >
-                <Link2 className="size-4" aria-hidden />
-                {t("connectPrompt.action")}
+                {accountPrompt === "reconnect" ? (
+                  <RefreshCw className="size-4" aria-hidden />
+                ) : (
+                  <Link2 className="size-4" aria-hidden />
+                )}
+                {accountPrompt === "reconnect"
+                  ? t("reconnectPrompt.action")
+                  : t("connectPrompt.action")}
               </Button>
             </div>
           ) : null}
@@ -708,24 +831,35 @@ export function ProjectSocialPosts({
                   value={section}
                 >
                   {sectionPosts.length > 0 ? (
-                    <ul className="grid gap-2">
-                      {sectionPosts.map(renderPost)}
+                    <ul
+                      className={
+                        section === "drafts"
+                          ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                          : "grid gap-2"
+                      }
+                      data-testid={
+                        section === "drafts"
+                          ? "social-posts-drafts-grid"
+                          : undefined
+                      }
+                    >
+                      {sectionPosts.map(
+                        section === "drafts" ? renderDraft : renderPost,
+                      )}
                     </ul>
                   ) : cursor ? null : (
-                    <div className="rounded-lg border border-dashed px-4 py-8 text-center">
-                      <p className="text-sm font-medium">
-                        {t(`empty.${section}`)}
-                      </p>
-                      <p className="text-muted-foreground mt-1 text-sm text-pretty">
-                        {t(`emptyHint.${section}`)}
-                      </p>
-                    </div>
+                    <EmptyState
+                      description={t(`emptyHint.${section}`)}
+                      icon={FileText}
+                      title={t(`empty.${section}`)}
+                    />
                   )}
                   {cursor ? (
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
+                      className="h-11 md:h-8"
                       disabled={loadingSection !== null}
                       onClick={() => {
                         void handleLoadMore(section);
@@ -765,15 +899,15 @@ export function ProjectSocialPosts({
         <SocialPostComposerDialog
           connections={connections}
           mode={composerMode}
-          onConnectAccount={
-            accounts !== undefined
-              ? () => {
-                  setComposer(null);
-                  compose?.setOpen(false);
-                  showTab("accounts");
-                }
-              : undefined
-          }
+          onConnectAccount={() => {
+            setComposer(null);
+            compose?.setOpen(false);
+            if (accounts !== undefined) {
+              showTab("accounts");
+              return;
+            }
+            router.push(accountsHref);
+          }}
           onCloseAutoFocus={handleCloseAutoFocus}
           onError={handleActionError}
           onOpenChange={(open) => {
@@ -826,9 +960,9 @@ export function ProjectSocialPosts({
       >
         <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("cancelDialog.title")}</AlertDialogTitle>
+            <AlertDialogTitle>{t(`${cancelCopy}.title`)}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("cancelDialog.description")}
+              {t(`${cancelCopy}.description`)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -842,7 +976,7 @@ export function ProjectSocialPosts({
                 void handleConfirmCancel();
               }}
             >
-              {t("cancelDialog.confirm")}
+              {t(`${cancelCopy}.confirm`)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -856,9 +990,9 @@ export function ProjectSocialPosts({
       >
         <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("publishDialog.title")}</AlertDialogTitle>
+            <AlertDialogTitle>{t(`${publishCopy}.title`)}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("publishDialog.description")}
+              {t(`${publishCopy}.description`)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -872,7 +1006,7 @@ export function ProjectSocialPosts({
                 void handleConfirmPublish();
               }}
             >
-              {t("publishDialog.confirm")}
+              {t(`${publishCopy}.confirm`)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

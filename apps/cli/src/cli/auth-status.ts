@@ -1,5 +1,8 @@
 import { type AuthEnvironment, getAuthManager } from "../auth/auth-manager.js";
-import { resolveInitialAuth } from "../auth/bootstrap.js";
+import {
+  type AuthBootstrapManager,
+  resolveInitialAuth,
+} from "../auth/bootstrap.js";
 import {
   type CliTargetConfig,
   resolveCliConfig,
@@ -8,19 +11,7 @@ import {
 } from "../auth/config.js";
 import type { CommandOutput } from "./commands/command-helpers.js";
 
-interface AuthStatusManager {
-  getApiKeyCredentials(): { apiKey: string; expiresAt?: string | null } | null;
-  getAuthTokenAsync(options: {
-    authBaseUrl: string;
-    clientId: string;
-    clientSecret?: string;
-    environment: AuthEnvironment;
-  }): Promise<string | null>;
-  getAuthMethod(environment: AuthEnvironment): "oauth" | "api-key" | null;
-  getCredentials(): { expiresAt?: string | null } | null;
-}
-
-export interface AuthStatusResult {
+interface AuthStatusResult {
   authenticated: boolean;
   authMethod: "oauth" | "api-key" | null;
   apiKeyAvailable: boolean;
@@ -39,7 +30,7 @@ export async function runAuthStatus({
 }: {
   env?: AuthEnvironment;
   config?: CliTargetConfig;
-  authManager?: AuthStatusManager;
+  authManager?: AuthBootstrapManager;
   stdout?: CommandOutput;
   json?: boolean;
   targetExplicit?: boolean;

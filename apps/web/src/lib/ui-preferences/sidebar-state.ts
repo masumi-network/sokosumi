@@ -1,5 +1,5 @@
-export const SIDEBAR_STATE_COOKIE_NAME = "sidebar_state";
-export const SIDEBAR_STATE_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+const SIDEBAR_STATE_COOKIE_NAME = "sidebar_state";
+const SIDEBAR_STATE_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 
 /**
  * Window width below which the sidebar shows as the rail whatever the stored
@@ -9,7 +9,7 @@ export const SIDEBAR_STATE_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
  * The preference is untouched while the window is this narrow — it is restored
  * as soon as the window grows past this again.
  */
-export const SIDEBAR_COMPACT_BREAKPOINT = 1024;
+const SIDEBAR_COMPACT_BREAKPOINT = 1024;
 
 /**
  * The one predicate for 'this window is too narrow for the sidebar'.

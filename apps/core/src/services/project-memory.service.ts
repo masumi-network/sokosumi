@@ -173,7 +173,7 @@ ${events}
 </completed_task>`;
 }
 
-export function buildProjectMemoryPrompt(input: {
+function buildProjectMemoryPrompt(input: {
   projectName: string;
   briefing: string | null;
   currentContextMd: string | null;

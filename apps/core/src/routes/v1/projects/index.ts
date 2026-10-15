@@ -19,6 +19,7 @@ import mountRefreshSocialAccountStatistics from "./[id]/social-connections/[conn
 import mountFinalizeProjectSocialConnection from "./[id]/social-connections/finalize/post.js";
 import mountListProjectSocialConnections from "./[id]/social-connections/get.js";
 import mountInitiateProjectSocialConnection from "./[id]/social-connections/initiate/post.js";
+import mountExportSocialAccountStatistics from "./[id]/social-connections/statistics/export/get.js";
 import mountListSocialAccountStatistics from "./[id]/social-connections/statistics/get.js";
 import mountCancelProjectSocialPost from "./[id]/social-posts/[postId]/cancel/post.js";
 import mountGetProjectSocialPost from "./[id]/social-posts/[postId]/get.js";
@@ -61,6 +62,7 @@ mountPostProjectStar(app);
 mountDeleteProjectStar(app);
 mountListProjectSocialConnections(app);
 mountListSocialAccountStatistics(app);
+mountExportSocialAccountStatistics(app);
 mountRefreshSocialAccountStatistics(app);
 mountInitiateProjectSocialConnection(app);
 mountFinalizeProjectSocialConnection(app);

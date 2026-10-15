@@ -2,17 +2,34 @@ import CoreAPI
 import SokosumiChat
 import SwiftUI
 
-/// Web's `max-w-xl`: a card stops growing at 576 pt.
-private let resultCardMaxWidth: CGFloat = 576
+let resultCardMaxWidth: CGFloat = 576
+/// For a result drawn as a Task card (row 38f).
+private let taskResultCardMaxWidth: CGFloat = 384
 
-/// Web `ResultPreviewCard`: the generic card, or the locked one for a result this viewer may not see.
+/// Web `ResultPreviewCard`: the project picker, the decision card, the social post preview, the generic card, or the
+/// locked one for a result this viewer may not see.
 struct ResultPreviewCardView: View {
   let item: ResultPreviewItem
+  /// Answers a `project_selection` card: the card's id and the picked project's (row 38h1).
+  var select: ((String, String) async throws -> Void)?
+  /// Accepts or rejects a card's decision: the decision's id and the resolution (row 38h2).
+  var resolveDecision: ((String, SokoBotDecision.Resolution) async throws -> Void)?
 
   var body: some View {
     switch item {
     case let .available(card):
-      GenericResultCard(card: card)
+      if card.kind == .projectSelection {
+        ProjectSelectionCard(card: card, select: select.map { select in { try await select(card.id, $0) } })
+      } else if let decision = card.decision {
+        // Web draws the decision in place of the generic card, without its title, status or source link.
+        DecisionCardView(decision: decision, resolve: resolveDecision.map { resolve in { try await resolve(decision.id, $0) } })
+      } else if let social = card.social {
+        // Web draws the post as its network shows it in place of the whole card: no header, status, question, outputs,
+        // recorded time or source link (row 38g).
+        ResultSocialPostView(post: social)
+      } else {
+        GenericResultCard(card: card)
+      }
     case .unavailable:
       Label {
         Text("Result unavailable or no longer accessible", tableName: chatResultsTable,
@@ -31,7 +48,8 @@ struct ResultPreviewCardView: View {
 }
 
 /// The kind, the status, the title, the summary, the question, the detail rows, the outputs and the recorded time;
-/// a click anywhere that is not a control opens the source on web, as web's card-wide link does.
+/// a click anywhere that is not a control opens the source on web, as web's card-wide link does. A `task` result
+/// draws web's Task card in place of the status, title, summary and rows, without the card's own frame.
 private struct GenericResultCard: View {
   let card: ResultPreviewCard
   @Environment(\.openURL) private var openURL
@@ -40,9 +58,13 @@ private struct GenericResultCard: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       header
-      Text(card.title)
-        .font(.callout.weight(.medium))
-        .fixedSize(horizontal: false, vertical: true)
+      if let task = card.task {
+        ResultTaskCardView(task: task)
+      } else {
+        Text(card.title)
+          .font(.callout.weight(.medium))
+          .fixedSize(horizontal: false, vertical: true)
+      }
       if let summary = card.summary {
         Text(summary)
           .font(.callout)
@@ -68,11 +90,7 @@ private struct GenericResultCard: View {
         .font(.caption)
       }
       if !card.outputs.isEmpty {
-        WrappingRow(spacing: 8) {
-          ForEach(card.outputs) { output in
-            ResultOutputView(output: output)
-          }
-        }
+        ResultOutputsView(card: card)
       }
       Divider()
       HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -93,10 +111,19 @@ private struct GenericResultCard: View {
       }
       .font(.caption)
     }
-    .padding(16)
-    .frame(maxWidth: resultCardMaxWidth, alignment: .leading)
-    .background(.background, in: .rect(cornerRadius: 8))
-    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12)))
+    // Around a Task card web drops the result's own border and padding and narrows it.
+    .padding(card.task == nil ? 16 : 0)
+    .frame(maxWidth: card.task == nil ? resultCardMaxWidth : taskResultCardMaxWidth, alignment: .leading)
+    .background {
+      if card.task == nil {
+        RoundedRectangle(cornerRadius: 8).fill(.background)
+      }
+    }
+    .overlay {
+      if card.task == nil {
+        RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12))
+      }
+    }
     .contentShape(.rect(cornerRadius: 8))
     // The controls inside take their own clicks; the rest of the card is the source link.
     .onTapGesture(perform: openSource)
@@ -113,13 +140,13 @@ private struct GenericResultCard: View {
     HStack(alignment: .top, spacing: 12) {
       HStack(spacing: 8) {
         if let actor = card.actor {
-          // Web `AssigneeAvatar` at size lg; its image is named like web's `alt`. A Soko Bot without an image gets
+          // Web `AssigneeAvatar`; its image is named like web's `alt`. A Soko Bot without an image gets
           // initials, not web's orb (excluded since row 38).
           ParticipantAvatar(imageURL: actor.imageURL, name: actor.name, size: 32)
             .accessibilityElement()
             .accessibilityLabel(actor.name)
         } else if let agent = card.agentName {
-          // Web `AgentIcon` at size-8; an icon this view cannot draw falls back to the agent's initials.
+          // Web `AgentIcon`; an icon this view cannot draw falls back to the agent's initials.
           ParticipantAvatar(imageURL: card.agentIconURL, name: agent, size: 32)
             .accessibilityHidden(true)
         } else {
@@ -173,9 +200,9 @@ private struct GenericResultCard: View {
   }
 }
 
-/// Web `ProjectAvatar` at `size-5 rounded-sm` beside the project row: the logo, loaded like a participant's
+/// Web `ProjectAvatar` beside the project row: the logo, loaded like a participant's
 /// photo (a public URL), else the name's initial on a muted square. Decorative, like web's empty `alt`.
-private struct ProjectMarkView: View {
+struct ProjectMarkView: View {
   let mark: ResultPreviewCard.ProjectMark
   private let size: CGFloat = 20
   @Environment(\.displayScale) private var displayScale
@@ -204,67 +231,6 @@ private struct ProjectMarkView: View {
       guard !Task.isCancelled else { return }
       logo = loaded?.cgImage
     }
-  }
-}
-
-/// Web's output link: the file's name, type and size, and Download under it when Core offers one. Each opens on
-/// web until row 38e2 loads protected outputs in the app.
-private struct ResultOutputView: View {
-  let output: ResultPreviewCard.Output
-  @Environment(\.openURL) private var openURL
-  @Environment(\.locale) private var locale
-  @State private var hovered = false
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 4) {
-      Button {
-        if let url = output.openURL {
-          openURL(url)
-        }
-      } label: {
-        HStack(spacing: 8) {
-          Image(systemName: "doc.text").accessibilityHidden(true)
-          Text(description)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(8)
-        .background(Color.primary.opacity(hovered ? 0.1 : 0.06), in: .rect(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.primary.opacity(0.12)))
-        .contentShape(.rect)
-      }
-      .buttonStyle(.plain)
-      .disabled(output.openURL == nil)
-      .onHover { hovered = $0 }
-      if let download = output.downloadURL {
-        Button {
-          openURL(download)
-        } label: {
-          HStack(spacing: 4) {
-            Image(systemName: "arrow.down.to.line").accessibilityHidden(true)
-            Text("Download", tableName: chatResultsTable, comment: "Downloads a result's output.")
-          }
-          .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text("Download \(output.name)", tableName: chatResultsTable,
-                                 comment: "Accessibility label of an output's download link. Argument: the file name."))
-      }
-    }
-    .font(.caption)
-  }
-
-  /// Web: `name · type · N bytes`, each part only when Core knows it.
-  private var description: String {
-    var parts = [output.name]
-    if let type = output.contentType {
-      parts.append(type)
-    }
-    if let size = output.sizeBytes {
-      // Resolved in the view's locale, as the `Text`s around it are.
-      parts.append(String(localized: LocalizedStringResource("\(size.formatted(.number.locale(locale))) bytes", table: chatResultsTable,
-                                                             locale: locale, comment: "An output's size. Argument: the formatted byte count.")))
-    }
-    return parts.joined(separator: " · ")
   }
 }
 

@@ -24,7 +24,7 @@
       let (search, transport) = try await answeredSearch()
       let settled = try await render(search, query: "matching", jumpingId: nil, dark: dark)
 
-      let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+      let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport)
       let refining = Task { await search.search(query: "matching reply", roomId: "room", client: client, organizationSlug: nil) }
       await transport.waitForHeldRequest()
       let presentation = search.presentation(for: "matching reply")
@@ -45,7 +45,7 @@
     func firstSearchShowsTheLoadingRow(dark: Bool) async throws {
       let transport = SearchFixtureTransport(bodies: [])
       let search = RoomSearch(debounce: .zero)
-      let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+      let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport)
       let idle = try await render(search, query: "", jumpingId: nil, dark: dark)
       let first = Task { await search.search(query: "matching", roomId: "room", client: client, organizationSlug: nil) }
       await transport.waitForHeldRequest()
@@ -72,7 +72,7 @@
       reply.content = "A matching reply inside an older thread."
       let transport = try SearchFixtureTransport(bodies: [page([first, reply]), page([reply])])
       let search = RoomSearch(debounce: .zero)
-      try await search.search(query: "matching", roomId: "room", client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport), organizationSlug: nil)
+      try await search.search(query: "matching", roomId: "room", client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport), organizationSlug: nil)
       try #require(search.results.count == 2, Comment(rawValue: String(reflecting: search.failure)))
       return (search, transport)
     }

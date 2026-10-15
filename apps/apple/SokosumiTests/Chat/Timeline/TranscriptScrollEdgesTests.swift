@@ -1,5 +1,6 @@
 #if os(macOS)
   @testable import Sokosumi
+  import SokosumiChat
   import SwiftUI
   import Testing
 
@@ -16,6 +17,20 @@
       #expect(edges(offset: 1341).nearBottom)
       #expect(edges(offset: 1538).needsBottomAlignment)
       #expect(!edges(offset: 1539).needsBottomAlignment)
+    }
+
+    @MainActor @Test func olderPagesRequireIdleEvenWithoutAUserGesture() {
+      let activity = TranscriptScrollActivity()
+      activity.update(for: .animating)
+      #expect(!activity.isScrolling)
+      #expect(!activity.isAtRest)
+      activity.update(for: .idle)
+      #expect(activity.isAtRest)
+      for phase: ScrollPhase in [.tracking, .interacting, .decelerating] {
+        activity.update(for: phase)
+        #expect(activity.isScrolling)
+        #expect(!activity.isAtRest)
+      }
     }
 
     private func edges(offset: CGFloat) -> TranscriptScrollEdges {

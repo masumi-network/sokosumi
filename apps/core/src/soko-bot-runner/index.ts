@@ -17,12 +17,14 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   createGateway,
   generateText,
+  type ModelMessage,
   stepCountIs,
   type ToolSet,
   tool,
 } from "ai";
 
 import { searchWeb } from "../lib/soko-bot/web-search";
+import { compactHistory } from "./history";
 import {
   citableSources,
   fetchWebPage,
@@ -32,6 +34,13 @@ import {
   searchWorkspace,
   writeWorkspaceFile,
 } from "./local-tools";
+import {
+  isFinalReport,
+  KEEP_GOING_PROMPT,
+  MAX_KEEP_GOING_ROUNDS,
+  MIN_ROUND_TIME_MS,
+  reportText,
+} from "./rounds";
 
 interface TurnStart {
   message: string;
@@ -40,6 +49,8 @@ interface TurnStart {
   capabilities: SokoBotCapability[];
   deadlineAt: string;
   maxSteps: number;
+  /** A background run: keep working until it reports DONE. */
+  background?: boolean;
 }
 
 class CoreRejected extends Error {
@@ -257,31 +268,60 @@ async function main(): Promise<void> {
     Date.parse(start.deadlineAt) - Date.now() - 20_000,
   );
   try {
-    const result = await generateText({
-      model: gateway(start.model),
-      system: start.system,
-      messages: [{ role: "user", content: start.message }],
-      tools: buildTools(start.capabilities, gateway, start.model, {
-        forSubagent: false,
-      }),
-      stopWhen: stepCountIs(start.maxSteps),
-      // Ask for the provider's reasoning summary (never raw thoughts) so the
-      // chat can show what the bot considered, as Coworker replies do.
-      providerOptions: REASONING_SUMMARY_OPTIONS,
-      abortSignal: AbortSignal.any([
-        stopped.signal,
-        AbortSignal.timeout(budgetMs),
-      ]),
-      maxRetries: 1,
+    const tools = buildTools(start.capabilities, gateway, start.model, {
+      forSubagent: false,
     });
-    await callCore("/complete", {
+    const deadline = Date.now() + budgetMs;
+    let messages: ModelMessage[] = [{ role: "user", content: start.message }];
+    let stepsLeft = start.maxSteps;
+    const steps: { reasoningText?: string | undefined }[] = [];
+    let text = "";
+    let finishReason = "";
+    for (let round = 0; ; round++) {
+      const result = await generateText({
+        model: gateway(start.model),
+        system: start.system,
+        messages: compactHistory(messages) ?? messages,
+        tools,
+        stopWhen: stepCountIs(stepsLeft),
+        prepareStep: ({ messages: current }) => {
+          const compacted = compactHistory(current);
+          return compacted ? { messages: compacted } : {};
+        },
+        // Ask for the provider's reasoning summary (never raw thoughts) so the
+        // chat can show what the bot considered, as Coworker replies do.
+        providerOptions: REASONING_SUMMARY_OPTIONS,
+        abortSignal: AbortSignal.any([
+          stopped.signal,
+          AbortSignal.timeout(Math.max(1_000, deadline - Date.now())),
+        ]),
+        maxRetries: 1,
+      });
+      steps.push(...result.steps);
+      stepsLeft -= result.steps.length;
       // A model can answer in one step and end on an empty one; `text` is
       // only the last step's.
-      text:
+      text =
         result.text ||
-        (result.steps.findLast((step) => step.text.trim())?.text ?? ""),
-      finishReason: result.finishReason,
-      reasoning: reasoningSummary(result.steps),
+        (result.steps.findLast((step) => step.text.trim())?.text ?? "");
+      finishReason = result.finishReason;
+      const keepGoing =
+        start.background &&
+        !isFinalReport(text) &&
+        round < MAX_KEEP_GOING_ROUNDS &&
+        stepsLeft > 0 &&
+        deadline - Date.now() > MIN_ROUND_TIME_MS;
+      if (!keepGoing) break;
+      messages = [
+        ...messages,
+        ...result.response.messages,
+        { role: "user", content: KEEP_GOING_PROMPT },
+      ];
+    }
+    await callCore("/complete", {
+      text: start.background ? reportText(text) : text,
+      finishReason,
+      reasoning: reasoningSummary(steps),
     });
   } catch (error) {
     if (isInactive(error)) {

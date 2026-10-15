@@ -17,6 +17,7 @@ import {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_CAPABILITIES,
   SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   type SokoBotCapability,
@@ -105,6 +106,17 @@ import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-p
 import { enqueueSokoBotDelivery } from "./soko-bot-delivery.service";
 
 const TURN_DEADLINE_MS = 15 * 60 * 1_000;
+/**
+ * A person can ask for work that takes a while — three years of mail into a
+ * CRM table. The turn still ends the moment the bot answers.
+ */
+const PERSON_TURN_DEADLINE_MS = 60 * 60 * 1_000;
+/** A background run works beside the chat, so it may take far longer. */
+const BACKGROUND_RUN_DEADLINE_MS = 6 * 60 * 60 * 1_000;
+/** Runs share the owner's credits and accounts; a handful is plenty. */
+export const MAX_ACTIVE_BACKGROUND_RUNS = 3;
+/** The bot's chat: every turn except background runs. */
+export const FOREGROUND_TURN = { parentTurnId: null } as const;
 const TURN_LEASE_MS = 16 * 60 * 1_000;
 const RECONCILER_HEARTBEAT_MS = 15_000;
 export const SOKO_BOT_START_RECOVERY_GRACE_MS = 120_000;
@@ -253,6 +265,16 @@ export interface StartSokoBotTurnInput {
    * rhythms, admin replays). Never set from a request body: it skips Jev.
    */
   presetRoute?: PresetRoute;
+  /**
+   * A background run another turn started: it runs beside the bot's chat on
+   * its own computer, with the tools in `presetRoute.capabilities`, and its
+   * answer lands in `destinationRoomId`.
+   */
+  background?: {
+    parentTurnId: string;
+    title: string;
+    destinationRoomId: string | null;
+  };
   /** Set when a chat-room mention started the turn; the reply lands there. */
   chat?: {
     mentionId: string;
@@ -679,6 +701,21 @@ const TURN_CHAT_ATTRIBUTION_INCLUDE = {
     },
   },
 } as const;
+
+/**
+ * Whether the turn was for a change. Chat turns a person asked for carry every
+ * tool, so the tools alone no longer say so; the route Jev read does.
+ */
+function actionRequested(
+  route: string | null,
+  capabilityNames: readonly string[],
+): boolean {
+  return (
+    route !== "DIRECT_RESPONSE" &&
+    route !== "CLARIFY" &&
+    capabilityNames.some((capability) => ACTION_CAPABILITIES.has(capability))
+  );
+}
 
 /** A turn the bot decided to take rather than one a person asked for. */
 function unpromptedTurn(turn: { source: string; chainDepth: number }): boolean {
@@ -1140,12 +1177,14 @@ export class SokoBotControlPlane {
             adminPausedAt: null,
             status: { not: "PAUSED" },
           },
-          data: {
-            eveSessionId: runtimeTurn.sessionId,
-            runtimeVersion: runtimeTurn.runtimeVersion,
-            runtimeDeployment: "core",
-            status: "RUNNING",
-          },
+          data: turn.parentTurnId
+            ? { lastActivityAt: new Date() }
+            : {
+                eveSessionId: runtimeTurn.sessionId,
+                runtimeVersion: runtimeTurn.runtimeVersion,
+                runtimeDeployment: "core",
+                status: "RUNNING",
+              },
         });
         if (updatedBot.count !== 1) {
           throw new SokoBotStartAbortedError(
@@ -1191,13 +1230,14 @@ export class SokoBotControlPlane {
       throw error;
     }
 
-    await this.resetSupersededRuntimeSession({
-      bot,
-      userId: turn.userId,
-      workspaceId: turn.workspaceId,
-      turnId: turn.id,
-      currentSessionId: runtimeTurn.sessionId,
-    });
+    if (!turn.parentTurnId)
+      await this.resetSupersededRuntimeSession({
+        bot,
+        userId: turn.userId,
+        workspaceId: turn.workspaceId,
+        turnId: turn.id,
+        currentSessionId: runtimeTurn.sessionId,
+      });
 
     return {
       turnId: turn.id,
@@ -1439,7 +1479,10 @@ export class SokoBotControlPlane {
         status: true,
         lastTurnAt: true,
         turns: {
-          where: { status: { in: [...ACTIVE_TURN_STATUSES] } },
+          where: {
+            ...FOREGROUND_TURN,
+            status: { in: [...ACTIVE_TURN_STATUSES] },
+          },
           orderBy: { createdAt: "desc" },
           take: 1,
           select: { id: true },
@@ -1779,6 +1822,7 @@ export class SokoBotControlPlane {
           responseContract: true,
           capabilityNames: true,
           route: true,
+          parentTurnId: true,
           leaseToken: true,
           cancellationRequestedAt: true,
           scheduleRun: {
@@ -1835,9 +1879,9 @@ export class SokoBotControlPlane {
               tx,
               input.turnId,
               turn.finalAnswer ?? "",
-              (turn.capabilityNames ?? []).some((capability) =>
-                ACTION_CAPABILITIES.has(capability),
-              ),
+              // A run's own report is its answer, whatever it changed.
+              !turn.parentTurnId &&
+                actionRequested(turn.route, turn.capabilityNames ?? []),
               turn.responseContract &&
                 typeof turn.responseContract === "object" &&
                 !Array.isArray(turn.responseContract)
@@ -1884,36 +1928,38 @@ export class SokoBotControlPlane {
         await prepareTurnActionResultPreviews(input.turnId, turn, tx);
       await enqueueSokoBotDelivery(tx, input.turnId);
 
-      await tx.sokoBot.updateMany({
-        where: {
-          id: turn.sokoBotId,
-          archivedAt: null,
-          adminPausedAt: null,
-          status: { not: "PAUSED" },
-          ...(input.clearSession && turn.eveSessionId
-            ? { eveSessionId: turn.eveSessionId }
-            : {}),
-        },
-        data:
-          settledStatus === "FAILED"
-            ? {
-                status: "ERROR",
-                eveSessionId: input.clearSession ? null : undefined,
-                lastFailedAt: now,
-                consecutiveTurnFailures: { increment: 1 },
-              }
-            : settledStatus === "COMPLETED"
+      // A background run never held the chat's status or session.
+      if (!turn.parentTurnId)
+        await tx.sokoBot.updateMany({
+          where: {
+            id: turn.sokoBotId,
+            archivedAt: null,
+            adminPausedAt: null,
+            status: { not: "PAUSED" },
+            ...(input.clearSession && turn.eveSessionId
+              ? { eveSessionId: turn.eveSessionId }
+              : {}),
+          },
+          data:
+            settledStatus === "FAILED"
               ? {
-                  status: "IDLE",
+                  status: "ERROR",
                   eveSessionId: input.clearSession ? null : undefined,
-                  lastSucceededAt: now,
-                  consecutiveTurnFailures: 0,
+                  lastFailedAt: now,
+                  consecutiveTurnFailures: { increment: 1 },
                 }
-              : {
-                  status: "IDLE",
-                  eveSessionId: input.clearSession ? null : undefined,
-                },
-      });
+              : settledStatus === "COMPLETED"
+                ? {
+                    status: "IDLE",
+                    eveSessionId: input.clearSession ? null : undefined,
+                    lastSucceededAt: now,
+                    consecutiveTurnFailures: 0,
+                  }
+                : {
+                    status: "IDLE",
+                    eveSessionId: input.clearSession ? null : undefined,
+                  },
+        });
 
       const scheduleRun = turn.scheduleRun;
       if (scheduleRun) {
@@ -2248,24 +2294,28 @@ export class SokoBotControlPlane {
           select: { message: { select: { roomId: true } } },
         })
       : null;
-    const destinationRoom = conversationMention?.message.roomId
-      ? { id: conversationMention.message.roomId }
-      : input.chat
-        ? null
-        : ((await prisma.chatRoom.findFirst({
-            // Rooms carry no workspace; the bot's membership scopes this to
-            // the workspace the bot lives in (one bot per user and workspace).
-            where: {
-              kind: "direct",
-              archivedAt: null,
-              sokoBotMembers: { some: { sokoBotId: bot.id } },
-              userMembers: { some: { userId: input.userId } },
-            },
-            select: { id: true },
-          })) ??
-          (["SCHEDULE", "EVENT", "INGEST"].includes(source)
-            ? await openFirstOwnerDirectRoom(bot.id, input.userId)
-            : null));
+    const destinationRoom = input.background
+      ? input.background.destinationRoomId
+        ? { id: input.background.destinationRoomId }
+        : null
+      : conversationMention?.message.roomId
+        ? { id: conversationMention.message.roomId }
+        : input.chat
+          ? null
+          : ((await prisma.chatRoom.findFirst({
+              // Rooms carry no workspace; the bot's membership scopes this to
+              // the workspace the bot lives in (one bot per user and workspace).
+              where: {
+                kind: "direct",
+                archivedAt: null,
+                sokoBotMembers: { some: { sokoBotId: bot.id } },
+                userMembers: { some: { userId: input.userId } },
+              },
+              select: { id: true },
+            })) ??
+            (["SCHEDULE", "EVENT", "INGEST"].includes(source)
+              ? await openFirstOwnerDirectRoom(bot.id, input.userId)
+              : null));
     if (["SCHEDULE", "EVENT", "INGEST"].includes(source) && !destinationRoom) {
       throw new SokoBotNoDestinationError(
         "No authorized destination exists for proactive output. Restore an authorized conversation to resume delivery.",
@@ -2398,6 +2448,20 @@ export class SokoBotControlPlane {
         candidateTaskIds: classifierContext.namedTaskIds,
       };
     }
+    // A person asking in chat — owner or teammate — gets every tool. Jev's
+    // route is a hint for the bot and the record, not a gate: a misread
+    // "yes, go ahead" must not leave the bot saying it cannot create the
+    // table it just offered. Only turns nobody typed — schedules, events,
+    // ingest, another assistant — stay scoped to their route.
+    const personAsked =
+      source === "CHAT" &&
+      !input.presetRoute &&
+      !input.chat?.askedByBot &&
+      (input.chat?.chainDepth ?? 0) === 0;
+    if (personAsked) {
+      const { unsureRoute: _unsure, ...hint } = classification.classification;
+      classification.classification = hint;
+    }
     if (source === "SCHEDULE" && classification.failed) {
       throw new SokoBotRetryableStartError(
         "Soko Bot classifier unavailable for scheduled turn",
@@ -2476,7 +2540,13 @@ export class SokoBotControlPlane {
         : classification.classification,
     );
     const routeCapabilities = (
-      writes ? limitSokoBotWrites(classified, writes) : classified
+      personAsked
+        ? SOKO_BOT_CAPABILITIES
+        : input.presetRoute?.capabilities
+          ? input.presetRoute.capabilities
+          : writes
+            ? limitSokoBotWrites(classified, writes)
+            : classified
     ).filter(
       (capability) =>
         !input.presetRoute ||
@@ -2491,7 +2561,14 @@ export class SokoBotControlPlane {
         ? [...SOKO_BOT_BOT_TO_BOT_CAPABILITIES]
         : routeCapabilities) as readonly SokoBotCapability[],
     ) as readonly SokoBotCapability[];
-    const deadlineAt = new Date(Date.now() + TURN_DEADLINE_MS);
+    const deadlineAt = new Date(
+      Date.now() +
+        (input.background
+          ? BACKGROUND_RUN_DEADLINE_MS
+          : personAsked
+            ? PERSON_TURN_DEADLINE_MS
+            : TURN_DEADLINE_MS),
+    );
     const leaseToken = randomUUID();
     const leaseExpiresAt = new Date(Date.now() + TURN_LEASE_MS);
     // Eve only offers create-operation idempotency. A fresh session per Core
@@ -2600,15 +2677,30 @@ export class SokoBotControlPlane {
             );
           }
         }
-        const active = await tx.sokoBotTurn.findFirst({
-          where: {
-            sokoBotId: bot.id,
-            status: { in: [...ACTIVE_TURN_STATUSES] },
-          },
-          select: { id: true },
-        });
-        if (active)
-          throw new SokoBotTurnInProgressError("Soko Bot is already working");
+        if (input.background) {
+          const running = await tx.sokoBotTurn.count({
+            where: {
+              sokoBotId: bot.id,
+              parentTurnId: { not: null },
+              status: { in: [...ACTIVE_TURN_STATUSES] },
+            },
+          });
+          if (running >= MAX_ACTIVE_BACKGROUND_RUNS)
+            throw new SokoBotBusyError(
+              `${MAX_ACTIVE_BACKGROUND_RUNS} background runs are already working; wait for one or stop one first`,
+            );
+        } else {
+          const active = await tx.sokoBotTurn.findFirst({
+            where: {
+              sokoBotId: bot.id,
+              ...FOREGROUND_TURN,
+              status: { in: [...ACTIVE_TURN_STATUSES] },
+            },
+            select: { id: true },
+          });
+          if (active)
+            throw new SokoBotTurnInProgressError("Soko Bot is already working");
+        }
         const memoryVersion = context.packet.memory.version;
         const memoryRevision = requireContextMemoryRevision(
           memoryVersion,
@@ -2655,6 +2747,8 @@ export class SokoBotControlPlane {
               ? input.chat?.requestedByUserId
               : null,
             chainDepth: input.chat?.chainDepth ?? 0,
+            parentTurnId: input.background?.parentTurnId ?? null,
+            backgroundTitle: input.background?.title ?? null,
             classification: jsonInput(classification.classification),
             classifierModel: classification.model,
             classifierVersion: classification.version,
@@ -2851,6 +2945,7 @@ export class SokoBotControlPlane {
           });
         }
         await this.bindTurnReservation(tx, input, bot.id, created.id, message);
+        // A background run leaves the chat's status and session alone.
         const acquired = await tx.sokoBot.updateMany({
           where: {
             id: bot.id,
@@ -2858,11 +2953,13 @@ export class SokoBotControlPlane {
             adminPausedAt: null,
             status: { not: "PAUSED" },
           },
-          data: {
-            status: "RUNNING",
-            lastActivityAt: new Date(),
-            lastTurnAt: new Date(),
-          },
+          data: input.background
+            ? { lastActivityAt: new Date() }
+            : {
+                status: "RUNNING",
+                lastActivityAt: new Date(),
+                lastTurnAt: new Date(),
+              },
         });
         if (acquired.count === 0) {
           throw new SokoBotBusyError("Soko Bot is paused");
@@ -2970,12 +3067,14 @@ export class SokoBotControlPlane {
             adminPausedAt: null,
             status: { not: "PAUSED" },
           },
-          data: {
-            eveSessionId: runtimeTurn.sessionId,
-            runtimeVersion: runtimeTurn.runtimeVersion,
-            runtimeDeployment: "core",
-            status: "RUNNING",
-          },
+          data: input.background
+            ? { lastActivityAt: new Date() }
+            : {
+                eveSessionId: runtimeTurn.sessionId,
+                runtimeVersion: runtimeTurn.runtimeVersion,
+                runtimeDeployment: "core",
+                status: "RUNNING",
+              },
         });
         if (attached.count === 0) {
           throw new SokoBotStartAbortedError(
@@ -2984,13 +3083,15 @@ export class SokoBotControlPlane {
         }
       }, "Soko Bot acknowledgement collided with pause or cancellation");
       acceptedRuntime = undefined;
-      await this.resetSupersededRuntimeSession({
-        bot,
-        userId: input.userId,
-        workspaceId: input.workspaceId,
-        turnId: turn.id,
-        currentSessionId: runtimeTurn.sessionId,
-      });
+      // A background run starts beside the chat: the chat's session is live.
+      if (!input.background)
+        await this.resetSupersededRuntimeSession({
+          bot,
+          userId: input.userId,
+          workspaceId: input.workspaceId,
+          turnId: turn.id,
+          currentSessionId: runtimeTurn.sessionId,
+        });
       return {
         turnId: turn.id,
         sokoBotId: bot.id,
@@ -4071,6 +4172,7 @@ export class SokoBotControlPlane {
           const activeTurn = await tx.sokoBotTurn.findFirst({
             where: {
               sokoBotId: bot.id,
+              ...FOREGROUND_TURN,
               status: { in: [...ACTIVE_TURN_STATUSES] },
             },
             orderBy: { createdAt: "desc" },
@@ -4292,6 +4394,7 @@ export class SokoBotControlPlane {
           const activeTurn = await tx.sokoBotTurn.findFirst({
             where: {
               sokoBotId: bot.id,
+              ...FOREGROUND_TURN,
               status: { in: [...ACTIVE_TURN_STATUSES] },
             },
             orderBy: { createdAt: "desc" },
@@ -4688,6 +4791,7 @@ export class SokoBotControlPlane {
       const activeTurn = await tx.sokoBotTurn.findFirst({
         where: {
           sokoBotId: bot.id,
+          ...FOREGROUND_TURN,
           status: { in: [...ACTIVE_TURN_STATUSES] },
         },
         orderBy: { createdAt: "desc" },

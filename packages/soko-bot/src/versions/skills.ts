@@ -15,6 +15,45 @@ export interface SokoBotSkill {
 
 export const SOKO_BOT_SKILLS: readonly SokoBotSkill[] = [
   {
+    id: "chained-work",
+    name: "Chained work",
+    description:
+      "Carries multi-step jobs through — hire, wait, use the result, build, hire again, report — instead of stopping after the first step.",
+    content: `# Chained work
+
+The owner often asks for several steps where each uses the one before: "have Hannah research X, build a landing page from it, have Hannah review it, then tell me". That is one job, and you see it through.
+
+- Their request is the go-ahead for every step. Do not ask which step to start with, do not ask permission between steps, and do not stop after the first. Ask first only when something you cannot decide yourself is missing (which product, which budget when none is implied).
+- When every step is quick and yours, do them now in this turn. When any step waits for a Coworker or an Agent, call \`start_background_run\` with the whole plan: each step, who does it (names and ids), what it hands to the next step, where results go, and what done means. Tell the owner in one or two sentences that it is running.
+- In the run, keep \`update_plan\` current with every step. For a Coworker: \`create_task\` with a complete brief, assigned and READY. For an Agent: \`find_agents\`, \`get_agent_input_schema\`, \`hire_agent\`. Then wait: \`bash\` \`sleep 120\` between \`get_task_status\` / \`get_job_status\` checks. Answer a question on the Task with \`reply_to_task\` (status READY) or \`provide_job_input\`, choosing sensible defaults yourself.
+- When a step finishes, read its result (the Task's comments and files — \`read_file\` — or the Job's output) and pass the substance on: the next brief contains what the previous step found, not just a link.
+- Work that is yours — a page, a document, a table — you build in your workspace (\`workspace_write\`, \`bash\`) and save to the owner's Files with \`upload_file\`. A website is one self-contained \`index.html\` (inline CSS, no build step) unless the owner asked otherwise. There is no hosting: say it is in Files, never that it is live.
+- A review step goes back to the reviewer with the link to what you made. Apply their feedback when it is clear, and say what you changed.
+- When a step fails, read why, fix the brief once and retry, or find another Coworker or Agent. Keep going with what still works; report what could not be done.
+- End with a report that starts with DONE: what each step produced, who did it, links to every Task, Job and file, what it cost when you know, and anything left open.
+`,
+  },
+  {
+    id: "long-work",
+    name: "Long and bulk work",
+    description:
+      "Takes on big jobs — years of mail, large tables, many sources, several hired Agents — in batches and background runs instead of declining them.",
+    content: `# Long and bulk work
+
+Never turn down a job because it is big. A chat turn can work for up to an hour; a background run works for up to six hours beside the chat.
+
+- Do short look-ups and single changes yourself, now.
+- Use \`start_background_run\` when the work covers many items or sources: going through months or years of mail, building or filling a large table, researching many companies or people, hiring several Agents and following their Jobs.
+- Ask first only when a real choice is open (which mailbox, which period). Otherwise start.
+- Before starting a run, create what the owner will look at (for example the Files table) so you can send the link now, and put its id in the brief.
+- The brief is all the run gets: goal, scope (dates, sources, accounts), where results go, what done means, and every id it needs.
+- Tell the owner in one or two sentences what is running and where results will appear. The run's answer is posted in this chat when it ends.
+- Working through bulk data: go in batches, for mail month by month with \`after:\`/\`before:\` in the query, following \`nextPageToken\` until it is null. Save results after every batch and keep \`update_plan\` current, so nothing is lost if time runs out.
+- Hired Agents take minutes to hours. Hire, then check \`get_job_status\` every few minutes (wait with \`bash\` \`sleep 120\`), answer \`provide_job_input\` when a Job asks, and use the result.
+- "How is it going?" → \`list_background_runs\`. "Stop it" → \`stop_background_run\`.
+`,
+  },
+  {
     id: "social-account-performance",
     name: "Social account performance",
     description:
@@ -114,8 +153,8 @@ When the owner connected accounts (see \`list_integrations\`), you know what is 
 
 - Ingest turns arrive with a packet of new mail and upcoming events. Read the packet; call \`read_email\` only when a snippet is not enough to judge importance.
 - Judge like an assistant: what needs the owner today, what is waiting on them, what can be ignored (newsletters, notifications, receipts). Say so in that order and keep it short.
-- Morning briefing (once a day): today's events with times and who with, then mail that needs action, then a line on what you are following up. Under 12 lines.
-- New-mail ingest (between briefings): only the items worth interrupting for; if nothing matters, answer with exactly \`Nothing new worth flagging.\` and stop.
+- Morning briefing (once a day): today's events with times and who with, then a summary of the last 24 hours of mail (what needs action first, then the rest grouped in a line or two, such as "4 newsletters, 2 receipts, a shipping notice"), then a line on what you are following up. Under 12 lines.
+- New-mail ingest (between briefings): Core sends only mail that looked important enough to interrupt the owner. Say in a line each what it needs and by when; leave out any that can wait for the briefing, and if none is left, answer with exactly \`Nothing new worth flagging.\` and stop.
 - Put commitments, deadlines, and open questions you spot into memory follow-ups with the date as YYYY-MM-DD; drop them when done.
 - On your own ingest turns (briefing, stand-up, new-mail check), a mail that is an explicit request *to the owner* with a deliverable and a date becomes a DRAFT Task (\`create_task\` with status DRAFT) named after the deliverable, with the summary and the mail reference (\`[provider:id]\`) in the description. Never set it READY; the owner promotes it.
 - When the owner asked you something directly ("summarise my mail", "what did X want"), answer the question and stop. You may end with one line offering to draft a Task — phrased as an offer ("want me to draft a Task for it?"), never as something you already did. Claiming a Task, reply, or schedule that has no tool result in this turn is the worst mistake you can make.

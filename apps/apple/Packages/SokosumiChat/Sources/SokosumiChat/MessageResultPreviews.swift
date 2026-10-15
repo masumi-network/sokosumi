@@ -100,6 +100,21 @@ public struct ResultPreviewCard: Equatable, Sendable {
     }
   }
 
+  /// A project a `project_selection` card offers (Core's live `projectOptions`, row 38h1).
+  public struct ProjectOption: Equatable, Identifiable, Sendable {
+    public let id: String
+    public let mark: ProjectMark
+
+    public init(id: String, mark: ProjectMark) {
+      self.id = id
+      self.mark = mark
+    }
+
+    public var name: String {
+      mark.name
+    }
+  }
+
   /// Who a schedule runs as (web `AssigneeAvatar` from `actor`): a person, a coworker or a Soko Bot.
   public struct Actor: Equatable, Sendable {
     public let name: String
@@ -111,24 +126,56 @@ public struct ResultPreviewCard: Equatable, Sendable {
     }
   }
 
-  /// A file the result produced. Until row 38e2 every output is a row that opens on web.
+  /// A file the result produced (row 38e2). Web draws it inline when it has a `previewHref` it can classify, else a row
+  /// opening `openHref`, with Download for `downloadHref`. The app loads each href that names a Core content operation
+  /// itself; an href that does not (a web page) keeps its web link.
   public struct Output: Equatable, Identifiable, Sendable {
     public let id: String
     public let name: String
     public let contentType: String?
     public let sizeBytes: Int?
+    /// How web draws it inline; nil for a row. Only when the app can load its `previewHref`.
+    public let preview: ResultOutputPreview?
+    public let previewSource: ResultOutputSource?
+    public let openSource: ResultOutputSource?
+    public let downloadSource: ResultOutputSource?
+    /// The web page or route for whatever the app cannot load itself.
     public let openURL: URL?
     public let downloadURL: URL?
+    /// The loaded file's name.
+    public let fileName: String
+
+    init(_ output: Components.Schemas.ChatResultOutput, index: Int, webBaseURL: URL) {
+      id = "\(output.openHref)-\(index)"
+      name = output.name
+      contentType = output.contentType.nonEmpty
+      sizeBytes = output.sizeBytes.flatMap { $0.isFinite && $0 >= 0 ? Int($0) : nil }
+      previewSource = output.previewHref.flatMap(ResultOutputSource.init(href:))
+      preview = previewSource == nil ? nil : output.previewHref.flatMap {
+        ResultOutputPreview(href: $0, name: output.name, contentType: output.contentType)
+      }
+      openSource = ResultOutputSource(href: output.openHref)
+      downloadSource = output.downloadHref.flatMap(ResultOutputSource.init(href:))
+      openURL = MessageResultPreviews.webURL(forLocalHref: output.openHref, webBaseURL: webBaseURL)
+      downloadURL = output.downloadHref.flatMap { MessageResultPreviews.webURL(forLocalHref: $0, webBaseURL: webBaseURL) }
+      fileName = Self.fileName(name: output.name, contentType: output.contentType)
+    }
   }
 
   public let id: String
   public let kind: Kind
   public let title: String
+  /// Nil for a Task card, whose own status badge stands in for the chip.
   public let status: Status?
-  /// Nil when empty or the same as the title, as web hides it then.
+  /// Nil when empty or the same as the title, as web hides it then, and for a Task card.
   public let summary: String?
   public let question: String?
+  /// Empty for a Task card, which shows its assignee and project itself.
   public let details: [Detail]
+  /// Web's Task card in place of the title, the summary and the rows (row 38f).
+  public let task: ResultTaskCard?
+  /// Web's social post preview in place of the whole card (row 38g).
+  public let social: ResultSocialPost?
   public let outputs: [Output]
   public let capturedAt: Date
   public let sourceURL: URL?
@@ -139,17 +186,26 @@ public struct ResultPreviewCard: Equatable, Sendable {
   public let agentIconURL: String?
   /// The Task a `task` card shows (web `result.task.id`).
   public let taskId: String?
+  /// What a `project_selection` card offers, in Core's order (by name); empty for every other kind.
+  public let projectOptions: [ProjectOption]
+  /// The approval this card asks for (row 38h2): web draws `DecisionCard` instead of the generic card whenever Core
+  /// sends one, which it does for a `decision` result, re-read for each viewer.
+  public let decision: SokoBotDecision?
 
   public init(_ result: Components.Schemas.ChatResultAvailable, webBaseURL: URL) {
     id = result.id
     kind = result.kind
     title = result.title
-    status = result.status.nonEmpty.map { raw in
+    let task = ResultTaskCard(result, webBaseURL: webBaseURL)
+    self.task = task
+    social = ResultSocialPost(result)
+    // Web's `nativeTask`: the Task card replaces the chip, the title, the summary and the rows; the question stays.
+    status = task != nil ? nil : result.status.nonEmpty.map { raw in
       result.kind == .job && Self.jobStatuses.contains(raw) ? .job(raw) : .result(raw)
     }
-    summary = result.summary.nonEmpty.flatMap { $0 == result.title ? nil : $0 }
+    summary = task != nil ? nil : result.summary.nonEmpty.flatMap { $0 == result.title ? nil : $0 }
     question = result.question.nonEmpty
-    details = [
+    details = task != nil ? [] : [
       result.assignee.nonEmpty.map(Detail.assignee),
       result.project.nonEmpty.map { name in
         Detail.project(name, mark: result.projectInfo.map { ProjectMark(name: $0.name, logoURL: $0.logo.nonEmpty) })
@@ -159,14 +215,7 @@ public struct ResultPreviewCard: Equatable, Sendable {
       result.recurrence.nonEmpty.map(Detail.recurrence)
     ].compactMap(\.self)
     outputs = (result.outputs ?? []).enumerated().map { index, output in
-      Output(
-        id: "\(output.openHref)-\(index)",
-        name: output.name,
-        contentType: output.contentType.nonEmpty,
-        sizeBytes: output.sizeBytes.flatMap { $0.isFinite && $0 >= 0 ? Int($0) : nil },
-        openURL: MessageResultPreviews.webURL(forLocalHref: output.openHref, webBaseURL: webBaseURL),
-        downloadURL: output.downloadHref.flatMap { MessageResultPreviews.webURL(forLocalHref: $0, webBaseURL: webBaseURL) }
-      )
+      Output(output, index: index, webBaseURL: webBaseURL)
     }
     capturedAt = result.capturedAt
     sourceURL = MessageResultPreviews.webURL(forLocalHref: result.sourceHref, webBaseURL: webBaseURL)
@@ -175,6 +224,8 @@ public struct ResultPreviewCard: Equatable, Sendable {
     agentIconURL = result.agent?.icon.nonEmpty
     // Web: an available `task` result that carries its `task` object.
     taskId = result.kind == .task ? result.task?.id : nil
+    projectOptions = (result.projectOptions ?? []).map { .init(id: $0.id, mark: .init(name: $0.name, logoURL: $0.logo.nonEmpty)) }
+    decision = result.decision.map(SokoBotDecision.init)
   }
 
   /// `SokosumiJobStatus`: the statuses web's `JobStatusBadge` labels; any other job status gets the generic chip.

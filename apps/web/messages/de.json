@@ -1158,10 +1158,6 @@
   },
   "Auth": {
     "Error": {
-      "title": "Etwas ist schiefgelaufen",
-      "description": "Es ist ein unerwarteter Fehler aufgetreten. Unser Team wurde benachrichtigt und wir arbeiten an einer Lösung.",
-      "errorId": "Fehler-ID: {errorId}",
-      "tryAgain": "Erneut versuchen",
       "goLogin": "Zur Anmeldung"
     },
     "Footer": {
@@ -1627,6 +1623,7 @@
           "standup": "Tägliches Stand-up",
           "weeklyWrap": "Wochenrückblick",
           "scheduled": "Geplant: {name}",
+          "background": "Hintergrundauftrag: {name}",
           "taskUpdate": "Task-Update"
         }
       }
@@ -2370,12 +2367,12 @@
       },
       "ProjectSocialAccounts": {
         "title": "Social-Media-Konten",
-        "description": "Verbinde Social-Media-Konten mit diesem Projekt. Entwirf, plane und veröffentliche Beiträge auf jeder verbundenen Plattform.",
         "account": "{provider}-Konto",
         "connect": "{provider}-Konto verbinden",
-        "connectAccount": "X, YouTube, LinkedIn … verbinden",
+        "connectAccount": "Konto verbinden",
         "actions": "Aktionen für {account}",
         "reconnect": "Erneut verbinden",
+        "syncNow": "Jetzt synchronisieren",
         "replace": "Ersetzen",
         "disconnect": "Trennen",
         "unknownHandle": "Unbekanntes Konto",
@@ -2386,19 +2383,20 @@
           "disconnected": "Getrennt"
         },
         "replaceDialog": {
-          "title": "Dieses Konto ersetzen?",
-          "description": "Das aktuelle Konto wird getrennt, bevor du ein Ersatzkonto verbindest.",
+          "title": "{account} ersetzen?",
+          "description": "Alle Entwürfe und geplanten Beiträge dieses Kontos werden auf das neue Konto übertragen. Wenn du sie hier behalten willst, füge ein neues Konto hinzu, statt zu ersetzen.",
           "confirm": "Konto ersetzen"
         },
         "disconnectDialog": {
-          "title": "Dieses Konto trennen?",
+          "title": "{account} trennen?",
           "description": "Dieses Projekt ist dann nicht mehr berechtigt, dieses Konto zu verwenden.",
           "confirm": "Konto trennen"
         },
         "cancel": "Abbrechen",
         "success": {
-          "connected": "Konto verbunden.",
-          "disconnected": "Konto getrennt."
+          "connected": "{account} verbunden.",
+          "disconnected": "{account} getrennt.",
+          "syncStarted": "Synchronisierung gestartet."
         },
         "warning": {
           "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe den Zugriff in deinen Kontoeinstellungen."
@@ -2416,10 +2414,13 @@
           "reconnectMismatch": "Verbinde dasselbe Konto erneut, das bereits mit diesem Projekt verknüpft ist.",
           "finalize": "Dieses Konto konnte nicht vollständig verbunden werden. Versuche es erneut.",
           "disconnect": "Dieses Konto konnte nicht getrennt werden. Versuche es erneut.",
-          "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren."
+          "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren.",
+          "sync": "Synchronisierung konnte nicht gestartet werden."
         },
         "comingSoon": "Bald verfügbar",
-        "connectComingSoon": "{provider} (bald verfügbar)"
+        "connectComingSoon": "{provider} (bald verfügbar)",
+        "empty": "Noch keine Konten.",
+        "emptyHint": "Verbinde eines, um zu posten."
       },
       "SocialPosts": {
         "loadMore": "Mehr laden",
@@ -2429,14 +2430,26 @@
         "moreActions": "Beitragsaktionen",
         "noAccount": "Kein Konto",
         "outcomes": {
-          "authorizationRevoked": "Der Planungszugriff des Coworkers wurde widerrufen. Plane diesen Beitrag neu, um ihn zu veröffentlichen."
+          "authorizationRevoked": "Der Planungszugriff des Coworkers wurde widerrufen. Plane diesen Beitrag neu, um ihn zu veröffentlichen.",
+          "connectionInactive": "Konto getrennt. Verbinde es erneut.",
+          "missed": "Der geplante Zeitpunkt wurde verpasst."
+        },
+        "failures": {
+          "rateLimited": "Zu viele Anfragen. Versuche es später erneut.",
+          "timeout": "Zeitüberschreitung. Versuche es erneut.",
+          "unauthorized": "Verbinde das Konto erneut.",
+          "unavailable": "Die Plattform ist nicht erreichbar. Versuche es später erneut.",
+          "rejected": "Die Plattform hat diesen Beitrag abgelehnt.",
+          "mediaMissing": "Eine Datei fehlt.",
+          "mediaType": "Dieser Dateityp ist nicht erlaubt.",
+          "generic": "Veröffentlichung fehlgeschlagen. Öffne den Beitrag für Details."
         },
         "sections": {
           "calendar": "Kalender",
           "drafts": "Entwürfe",
           "attention": "Braucht Aufmerksamkeit",
           "accounts": "Konten",
-          "statistics": "Statistiken"
+          "statistics": "Leistung"
         },
         "empty": {
           "drafts": "Noch keine Entwürfe."
@@ -2468,6 +2481,7 @@
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Aus Drive hinzufügen",
+            "drop": "Dateien zum Anhängen ablegen",
             "upload": "Hochladen",
             "remove": "{name} entfernen",
             "unsupported": "Verwende ein Dateiformat, das {provider} akzeptiert.",
@@ -2494,7 +2508,7 @@
           "accountOption": "{provider} {handle}",
           "noAccounts": "Verbinde eines, um zu posten oder zu planen. Einen Entwurf kannst du trotzdem speichern.",
           "unknownHandle": "Unbekanntes Konto",
-          "scheduledAtTooSoon": "Wähle einen Zeitpunkt, der mindestens eine Minute in der Zukunft liegt.",
+          "scheduledAtTooSoon": "Wähle einen Zeitpunkt mindestens eine Minute in der Zukunft.",
           "saveDraft": "Entwurf speichern",
           "save": "Speichern",
           "schedule": "Planen",
@@ -2517,16 +2531,16 @@
             "now": "Jetzt"
           },
           "timezone": {
-            "yours": "Zeiten in deiner Zeitzone, {zone}.",
-            "goesOut": "Erscheint am {date}, deine Zeit ({zone}).",
-            "postZone": "Geplant für {date} in {zone}."
+            "yours": "Deine Zeitzone: {zone}",
+            "goesOut": "Erscheint {date} ({zone})",
+            "postZone": "Geplant als {date} ({zone})"
           },
           "platforms": "Limits pro Plattform",
           "platformLimit": "{provider}-{format} · {count} / {limit}",
           "formats": {
             "post": "Beitrag",
             "mediaPost": "Bild- oder Videobeitrag",
-            "video": "Video (Text wird Titel und Beschreibung)"
+            "video": "Video"
           },
           "publishNow": "Jetzt posten",
           "when": "Wann",
@@ -2536,25 +2550,39 @@
           "noAccountsTitle": "Noch kein Konto verbunden",
           "connectAccount": "Konto verbinden",
           "dismiss": "Abbrechen",
-          "previewEmpty": "Hier erscheint dein Post, während du schreibst.",
-          "pickAccount": "Wähle ein Konto, auf dem gepostet wird."
+          "discardTitle": "Änderungen verwerfen?",
+          "discardDescription": "Deine Änderungen gehen verloren.",
+          "discard": "Verwerfen",
+          "keepEditing": "Weiter bearbeiten",
+          "previewEmpty": "Hier erscheint dein Beitrag, während du schreibst.",
+          "pickAccount": "Wähle ein Konto, auf dem gepostet wird.",
+          "tooLong": "Die Textlänge überschreitet das Limit."
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
           "description": "Der Beitrag wird nicht veröffentlicht. Das lässt sich nicht rückgängig machen.",
           "confirm": "Beitrag abbrechen"
         },
+        "dismissDialog": {
+          "title": "Diesen Beitrag verwerfen?",
+          "description": "Er verschwindet aus Braucht Aufmerksamkeit.",
+          "confirm": "Verwerfen"
+        },
         "toasts": {
           "created": "{count, plural, one {Entwurf gespeichert.} other {# Entwürfe gespeichert.}}",
           "scheduled": "{count, plural, one {Beitrag geplant.} other {# Beiträge geplant.}}",
           "updated": "Beitrag aktualisiert.",
           "canceled": "Beitrag abgebrochen.",
+          "dismissed": "Beitrag verworfen.",
           "conflict": "Dieser Beitrag wurde an anderer Stelle geändert. Die neueste Version wird geladen.",
           "failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
+          "offline": "Du bist offline. Versuche es erneut.",
+          "timeout": "Zeitüberschreitung. Versuche es erneut.",
           "unauthenticated": "Melde dich an, um fortzufahren.",
           "unauthenticatedAction": "Anmelden",
           "published": "Beitrag veröffentlicht.",
           "publishFailed": "Veröffentlichung fehlgeschlagen: {error}",
+          "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}"
         },
         "needsReconnect": "Konto muss neu verbunden werden",
@@ -2565,24 +2593,40 @@
         "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
         "actions": {
           "publishNow": "Jetzt veröffentlichen",
-          "retry": "Erneut versuchen"
+          "retry": "Erneut versuchen",
+          "dismiss": "Verwerfen"
         },
         "publishDialog": {
           "title": "Diesen Beitrag jetzt veröffentlichen?",
           "description": "Der Beitrag wird sofort veröffentlicht, statt auf den geplanten Zeitpunkt zu warten.",
           "confirm": "Jetzt veröffentlichen"
         },
+        "retryDialog": {
+          "title": "Diesen Beitrag erneut versuchen?",
+          "description": "Der Beitrag wird jetzt veröffentlicht.",
+          "confirm": "Erneut versuchen"
+        },
         "connectPrompt": {
           "title": "Verbinde ein Konto, um zu posten",
-          "body": "Beiträge werden über die X-, Instagram-, LinkedIn-, Facebook- und YouTube-Konten dieses Projekts veröffentlicht.",
+          "body": "Beiträge gehen von den Konten dieses Projekts.",
           "action": "X, YouTube, LinkedIn … verbinden"
+        },
+        "reconnectPrompt": {
+          "title": "Erneut verbinden, um zu posten",
+          "body": "Melde dich erneut bei einem verbundenen Konto an.",
+          "action": "Erneut verbinden"
         },
         "preview": {
           "label": "{provider}-Vorschau",
           "now": "jetzt",
           "accountFallback": "Dein Konto",
           "open": "Vorschau",
+          "accounts": "Vorschaukonto",
+          "as": "Vorschau als {handle}",
           "dialogTitle": "Beitragsvorschau",
+          "offline": "Du bist offline.",
+          "timeout": "Zeitüberschreitung.",
+          "missing": "Beitrag konnte nicht geöffnet werden.",
           "linkedin": {
             "like": "Gefällt mir",
             "comment": "Kommentieren",
@@ -2594,6 +2638,21 @@
           "instagram": {
             "more": "mehr",
             "mediaRequired": "Instagram braucht ein Bild oder Video."
+          },
+          "facebook": {
+            "like": "Gefällt mir",
+            "comment": "Kommentieren",
+            "share": "Teilen",
+            "seeMore": "Mehr anzeigen",
+            "public": "Öffentlich"
+          },
+          "youtube": {
+            "seeMore": "Mehr anzeigen",
+            "videoRequired": "YouTube braucht ein Video."
+          },
+          "tiktok": {
+            "more": "mehr",
+            "videoRequired": "TikTok braucht ein Video."
           }
         },
         "statistics": {
@@ -2612,9 +2671,11 @@
           "empty": "Keine importierten Beiträge entsprechen diesen Filtern. Synchronisiere ein Konto oder setze die Filter zurück.",
           "refresh": "Statistiken aktualisieren",
           "loadMore": "Weitere Beiträge laden",
+          "loadMoreError": "Mehr konnte nicht geladen werden.",
           "unavailable": "Nicht verfügbar",
           "notFetched": "Statistiken wurden noch nicht abgerufen.",
-          "updatedAt": "Aktualisiert am {date}",
+          "updatedAt": "Aktualisiert {date}",
+          "updating": "Aktualisiere…",
           "metrics": {
             "views": "Aufrufe",
             "impressions": "Impressionen",
@@ -2622,6 +2683,36 @@
             "comments": "Kommentare",
             "shares": "Geteilte Beiträge",
             "saves": "Gespeicherte Beiträge"
+          },
+          "performance": {
+            "lastDays": "Letzte {days} Tage",
+            "moreFilters": "Weitere Filter",
+            "activeFilters": "{count} aktiv",
+            "posts": "Beiträge",
+            "interactions": "Interaktionen",
+            "previousPeriod": "Veränderung gegenüber dem vorherigen Zeitraum",
+            "keyMetrics": "Kennzahlen",
+            "sparkline": "{metric} an den ausgewählten Tagen",
+            "accountTabs": "Verbundene Konten",
+            "trends": "Leistung im Zeitverlauf",
+            "trendMetric": "Diagrammkennzahl",
+            "consistency": "Veröffentlichungsrhythmus",
+            "consistencyEmpty": "In der erfassten Historie gibt es noch keine veröffentlichten Beiträge.",
+            "consistencySummary": "{posts, plural, one {# Beitrag} other {# Beiträge}} an {active, plural, one {# aktivem Tag} other {# aktiven Tagen}} von {from} bis {until}.",
+            "currentStreak": "Aktuelle Serie",
+            "longestStreak": "Längste Serie",
+            "streakDays": "{count, plural, one {# Tag} other {# Tage}}",
+            "showPosts": "Beiträge pro Tag",
+            "showEngagement": "Interaktionen pro Tag",
+            "dayPosts": "{date}: {count} Beiträge",
+            "dayEngagement": "{date}: {count} Interaktionen",
+            "dayEngagementUnavailable": "{date}: Interaktionen nicht verfügbar",
+            "dayOutside": "{date}: außerhalb der erfassten Historie",
+            "legendNone": "Keine",
+            "legendMore": "Mehr",
+            "moreActions": "Weitere Aktionen",
+            "exportCsv": "CSV exportieren",
+            "exportXlsx": "Tabelle exportieren"
           },
           "accountsTitle": "Verbundene Konten",
           "postsTitle": "Veröffentlichte Kontobeiträge",
@@ -3008,18 +3099,18 @@
       "title": "Social-Planung",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
       "newPost": {
-        "label": "Neuer Post",
-        "options": "Optionen für neuen Post",
+        "label": "Neuer Beitrag",
+        "options": "Optionen für neuen Beitrag",
         "manual": "Manueller Beitrag",
         "manualHint": "Konto, Medien und Zeitpunkt wählen.",
         "sokoBot": "Mit Soko Bot posten",
         "sokoBotHint": "Im Chat besprechen, Soko Bot entwirft und plant.",
         "sokoBotSetup": "Richte zuerst Soko Bot ein",
         "sokoBotFailed": "Der Soko-Bot-Chat konnte nicht geöffnet werden. Versuche es erneut.",
-        "sokoBotPrompt": "Hilf mir, einen Social-Post für das Projekt {project} zu erstellen.",
-        "sokoBotPromptAnyProject": "Hilf mir, einen Social-Post zu erstellen.",
-        "chooseProjectTitle": "Projekt für diesen Post wählen",
-        "chooseProjectBody": "Ein Post wird über die Konten eines Projekts veröffentlicht."
+        "sokoBotPrompt": "Hilf mir, einen Beitrag für {project} zu erstellen.",
+        "sokoBotPromptAnyProject": "Hilf mir, einen Beitrag zu erstellen.",
+        "chooseProjectTitle": "Projekt für diesen Beitrag wählen",
+        "chooseProjectBody": "Beiträge gehen über die Konten eines Projekts raus."
       },
       "accountsNeedProject": {
         "title": "Verbinde deine Social-Media-Konten",
@@ -3033,17 +3124,14 @@
       "pickProject": "Projekt auswählen",
       "platforms": {
         "label": "Social-Media-Plattformen"
-      },
-      "statisticsNeedProject": {
-        "title": "Wähle ein Projekt, um Statistiken zu sehen",
-        "body": "Kontostatistiken gehören zu einem Projekt. Wähle eines, um seine verbundenen Konten und veröffentlichten Inhalte zu bewerten."
       }
     },
     "Error": {
       "title": "Etwas ist schiefgelaufen",
-      "description": "Es ist ein unerwarteter Fehler aufgetreten. Unser Team wurde benachrichtigt und wir arbeiten an einer Lösung.",
+      "description": "Versuche es in einem Moment erneut.",
+      "notified": "Unser Team wurde benachrichtigt.",
       "unavailableTitle": "Vorübergehend nicht verfügbar",
-      "unavailableDescription": "Wir konnten den Dienst nicht erreichen. Das dauert meist nur kurz. Bitte versuche es gleich noch einmal.",
+      "unavailableDescription": "Wir konnten den Dienst nicht erreichen. Versuche es gleich noch einmal.",
       "errorId": "Fehler-ID: {errorId}",
       "tryAgain": "Erneut versuchen",
       "goApp": "Zur App"
@@ -3229,11 +3317,6 @@
         "unauthenticatedAction": "Anmelden",
         "badInput": "Ungültige Planauswahl",
         "general": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
-      },
-      "Error": {
-        "title": "Etwas ist schiefgelaufen",
-        "message": "Beim Laden der Abonnements ist ein Problem aufgetreten. Bitte versuche es später erneut.",
-        "retryButton": "Erneut versuchen"
       }
     },
     "Admin": {
@@ -7382,6 +7465,7 @@
       },
       "previous": "Vorheriger Zeitraum",
       "next": "Nächster Zeitraum",
+      "today": "Heute",
       "view": {
         "month": "Monat",
         "week": "Woche",
@@ -7450,11 +7534,6 @@
       },
       "pagination": {
         "error": "Weitere Ereignisse konnten nicht geladen werden."
-      },
-      "error": {
-        "title": "Kalender konnte nicht geladen werden",
-        "description": "Bitte versuche es gleich noch einmal.",
-        "retry": "Erneut versuchen"
       },
       "agenda": {
         "upcoming": "Als Nächstes",

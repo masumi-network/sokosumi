@@ -98,7 +98,7 @@ export const taskParticipantSchema = z
   })
   .openapi("TaskParticipant");
 
-export const taskEventActorSchema = z
+const taskEventActorSchema = z
   .discriminatedUnion("type", [
     taskEventActorUserSchema,
     taskEventActorCoworkerSchema,
@@ -194,7 +194,7 @@ const taskCreatorSokoBotSchema = z
   })
   .openapi("TaskCreatorSokoBot");
 
-export const taskCreatorSchema = z
+const taskCreatorSchema = z
   .discriminatedUnion("type", [
     taskCreatorUserSchema,
     taskCreatorCoworkerSchema,
@@ -228,7 +228,7 @@ const taskAssigneeSokoBotSchema = z
   })
   .openapi("TaskAssigneeSokoBot");
 
-export const taskAssigneeSchema = z
+const taskAssigneeSchema = z
   .discriminatedUnion("type", [
     taskAssigneeCoworkerSchema,
     taskAssigneeUserSchema,
@@ -374,7 +374,7 @@ const taskBaseSchema = z.object({
   workspace: workspaceSummarySchema,
 });
 
-export const taskListItemSchema = taskBaseSchema
+const taskListItemSchema = taskBaseSchema
   .omit({ credits: true, events: true, jobs: true })
   .extend({
     jobsCount: z.number().int().nonnegative().openapi({ example: 2 }),

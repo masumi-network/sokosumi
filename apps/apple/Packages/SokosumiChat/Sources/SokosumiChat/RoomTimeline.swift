@@ -28,7 +28,8 @@ public final class RoomTimeline: ObservableObject {
   @Published public var boundaryLoads = TranscriptBoundaryLoads()
   /// A latest refresh (realtime envelope, recovery poll) that arrived while a
   /// gap page held the timeline. It runs through the latest-page path once the
-  /// gap settles, so a live message is not lost behind an auto-loaded gap.
+  /// gap settles, so a live message is not lost behind an auto-loaded gap, and
+  /// the gap page's caller hears when it applied (`heldRefreshLanded`).
   public private(set) var pendingLatestRefresh = false
 
   private var activePage: Page?
@@ -91,12 +92,14 @@ public final class RoomTimeline: ObservableObject {
   /// Commit only to the room generation that requested this page. Merge
   /// by ID in chronological order, so overlapping pages cannot duplicate
   /// rows and a live message received during loading remains visible.
+  /// `heldRefreshLanded` runs after a gap page's held latest refresh applied.
   @discardableResult
   public func loadPage(
     _ kind: Page,
     client: Client,
     organizationSlug: String?,
-    generation expectedGeneration: Int
+    generation expectedGeneration: Int,
+    heldRefreshLanded: () async -> Void = {}
   ) async throws -> Bool {
     guard generation == expectedGeneration else { return false }
     if isFillingGap, kind == .latest {
@@ -113,7 +116,9 @@ public final class RoomTimeline: ObservableObject {
       // The gap settled either way; the refresh it held back runs now, through
       // the same latest-page path a poll would take (its failure is that page's).
       pendingLatestRefresh = false
-      _ = try? await loadPage(.latest, client: client, organizationSlug: organizationSlug, generation: expectedGeneration)
+      if await (try? loadPage(.latest, client: client, organizationSlug: organizationSlug, generation: expectedGeneration)) == true {
+        await heldRefreshLanded()
+      }
     }
     return try result.get()
   }
@@ -270,34 +275,11 @@ public final class RoomTimeline: ObservableObject {
         cursor: cursor, around: around, organizationSlug: organizationSlug
       )
     }
+    // An older page brings the latest page's 100 rows: each insertion above the reader costs the transcript a frame
+    // (M6). A jump window and a gap page keep 30.
+    let limit: Int? = kind == .older || (around == nil && cursor == nil) ? nil : 30
     return try await ChatService().listMessages(
-      client: client, roomId: roomId, cursor: cursor, around: around, limit: around != nil || cursor != nil ? 30 : nil, organizationSlug: organizationSlug
+      client: client, roomId: roomId, cursor: cursor, around: around, limit: limit, organizationSlug: organizationSlug
     )
-  }
-}
-
-/// Reader intent, independent of scroll-view APIs. Content growth must not
-/// unpin a reader who was already following the latest message.
-public struct TimelineScrollIntent: Equatable, Sendable {
-  public private(set) var followsLatest = true
-
-  public init() {}
-
-  public mutating func userScrolled(isNearBottom: Bool) {
-    followsLatest = isNearBottom
-  }
-
-  public mutating func beginAutomaticOlderPage(userIsScrolling: Bool, isNearTop: Bool, hasMore: Bool, isLoading: Bool) -> Bool {
-    guard userIsScrolling, isNearTop, hasMore, !isLoading else { return false }
-    readOlder()
-    return true
-  }
-
-  public mutating func readOlder() {
-    followsLatest = false
-  }
-
-  public mutating func followLatest() {
-    followsLatest = true
   }
 }
