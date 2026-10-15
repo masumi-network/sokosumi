@@ -2622,7 +2622,7 @@
           "accountFallback": "Tu cuenta",
           "open": "Vista previa",
           "accounts": "Cuenta de vista previa",
-          "as": "Vista previa como {handle}",
+          "as": "Vista previa como {provider} {handle}",
           "dialogTitle": "Vista previa de la publicación",
           "offline": "Estás sin conexión.",
           "timeout": "Se agotó el tiempo.",
@@ -2637,7 +2637,9 @@
           },
           "instagram": {
             "more": "más",
-            "mediaRequired": "Instagram necesita una imagen o un video."
+            "mediaRequired": "Instagram necesita una imagen o un video.",
+            "slide": "{current} de {total}",
+            "slideIndex": "{current}/{total}"
           },
           "facebook": {
             "like": "Me gusta",

@@ -1201,7 +1201,12 @@ export function SocialPostComposerDialog({
                       const active = previewConnection?.id === connection.id;
                       return (
                         <button
-                          aria-label={t("preview.as", { handle })}
+                          aria-label={t("preview.as", {
+                            handle,
+                            provider: socialPostProviderLabel(
+                              connection.provider,
+                            ),
+                          })}
                           aria-pressed={active}
                           className={cn(
                             "focus-visible:ring-ring inline-flex h-11 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 md:h-8",
@@ -1213,13 +1218,10 @@ export function SocialPostComposerDialog({
                           onClick={() => setPreviewConnectionId(connection.id)}
                           type="button"
                         >
-                          <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
-                            <SocialPostProviderIcon
-                              aria-hidden
-                              className="size-3.5"
-                              provider={connection.provider}
-                            />
-                          </span>
+                          <AccountChipMark
+                            avatarUrl={connection.avatarUrl}
+                            provider={connection.provider}
+                          />
                           <span className="max-w-32 truncate">{handle}</span>
                         </button>
                       );

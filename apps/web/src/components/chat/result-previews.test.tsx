@@ -26,6 +26,7 @@ vi.mock("next-intl", () => ({
     number: (value: number) => String(value),
     dateTime: (date: Date, _name?: string, options?: { timeZone?: string }) =>
       `${date.toISOString()} ${options?.timeZone ?? ""}`,
+    relativeTime: (date: Date) => date.toISOString(),
   }),
 }));
 vi.mock("next/navigation", () => ({
