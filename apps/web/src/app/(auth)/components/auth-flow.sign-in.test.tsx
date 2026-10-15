@@ -513,6 +513,49 @@ describe("AuthFlow signIn", () => {
     );
   });
 
+  it("sends the Apple app's sign-up to the website in a new window", async () => {
+    const user = userEvent.setup();
+    mockSearchParams = new URLSearchParams({
+      client_id: "apple",
+      redirect_uri: "https://app.sokosumi.com/auth/apple/callback",
+      exp: "1772367377",
+      sig: "signed-value",
+    });
+    emailStatusMock.mockResolvedValue({
+      data: { exists: false, captchaPass: CAPTCHA_PASS },
+      error: null,
+    });
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
+
+    const register = screen.getByRole("link", {
+      name: "RegisterOnWebsite.link",
+    });
+    expect(register).toHaveAttribute("href", "/signup");
+    expect(register).toHaveAttribute("target", "_blank");
+    expect(screen.getByText("RegisterOnWebsite.message")).toBeInTheDocument();
+
+    await continueWith(user, "new@example.com");
+    const createAccount = await screen.findByRole("link", {
+      name: "NoAccountOnWebsite.createAccount",
+    });
+    expect(createAccount).toHaveAttribute("href", "/signup");
+    expect(createAccount).toHaveAttribute("target", "_blank");
+    expect(detour()).toHaveTextContent("NoAccountOnWebsite.description");
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    sendEmailCodeMock.mockClear();
+    // After the page's own handler: jsdom would load the new window's page.
+    document.addEventListener("click", (event) => event.preventDefault(), {
+      once: true,
+    });
+
+    await user.click(createAccount);
+
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(createAccount).not.toHaveAttribute("aria-busy", "true");
+    expect(emailField()).toBeEnabled();
+  });
+
   // A provider sign-in leaves the page; it comes back to the request.
   it("sends the provider buttons back to the OAuth request", () => {
     mockSearchParams = new URLSearchParams({

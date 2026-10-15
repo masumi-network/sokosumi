@@ -1239,10 +1239,19 @@
             "message": "Don't have an account?",
             "link": "Register"
           },
+          "RegisterOnWebsite": {
+            "message": "No account yet? Accounts are created on the website, not in the app.",
+            "link": "Create one on the website"
+          },
           "NoAccount": {
             "title": "No account for this address",
             "description": "Check it for typos, or create one now.",
             "createAccount": "Create account"
+          },
+          "NoAccountOnWebsite": {
+            "title": "No account for this address",
+            "description": "Check it for typos, or create an account on the website, then sign in here.",
+            "createAccount": "Create account on the website"
           },
           "Handover": {
             "codeSent": "You already have an account, so we sent you a code to log in.",
