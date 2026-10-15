@@ -187,7 +187,7 @@ export const deleteDriveFileRequestSchema = z
 /**
  * Drive folder item (folder row in list result).
  */
-export const driveFolderSchema = z
+const driveFolderSchema = z
   .object({
     type: z.literal("folder").openapi({
       example: "folder",
@@ -209,7 +209,7 @@ export type DriveFolder = z.infer<typeof driveFolderSchema>;
 /**
  * Drive file item (file row in list result) with type discriminator.
  */
-export const driveFileItemSchema = driveFileSchema
+const driveFileItemSchema = driveFileSchema
   .extend({
     type: z.literal("file").openapi({
       example: "file",
@@ -223,7 +223,7 @@ export type DriveFileItem = z.infer<typeof driveFileItemSchema>;
 /**
  * Drive list item (folder or file).
  */
-export const driveItemSchema = z
+const driveItemSchema = z
   .discriminatedUnion("type", [driveFolderSchema, driveFileItemSchema])
   .openapi("DriveItem");
 
