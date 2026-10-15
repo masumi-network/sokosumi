@@ -51,8 +51,8 @@
       try Self.expectGround(CGPoint(x: 21.8, y: 21.8), of: Self.badge(.online))
       // Inside the crescent's bite.
       try Self.expectGround(CGPoint(x: 26.5, y: 23.5), of: Self.badge(.afk))
-      // The offline ring's hole.
-      try Self.expectGround(CGPoint(x: 25, y: 25), of: Self.badge(.offline))
+      // The offline ring's hole, where it covers the face.
+      try Self.expectGround(CGPoint(x: 23.4, y: 23.4), of: Self.badge(.offline))
     }
 
     /// Web `--semantic-success` (light): hsl(142 72% 27%).
@@ -73,6 +73,21 @@
       // Inside the second face.
       let (face, ground) = try Self.sample(CGPoint(x: 28, y: 10), of: stack)
       #expect(!Self.close(face, ground), "\(face)")
+    }
+
+    /// A Read-only Direct's ring fades with its faces, as web's `border-sidebar` does under `opacity-50`: the face
+    /// under it shows at half its own dimmed strength.
+    @Test func dimmedDirectStackRingFadesWithTheFaces() throws {
+      let stack = DirectRoomAvatarStack(participants: [
+        DirectRoomAvatarParticipant(id: "a", name: "Ada", imageURL: nil),
+        DirectRoomAvatarParticipant(id: "b", name: "Bea", imageURL: nil)
+      ], isDimmed: true)
+      let (ring, ground) = try Self.sample(CGPoint(x: 19.5, y: 10), of: stack)
+      let face = try Self.sample(CGPoint(x: 28, y: 10), of: stack).pixel
+      let halfway = NSColor(srgbRed: (face.redComponent + ground.redComponent) / 2,
+                            green: (face.greenComponent + ground.greenComponent) / 2,
+                            blue: (face.blueComponent + ground.blueComponent) / 2, alpha: 1)
+      #expect(Self.close(ring, halfway), "\(ring) vs \(halfway)")
     }
   }
 #endif
