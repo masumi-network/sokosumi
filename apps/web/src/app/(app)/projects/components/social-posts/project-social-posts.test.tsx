@@ -250,7 +250,6 @@ const MESSAGES: Record<string, string> = {
   "failures.rejected": "The platform rejected this post.",
   "failures.mediaMissing": "A file is missing.",
   "failures.mediaType": "That file type is not allowed.",
-  "failures.generic": "Couldn't publish. Open the post for details.",
 };
 
 vi.mock("next-intl", async () => {
