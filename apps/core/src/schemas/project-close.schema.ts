@@ -27,7 +27,7 @@ export const projectCloseRecoveryRequestSchema = z
   })
   .openapi("ProjectCloseRecoveryRequest");
 
-export const projectCloseFailureSchema = z
+const projectCloseFailureSchema = z
   .object({
     scheduleId: z.string().nullable().openapi({
       description:
