@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.0](https://github.com/masumi-network/sokosumi/compare/macos-v1.0.1...macos-v1.1.0) (2026-10-15)
+
+
+### Features
+
+* **apple:** pick the server on the sign-in screen in debug builds ([#6399](https://github.com/masumi-network/sokosumi/issues/6399)) ([c8a3989](https://github.com/masumi-network/sokosumi/commit/c8a39890d3593814ced269587a241a54472d7b96))
+* **apple:** put the caret in the composer when a room is clicked ([#6393](https://github.com/masumi-network/sokosumi/issues/6393)) ([6a019a7](https://github.com/masumi-network/sokosumi/commit/6a019a7aed11d444ff85276e57283c9d4ae66106))
+* send the Mac app's sign-up to the website ([#6398](https://github.com/masumi-network/sokosumi/issues/6398)) ([adaaca3](https://github.com/masumi-network/sokosumi/commit/adaaca3995cf3ee4286e9df3a0767514b9d0f65d))
+
+
+### Bug Fixes
+
+* **apple:** cut the presence dot's halo out of the avatar ([#6397](https://github.com/masumi-network/sokosumi/issues/6397)) ([111064c](https://github.com/masumi-network/sokosumi/commit/111064c6712f0eefdbe31e4ef386105cd4904277))
+* **apple:** keep the room composer mounted when the transcript loads ([#6395](https://github.com/masumi-network/sokosumi/issues/6395)) ([689cc3f](https://github.com/masumi-network/sokosumi/commit/689cc3fc1d7b3339a3433b7142f69416e998b1b9))
+
 ## [1.0.1](https://github.com/masumi-network/sokosumi/compare/macos-v1.0.0...macos-v1.0.1) (2026-10-15)
 
 
