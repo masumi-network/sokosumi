@@ -132,14 +132,14 @@ _Avoid_: Trigger, manual fire, pulling the next Run forward
 
 **Owner**:
 The person who answers for a Task, Task Schedule or Job: who made it, or the person a Coworker or Soko Bot made it for. Private work is visible only to its Owner. Work a Soko Bot started on its own has no Owner, and neither has public work whose Owner deleted their account.
-_Avoid_: Responsible person, creator, payer, assignee, owner (when meaning the Organization owner role)
+_Avoid_: Responsible person, requester, creator, payer, assignee, owner (when meaning the Organization owner role)
 
 **Creator**:
 The person, Coworker or Soko Bot that made a Task, Task Schedule or Job.
 _Avoid_: Owner, author
 
 **Requester**:
-The person a Coworker or Soko Bot acted for when it made a Task, Task Schedule or Job. A record only: it grants no access and no rights.
+The person who asked a Soko Bot to act, recorded on its turns and Soko Bot schedules. A record only: it grants no access and no rights. Work a Coworker or Soko Bot makes for a person belongs to that person as its Owner.
 _Avoid_: Context user, on-behalf-of user, initiator, owner
 
 **Task participant**:

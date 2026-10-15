@@ -4,7 +4,7 @@
 - Archived: live number 0056 is retired; do not reuse it
 - Date: 2026-10-15
 
-Every rule this ADR set up asked for the computed responsible person and none asked for the stored Owner, so the Owner column only repeated part of a value Core had to rebuild from three columns on every query. [ADR-0057](../0057-the-owner-is-the-person-who-answers-for-the-work.md) stores that person in `ownerId` instead. The Creator, the Requester, work without anyone behind it, and the account-deletion rules carry over; the computed responsible person, the one-way move of existing rows, and the deprecation of `owner`, `ownerId` and `scope=owned` do not.
+Every rule this ADR set up asked for the computed responsible person and none asked for the stored Owner, so the Owner column only repeated part of a value Core had to rebuild from three columns on every query. [ADR-0057](../0057-the-owner-is-the-person-who-answers-for-the-work.md) stores that person in `ownerId` instead. The Creator, work without anyone behind it, and the account-deletion rules carry over; the computed responsible person, the Requester on Tasks, Task Schedules and Jobs, the one-way move of existing rows, and the deprecation of `owner`, `ownerId` and `scope=owned` do not.
 
 The original decision follows.
 
