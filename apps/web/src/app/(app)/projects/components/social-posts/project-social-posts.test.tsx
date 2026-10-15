@@ -1154,6 +1154,45 @@ describe("ProjectSocialPosts", () => {
     expect(within(handleRow).getByText("@sokosumi")).toBeVisible();
   });
 
+  it("shows a named user author without the User prefix", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[buildPost({ status: "FAILED" })]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    const draftRow = screen.getByTestId("social-post-post-draft");
+    expect(within(draftRow).getByText("Alice")).toBeVisible();
+    expect(
+      within(draftRow).queryByText("User · Alice"),
+    ).not.toBeInTheDocument();
+    expect(within(draftRow).queryByText("User")).not.toBeInTheDocument();
+  });
+
+  it("keeps the kind prefix on coworker authors", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({
+            status: "FAILED",
+            creator: { kind: "coworker", id: "coworker-1", name: "Scout" },
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    const draftRow = screen.getByTestId("social-post-post-draft");
+    expect(within(draftRow).getByText("Coworker · Scout")).toBeVisible();
+  });
+
   it("opens Social on its calendar, with Accounts as the last tab", async () => {
     const user = userEvent.setup();
     render(
