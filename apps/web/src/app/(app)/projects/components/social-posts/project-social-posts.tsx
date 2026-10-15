@@ -785,16 +785,23 @@ export function ProjectSocialPosts({
   }
 
   function renderDraft(post: SocialPost) {
+    function openPreview() {
+      setPreviewTarget(post);
+      setPreviewOpen(true);
+    }
+
     return (
       <li
         key={post.id}
         id={`social-post-${post.id}`}
-        className="flex min-w-0 flex-col gap-2"
+        className="flex h-full min-w-0 flex-col gap-2"
         data-testid={`social-post-${post.id}`}
       >
         <SocialPostPreview
           account={previewAccountFor(post, connections)}
+          compact
           media={post.media}
+          onSeeMore={openPreview}
           provider={post.provider}
           text={post.text}
           timestamp={null}
@@ -806,7 +813,7 @@ export function ProjectSocialPosts({
           />
         ) : null}
         {renderReconnectWarning(post)}
-        {renderPostActions(post)}
+        <div className="mt-auto">{renderPostActions(post)}</div>
       </li>
     );
   }
@@ -1128,7 +1135,7 @@ export function ProjectSocialPosts({
                     <ul
                       className={
                         section === "drafts"
-                          ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                          ? "grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3"
                           : "grid gap-2"
                       }
                       data-testid={

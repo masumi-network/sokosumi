@@ -18,6 +18,13 @@ export interface SocialPostPreviewContentProps {
   text: string;
   /** Publish time; null reads as "now" (a draft or a post going out now). */
   timestamp: Date | null;
+  /**
+   * Drafts grid: cap tall LinkedIn/Facebook/X media so a row of cards
+   * stays even. Composer and the full preview keep the feed height.
+   */
+  compact?: boolean;
+  /** Compact cards open the full preview instead of growing in the grid. */
+  onSeeMore?: () => void;
 }
 
 export function accountName(
@@ -185,16 +192,29 @@ export function PreviewMediaItem({
 export function PreviewMediaGrid({
   media,
   className,
+  compact = false,
 }: {
   media: SocialPostMediaRef[];
   className?: string;
+  compact?: boolean;
 }) {
   if (media.length === 0) return null;
   const [first, ...rest] = media;
   if (media.length === 1 && first) {
     return (
-      <div className={cn("overflow-hidden", className)}>
-        <PreviewMediaItem media={first} showPlay className="max-h-[32rem]" />
+      <div
+        className={cn("overflow-hidden", compact && "max-h-64", className)}
+        data-testid={compact ? "social-post-preview-media-compact" : undefined}
+      >
+        <PreviewMediaItem
+          media={first}
+          showPlay
+          className={
+            compact
+              ? "max-h-64 w-full object-cover object-top"
+              : "max-h-[32rem]"
+          }
+        />
       </div>
     );
   }

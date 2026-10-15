@@ -2684,6 +2684,9 @@
           "tiktok": {
             "more": "more",
             "videoRequired": "TikTok needs a video."
+          },
+          "x": {
+            "more": "Show more"
           }
         },
         "statistics": {
