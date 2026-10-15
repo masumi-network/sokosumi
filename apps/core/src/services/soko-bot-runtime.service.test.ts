@@ -5640,6 +5640,25 @@ describe("Drive file tools", () => {
     });
   });
 
+  it("puts an attached file's text into the brief a Coworker reads", async () => {
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "brief",
+        displayName: "brief.md",
+        mimeType: "text/markdown",
+        contentRevision: 1,
+        extractionState: "SUCCEEDED",
+        extractionReason: null,
+      },
+    ]);
+    files.chunks.mockResolvedValueOnce([{ text: "- Article 50 applies" }]);
+    await expect(
+      service["withInlineFiles"](authorized as never, "Review this.", [
+        "brief",
+      ]),
+    ).resolves.toBe("Review this.\n\n--- brief.md ---\n- Article 50 applies");
+  });
+
   it("reads a file's extracted text, and explains when there is none", async () => {
     files.loadLive.mockResolvedValueOnce([
       {
