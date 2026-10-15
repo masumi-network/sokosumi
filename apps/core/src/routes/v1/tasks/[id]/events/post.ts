@@ -36,6 +36,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
+import { requireResponsibleUserSeat } from "@/helpers/responsible-user-seat";
 import {
   mapTaskEvent,
   validateQueuedRequiresRunAt,
@@ -53,6 +54,10 @@ import {
 } from "@/helpers/task-notifications";
 import { addTaskParticipantsFromComment } from "@/helpers/task-participants";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
+import {
+  type ResponsibleUserColumns,
+  resolveResponsibleUserId,
+} from "@/helpers/task-visibility";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -79,8 +84,7 @@ const paramsSchema = z.object({
 });
 
 interface SettleTaskEventChargeParams {
-  task: {
-    ownerId: string;
+  task: ResponsibleUserColumns & {
     organizationId: string | null;
     status: TaskStatus;
   };
@@ -158,7 +162,7 @@ async function settleTaskEventCharge({
       );
     }
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-      userId: task.ownerId,
+      userId: resolveResponsibleUserId(task),
       organizationId: task.organizationId,
       cents,
       currentStatus: task.status,
@@ -188,7 +192,7 @@ async function settleTaskEventCharge({
       );
     }
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-      userId: task.ownerId,
+      userId: resolveResponsibleUserId(task),
       organizationId: task.organizationId,
       cents,
       currentStatus: task.status,
@@ -305,19 +309,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const isAgent = isAgentAuthContext(authContext);
 
       if (!isCancelOnlyWrite) {
-        const assignedSeatUserId = isAgent
-          ? task.ownerId
-          : requireUserContext(authContext).userId;
-        // Agents spend the task billing org. A person acts in the workspace
-        // the task currently lives in (move does not rewrite billing org).
-        const seatOrganizationId = isAgent
-          ? task.organizationId
-          : await readTaskWorkspaceOrganizationId(task.workspaceId, tx);
-        await requireAssignedOrganizationSeat(
-          assignedSeatUserId,
-          seatOrganizationId,
-          tx,
-        );
+        if (isAgent) {
+          // Agents spend the task billing org for its responsible person.
+          await requireResponsibleUserSeat(
+            resolveResponsibleUserId(task),
+            task.organizationId,
+            tx,
+          );
+        } else {
+          // A person acts in the workspace the task currently lives in (move
+          // does not rewrite billing org).
+          await requireAssignedOrganizationSeat(
+            requireUserContext(authContext).userId,
+            await readTaskWorkspaceOrganizationId(task.workspaceId, tx),
+            tx,
+          );
+        }
       }
 
       if (!isAgent && credits != null) {
@@ -509,6 +516,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
         addedParticipantUserIds,
         userId: task.ownerId,
+        chargedUserId: resolveResponsibleUserId(task),
         organizationId: task.organizationId,
         workspaceId: task.workspaceId,
         projectId: task.projectId,
@@ -532,6 +540,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       event,
       addedParticipantUserIds,
       userId,
+      chargedUserId,
       organizationId,
       workspaceId,
       projectId,
@@ -586,7 +595,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (charged) {
-      waitUntil(notifyLowBalanceAfterCharge({ userId, organizationId }));
+      waitUntil(
+        notifyLowBalanceAfterCharge({ userId: chargedUserId, organizationId }),
+      );
     }
 
     // Unreachable by construction (a charged payment always writes its claim

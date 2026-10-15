@@ -48,7 +48,7 @@ import {
 } from "@/helpers/agent-cost";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import { registerJobPurchase } from "@/helpers/job-purchase-registration";
-import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { requireResponsibleUserSeat } from "@/helpers/responsible-user-seat";
 import { creatorFields, type WorkCreator } from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -61,6 +61,7 @@ import { badRequest, notFound, unprocessableEntity } from "./error";
 import {
   buildCoworkerJobParentTaskWhere,
   buildHumanParentTaskVisibilityWhere,
+  resolveResponsibleUserId,
 } from "./task-visibility";
 
 export interface JobContext {
@@ -72,7 +73,7 @@ export interface JobContext {
  * Validates that user or organization has sufficient credit balance
  */
 async function validateCreditBalance(
-  userId: string,
+  userId: string | null,
   organizationId: string | null,
   costCents: bigint,
   tx: Prisma.TransactionClient,
@@ -115,6 +116,8 @@ async function createPaidJob(
     agentApiBaseUrl: string;
     ownerId: string;
     creator: WorkCreator;
+    /** Pays for the Job; null charges the Organization pool with no member. */
+    responsibleUserId: string | null;
     organizationId: string | null;
     workspaceId: string;
     inputData: InputSchemaType;
@@ -137,7 +140,7 @@ async function createPaidJob(
 ): Promise<JobWithListSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   const consumptions = await creditBucketRepository.prepareConsumption(
-    input.ownerId,
+    input.responsibleUserId,
     input.organizationId,
     cost.cents,
     tx,
@@ -176,7 +179,9 @@ async function createPaidJob(
       transaction: {
         create: {
           amount: -cost.cents,
-          user: { connect: { id: input.ownerId } },
+          ...(input.responsibleUserId && {
+            user: { connect: { id: input.responsibleUserId } },
+          }),
           ...(input.organizationId && {
             organization: { connect: { id: input.organizationId } },
           }),
@@ -477,7 +482,12 @@ export async function createAgentJobForUser(
   input: CreateAgentJobInput,
 ): Promise<JobWithListSummaryRelations> {
   const { owner, agentInput, taskContext } = input;
-  await requireAssignedOrganizationSeat(owner.ownerId, owner.organizationId);
+  // The Job's charge and Seat check follow its responsible person (ADR 0056).
+  const responsibleUserId = resolveResponsibleUserId({
+    ownerId: owner.ownerId,
+    ...creatorFields(input.creator, owner.ownerId),
+  });
+  await requireResponsibleUserSeat(responsibleUserId, owner.organizationId);
   const maxCents =
     agentInput.maxAcceptedCents ??
     (agentInput.maxCredits
@@ -603,7 +613,7 @@ export async function createAgentJobForUser(
     await serializableTransaction(
       async (tx) =>
         validateCreditBalance(
-          owner.ownerId,
+          responsibleUserId,
           owner.organizationId,
           cost.cents,
           tx,
@@ -866,13 +876,13 @@ export async function createAgentJobForUser(
   }
 
   const job = await serializableTransaction(async (tx) => {
-    await requireAssignedOrganizationSeat(
-      owner.ownerId,
+    await requireResponsibleUserSeat(
+      responsibleUserId,
       owner.organizationId,
       tx,
     );
     await validateCreditBalance(
-      owner.ownerId,
+      responsibleUserId,
       owner.organizationId,
       cost.cents,
       tx,
@@ -899,7 +909,7 @@ export async function createAgentJobForUser(
       }
 
       createdJob = await createPaidJob(
-        { ...jobInput, name: jobName },
+        { ...jobInput, name: jobName, responsibleUserId },
         cost,
         paidJobResult,
         identifierFromPurchaser,
@@ -918,7 +928,7 @@ export async function createAgentJobForUser(
   // charge that landed.
   if (cost.cents > 0n) {
     await notifyLowBalanceAfterCharge({
-      userId: owner.ownerId,
+      userId: responsibleUserId,
       organizationId: owner.organizationId,
     });
   }

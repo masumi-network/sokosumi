@@ -31,17 +31,14 @@ import prisma from "@/lib/db/prisma";
  * spending inside an organization spends the organization's credits.
  *
  * `userId` is null when Stripe named an organization customer, where no one
- * member is the subject. It is required for a low-balance check, because the
- * balance an organization member can spend depends on their seat.
+ * member is the subject. On a low-balance check it names the member charged,
+ * because the balance an organization member can spend depends on their
+ * seat; null there reads the Organization pool a charge with no member draws
+ * on (ADR 0056).
  */
 export interface BillingWallet {
   userId: string | null;
   organizationId: string | null;
-}
-
-/** The wallet a member charged, with the member named. */
-export interface ChargedBillingWallet extends BillingWallet {
-  userId: string;
 }
 
 /**
@@ -194,11 +191,12 @@ function reportBillingNotificationFailure(
  *
  * Read from the member's own view of the balance (`getBalance` scopes an
  * organization wallet by the member's seat), because that is the balance
- * whose exhaustion stops their work. A threshold of zero is the off switch:
+ * whose exhaustion stops their work. A charge with no member reads the
+ * Organization pool it drew on. A threshold of zero is the off switch:
  * no balance is below it.
  */
 export async function notifyLowBalanceAfterCharge(
-  wallet: ChargedBillingWallet,
+  wallet: BillingWallet,
 ): Promise<void> {
   try {
     const threshold = convertCreditsToCents(getEnv().LOW_CREDITS_THRESHOLD);

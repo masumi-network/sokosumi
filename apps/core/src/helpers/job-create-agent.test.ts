@@ -431,6 +431,45 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     },
   );
 
+  it.each([
+    { kind: "user" as const, userId: "user_1" },
+    { kind: "coworker" as const, coworkerId: "cow_1" },
+    { kind: "soko_bot" as const, sokoBotId: "bot_1" },
+  ])(
+    "charges a paid Job made by a $kind to its responsible person and checks their Seat",
+    async (creator) => {
+      agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
+      getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
+      createAgentClientMock.mockReturnValue({
+        startPaidAgentJob: sellerResponding(paidV1JobResponse),
+      });
+
+      await createAgentJobForUser(createInput({ creator })).catch(
+        () => undefined,
+      );
+
+      expect(requireAssignedOrganizationSeat).toHaveBeenCalledWith(
+        "user_1",
+        "org_1",
+        expect.anything(),
+      );
+      expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+        "user_1",
+        "org_1",
+        BigInt(5),
+        expect.anything(),
+      );
+      const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
+      expect(data.transaction.create.user).toEqual({
+        connect: { id: "user_1" },
+      });
+      expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
+        userId: "user_1",
+        organizationId: "org_1",
+      });
+    },
+  );
+
   it("records a Coworker hiring for a person as Creator and the person as Requester", async () => {
     await createAgentJobForUser(
       createInput({ creator: { kind: "coworker", coworkerId: "cow_1" } }),

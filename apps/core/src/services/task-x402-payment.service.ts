@@ -18,13 +18,14 @@ import {
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
-import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { isIdempotencyKeyUniqueConstraintError } from "@/helpers/prisma";
+import { requireResponsibleUserSeat } from "@/helpers/responsible-user-seat";
 import {
   applyGuardedTaskStatusUpdate,
   chargeTaskCreditsOrMarkOutOfCredits,
 } from "@/helpers/task-event-charge";
 import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
+import { resolveResponsibleUserId } from "@/helpers/task-visibility";
 import { buildX402AgentPricingListing } from "@/helpers/x402-agent-listing";
 import { verifyX402DemandAgainstAgentSources } from "@/helpers/x402-payment-verify";
 import { calculateCentsFromX402Amount } from "@/helpers/x402-pricing";
@@ -333,14 +334,15 @@ async function runX402ChargePhase(
       );
 
       // The charge draws from the same task pool as every other task charge,
-      // through the exact machinery the task-events masumiPayment branch uses.
-      await requireAssignedOrganizationSeat(
-        task.ownerId,
+      // through the exact machinery the task-events masumiPayment branch uses:
+      // the Task's responsible person (ADR 0056).
+      await requireResponsibleUserSeat(
+        resolveResponsibleUserId(task),
         task.organizationId,
         tx,
       );
       const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-        userId: task.ownerId,
+        userId: resolveResponsibleUserId(task),
         organizationId: task.organizationId,
         cents,
         currentStatus: task.status,
@@ -466,7 +468,7 @@ async function runX402ChargePhase(
     // After the commit: the wallet the charge came out of is the task's.
     waitUntil(
       notifyLowBalanceAfterCharge({
-        userId: task.ownerId,
+        userId: resolveResponsibleUserId(task),
         organizationId: task.organizationId,
       }),
     );
