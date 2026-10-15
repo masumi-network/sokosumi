@@ -1,8 +1,12 @@
 # Work has an Owner only when it is private
 
-- Status: Accepted
-- Supersedes: "`ownerId` is the creator" in [ADR-0020](./0020-assigned-seat-for-paid-org-work.md)
+- Status: Superseded by [ADR-0057](../0057-the-owner-is-the-person-who-answers-for-the-work.md) before it shipped
+- Archived: live number 0056 is retired; do not reuse it
 - Date: 2026-10-15
+
+Every rule this ADR set up asked for the computed responsible person and none asked for the stored Owner, so the Owner column only repeated part of a value Core had to rebuild from three columns on every query. [ADR-0057](../0057-the-owner-is-the-person-who-answers-for-the-work.md) stores that person in `ownerId` instead. The Creator, work without anyone behind it, and the account-deletion rules carry over; the computed responsible person, the Requester on Tasks, Task Schedules and Jobs, the one-way move of existing rows, and the deprecation of `owner`, `ownerId` and `scope=owned` do not.
+
+The original decision follows.
 
 Every Task, Task Schedule and Job had one required `ownerId`. It did four jobs at once: it recorded who made the work, it was the only reader of private work, charges and the Seat check ran on it, and it decided who was notified. Soko Bots shared by a Project or an Organization ([SOK-1356](https://linear.app/masumi/issue/SOK-1356/soko-bots-owned-by-an-organization-or-a-project)) act for many people and sometimes for nobody, so code had to invent an Owner, and the invented one went wrong: a schedule deleted together with its member, a stale fallback Organization owner, one person @mentioned on every team rhythm.
 

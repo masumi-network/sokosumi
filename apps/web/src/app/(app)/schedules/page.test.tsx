@@ -50,6 +50,14 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
   },
 }));
 
+const getMyMembersWithOrganizationsMock = vi.fn();
+
+vi.mock("@/lib/services/user.service", () => ({
+  userService: {
+    getMyMembersWithOrganizations: () => getMyMembersWithOrganizationsMock(),
+  },
+}));
+
 import { SchedulesPageContent } from "./schedules-page-content";
 
 const PROJECT = { id: "project-1", name: "Release planning" };
@@ -82,6 +90,9 @@ describe("SchedulesPage", () => {
       schedules: [SCHEDULE],
       nextCursor: "cursor-2",
     });
+    getMyMembersWithOrganizationsMock.mockResolvedValue([
+      { organizationId: "org-1", role: "admin" },
+    ]);
   });
 
   it("lists the workspace's schedules by project and state", async () => {
@@ -110,6 +121,7 @@ describe("SchedulesPage", () => {
         selectedProjectId: PROJECT.id,
         canCreate: true,
         canCreatePrivate: true,
+        canDeleteUnowned: true,
       }),
     );
   });

@@ -37,10 +37,18 @@ export default async function DeveloperTaskDetailPage({
       <div className={TASK_DETAIL_CONTEXT_STRIP_CLASS}>
         <div className="bg-card-background flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
           <div className="text-sm">
-            <span className="font-medium">{owner.name}</span>
-            <span className="text-muted-foreground"> · {owner.email}</span>
+            {/* Nobody is named when the task has no Owner. */}
+            {owner && (
+              <>
+                <span className="font-medium">{owner.name}</span>
+                <span className="text-muted-foreground">
+                  {" · "}
+                  {owner.email}
+                  {" · "}
+                </span>
+              </>
+            )}
             <span className="text-muted-foreground">
-              {" · "}
               {organization?.name ?? t("personalWorkspace")}
             </span>
           </div>

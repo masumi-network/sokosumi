@@ -443,6 +443,7 @@ export type SokoBotDeletionResult = {
         chatMessages: number;
         uploadedTaskFiles: number;
         taskSchedules: number;
+        jobs: number;
     };
 };
 
@@ -1368,11 +1369,14 @@ export type AdminTaskListItem = {
     name: string;
     status: TaskStatus;
     createdAt: Date;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -1401,11 +1405,14 @@ export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
 
 export type AdminTaskDetail = {
     task: Task;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -1418,17 +1425,25 @@ export type Task = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Task owner. Always a user.
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
-    ownerId: string;
-    owner: UserSummary;
+    ownerId: string | null;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    owner: UserSummary | null;
     /**
      * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    userId: string | null;
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
@@ -1468,7 +1483,10 @@ export type Task = {
      * @deprecated
      */
     coworker: CoworkerSummary | null;
-    creator: TaskCreator;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     /**
      * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
@@ -1590,30 +1608,19 @@ export type TaskParticipant = {
     addedAt: Date;
 };
 
-/**
- * Actor that created the task. Exactly one of user, coworker, or sokoBot.
- */
-export type TaskCreator = ({
-    type: 'user';
-} & TaskCreatorUser) | ({
-    type: 'coworker';
-} & TaskCreatorCoworker) | ({
-    type: 'sokoBot';
-} & TaskCreatorSokoBot);
-
-export type TaskCreatorUser = {
+export type WorkCreatorUser = {
     type: 'user';
     id: string;
     user: UserSummary;
 };
 
-export type TaskCreatorCoworker = {
+export type WorkCreatorCoworker = {
     type: 'coworker';
     id: string;
     coworker: CoworkerSummary;
 };
 
-export type TaskCreatorSokoBot = {
+export type WorkCreatorSokoBot = {
     type: 'sokoBot';
     id: string;
     sokoBot: SokoBotSummary;
@@ -1806,17 +1813,29 @@ export type JobSummary = {
     completedAt?: Date | null;
     agentId: string;
     /**
-     * Job owner. Always a user.
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
-    ownerId: string;
-    owner: UserSummary;
+    ownerId: string | null;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    owner: UserSummary | null;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     /**
      * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    userId: string | null;
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId?: string | null;
     organization?: OrganizationSummary;
     projectId?: string | null;
@@ -3461,11 +3480,14 @@ export type DeveloperTaskListItem = {
     updatedAt: Date;
     assignee: DeveloperCoworkerRef;
     creatorCoworker: DeveloperCoworkerRef;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -3481,11 +3503,14 @@ export type DeveloperCoworkerRef = {
 
 export type DeveloperTaskDetail = {
     task: Task;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -5670,9 +5695,9 @@ export type WorkspaceCalendarItem = {
     taskAssigneeId: string | null;
     taskAssigneeUserId?: string | null;
     /**
-     * User who owns the Task Schedule and the Tasks it creates
+     * Owner of the Task Schedule and the Tasks it creates; null when it has none
      */
-    taskOwnerId: string;
+    taskOwnerId: string | null;
     /**
      * Effective time at which the item appears in the Calendar
      */
@@ -6822,17 +6847,29 @@ export type Job = {
     completedAt?: Date | null;
     agentId: string;
     /**
-     * Job owner. Always a user.
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
-    ownerId: string;
-    owner: UserSummary;
+    ownerId: string | null;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    owner: UserSummary | null;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     /**
      * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    userId: string | null;
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId?: string | null;
     organization?: OrganizationSummary;
     projectId: string | null;
@@ -7759,17 +7796,25 @@ export type TaskListItem = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Task owner. Always a user.
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
-    ownerId: string;
-    owner: UserSummary;
+    ownerId: string | null;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    owner: UserSummary | null;
     /**
      * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    userId: string | null;
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
@@ -7809,7 +7854,10 @@ export type TaskListItem = {
      * @deprecated
      */
     coworker: CoworkerSummary | null;
-    creator: TaskCreator;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     /**
      * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
@@ -7897,10 +7945,17 @@ export type TaskSchedule = {
     id: string;
     workspaceId: string;
     organizationId: string | null;
-    ownerId: string;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    ownerId: string | null;
     creatorUserId: string | null;
     creatorCoworkerId: string | null;
     creatorSokoBotId: string | null;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     state: TaskScheduleState;
     rule: {
         expr: string;

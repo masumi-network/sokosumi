@@ -101,7 +101,7 @@ function turn(overrides = {}) {
     source: "SCHEDULE",
     status: "COMPLETED",
     sokoBotId: "bot",
-    userId: "owner",
+    requestedByUserId: "owner",
     workspaceId: "workspace",
     destinationRoomId: "room",
     destinationAudience: {
@@ -472,7 +472,7 @@ describe("durable delivery", () => {
       delivery({
         turn: turn({
           source: "CHAT",
-          requestedByUserId: "teammate",
+          askedByUserId: "teammate",
           chatResponseMessageId: "placeholder",
           chatMentionId: "mention",
           destinationAudience: {

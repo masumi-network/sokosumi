@@ -240,7 +240,7 @@ export async function runSokoBotMentionDispatch(params: {
         mentionId,
         responseMessageId: placeholderId,
         classifyMessage: message,
-        requestedByUserId: isOwner && !askedByBot ? null : userId,
+        askedByUserId: isOwner && !askedByBot ? null : userId,
         askedByBot,
         chainDepth,
       },

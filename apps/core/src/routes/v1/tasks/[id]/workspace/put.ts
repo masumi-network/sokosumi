@@ -1,9 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskVisibility } from "@sokosumi/database";
 import {
+  requireOwnerForPersonalWorkspace,
   requireTaskAssignableCoworker,
   requireTaskAssignableSokoBot,
-  requireTaskOwnership,
+  requireTaskMoveAccess,
 } from "@/helpers/access-control";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
@@ -34,7 +35,8 @@ export const putTaskWorkspaceRequestSchema = z.object({
 const route = createRoute({
   method: "put",
   path: "/{id}/workspace",
-  description: "Change task workspace",
+  description:
+    "Change task workspace. Only the task's owner may move it. A task without an owner needs an organization owner or admin and cannot move to a personal workspace.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -64,13 +66,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { organizationId: targetOrganizationId } = c.req.valid("json");
 
     const result = await serializableTransaction(async (tx) => {
-      // Owner-only, unlike other Task writes: a member moving the Task to
-      // another organization would take it away from its owner.
-      const ownedTask = await requireTaskOwnership(userContext, id, tx);
-      requireTaskNotParked(ownedTask);
+      const movedTask = await requireTaskMoveAccess(userContext, id, tx);
+      requireTaskNotParked(movedTask);
 
       const workspace = await tx.workspace.findUniqueOrThrow({
-        where: { id: ownedTask.workspaceId },
+        where: { id: movedTask.workspaceId },
         select: { organizationId: true },
       });
 
@@ -84,7 +84,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             where: { id },
             include: buildTaskIncludeForViewer(
               authContext,
-              ownedTask.workspaceId,
+              movedTask.workspaceId,
             ),
           }),
         };
@@ -92,10 +92,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (
         targetOrganizationId === null &&
-        ownedTask.visibility === TaskVisibility.PRIVATE
+        movedTask.visibility === TaskVisibility.PRIVATE
       ) {
         throw badRequest("Private Tasks cannot move to a personal workspace");
       }
+
+      requireOwnerForPersonalWorkspace(movedTask, targetOrganizationId);
 
       // `null` targets the authenticated user's personal workspace.
       if (targetOrganizationId !== null) {
@@ -114,8 +116,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const calendarScopes = [
         {
-          workspaceId: ownedTask.workspaceId,
-          projectIds: [ownedTask.projectId],
+          workspaceId: movedTask.workspaceId,
+          projectIds: [movedTask.projectId],
         },
         {
           workspaceId: targetWorkspace.id,
@@ -136,7 +138,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw conflict("Task Calendar source changed during workspace move");
         }
       }
-      if (!(await lockTaskRows(tx, [ownedTask.id]))) {
+      if (!(await lockTaskRows(tx, [movedTask.id]))) {
         throw conflict("Task changed during workspace move");
       }
 
@@ -158,16 +160,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // Pilot isolation: assignee must be usable in the target workspace
       // (global whitelist OR GRANTED early access). Blocks smuggling a
       // workspace-scoped coworker into another workspace via move.
-      if (ownedTask.assigneeId) {
+      if (movedTask.assigneeId) {
         await requireTaskAssignableCoworker(
-          ownedTask.assigneeId,
+          movedTask.assigneeId,
           targetWorkspace.id,
           tx,
         );
       }
-      if (ownedTask.assigneeSokoBotId) {
+      if (movedTask.assigneeSokoBotId) {
         await requireTaskAssignableSokoBot(
-          ownedTask.assigneeSokoBotId,
+          movedTask.assigneeSokoBotId,
           targetWorkspace.id,
           tx,
         );
@@ -192,7 +194,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       return {
-        deliveryWorkspaceIds: [ownedTask.workspaceId, targetWorkspace.id],
+        deliveryWorkspaceIds: [movedTask.workspaceId, targetWorkspace.id],
         task: await tx.task.findUniqueOrThrow({
           where: { id },
           include: buildTaskIncludeForViewer(authContext, targetWorkspace.id),

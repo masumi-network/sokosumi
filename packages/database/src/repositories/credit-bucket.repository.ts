@@ -31,8 +31,13 @@ interface CreditBucketBalanceRow {
 }
 
 export const creditBucketRepository = {
+  /**
+   * What `userId` can spend in this workspace. A null user with an
+   * organization reads the Organization pool a charge with no member draws on
+   * (ADR 0057).
+   */
   async getBalance(
-    userId: string,
+    userId: string | null,
     organizationId: string | null,
     tx: Prisma.TransactionClient,
   ): Promise<bigint> {
@@ -230,10 +235,11 @@ export const creditBucketRepository = {
 
   /**
    * FIFO consume in list order until `cents` is covered. Throws if
-   * insufficient.
+   * insufficient. A null user with an organization consumes the Organization
+   * pool with no member and no Seat (ADR 0057).
    */
   async prepareConsumption(
-    userId: string,
+    userId: string | null,
     organizationId: string | null,
     cents: bigint,
     tx: Prisma.TransactionClient,
@@ -280,7 +286,7 @@ export const creditBucketRepository = {
 };
 
 async function getFifoBucketsToCoverSpend(
-  userId: string,
+  userId: string | null,
   organizationId: string | null,
   now: Date,
   cents: bigint,

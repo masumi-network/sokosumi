@@ -1,5 +1,6 @@
 import {
   CoworkerWorkspaceAccessStatus,
+  MemberRole,
   type Prisma,
   TaskStatus,
   TaskVisibility,
@@ -2352,17 +2353,17 @@ describe("requireJobReadForRouteVars", () => {
 });
 
 describe("requireJobCollaboration", () => {
-  it("uses ownership for users", async () => {
+  it("allows the job's Owner", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
+      ownerId: "user_123",
+      taskId: null,
     } as never);
 
-    await requireJobCollaboration(userAuthContext, "job_123", tx);
-
-    expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: { id: "job_123", ownerId: "user_123" },
-    });
+    await expect(
+      requireJobCollaboration(userAuthContext, "job_123", tx),
+    ).resolves.toMatchObject({ id: "job_123" });
   });
 
   it("rejects users that do not own the job", async () => {
@@ -2376,10 +2377,15 @@ describe("requireJobCollaboration", () => {
 
   // SOK-1030 widened job *sharing* to any workspace member via
   // `requireJobShareCollaboration`. This helper still guards refund, workspace
-  // move, metadata patch, and input submission, so it must stay owner-only.
-  it("stays owner-only for a member of the same organization", async () => {
+  // move, metadata patch, and input submission, so it stays with the job's
+  // Owner (ADR 0057).
+  it("refuses a member of the same organization a job someone else owns", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_of_another_member",
+      ownerId: "user_123",
+      taskId: null,
+    } as never);
 
     await expect(
       requireJobCollaboration(
@@ -2388,9 +2394,78 @@ describe("requireJobCollaboration", () => {
         tx,
       ),
     ).rejects.toThrow("You can only access your own jobs");
+  });
 
-    expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: { id: "job_of_another_member", ownerId: "member_456" },
+  describe("on a job without an Owner", () => {
+    function jobWithoutOwner(tx: Prisma.TransactionClient) {
+      vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+        id: "job_123",
+        ownerId: null,
+        workspaceId,
+        taskId: null,
+      } as never);
+      vi.mocked(tx.workspace.findUnique).mockResolvedValueOnce({
+        organizationId: "org_123",
+      } as never);
+    }
+
+    it("lets a seated member edit it", async () => {
+      const tx = createTransactionClient();
+      jobWithoutOwner(tx);
+
+      await expect(
+        requireJobCollaboration(userAuthContext, "job_123", tx),
+      ).resolves.toMatchObject({ id: "job_123" });
+      expect(requireAssignedOrganizationSeatMock).toHaveBeenCalledWith(
+        "user_123",
+        "org_123",
+        tx,
+      );
+    });
+
+    it("lets an Organization admin manage it", async () => {
+      const tx = createTransactionClient();
+      jobWithoutOwner(tx);
+      resolveMemberOrganizationByIdMock.mockResolvedValueOnce({
+        role: MemberRole.ADMIN,
+      });
+
+      await expect(
+        requireJobCollaboration(userAuthContext, "job_123", tx, {
+          right: "manage",
+        }),
+      ).resolves.toMatchObject({ id: "job_123" });
+    });
+
+    it("refuses to let an Organization admin without a Seat manage it", async () => {
+      const tx = createTransactionClient();
+      jobWithoutOwner(tx);
+      requireAssignedOrganizationSeatMock.mockRejectedValueOnce(
+        new HTTPException(403, { message: "Seat required" }),
+      );
+
+      await expect(
+        requireJobCollaboration(userAuthContext, "job_123", tx, {
+          right: "manage",
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
+    it("refuses to let a plain member manage it", async () => {
+      const tx = createTransactionClient();
+      jobWithoutOwner(tx);
+      resolveMemberOrganizationByIdMock.mockResolvedValueOnce({
+        role: MemberRole.MEMBER,
+      });
+
+      await expect(
+        requireJobCollaboration(userAuthContext, "job_123", tx, {
+          right: "manage",
+        }),
+      ).rejects.toMatchObject({
+        status: 403,
+        cause: { kind: "organization_role_forbidden" },
+      });
     });
   });
 
@@ -2404,6 +2479,7 @@ describe("requireJobCollaboration", () => {
     } as never);
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
+      ownerId: "user_delegate",
       taskId: "tsk_123",
     } as never);
     vi.mocked(tx.task.findFirst)
@@ -2429,6 +2505,7 @@ describe("requireJobCollaboration", () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
+      ownerId: "user_123",
       taskId: "tsk_123",
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
@@ -2456,6 +2533,7 @@ describe("requireJobCollaboration", () => {
     } as never);
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
+      ownerId: "user_delegate",
       taskId: "tsk_123",
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({

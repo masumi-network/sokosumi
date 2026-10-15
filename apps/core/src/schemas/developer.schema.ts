@@ -5,6 +5,7 @@ import { dateTimeSchema } from "@/helpers/datetime";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskSchema } from "@/schemas/task.schema";
+import { workOwnerWithEmailSchema } from "@/schemas/work-creator.schema";
 
 const developerCoworkerRefSchema = z
   .object({
@@ -13,12 +14,6 @@ const developerCoworkerRefSchema = z
     slug: z.string().openapi({ example: "ops-agent" }),
   })
   .openapi("DeveloperCoworkerRef");
-
-const developerTaskOwnerSchema = z.object({
-  id: z.string().openapi({ example: "user_123" }),
-  name: z.string().openapi({ example: "Ada Lovelace" }),
-  email: z.string().openapi({ example: "ada@example.com" }),
-});
 
 const developerOrganizationRefSchema = z
   .object({
@@ -51,7 +46,7 @@ const developerTaskListItemSchema = z
     updatedAt: dateTimeSchema,
     assignee: developerCoworkerRefSchema.nullable(),
     creatorCoworker: developerCoworkerRefSchema.nullable(),
-    owner: developerTaskOwnerSchema,
+    owner: workOwnerWithEmailSchema,
     organization: developerOrganizationRefSchema,
   })
   .openapi("DeveloperTaskListItem");
@@ -68,7 +63,7 @@ export const developerTaskIdParamSchema = z.object({
 export const developerTaskDetailSchema = z
   .object({
     task: taskSchema,
-    owner: developerTaskOwnerSchema,
+    owner: workOwnerWithEmailSchema,
     organization: developerOrganizationRefSchema,
   })
   .openapi("DeveloperTaskDetail");
