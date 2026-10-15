@@ -1,13 +1,16 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { jobInclude } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
-import { requireJobCollaboration } from "@/helpers/access-control";
-import { badRequest, conflict, notFound } from "@/helpers/error";
+import {
+  readWorkspaceOrganizationId,
+  requireJobCollaboration,
+  requireResponsiblePersonForPersonalWorkspace,
+} from "@/helpers/access-control";
+import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
-import { resolveResponsibleUserId } from "@/helpers/task-visibility";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type OpenAPIHonoWithAuth,
@@ -72,28 +75,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         { right: "manage" },
       );
 
-      const currentJob = await tx.job.findFirst({
-        where: { id },
-        select: {
-          taskId: true,
-          workspace: {
-            select: {
-              organizationId: true,
-            },
-          },
-        },
-      });
-
-      if (!currentJob) {
-        throw notFound("Job not found");
-      }
-
-      if (currentJob.taskId !== null) {
+      if (accessibleJob.taskId !== null) {
         throw conflict("Task-attached jobs inherit their task workspace");
       }
 
       const workspaceChanged =
-        targetOrganizationId !== currentJob.workspace.organizationId;
+        targetOrganizationId !==
+        (await readWorkspaceOrganizationId(accessibleJob.workspaceId, tx));
 
       if (!workspaceChanged) {
         const existingJob = await tx.job.findUnique({
@@ -108,16 +96,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         return serializeJobDetails(mapJobWithStatus(existingJob));
       }
 
-      // `null` targets the authenticated user's personal workspace, where a
-      // job nobody is responsible for would have nobody left to manage it.
-      if (
-        targetOrganizationId === null &&
-        resolveResponsibleUserId(accessibleJob) === null
-      ) {
-        throw badRequest(
-          "Work nobody is responsible for cannot move to a personal workspace",
-        );
-      }
+      // `null` targets the authenticated user's personal workspace.
+      requireResponsiblePersonForPersonalWorkspace(
+        accessibleJob,
+        targetOrganizationId,
+      );
       if (targetOrganizationId !== null) {
         await resolveMemberOrganizationById({
           id: targetOrganizationId,

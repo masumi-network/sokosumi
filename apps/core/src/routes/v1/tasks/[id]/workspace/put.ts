@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskVisibility } from "@sokosumi/database";
 import {
+  requireResponsiblePersonForPersonalWorkspace,
   requireTaskAssignableCoworker,
   requireTaskAssignableSokoBot,
   requireTaskMoveAccess,
@@ -13,7 +14,6 @@ import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
-import { resolveResponsibleUserId } from "@/helpers/task-visibility";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -97,16 +97,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("Private Tasks cannot move to a personal workspace");
       }
 
-      // A Task nobody is responsible for would have nobody left to manage it
-      // in a personal workspace.
-      if (
-        targetOrganizationId === null &&
-        resolveResponsibleUserId(movedTask) === null
-      ) {
-        throw badRequest(
-          "Work nobody is responsible for cannot move to a personal workspace",
-        );
-      }
+      requireResponsiblePersonForPersonalWorkspace(
+        movedTask,
+        targetOrganizationId,
+      );
 
       // `null` targets the authenticated user's personal workspace.
       if (targetOrganizationId !== null) {

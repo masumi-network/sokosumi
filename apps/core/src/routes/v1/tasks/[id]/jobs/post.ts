@@ -70,7 +70,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       owner: {
         ownerId: task.ownerId,
         // Made for the Task's responsible person, who pays for it.
-        requestedByUserId: resolveResponsibleUserId(task),
+        personId: resolveResponsibleUserId(task),
         organizationId: task.organizationId,
         workspaceId: task.workspaceId,
       },

@@ -13,7 +13,7 @@ import { waitUntil } from "@vercel/functions";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
-  readTaskWorkspaceOrganizationId,
+  readWorkspaceOrganizationId,
   requireTaskCommentAccess,
   requireTaskStatusWriteAccess,
 } from "@/helpers/access-control";
@@ -321,7 +321,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           // does not rewrite billing org).
           await requireAssignedOrganizationSeat(
             requireUserContext(authContext).userId,
-            await readTaskWorkspaceOrganizationId(task.workspaceId, tx),
+            await readWorkspaceOrganizationId(task.workspaceId, tx),
             tx,
           );
         }

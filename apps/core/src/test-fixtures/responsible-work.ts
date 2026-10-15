@@ -16,7 +16,7 @@ export const FIXTURE_SOKO_BOT_CREATOR_ID =
  * `maker` with `responsibleUserId` behind it: the person who made it, or the
  * person a Coworker or Soko Bot made it for. `null` is work nobody is
  * responsible for (a deleted person, or a Coworker or Soko Bot acting on its
- * own). The Owner column is null although Prisma still types it as required.
+ * own).
  */
 export function publicWorkMadeBy(
   maker: WorkMaker,

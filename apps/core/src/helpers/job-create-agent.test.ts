@@ -493,7 +493,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       createInput({
         owner: {
           ownerId: null,
-          requestedByUserId: "user_resumer",
+          personId: "user_resumer",
           organizationId: "org_1",
           workspaceId: "11111111-1111-7111-8111-111111111111",
         },

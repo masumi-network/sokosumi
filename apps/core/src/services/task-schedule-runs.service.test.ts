@@ -196,7 +196,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     it("reaches the person who made the schedule", async () => {
       const schedule = seedTaskSchedule({
         nextRunAt: MONDAY_9,
-        ownerId: null as unknown as string,
+        ownerId: null,
         creatorUserId: MEMBER_ID,
       });
       seedRun(schedule, MONDAY_9);
@@ -213,7 +213,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     it("reaches the Requester of a Coworker's schedule", async () => {
       const schedule = seedTaskSchedule({
         nextRunAt: MONDAY_9,
-        ownerId: null as unknown as string,
+        ownerId: null,
         creatorUserId: null,
         creatorCoworkerId: COWORKER_ID,
         requestedByUserId: MEMBER_ID,
@@ -232,7 +232,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     it("reaches nobody when nobody is responsible", async () => {
       const schedule = seedTaskSchedule({
         nextRunAt: MONDAY_9,
-        ownerId: null as unknown as string,
+        ownerId: null,
         creatorUserId: null,
         creatorSokoBotId: SOKO_BOT_ID,
       });

@@ -1,4 +1,3 @@
-import type { TaskSchedule } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -122,8 +121,7 @@ describe("DELETE /tasks/schedules/{id}", () => {
     });
 
     function seedPublicSchedule(columns: ReturnType<typeof publicWorkMadeBy>) {
-      // Prisma still types the Owner as required; public work has none.
-      return seedTaskSchedule(columns as unknown as Partial<TaskSchedule>);
+      return seedTaskSchedule(columns);
     }
 
     it.each(WORK_MAKERS)(

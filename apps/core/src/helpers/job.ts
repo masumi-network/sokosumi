@@ -343,10 +343,10 @@ interface CreateAgentJobInput {
 export interface JobOwnerContext {
   ownerId: string | null;
   /**
-   * The person a Coworker or Soko Bot makes the Job for, and so its
-   * Requester; the Owner when omitted.
+   * The person the Job is made for: its Requester when a Coworker or Soko
+   * Bot makes it. The Owner when omitted.
    */
-  requestedByUserId?: string | null;
+  personId?: string | null;
   organizationId: string | null;
   workspaceId: string;
 }
@@ -494,7 +494,7 @@ export async function createAgentJobForUser(
 ): Promise<JobWithListSummaryRelations> {
   const { owner, agentInput, taskContext } = input;
   // The Job's charge and Seat check follow its responsible person (ADR 0056).
-  const personId = owner.requestedByUserId ?? owner.ownerId;
+  const personId = owner.personId ?? owner.ownerId;
   const responsibleUserId = resolveResponsibleUserId({
     ownerId: owner.ownerId,
     ...creatorFields(input.creator, personId),

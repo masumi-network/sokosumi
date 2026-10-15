@@ -16,8 +16,8 @@ import { HTTPException } from "hono/http-exception";
 import {
   requireCoworkerCapability,
   requireGrantedWorkspaceAccessOrRequest,
+  requireRightIfNobodyIsResponsible,
   requireTaskAssignableSokoBot,
-  requireUnattendedWorkRight,
 } from "@/helpers/access-control";
 import {
   lockCalendarScope,
@@ -1004,14 +1004,12 @@ export async function deleteTaskSchedule(
   await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);
-    if (resolveResponsibleUserId(current) === null) {
-      await requireUnattendedWorkRight(
-        actor.userId,
-        current.workspaceId,
-        "manage",
-        tx,
-      );
-    }
+    await requireRightIfNobodyIsResponsible(
+      actor.userId,
+      current,
+      "manage",
+      tx,
+    );
     await requireOpenScheduleProjects(tx, current.workspaceId, [
       current.projectId,
     ]);

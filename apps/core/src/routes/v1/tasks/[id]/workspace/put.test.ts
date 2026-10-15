@@ -63,6 +63,8 @@ vi.mock("@/helpers/access-control", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/helpers/access-control")>();
   return {
+    requireResponsiblePersonForPersonalWorkspace:
+      actual.requireResponsiblePersonForPersonalWorkspace,
     requireTaskMoveAccess: actual.requireTaskMoveAccess,
     requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
     requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,

@@ -197,9 +197,25 @@ function createApp(activeOrganizationId: string | null = null) {
   return app;
 }
 
+/**
+ * The job's workspace is read on its own; unless a test mocks it, it answers
+ * with the `workspace` of the job record `findFirst` last returned.
+ */
+async function currentJobWorkspace() {
+  const job = (await jobFindFirstMock.mock.results.at(-1)?.value) as
+    | CurrentJobRecord
+    | null
+    | undefined;
+  return { organizationId: job?.workspace.organizationId ?? null };
+}
+
 function mockTransaction(tx: TransactionMock) {
+  const withWorkspace = {
+    workspace: { findUnique: vi.fn(currentJobWorkspace) },
+    ...tx,
+  };
   prismaTransactionMock.mockImplementation(async (callback) => {
-    return await callback(tx);
+    return await callback(withWorkspace);
   });
 }
 
@@ -266,17 +282,7 @@ describe("PUT /jobs/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(jobFindFirstMock).toHaveBeenCalledWith({
-      where: { id: "job_123" },
-      select: {
-        taskId: true,
-        workspace: {
-          select: {
-            organizationId: true,
-          },
-        },
-      },
-    });
+    expect(jobFindFirstMock).toHaveBeenCalledTimes(1);
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith({
       id: "org_target",
       userId: "user_123",
