@@ -36,6 +36,17 @@ function backgroundStopNote(turn: {
   return `Background run "${turn.backgroundTitle}" ${how} before it could report.${turn.errorDetail ? ` (${turn.errorDetail.slice(0, 300)})` : ""}`;
 }
 
+/**
+ * A chat turn's answer fills the "Thinking…" message posted when it started.
+ * A background run started from chat has none: its report is a new message.
+ */
+function fillsChatPlaceholder(turn: {
+  source: string;
+  parentTurnId: string | null;
+}): boolean {
+  return turn.source === "CHAT" && !turn.parentTurnId;
+}
+
 /** Called inside the settlement transaction; no historical turn backfill. */
 export async function enqueueSokoBotDelivery(
   tx: Prisma.TransactionClient,
@@ -273,7 +284,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
       }
       if (delivery.status === "PERSISTED") return delivery;
       let messageId: string;
-      if (turn.source === "CHAT") {
+      if (fillsChatPlaceholder(turn)) {
         if (!turn.chatResponseMessageId || !turn.chatMentionId)
           throw new Error("CHAT_DESTINATION_MISSING");
         const existing = await tx.chatRoomMessage.findFirst({
@@ -375,7 +386,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
       persisted.messageId,
       persisted.reason === "SILENT"
         ? "delete"
-        : persisted.turn.source === "CHAT"
+        : fillsChatPlaceholder(persisted.turn)
           ? "update"
           : "create",
       { throwOnError: true },

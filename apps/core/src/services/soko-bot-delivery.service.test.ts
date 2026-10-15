@@ -280,6 +280,38 @@ describe("durable delivery", () => {
     });
   });
 
+  it("posts a background run's report as a new message in the chat it came from", async () => {
+    mocks.find.mockResolvedValue(
+      delivery({
+        turn: turn({
+          source: "CHAT",
+          parentTurnId: "parent",
+          backgroundTitle: "Gmail CRM",
+          finalAnswer: "412 contacts in the CRM table.",
+        }),
+      }),
+    );
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.persistChat).not.toHaveBeenCalled();
+    expect(mocks.message).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          content: "412 contacts in the CRM table.",
+          metadata: {
+            soko_bot: {
+              turn_id: "turn",
+              source: "CHAT",
+              background_run_title: "Gmail CRM",
+            },
+          },
+        }),
+      }),
+    );
+    expect(mocks.publish).toHaveBeenCalledWith("message", "create", {
+      throwOnError: true,
+    });
+  });
+
   it("tags an unprompted message with the schedule that started it", async () => {
     mocks.find.mockResolvedValue(
       delivery({

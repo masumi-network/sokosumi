@@ -126,6 +126,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         },
       });
       const authorized: AuthorizedSokoBotRuntime = {
+        toolCallLimit: 64,
         turn,
         classificationConfidence: 1,
         grant: {

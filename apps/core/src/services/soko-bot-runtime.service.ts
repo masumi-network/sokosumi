@@ -263,7 +263,23 @@ const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;
 const ACTIVE_STATUSES = ["STARTING", "RUNNING", "CANCEL_REQUESTED"] as const;
 const DECISION_TTL_MS = 24 * 60 * 60 * 1_000;
 const TOOL_CALL_STALE_MS = 2 * 60 * 1_000;
-const TOOL_CALL_LIMIT_PER_TURN = 64;
+const TOOL_CALLS_PER_FIFTEEN_MINUTES = 64;
+
+/**
+ * Core tool calls a turn may make, in proportion to how long it may run: a
+ * fixed 64 stopped a six-hour background run after eight minutes.
+ */
+export function sokoBotToolCallLimit(turn: {
+  createdAt: Date;
+  deadlineAt: Date;
+}): number {
+  const fifteenMinutes = 15 * 60 * 1_000;
+  const duration = turn.deadlineAt.getTime() - turn.createdAt.getTime();
+  return Math.max(
+    TOOL_CALLS_PER_FIFTEEN_MINUTES,
+    Math.round((duration / fifteenMinutes) * TOOL_CALLS_PER_FIFTEEN_MINUTES),
+  );
+}
 /** The limit is on Core's tools; sandbox reads are recorded but not counted. */
 const CORE_TOOL_CALLS = {
   capability: { notIn: [...SOKO_BOT_SANDBOX_CAPABILITIES] },
@@ -490,6 +506,7 @@ export interface SokoBotActionContext {
 
 export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
   grant: SokoBotTurnGrantClaims;
+  toolCallLimit: number;
   askedByKind?: SokoBotPacketAudience;
 }
 
@@ -742,6 +759,7 @@ export class SokoBotRuntimeService {
         chainDepth: true,
         intentId: true,
         intentRevision: true,
+        createdAt: true,
         deadlineAt: true,
         leaseExpiresAt: true,
         capabilityNames: true,
@@ -892,6 +910,7 @@ export class SokoBotRuntimeService {
 
     return {
       grant,
+      toolCallLimit: sokoBotToolCallLimit(turn),
       askedByKind: readSokoBotPacketAudience(turn.contextSnapshot?.packet),
       turn: {
         id: turn.id,
@@ -1215,7 +1234,7 @@ export class SokoBotRuntimeService {
         "Opening a chat with a colleague is for turns your owner asked for. Tell them who you would approach and why instead.",
       );
     }
-    // A turn may make 64 tool calls, so without a bound one instruction could
+    // A turn may make 64 tool calls or more, so without a bound one instruction could
     // put the bot in front of every member of the organization at once.
     const opened = await prisma.sokoBotToolCall.count({
       where: {
@@ -3805,7 +3824,7 @@ export class SokoBotRuntimeService {
         const callCount = await tx.sokoBotToolCall.count({
           where: { turnId: input.turnId, ...CORE_TOOL_CALLS },
         });
-        if (callCount >= TOOL_CALL_LIMIT_PER_TURN) {
+        if (callCount >= authorized.toolCallLimit) {
           throw new SokoBotRuntimeConflictError(
             "Soko Bot turn tool-call limit reached",
           );
@@ -4632,7 +4651,7 @@ export class SokoBotRuntimeService {
               if (
                 (await tx.sokoBotToolCall.count({
                   where: { turnId: authorized.turn.id, ...CORE_TOOL_CALLS },
-                })) > TOOL_CALL_LIMIT_PER_TURN
+                })) > authorized.toolCallLimit
               ) {
                 throw new SokoBotRuntimeConflictError(
                   "Soko Bot turn tool-call limit reached",
