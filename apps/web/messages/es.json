@@ -2616,6 +2616,17 @@
           "description": "La publicación saldrá ahora.",
           "confirm": "Reintentar"
         },
+        "bulkRetry": {
+          "selectPost": "Seleccionar esta publicación",
+          "selectAll": "Seleccionar todas las publicaciones que se pueden reintentar",
+          "selected": "{count} seleccionadas",
+          "retrySelected": "Reintentar selección",
+          "title": "¿Reintentar estas publicaciones ahora?",
+          "description": "Cada publicación seleccionada saldrá de inmediato. Después verás cuáles se publicaron y cuáles siguen necesitando atención.",
+          "confirm": "Reintentar selección",
+          "resultsTitle": "Resultado",
+          "published": "Publicada"
+        },
         "connectPrompt": {
           "title": "Conecta una cuenta para empezar a publicar",
           "body": "Las publicaciones salen de las cuentas de este proyecto.",

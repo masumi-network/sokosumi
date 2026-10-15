@@ -206,6 +206,16 @@ const MESSAGES: Record<string, string> = {
   "retryDialog.title": "Retry this post?",
   "retryDialog.description": "The post goes out now.",
   "retryDialog.confirm": "Retry",
+  "bulkRetry.selectPost": "Select this post",
+  "bulkRetry.selectAll": "Select all posts that can be retried",
+  "bulkRetry.selected": "{count} selected",
+  "bulkRetry.retrySelected": "Retry selected",
+  "bulkRetry.title": "Retry these posts now?",
+  "bulkRetry.description":
+    "Each selected post goes out right away. You will see which ones published and which still need attention.",
+  "bulkRetry.confirm": "Retry selected",
+  "bulkRetry.resultsTitle": "Retry results",
+  "bulkRetry.published": "Published",
   "toasts.published": "Post published.",
   "toasts.publishFailed": "Publishing failed: {error}",
   "toasts.publishFailedItem": "{account} — {error}",
@@ -539,10 +549,16 @@ function NewPostButton() {
   );
 }
 
-function ComposeHarness({ children }: { children: React.ReactNode }) {
+function ComposeHarness({
+  children,
+  searchParams,
+}: {
+  children: React.ReactNode;
+  searchParams?: string;
+}) {
   return (
     <TestQueryProvider>
-      <NuqsTestingAdapter>
+      <NuqsTestingAdapter searchParams={searchParams}>
         <SocialComposeProvider>
           <NewPostButton />
           {children}
@@ -552,8 +568,12 @@ function ComposeHarness({ children }: { children: React.ReactNode }) {
   );
 }
 
-function render(ui: React.ReactElement) {
-  return renderUi(ui, { wrapper: ComposeHarness });
+function render(ui: React.ReactElement, searchParams?: string) {
+  return renderUi(ui, {
+    wrapper: ({ children }) => (
+      <ComposeHarness searchParams={searchParams}>{children}</ComposeHarness>
+    ),
+  });
 }
 
 describe("ProjectSocialPosts", () => {
@@ -587,6 +607,7 @@ describe("ProjectSocialPosts", () => {
       ok: true,
       value: { ...SCHEDULED_POST, status: "CANCELED", revision: 3 },
     });
+    vi.mocked(publishProjectSocialPost).mockReset();
     vi.mocked(publishProjectSocialPost).mockResolvedValue({
       ok: true,
       value: { ...PUBLISHED_POST, id: "post-draft", text: "Draft text" },
@@ -3537,6 +3558,119 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getByTestId("social-post-post-failed-2")).toBeVisible();
     expect(
       screen.queryByTestId("social-post-post-failed"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("retries selected failed posts once and lists each result", async () => {
+    const user = userEvent.setup();
+    const secondFailed = {
+      ...FAILED_POST,
+      id: "post-failed-2",
+      text: "Second failure",
+      revision: 3,
+      lastAttemptAt: new Date("2026-08-01T10:00:00.000Z"),
+      updatedAt: new Date("2026-08-01T10:00:00.000Z"),
+    };
+    vi.mocked(publishProjectSocialPost).mockImplementation(async (input) => {
+      if (input.postId === "post-failed") {
+        return {
+          ok: true,
+          value: {
+            ...FAILED_POST,
+            status: "PUBLISHED",
+            publishedAt: new Date("2026-09-15T12:00:00.000Z"),
+            publishedUrl: "https://x.com/sokosumi/status/42",
+            lastError: null,
+            attemptCount: 4,
+            revision: 6,
+            canSchedule: false,
+            canPublishNow: false,
+          },
+        };
+      }
+      return {
+        ok: true,
+        value: {
+          ...secondFailed,
+          lastError: "X is unavailable",
+          attemptCount: 4,
+          revision: 4,
+        },
+      };
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[FAILED_POST, secondFailed]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=attention",
+    );
+
+    expect(getTab("Needs attention")).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.getByRole("button", { name: "Retry selected" }),
+    ).toBeDisabled();
+
+    await user.click(screen.getByTestId("social-post-select-post-failed"));
+    await user.click(screen.getByTestId("social-post-select-post-failed-2"));
+    expect(screen.getByText("2 selected")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Retry selected" }));
+
+    const alert = screen.getByRole("alertdialog");
+    expect(
+      within(alert).getByRole("heading", { name: "Retry these posts now?" }),
+    ).toBeVisible();
+    expect(publishProjectSocialPost).not.toHaveBeenCalled();
+    await user.click(
+      within(alert).getByRole("button", { name: "Retry selected" }),
+    );
+
+    await waitFor(() => {
+      expect(publishProjectSocialPost).toHaveBeenCalledTimes(2);
+    });
+    expect(publishProjectSocialPost).toHaveBeenNthCalledWith(1, {
+      projectId: PROJECT_ID,
+      postId: "post-failed",
+      revision: 5,
+    });
+    expect(publishProjectSocialPost).toHaveBeenNthCalledWith(2, {
+      projectId: PROJECT_ID,
+      postId: "post-failed-2",
+      revision: 3,
+    });
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+
+    const results = await screen.findByTestId("social-bulk-retry-results");
+    expect(
+      within(results).getByTestId("social-bulk-retry-result-post-failed"),
+    ).toHaveTextContent("Published");
+    expect(
+      within(results).getByTestId("social-bulk-retry-result-post-failed-2"),
+    ).toHaveTextContent("The platform rejected this post.");
+    expect(
+      within(results).queryByText("X is unavailable"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("social-post-post-failed-2")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("social-post-post-failed"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not offer bulk retry when a failed post cannot publish now", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[{ ...FAILED_POST, canPublishNow: false }]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    expect(screen.queryByTestId("social-bulk-retry")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("social-post-select-post-failed"),
     ).not.toBeInTheDocument();
   });
 
