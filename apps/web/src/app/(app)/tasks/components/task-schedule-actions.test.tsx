@@ -214,6 +214,33 @@ describe("TaskScheduleActions", () => {
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/schedules"));
   });
 
+  it("hides delete on a schedule without an owner unless the viewer may manage it", () => {
+    const ownerless = { ...schedule("ACTIVE"), ownerId: null };
+    const { rerender } = render(
+      <TaskScheduleActions
+        schedule={ownerless}
+        coworkerOptions={[]}
+        projectOptions={[]}
+        canCreatePrivate={false}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "delete" })).toBeNull();
+    expect(screen.getByRole("button", { name: "edit" })).toBeInTheDocument();
+
+    rerender(
+      <TaskScheduleActions
+        schedule={ownerless}
+        coworkerOptions={[]}
+        projectOptions={[]}
+        canCreatePrivate={false}
+        canDeleteUnowned
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "delete" })).toBeInTheDocument();
+  });
+
   it("leaves an Ended schedule nothing to change but deleting it", () => {
     renderActions("ENDED");
 

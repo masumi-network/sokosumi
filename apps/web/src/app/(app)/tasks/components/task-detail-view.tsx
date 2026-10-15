@@ -672,6 +672,7 @@ async function TaskDetailActionsSlot({
       canCancel={canCancelTask}
       forceReadOnly={forceReadOnly}
       isTaskOwner={session?.user.id === task.ownerId}
+      taskOwnerId={task.ownerId}
       hasAssignedSeat={hasAssignedSeat}
       repeatBlueprint={
         !forceReadOnly && hasAssignedSeat

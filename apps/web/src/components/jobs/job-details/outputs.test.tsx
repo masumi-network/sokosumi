@@ -55,7 +55,7 @@ vi.mock("@/components/jobs/job-details/hash-group-row", () => ({
 }));
 
 vi.mock("@/components/jobs/job-details/refund-request", () => ({
-  canRenderRefundRequest: () => false,
+  canRenderRefundRequest: () => true,
   default: () => <button type="button">refund</button>,
 }));
 
@@ -167,6 +167,21 @@ describe("JobDetailsOutputs", () => {
       "data-default-open",
       "true",
     );
+  });
+
+  it("hides refund when the viewer cannot manage the job", () => {
+    render(
+      <JobDetailsOutputs
+        job={createJob()}
+        event={createEvent()}
+        readOnly={false}
+        canManage={false}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "refund" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not force-expand the result for a non-completed event", () => {
