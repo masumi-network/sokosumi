@@ -250,6 +250,19 @@ describe("sandbox turn service", () => {
     expect(events().map((event) => event.type)).toContain("step.completed");
   });
 
+  it("maps an AI Gateway fetch timeout to 502 instead of an unexpected 500", async () => {
+    fetchMock.mockRejectedValue(
+      Object.assign(new TypeError("fetch failed"), {
+        cause: Object.assign(new Error("Headers Timeout Error"), {
+          name: "HeadersTimeoutError",
+        }),
+      }),
+    );
+    await expect(
+      proxySandboxModelCall(claims, modelRequest()),
+    ).rejects.toMatchObject({ status: 502 });
+  });
+
   it("drops zero retention only for the Gateway-run search call", async () => {
     const { resolveRunnableSokoBotVersion } = await import(
       "@/services/soko-bot-version.service"
