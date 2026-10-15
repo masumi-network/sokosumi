@@ -2,7 +2,6 @@ import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
   isVercelBlobPublicHost,
-  SOCIAL_POST_MEDIA_REQUIREMENTS,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
@@ -11,6 +10,8 @@ import {
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
   socialPostMediaKindForMime,
+  socialPostMediaRequirementMessage,
+  socialPostMeetsMediaRequirement,
   socialPostProviderLabel,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
@@ -229,12 +230,16 @@ function mapCreator(record: SocialPostRecord): SocialPostCreator {
 }
 
 export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
+  const media = parseSocialPostMedia(record.media, record.id);
+  const provider = isSocialPostProvider(record.provider)
+    ? record.provider
+    : null;
   return {
     id: record.id,
     projectId: record.projectId,
     provider: record.provider,
     text: record.text,
-    media: parseSocialPostMedia(record.media, record.id),
+    media,
     status: record.status,
     scheduledAt: record.scheduledAt,
     timezone: record.timezone,
@@ -259,7 +264,10 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     canEdit: EDITABLE_STATUSES.includes(record.status),
     canSchedule: SCHEDULABLE_STATUSES.includes(record.status),
     canCancel: CANCELABLE_STATUSES.includes(record.status),
-    canPublishNow: PUBLISH_NOW_STATUSES.includes(record.status),
+    canPublishNow:
+      PUBLISH_NOW_STATUSES.includes(record.status) &&
+      provider !== null &&
+      socialPostMeetsMediaRequirement(provider, media),
     connectionNeedsReconnect:
       RECONNECT_SENSITIVE_STATUSES.includes(record.status) &&
       record.socialConnection !== null &&
@@ -338,17 +346,9 @@ function requireMediaRequirement(
   provider: SocialPostProvider,
   media: readonly SocialPostMediaRef[],
 ): void {
-  const requirement = SOCIAL_POST_MEDIA_REQUIREMENTS[provider];
-  if (requirement === "none") return;
-  const label = socialPostProviderLabel(provider);
-  if (requirement === "any") {
-    if (media.length === 0) {
-      throw badRequest(`${label} requires at least one image or video`);
-    }
-    return;
-  }
-  if (media.length !== 1 || media[0]?.kind !== "video") {
-    throw badRequest(`${label} requires a video`);
+  const message = socialPostMediaRequirementMessage(provider);
+  if (message && !socialPostMeetsMediaRequirement(provider, media)) {
+    throw badRequest(message);
   }
 }
 
@@ -661,6 +661,10 @@ export async function updateSocialPost(
           lastError: null,
           attemptCount: 0,
           nextAttemptAt: null,
+          // Past-due + attemptCount 0 is marked MISSED. Keep the slot due now.
+          ...(post.scheduledAt && post.scheduledAt.getTime() < Date.now()
+            ? { scheduledAt: new Date() }
+            : {}),
         }
       : {};
   const currentProvider = requireProvider(post.provider);

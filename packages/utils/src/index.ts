@@ -390,6 +390,8 @@ export {
   type SocialPostProvider,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
+  socialPostMediaRequirementMessage,
+  socialPostMeetsMediaRequirement,
   socialPostMimeForFileName,
   socialPostProviderLabel,
   validateSocialPostMedia,
