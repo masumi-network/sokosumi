@@ -1410,7 +1410,7 @@
         "emptyResults": "No se encontraron resultados.",
         "all": "Todos",
         "scopeLabel": "Ámbito",
-        "scopeOwned": "Mis transacciones",
+        "scopeMine": "Mis transacciones",
         "scopeWorkspace": "Workspace",
         "typeLabel": "Origen",
         "projectLabel": "Proyecto",

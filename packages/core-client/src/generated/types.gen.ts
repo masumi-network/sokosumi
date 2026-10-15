@@ -57497,9 +57497,9 @@ export type GetTransactionsData = {
          */
         q?: string;
         /**
-         * owned: only ledger rows belonging to the calling user. workspace: every ledger row in the active workspace, including organization-level ones with no user.
+         * Which ledger rows to list. mine: only rows the calling user paid for, the responsible person. workspace: every ledger row in the active workspace, including organization-level ones with no user. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
          */
-        scope?: 'workspace' | 'owned';
+        scope?: 'workspace' | 'mine' | 'owned';
         /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
@@ -57616,9 +57616,9 @@ export type GetTransactionsDailyData = {
          */
         q?: string;
         /**
-         * owned: only ledger rows belonging to the calling user. workspace: every ledger row in the active workspace, including organization-level ones with no user.
+         * Which ledger rows to list. mine: only rows the calling user paid for, the responsible person. workspace: every ledger row in the active workspace, including organization-level ones with no user. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
          */
-        scope?: 'workspace' | 'owned';
+        scope?: 'workspace' | 'mine' | 'owned';
         /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
@@ -57735,9 +57735,9 @@ export type GetTransactionsExportData = {
          */
         q?: string;
         /**
-         * owned: only ledger rows belonging to the calling user. workspace: every ledger row in the active workspace, including organization-level ones with no user.
+         * Which ledger rows to list. mine: only rows the calling user paid for, the responsible person. workspace: every ledger row in the active workspace, including organization-level ones with no user. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
          */
-        scope?: 'workspace' | 'owned';
+        scope?: 'workspace' | 'mine' | 'owned';
         /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */

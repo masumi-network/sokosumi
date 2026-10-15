@@ -42,6 +42,13 @@ function createApp() {
   return app;
 }
 
+/** Every bound value the endpoint sent to Postgres, nested fragments included. */
+function sentValues(): unknown[] {
+  return prismaQueryRawMock.mock.calls.flatMap(([, ...fragments]) =>
+    fragments.flatMap((fragment) => fragment?.values ?? []),
+  );
+}
+
 describe("GET /transactions/daily", () => {
   beforeEach(() => {
     prismaQueryRawMock.mockReset();
@@ -79,5 +86,37 @@ describe("GET /transactions/daily", () => {
     );
 
     expect(response.status).toBe(400);
+  });
+
+  describe("scope", () => {
+    beforeEach(() => {
+      prismaQueryRawMock.mockResolvedValue([]);
+    });
+
+    describe.each(["mine", "owned"])("scope=%s", (scope) => {
+      it("narrows an organization workspace to the calling user", async () => {
+        await (await createApp().request(`/daily?scope=${scope}`)).text();
+
+        expect(sentValues()).toContain("user_123");
+      });
+    });
+
+    it("defaults to the calling user's rows", async () => {
+      await (await createApp().request("/daily")).text();
+
+      expect(sentValues()).toContain("user_123");
+    });
+
+    it("keeps every row of the workspace for scope=workspace", async () => {
+      await (await createApp().request("/daily?scope=workspace")).text();
+
+      expect(sentValues()).not.toContain("user_123");
+    });
+
+    it("rejects an unknown scope", async () => {
+      const response = await createApp().request("/daily?scope=everyone");
+
+      expect(response.status).toBe(422);
+    });
   });
 });

@@ -5,6 +5,7 @@ import {
   getDefaultHistoryScope,
   getHistoryFiltersFromSearchParams,
   getHistoryFiltersResetKey,
+  HISTORY_SCOPE_VALUES,
   HISTORY_SEARCH_MAX_LENGTH,
   HISTORY_TYPE_VALUES,
   parseHistoryFilters,
@@ -19,12 +20,12 @@ const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
 const projectOptions = [{ id: PROJECT_ID, name: "Research" }] as const;
 
 describe("history-filters", () => {
-  it("defaults to owned scope in both personal and organization context", () => {
-    expect(getDefaultHistoryScope("org-1")).toBe("owned");
-    expect(getDefaultHistoryScope(null)).toBe("owned");
+  it("defaults to the mine scope in both personal and organization context", () => {
+    expect(getDefaultHistoryScope("org-1")).toBe("mine");
+    expect(getDefaultHistoryScope(null)).toBe("mine");
     expect(parseHistoryFilters({}, "org-1")).toEqual({
       q: null,
-      scope: "owned",
+      scope: "mine",
       type: null,
       projectId: null,
     });
@@ -55,9 +56,16 @@ describe("history-filters", () => {
 
   it("falls back to the default scope for an unknown or unavailable scope", () => {
     expect(sanitizeHistoryScopeInput("workspace", "org-1")).toBe("workspace");
-    expect(sanitizeHistoryScopeInput("nonsense", "org-1")).toBe("owned");
+    expect(sanitizeHistoryScopeInput("nonsense", "org-1")).toBe("mine");
     // Without an organization there is no workspace to widen to.
-    expect(sanitizeHistoryScopeInput("workspace", null)).toBe("owned");
+    expect(sanitizeHistoryScopeInput("workspace", null)).toBe("mine");
+  });
+
+  it("reads the old owned scope of a saved URL as mine", () => {
+    expect(sanitizeHistoryScopeInput("owned", "org-1")).toBe("mine");
+    expect(sanitizeHistoryScopeInput("owned", null)).toBe("mine");
+    expect(parseHistoryFilters({ scope: "owned" }, "org-1").scope).toBe("mine");
+    expect(HISTORY_SCOPE_VALUES).not.toContain("owned");
   });
 
   it("trims and caps the search input", () => {
@@ -77,7 +85,7 @@ describe("history-filters", () => {
   it("drops a project the caller cannot see", () => {
     expect(
       applyHistoryProjectAllowlist(
-        { q: null, scope: "owned", type: null, projectId: PROJECT_ID },
+        { q: null, scope: "mine", type: null, projectId: PROJECT_ID },
         projectOptions,
       ).projectId,
     ).toBe(PROJECT_ID);
@@ -85,7 +93,7 @@ describe("history-filters", () => {
       applyHistoryProjectAllowlist(
         {
           q: null,
-          scope: "owned",
+          scope: "mine",
           type: null,
           projectId: "44444444-4444-4444-8444-444444444444",
         },
@@ -117,7 +125,7 @@ describe("history-filters", () => {
   it("omits the default scope and empty filters from the query string", () => {
     const params = buildHistoryFiltersSearchParams(
       new URLSearchParams(),
-      { q: null, scope: "owned", type: null, projectId: null },
+      { q: null, scope: "mine", type: null, projectId: null },
       "org-1",
     );
 
@@ -145,7 +153,7 @@ describe("history-filters", () => {
   it("changes the reset key when any filter changes", () => {
     const base = {
       q: null,
-      scope: "owned" as const,
+      scope: "mine" as const,
       type: null,
       projectId: null,
     };

@@ -26,7 +26,7 @@ interface HistoryToolbarProps {
       emptyResults: string;
       all: string;
       scopeLabel: string;
-      scopeOwned: string;
+      scopeMine: string;
       scopeWorkspace: string;
       typeLabel: string;
       projectLabel: string;

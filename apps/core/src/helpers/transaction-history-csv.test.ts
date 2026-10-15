@@ -51,7 +51,7 @@ async function readAll(stream: ReadableStream<Uint8Array>): Promise<string> {
 }
 
 const params = {
-  scope: "owned" as const,
+  scope: "mine" as const,
   userContext: {
     actor: "user",
     userId: "u",

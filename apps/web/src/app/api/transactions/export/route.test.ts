@@ -48,12 +48,12 @@ describe("GET /api/transactions/export", () => {
   it("forwards only the parameters Core declares", async () => {
     fetchMock.mockResolvedValue(new Response(""));
 
-    await GET(request("?from=2026-09-01&evil=1&scope=owned"));
+    await GET(request("?from=2026-09-01&evil=1&scope=mine"));
 
     const url = new URL(fetchMock.mock.calls[0][0]);
     expect(url.pathname).toBe("/v1/transactions/export");
     expect(url.searchParams.get("from")).toBe("2026-09-01");
-    expect(url.searchParams.get("scope")).toBe("owned");
+    expect(url.searchParams.get("scope")).toBe("mine");
     expect(url.searchParams.has("evil")).toBe(false);
   });
 

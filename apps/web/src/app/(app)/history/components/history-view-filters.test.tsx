@@ -28,7 +28,7 @@ const labels = {
   emptyResults: "No results found.",
   all: "All",
   scopeLabel: "Scope",
-  scopeOwned: "My transactions",
+  scopeMine: "My transactions",
   scopeWorkspace: "Workspace",
   typeLabel: "Source",
   projectLabel: "Project",

@@ -4,7 +4,7 @@
  * lifecycle. The type axis names the source that moved the credits.
  */
 export const HISTORY_SEARCH_MAX_LENGTH = 200;
-export const HISTORY_SCOPE_VALUES = ["owned", "workspace"] as const;
+export const HISTORY_SCOPE_VALUES = ["mine", "workspace"] as const;
 export const HISTORY_TYPE_VALUES = [
   "job",
   "image",
@@ -108,7 +108,7 @@ export function applyHistoryProjectAllowlist(
 export function getDefaultHistoryScope(
   _activeOrganizationId: string | null,
 ): HistoryScope {
-  return "owned";
+  return "mine";
 }
 
 export function sanitizeHistorySearchInput(raw: unknown): string | null {
@@ -125,7 +125,8 @@ export function sanitizeHistoryScopeInput(
   const defaultScope = getDefaultHistoryScope(activeOrganizationId);
   if (typeof raw !== "string") return defaultScope;
 
-  const requestedScope = raw.trim();
+  // `owned` is the old name of `mine`, still found in saved URLs.
+  const requestedScope = raw.trim() === "owned" ? "mine" : raw.trim();
   if (
     !requestedScope ||
     !HISTORY_SCOPE_VALUES.includes(requestedScope as HistoryScope)

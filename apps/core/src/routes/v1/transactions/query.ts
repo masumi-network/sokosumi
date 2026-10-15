@@ -5,16 +5,13 @@ import {
   preprocessMultiValueQueryInput,
 } from "@/helpers/query-params";
 import { transactionHistoryKinds } from "@/schemas/transaction-history.schema";
+import { workScopeQuerySchema } from "@/schemas/work-scope.schema";
 
-const scopeQuerySchema = z
-  .enum(["workspace", "owned"])
-  .default("owned")
-  .openapi({
-    param: { name: "scope", in: "query" },
-    description:
-      "owned: only ledger rows belonging to the calling user. workspace: every ledger row in the active workspace, including organization-level ones with no user.",
-    example: "workspace",
-  });
+const scopeQuerySchema = workScopeQuerySchema({
+  defaultScope: "mine",
+  description:
+    "Which ledger rows to list. mine: only rows the calling user paid for, the responsible person. workspace: every ledger row in the active workspace, including organization-level ones with no user.",
+});
 
 const searchQuerySchema = z
   .string()

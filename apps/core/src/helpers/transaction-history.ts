@@ -9,6 +9,7 @@ import type {
   TransactionHistoryItem,
   TransactionHistoryKind,
 } from "@/schemas/transaction-history.schema";
+import type { WorkScope } from "@/schemas/work-scope.schema";
 
 /**
  * A `Transaction` row — a spend or a top up — already resolved against every
@@ -51,7 +52,7 @@ export interface BuildTransactionHistoryParams {
   kinds?: TransactionHistoryKind[];
   projectId?: string | null;
   q?: string;
-  scope: "owned" | "workspace";
+  scope: WorkScope;
   userContext: UserContext;
   workspaceContext: WorkspaceContext;
 }
@@ -96,9 +97,9 @@ function buildScopeSql({
     const organizationScope = PrismaRaw.sql`t."organizationId" = ${workspaceContext.organizationId}`;
 
     // An organization workspace holds consumptions with no user at all (a
-    // seat-level charge), so "owned" narrows to this user rather than
+    // seat-level charge), so "mine" narrows to this user rather than
     // partitioning the workspace.
-    return scope === "owned"
+    return scope === "mine"
       ? PrismaRaw.sql`${organizationScope} AND t."userId" = ${userContext.userId}`
       : organizationScope;
   }
