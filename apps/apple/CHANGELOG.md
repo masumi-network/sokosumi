@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.1](https://github.com/masumi-network/sokosumi/compare/macos-v1.0.0...macos-v1.0.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **apple:** make bare URLs, www hosts and emails in messages clickable ([#6360](https://github.com/masumi-network/sokosumi/issues/6360)) ([92dda28](https://github.com/masumi-network/sokosumi/commit/92dda28a7d771620ede39c2c51d97228358e526c))
+* **apple:** read realtime channel names from the token capability ([#6377](https://github.com/masumi-network/sokosumi/issues/6377)) ([8f03335](https://github.com/masumi-network/sokosumi/commit/8f0333579e4bd6abbf82d4ef21099c1f8d6118ac))
+* **apple:** say who reacted the moment the pointer is on a reaction chip ([#6374](https://github.com/masumi-network/sokosumi/issues/6374)) ([7b6d5a3](https://github.com/masumi-network/sokosumi/commit/7b6d5a32b3d78e5682716b815ae47a2e2866f414))
+* **apple:** say who reacted when a reaction chip holds keyboard focus ([#6376](https://github.com/masumi-network/sokosumi/issues/6376)) ([6d152ac](https://github.com/masumi-network/sokosumi/commit/6d152ac69fd2f1ab650cb8b97475143e701d7ea2))
+
 ## 1.0.0 (2026-10-14)
 
 
