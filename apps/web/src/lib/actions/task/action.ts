@@ -27,7 +27,6 @@ import {
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import { taskService } from "@/lib/services/task.service";
-import { normalizeOptionalProjectId } from "@/lib/utils/project";
 import {
   TASK_MUTATION_ERROR_KINDS,
   type TaskMutationErrorKind,
@@ -224,6 +223,17 @@ function normalizeLinkNote(note?: string | null): string | null | undefined {
 
   const trimmedNote = note?.trim();
   return trimmedNote ? trimmedNote : null;
+}
+
+function normalizeOptionalProjectId(
+  projectId?: string | null,
+): string | null | undefined {
+  if (typeof projectId === "undefined") {
+    return undefined;
+  }
+
+  const trimmedProjectId = projectId?.trim();
+  return trimmedProjectId ? trimmedProjectId : null;
 }
 
 /**
