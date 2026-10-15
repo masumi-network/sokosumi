@@ -293,8 +293,8 @@ importers:
         specifier: 0.4.2
         version: 0.4.2
       '@composio/core':
-        specifier: 0.23.0
-        version: 0.23.0(ws@8.21.0)(zod@4.6.7)
+        specifier: 0.24.0
+        version: 0.24.0(effect@3.20.0)(ws@8.21.0)(zod@4.6.7)
       '@hono/node-server':
         specifier: 2.1.5
         version: 2.1.5(hono@4.13.13)
@@ -1407,12 +1407,17 @@ packages:
     resolution: {integrity: sha512-dlT1m5e/0yUL0kRNcQn7yGLVThkgbB0Ga/1AmfDDC/8ik6AIiSf2QLQO2zPYvefsHP0aFgxO93cVLCCfDp7kzQ==}
     engines: {node: '>= 20.12.0'}
 
-  '@composio/client@2.0.0-rc.11':
-    resolution: {integrity: sha512-jACnskE/mH0dETIBY5C8wpbeszlr1UdPH+y5bCB+CYome2zPVXi41V5bEF+vCDOowOTXhT37y3uyWsezB8gkkw==}
+  '@composio/client@2.0.0-rc.14':
+    resolution: {integrity: sha512-AI8peOJpZjIZOC5+7uWeaQSgjwU9XsMHLXmHLrO3xE4qREb17pT1rb64AcaY9N4VFAevg321yLGA08RKCmcWDw==}
     engines: {node: '>=22'}
+    peerDependencies:
+      effect: '*'
+    peerDependenciesMeta:
+      effect:
+        optional: true
 
-  '@composio/core@0.23.0':
-    resolution: {integrity: sha512-ugIzIPlM7EAiVQGdkl50BZbgpZfO7vyqfJaMKiqp3MZoTQb4FSFKnjC1eLAQ5kWW/nhQysnuR79zHhsbXQWfaA==}
+  '@composio/core@0.24.0':
+    resolution: {integrity: sha512-WJpZDZ2SQjp1/zSSg8zM+J0zJ0ONcqFPb8Fb3FJKTMXzSf9Wa40GrnAIt2DE00Ydbe6dpsh0MocJEZu4C2oIuA==}
     engines: {node: '>=22.22.3'}
     peerDependencies:
       zod: '>=3.25.76 <5'
@@ -7716,15 +7721,6 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  lucide-react@1.56.0:
-    resolution: {integrity: sha512-b+hqj30/trHBma5r1zlKb6yLewQp6tUtnz9loc3xdrYerPmvLYhlEbyPVCJ8DOg2/blBf6lwPLznftFVACka6A==}
-    peerDependencies:
-      '@types/react': '*'
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-
   lucide-react@1.57.0:
     resolution: {integrity: sha512-bXFZEucYhAzLD62Jse76AbTR6LiSLTn3Tqir2f1n8rZrWAdLodYy7jnRZSPIT89dRLk/IseMOUWG82wJtTyTTw==}
     peerDependencies:
@@ -8270,8 +8266,8 @@ packages:
     resolution: {integrity: sha512-smsWv2LzFjP03xmvFoJ331ss6h+jixfA4UUV/Bsiyuu4YJPfN+FIQGOIiv4w9/+MoHkfkJ22UIaQWRVFRfH6Vw==}
     engines: {node: '>=20'}
 
-  openai@7.23.0:
-    resolution: {integrity: sha512-0ecOXnFSMNWZq6cUBcTV6Lf93y+fm8BH/+QzFvpoP1UGNOE5pnytRa6HAPGCw+3IS9SIAW7rc1M8yyzN1PiBAQ==}
+  openai@7.34.0:
+    resolution: {integrity: sha512-PMwuTQ/3cVyWZJOVpb6bzlrQj17uImlnUGQWqh5zHlN/snwK5ww4ZUHW8NYGtH6f9PQOEPxyD/f8WJVIHp1q2A==}
     engines: {node: '>=22.0.0'}
     peerDependencies:
       '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
@@ -10626,15 +10622,17 @@ snapshots:
       fast-wrap-ansi: 0.2.2
       sisteransi: 1.0.5
 
-  '@composio/client@2.0.0-rc.11': {}
+  '@composio/client@2.0.0-rc.14(effect@3.20.0)':
+    optionalDependencies:
+      effect: 3.20.0
 
-  '@composio/core@0.23.0(ws@8.21.0)(zod@4.6.7)':
+  '@composio/core@0.24.0(effect@3.20.0)(ws@8.21.0)(zod@4.6.7)':
     dependencies:
-      '@composio/client': 2.0.0-rc.11
+      '@composio/client': 2.0.0-rc.14(effect@3.20.0)
       '@composio/json-schema-to-zod': 0.3.4(zod@4.6.7)
       '@types/json-schema': 7.0.15
       is-fs-case-sensitive: 2.0.0
-      openai: 7.23.0(undici@7.30.0)(ws@8.21.0)(zod@4.6.7)
+      openai: 7.34.0(undici@7.30.0)(ws@8.21.0)(zod@4.6.7)
       picocolors: 1.1.1
       pusher-js: 8.6.0
       semver: 7.8.5
@@ -10645,6 +10643,7 @@ snapshots:
       - '@aws-sdk/credential-provider-node'
       - '@smithy/hash-node'
       - '@smithy/signature-v4'
+      - effect
       - ws
 
   '@composio/json-schema-to-zod@0.3.4(zod@4.6.7)':
@@ -11285,7 +11284,7 @@ snapshots:
       immer: 11.1.21
       katex: 0.18.10
       leva: 0.10.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      lucide-react: 1.56.0(@types/react@19.3.0)(react@19.3.1)
+      lucide-react: 1.57.0(@types/react@19.3.0)(react@19.3.1)
       marked: 18.1.1
       motion: 14.2.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       numeral: 2.0.6
@@ -16887,12 +16886,6 @@ snapshots:
     dependencies:
       react: 19.3.1
 
-  lucide-react@1.56.0(@types/react@19.3.0)(react@19.3.1):
-    dependencies:
-      react: 19.3.1
-    optionalDependencies:
-      '@types/react': 19.3.0
-
   lucide-react@1.57.0(@types/react@19.3.0)(react@19.3.1):
     dependencies:
       react: 19.3.1
@@ -17767,7 +17760,7 @@ snapshots:
       powershell-utils: 0.1.0
       wsl-utils: 0.3.1
 
-  openai@7.23.0(undici@7.30.0)(ws@8.21.0)(zod@4.6.7):
+  openai@7.34.0(undici@7.30.0)(ws@8.21.0)(zod@4.6.7):
     optionalDependencies:
       undici: 7.30.0
       ws: 8.21.0
