@@ -6,6 +6,10 @@ A shared bot is its own principal. Its key resolves to `{ actor: "sokoBot", soko
 
 A shared bot is fully visible: one room, readable and postable by every member, with its memory and console readable too. Any member creates and configures it. Organization OWNER/ADMIN archive it, delete it and reset its memory. It bills the Organization credit pool, attributed to the turn's member, whose seat still gates spend. The decisions, with code evidence, are in the map [Wayfinder: Soko Bot owner scopes](https://linear.app/masumi/issue/SOK-1357/wayfinder-soko-bot-owner-scopes).
 
+A turn a member starts in chat runs for that member. A self-started turn of a shared bot runs for the first live member of its Organization from this list: the member who connected the integration whose content woke it, the schedule's member, the person behind the waking TaskEvent, the owner of the waking Job, the Task owner, the bot's creator (built-in rhythms only), then the earliest live Organization OWNER. Records the turn creates, Tasks included, belong to that member, and its spend is attributed to them. A replay is the exception: it runs only for the member it first ran for, and when that member is gone it does not run. Their words never run as anyone else.
+
+A schedule runs as the member who last set it up. A member who changes a shared bot's schedule prompt, cron or timezone takes it over, so its attribution and billing move to them. Switching it on or off does not. Built-in rhythms store the bot's live creator, else the earliest live OWNER, and start switched off.
+
 ## Considered Options
 
 - **A separate owner table or a polymorphic `ownerType`/`ownerId` pair.** It gives one column per meaning, but every existing `userId` read would move to a join, and Prisma cannot put a foreign key on a polymorphic id. Two nullable columns keep real foreign keys (`projectId` cascades on Project delete) and leave personal rows unchanged.
@@ -17,7 +21,9 @@ A shared bot is fully visible: one room, readable and postable by every member, 
 ## Consequences
 
 - At least 376 places read the owner `userId` (inventory in [SOK-1359](https://linear.app/masumi/issue/SOK-1359/inventory-every-userid-dependency-of-a-soko-bot); a floor). A shared bot's `userId` must be `null`, never `undefined`: Prisma drops an `undefined` filter, which silently removes the private-Task guard.
-- `/v1/soko-bots/me/*` keeps meaning "my personal bot". Shared bots get `/v1/soko-bots/{id}/*` routes and a response schema with `scope`.
+- `/v1/soko-bots/me/*` keeps meaning the caller's personal bot, never a shared one. Shared bots get `/v1/soko-bots/{id}/*` routes and a response schema with `scope`.
+- Drive follows the workspace, not the bot. In an Organization workspace every Soko Bot, shared ones included, reads and writes the Organization Drive, so a project bot reads the whole Organization's Drive and not only its Project's files. Narrowing Drive to a Project needs project-scoped Drive storage first.
+- A shared bot cannot be removed from its own room. Any channel member can remove it from other channels it was added to.
 - `ChatRoomSokoBotParticipant.ownerUserId` becomes nullable. Installed Apple builds that predate that client may fail to decode a room that contains a shared bot, so the Apple release ships first. Shared bots have no flag: they go live with the Core release that adds them, so `MACOS_MINIMUM_BUILD` ([ADR 0053](0053-core-turns-away-outdated-apple-builds.md)) moves to that Apple release before or with that Core release.
 - Closing a Project archives its bots, and reopening needs a manual reactivation. A member leaving never affects a shared bot or its key, except that integrations they connected to it disconnect.
 - Project roles are not part of this decision. Only Organization roles manage a shared bot.
