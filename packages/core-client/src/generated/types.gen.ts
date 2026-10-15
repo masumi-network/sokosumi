@@ -5708,6 +5708,10 @@ export type SocialPostCalendarItem = {
     text: string;
     status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
     externalHandle: string | null;
+    /**
+     * Profile picture copy in Sokosumi storage
+     */
+    avatarUrl: string | null;
     projectName: string;
     scheduledByName: string | null;
     scheduledByImage: string | null;

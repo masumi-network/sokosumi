@@ -538,7 +538,9 @@ export async function readWorkspaceCalendar(
             scheduledAt: true,
             projectId: true,
             workspaceId: true,
-            socialConnection: { select: { externalHandle: true } },
+            socialConnection: {
+              select: { externalHandle: true, avatarUrl: true },
+            },
             project: { select: { name: true } },
             scheduledByUser: { select: { name: true, image: true } },
             attempts: {
@@ -566,6 +568,7 @@ export async function readWorkspaceCalendar(
       text: post.text,
       status: post.status,
       externalHandle: post.socialConnection?.externalHandle ?? null,
+      avatarUrl: post.socialConnection?.avatarUrl ?? null,
       projectName: post.project.name,
       scheduledByName: post.scheduledByUser?.name ?? null,
       scheduledByImage: post.scheduledByUser?.image ?? null,

@@ -9,6 +9,7 @@ import { publishFailureCopy } from "@/app/projects/components/social-posts/socia
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { SocialPostStatusReasonTooltip } from "@/app/projects/components/social-posts/social-post-status-reason-tooltip";
 import { useSocialCalendarPreview } from "@/app/social/components/social-calendar-preview";
+import { AccountChipMark } from "@/components/social-account-chip-mark";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import {
   Popover,
@@ -235,14 +236,14 @@ function SocialPostPreviewCard({
     <>
       <span className="flex w-full min-w-0 items-center gap-1">
         <span
-          className="flex size-4 shrink-0 items-center justify-center"
+          className="flex size-6 shrink-0 items-center justify-center"
+          role="img"
+          aria-label={account}
           title={account}
         >
-          <SocialPostProviderIcon
+          <AccountChipMark
+            avatarUrl={item.avatarUrl}
             provider={item.provider}
-            role="img"
-            aria-label={account}
-            className="size-3"
           />
         </span>
         <span aria-hidden className="min-w-0 flex-1 truncate">

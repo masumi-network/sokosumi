@@ -19523,6 +19523,15 @@ export const SocialPostCalendarItemSchema = {
                 'null'
             ]
         },
+        avatarUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            description: 'Profile picture copy in Sokosumi storage',
+            example: 'https://abc.public.blob.vercel-storage.com/social-avatars/p/image-x-1.jpg'
+        },
         projectName: {
             type: 'string'
         },
@@ -19622,6 +19631,7 @@ export const SocialPostCalendarItemSchema = {
         'text',
         'status',
         'externalHandle',
+        'avatarUrl',
         'projectName',
         'scheduledByName',
         'scheduledByImage',

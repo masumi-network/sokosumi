@@ -37,7 +37,10 @@ const post = {
   scheduledAt: new Date(at),
   projectId,
   workspaceId,
-  socialConnection: { externalHandle: "team" },
+  socialConnection: {
+    externalHandle: "team",
+    avatarUrl: "https://example.com/team.png",
+  },
   project: { name: "Launch project" },
   scheduledByUser: { name: "Albina", image: "https://example.com/albina.png" },
   attempts: [],
@@ -105,6 +108,7 @@ describe("Social posts in the calendar", () => {
       status: "SCHEDULED",
       lastAttempt: null,
       externalHandle: "team",
+      avatarUrl: "https://example.com/team.png",
       projectName: "Launch project",
       scheduledByName: "Albina",
       scheduledByImage: "https://example.com/albina.png",
@@ -162,9 +166,23 @@ describe("Social posts in the calendar", () => {
     expect(result.items[0]).toMatchObject({
       scheduledByName: null,
       scheduledByImage: null,
+      avatarUrl: "https://example.com/team.png",
       attachmentCount: 0,
       previewMedia: null,
       projectName: "Launch project",
+    });
+  });
+  it("keeps the calendar item when the account has no photo", async () => {
+    mocks.posts.mockResolvedValue([
+      {
+        ...post,
+        socialConnection: { externalHandle: "team", avatarUrl: null },
+      },
+    ]);
+    const result = await readWorkspaceCalendar(workspaceId, "user", query);
+    expect(result.items[0]).toMatchObject({
+      externalHandle: "team",
+      avatarUrl: null,
     });
   });
   it("scopes posts to the workspace, project, owner, and calendar range", async () => {
