@@ -1624,6 +1624,7 @@
           "standup": "Tägliches Stand-up",
           "weeklyWrap": "Wochenrückblick",
           "scheduled": "Geplant: {name}",
+          "background": "Hintergrundauftrag: {name}",
           "taskUpdate": "Task-Update"
         }
       }
@@ -2622,7 +2623,7 @@
           "accountFallback": "Dein Konto",
           "open": "Vorschau",
           "accounts": "Vorschaukonto",
-          "as": "Vorschau als {handle}",
+          "as": "Vorschau als {provider} {handle}",
           "dialogTitle": "Beitragsvorschau",
           "offline": "Du bist offline.",
           "timeout": "Zeitüberschreitung.",
@@ -2637,7 +2638,9 @@
           },
           "instagram": {
             "more": "mehr",
-            "mediaRequired": "Instagram braucht ein Bild oder Video."
+            "mediaRequired": "Instagram braucht ein Bild oder Video.",
+            "slide": "{current} von {total}",
+            "slideIndex": "{current}/{total}"
           },
           "facebook": {
             "like": "Gefällt mir",
@@ -2712,7 +2715,8 @@
             "legendMore": "Mehr",
             "moreActions": "Weitere Aktionen",
             "exportCsv": "CSV exportieren",
-            "exportXlsx": "Tabelle exportieren"
+            "exportXlsx": "Tabelle exportieren",
+            "legendUnknown": "Unbekannt"
           },
           "accountsTitle": "Verbundene Konten",
           "postsTitle": "Veröffentlichte Kontobeiträge",

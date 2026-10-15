@@ -3,9 +3,12 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
+import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
+import { collectTurnResultSnapshots } from "@/services/chat-result-preview.service";
 import { persistSokoBotChatTurn } from "./soko-bot-chat.service";
 import { deliverSokoBotEffect } from "./soko-bot-effect-outbox.service";
 
@@ -18,6 +21,34 @@ const audienceSchema = z.object({
 const LEASE_MS = 60_000;
 const MAX_AGE_MS = 24 * 60 * 60_000;
 const RETRY_DELAYS_MS = [60_000, 300_000, 1_800_000, 7_200_000];
+
+/** What a background run that ended without an answer posts instead. */
+function backgroundStopNote(turn: {
+  backgroundTitle: string | null;
+  status: string;
+  errorKind: string | null;
+  errorDetail: string | null;
+}): string {
+  if (!turn.backgroundTitle) return "";
+  const how =
+    turn.status === "CANCELLED"
+      ? "was stopped"
+      : turn.errorKind === "turn_deadline_exceeded"
+        ? "ran out of time"
+        : "failed";
+  return `Background run "${turn.backgroundTitle}" ${how} before it could report.${turn.errorDetail ? ` (${turn.errorDetail.slice(0, 300)})` : ""}`;
+}
+
+/**
+ * A chat turn's answer fills the "Thinking…" message posted when it started.
+ * A background run started from chat has none: its report is a new message.
+ */
+function fillsChatPlaceholder(turn: {
+  source: string;
+  parentTurnId: string | null;
+}): boolean {
+  return turn.source === "CHAT" && !turn.parentTurnId;
+}
 
 /** Called inside the settlement transaction; no historical turn backfill. */
 export async function enqueueSokoBotDelivery(
@@ -32,8 +63,14 @@ export async function enqueueSokoBotDelivery(
     turn.status === "COMPLETED" &&
     isSokoBotSilentAnswer(turn.finalAnswer?.trim() ?? "") &&
     (!isChat || turn.chainDepth > 0);
-  const reason =
-    turn.source === "CHAT" && !isChat
+  // A background run reports wherever it ends, failure included: the owner
+  // was told it would.
+  const background = Boolean(turn.parentTurnId);
+  const reason = background
+    ? turn.destinationRoomId
+      ? null
+      : "NO_DESTINATION"
+    : turn.source === "CHAT" && !isChat
       ? "ASSISTANT_PAGE"
       : !turn.destinationRoomId
         ? "NO_DESTINATION"
@@ -250,7 +287,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
       }
       if (delivery.status === "PERSISTED") return delivery;
       let messageId: string;
-      if (turn.source === "CHAT") {
+      if (fillsChatPlaceholder(turn)) {
         if (!turn.chatResponseMessageId || !turn.chatMentionId)
           throw new Error("CHAT_DESTINATION_MISSING");
         const existing = await tx.chatRoomMessage.findFirst({
@@ -265,6 +302,9 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
         await persistSokoBotChatTurn(turn.id, tx);
         messageId = existing.id;
       } else {
+        // A background run's report carries the cards of what it made, as a
+        // chat reply does.
+        const snapshots = await collectTurnResultSnapshots(turn.id, tx);
         const message = await tx.chatRoomMessage.upsert({
           where: {
             roomId_clientMessageId: {
@@ -276,11 +316,17 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
             roomId: delivery.roomId,
             clientMessageId: `soko-bot:${turn.id}:${delivery.purpose === "FINAL" ? "final" : delivery.id}`,
             senderSokoBotId: turn.sokoBotId,
-            content: turn.finalAnswer?.trim() ?? "",
+            content: turn.finalAnswer?.trim() || backgroundStopNote(turn),
             metadata: {
+              ...(snapshots.length
+                ? { [RESULT_SNAPSHOTS_KEY]: sanitizePersistedValue(snapshots) }
+                : {}),
               soko_bot: {
                 turn_id: turn.id,
                 source: turn.source,
+                ...(turn.backgroundTitle
+                  ? { background_run_title: turn.backgroundTitle }
+                  : {}),
                 // Lets the chat say where an unprompted message came from.
                 ...(turn.scheduleRun
                   ? {
@@ -349,7 +395,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
       persisted.messageId,
       persisted.reason === "SILENT"
         ? "delete"
-        : persisted.turn.source === "CHAT"
+        : fillsChatPlaceholder(persisted.turn)
           ? "update"
           : "create",
       { throwOnError: true },

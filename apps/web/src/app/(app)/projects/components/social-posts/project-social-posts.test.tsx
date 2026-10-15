@@ -236,7 +236,7 @@ const MESSAGES: Record<string, string> = {
   "toasts.unauthenticatedAction": "Log in",
   "preview.open": "Preview",
   "preview.accounts": "Preview account",
-  "preview.as": "Preview as {handle}",
+  "preview.as": "Preview as {provider} {handle}",
   "preview.dialogTitle": "Post preview",
   "outcomes.authorizationRevoked":
     "Coworker scheduling access was revoked. Reschedule this post to publish it.",
@@ -2727,6 +2727,56 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
+  it("keeps Edit and Reschedule on the preview footer, not in the preview menu", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
+      />,
+    );
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: "Edit" })).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
+    ).toBeVisible();
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Post actions" }),
+    );
+    expect(screen.getByRole("menuitem", { name: "Publish now" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "Cancel post" })).toBeVisible();
+    expect(
+      screen.queryByRole("menuitem", { name: "Edit" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Reschedule" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the preview menu when only Edit or Schedule would remain", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[{ ...FAILED_POST, canCancel: false }]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-failed"
+      />,
+    );
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: "Retry" })).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
+    ).toBeVisible();
+    expect(
+      within(dialog).queryByRole("button", { name: "Post actions" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("switches the live preview between selected accounts", async () => {
     const user = userEvent.setup();
     render(
@@ -2755,22 +2805,28 @@ describe("ProjectSocialPosts", () => {
     const preview = within(dialog).getByTestId("social-post-preview");
     expect(preview).toHaveAttribute("data-provider", "x");
     expect(
-      within(dialog).getByRole("button", { name: "Preview as @sokosumi" }),
+      within(dialog).getByRole("button", { name: "Preview as X @sokosumi" }),
     ).toHaveAttribute("aria-pressed", "true");
     expect(
-      within(dialog).getByRole("button", { name: "Preview as @sokosumi" }),
+      within(dialog).getByRole("button", { name: "Preview as X @sokosumi" }),
     ).toHaveClass("h-11", "md:h-8");
     expect(
-      within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),
+      within(dialog).getByRole("button", {
+        name: "Preview as LinkedIn @sokosumi-co",
+      }),
     ).toHaveClass("h-11", "md:h-8");
 
     await user.click(
-      within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),
+      within(dialog).getByRole("button", {
+        name: "Preview as LinkedIn @sokosumi-co",
+      }),
     );
     expect(preview).toHaveAttribute("data-provider", "linkedin");
     expect(within(preview).getByText("Sokosumi Co")).toBeVisible();
     expect(
-      within(dialog).getByRole("button", { name: "Preview as @sokosumi-co" }),
+      within(dialog).getByRole("button", {
+        name: "Preview as LinkedIn @sokosumi-co",
+      }),
     ).toHaveAttribute("aria-pressed", "true");
 
     await user.click(
@@ -2782,7 +2838,56 @@ describe("ProjectSocialPosts", () => {
     expect(preview).toHaveAttribute("data-provider", "x");
   });
 
-  it("reschedules a scheduled post from the row menu", async () => {
+  it("badges the network logo on preview account chips with photos", async () => {
+    const restore = stubLoadedImage();
+    const photo =
+      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect width='8' height='8' fill='%23111'/></svg>";
+    try {
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[
+            buildConnection({ avatarUrl: photo }),
+            buildConnection({
+              id: "connection-2",
+              provider: "linkedin",
+              externalHandle: "sokosumi-co",
+              displayName: "Sokosumi Co",
+              avatarUrl: photo,
+            }),
+          ]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      await user.click(
+        within(dialog).getByRole("button", { name: "LinkedIn Sokosumi Co" }),
+      );
+      await user.type(within(dialog).getByLabelText("Text"), "Hello both");
+
+      const chip = within(dialog).getByRole("button", {
+        name: "Preview as X @sokosumi",
+      });
+      await waitFor(() => {
+        expect(
+          within(chip).getByTestId("social-post-account-photo"),
+        ).toHaveAttribute("src", photo);
+      });
+      expect(
+        within(chip).getByTestId("social-post-account-logo"),
+      ).toBeVisible();
+      expect(
+        within(chip).getByTestId("social-post-account-logo-badge"),
+      ).toBeVisible();
+    } finally {
+      restore();
+    }
+  });
+
+  it("reschedules a scheduled post from the preview", async () => {
     freezeClock();
     const user = userEvent.setup();
     render(
@@ -2794,8 +2899,11 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    await openRowMenu(user, "post-scheduled");
-    await user.click(screen.getByRole("menuitem", { name: "Reschedule" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /^Reschedule/,
+      }),
+    );
 
     const dialog = screen.getByRole("dialog");
     expect(
@@ -2837,8 +2945,11 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    await openRowMenu(user, "post-scheduled");
-    await user.click(screen.getByRole("menuitem", { name: "Reschedule" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /^Reschedule/,
+      }),
+    );
     const dialog = screen.getByRole("dialog");
     const when = within(dialog)
       .getByRole("heading", { name: "When" })
@@ -2868,8 +2979,9 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    await openRowMenu(user, "post-scheduled");
-    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Edit" }),
+    );
     const dialog = screen.getByRole("dialog");
     await user.click(
       within(dialog).getByRole("button", { name: "Add from Drive" }),
@@ -3695,8 +3807,11 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    await openRowMenu(user, "post-scheduled");
-    await user.click(screen.getByRole("menuitem", { name: "Reschedule" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /^Reschedule/,
+      }),
+    );
     expect(
       within(screen.getByRole("dialog")).getByTestId("social-post-timezone"),
     ).toHaveTextContent(

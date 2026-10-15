@@ -24,7 +24,7 @@ const organizationMetadataSchema = z
     return rest;
   });
 
-export const organizationSchema = z.object({
+const organizationSchema = z.object({
   id: z.string().openapi({ example: "org_123" }),
   createdAt: dateTimeSchema,
   name: z.string().openapi({ example: "My Organization" }),

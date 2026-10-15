@@ -1624,6 +1624,7 @@
           "standup": "Stand-up diario",
           "weeklyWrap": "Resumen semanal",
           "scheduled": "Programado: {name}",
+          "background": "Trabajo en segundo plano: {name}",
           "taskUpdate": "Actualización de tarea"
         }
       }
@@ -2622,7 +2623,7 @@
           "accountFallback": "Tu cuenta",
           "open": "Vista previa",
           "accounts": "Cuenta de vista previa",
-          "as": "Vista previa como {handle}",
+          "as": "Vista previa como {provider} {handle}",
           "dialogTitle": "Vista previa de la publicación",
           "offline": "Estás sin conexión.",
           "timeout": "Se agotó el tiempo.",
@@ -2637,7 +2638,9 @@
           },
           "instagram": {
             "more": "más",
-            "mediaRequired": "Instagram necesita una imagen o un video."
+            "mediaRequired": "Instagram necesita una imagen o un video.",
+            "slide": "{current} de {total}",
+            "slideIndex": "{current}/{total}"
           },
           "facebook": {
             "like": "Me gusta",
@@ -2712,7 +2715,8 @@
             "legendMore": "Más",
             "moreActions": "Más acciones",
             "exportCsv": "Exportar CSV",
-            "exportXlsx": "Exportar hoja de cálculo"
+            "exportXlsx": "Exportar hoja de cálculo",
+            "legendUnknown": "Desconocido"
           },
           "accountsTitle": "Cuentas conectadas",
           "postsTitle": "Publicaciones de las cuentas",

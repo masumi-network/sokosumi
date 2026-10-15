@@ -29,6 +29,10 @@ const mocks = vi.hoisted(() => ({
   mentionUpdate: vi.fn(),
   mentionFind: vi.fn(),
   messageClose: vi.fn(),
+  snapshots: vi.fn(),
+}));
+vi.mock("@/services/chat-result-preview.service", () => ({
+  collectTurnResultSnapshots: mocks.snapshots,
 }));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: mocks.persistHumanMentions,
@@ -131,6 +135,7 @@ function delivery(overrides = {}) {
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.humanMentions.mockResolvedValue([]);
+  mocks.snapshots.mockResolvedValue([]);
   mocks.storedContent.mockResolvedValue({ content: "Saved result" });
   mocks.transaction.mockImplementation(async (callback) => callback(prisma));
   mocks.claim.mockResolvedValue({ count: 1 });
@@ -237,6 +242,24 @@ describe("durable delivery", () => {
     },
   );
 
+  it("delivers a background run that failed, so the owner hears it stopped", async () => {
+    mocks.turn.mockResolvedValue(
+      turn({
+        source: "CHAT",
+        status: "FAILED",
+        finalAnswer: null,
+        parentTurnId: "parent",
+        backgroundTitle: "Gmail CRM",
+      }),
+    );
+    await enqueueSokoBotDelivery(prisma, "turn");
+    expect(mocks.upsertDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ status: "PENDING", reason: null }),
+      }),
+    );
+  });
+
   it("creates one stable keyed message and records PERSISTED before transport", async () => {
     mocks.publish.mockImplementation(async () => {
       expect(mocks.update).toHaveBeenCalledWith(
@@ -260,6 +283,62 @@ describe("durable delivery", () => {
     expect(mocks.publish).toHaveBeenCalledWith("message", "create", {
       throwOnError: true,
     });
+  });
+
+  it("posts a background run's report as a new message in the chat it came from", async () => {
+    mocks.find.mockResolvedValue(
+      delivery({
+        turn: turn({
+          source: "CHAT",
+          parentTurnId: "parent",
+          backgroundTitle: "Gmail CRM",
+          finalAnswer: "412 contacts in the CRM table.",
+        }),
+      }),
+    );
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.persistChat).not.toHaveBeenCalled();
+    expect(mocks.message).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          content: "412 contacts in the CRM table.",
+          metadata: {
+            soko_bot: {
+              turn_id: "turn",
+              source: "CHAT",
+              background_run_title: "Gmail CRM",
+            },
+          },
+        }),
+      }),
+    );
+    expect(mocks.publish).toHaveBeenCalledWith("message", "create", {
+      throwOnError: true,
+    });
+  });
+
+  it("attaches the cards of what a background run made to its report", async () => {
+    const card = { id: "preview", reference: { kind: "file", id: "file" } };
+    mocks.snapshots.mockResolvedValue([card]);
+    mocks.find.mockResolvedValue(
+      delivery({
+        turn: turn({
+          source: "CHAT",
+          parentTurnId: "parent",
+          backgroundTitle: "Site",
+        }),
+      }),
+    );
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.message).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          metadata: expect.objectContaining({
+            result_preview_snapshots: [card],
+          }),
+        }),
+      }),
+    );
   });
 
   it("tags an unprompted message with the schedule that started it", async () => {

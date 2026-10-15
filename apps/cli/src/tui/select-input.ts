@@ -27,7 +27,7 @@ export function SelectInput<T>({
   listen = true,
 }: {
   items: readonly SelectItem<T>[];
-  onSelect: (value: T) => void;
+  onSelect(value: T): void;
   initialIndex?: number;
   listen?: boolean;
 }): React.ReactElement {

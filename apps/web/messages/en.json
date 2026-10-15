@@ -1624,6 +1624,7 @@
           "standup": "Daily stand-up",
           "weeklyWrap": "Weekly wrap",
           "scheduled": "Scheduled: {name}",
+          "background": "Background run: {name}",
           "taskUpdate": "Task update"
         }
       }
@@ -2622,7 +2623,7 @@
           "accountFallback": "Your account",
           "open": "Preview",
           "accounts": "Preview account",
-          "as": "Preview as {handle}",
+          "as": "Preview as {provider} {handle}",
           "dialogTitle": "Post preview",
           "offline": "You're offline.",
           "timeout": "Timed out.",
@@ -2637,7 +2638,9 @@
           },
           "instagram": {
             "more": "more",
-            "mediaRequired": "Instagram needs an image or video."
+            "mediaRequired": "Instagram needs an image or video.",
+            "slide": "{current} of {total}",
+            "slideIndex": "{current}/{total}"
           },
           "facebook": {
             "like": "Like",
@@ -2712,7 +2715,8 @@
             "legendMore": "More",
             "moreActions": "More actions",
             "exportCsv": "Export CSV",
-            "exportXlsx": "Export spreadsheet"
+            "exportXlsx": "Export spreadsheet",
+            "legendUnknown": "Unknown"
           },
           "accountsTitle": "Connected accounts",
           "postsTitle": "Published account posts",

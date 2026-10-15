@@ -1,4 +1,4 @@
-import { socialPostProviderLabel } from "@sokosumi/utils";
+import { socialPostProviderLabel, splitYouTubePostText } from "@sokosumi/utils";
 
 import { deleteComposioToolSession } from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
@@ -19,27 +19,6 @@ import { downloadSocialPostMedia } from "@/helpers/social-post-media";
 const YOUTUBE_UPLOAD_TOOL_SLUG = "YOUTUBE_UPLOAD_VIDEO";
 /** People & Blogs; YouTube requires a category id. */
 const YOUTUBE_DEFAULT_CATEGORY_ID = "22";
-const YOUTUBE_TITLE_LIMIT = 100;
-
-/** First non-empty line, trimmed and capped at YouTube's title limit. */
-export function deriveYouTubeTitle(text: string): string {
-  const line = text
-    .split(/\r?\n/)
-    .map((part) => part.trim())
-    .find((part) => part.length > 0);
-  return (line ?? "Untitled").slice(0, YOUTUBE_TITLE_LIMIT);
-}
-
-/** Everything after the title line. Empty when the post is only a title. */
-export function deriveYouTubeDescription(text: string): string {
-  const lines = text.split(/\r?\n/);
-  const titleIndex = lines.findIndex((part) => part.trim().length > 0);
-  if (titleIndex === -1) return "";
-  return lines
-    .slice(titleIndex + 1)
-    .join("\n")
-    .trim();
-}
 
 function videoIdOf(data: Record<string, unknown> | null): string | null {
   const candidates = [data?.id, data?.videoId, data?.video_id];
@@ -81,13 +60,14 @@ export async function publishYouTubeVideo(
       file: video,
       signal: context.signal,
     });
+    const { title, description } = splitYouTubePostText(context.text);
     const uploaded = await guardSocialCreateOutcome(label, () =>
       executeComposioTool({
         sessionId,
         toolSlug: YOUTUBE_UPLOAD_TOOL_SLUG,
         arguments: {
-          title: deriveYouTubeTitle(context.text),
-          description: deriveYouTubeDescription(context.text),
+          title: title || "Untitled",
+          description,
           tags: [],
           categoryId: YOUTUBE_DEFAULT_CATEGORY_ID,
           privacyStatus: "public",

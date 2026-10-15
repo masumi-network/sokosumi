@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
-export const workspaceOrganizationSummarySchema = z.object({
+const workspaceOrganizationSummarySchema = z.object({
   id: z.string().openapi({
     example: "11111111-1111-7111-8111-111111111111",
   }),
