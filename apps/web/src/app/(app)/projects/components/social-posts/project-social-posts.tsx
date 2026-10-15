@@ -458,8 +458,9 @@ export function ProjectSocialPosts({
     // Follow the post to the list that still shows it. A failed or missed
     // post that just left that list should not yank the page to the calendar
     // while other posts still need attention.
+    // Calendar entries are server-rendered, so refresh after every save.
+    router.refresh();
     if (previewOnly) {
-      router.refresh();
       return;
     }
     const nextSection = sectionOf(post);
