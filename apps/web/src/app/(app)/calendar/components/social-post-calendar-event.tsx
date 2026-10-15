@@ -112,6 +112,7 @@ function CompactSocialPostCalendarEvent({
 }) {
   const t = useTranslations("App.Calendar.socialPost");
   const formatter = useFormatter();
+  const statuses = useTranslations("App.Projects.SocialPosts.status");
   const label = t("compactLabel", {
     provider: socialPostProviderLabel(item.provider),
     media: item.previewMedia?.kind ?? "none",
@@ -137,11 +138,17 @@ function CompactSocialPostCalendarEvent({
       className="size-3 shrink-0"
     />
   );
+  const accessibleName = [
+    formatter.dateTime(item.scheduledAt, "time", { timeZone }),
+    label,
+    statuses(item.status),
+  ].join(", ");
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
+          aria-label={accessibleName}
           className={cn(
             "bg-background text-foreground press hover:bg-muted border-border flex w-full max-w-full min-w-0 cursor-pointer select-none overflow-hidden rounded border text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring-halo focus-visible:ring-2 focus-visible:outline-none",
             showThumb
@@ -188,6 +195,7 @@ function SocialPostPreviewCard({
 }) {
   const t = useTranslations("App.Calendar.socialPost");
   const formatter = useFormatter();
+  const statuses = useTranslations("App.Projects.SocialPosts.status");
   const openPreview = useSocialCalendarPreview();
   const scheduler = t("scheduledBy", {
     name: item.scheduledByName ?? t("unknownScheduler"),
@@ -197,6 +205,19 @@ function SocialPostPreviewCard({
   const account = handle ? `${providerLabel} · ${handle}` : providerLabel;
   const className =
     "bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-stretch gap-1 overflow-hidden rounded-md p-1.5 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo";
+  const accessibleName = [
+    account,
+    formatter.dateTime(item.scheduledAt, "time", { timeZone }),
+    t("project", { name: item.projectName }),
+    item.text || t("mediaOnly"),
+    statuses(item.status),
+    scheduler,
+    item.attachmentCount > 1
+      ? t("attachments", { count: item.attachmentCount })
+      : null,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(", ");
   const content = (
     <>
       <span className="flex w-full min-w-0 items-center gap-1">
@@ -260,6 +281,7 @@ function SocialPostPreviewCard({
   return openPreview ? (
     <button
       type="button"
+      aria-label={accessibleName}
       className={className}
       data-testid="calendar-social-post"
       onClick={(event) =>
@@ -271,6 +293,7 @@ function SocialPostPreviewCard({
   ) : (
     <Link
       href={socialPostHref(item)}
+      aria-label={accessibleName}
       className={className}
       data-testid="calendar-social-post"
     >
