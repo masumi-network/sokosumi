@@ -803,6 +803,136 @@ describe("ProjectSocialPosts", () => {
     expect(within(row).getByTestId("social-post-status-FAILED")).toBeVisible();
   });
 
+  it("keeps a publishing post on Drafts until it finishes", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[buildPost(), PUBLISHING_POST, SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Drafts 2",
+      "Performance ",
+    ]);
+    const drafts = screen.getByTestId("social-posts-section-drafts");
+    const publishing = within(drafts).getByTestId(
+      "social-post-post-publishing",
+    );
+    expect(within(publishing).getByText("Publishing text")).toBeVisible();
+    expect(
+      within(publishing).getByTestId("social-post-status-PUBLISHING"),
+    ).toHaveTextContent("Publishing…");
+    expect(
+      within(publishing).queryByRole("button", { name: "Post actions" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("social-post-post-scheduled"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps a draft on Drafts while publishing and removes it once published", () => {
+    const draft = buildPost();
+    const { rerender } = render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[draft]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(getTab("Drafts")).toHaveTextContent("Drafts 1");
+    const drafts = screen.getByTestId("social-posts-section-drafts");
+    const draftRow = within(drafts).getByTestId(`social-post-${draft.id}`);
+    expect(within(draftRow).getByText(draft.text)).toBeVisible();
+
+    rerender(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({ ...PUBLISHING_POST, id: draft.id, text: draft.text }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(getTab("Drafts")).toHaveTextContent("Drafts 1");
+    const publishing = within(drafts).getByTestId(`social-post-${draft.id}`);
+    expect(within(publishing).getByText(draft.text)).toBeVisible();
+    expect(
+      within(publishing).getByTestId("social-post-status-PUBLISHING"),
+    ).toHaveTextContent("Publishing…");
+
+    rerender(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({ ...PUBLISHED_POST, id: draft.id, text: draft.text }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(getTab("Drafts")).toHaveTextContent(/^Drafts$/);
+    expect(
+      within(drafts).queryByTestId(`social-post-${draft.id}`),
+    ).not.toBeInTheDocument();
+    expect(
+      within(drafts).getByRole("heading", { name: "No drafts yet." }),
+    ).toBeVisible();
+  });
+
+  it("moves a publishing post from Drafts to Needs attention when it fails", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[PUBLISHING_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(getTab("Drafts")).toHaveTextContent("Drafts 1");
+    const drafts = screen.getByTestId("social-posts-section-drafts");
+    expect(
+      within(drafts).getByTestId(`social-post-${PUBLISHING_POST.id}`),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("tab", { name: /^Needs attention/ }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({
+            ...FAILED_POST,
+            id: PUBLISHING_POST.id,
+            text: PUBLISHING_POST.text,
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(getTab("Drafts")).toHaveTextContent(/^Drafts$/);
+    expect(
+      within(drafts).queryByTestId(`social-post-${PUBLISHING_POST.id}`),
+    ).not.toBeInTheDocument();
+    expect(getTab("Needs attention")).toHaveTextContent("Needs attention 1");
+
+    await openTab(user, "Needs attention");
+    const attention = screen.getByTestId("social-posts-section-attention");
+    const failed = within(attention).getByTestId(
+      `social-post-${PUBLISHING_POST.id}`,
+    );
+    expect(within(failed).getByText(PUBLISHING_POST.text)).toBeVisible();
+    expect(
+      within(failed).getByTestId("social-post-status-FAILED"),
+    ).toBeVisible();
+  });
+
   it("opens Social on its calendar, with Accounts as the last tab", async () => {
     const user = userEvent.setup();
     render(
