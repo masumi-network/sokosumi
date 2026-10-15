@@ -13,7 +13,24 @@ export const MAX_KEEP_GOING_ROUNDS = 40;
 /** Stop nudging when less than this is left: the report needs time too. */
 export const MIN_ROUND_TIME_MS = 3 * 60 * 1_000;
 
-const DONE_PREFIX = /^\s*\**\s*DONE\s*\**\s*:?\s*\**\s*/i;
+/** "DONE:", also as a heading, in bold or after a check mark. */
+const DONE_PREFIX = /^[\s#>*_\-–—✅✔\uFE0F]*DONE\b[\s*_:–—-]*/iu;
+
+/** Rounds in a row that only looked things up before the reply counts as the report. */
+export const MAX_IDLE_ROUNDS = 2;
+
+const READ_TOOL =
+  /^(get|list|read|search|find)_|^(refresh_context|preview_result|read_memory|workspace_read|workspace_list|workspace_search)$/;
+
+/**
+ * A round that only re-read Tasks and Files: the work is done and the model
+ * is checking it again. Waiting on a Coworker runs \`bash\` \`sleep\`, so it
+ * never counts; a v25 run re-listed the same Tasks for twenty minutes after
+ * the review came back because its reply never started with DONE.
+ */
+export function isIdleRound(toolNames: readonly string[]): boolean {
+  return toolNames.every((name) => READ_TOOL.test(name));
+}
 
 export function isFinalReport(text: string): boolean {
   return DONE_PREFIX.test(text);
