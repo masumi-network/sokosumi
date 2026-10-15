@@ -39,6 +39,16 @@ enum CoreSettings {
     webBaseURL.appending(path: "setup")
   }
 
+  /// Register on the website: the app's sign-in sheet forgets everything once
+  /// it closes, and the website's onboarding sets up the new account.
+  static var signUpURL: URL {
+    signUpURL(from: webBaseURL)
+  }
+
+  static func signUpURL(from webBaseURL: URL) -> URL {
+    webBaseURL.appending(path: "signup")
+  }
+
   static func url(environment: String?, plist: String?, fallback: String) -> URL {
     if let raw = environment, let url = URL(string: raw) {
       return url
