@@ -84,7 +84,10 @@ import {
   SOCIAL_TABS,
   type SocialTab,
 } from "./constants";
-import { accountChipLabel } from "./social-post-account-chip-label";
+import {
+  accountChipLabel,
+  formatComposerHandle,
+} from "./social-post-account-chip-label";
 import { socialPostCreatorLabel } from "./social-post-creator-label";
 import { SocialPostMediaThumb } from "./social-post-media-thumb";
 import { SocialPostMetrics } from "./social-post-metrics";
@@ -186,6 +189,17 @@ function calendarDateParam(date: Date, timeZone: string): string {
   }
   return `${values.year}-${values.month}-${values.day}`;
 }
+
+function actionSubject(post: SocialPost, untitled: string): string {
+  const handle = formatComposerHandle(
+    post.socialConnection?.externalHandle ?? null,
+  );
+  if (handle) return handle;
+  const name = post.socialConnection?.displayName?.trim();
+  if (name) return name;
+  return untitled;
+}
+
 function isRevisionConflict(error: ActionError): boolean {
   return error.kind === CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT;
 }
@@ -641,6 +655,7 @@ export function ProjectSocialPosts({
       (showComposeInMenu && post.canEdit) ||
       (showComposeInMenu && post.canSchedule) ||
       post.canCancel;
+    const subject = actionSubject(post, t("thisDraft"));
     return (
       <div
         className="ms-auto flex items-center gap-2"
@@ -652,7 +667,7 @@ export function ProjectSocialPosts({
             variant="ghost"
             size="icon"
             className="size-11 md:size-10"
-            aria-label={t("preview.open")}
+            aria-label={t("preview.openNamed", { handle: subject })}
             data-testid={`social-post-preview-open-${post.id}`}
             onClick={() => {
               setPreviewTarget(post);
@@ -685,7 +700,7 @@ export function ProjectSocialPosts({
                 variant="ghost"
                 size="icon"
                 className="size-11 md:size-10"
-                aria-label={t("moreActions")}
+                aria-label={t("moreActionsNamed", { handle: subject })}
               >
                 <MoreHorizontal className="size-4" aria-hidden />
               </Button>

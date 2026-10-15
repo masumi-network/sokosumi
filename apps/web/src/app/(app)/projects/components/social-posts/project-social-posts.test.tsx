@@ -91,6 +91,8 @@ const MESSAGES: Record<string, string> = {
   description: "Draft text posts for X and schedule them from this Project.",
   newPost: "New post",
   moreActions: "Post actions",
+  moreActionsNamed: "Post actions for {handle}",
+  thisDraft: "this draft",
   noAccount: "No account",
   needsReconnect: "Account needs reconnecting",
   needsReconnectLink: "Reconnect the account",
@@ -252,6 +254,7 @@ const MESSAGES: Record<string, string> = {
   "toasts.unauthenticated": "Please log in to continue.",
   "toasts.unauthenticatedAction": "Log in",
   "preview.open": "Preview",
+  "preview.openNamed": "Preview {handle}",
   "preview.accounts": "Preview account",
   "preview.as": "Preview as {provider} {handle}",
   "preview.dialogTitle": "Post preview",
@@ -540,7 +543,7 @@ async function openRowMenu(
   postId: string,
 ) {
   const row = screen.getByTestId(`social-post-${postId}`);
-  await user.click(within(row).getByRole("button", { name: "Post actions" }));
+  await user.click(within(row).getByRole("button", { name: /^Post actions/ }));
 }
 
 /** Tabs carry a count after the label, so match on how the name starts. */
@@ -698,10 +701,12 @@ describe("ProjectSocialPosts", () => {
     expect(within(draftRow).getByTestId("social-post-preview")).toBeVisible();
     expect(within(draftRow).getByText("Draft text")).toBeVisible();
     expect(
-      within(draftRow).getByRole("button", { name: "Preview" }),
+      within(draftRow).getByRole("button", { name: "Preview this draft" }),
     ).toBeVisible();
     expect(
-      within(draftRow).getByRole("button", { name: "Post actions" }),
+      within(draftRow).getByRole("button", {
+        name: "Post actions for this draft",
+      }),
     ).toBeVisible();
     expect(screen.getByTestId("social-posts-drafts-grid")).toHaveClass(
       "items-stretch",
@@ -709,10 +714,12 @@ describe("ProjectSocialPosts", () => {
       "xl:grid-cols-3",
     );
     expect(
-      within(draftRow).getByRole("button", { name: "Preview" }),
+      within(draftRow).getByRole("button", { name: "Preview this draft" }),
     ).toHaveClass("size-11", "md:size-10");
     expect(
-      within(draftRow).getByRole("button", { name: "Post actions" }),
+      within(draftRow).getByRole("button", {
+        name: "Post actions for this draft",
+      }),
     ).toHaveClass("size-11", "md:size-10");
     expect(
       screen.queryByTestId("social-post-post-scheduled"),
@@ -888,6 +895,71 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("names Preview and Post actions with the account, or this draft", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: null,
+            displayName: "Sokosumi Co",
+          }),
+        ]}
+        posts={[
+          buildPost({
+            id: "post-handle",
+            socialConnection: {
+              id: "connection-1",
+              externalHandle: "sokosumi",
+              displayName: "Sokosumi",
+              avatarUrl: null,
+              status: "active",
+            },
+          }),
+          buildPost({
+            id: "post-name",
+            provider: "linkedin",
+            socialConnection: {
+              id: "connection-2",
+              externalHandle: null,
+              displayName: "Sokosumi Co",
+              avatarUrl: null,
+              status: "active",
+            },
+          }),
+          buildPost({ id: "post-untitled" }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(
+      within(screen.getByTestId("social-post-post-handle")).getByRole(
+        "button",
+        { name: "Preview @sokosumi" },
+      ),
+    ).toBeVisible();
+    expect(
+      within(screen.getByTestId("social-post-post-handle")).getByRole(
+        "button",
+        { name: "Post actions for @sokosumi" },
+      ),
+    ).toBeVisible();
+    expect(
+      within(screen.getByTestId("social-post-post-name")).getByRole("button", {
+        name: "Preview Sokosumi Co",
+      }),
+    ).toBeVisible();
+    expect(
+      within(screen.getByTestId("social-post-post-untitled")).getByRole(
+        "button",
+        { name: "Preview this draft" },
+      ),
+    ).toBeVisible();
+  });
+
   it("shows a draft's media in the platform preview, including a GIF badge", () => {
     const gif: SocialPostMediaRef = {
       pathname: "drive/users/user_1/loop.gif",
@@ -953,8 +1025,8 @@ describe("ProjectSocialPosts", () => {
       within(draft).getByTestId("social-post-preview-media-compact"),
     ).toHaveClass("max-h-64");
     expect(
-      within(draft).getByRole("button", { name: "Preview" }).parentElement
-        ?.parentElement,
+      within(draft).getByRole("button", { name: "Preview @sokosumi" })
+        .parentElement?.parentElement,
     ).toHaveClass("mt-auto");
   });
 
@@ -1074,7 +1146,9 @@ describe("ProjectSocialPosts", () => {
       within(publishing).getByTestId("social-post-status-PUBLISHING"),
     ).toHaveTextContent("Publishing…");
     expect(
-      within(publishing).queryByRole("button", { name: "Post actions" }),
+      within(publishing).queryByRole("button", {
+        name: "Post actions for this draft",
+      }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("social-post-post-scheduled"),
@@ -3418,7 +3492,9 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
 
     await user.click(
-      within(dialog).getByRole("button", { name: "Post actions" }),
+      within(dialog).getByRole("button", {
+        name: "Post actions for @sokosumi",
+      }),
     );
     expect(screen.getByRole("menuitem", { name: "Publish now" })).toBeVisible();
     expect(screen.getByRole("menuitem", { name: "Cancel post" })).toBeVisible();
@@ -3446,7 +3522,7 @@ describe("ProjectSocialPosts", () => {
       within(dialog).getByRole("button", { name: /^Reschedule/ }),
     ).toBeVisible();
     expect(
-      within(dialog).queryByRole("button", { name: "Post actions" }),
+      within(dialog).queryByRole("button", { name: /^Post actions/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -3927,6 +4003,14 @@ describe("ProjectSocialPosts", () => {
       "h-11",
       "md:h-8",
     );
+    expect(
+      within(row).getByRole("button", { name: "Preview @sokosumi" }),
+    ).toBeVisible();
+    expect(
+      within(row).getByRole("button", {
+        name: "Post actions for @sokosumi",
+      }),
+    ).toBeVisible();
 
     await openRowMenu(user, "post-failed");
     expect(screen.getByRole("menuitem", { name: "Reschedule" })).toHaveClass(
@@ -4446,7 +4530,7 @@ describe("ProjectSocialPosts", () => {
       within(dialog).getByRole("link", { name: "View post" }),
     ).toHaveAttribute("href", "https://x.com/sokosumi/status/1234567890");
     expect(
-      within(dialog).queryByRole("button", { name: "Post actions" }),
+      within(dialog).queryByRole("button", { name: /^Post actions/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -4462,7 +4546,7 @@ describe("ProjectSocialPosts", () => {
 
     const dialog = screen.getByRole("dialog");
     expect(
-      within(dialog).queryByRole("button", { name: "Post actions" }),
+      within(dialog).queryByRole("button", { name: /^Post actions/ }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("social-posts-selected"),
