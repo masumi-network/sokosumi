@@ -3,9 +3,12 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
+import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
+import { collectTurnResultSnapshots } from "@/services/chat-result-preview.service";
 import { persistSokoBotChatTurn } from "./soko-bot-chat.service";
 import { deliverSokoBotEffect } from "./soko-bot-effect-outbox.service";
 
@@ -299,6 +302,9 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
         await persistSokoBotChatTurn(turn.id, tx);
         messageId = existing.id;
       } else {
+        // A background run's report carries the cards of what it made, as a
+        // chat reply does.
+        const snapshots = await collectTurnResultSnapshots(turn.id, tx);
         const message = await tx.chatRoomMessage.upsert({
           where: {
             roomId_clientMessageId: {
@@ -312,6 +318,9 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
             senderSokoBotId: turn.sokoBotId,
             content: turn.finalAnswer?.trim() || backgroundStopNote(turn),
             metadata: {
+              ...(snapshots.length
+                ? { [RESULT_SNAPSHOTS_KEY]: sanitizePersistedValue(snapshots) }
+                : {}),
               soko_bot: {
                 turn_id: turn.id,
                 source: turn.source,

@@ -137,6 +137,23 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "start_background_run",
 ] as const satisfies readonly SokoBotCapability[];
 
+/**
+ * The tainted tools that stay refused even on work the owner asked for: they
+ * reach people or systems beyond the owner's own workspace. The rest — briefing
+ * a Coworker, hiring, saving to Files — is what a chained job the owner set
+ * out ("research, build the site, have it reviewed") is made of.
+ */
+export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
+  "run_integration_tool",
+  "post_chat",
+  "open_direct_chat",
+  "create_social_post",
+  "update_social_post",
+  "schedule_social_post",
+  "cancel_social_post",
+  "publish_social_post",
+] as const satisfies readonly (typeof SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES)[number][];
+
 const DIRECT_READ_CAPABILITIES = [
   "refresh_context",
   "get_task_status",
