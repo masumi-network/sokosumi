@@ -8,9 +8,9 @@ import {
 } from "@/components/ui/tooltip";
 
 /**
- * One-line reason on a Failed or Missed chip. Hover, keyboard focus, and a
- * tap on a phone all show it. The chip sits inside a calendar card, so the
- * tap must not open the post.
+ * Reason on a Failed or Missed chip. Hover, keyboard focus, and a tap on a
+ * phone all show it. Long text wraps so it stays on the screen. The chip
+ * sits inside a calendar card, so the tap must not open the post.
  */
 export function SocialPostStatusReasonTooltip({
   label,
@@ -48,7 +48,7 @@ export function SocialPostStatusReasonTooltip({
         {reason}
       </span>
       <TooltipContent
-        className="max-w-none whitespace-nowrap"
+        className="max-w-64 text-pretty"
         side="top"
         sideOffset={6}
       >

@@ -45,23 +45,6 @@ describe("SocialPostMetrics", () => {
     expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
   });
 
-  it("still names empty counts on compact list rows", () => {
-    render(
-      <SocialPostMetrics
-        compact
-        statistics={{
-          metrics,
-          fetchedAt: new Date("2026-10-08T12:00:00.000Z"),
-          refreshAttemptedAt: null,
-          error: null,
-        }}
-      />,
-    );
-    expect(
-      screen.getByText("Likes / reactions").closest("div"),
-    ).toHaveTextContent("Unavailable");
-  });
-
   it("says when numbers have not been fetched and when a refresh failed", () => {
     render(
       <SocialPostMetrics
@@ -78,4 +61,84 @@ describe("SocialPostMetrics", () => {
       "Failed to refresh statistics",
     );
   });
+
+  it("hides missing compact counts and the not-fetched line", () => {
+    render(
+      <SocialPostMetrics
+        compact
+        statistics={{
+          metrics,
+          fetchedAt: null,
+          refreshAttemptedAt: new Date("2026-10-08T12:00:00.000Z"),
+          error: "rate limited",
+        }}
+      />,
+    );
+    expect(screen.getByText("Views").closest("div")).toHaveTextContent("0");
+    expect(screen.getByText("Impressions").closest("div")).toHaveTextContent(
+      "12",
+    );
+    expect(screen.queryByText("Likes / reactions")).not.toBeInTheDocument();
+    expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Statistics have not been fetched."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Failed to refresh statistics",
+    );
+  });
+
+  it("shows compact refresh failures even when every count is missing", () => {
+    render(
+      <SocialPostMetrics
+        compact
+        statistics={{
+          metrics: {
+            ...metrics,
+            views: null,
+            impressions: null,
+            comments: null,
+          },
+          fetchedAt: null,
+          refreshAttemptedAt: new Date("2026-10-08T12:00:00.000Z"),
+          error: "rate limited",
+        }}
+      />,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Failed to refresh statistics",
+    );
+    expect(screen.queryByText("Views")).not.toBeInTheDocument();
+    expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
+  });
+
+  it("renders nothing compact when every count is missing", () => {
+    const { container } = render(
+      <SocialPostMetrics
+        compact
+        statistics={{
+          metrics: {
+            ...metrics,
+            views: null,
+            impressions: null,
+            comments: null,
+          },
+          fetchedAt: null,
+          refreshAttemptedAt: null,
+          error: null,
+        }}
+      />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it.each([null, undefined])(
+    "renders nothing compact when statistics are %s",
+    (statistics) => {
+      const { container } = render(
+        <SocialPostMetrics compact statistics={statistics} />,
+      );
+      expect(container).toBeEmptyDOMElement();
+    },
+  );
 });

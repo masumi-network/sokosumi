@@ -27,4 +27,20 @@ describe("SocialPostStatusReasonTooltip", () => {
     );
     expect(chip).toHaveAttribute("aria-label", "Failed");
   });
+
+  it("wraps a long reason so it stays on a phone", () => {
+    render(
+      <SocialPostStatusReasonTooltip
+        label="Failed"
+        reason="Coworker scheduling access was revoked. Reschedule this post to publish it."
+      >
+        Failed
+      </SocialPostStatusReasonTooltip>,
+    );
+
+    fireEvent.click(screen.getByTestId("social-post-status-reason"));
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip).toHaveClass("max-w-64");
+    expect(tooltip).not.toHaveClass("whitespace-nowrap");
+  });
 });
