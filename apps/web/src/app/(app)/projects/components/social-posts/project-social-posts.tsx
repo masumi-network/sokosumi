@@ -120,7 +120,15 @@ function sectionOf(post: SocialPost): SectionKey | undefined {
   );
 }
 
-function sortSection(posts: SocialPost[]): SocialPost[] {
+function sortSection(posts: SocialPost[], section: SectionKey): SocialPost[] {
+  if (section === "attention") {
+    return [...posts].sort(
+      (a, b) =>
+        timeOf(b.lastAttemptAt) - timeOf(a.lastAttemptAt) ||
+        timeOf(b.scheduledAt) - timeOf(a.scheduledAt) ||
+        b.id.localeCompare(a.id),
+    );
+  }
   return [...posts].sort((a, b) => timeOf(b.updatedAt) - timeOf(a.updatedAt));
 }
 
@@ -270,6 +278,7 @@ export function ProjectSocialPosts({
   function postsIn(section: SectionKey): SocialPost[] {
     return sortSection(
       posts.filter((post) => SECTION_STATUSES[section].includes(post.status)),
+      section,
     );
   }
 
