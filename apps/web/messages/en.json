@@ -2801,6 +2801,14 @@
             "minutes": "minutes",
             "hours": "hours"
           }
+        },
+        "reconnection": {
+          "accounts": "Accounts needing attention",
+          "title": "{account} needs reconnecting",
+          "affected": "{count, plural, one {# post affected} other {# posts affected}}",
+          "retryTitle": "Retry failed posts?",
+          "retryDescription": "{count, plural, one {Your account is reconnected. Retry # failed post?} other {Your account is reconnected. Retry # failed posts?}}",
+          "later": "Later"
         }
       },
       "Detail": {

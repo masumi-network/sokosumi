@@ -97,11 +97,16 @@ const MESSAGES: Record<string, string> = {
 };
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: Record<string, string>) =>
-    (MESSAGES[key] ?? key).replace(
-      /\{(\w+)\}/g,
-      (_, name: string) => values?.[name] ?? name,
-    ),
+  useTranslations:
+    (namespace: string) => (key: string, values?: Record<string, string>) =>
+      (namespace === "App.Projects.SocialPosts"
+        ? ({
+            "reconnection.accounts": "Accounts needing attention",
+            "reconnection.title": "{account} needs reconnecting",
+            "reconnection.affected": "{count} posts affected",
+          }[key] ?? key)
+        : (MESSAGES[key] ?? key)
+      ).replace(/\{(\w+)\}/g, (_, name: string) => values?.[name] ?? name),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -634,6 +639,58 @@ describe("ProjectSocialAccounts", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("@old-account")).not.toBeInTheDocument();
     expect(screen.queryByText("Disconnected")).not.toBeInTheDocument();
+  });
+
+  it("shows a reconnect item with the account avatar and starts the existing flow", async () => {
+    const user = userEvent.setup();
+    const restore = stubLoadedImage();
+    const connection = buildConnection({
+      status: "reauthorization_required",
+      avatarUrl: "https://example.com/photo.jpg",
+    });
+    const onReconnected = vi.fn();
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[connection]}
+        reconnections={[{ connection, affectedPosts: [] }]}
+        onReconnected={onReconnected}
+      />,
+    );
+    const row = screen.getByTestId(`social-reconnect-${connection.id}`);
+    expect(within(row).getByText("@sokosumi needs reconnecting")).toBeVisible();
+    expect(within(row).queryByText(/posts affected/)).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        within(row).getByTestId("social-post-account-photo"),
+      ).toHaveAttribute("src", connection.avatarUrl),
+    );
+    expect(
+      within(row).getByTestId("social-post-account-logo-badge"),
+    ).toBeInTheDocument();
+    restore();
+    await user.click(within(row).getByRole("button", { name: "Reconnect" }));
+    expect(initiateProjectSocialConnection).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      action: "reconnect",
+      socialConnectionId: connection.id,
+    });
+    await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
+    await act(async () => {
+      MockBroadcastChannel.instances[0]?.onmessage?.({
+        data: {
+          type: "sokosumi:composio:result",
+          status: "success",
+          connectionId: "ca_known",
+          sessionUri: "https://backend.composio.dev/session/single-use",
+          errorMessage: null,
+          nonce: "project-social-nonce",
+        },
+      } as MessageEvent);
+    });
+    await waitFor(() =>
+      expect(onReconnected).toHaveBeenCalledWith(buildConnection()),
+    );
   });
 
   it.each([null, "ca_known"])(

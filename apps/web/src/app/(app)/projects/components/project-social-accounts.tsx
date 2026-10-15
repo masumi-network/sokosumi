@@ -44,10 +44,13 @@ import {
 } from "@/lib/actions/project/action";
 import { useComposioOAuthPopup } from "@/lib/composio/use-composio-oauth-popup";
 import { cn } from "@/lib/utils";
+import type { SocialReconnection } from "./social-posts/social-reconnection";
 
 interface ProjectSocialAccountsProps {
   connections: ProjectSocialConnection[];
   projectId: string;
+  reconnections?: SocialReconnection[];
+  onReconnected?: (connection: ProjectSocialConnection) => void;
 }
 
 interface PendingConfirmation {
@@ -130,9 +133,12 @@ function isExpiredIntentError(error: ActionError): boolean {
 export function ProjectSocialAccounts({
   connections,
   projectId,
+  reconnections,
+  onReconnected,
 }: ProjectSocialAccountsProps) {
   const router = useRouter();
   const t = useTranslations("App.Projects.ProjectSocialAccounts");
+  const postsT = useTranslations("App.Projects.SocialPosts");
   const { runPopupOAuth } = useComposioOAuthPopup();
   const disconnectInFlightRef = useRef(false);
   const isMountedRef = useRef(false);
@@ -283,6 +289,7 @@ export function ProjectSocialAccounts({
               account: accountName(finalization.value, t("unknownHandle")),
             }),
           });
+          if (action === "reconnect") onReconnected?.(finalization.value);
           router.refresh();
           refreshed = true;
         } catch {
@@ -414,6 +421,57 @@ export function ProjectSocialAccounts({
         ) ?? t("unknownHandle"),
       ).primary
     : "";
+
+  if (reconnections) {
+    return (
+      <ul className="grid gap-2" aria-label={postsT("reconnection.accounts")}>
+        {reconnections.map(({ connection, affectedPosts }) => (
+          <li
+            key={connection.id}
+            className="bg-card-background flex flex-wrap items-center gap-3 rounded-lg border p-3"
+            data-testid={`social-reconnect-${connection.id}`}
+          >
+            <AccountChipMark
+              avatarUrl={connection.avatarUrl}
+              provider={connection.provider}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium break-words">
+                {postsT("reconnection.title", {
+                  account:
+                    formatHandle(
+                      connection.externalHandle,
+                      connection.provider,
+                    ) ??
+                    connection.displayName ??
+                    t("unknownHandle"),
+                })}
+              </p>
+              {affectedPosts.length > 0 ? (
+                <p className="text-muted-foreground text-xs">
+                  {postsT("reconnection.affected", {
+                    count: affectedPosts.length,
+                  })}
+                </p>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-11 md:h-8"
+              disabled={isBusy}
+              loading={pendingTarget === connection.id}
+              onClick={() => void startOAuth("reconnect", connection.id)}
+            >
+              <RefreshCw className="size-4" aria-hidden />
+              {t("reconnect")}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    );
+  }
 
   return (
     <section
