@@ -542,7 +542,10 @@ vi.mock("@sokosumi/masumi", () => ({
   createAgentClient: createAgentClientMock,
 }));
 
-import { buildSokoBotAudienceTaskVisibilityWhere } from "@/helpers/task-visibility";
+import {
+  buildResponsibleUserWhere,
+  buildSokoBotAudienceTaskVisibilityWhere,
+} from "@/helpers/task-visibility";
 import {
   MAX_CHAT_CHAIN_DEPTH,
   ROOM_BOT_MESSAGES_PER_HOUR,
@@ -1361,6 +1364,33 @@ describe("SokoBotRuntimeService authorization", () => {
     );
   });
 
+  it("opens archive history only on work the asking person is responsible for", async () => {
+    taskFindFirstMock.mockResolvedValue(null);
+
+    await new SokoBotRuntimeService()["readTask"](
+      {
+        turn: { ...SCOPE, id: SCOPE.turnId, actingUserId: SCOPE.userId },
+        askedByKind: "OWNER",
+      } as never,
+      "task_1",
+    );
+
+    expect(taskFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [
+            {
+              OR: [
+                { archivedAt: null },
+                buildResponsibleUserWhere(SCOPE.userId),
+              ],
+            },
+          ],
+        }),
+      }),
+    );
+  });
+
   it("hides private Tasks from teammate Soko Bot reads", async () => {
     turnFindUniqueMock.mockResolvedValue({
       userMessage: "Check the tasks",
@@ -1809,11 +1839,8 @@ describe("SokoBotRuntimeService authorization", () => {
       expect.objectContaining({
         where: {
           AND: [
-            {
-              id: "job_1",
-              ownerId: SCOPE.userId,
-              workspaceId: SCOPE.workspaceId,
-            },
+            { id: "job_1", workspaceId: SCOPE.workspaceId },
+            buildResponsibleUserWhere(SCOPE.userId),
             {
               OR: [
                 { taskId: null },

@@ -12,8 +12,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forbidden, notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  publicWorkMadeBy,
+  WORK_MAKERS,
+} from "@/test-fixtures/responsible-work";
 import { taskEventApiInclude } from "@/types/task";
 
 import mountPatchTask, { patchTaskRequestSchema } from "./patch";
@@ -1474,5 +1479,80 @@ describe("PATCH /tasks/{id} Run at", () => {
         }),
       }),
     );
+  });
+});
+
+describe("PATCH /tasks/{id} Seat check of the responsible person (ADR 0056)", () => {
+  function patch(body: Record<string, unknown>) {
+    const app = createApp();
+    app.onError(errorHandler);
+    return app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskUpdateMock.mockResolvedValue(createTaskApi(null));
+    mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({
+        project: { findFirst: projectFindFirstMock },
+        task: { update: taskUpdateMock },
+      });
+    });
+  });
+
+  it.each(WORK_MAKERS)(
+    "seats the responsible person of public work made by a %s on the billing organization",
+    async (maker) => {
+      requireTaskWriteAccessMock.mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.DRAFT,
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+        organizationId: "org_billing",
+        description: null,
+        visibility: TaskVisibility.PUBLIC,
+        runAt: null,
+        ...publicWorkMadeBy(maker, "user_123"),
+      });
+
+      const response = await patch({ name: "Renamed" });
+
+      expect(response.status).toBe(200);
+      expect(requireAssignedOrganizationSeat).toHaveBeenCalledWith(
+        "user_123",
+        "org_billing",
+        expect.anything(),
+      );
+    },
+  );
+
+  it("leaves a member who is not responsible to the write-access Seat check", async () => {
+    requireTaskWriteAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: null,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_billing",
+      description: null,
+      visibility: TaskVisibility.PUBLIC,
+      runAt: null,
+      ...publicWorkMadeBy("person", "user_other"),
+    });
+
+    const response = await patch({ name: "Renamed" });
+
+    expect(response.status).toBe(200);
+    expect(requireAssignedOrganizationSeat).not.toHaveBeenCalled();
   });
 });

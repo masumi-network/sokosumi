@@ -702,7 +702,7 @@ async function releaseRunAt(
         taskId: task.id,
         status: TaskStatus.READY,
         channel: Channel.SOKOSUMI,
-        userId: task.ownerId,
+        userId: resolveResponsibleUserId(task),
       },
     });
     return true;

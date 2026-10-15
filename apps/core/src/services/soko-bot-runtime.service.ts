@@ -104,6 +104,7 @@ import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import {
+  buildResponsibleUserWhere,
   buildSokoBotAudienceJobParentTaskWhere,
   buildSokoBotAudienceTaskVisibilityWhere,
   isResponsibleUser,
@@ -2455,15 +2456,16 @@ export class SokoBotRuntimeService {
       where: {
         id: taskId,
         workspaceId: authorized.turn.workspaceId,
-        // Explicit owner reads may inspect retained archive history; shared
-        // audience reads and related-task discovery still exclude archives.
+        // The bot's own person may inspect the retained archive history of
+        // work they are responsible for; shared audience reads and
+        // related-task discovery still exclude archives.
         ...(authorized.askedByKind === "OWNER"
           ? {
               AND: [
                 {
                   OR: [
                     { archivedAt: null },
-                    { ownerId: authorized.turn.actingUserId },
+                    buildResponsibleUserWhere(authorized.turn.actingUserId),
                   ],
                 },
               ],
@@ -4928,9 +4930,9 @@ export class SokoBotRuntimeService {
             AND: [
               {
                 id: jobId,
-                ownerId: authorized.turn.actingUserId,
                 workspaceId: authorized.turn.workspaceId,
               },
+              buildResponsibleUserWhere(authorized.turn.actingUserId),
               buildSokoBotAudienceJobParentTaskWhere(
                 authorized.turn.actingUserId,
                 authorized.askedByKind,
@@ -5792,7 +5794,10 @@ export class SokoBotRuntimeService {
               id: input.eventId,
               jobId: input.jobId,
               status: AgentJobStatus.AWAITING_INPUT,
-              job: { ownerId: actingUserId, workspaceId: decision.workspaceId },
+              job: {
+                workspaceId: decision.workspaceId,
+                AND: [buildResponsibleUserWhere(actingUserId)],
+              },
             },
             include: {
               input: true,

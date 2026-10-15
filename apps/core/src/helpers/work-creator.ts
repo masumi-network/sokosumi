@@ -162,6 +162,18 @@ export function mapResponsibleUserSummary(
   );
 }
 
+const personNameSelect = { select: { name: true } } as const;
+
+/** The columns and relations `pickResponsibleUser` needs to name the person. */
+export const responsibleUserNameSelect = {
+  ownerId: true,
+  creatorUserId: true,
+  requestedByUserId: true,
+  owner: personNameSelect,
+  creatorUser: personNameSelect,
+  requestedByUser: personNameSelect,
+} as const;
+
 const personWithEmailSelect = {
   select: { id: true, name: true, email: true, image: true },
 } as const;

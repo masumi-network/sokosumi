@@ -26,6 +26,11 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+import {
+  buildNotResponsibleUserWhere,
+  buildResponsibleUserWhere,
+} from "@/helpers/task-visibility";
+
 import { activityStats } from "./soko-bot-activity-stats.service";
 
 const bot = {
@@ -45,11 +50,14 @@ beforeEach(() => {
   );
   turnCountMock.mockResolvedValue(120);
   usageAggregateMock.mockResolvedValue({ _sum: { cents: 4_550_000n } });
-  taskFindManyMock.mockResolvedValue([
-    { owner: { name: "Albina" } },
-    { owner: { name: "Albina" } },
-    { owner: { name: "Keanu Klestil" } },
-  ]);
+  // Teammates' work is named after its responsible person (ADR 0056).
+  const albina = { creatorUserId: "albina", creatorUser: { name: "Albina" } };
+  const keanu = {
+    creatorUserId: null,
+    requestedByUserId: "keanu",
+    requestedByUser: { name: "Keanu Klestil" },
+  };
+  taskFindManyMock.mockResolvedValue([albina, albina, keanu]);
   eventFindManyMock.mockImplementation(async ({ where }) => {
     if (where.transaction) {
       return [
@@ -63,8 +71,13 @@ beforeEach(() => {
         },
       ];
     }
-    if (where.task?.NOT) {
-      return [{ taskId: "t1", task: { owner: { name: "Albina" } } }];
+    if (JSON.stringify(where.task).includes('"not":"andreas"')) {
+      return [
+        {
+          taskId: "t1",
+          task: { creatorUserId: "albina", creatorUser: { name: "Albina" } },
+        },
+      ];
     }
     if (where.status === "FAILED") return [{ taskId: "f" }];
     if (where.task?.sokoBotDelegations) return [{ taskId: "a" }];
@@ -73,7 +86,7 @@ beforeEach(() => {
 });
 
 describe("activityStats", () => {
-  it("counts the owner's work, the bot's and the team's in the window", async () => {
+  it("counts the person's work, the bot's and the team's in the window", async () => {
     const stats = await activityStats(bot, since, until);
     expect(stats.own).toEqual({
       created: 12,
@@ -89,15 +102,18 @@ describe("activityStats", () => {
       { name: "Albina", completed: 1, created: 2 },
       { name: "Keanu Klestil", completed: 0, created: 1 },
     ]);
-    // Owner's Tasks only, and teammates' work respects private-Task visibility.
+    // Work the bot's person is responsible for, and teammates' work, which
+    // respects private-Task visibility.
     expect(taskCountMock).toHaveBeenCalledWith({
-      where: expect.objectContaining({ ownerId: "andreas", workspaceId: "ws" }),
+      where: expect.objectContaining({
+        workspaceId: "ws",
+        AND: [buildResponsibleUserWhere("andreas")],
+      }),
     });
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          NOT: { ownerId: "andreas" },
-          AND: [expect.anything()],
+          AND: [expect.anything(), buildNotResponsibleUserWhere("andreas")],
         }),
       }),
     );

@@ -10,6 +10,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
+import { buildResponsibleUserMatchingWhere } from "@/helpers/task-visibility";
 import {
   mapResponsibleUserWithEmail,
   responsibleUserWithEmailInclude,
@@ -52,14 +53,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           OR: [
             { id: term },
             { name: { contains: term, mode: "insensitive" } },
-            {
-              owner: {
-                OR: [
-                  { name: { contains: term, mode: "insensitive" } },
-                  { email: { contains: term, mode: "insensitive" } },
-                ],
-              },
-            },
+            // The person the list names as `owner` (ADR 0056).
+            buildResponsibleUserMatchingWhere({
+              OR: [
+                { name: { contains: term, mode: "insensitive" } },
+                { email: { contains: term, mode: "insensitive" } },
+              ],
+            }),
             {
               organization: {
                 OR: [

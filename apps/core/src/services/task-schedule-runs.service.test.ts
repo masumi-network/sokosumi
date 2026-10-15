@@ -702,6 +702,35 @@ describe("taskScheduleReleaseService.releaseDueRunAts", () => {
     expect(taskScheduleTestDb.runs).toHaveLength(0);
   });
 
+  it.each([
+    ["the person who made it", { creatorUserId: MEMBER_ID }, MEMBER_ID],
+    [
+      "the Requester",
+      { creatorUserId: null, requestedByUserId: MEMBER_ID },
+      MEMBER_ID,
+    ],
+    ["nobody", { creatorUserId: null, requestedByUserId: null }, null],
+  ])(
+    "writes the Ready event of a public Task in the name of %s",
+    async (_who, columns, expectedUserId) => {
+      seedTask({
+        status: TaskStatus.QUEUED,
+        runAt: MONDAY_9,
+        ownerId: null,
+        ...columns,
+      });
+
+      await releaseRunAts();
+
+      expect(taskScheduleTestDb.tasks[0]?.events).toEqual([
+        expect.objectContaining({
+          status: TaskStatus.READY,
+          userId: expectedUserId,
+        }),
+      ]);
+    },
+  );
+
   it("leaves a Task whose Run at is still ahead in Queued", async () => {
     seedTask({ status: TaskStatus.QUEUED, runAt: NEXT_MONDAY_9 });
 

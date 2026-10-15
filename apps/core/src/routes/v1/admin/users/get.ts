@@ -67,7 +67,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ),
       ),
       userIds.length > 0
-        ? prisma.task.groupBy({
+        ? // Counts by Owner, which every Task still has; count by the
+          // responsible person once public work loses it (SOK-1464).
+          prisma.task.groupBy({
             by: ["ownerId"],
             where: {
               ownerId: { in: userIds },

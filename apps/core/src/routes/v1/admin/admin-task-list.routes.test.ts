@@ -192,9 +192,15 @@ describe("GET /v1/admin/tasks", () => {
     expect(body.data[0].organization).toBeNull();
   });
 
-  it("builds an OR filter across id, name, user, and organization", async () => {
+  it("builds an OR filter across id, name, responsible person, and organization", async () => {
     const app = createApp(mountListAdminTasks);
     const res = await app.request("/?query=acme");
+    const person = {
+      OR: [
+        { name: { contains: "acme", mode: "insensitive" } },
+        { email: { contains: "acme", mode: "insensitive" } },
+      ],
+    };
 
     expect(res.status).toBe(200);
     expect(taskFindManyMock).toHaveBeenCalledWith(
@@ -203,13 +209,18 @@ describe("GET /v1/admin/tasks", () => {
           OR: [
             { id: "acme" },
             { name: { contains: "acme", mode: "insensitive" } },
+            // The person the list names: Owner, else person Creator, else
+            // Requester (ADR 0056).
             {
-              owner: {
-                OR: [
-                  { name: { contains: "acme", mode: "insensitive" } },
-                  { email: { contains: "acme", mode: "insensitive" } },
-                ],
-              },
+              OR: [
+                { owner: { is: person } },
+                { owner: { is: null }, creatorUser: { is: person } },
+                {
+                  owner: { is: null },
+                  creatorUserId: null,
+                  requestedByUser: { is: person },
+                },
+              ],
             },
             {
               organization: {

@@ -46,7 +46,10 @@ import {
   markTaskAssignedRead,
   notifyTaskHumanAssignee,
 } from "@/helpers/task-notifications";
-import { resolveResponsibleUserId } from "@/helpers/task-visibility";
+import {
+  isResponsibleUser,
+  resolveResponsibleUserId,
+} from "@/helpers/task-visibility";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -212,9 +215,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const task = await requireMutableTaskWriteAccess(userContext, id, tx);
-      // Non-owners are seated inside write access, on the workspace org.
-      // The owner check stays on the billing organizationId.
-      if (task.ownerId === userContext.userId) {
+      // Write access seats everyone else, on the workspace org. The
+      // responsible person is seated here, on the billing organizationId.
+      if (isResponsibleUser(task, userContext.userId)) {
         await requireAssignedOrganizationSeat(
           userContext.userId,
           task.organizationId,

@@ -3,7 +3,10 @@ import type {
   SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
 import { parseSokoBotMemory, upcomingFollowUps } from "@sokosumi/soko-bot";
-import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
+import {
+  buildResponsibleUserWhere,
+  buildSokoBotOwnerTaskVisibilityWhere,
+} from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import {
   foreignTasksBlock,
@@ -256,7 +259,11 @@ async function meetingPrep(
 }
 
 async function endOfDay(bot: RhythmBot, dayStart: Date): Promise<RhythmPacket> {
-  const own = [{ ownerId: bot.userId }, { assigneeSokoBotId: bot.id }];
+  // Work the bot's person is responsible for (ADR 0056), or the bot holds.
+  const own = [
+    buildResponsibleUserWhere(bot.userId),
+    { assigneeSokoBotId: bot.id },
+  ];
   const visible = buildSokoBotOwnerTaskVisibilityWhere(bot.userId);
   const [done, waiting] = await Promise.all([
     prisma.task.findMany({

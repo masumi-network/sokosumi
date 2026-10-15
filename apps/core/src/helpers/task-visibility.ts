@@ -104,6 +104,51 @@ export function buildResponsibleUserWhere(
 }
 
 /**
+ * `buildResponsibleUserWhere` for a person filter instead of an id, such as
+ * an admin search by name or email. Same precedence.
+ */
+export function buildResponsibleUserMatchingWhere(
+  person: Prisma.UserWhereInput,
+): Prisma.TaskWhereInput {
+  return {
+    OR: [
+      { owner: { is: person } },
+      { owner: { is: null }, creatorUser: { is: person } },
+      {
+        owner: { is: null },
+        creatorUserId: null,
+        requestedByUser: { is: person },
+      },
+    ],
+  };
+}
+
+/**
+ * Prisma filter for work someone other than `userId` is responsible for, or
+ * nobody. `NOT: buildResponsibleUserWhere(userId)` cannot say this: SQL reads
+ * `NOT ("ownerId" = $1 OR …)` on a null Owner as unknown and drops the row.
+ */
+export function buildNotResponsibleUserWhere(
+  userId: string,
+): Prisma.TaskWhereInput {
+  // `{ not: userId }` is `<> $1`, which already leaves out a null column.
+  return {
+    OR: [
+      { ownerId: { not: userId } },
+      { owner: { is: null }, creatorUserId: { not: userId } },
+      {
+        owner: { is: null },
+        creatorUserId: null,
+        OR: [
+          { requestedByUserId: null },
+          { requestedByUserId: { not: userId } },
+        ],
+      },
+    ],
+  };
+}
+
+/**
  * Raw SQL twin of `buildResponsibleUserWhere` for the Task, Task Schedule or
  * Job row aliased `alias` (`t` by default). Change both together.
  */

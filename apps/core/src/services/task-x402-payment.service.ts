@@ -226,7 +226,7 @@ async function runX402ChargePhase(
         return await resolveExistingPayment(
           existing,
           replayInput,
-          task.ownerId,
+          resolveResponsibleUserId(task),
           tx,
         );
       }

@@ -4,6 +4,8 @@ import { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, describe, expect, it } from "vitest";
 
 import {
+  buildNotResponsibleUserWhere,
+  buildResponsibleUserMatchingWhere,
   buildResponsibleUserSql,
   buildResponsibleUserWhere,
 } from "./task-visibility";
@@ -115,6 +117,50 @@ describe.skipIf(!enabled)("responsible-person filters", () => {
 
       expect(await names(ada)).toEqual(ADA_IS_RESPONSIBLE_FOR);
       expect(await names(bob)).toEqual(BOB_IS_RESPONSIBLE_FOR);
+    });
+  });
+
+  it("select the work the person is responsible for, by a person filter", async () => {
+    await inRolledBackTransaction(async (tx) => {
+      const { ada, bob, ids } = await seedTasks(tx);
+      const names = async (userId: string) =>
+        (
+          await tx.task.findMany({
+            where: {
+              id: { in: [...ids.keys()] },
+              ...buildResponsibleUserMatchingWhere({
+                email: { contains: userId },
+              }),
+            },
+            select: { name: true },
+          })
+        )
+          .map((task) => task.name)
+          .sort();
+
+      expect(await names(ada)).toEqual(ADA_IS_RESPONSIBLE_FOR);
+      expect(await names(bob)).toEqual(BOB_IS_RESPONSIBLE_FOR);
+    });
+  });
+
+  it("select every other piece of work, nobody's included", async () => {
+    await inRolledBackTransaction(async (tx) => {
+      const { ada, ids } = await seedTasks(tx);
+      const names = (
+        await tx.task.findMany({
+          where: {
+            id: { in: [...ids.keys()] },
+            ...buildNotResponsibleUserWhere(ada),
+          },
+          select: { name: true },
+        })
+      )
+        .map((task) => task.name)
+        .sort();
+
+      expect(names).toEqual(
+        [...BOB_IS_RESPONSIBLE_FOR, "made by a deleted person"].sort(),
+      );
     });
   });
 
