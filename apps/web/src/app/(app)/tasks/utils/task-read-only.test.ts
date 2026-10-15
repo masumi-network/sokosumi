@@ -198,7 +198,7 @@ describe("canCommentOnTaskForViewer", () => {
 });
 
 describe("canCancelTaskForViewer", () => {
-  it("allows organization workspace collaborators to cancel without ownership", () => {
+  it("allows an unseated organization workspace collaborator to cancel without ownership", () => {
     expect(
       canCancelTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
@@ -206,6 +206,20 @@ describe("canCancelTaskForViewer", () => {
         sessionUserId: "member_2",
         forceReadOnly: false,
         taskStatus: TaskStatus.RUNNING,
+        hasAssignedSeat: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("allows the task owner to cancel without an assigned seat", () => {
+    expect(
+      canCancelTaskForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskOwnerId: "owner_1",
+        sessionUserId: "owner_1",
+        forceReadOnly: false,
+        taskStatus: TaskStatus.RUNNING,
+        hasAssignedSeat: false,
       }),
     ).toBe(true);
   });

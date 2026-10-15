@@ -109,7 +109,8 @@ export function canCommentOnTaskForViewer(
 
 /**
  * Organization workspace collaborators may cancel without owning the task,
- * even without an assigned seat. Other mutations use
+ * even without an assigned seat. A cancel-only status write skips the seat
+ * check in Core's task events route. Other mutations use
  * {@link isReadOnlyForViewer}.
  */
 export function canCancelTaskForViewer(
