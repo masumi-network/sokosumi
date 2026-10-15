@@ -79,6 +79,7 @@ import {
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
+import { publishFailureCopy } from "./social-post-publish-failure";
 import { SocialPostStatistics } from "./social-post-statistics";
 
 interface ProjectSocialPostsProps {
@@ -154,40 +155,6 @@ function isTimeoutRejection(error: unknown): boolean {
       ? error.message.toLowerCase()
       : "";
   return message.includes("timed out") || message.includes("timeout");
-}
-
-const PUBLISH_FAILURE_KIND_COPY = {
-  rate_limited: "failures.rateLimited",
-  timeout: "failures.timeout",
-  unauthorized: "failures.unauthorized",
-  provider_unavailable: "failures.unavailable",
-  rejected: "failures.rejected",
-  provider_rejected: "failures.rejected",
-  media_missing: "failures.mediaMissing",
-  media_type_mismatch: "failures.mediaType",
-} as const;
-
-function publishFailureCopy(
-  post: Pick<SocialPost, "status" | "lastError" | "lastAttempt">,
-  t: (key: string) => string,
-): string | null {
-  const outcome = post.lastAttempt?.outcome;
-  if (outcome === "authorization_revoked") {
-    return t("outcomes.authorizationRevoked");
-  }
-  if (outcome === "connection_inactive") {
-    return t("outcomes.connectionInactive");
-  }
-  if (post.status === "MISSED" || outcome === "missed") {
-    return t("outcomes.missed");
-  }
-  const kind = post.lastAttempt?.errorKind;
-  if (kind && kind in PUBLISH_FAILURE_KIND_COPY) {
-    return t(
-      PUBLISH_FAILURE_KIND_COPY[kind as keyof typeof PUBLISH_FAILURE_KIND_COPY],
-    );
-  }
-  return post.lastError;
 }
 
 function upsertPost(posts: SocialPost[], next: SocialPost): SocialPost[] {
@@ -645,7 +612,10 @@ export function ProjectSocialPosts({
     const failedAt = post.lastAttempt?.finishedAt ?? null;
     const leadingAt =
       post.status === "FAILED" && failedAt ? failedAt : post.scheduledAt;
-    const failureReason = publishFailureCopy(post, t);
+    const failureReason =
+      post.status === "FAILED" || post.status === "MISSED"
+        ? publishFailureCopy(post, t)
+        : null;
 
     return (
       <li
