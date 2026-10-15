@@ -10,6 +10,7 @@ struct ConversationSidebarView: View {
   @Environment(\.openSettings) private var openSettings
   @Environment(\.openURL) private var openURL
   @Environment(RoomEditSheets.self) private var roomEditSheets: RoomEditSheets?
+  @Environment(\.composerFocusRequest) private var composerFocus
 
   /// Web's inset rows start on the room row's label column: past its 20 pt mark and the gap after it. The
   /// indent is padding inside the row, since the sidebar List ignores `listRowInsets` on a badged row.
@@ -67,7 +68,10 @@ struct ConversationSidebarView: View {
             if workspaces.sidebar.pinnedReorderMode, partitioned.pinned.contains(where: { $0.id == id }) {
               return
             }
+            // The event that changed the selection is current only here, not in the Task.
+            let event = NSApp.currentEvent
             Task { @MainActor in
+              composerFocus?.roomPicked(id, by: event)
               await workspaces.showRoom(id)
             }
           }
@@ -1006,17 +1010,23 @@ struct DirectRoomAvatarStack: View {
     } else {
       HStack(spacing: -Self.overlap) {
         ForEach(participants.enumerated(), id: \.element.id) { index, participant in
+          // Web's `border-sidebar` ring: the face sits 1 pt inside its frame,
+          // and the frame is cut out of the face under it, since a Mac sidebar
+          // has no single colour to paint the ring in. Dimmed, the cut fades
+          // with the face, as web's border does.
           ParticipantAvatar(
             imageURL: participant.imageURL,
             name: participant.name,
-            size: Self.faceSize
+            size: Self.faceSize - 2
           )
-          .overlay {
-            Circle()
-              .strokeBorder(.background, lineWidth: 1)
-          }
+          .padding(1)
           .grayscale(isDimmed ? 1 : 0)
           .opacity(isDimmed ? 0.5 : 1)
+          // Outside the grayscale, whose layer would keep the cut to this face.
+          .background {
+            Circle().fill(.black).blendMode(.destinationOut)
+              .opacity(isDimmed ? 0.5 : 1)
+          }
           .overlay(alignment: .bottomTrailing) {
             if showsPresence {
               PresenceDot(presence: presence(for: participant), size: Self.markSize).offset(x: 2, y: 2)
@@ -1025,6 +1035,8 @@ struct DirectRoomAvatarStack: View {
           .zIndex(Double(participants.count - index))
         }
       }
+      // Bounds the rings' and marks' knockouts to the faces.
+      .compositingGroup()
     }
   }
 

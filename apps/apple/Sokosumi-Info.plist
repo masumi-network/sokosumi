@@ -37,10 +37,6 @@
 	<false/>
 	<key>SokosumiOAuthClientID</key>
 	<string>JVvhoybTQDXHeLbSiMnojZLdgOOIrFvo</string>
-	<key>SokosumiCoreBaseURL</key>
-	<string>https://api.sokosumi.com/v1</string>
-	<key>SokosumiWebBaseURL</key>
-	<string>https://app.sokosumi.com</string>
 	<!--
 	  Sparkle (ADR 0054). The feed address and the public key are baked into
 	  every shipped app: changing either strands the installs that have the

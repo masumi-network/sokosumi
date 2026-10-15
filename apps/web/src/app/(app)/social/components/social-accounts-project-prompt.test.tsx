@@ -101,7 +101,8 @@ describe("SocialAccountsProjectPrompt", () => {
       carousel.querySelectorAll('[data-slot="carousel-item"]'),
     ).toHaveLength(6);
     expect(screen.getByText("TikTok")).toBeVisible();
-    expect(screen.getByText("Coming soon")).toBeVisible();
+    expect(screen.getByText("Facebook")).toBeVisible();
+    expect(screen.getAllByText("Coming soon")).toHaveLength(2);
 
     expect(screen.queryByRole("button", { name: "Next platforms" })).toBeNull();
     expect(

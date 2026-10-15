@@ -325,6 +325,7 @@
       "design-md": "Diseño",
       "memory": "Memoria",
       "social": "Programación social",
+      "ads": "Anuncios",
       "evaluations": "Evaluaciones de modelos"
     },
     "Jobs": {
@@ -1239,10 +1240,19 @@
             "message": "¿Aún no tienes cuenta?",
             "link": "Registrarse"
           },
+          "RegisterOnWebsite": {
+            "message": "¿Aún no tienes cuenta? Las cuentas se crean en el sitio web, no en la app.",
+            "link": "Crear una en el sitio web"
+          },
           "NoAccount": {
             "title": "No hay ninguna cuenta con este email",
             "description": "Comprueba que no tenga errores o crea una ahora.",
             "createAccount": "Crear cuenta"
+          },
+          "NoAccountOnWebsite": {
+            "title": "No hay ninguna cuenta con este email",
+            "description": "Comprueba que no tenga errores o crea una cuenta en el sitio web y luego inicia sesión aquí.",
+            "createAccount": "Crear cuenta en el sitio web"
           },
           "Handover": {
             "codeSent": "Ya tienes una cuenta, así que te enviamos un código para iniciar sesión.",
@@ -3046,7 +3056,6 @@
       "modelCount": "{count, plural, one {# modelo} other {# modelos}}",
       "copyCount": "{count, plural, one {# copia} other {# copias}}",
       "pickTitle": "Elige un proyecto",
-      "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería.",
       "pickAction": "Elegir proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "pickForGeneration": "¿A qué proyecto van estas imágenes?",
@@ -3097,6 +3106,524 @@
         "processedMegapixels": "megapíxel procesado"
       },
       "creditsCheckedOn": "Precio comprobado el {date}"
+    },
+    "Ads": {
+      "title": "Anuncios",
+      "pickTitle": "Elige un proyecto",
+      "pickBody": "Los anuncios pertenecen a un proyecto: sus cuentas publicitarias y campañas se gestionan allí. Elige un proyecto para abrir sus anuncios.",
+      "pickAction": "Elegir proyecto",
+      "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "tabsLabel": "Secciones de anuncios",
+      "loading": "Cargando anuncios…",
+      "updated": "Actualizado {time}",
+      "loadError": {
+        "unavailableDescription": "Todavía no está configurado para Sokosumi.",
+        "failedDescription": "Inténtalo de nuevo en un momento.",
+        "retry": "Reintentar"
+      },
+      "tabs": {
+        "campaigns": "Campañas",
+        "market": "Mercado",
+        "accounts": "Cuentas"
+      },
+      "campaigns": {
+        "emptyTitle": "Conecta una cuenta publicitaria para ver las campañas",
+        "emptyBody": "Las campañas de Google Ads y Meta Ads aparecerán aquí cuando conectes una cuenta.",
+        "emptyAction": "Ir a cuentas",
+        "noCampaignsTitle": "Aún no hay campañas en esta cuenta",
+        "noCampaignsBody": "Crea una con «Nueva campaña». Empieza en pausa.",
+        "account": "Cuenta publicitaria",
+        "rangeLabel": "Período",
+        "range": {
+          "7d": "7 días",
+          "30d": "30 días"
+        },
+        "tableLabel": "Campañas",
+        "columns": {
+          "name": "Campaña",
+          "status": "Estado",
+          "dailyBudget": "Presupuesto diario",
+          "spend": "Gasto",
+          "impressions": "Impresiones",
+          "clicks": "Clics",
+          "ctr": "CTR",
+          "cpc": "CPC",
+          "conversions": "Conversiones",
+          "actions": "Acciones"
+        },
+        "status": {
+          "ACTIVE": "Activa",
+          "PAUSED": "En pausa",
+          "ENDED": "Finalizada",
+          "OTHER": "Otro"
+        },
+        "spendAndClicks": "Gasto {spend} · clics {clicks}",
+        "actions": {
+          "label": "Acciones para {name}",
+          "pause": "Pausar",
+          "resume": "Reanudar",
+          "budget": "Cambiar presupuesto diario"
+        },
+        "cancel": "Cancelar",
+        "pauseDialog": {
+          "title": "¿Pausar {name}?",
+          "description": "Dejará de gastar hasta que la reanudes.",
+          "confirm": "Pausar"
+        },
+        "resumeDialog": {
+          "title": "¿Reanudar {name}?",
+          "description": "Volverá a gastar, hasta su presupuesto diario.",
+          "confirm": "Reanudar"
+        },
+        "budget": {
+          "label": "Presupuesto diario ({currency})",
+          "required": "Introduce un presupuesto diario mayor que 0.",
+          "wholeNumber": "Usa un número entero para {currency}.",
+          "precision": "Usa como máximo {digits} decimales para {currency}.",
+          "managedElsewhere": "El presupuesto de esta campaña se gestiona en {provider} (presupuesto compartido o de conjunto de anuncios). Cámbialo allí."
+        },
+        "budgetDialog": {
+          "title": "Cambiar presupuesto diario",
+          "description": "{name} gasta como máximo esta cantidad al día.",
+          "save": "Guardar presupuesto",
+          "change": "El presupuesto diario cambia de {old} a {new}.",
+          "notSet": "sin definir"
+        },
+        "success": {
+          "updated": "Campaña actualizada correctamente"
+        },
+        "errors": {
+          "update": "No se pudo actualizar la campaña",
+          "notActive": {
+            "title": "Vuelve a conectar esta cuenta en Cuentas",
+            "description": "La conexión con esta cuenta publicitaria ya no está activa.",
+            "action": "Ir a cuentas"
+          },
+          "unavailable": {
+            "title": "{provider} aún no está disponible"
+          },
+          "failed": {
+            "title": "No se pudieron cargar las campañas"
+          }
+        },
+        "new": "Nueva campaña"
+      },
+      "newCampaign": {
+        "title": "Nueva campaña",
+        "back": "Volver a las campañas",
+        "inAccount": "Cuenta de {provider} {name}",
+        "note": {
+          "google_ads": "Las campañas se crean en pausa. Reanúdala aquí cuando esté lista.",
+          "meta_ads": "Las campañas se crean en pausa. Añade conjuntos de anuncios y anuncios en Meta Ads Manager y reanúdalas aquí."
+        },
+        "sections": {
+          "type": "Tipo",
+          "basics": "Datos básicos",
+          "targeting": "Segmentación",
+          "ad": "Anuncio"
+        },
+        "types": {
+          "SEARCH": "Búsqueda",
+          "DISPLAY": "Display"
+        },
+        "typeHelp": {
+          "SEARCH": "Anuncios de texto en los resultados de búsqueda de Google.",
+          "DISPLAY": "Anuncios con imágenes en sitios web y aplicaciones de la Red de Display de Google."
+        },
+        "name": "Nombre",
+        "objective": "Objetivo",
+        "objectivePlaceholder": "Selecciona un objetivo",
+        "objectives": {
+          "OUTCOME_TRAFFIC": "Tráfico",
+          "OUTCOME_AWARENESS": "Notoriedad",
+          "OUTCOME_ENGAGEMENT": "Interacción",
+          "OUTCOME_LEADS": "Clientes potenciales",
+          "OUTCOME_SALES": "Ventas"
+        },
+        "startDate": "Fecha de inicio",
+        "endDate": "Fecha de finalización",
+        "datesHelp": "Opcional. Se usa la zona horaria de la cuenta publicitaria.",
+        "targeting": {
+          "locations": {
+            "label": "Ubicaciones",
+            "help": "Dónde pueden mostrarse tus anuncios. Hasta {max}.",
+            "full": "Límite de ubicaciones alcanzado ({max}).",
+            "placeholder": "Busca un país, región o ciudad",
+            "search": "Buscar ubicaciones",
+            "loading": "Buscando…",
+            "idle": "Escribe para encontrar un lugar.",
+            "empty": "No se encontraron ubicaciones.",
+            "error": "No se pudieron buscar las ubicaciones.",
+            "all": "Todos los países",
+            "remove": "Quitar {name}"
+          },
+          "languages": {
+            "label": "Idiomas",
+            "help": "Muestra los anuncios a personas que usan estos idiomas.",
+            "placeholder": "Elige idiomas",
+            "search": "Buscar idiomas",
+            "empty": "No se encontraron idiomas.",
+            "unavailable": "No se pudieron cargar los idiomas. La campaña se dirigirá a todos los idiomas.",
+            "all": "Todos los idiomas",
+            "remove": "Quitar {name}"
+          }
+        },
+        "keywords": {
+          "label": "Palabras clave",
+          "help": "Una palabra clave por línea. Usa \"comillas\" para concordancia de frase y [corchetes] para concordancia exacta.",
+          "placeholder": "zapatillas running\n\"zapatillas trail running\"\n[comprar zapatillas running]",
+          "count": "{count, plural, one {# palabra clave} other {# palabras clave}}",
+          "addFromMarket": "Añadir desde Mercado",
+          "marketNone": "No hay palabras clave nuevas del Mercado para añadir",
+          "marketFailed": "No se pudieron cargar las palabras clave del Mercado",
+          "errors": {
+            "required": "Añade al menos una palabra clave.",
+            "tooMany": "Usa como máximo {max} palabras clave.",
+            "syntax": "Línea {line}: revisa las comillas y los corchetes.",
+            "tooLong": "Línea {line}: usa como máximo {max} caracteres.",
+            "tooManyWords": "Línea {line}: usa como máximo {max} palabras."
+          }
+        },
+        "ad": {
+          "finalUrl": "URL final",
+          "finalUrlHelp": "La página a la que llegan las personas al hacer clic en tu anuncio.",
+          "finalUrlPlaceholder": "https://example.com/zapatillas",
+          "businessName": "Nombre de la empresa",
+          "longHeadline": "Título largo",
+          "displayPath": "Ruta visible",
+          "displayPathHelp": "Opcional. Dos rutas cortas que se muestran después de tu dominio en el anuncio.",
+          "path1": "Ruta 1",
+          "path2": "Ruta 2",
+          "pathPreview": "Se muestra como {url}",
+          "headlines": {
+            "label": "Títulos",
+            "help": "De {min} a {max} títulos de hasta {length} caracteres. Google los combina para encontrar lo que funciona.",
+            "item": "Título {number}",
+            "add": "Añadir título",
+            "remove": "Quitar el título {number}"
+          },
+          "descriptions": {
+            "label": "Descripciones",
+            "help": "De {min} a {max} descripciones de hasta {length} caracteres.",
+            "item": "Descripción {number}",
+            "add": "Añadir descripción",
+            "remove": "Quitar la descripción {number}"
+          },
+          "sitelinks": {
+            "title": "Enlaces de sitio (opcional)",
+            "summary": "{count, plural, one {# enlace de sitio} other {# enlaces de sitio}}",
+            "help": "Enlaces adicionales bajo tu anuncio. Hasta {max}. Rellena las dos líneas de descripción o ninguna.",
+            "item": "Enlace de sitio {number}",
+            "text": "Texto del enlace",
+            "finalUrl": "URL",
+            "description1": "Línea de descripción 1",
+            "description2": "Línea de descripción 2",
+            "add": "Añadir enlace de sitio",
+            "remove": "Quitar enlace de sitio {number}"
+          },
+          "callouts": {
+            "title": "Textos destacados (opcional)",
+            "summary": "{count, plural, one {# texto destacado} other {# textos destacados}}",
+            "label": "Textos destacados",
+            "help": "Destacados breves como «Envío gratis». Hasta {max}, de hasta {length} caracteres cada uno.",
+            "item": "Texto destacado {number}",
+            "add": "Añadir texto destacado",
+            "remove": "Quitar texto destacado {number}"
+          },
+          "images": {
+            "label": "Imágenes",
+            "help": "JPEG, PNG o GIF, de hasta {maxMb} MB cada una. Las imágenes horizontales son 1,91:1 (de al menos {landscape} px) y las cuadradas 1:1 (de al menos {square} px). Hasta {maxImages} en total.",
+            "counts": "Horizontales {landscape} · Cuadradas {square} · {total} de {max} imágenes",
+            "missing": {
+              "both": "Añade al menos una imagen horizontal y una cuadrada.",
+              "landscape": "Añade al menos una imagen horizontal.",
+              "square": "Añade al menos una imagen cuadrada."
+            },
+            "logoLabel": "Logotipo",
+            "logoHelp": "Opcional. Imágenes cuadradas, 1:1, de al menos {logo} px. Hasta {maxLogos}.",
+            "logoCounts": "{count} de {max} logotipos",
+            "roles": {
+              "LANDSCAPE": "Horizontal",
+              "SQUARE": "Cuadrada",
+              "LOGO": "Logotipo"
+            },
+            "slots": {
+              "images": {
+                "files": "Archivos de imagen"
+              },
+              "logo": {
+                "files": "Archivos de logotipo"
+              }
+            },
+            "upload": "Subir",
+            "choose": "Elegir de Drive",
+            "remove": "Quitar {name}",
+            "uploadFailed": "No se pudo subir la imagen",
+            "uploadDuplicate": "Ya hay un archivo con este nombre en tu Drive. Elígelo desde Drive.",
+            "errors": {
+              "unreadable": "{name}: no se pudo leer esta imagen.",
+              "type": "{name}: usa una imagen JPEG, PNG o GIF.",
+              "tooLarge": "{name}: usa una imagen de como máximo {maxMb} MB.",
+              "duplicate": "{name} ya está añadida.",
+              "full": "Usa como máximo {maxImages} imágenes horizontales y cuadradas.",
+              "fullLogo": "Usa como máximo {maxLogos} logotipos.",
+              "ratio": "{name}: usa una imagen horizontal (1,91:1, de al menos {landscape} px) o cuadrada (1:1, de al menos {square} px).",
+              "landscapeTooSmall": "{name}: las imágenes horizontales necesitan al menos {landscape} px.",
+              "squareTooSmall": "{name}: las imágenes cuadradas necesitan al menos {square} px.",
+              "logoRatio": "{name}: los logotipos deben ser cuadrados (1:1).",
+              "logoTooSmall": "{name}: los logotipos necesitan al menos {logo} px.",
+              "repeated": "Usa cada archivo de imagen una sola vez."
+            },
+            "kept": "Imagen actual ({role})"
+          }
+        },
+        "submit": "Crear campaña",
+        "uploadingImages": "Subiendo imágenes…",
+        "success": "Campaña creada (en pausa)",
+        "errors": {
+          "nameRequired": "Introduce un nombre.",
+          "nameTooLong": "Usa como máximo {max} caracteres.",
+          "objectiveRequired": "Elige un objetivo.",
+          "finalUrl": "Introduce una dirección completa que empiece por http:// o https://.",
+          "headlineRequired": "Introduce un título o quita este.",
+          "headlineTooLong": "Usa como máximo {max} caracteres.",
+          "headlineDuplicate": "Cada título debe ser distinto.",
+          "descriptionRequired": "Introduce una descripción o quita esta.",
+          "descriptionTooLong": "Usa como máximo {max} caracteres.",
+          "tooLong": "Usa como máximo {max} caracteres.",
+          "pathNeedsFirst": "Rellena primero la ruta 1.",
+          "endBeforeStart": "La fecha de finalización no puede ser anterior a la de inicio.",
+          "sitelinkTextRequired": "Introduce el texto del enlace o quita este enlace de sitio.",
+          "sitelinkDescriptionsPair": "Rellena las dos líneas de descripción o ninguna.",
+          "sitelinkDuplicate": "Cada enlace de sitio debe ser distinto.",
+          "calloutDuplicate": "Cada texto destacado debe ser distinto.",
+          "businessNameRequired": "Introduce el nombre de la empresa.",
+          "longHeadlineRequired": "Introduce un título largo.",
+          "failed": "No se pudo crear la campaña"
+        }
+      },
+      "campaignDetails": {
+        "back": "Volver a las campañas",
+        "title": "Campaña",
+        "types": {
+          "SEARCH": "Búsqueda",
+          "DISPLAY": "Display"
+        },
+        "perDay": "{amount} al día",
+        "noEndDate": "Sin fecha de finalización",
+        "sections": {
+          "performance": "Rendimiento",
+          "settings": "Ajustes",
+          "targeting": "Segmentación",
+          "keywords": "Palabras clave",
+          "ad": "Anuncio",
+          "sitelinks": "Enlaces de sitio",
+          "callouts": "Textos destacados"
+        },
+        "performance": {
+          "chartMetric": "Métrica del gráfico",
+          "chartLabel": "{metric} por día",
+          "empty": "Sin actividad en este período",
+          "tableCaption": "Rendimiento diario",
+          "date": "Fecha",
+          "chartHint": "Usa las flechas izquierda y derecha para moverte entre los días."
+        },
+        "settings": {
+          "bidding": "Puja",
+          "networks": "Redes"
+        },
+        "bidding": {
+          "TARGET_SPEND": "Maximizar clics",
+          "MANUAL_CPC": "CPC manual",
+          "ENHANCED_CPC": "CPC mejorado",
+          "MANUAL_CPM": "CPM manual",
+          "TARGET_CPM": "CPM objetivo",
+          "MAXIMIZE_CONVERSIONS": "Maximizar conversiones",
+          "MAXIMIZE_CONVERSION_VALUE": "Maximizar el valor de conversión",
+          "TARGET_CPA": "CPA objetivo",
+          "TARGET_ROAS": "ROAS objetivo",
+          "TARGET_IMPRESSION_SHARE": "Porcentaje de impresiones objetivo"
+        },
+        "matchTypes": {
+          "BROAD": "Concordancia amplia",
+          "PHRASE": "Concordancia de frase",
+          "EXACT": "Concordancia exacta"
+        },
+        "approval": {
+          "APPROVED": "Aprobado",
+          "APPROVED_LIMITED": "Aprobado (limitado)",
+          "DISAPPROVED": "Rechazado",
+          "PENDING_REVIEW": "Revisión pendiente",
+          "UNDER_REVIEW": "En revisión",
+          "AREA_OF_INTEREST_ONLY": "Solo se muestra en algunas zonas"
+        },
+        "ad": {
+          "displayUrl": "URL visible",
+          "review": {
+            "REVIEW_IN_PROGRESS": "Revisión en curso",
+            "UNDER_APPEAL": "En apelación",
+            "REVIEWED": "Revisado",
+            "ELIGIBLE_MAY_SERVE": "Apto para publicarse"
+          },
+          "strength": "Eficacia del anuncio: {strength}",
+          "strengths": {
+            "PENDING": "Pendiente",
+            "NO_ADS": "Sin anuncios",
+            "POOR": "Baja",
+            "AVERAGE": "Media",
+            "GOOD": "Buena",
+            "EXCELLENT": "Excelente"
+          },
+          "imageAlt": "Imagen {number} ({role})"
+        },
+        "notEditable": {
+          "TYPE": "Sokosumi no crea este tipo de campaña; gestiónala en Google Ads.",
+          "AD_GROUPS": "Esta campaña tiene varios grupos de anuncios; gestiónalos en Google Ads.",
+          "AD_TYPE": "Esta campaña no tiene un único anuncio adaptable; gestiona sus anuncios en Google Ads."
+        },
+        "errors": {
+          "failed": "No se pudo cargar esta campaña"
+        },
+        "networks": {
+          "SEARCH": "Búsqueda de Google",
+          "DISPLAY": "Red de Display"
+        },
+        "edit": "Editar"
+      },
+      "editCampaign": {
+        "title": "Editar campaña",
+        "back": "Volver a la campaña",
+        "submit": "Guardar cambios",
+        "reviewNote": "Al guardar, el anuncio vuelve a revisión de Google.",
+        "startDateLocked": "La fecha de inicio no se puede cambiar una vez iniciada la campaña.",
+        "success": "Campaña actualizada",
+        "errors": {
+          "conflict": "Esta campaña no se puede editar aquí.",
+          "failed": "No se pudieron guardar los cambios"
+        }
+      },
+      "market": {
+        "setupTitle": "Configura tu mercado",
+        "setupBody": "Añade las palabras clave que busca tu público y dónde. Así verás qué está en tendencia y qué anuncios publican tus competidores de búsqueda.",
+        "edit": "Editar mercado",
+        "editBody": "Las palabras clave y los anuncios en tendencia siguen estas palabras clave, este país y este idioma.",
+        "form": {
+          "keywords": "Palabras clave",
+          "keywordsHint": "Pulsa Intro o coma para añadir una. Hasta {max}.",
+          "keywordsPlaceholder": "Por ejemplo, zapatillas de correr",
+          "keywordsFull": "Límite de palabras clave alcanzado",
+          "removeKeyword": "Quitar {keyword}",
+          "country": "País",
+          "countryPlaceholder": "Elige un país",
+          "language": "Idioma",
+          "languagePlaceholder": "Elige un idioma",
+          "submit": "Guardar mercado",
+          "cancel": "Cancelar",
+          "success": "Mercado guardado correctamente",
+          "errors": {
+            "keywordsRequired": "Añade al menos una palabra clave.",
+            "keywordsTooMany": "Usa hasta {max} palabras clave.",
+            "countryRequired": "Elige un país.",
+            "languageRequired": "Elige un idioma.",
+            "failed": "No se pudo guardar el mercado"
+          }
+        },
+        "keywords": {
+          "title": "Palabras clave en tendencia",
+          "columns": {
+            "keyword": "Palabra clave",
+            "searches": "Búsquedas al mes",
+            "trend": "12 meses",
+            "competition": "Competencia",
+            "bidRange": "Puja de primera página"
+          },
+          "competition": {
+            "LOW": "Baja",
+            "MEDIUM": "Media",
+            "HIGH": "Alta"
+          },
+          "trendLabel": "Búsquedas al mes durante 12 meses, de {from} a {to}",
+          "searchesPerMonth": "{count} búsquedas al mes",
+          "emptyTitle": "No se encontraron palabras clave en tendencia para este mercado",
+          "emptyBody": "Prueba con otras palabras clave u otro país."
+        },
+        "ads": {
+          "title": "Anuncios de tus competidores de búsqueda",
+          "previewAlt": "Anuncio de {advertiser}",
+          "textAd": "Anuncio de texto",
+          "noPreview": "Sin vista previa",
+          "format": {
+            "text": "Texto",
+            "image": "Imagen",
+            "video": "Vídeo",
+            "other": "Otro"
+          },
+          "lastShown": "Visto por última vez {time}",
+          "viewAd": "Ver anuncio",
+          "emptyTitle": "No se encontraron anuncios de la competencia",
+          "emptyBody": "Los anuncios de los sitios que salen en las búsquedas de tus palabras clave se mostrarán aquí cuando se publiquen.",
+          "gatheringTitle": "Recopilando anuncios de tus competidores de búsqueda",
+          "gatheringBody": "Esto tarda unos minutos. Puedes salir de esta página.",
+          "refreshing": "Actualizando…",
+          "failedTitle": "No se pudieron recopilar los anuncios de la competencia",
+          "failedBody": "Lo intentaremos de nuevo en el plazo de una hora.",
+          "failedNotice": "No se pudo actualizar, lo intentaremos de nuevo en el plazo de una hora"
+        },
+        "errors": {
+          "unavailable": "Los datos de mercado aún no están disponibles",
+          "failed": {
+            "profile": "No se pudo cargar tu mercado",
+            "keywords": "No se pudieron cargar las palabras clave",
+            "ads": "No se pudieron cargar los anuncios"
+          }
+        }
+      },
+      "accounts": {
+        "emptyTitle": "Aún no hay cuentas publicitarias conectadas",
+        "emptyBody": "Conecta Google Ads o Meta Ads para gestionar las campañas de este proyecto.",
+        "connect": "Conectar {provider}",
+        "comingSoon": "Próximamente",
+        "unavailable": "{provider} aún no está disponible",
+        "noAccountsFound": "No se encontraron cuentas publicitarias para este inicio de sesión",
+        "sectionLabel": "Cuentas publicitarias",
+        "listLabel": "Cuentas publicitarias conectadas",
+        "disconnect": "Desconectar",
+        "disconnectLabel": "Desconectar {name}",
+        "cancel": "Cancelar",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        },
+        "disconnectDialog": {
+          "title": "¿Desconectar {name}?",
+          "description": "Sus campañas dejarán de aparecer aquí. Si es la última cuenta de ese inicio de sesión, Sokosumi también desconecta el inicio de sesión. Puedes volver a conectarla en cualquier momento.",
+          "confirm": "Desconectar"
+        },
+        "picker": {
+          "title": "Elige cuentas publicitarias",
+          "description": "Selecciona las cuentas de {provider} que se gestionarán en este proyecto.",
+          "listLabel": "Cuentas publicitarias disponibles",
+          "confirm": "Conectar selección"
+        },
+        "success": {
+          "connected": "Cuentas publicitarias conectadas correctamente",
+          "disconnected": "Cuenta publicitaria desconectada correctamente"
+        },
+        "errors": {
+          "connect": "No se pudo conectar {provider}",
+          "attach": "No se pudieron conectar las cuentas publicitarias",
+          "disconnect": "No se pudo desconectar la cuenta publicitaria",
+          "discard": "No se pudo descartar la conexión",
+          "popupBlocked": "Tu navegador bloqueó la ventana de autorización. Permite las ventanas emergentes e inténtalo de nuevo.",
+          "timeout": "La autorización tardó demasiado. Inténtalo de nuevo.",
+          "inFlight": "Ya hay una conexión en curso."
+        }
+      },
+      "error": {
+        "title": "No se pudieron cargar los anuncios",
+        "description": "Inténtalo de nuevo en un momento.",
+        "retry": "Reintentar"
+      }
     },
     "Social": {
       "title": "Programación social",
@@ -3172,7 +3699,8 @@
           "calendar": "Calendario",
           "contentStudio": "Content Studio",
           "schedules": "Programaciones",
-          "social": "Programación social"
+          "social": "Programación social",
+          "ads": "Anuncios"
         },
         "ChatLists": {
           "title": "Chats recientes",

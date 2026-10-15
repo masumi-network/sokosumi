@@ -200,6 +200,28 @@ _Avoid_: Engagement over the selected period, treating an unavailable counter as
 A read-only cached publication retrieved from a connected account's provider history, including posts created outside Sokosumi. Distinct from a schedulable Social post; identified by the connected account and provider post ID.
 _Avoid_: Draft, scheduled Social post, importing history as publishable content
 
+### Ads
+
+**Ad connection**:
+A Project's Composio authorization to one ads provider (Google Ads or Meta Ads), granted by an interactive human user who belongs to the Project's Workspace. It may expose several Ad accounts.
+_Avoid_: Integration, Social connection
+
+**Ad account**:
+A provider ad account (Google customer, Meta `act_…`) that a Project chose to manage through an Ad connection.
+_Avoid_: Social account, advertiser
+
+**Ad campaign**:
+A provider ad campaign inside an Ad account. Sokosumi manages Ad campaigns only, not ad sets or ads. New Ad campaigns are always created paused.
+_Avoid_: Ad, Task, Job
+
+**Market profile**:
+A Project's keywords, country, and language that scope its market lookups.
+_Avoid_: Audience, targeting
+
+**Market ads**:
+Other advertisers' recent ads found for a Market profile, shown with preview images. Not the Project's own Campaigns.
+_Avoid_: Competitor ads, ad library
+
 ### Task payments
 
 **Task payment claim**:
