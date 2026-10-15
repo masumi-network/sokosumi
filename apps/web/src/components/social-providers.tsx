@@ -15,7 +15,8 @@ export const SOCIAL_PROVIDERS = [
   { id: "tiktok", name: "TikTok", Icon: TikTokIcon, comingSoon: true },
   { id: "instagram", name: "Instagram", Icon: InstagramIcon },
   { id: "linkedin", name: "LinkedIn", Icon: LinkedInIcon },
-  { id: "facebook", name: "Facebook", Icon: FacebookIcon },
+  // Not offered yet: Facebook Page selection needs a product pass first.
+  { id: "facebook", name: "Facebook", Icon: FacebookIcon, comingSoon: true },
   { id: "youtube", name: "YouTube", Icon: YouTubeIcon },
 ] as const satisfies readonly {
   id: ProjectSocialConnection["provider"];

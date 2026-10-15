@@ -303,25 +303,30 @@ describe("ProjectSocialAccounts", () => {
     expect(screen.getByRole("list")).toBeVisible();
   });
 
-  it("shows TikTok as coming soon and does not start a connection", async () => {
-    const user = userEvent.setup();
-    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+  it.each([
+    ["tiktok", "TikTok"],
+    ["facebook", "Facebook"],
+  ])(
+    "shows %s as coming soon and does not start a connection",
+    async (_provider, name) => {
+      const user = userEvent.setup();
+      render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
 
-    await user.click(screen.getByRole("button", { name: "Connect account" }));
-    const tiktok = screen.getByRole("menuitem", {
-      name: "TikTok (coming soon)",
-    });
-    expect(tiktok).toHaveAttribute("aria-disabled", "true");
-    expect(tiktok).toHaveTextContent("Coming soon");
+      await user.click(screen.getByRole("button", { name: "Connect account" }));
+      const item = screen.getByRole("menuitem", {
+        name: `${name} (coming soon)`,
+      });
+      expect(item).toHaveAttribute("aria-disabled", "true");
+      expect(item).toHaveTextContent("Coming soon");
 
-    await user.click(tiktok);
-    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
-  });
+      await user.click(item);
+      expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     ["instagram", "Instagram"],
     ["linkedin", "LinkedIn"],
-    ["facebook", "Facebook"],
     ["youtube", "YouTube"],
   ])("starts a connection for %s", async (provider, name) => {
     vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
@@ -928,7 +933,7 @@ describe("ProjectSocialAccounts", () => {
     });
   });
 
-  it("explains a Facebook account that manages zero or several Pages", async () => {
+  it("explains a Facebook reconnect that manages zero or several Pages", async () => {
     const user = userEvent.setup();
     vi.mocked(completeComposioAuthCallbackAction).mockResolvedValue({
       ok: true,
@@ -944,9 +949,22 @@ describe("ProjectSocialAccounts", () => {
       },
     });
 
-    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+    // New Facebook connects are coming soon; reconnect still hits this gate.
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            provider: "facebook",
+            displayName: "Sokosumi Page",
+            externalHandle: null,
+            status: "reauthorization_required",
+          }),
+        ]}
+      />,
+    );
 
-    await connectProvider(user, "Facebook");
+    await user.click(screen.getByRole("button", { name: "Reconnect" }));
     await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
     await act(async () => {
       MockBroadcastChannel.instances[0]?.onmessage?.({
