@@ -37,13 +37,17 @@ export async function prepareTurnActionResultPreviews(
   turnId: string,
   turn: Pick<
     SokoBotTurn,
-    "userId" | "workspaceId" | "versionId" | "askedByUserId" | "chainDepth"
+    | "requestedByUserId"
+    | "workspaceId"
+    | "versionId"
+    | "askedByUserId"
+    | "chainDepth"
   >,
   tx: Prisma.TransactionClient,
 ) {
   if (
     turn.chainDepth > 0 ||
-    (turn.askedByUserId && turn.askedByUserId !== turn.userId)
+    (turn.askedByUserId && turn.askedByUserId !== turn.requestedByUserId)
   )
     return;
   if (
@@ -112,7 +116,7 @@ export async function prepareTurnActionResultPreviews(
         {
           reference,
           actor: {
-            userId: turn.userId,
+            userId: turn.requestedByUserId,
             workspaceId: turn.workspaceId,
             kind: "soko_bot",
           },

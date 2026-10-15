@@ -107,8 +107,12 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
       where: {
         id: turn.workspaceId,
         OR: [
-          { userId: turn.userId },
-          { organization: { members: { some: { userId: turn.userId } } } },
+          { userId: turn.requestedByUserId },
+          {
+            organization: {
+              members: { some: { userId: turn.requestedByUserId } },
+            },
+          },
         ],
       },
       select: { id: true },
@@ -116,7 +120,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
     const bot = await prisma.sokoBot.findFirst({
       where: {
         id: turn.sokoBotId,
-        userId: turn.userId,
+        userId: turn.requestedByUserId,
         workspaceId: turn.workspaceId,
         archivedAt: null,
       },
@@ -197,7 +201,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
         const authority = await tx.sokoBot.findFirst({
           where: {
             id: turn.sokoBotId,
-            userId: turn.userId,
+            userId: turn.requestedByUserId,
             workspaceId: turn.workspaceId,
             archivedAt: null,
           },
@@ -207,8 +211,12 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
           where: {
             id: turn.workspaceId,
             OR: [
-              { userId: turn.userId },
-              { organization: { members: { some: { userId: turn.userId } } } },
+              { userId: turn.requestedByUserId },
+              {
+                organization: {
+                  members: { some: { userId: turn.requestedByUserId } },
+                },
+              },
             ],
           },
           select: { id: true },

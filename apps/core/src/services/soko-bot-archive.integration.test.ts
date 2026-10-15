@@ -78,7 +78,7 @@ describe.skipIf(!databaseUrl)(
         toolCallLimit: 64,
         turn: {
           id: turnId,
-          userId,
+          requestedByUserId: userId,
           workspaceId,
           sokoBotId: botId,
           eveSessionId: sessionId,
@@ -116,7 +116,7 @@ describe.skipIf(!databaseUrl)(
       const turn = await db.sokoBotTurn.create({
         data: {
           sokoBotId: botId,
-          userId,
+          requestedByUserId: userId,
           workspaceId,
           source: "CHAT",
           status: "RUNNING",

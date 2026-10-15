@@ -725,7 +725,7 @@ export class ContextPacketBuilder {
       }),
       prisma.sokoBotPendingDecision.findMany({
         where: {
-          userId: input.userId,
+          requestedByUserId: input.userId,
           workspaceId: input.workspaceId,
           status: "PENDING",
           sokoBotId: input.sokoBotId,
@@ -753,7 +753,7 @@ export class ContextPacketBuilder {
       prisma.sokoBotTurn.findMany({
         where: {
           sokoBotId: input.sokoBotId,
-          userId: input.userId,
+          requestedByUserId: input.userId,
           workspaceId: input.workspaceId,
           status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
           askedByUserId:
@@ -827,7 +827,7 @@ export class ContextPacketBuilder {
       }),
       prisma.sokoBotPendingDecision.count({
         where: {
-          userId: input.userId,
+          requestedByUserId: input.userId,
           workspaceId: input.workspaceId,
           status: "PENDING",
           sokoBotId: input.sokoBotId,
@@ -846,7 +846,7 @@ export class ContextPacketBuilder {
       prisma.sokoBotTurn.count({
         where: {
           sokoBotId: input.sokoBotId,
-          userId: input.userId,
+          requestedByUserId: input.userId,
           workspaceId: input.workspaceId,
           status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
           askedByUserId:

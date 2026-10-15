@@ -78,12 +78,13 @@ async function publishRealtime(
  * memory, so a teammate asking sees only the tool steps.
  */
 function thoughtSteps(turn: {
-  userId: string;
+  requestedByUserId: string;
   askedByUserId: string | null;
   events: { type: string; toolName: string | null; summary: string | null }[];
 }): string[] {
   const ownerAsked =
-    turn.askedByUserId === null || turn.askedByUserId === turn.userId;
+    turn.askedByUserId === null ||
+    turn.askedByUserId === turn.requestedByUserId;
   const summaries = ownerAsked
     ? turn.events.flatMap((event) =>
         event.type === "reasoning.completed" && event.summary
@@ -131,7 +132,7 @@ async function loadChatLinkedTurn(
           message: { select: { roomId: true } },
         },
       },
-      userId: true,
+      requestedByUserId: true,
       askedByUserId: true,
       events: {
         where: { type: { in: ["actions.requested", "reasoning.completed"] } },

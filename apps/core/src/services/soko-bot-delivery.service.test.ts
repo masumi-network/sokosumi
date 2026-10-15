@@ -101,7 +101,7 @@ function turn(overrides = {}) {
     source: "SCHEDULE",
     status: "COMPLETED",
     sokoBotId: "bot",
-    userId: "owner",
+    requestedByUserId: "owner",
     workspaceId: "workspace",
     destinationRoomId: "room",
     destinationAudience: {

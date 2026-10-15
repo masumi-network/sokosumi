@@ -89,10 +89,10 @@ export function overallScore(verdict: SokoBotJudgeVerdict): number {
 
 async function loadTranscript(turnId: string, userId?: string) {
   const turn = await prisma.sokoBotTurn.findFirst({
-    where: { id: turnId, ...(userId ? { userId } : {}) },
+    where: { id: turnId, ...(userId ? { requestedByUserId: userId } : {}) },
     select: {
       sokoBotId: true,
-      userId: true,
+      requestedByUserId: true,
       source: true,
       status: true,
       route: true,
@@ -377,7 +377,7 @@ export async function judgeSokoBotLabTurn(input: {
     if (!input.evaluation) return;
     const data = {
       sokoBotId: turn.sokoBotId,
-      userId: turn.userId,
+      userId: turn.requestedByUserId,
       scenarioId: scenario.id,
       versionId: turn.versionId ?? "unknown",
       passed: input.evaluation.passed,

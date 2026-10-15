@@ -162,7 +162,7 @@ describe("scoped task outcome reads", () => {
           id: "turn-current",
           sokoBotId: "bot-one",
           workspaceId: "workspace-one",
-          userId: "owner-one",
+          requestedByUserId: "owner-one",
           intentId: "intent-one",
           intentRevision: 2,
           chainDepth: 0,
@@ -738,7 +738,7 @@ describe("evidence-backed intent fulfillment", () => {
       dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
         id: "turn-one",
         intentRevision: 2,
-        userId: "owner-one",
+        requestedByUserId: "owner-one",
         sokoBotId: "bot-one",
         workspaceId: "workspace-one",
         status: "COMPLETED",
@@ -807,7 +807,7 @@ describe("evidence-backed intent fulfillment", () => {
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
       id: "turn-one",
       intentRevision: 2,
-      userId: "owner-one",
+      requestedByUserId: "owner-one",
       sokoBotId: "bot-one",
       workspaceId: "workspace-one",
       status: "COMPLETED",

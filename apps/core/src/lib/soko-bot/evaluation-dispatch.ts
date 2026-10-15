@@ -441,7 +441,7 @@ export async function withEvaluationTurn<T>(turnId: string, run: () => T) {
   const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: turnId },
   });
-  return withEvaluationActor(turn, run);
+  return withEvaluationActor({ ...turn, userId: turn.requestedByUserId }, run);
 }
 
 export async function evaluationEvidence(

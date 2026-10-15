@@ -584,7 +584,7 @@ function hireDecision(status: "PENDING" | "PROCESSING" = "PENDING") {
     id: DECISION_ID,
     sokoBotId: SCOPE.sokoBotId,
     turnId: SCOPE.turnId,
-    userId: SCOPE.userId,
+    requestedByUserId: SCOPE.userId,
     workspaceId: SCOPE.workspaceId,
     toolName: "hire_agent",
     proposal: {
@@ -718,7 +718,7 @@ describe("SokoBotRuntimeService authorization", () => {
         userMessage: "Show the task",
         id: SCOPE.turnId,
         sokoBotId: SCOPE.sokoBotId,
-        userId: SCOPE.userId,
+        requestedByUserId: SCOPE.userId,
         workspaceId: SCOPE.workspaceId,
         capabilityNames: ["preview_result"],
         contextSnapshot: {
@@ -788,7 +788,7 @@ describe("SokoBotRuntimeService authorization", () => {
         userMessage: "Remember that I prefer short updates",
         id: SCOPE.turnId,
         sokoBotId: SCOPE.sokoBotId,
-        userId: SCOPE.userId,
+        requestedByUserId: SCOPE.userId,
         workspaceId: SCOPE.workspaceId,
         capabilityNames: ["update_memory", "get_task_status"],
         contextSnapshot: {
@@ -815,7 +815,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["create_task"],
       contextSnapshot: {
@@ -849,7 +849,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["create_task"],
       contextSnapshot: {
@@ -884,7 +884,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["create_task"],
       contextSnapshot: {
@@ -915,7 +915,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -969,7 +969,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1034,7 +1034,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1082,7 +1082,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1124,7 +1124,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1183,7 +1183,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["create_task"],
       contextSnapshot: {
@@ -1271,7 +1271,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1362,7 +1362,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1421,7 +1421,7 @@ describe("SokoBotRuntimeService authorization", () => {
         userMessage: "Check the tasks",
         id: SCOPE.turnId,
         sokoBotId: SCOPE.sokoBotId,
-        userId: SCOPE.userId,
+        requestedByUserId: SCOPE.userId,
         workspaceId: SCOPE.workspaceId,
         capabilityNames: ["get_task_status"],
         contextSnapshot: {
@@ -1554,7 +1554,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Which launch tasks are stuck?",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["list_tasks"],
       contextSnapshot: {
@@ -1658,7 +1658,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "What is stuck?",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["list_tasks"],
       contextSnapshot: {
@@ -1716,7 +1716,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "What is open?",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["list_tasks"],
       contextSnapshot: {
@@ -1761,7 +1761,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the jobs",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_job_status"],
       contextSnapshot: {
@@ -1827,7 +1827,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1870,7 +1870,7 @@ describe("SokoBotRuntimeService authorization", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1922,7 +1922,7 @@ describe("SokoBotRuntimeService authorization", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1981,7 +1981,7 @@ describe("SokoBotRuntimeService authorization", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -2025,7 +2025,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["create_task"],
       contextSnapshot: {
@@ -2092,7 +2092,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["create_task"],
       contextSnapshot: {
@@ -2139,7 +2139,7 @@ describe("SokoBotRuntimeService authorization", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["assign_task"],
       contextSnapshot: {
@@ -2200,7 +2200,7 @@ describe("SokoBotRuntimeService authorization", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["update_task"],
       contextSnapshot: {
@@ -2276,7 +2276,7 @@ describe("SokoBotRuntimeService authorization", () => {
         turn: {
           id: SCOPE.turnId,
           sokoBotId: SCOPE.sokoBotId,
-          userId: SCOPE.userId,
+          requestedByUserId: SCOPE.userId,
           workspaceId: SCOPE.workspaceId,
         },
       } as never,
@@ -2325,7 +2325,7 @@ describe("SokoBotRuntimeService authorization", () => {
           turn: {
             id: SCOPE.turnId,
             sokoBotId: SCOPE.sokoBotId,
-            userId: SCOPE.userId,
+            requestedByUserId: SCOPE.userId,
             workspaceId: SCOPE.workspaceId,
           },
         } as never,
@@ -2351,7 +2351,7 @@ describe("SokoBotRuntimeService authorization", () => {
         turn: {
           id: SCOPE.turnId,
           sokoBotId: SCOPE.sokoBotId,
-          userId: SCOPE.userId,
+          requestedByUserId: SCOPE.userId,
           workspaceId: SCOPE.workspaceId,
         },
       } as never,
@@ -2386,7 +2386,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["update_task"],
       contextSnapshot: {
@@ -2431,7 +2431,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Assign it",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["update_task"],
       contextSnapshot: {
@@ -2469,7 +2469,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["update_task"],
       contextSnapshot: {
@@ -2515,7 +2515,7 @@ describe("SokoBotRuntimeService memory updates", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["update_memory"],
       contextSnapshot: {
@@ -3475,7 +3475,7 @@ describe("SokoBotRuntimeService chat reading", () => {
   const SCOPE_TURN = {
     id: SCOPE.turnId,
     sokoBotId: SCOPE.sokoBotId,
-    userId: SCOPE.userId,
+    requestedByUserId: SCOPE.userId,
     workspaceId: SCOPE.workspaceId,
     eveSessionId: SCOPE.sessionId,
   };
@@ -3726,7 +3726,7 @@ describe("post_chat chain depth", () => {
   const SCOPE_TURN = {
     id: SCOPE.turnId,
     sokoBotId: SCOPE.sokoBotId,
-    userId: SCOPE.userId,
+    requestedByUserId: SCOPE.userId,
     workspaceId: SCOPE.workspaceId,
     eveSessionId: SCOPE.sessionId,
   };
@@ -4031,7 +4031,7 @@ describe("open_direct_chat", () => {
   const SCOPE_TURN = {
     id: SCOPE.turnId,
     sokoBotId: SCOPE.sokoBotId,
-    userId: SCOPE.userId,
+    requestedByUserId: SCOPE.userId,
     workspaceId: SCOPE.workspaceId,
     eveSessionId: SCOPE.sessionId,
     source: "CHAT",
@@ -4445,7 +4445,7 @@ describe("get_agent_input_schema", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_agent_input_schema"],
       contextSnapshot: {
@@ -4560,7 +4560,7 @@ describe("external effect receipt finalization", () => {
       turn: {
         id: SCOPE.turnId,
         sokoBotId: SCOPE.sokoBotId,
-        userId: SCOPE.userId,
+        requestedByUserId: SCOPE.userId,
         workspaceId: SCOPE.workspaceId,
       },
     });
@@ -4964,6 +4964,7 @@ describe("Soko Bot project social tools", () => {
     );
     turnFindUniqueMock.mockResolvedValue({
       ...SCOPE,
+      requestedByUserId: SCOPE.userId,
       id: SCOPE.turnId,
       eveSessionId: SCOPE.sessionId,
       source: "CHAT",
@@ -5537,7 +5538,7 @@ describe("Soko Bot project social tools", () => {
 
 describe("Drive file tools", () => {
   const authorized = {
-    turn: { userId: SCOPE.userId, workspaceId: SCOPE.workspaceId },
+    turn: { requestedByUserId: SCOPE.userId, workspaceId: SCOPE.workspaceId },
   };
   const service = new SokoBotRuntimeService();
   beforeEach(() => {
@@ -5820,7 +5821,7 @@ describe("Drive file tools", () => {
     const url = `https://abc.public.blob.vercel-storage.com/users/${SCOPE.userId}/chats/${roomId}/1-sign-in-x7Yq.png`;
     const chatAuthorized = {
       turn: {
-        userId: SCOPE.userId,
+        requestedByUserId: SCOPE.userId,
         workspaceId: SCOPE.workspaceId,
         sokoBotId: SCOPE.sokoBotId,
       },
@@ -5980,7 +5981,7 @@ describe("Content Studio image tools", () => {
     askedByKind: "OWNER",
     turn: {
       id: SCOPE.turnId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       source: "CHAT",
       chainDepth: 0,
@@ -6347,7 +6348,7 @@ describe("create_task on an event turn", () => {
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       workspaceId: SCOPE.workspaceId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       source: "EVENT",
     },
   };
@@ -6414,7 +6415,7 @@ describe("find_agents", () => {
       userMessage: "find an agent",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["find_agents"],
       contextSnapshot: { id: "snapshot", packet: { memory: { version: 1 } } },
@@ -6520,7 +6521,7 @@ describe("archive_task without approval cards", () => {
         {
           turn: {
             id: "turn_1",
-            userId: "u",
+            requestedByUserId: "u",
             workspaceId: "w",
             sokoBotId: "bot",
             source: "CHAT",

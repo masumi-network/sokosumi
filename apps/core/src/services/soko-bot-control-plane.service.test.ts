@@ -453,7 +453,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     async ({ capability, route, guarded }) => {
       turnFindUniqueMock.mockResolvedValueOnce({
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         eveSessionId: "session_1",
         startedAt: new Date(),
         costUsdMicros: 0n,
@@ -511,7 +511,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       };
       turnFindUniqueMock.mockResolvedValueOnce({
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         startedAt: new Date(),
         costUsdMicros: 0n,
         status: "RUNNING",
@@ -571,7 +571,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     async (blockerKind, detail) => {
       turnFindUniqueMock.mockResolvedValueOnce({
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         startedAt: new Date(),
         costUsdMicros: 0n,
         status: "RUNNING",
@@ -623,7 +623,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     async (status) => {
       turnFindUniqueMock.mockResolvedValueOnce({
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         eveSessionId: "session_1",
         startedAt: new Date(),
         costUsdMicros: 0n,
@@ -645,7 +645,7 @@ describe("SokoBotControlPlane lifecycle", () => {
   it("persists the assessed outcome before receipt lines and before delivery is enqueued", async () => {
     turnFindUniqueMock.mockResolvedValueOnce({
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       eveSessionId: "session_1",
       startedAt: new Date(),
       costUsdMicros: 0n,
@@ -686,7 +686,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     expect(prepareTurnActionResultPreviews).toHaveBeenCalledWith(
       "turn_1",
-      expect.objectContaining({ userId: "user_1" }),
+      expect.objectContaining({ requestedByUserId: "user_1" }),
       expect.anything(),
     );
     expect(
@@ -704,7 +704,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     async (state, blockerKind) => {
       turnFindUniqueMock.mockResolvedValueOnce({
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         eveSessionId: "session_1",
         startedAt: new Date(),
         costUsdMicros: 0n,
@@ -892,7 +892,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       ([query]) => query?.where?.source === "CHAT",
     )?.[0];
     expect(replyQuery.where).toMatchObject({
-      userId: "user_1",
+      requestedByUserId: "user_1",
       workspaceId: "workspace_1",
       source: "CHAT",
       askedByUserId: null,
@@ -1451,7 +1451,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: "turn_existing",
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       workspaceId: "workspace_1",
       source: "CHAT",
       userMessage: "Hello",
@@ -1513,7 +1513,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: "turn_existing",
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       workspaceId: "workspace_1",
       source: "CHAT",
       userMessage: "Hello",
@@ -1552,7 +1552,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     const replacement = {
       id: "turn_fresh",
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       workspaceId: "workspace_1",
       source: "CHAT",
       userMessage: "Hello",
@@ -2191,7 +2191,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         prompt: "Review active work",
         schedule: {
           sokoBotId: BOT_ID,
-          userId: "user_1",
+          requestedByUserId: "user_1",
           workspaceId: "workspace_1",
         },
         OR: [{ turnId: null }, { turnId: "turn_scheduled" }],
@@ -2288,7 +2288,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         prompt: "Original occurrence prompt",
         schedule: {
           sokoBotId: BOT_ID,
-          userId: "user_1",
+          requestedByUserId: "user_1",
           workspaceId: "workspace_1",
         },
       },
@@ -2370,7 +2370,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       prompt: "Original occurrence prompt",
       schedule: {
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         workspaceId: "workspace_1",
       },
     });
@@ -2402,7 +2402,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     const turn = {
       id: "turn_abandoned",
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       workspaceId: "workspace_1",
       source: "CHAT",
       userMessage: "Delegate the launch brief",
@@ -2468,7 +2468,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: "turn_existing",
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       workspaceId: "workspace_1",
       source: "CHAT",
       userMessage: "Hello",
@@ -2554,7 +2554,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       eveSessionId: "session_1",
       eveTurnId: "eve_turn_1",
       cancellationRequestedAt,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       sokoBotId: BOT_ID,
       workspaceId: "workspace_1",
     });
@@ -2598,7 +2598,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       status: "CANCEL_REQUESTED",
       eveSessionId: "session_1",
       eveTurnId: "eve_turn_1",
-      userId: "user_1",
+      requestedByUserId: "user_1",
       sokoBotId: BOT_ID,
       workspaceId: "workspace_1",
     });
@@ -2620,7 +2620,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       status: "RUNNING",
       eveSessionId: "session_1",
       eveTurnId: null,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       sokoBotId: BOT_ID,
       workspaceId: "workspace_1",
     });
@@ -2637,7 +2637,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     botFindFirstMock.mockResolvedValue(adminBot({ eveSessionId: "session_1" }));
     turnFindFirstMock.mockResolvedValue({
       id: "turn_1",
-      userId: "user_1",
+      requestedByUserId: "user_1",
       sokoBotId: BOT_ID,
       workspaceId: "workspace_1",
       eveSessionId: "session_1",
@@ -2782,7 +2782,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
     turnFindUniqueMock.mockImplementation(async () => ({
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       eveSessionId: "eve-session-secret",
       startedAt: new Date("2026-08-18T12:00:00.000Z"),
       costUsdMicros: 0n,
@@ -2843,7 +2843,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
     turnFindUniqueMock.mockImplementation(async () => ({
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       eveSessionId: "eve-session-secret",
       startedAt: new Date("2026-08-18T12:00:00.000Z"),
       costUsdMicros: 0n,
@@ -3013,7 +3013,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     scheduleFindFirstMock.mockResolvedValue({
       id: "schedule_1",
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       enabled: false,
       consecutiveFailures: 5,
       timezone: "UTC",
@@ -3367,7 +3367,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       prompt: "Original occurrence prompt",
       schedule: {
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         workspaceId: "workspace_1",
         prompt: "Edited future prompt",
       },
@@ -3438,7 +3438,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       prompt: "Original occurrence prompt",
       schedule: {
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         workspaceId: "workspace_1",
         prompt: "Edited future prompt",
       },
@@ -3514,7 +3514,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       prompt: "Original occurrence prompt",
       schedule: {
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         workspaceId: "workspace_1",
         prompt: "Edited future prompt",
       },
@@ -3568,7 +3568,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       prompt: "Original occurrence prompt",
       schedule: {
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         workspaceId: "workspace_1",
         prompt: "Edited future prompt",
       },
@@ -3692,7 +3692,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       prompt: "Original occurrence prompt",
       schedule: {
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         workspaceId: "workspace_1",
         prompt: "Edited future prompt",
       },
@@ -3725,7 +3725,7 @@ describe("SokoBotControlPlane lifecycle", () => {
   it("settles an expired turn and its linked schedule run once", async () => {
     turnFindFirstMock.mockResolvedValue({
       id: "turn_1",
-      userId: "user_1",
+      requestedByUserId: "user_1",
       sokoBotId: BOT_ID,
       workspaceId: "01960001-0001-7001-8001-000000000004",
       eveSessionId: null,
@@ -3733,7 +3733,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
     turnFindUniqueMock.mockResolvedValue({
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       eveSessionId: "session_1",
       startedAt: new Date(Date.now() - 5_000),
       costUsdMicros: 0n,
@@ -3791,7 +3791,7 @@ describe("SokoBotControlPlane lifecycle", () => {
   it("checks the owner's wallet for a low balance after a charged turn settled", async () => {
     turnFindUniqueMock.mockResolvedValue({
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       eveSessionId: "session_1",
       startedAt: new Date(Date.now() - 5_000),
       costUsdMicros: 0n,
@@ -3838,7 +3838,7 @@ describe("SokoBotControlPlane lifecycle", () => {
   it("checks the wallet for a charge that committed even when settlement lost its lease", async () => {
     turnFindUniqueMock.mockResolvedValue({
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       eveSessionId: "session_1",
       startedAt: new Date(Date.now() - 5_000),
       costUsdMicros: 0n,
@@ -3866,7 +3866,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     turnFindFirstMock.mockResolvedValue({ leaseToken: "cancel-lease-1" });
     turnFindUniqueMock.mockResolvedValue({
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       eveSessionId: null,
       startedAt: null,
       costUsdMicros: 0n,

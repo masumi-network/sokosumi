@@ -21,7 +21,7 @@ import prisma from "@/lib/db/prisma";
 import { prepareTurnActionResultPreviews } from "./turn-action-result-previews.service";
 
 const turn = {
-  userId: "owner",
+  requestedByUserId: "owner",
   workspaceId: "workspace",
   versionId: "v21",
   askedByUserId: null,

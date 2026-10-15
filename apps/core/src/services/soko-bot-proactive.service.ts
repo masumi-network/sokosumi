@@ -134,7 +134,7 @@ export async function ensureSystemSchedules(bot: {
       .create({
         data: {
           sokoBotId: bot.id,
-          userId: bot.userId,
+          requestedByUserId: bot.userId,
           workspaceId: bot.workspaceId,
           name: schedule.name,
           timezone: bot.ingestTimezone,

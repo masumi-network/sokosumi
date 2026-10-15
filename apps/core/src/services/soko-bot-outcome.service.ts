@@ -431,7 +431,7 @@ export async function assessSokoBotIntentOutcome(
         workspaceId: turn.workspaceId,
         archivedAt: null,
         ...buildSokoBotAudienceTaskVisibilityWhere(
-          turn.userId,
+          turn.requestedByUserId,
           readSokoBotPacketAudience(turn.contextSnapshot?.packet),
         ),
       },
@@ -541,7 +541,7 @@ export async function assessSokoBotIntentOutcome(
           workspaceId: turn.workspaceId,
           status: { in: ["READY", "RUNNING", "COMPLETED", "CANCELED"] },
           ...buildSokoBotAudienceTaskVisibilityWhere(
-            turn.userId,
+            turn.requestedByUserId,
             readSokoBotPacketAudience(turn.contextSnapshot?.packet),
           ),
         },
@@ -694,7 +694,7 @@ export async function readSokoBotTaskOutcome(
       id: input.turnId,
       sokoBotId: input.sokoBotId,
       workspaceId: input.workspaceId,
-      userId: input.userId,
+      requestedByUserId: input.userId,
       intentId: input.intentId,
       intentRevision: input.intentRevision,
       chainDepth: 0,

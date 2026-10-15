@@ -119,7 +119,7 @@ async function destinationStillAuthorized(
   tx: Prisma.TransactionClient,
   turn: {
     sokoBotId: string;
-    userId: string;
+    requestedByUserId: string;
     askedByUserId?: string | null;
     workspaceId: string;
     source: string;
@@ -130,11 +130,13 @@ async function destinationStillAuthorized(
   // A chat reply goes back to whoever asked: the owner, or a teammate who
   // messaged someone else's bot in their own direct chat with it.
   const recipientId =
-    turn.source === "CHAT" ? (turn.askedByUserId ?? turn.userId) : turn.userId;
+    turn.source === "CHAT"
+      ? (turn.askedByUserId ?? turn.requestedByUserId)
+      : turn.requestedByUserId;
   const bot = await tx.sokoBot.findFirst({
     where: {
       id: turn.sokoBotId,
-      userId: turn.userId,
+      userId: turn.requestedByUserId,
       workspaceId: turn.workspaceId,
       archivedAt: null,
     },
@@ -145,8 +147,12 @@ async function destinationStillAuthorized(
     where: {
       id: turn.workspaceId,
       OR: [
-        { userId: turn.userId },
-        { organization: { members: { some: { userId: turn.userId } } } },
+        { userId: turn.requestedByUserId },
+        {
+          organization: {
+            members: { some: { userId: turn.requestedByUserId } },
+          },
+        },
       ],
     },
     select: { id: true },

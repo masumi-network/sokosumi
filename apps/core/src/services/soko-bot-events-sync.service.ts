@@ -191,7 +191,7 @@ export class SokoBotEventsSyncService {
           turn: {
             select: {
               sokoBotId: true,
-              userId: true,
+              requestedByUserId: true,
               workspaceId: true,
               parentTurnId: true,
               status: true,
@@ -209,17 +209,20 @@ export class SokoBotEventsSyncService {
         delegation.task &&
         (delegation.task.archivedAt ||
           delegation.task.workspaceId !== delegation.turn.workspaceId ||
-          !isPrivateTaskVisibleToHuman(delegation.task, delegation.turn.userId))
+          !isPrivateTaskVisibleToHuman(
+            delegation.task,
+            delegation.turn.requestedByUserId,
+          ))
       )
         continue;
       if (
         delegation.job &&
         (delegation.job.workspaceId !== delegation.turn.workspaceId ||
-          delegation.job.ownerId !== delegation.turn.userId ||
+          delegation.job.ownerId !== delegation.turn.requestedByUserId ||
           (delegation.job.task &&
             !isPrivateTaskVisibleToHuman(
               delegation.job.task,
-              delegation.turn.userId,
+              delegation.turn.requestedByUserId,
             )))
       )
         continue;
@@ -251,7 +254,7 @@ export class SokoBotEventsSyncService {
       }
       const work = byBot.get(delegation.turn.sokoBotId) ?? {
         sokoBotId: delegation.turn.sokoBotId,
-        userId: delegation.turn.userId,
+        userId: delegation.turn.requestedByUserId,
         workspaceId: delegation.turn.workspaceId,
         changes: [],
         baselines: [],
@@ -340,7 +343,7 @@ export class SokoBotEventsSyncService {
             eventAt: event.createdAt,
             designatedHandlerBotId: delegation.task
               ? (delegation.task.assigneeSokoBotId ??
-                (delegation.task.ownerId === delegation.turn.userId
+                (delegation.task.ownerId === delegation.turn.requestedByUserId
                   ? delegation.turn.sokoBotId
                   : null))
               : delegation.turn.sokoBotId,
@@ -385,7 +388,7 @@ export class SokoBotEventsSyncService {
         eventAt: current.eventAt,
         designatedHandlerBotId: delegation.task
           ? (delegation.task.assigneeSokoBotId ??
-            (delegation.task.ownerId === delegation.turn.userId
+            (delegation.task.ownerId === delegation.turn.requestedByUserId
               ? delegation.turn.sokoBotId
               : null))
           : delegation.turn.sokoBotId,

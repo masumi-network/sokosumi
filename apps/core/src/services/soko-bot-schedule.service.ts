@@ -188,7 +188,7 @@ export async function createSokoBotSchedule(
     return tx.sokoBotSchedule.create({
       data: {
         sokoBotId: bot.id,
-        userId: input.userId,
+        requestedByUserId: input.userId,
         workspaceId: input.workspaceId,
         name: name.slice(0, 120),
         timezone: input.timezone,
@@ -222,7 +222,7 @@ async function findScheduleForUser(
   const db = transaction ?? prisma;
   const schedule = await db.sokoBotSchedule.findFirst({
     where: {
-      userId,
+      requestedByUserId: userId,
       workspaceId: ref.workspaceId,
       sokoBotId: ref.sokoBotId,
       OR: [
@@ -242,7 +242,11 @@ async function findScheduleForUser(
   });
   if (schedule) return schedule;
   const existing = await db.sokoBotSchedule.findMany({
-    where: { userId, workspaceId: ref.workspaceId, sokoBotId: ref.sokoBotId },
+    where: {
+      requestedByUserId: userId,
+      workspaceId: ref.workspaceId,
+      sokoBotId: ref.sokoBotId,
+    },
     select: { id: true, name: true },
     orderBy: { createdAt: "asc" },
   });

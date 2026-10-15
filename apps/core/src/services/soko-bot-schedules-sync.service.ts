@@ -68,7 +68,7 @@ interface ClaimedOccurrence {
   schedule: {
     id: string;
     sokoBotId: string;
-    userId: string;
+    requestedByUserId: string;
     workspaceId: string;
     cronExpression: string;
     timezone: string;
@@ -497,7 +497,7 @@ export class SokoBotSchedulesSyncService {
           );
         }
         const started = await sokoBotControlPlane.startTurn({
-          userId: schedule.userId,
+          userId: schedule.requestedByUserId,
           workspaceId: schedule.workspaceId,
           clientTurnId: sokoBotScheduleClientTurnId(schedule.id, scheduledFor),
           message,

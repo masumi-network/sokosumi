@@ -74,7 +74,7 @@ function confirmation() {
     intentRevision: 1,
     source: "CHAT",
     chainDepth: 0,
-    userId: "owner",
+    requestedByUserId: "owner",
     askedByUserId: "owner",
     workspaceId: "workspace",
     sokoBotId: "bot",
@@ -97,7 +97,7 @@ function confirmation() {
       decisions: [
         {
           id: "decision",
-          userId: "owner",
+          requestedByUserId: "owner",
           workspaceId: "workspace",
           sokoBotId: "bot",
           status: "PENDING",
