@@ -202,6 +202,7 @@ describe("Social post calendar event", () => {
     expect(thumb.contains(screen.getByTestId("social-post-preview-gif"))).toBe(
       true,
     );
+    expect(thumb.textContent).toBe("GIF");
   });
   it("keeps a failed week chip as an icon so the word does not crowd the thumb", () => {
     renderCard(

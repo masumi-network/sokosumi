@@ -390,7 +390,7 @@ function SocialPostCalendarPreview({
             loading="lazy"
             src={media.fileUrl}
           />
-          {media.kind === "gif" ? (
+          {media.kind === "gif" && !fill ? (
             <span
               className="bg-scrim-strong text-on-media absolute bottom-1 start-1 rounded px-1.5 py-0.5 text-2xs font-semibold"
               data-testid="calendar-social-post-gif"
