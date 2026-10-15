@@ -14,5 +14,3 @@ export const ablyTokenRequestSchema = z
     mac: z.string().openapi({ example: "signature" }),
   })
   .openapi("AblyTokenRequest");
-
-export type AblyTokenRequest = z.infer<typeof ablyTokenRequestSchema>;
