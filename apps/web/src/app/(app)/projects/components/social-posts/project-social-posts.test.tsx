@@ -593,6 +593,53 @@ describe("ProjectSocialPosts", () => {
     });
   });
 
+  it("keeps attention ordered by failure time after edits and loading another page", async () => {
+    const user = userEvent.setup();
+    const recent = { ...FAILED_POST, id: "recent" };
+    const edited = {
+      ...FAILED_POST,
+      id: "edited",
+      lastAttemptAt: new Date("2026-09-08T10:00:00.000Z"),
+      updatedAt: new Date("2026-09-12T10:00:00.000Z"),
+    };
+    vi.mocked(loadMoreSocialPosts).mockResolvedValue({
+      posts: [
+        {
+          ...FAILED_POST,
+          id: "middle",
+          lastAttemptAt: new Date("2026-09-09T10:00:00.000Z"),
+          updatedAt: new Date("2026-09-13T10:00:00.000Z"),
+        },
+      ],
+      nextCursor: null,
+    });
+    renderUi(
+      <TestQueryProvider>
+        <NuqsTestingAdapter searchParams="?tab=attention">
+          <ProjectSocialPosts
+            connections={[buildConnection()]}
+            nextCursors={{ attention: "next-page" }}
+            posts={[recent, edited]}
+            projectId={PROJECT_ID}
+          />
+        </NuqsTestingAdapter>
+      </TestQueryProvider>,
+    );
+    const rows = () =>
+      within(screen.getByTestId("social-posts-section-attention"))
+        .getAllByRole("listitem")
+        .map((row) => row.id);
+    expect(rows()).toEqual(["social-post-recent", "social-post-edited"]);
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() =>
+      expect(rows()).toEqual([
+        "social-post-recent",
+        "social-post-middle",
+        "social-post-edited",
+      ]),
+    );
+  });
+
   it("lists drafts in a tab and leaves scheduled and published posts to the calendar", () => {
     render(
       <ProjectSocialPosts
