@@ -42,7 +42,6 @@ export function OrganizationSetup({
     <main className="hero">
       <div className="hero-copy">
         <h1>Set up your organization.</h1>
-        {/* Remounts after each submit (useFocusFirstInvalid). */}
         <form
           key={state.attempt}
           ref={formRef}
