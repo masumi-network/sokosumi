@@ -31,7 +31,7 @@ struct LinkPointerText: View {
 private struct LinkRun: TextAttribute {}
 
 /// Written while the text draws, read on hover once that layout is on screen.
-private final nonisolated class LinkFrames: @unchecked Sendable {
+private final class LinkFrames {
   var rects: [CGRect] = []
 }
 
