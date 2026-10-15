@@ -4035,7 +4035,10 @@ describe("ProjectSocialPosts", () => {
     );
 
     await waitFor(() =>
-      expect(toastErrorMock).toHaveBeenCalledWith("Couldn't open this post."),
+      expect(toastErrorMock).toHaveBeenCalledWith("Couldn't open this post.", {
+        duration: Infinity,
+        closeButton: true,
+      }),
     );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });

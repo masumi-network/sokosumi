@@ -300,7 +300,10 @@ export function ProjectSocialPosts({
 
   useEffect(() => {
     if (!requestedPostId || selectedPostId) return;
-    toast.error(t("toasts.missingPost"));
+    toast.error(t("toasts.missingPost"), {
+      duration: Infinity,
+      closeButton: true,
+    });
   }, [requestedPostId, selectedPostId, t]);
 
   function handleCloseAutoFocus(event: Event) {
