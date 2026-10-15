@@ -24,6 +24,17 @@ interface OrgCollaboratorViewerParams extends ReadOnlyForViewerParams {
   sessionUserId: string | null | undefined;
 }
 
+/**
+ * Whether `userId` is the Task's responsible person, from Core's
+ * `responsibleUserId`. Work nobody is responsible for matches nobody.
+ */
+export function isResponsibleUser(
+  responsibleUserId: string | null,
+  userId: string | null | undefined,
+): boolean {
+  return responsibleUserId !== null && userId === responsibleUserId;
+}
+
 function isGrantPendingStatus(status: string): boolean {
   return status === TaskStatus.GRANT_PENDING;
 }
@@ -85,7 +96,7 @@ function canOrgCollaboratorActOnTaskForViewer({
     return false;
   }
 
-  if (responsibleUserId !== null && sessionUserId === responsibleUserId) {
+  if (isResponsibleUser(responsibleUserId, sessionUserId)) {
     return true;
   }
 

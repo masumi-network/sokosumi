@@ -48,6 +48,7 @@ import {
   canCancelTaskForViewer,
   canCommentOnTaskForViewer,
   isReadOnlyForViewer,
+  isResponsibleUser,
 } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
@@ -671,10 +672,10 @@ async function TaskDetailActionsSlot({
       isReadOnly={isReadOnlyWorkspaceView}
       canCancel={canCancelTask}
       forceReadOnly={forceReadOnly}
-      isResponsible={
-        task.responsibleUserId !== null &&
-        session?.user.id === task.responsibleUserId
-      }
+      isResponsible={isResponsibleUser(
+        task.responsibleUserId,
+        session?.user.id,
+      )}
       hasAssignedSeat={hasAssignedSeat}
       repeatBlueprint={
         !forceReadOnly && hasAssignedSeat
@@ -842,7 +843,7 @@ async function TaskActivitySectionContent({
       actionCommentedLabel={t("actionCommented")}
       actionUpdatedStatusLabel={t("actionUpdatedStatus")}
       actionCreatedTaskLabel={t("actionCreatedTask")}
-      taskOwnerId={task.ownerId}
+      responsibleUserId={task.responsibleUserId}
       events={activityEvents.events}
       commentCount={activityEvents.pagination.commentCount}
       latestCommentId={activityEvents.pagination.latestCommentId}

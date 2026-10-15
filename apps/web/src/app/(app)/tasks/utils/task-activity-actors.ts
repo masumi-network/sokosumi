@@ -26,7 +26,7 @@ export type TaskEventActorKind = "user" | "coworker" | "sokoBot";
 
 type TaskActivityActorSource = Pick<
   Task,
-  "owner" | "assignee" | "creator" | "events"
+  "assignee" | "creator" | "requester" | "events"
 >;
 
 type SokoBotActorSummary = {
@@ -69,14 +69,14 @@ export function resolveTaskEventActorKind(
 
 /**
  * The creation event can come from the system or a schedule and then has no
- * actor; it is attributed to the Task owner (`taskOwnerId`) instead.
+ * actor; it is attributed to the Task's responsible person instead.
  */
 export function getEventActorInfo(
   event: TaskEvent,
   userById?: Record<string, TaskActivityActorInfo>,
   coworkerById?: Record<string, TaskActivityActorInfo>,
   sokoBotById?: Record<string, TaskActivityActorInfo>,
-  taskOwnerId?: string | null,
+  responsibleUserId?: string | null,
 ): TaskActivityActorInfo | undefined {
   const actor = resolveEventActorInfo(
     event,
@@ -84,10 +84,10 @@ export function getEventActorInfo(
     coworkerById,
     sokoBotById,
   );
-  if (actor || event.status !== TaskEventStatus.CREATED || !taskOwnerId) {
+  if (actor || event.status !== TaskEventStatus.CREATED || !responsibleUserId) {
     return actor;
   }
-  return userById?.[taskOwnerId];
+  return userById?.[responsibleUserId];
 }
 
 function resolveEventActorInfo(
@@ -166,7 +166,9 @@ export function buildTaskActivityActors(
   const coworkerById: Record<string, TaskActivityActorInfo> = {};
   const sokoBotById: Record<string, TaskActivityActorInfo> = {};
 
-  addUserActor(userById, task.owner);
+  // The responsible person is the person Creator or the Requester (ADR
+  // 0056), so both name them.
+  addUserActor(userById, task.requester);
 
   if (task.assignee) {
     if (task.assignee.type === "sokoBot") {
@@ -183,9 +185,7 @@ export function buildTaskActivityActors(
   if (creator) {
     switch (creator.type) {
       case "user":
-        if (creator.id !== task.owner?.id) {
-          addUserActor(userById, creator.user);
-        }
+        addUserActor(userById, creator.user);
         break;
       case "coworker":
         addCoworkerActor(coworkerById, creator.coworker);
@@ -270,7 +270,7 @@ function addUserActor(
     image?: string | null;
   } | null,
 ) {
-  // Nobody is named once the person responsible deleted their account.
+  // Nobody is named once the person deleted their account.
   if (!user) return;
   userById[user.id] = {
     name: user.name,
