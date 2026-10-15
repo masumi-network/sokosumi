@@ -22,7 +22,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   attachAdAccounts,
@@ -217,20 +216,26 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
               key={provider}
               className="flex flex-col items-stretch gap-1.5 sm:items-start"
             >
-              <Button
-                aria-describedby={showNote ? noteId : undefined}
-                disabled={isComingSoon || isUnavailable || connecting !== null}
-                loading={connecting === provider}
-                onClick={() => void handleConnect(provider)}
-                type="button"
-              >
-                {t("connect", { provider: providerName(provider) })}
-              </Button>
-              {isComingSoon ? (
-                <Badge id={noteId} variant="secondary">
-                  {t("comingSoon")}
-                </Badge>
-              ) : isUnavailable ? (
+              <div className="relative">
+                {isComingSoon ? (
+                  <span
+                    className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-2xs font-medium"
+                    id={noteId}
+                  >
+                    {t("comingSoon")}
+                  </span>
+                ) : null}
+                <Button
+                  aria-describedby={showNote ? noteId : undefined}
+                  disabled={isComingSoon || isUnavailable || connecting !== null}
+                  loading={connecting === provider}
+                  onClick={() => void handleConnect(provider)}
+                  type="button"
+                >
+                  {t("connect", { provider: providerName(provider) })}
+                </Button>
+              </div>
+              {isUnavailable && !isComingSoon ? (
                 <p className="text-muted-foreground text-xs" id={noteId}>
                   {t("unavailable", { provider: providerName(provider) })}
                 </p>

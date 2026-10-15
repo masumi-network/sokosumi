@@ -159,10 +159,12 @@ describe("AdsAccounts", () => {
       expect(
         screen.getByRole("button", { name: "Connect Google Ads" }),
       ).toBeEnabled();
-      expect(
-        screen.getByRole("button", { name: "Connect Meta Ads" }),
-      ).toBeDisabled();
-      expect(screen.getByText("Coming soon")).toBeVisible();
+      const meta = screen.getByRole("button", { name: "Connect Meta Ads" });
+      expect(meta).toBeDisabled();
+      const comingSoon = screen.getByText("Coming soon");
+      expect(comingSoon).toBeVisible();
+      expect(comingSoon).toHaveClass("absolute", "top-1.5", "right-2");
+      expect(meta.parentElement).toContainElement(comingSoon);
     });
   });
 
