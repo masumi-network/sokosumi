@@ -11,10 +11,12 @@ import {
   EMAILED_NOTIFICATION_COLUMNS,
 } from "@/helpers/notification-email-dispatch";
 import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
+import { buildResponsibleUserWhere } from "@/helpers/task-visibility";
 
 /**
  * Flip OUT_OF_CREDITS tasks to CREDITS_TOPPED_UP after a credit grant, scoped
- * to the organization when one is given, otherwise to the user. Tasks updated
+ * to the organization when one is given, otherwise to the Tasks the user is
+ * responsible for, whose charges their personal credits pay (ADR 0056). Tasks updated
  * concurrently (P2025) are skipped so the surrounding grant transaction is
  * never rolled back by a task race.
  */
@@ -23,14 +25,14 @@ export async function markOutOfCreditsTasksAsToppedUp(params: {
   tx: Prisma.TransactionClient;
   userId: string | null;
 }): Promise<void> {
-  let taskWhere: { organizationId: string } | { ownerId: string };
+  let taskWhere: Prisma.TaskWhereInput;
   if (params.organizationId) {
     taskWhere = { organizationId: params.organizationId };
   } else {
     if (params.userId === null) {
       throw new Error("Personal credit top-up requires a user id");
     }
-    taskWhere = { ownerId: params.userId };
+    taskWhere = buildResponsibleUserWhere(params.userId);
   }
 
   const tasks = await params.tx.task.findMany({

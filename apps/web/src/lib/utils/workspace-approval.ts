@@ -107,7 +107,7 @@ export function canApproveWorkspaceAccess(params: {
   organizationId: string | null;
   isAuthenticated: boolean;
   viewerMembership?: MemberWithOrganization;
-  taskOwnerId?: string | null;
+  responsibleUserId?: string | null;
   sessionUserId?: string | null;
 }): boolean {
   if (!params.isAuthenticated) {
@@ -116,9 +116,9 @@ export function canApproveWorkspaceAccess(params: {
 
   if (params.organizationId === null) {
     if (
-      params.taskOwnerId != null &&
+      params.responsibleUserId != null &&
       params.sessionUserId != null &&
-      params.taskOwnerId !== params.sessionUserId
+      params.responsibleUserId !== params.sessionUserId
     ) {
       return false;
     }

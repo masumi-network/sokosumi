@@ -287,7 +287,7 @@ describe("workspace-approval membership and can-approve", () => {
       canApproveWorkspaceAccess({
         organizationId: null,
         isAuthenticated: true,
-        taskOwnerId: "user_owner",
+        responsibleUserId: "user_owner",
         sessionUserId: "user_owner",
       }),
     ).toBe(true);
@@ -296,7 +296,7 @@ describe("workspace-approval membership and can-approve", () => {
       canApproveWorkspaceAccess({
         organizationId: null,
         isAuthenticated: true,
-        taskOwnerId: "user_owner",
+        responsibleUserId: "user_owner",
         sessionUserId: "user_other",
       }),
     ).toBe(false);

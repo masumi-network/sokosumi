@@ -152,7 +152,8 @@ interface TaskDetailActionsProps {
   isReadOnly?: boolean;
   canCancel?: boolean;
   forceReadOnly?: boolean;
-  isTaskOwner?: boolean;
+  /** The viewer is the Task's responsible person (`responsibleUserId`). */
+  isResponsible?: boolean;
   hasAssignedSeat?: boolean;
   /**
    * The Task as a Task Schedule blueprint, for "Repeat". Omitted where the
@@ -182,7 +183,7 @@ export function TaskDetailActions({
   isReadOnly = false,
   canCancel = false,
   forceReadOnly = false,
-  isTaskOwner = false,
+  isResponsible = false,
   hasAssignedSeat = false,
   repeatBlueprint,
 }: TaskDetailActionsProps) {
@@ -259,7 +260,7 @@ export function TaskDetailActions({
   const canArchiveParked = canArchiveParkedTaskForViewer({
     forceReadOnly,
     taskStatus: status,
-    isTaskOwner,
+    isResponsible,
     isOrganizationTask: currentOrganizationId != null,
     hasAssignedSeat,
   });
@@ -271,11 +272,11 @@ export function TaskDetailActions({
     status === TaskStatus.FAILED ||
     status === TaskStatus.CANCELED;
   const canManageRelations = canMutateTask && !isFinalized;
-  // Move stays owner-only: a member moving the task would take it away from
-  // its owner.
+  // Move stays with the responsible person: a member moving the task would
+  // take it away from them.
   const canMove =
     canMutateTask &&
-    isTaskOwner &&
+    isResponsible &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(
       currentOrganizationId,
