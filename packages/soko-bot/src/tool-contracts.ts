@@ -717,7 +717,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   find_coworkers:
     "Find available AI Coworkers suitable for delegated Task work.",
   create_task:
-    "Create Sokosumi Task, preferably DRAFT, for Coworker execution. On a turn started by Task events, triggeringTaskId is the Task it follows up; it may be left out when the events are about one Task. A Coworker cannot open your Files: pass fileIds to attach the files the work needs (a page to review, a draft to edit) as the Task's inputs.",
+    "Create Sokosumi Task, preferably DRAFT, for Coworker execution. On a turn started by Task events, triggeringTaskId is the Task it follows up; it may be left out when the events are about one Task. A Coworker cannot open your Files: pass fileIds for the files the work needs (a page to review, a draft to edit); they are attached and their text is added to the description.",
   update_task:
     "Update existing Task scope or DRAFT/READY status, or clear its assignee with unassign: true. Move with projectId as a separate operation; first read the task and provide its exact updatedAt as expectedUpdatedAt. Never create a replacement task to simulate a move.",
   archive_task:
@@ -728,7 +728,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   list_tasks:
     "List the owner's Tasks on the board. Filter by state (open, finished, all), exact status (one or several, e.g. INPUT_REQUIRED and FAILED for what is stuck; it replaces state), words in the name, assignee (a name, or \"unassigned\"), idle for at least idleDays, or project. Returns each Task's status, assignee, project, days since it last changed, and latest update, newest first; `total` and `byStatus` count every match, not just the page shown. Use get_task_status for one Task in full.",
   reply_to_task:
-    "Post a comment on a Task as the project manager. With status READY it answers a Coworker's INPUT_REQUIRED question or restarts a FAILED task with guidance; with status CANCELED it cancels one of the owner's Tasks, the comment saying why; without status it only comments. fileIds attaches Files to the Task first, for a Coworker who needs them.",
+    "Post a comment on a Task as the project manager. With status READY it answers a Coworker's INPUT_REQUIRED question or restarts a FAILED task with guidance; with status CANCELED it cancels one of the owner's Tasks, the comment saying why; without status it only comments. fileIds attaches Files to the Task and adds their text to the comment, for a Coworker who needs them.",
   update_assigned_task:
     "Progress a Task that is assigned to you: RUNNING when you start, INPUT_REQUIRED to ask the owner one clear question, COMPLETED with the full result in the comment, FAILED with why. Only for Tasks where you are the assignee.",
   link_tasks:
