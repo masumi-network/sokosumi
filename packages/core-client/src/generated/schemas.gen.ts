@@ -5609,26 +5609,34 @@ export const AdminTaskListItemSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         owner: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
                 },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                email: {
-                    type: 'string',
-                    example: 'ada@example.com'
+                {
+                    type: 'null'
                 }
-            },
-            required: [
-                'id',
-                'name',
-                'email'
-            ]
+            ],
+            description: 'The person responsible for the task; null only when nobody is responsible for the work.'
         },
         organization: {
             type: [
@@ -5694,26 +5702,34 @@ export const AdminTaskDetailSchema = {
             $ref: '#/components/schemas/Task'
         },
         owner: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
                 },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                email: {
-                    type: 'string',
-                    example: 'ada@example.com'
+                {
+                    type: 'null'
                 }
-            },
-            required: [
-                'id',
-                'name',
-                'email'
-            ]
+            ],
+            description: 'The person responsible for the task; null only when nobody is responsible for the work.'
         },
         organization: {
             type: [
@@ -5766,29 +5782,54 @@ export const TaskSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         ownerId: {
-            type: 'string',
-            example: 'user_123',
-            description: 'Task owner. Always a user.'
-        },
-        owner: {
-            $ref: '#/components/schemas/UserSummary'
-        },
-        userId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
             deprecated: true,
-            description: 'Deprecated. Use ownerId instead.'
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
         },
-        user: {
-            allOf: [
+        owner: {
+            anyOf: [
                 {
                     $ref: '#/components/schemas/UserSummary'
                 },
                 {
-                    deprecated: true,
-                    description: 'Deprecated. Use owner instead.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+        },
+        userId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+        },
+        user: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
         },
         organizationId: {
             type: [
@@ -6930,12 +6971,29 @@ export const JobSummarySchema = {
             example: 'agent_123'
         },
         ownerId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
-            description: 'Job owner. Always a user.'
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
         },
         creator: {
             anyOf: [
@@ -6978,21 +7036,29 @@ export const JobSummarySchema = {
             description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
         },
         userId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
             deprecated: true,
-            description: 'Deprecated. Use ownerId instead.'
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
         },
         user: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/UserSummary'
                 },
                 {
-                    deprecated: true,
-                    description: 'Deprecated. Use owner instead.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
         },
         organizationId: {
             type: [
@@ -12558,26 +12624,34 @@ export const DeveloperTaskListItemSchema = {
             $ref: '#/components/schemas/DeveloperCoworkerRef'
         },
         owner: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
                 },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                email: {
-                    type: 'string',
-                    example: 'ada@example.com'
+                {
+                    type: 'null'
                 }
-            },
-            required: [
-                'id',
-                'name',
-                'email'
-            ]
+            ],
+            description: 'The person responsible for the task; null only when nobody is responsible for the work.'
         },
         organization: {
             type: [
@@ -12651,26 +12725,34 @@ export const DeveloperTaskDetailSchema = {
             $ref: '#/components/schemas/Task'
         },
         owner: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
                 },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                email: {
-                    type: 'string',
-                    example: 'ada@example.com'
+                {
+                    type: 'null'
                 }
-            },
-            required: [
-                'id',
-                'name',
-                'email'
-            ]
+            ],
+            description: 'The person responsible for the task; null only when nobody is responsible for the work.'
         },
         organization: {
             type: [
@@ -21599,12 +21681,29 @@ export const JobSchema = {
             example: 'agent_123'
         },
         ownerId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
-            description: 'Job owner. Always a user.'
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
         },
         creator: {
             anyOf: [
@@ -21647,21 +21746,29 @@ export const JobSchema = {
             description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
         },
         userId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
             deprecated: true,
-            description: 'Deprecated. Use ownerId instead.'
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
         },
         user: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/UserSummary'
                 },
                 {
-                    deprecated: true,
-                    description: 'Deprecated. Use owner instead.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
         },
         organizationId: {
             type: [
@@ -25466,29 +25573,54 @@ export const TaskListItemSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         ownerId: {
-            type: 'string',
-            example: 'user_123',
-            description: 'Task owner. Always a user.'
-        },
-        owner: {
-            $ref: '#/components/schemas/UserSummary'
-        },
-        userId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
             deprecated: true,
-            description: 'Deprecated. Use ownerId instead.'
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
         },
-        user: {
-            allOf: [
+        owner: {
+            anyOf: [
                 {
                     $ref: '#/components/schemas/UserSummary'
                 },
                 {
-                    deprecated: true,
-                    description: 'Deprecated. Use owner instead.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+        },
+        userId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
+        },
+        user: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
         },
         organizationId: {
             type: [
@@ -25902,7 +26034,17 @@ export const TaskScheduleSchema = {
             ]
         },
         ownerId: {
-            type: 'string'
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.'
         },
         creatorUserId: {
             type: [

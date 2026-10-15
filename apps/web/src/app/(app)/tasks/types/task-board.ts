@@ -31,8 +31,10 @@ export interface TaskWithCoworker {
   status: TaskStatus;
   priority: TaskPriority;
   visibility: TaskVisibility;
-  ownerId: string;
-  owner: UserSummary;
+  /** @deprecated Use `responsibleUserId`; null when nobody is responsible. */
+  ownerId: string | null;
+  /** @deprecated Null when nobody is responsible for the work. */
+  owner: UserSummary | null;
   project: ProjectSummary | null;
   createdAt: string;
   updatedAt: string;

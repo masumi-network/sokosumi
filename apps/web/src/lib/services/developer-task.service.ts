@@ -23,7 +23,8 @@ export interface DeveloperTaskListRow {
   updatedAt: Date;
   assignee: DeveloperCoworkerRef;
   creatorCoworker: DeveloperCoworkerRef;
-  owner: DeveloperTaskOwner;
+  /** The responsible person; null when nobody is responsible. */
+  owner: DeveloperTaskOwner | null;
   /** Null for tasks in a personal workspace. */
   organization: {
     id: string;
@@ -35,7 +36,8 @@ export interface DeveloperTaskListRow {
 /** Full task payload plus owner/organization context for developer views. */
 export interface DeveloperTaskDetail {
   task: Task;
-  owner: DeveloperTaskOwner;
+  /** The responsible person; null when nobody is responsible. */
+  owner: DeveloperTaskOwner | null;
   /** Null for tasks in a personal workspace. */
   organization: {
     id: string;

@@ -312,6 +312,22 @@ describe("TaskDetailView (rights follow the responsible person)", () => {
     expect(actions).toMatchObject({ isResponsible: false, canCancel: false });
   });
 
+  it("shows a public Task whose person deleted their account", async () => {
+    const { actions, activity } = await renderFor(
+      createTask([], {
+        ownerId: null,
+        owner: null,
+        userId: null,
+        user: null,
+        creator: null,
+        responsibleUserId: null,
+      }),
+    );
+
+    expect(actions).toMatchObject({ isResponsible: false });
+    expect(activity.canComment).toBe(true);
+  });
+
   it("gives nobody a personal-workspace right when nobody is responsible", async () => {
     const { actions, activity } = await renderFor(
       createTask([], {

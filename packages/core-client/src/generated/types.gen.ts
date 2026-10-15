@@ -1369,11 +1369,14 @@ export type AdminTaskListItem = {
     name: string;
     status: TaskStatus;
     createdAt: Date;
+    /**
+     * The person responsible for the task; null only when nobody is responsible for the work.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -1402,11 +1405,14 @@ export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
 
 export type AdminTaskDetail = {
     task: Task;
+    /**
+     * The person responsible for the task; null only when nobody is responsible for the work.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -1419,17 +1425,29 @@ export type Task = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Task owner. Always a user.
-     */
-    ownerId: string;
-    owner: UserSummary;
-    /**
-     * Deprecated. Use ownerId instead.
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    ownerId: string | null;
+    /**
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     *
+     * @deprecated
+     */
+    owner: UserSummary | null;
+    /**
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     *
+     * @deprecated
+     */
+    userId: string | null;
+    /**
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
@@ -1807,10 +1825,17 @@ export type JobSummary = {
     completedAt?: Date | null;
     agentId: string;
     /**
-     * Job owner. Always a user.
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     *
+     * @deprecated
      */
-    ownerId: string;
-    owner: UserSummary;
+    ownerId: string | null;
+    /**
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     *
+     * @deprecated
+     */
+    owner: UserSummary | null;
     /**
      * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
      */
@@ -1824,12 +1849,17 @@ export type JobSummary = {
      */
     responsibleUserId: string | null;
     /**
-     * Deprecated. Use ownerId instead.
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    userId: string | null;
+    /**
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId?: string | null;
     organization?: OrganizationSummary;
     projectId?: string | null;
@@ -3474,11 +3504,14 @@ export type DeveloperTaskListItem = {
     updatedAt: Date;
     assignee: DeveloperCoworkerRef;
     creatorCoworker: DeveloperCoworkerRef;
+    /**
+     * The person responsible for the task; null only when nobody is responsible for the work.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -3494,11 +3527,14 @@ export type DeveloperCoworkerRef = {
 
 export type DeveloperTaskDetail = {
     task: Task;
+    /**
+     * The person responsible for the task; null only when nobody is responsible for the work.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -6189,10 +6225,17 @@ export type Job = {
     completedAt?: Date | null;
     agentId: string;
     /**
-     * Job owner. Always a user.
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     *
+     * @deprecated
      */
-    ownerId: string;
-    owner: UserSummary;
+    ownerId: string | null;
+    /**
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     *
+     * @deprecated
+     */
+    owner: UserSummary | null;
     /**
      * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
      */
@@ -6206,12 +6249,17 @@ export type Job = {
      */
     responsibleUserId: string | null;
     /**
-     * Deprecated. Use ownerId instead.
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    userId: string | null;
+    /**
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId?: string | null;
     organization?: OrganizationSummary;
     projectId: string | null;
@@ -7138,17 +7186,29 @@ export type TaskListItem = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Task owner. Always a user.
-     */
-    ownerId: string;
-    owner: UserSummary;
-    /**
-     * Deprecated. Use ownerId instead.
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    ownerId: string | null;
+    /**
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     *
+     * @deprecated
+     */
+    owner: UserSummary | null;
+    /**
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     *
+     * @deprecated
+     */
+    userId: string | null;
+    /**
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
@@ -7287,7 +7347,12 @@ export type TaskSchedule = {
     id: string;
     workspaceId: string;
     organizationId: string | null;
-    ownerId: string;
+    /**
+     * Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.
+     *
+     * @deprecated
+     */
+    ownerId: string | null;
     creatorUserId: string | null;
     creatorCoworkerId: string | null;
     creatorSokoBotId: string | null;
