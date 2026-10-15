@@ -171,6 +171,33 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     });
   });
 
+  it("carries the schedule's Requester onto the Task as Requester and Task participant", async () => {
+    const schedule = seedTaskSchedule({
+      nextRunAt: MONDAY_9,
+      creatorUserId: null,
+      creatorCoworkerId: COWORKER_ID,
+      requestedByUserId: OWNER_ID,
+    });
+    seedRun(schedule, MONDAY_9);
+
+    await release();
+
+    const task = taskScheduleTestDb.tasks[0];
+    expect(task?.requestedByUserId).toBe(OWNER_ID);
+    expect(task?.participants).toEqual([{ userId: OWNER_ID }]);
+  });
+
+  it("adds no Task participant for a schedule a person made", async () => {
+    const schedule = seedTaskSchedule({ nextRunAt: MONDAY_9 });
+    seedRun(schedule, MONDAY_9);
+
+    await release();
+
+    const task = taskScheduleTestDb.tasks[0];
+    expect(task?.requestedByUserId).toBeNull();
+    expect(task?.participants).toBeUndefined();
+  });
+
   it("lands the Task in the blueprint's project", async () => {
     const schedule = seedTaskSchedule({
       nextRunAt: MONDAY_9,

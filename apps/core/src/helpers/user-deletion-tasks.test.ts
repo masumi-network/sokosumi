@@ -9,12 +9,9 @@ import { lastVendorAdminBlockerWhere } from "./deletion-evaluate";
 import { prepareTasksForUserDeletion } from "./user-deletion-tasks";
 
 const {
-  coworkerAssignmentFindManyMock,
-  taskFindManyMock,
   taskFileFindManyMock,
   taskUpdateMock,
   taskDeleteManyMock,
-  taskScheduleFindManyMock,
   taskScheduleUpdateMock,
   taskScheduleDeleteManyMock,
   taskPaymentClaimFindFirstMock,
@@ -40,12 +37,9 @@ const {
 } = vi.hoisted(() => ({
   cancelNotificationEmailsMock: vi.fn(),
   captureMessageMock: vi.fn(),
-  coworkerAssignmentFindManyMock: vi.fn(),
-  taskFindManyMock: vi.fn(),
   taskFileFindManyMock: vi.fn(),
   taskUpdateMock: vi.fn(),
   taskDeleteManyMock: vi.fn(),
-  taskScheduleFindManyMock: vi.fn(),
   taskScheduleUpdateMock: vi.fn(),
   taskScheduleDeleteManyMock: vi.fn(),
   taskPaymentClaimFindFirstMock: vi.fn(),
@@ -106,8 +100,6 @@ describe("prepareTasksForUserDeletion", () => {
     vendorUpdateMock.mockResolvedValue({});
     vendorMemberInviteUpdateManyMock.mockResolvedValue({ count: 0 });
     calendarInvalidationOutboxDeleteManyMock.mockResolvedValue({ count: 0 });
-    taskScheduleFindManyMock.mockResolvedValue([]);
-    taskScheduleUpdateMock.mockResolvedValue({});
     taskScheduleDeleteManyMock.mockResolvedValue({ count: 0 });
     queryRawMock.mockResolvedValue([]);
     eraseWorkspaceCalendarDataMock.mockResolvedValue({
@@ -119,16 +111,11 @@ describe("prepareTasksForUserDeletion", () => {
     transactionMock.mockImplementation(async (callback) =>
       callback({
         $queryRaw: queryRawMock,
-        coworkerAssignment: {
-          findMany: coworkerAssignmentFindManyMock,
-        },
         task: {
-          findMany: taskFindManyMock,
           update: taskUpdateMock,
           deleteMany: taskDeleteManyMock,
         },
         taskSchedule: {
-          findMany: taskScheduleFindManyMock,
           update: taskScheduleUpdateMock,
           deleteMany: taskScheduleDeleteManyMock,
         },
@@ -169,8 +156,6 @@ describe("prepareTasksForUserDeletion", () => {
   });
 
   it("locks owned tasks and reachable x402 payments before checking payment state", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
     taskDeleteManyMock.mockResolvedValue({ count: 0 });
 
     await prepareTasksForUserDeletion("user_delete", {
@@ -317,8 +302,6 @@ describe("prepareTasksForUserDeletion", () => {
       { vendorId: "01960001-0001-7001-8001-000000000001" },
     ]);
     vendorMemberFindFirstMock.mockResolvedValue(null);
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
     taskDeleteManyMock.mockResolvedValue({ count: 0 });
 
     await prepareTasksForUserDeletion("user_delete", {
@@ -339,8 +322,6 @@ describe("prepareTasksForUserDeletion", () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
     taskDeleteManyMock.mockResolvedValue({ count: 0 });
 
     await prepareTasksForUserDeletion("user_delete", {
@@ -378,8 +359,6 @@ describe("prepareTasksForUserDeletion", () => {
   });
 
   it("treats a concurrent delete that already removed the user as a no-op", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
     taskDeleteManyMock.mockResolvedValue({ count: 0 });
     userDeleteManyMock.mockResolvedValue({ count: 0 });
 
@@ -407,7 +386,7 @@ describe("prepareTasksForUserDeletion", () => {
       status: "BAD_REQUEST",
       body: expect.objectContaining({
         // Deliberately not an x402-specific code: the conflict can come from
-        // the claim sweep, the creator-repoint loop, or the user-row lock
+        // the claim sweep, the owned-task delete, or the user-row lock
         // contending with an unrelated FK insert — not only from a payment.
         code: "ACCOUNT_DELETION_CONCURRENT_CHANGE",
         message: expect.stringContaining("Retry account deletion"),
@@ -416,72 +395,17 @@ describe("prepareTasksForUserDeletion", () => {
     expect(deleteTaskFileIfOwnedMock).not.toHaveBeenCalled();
   });
 
-  it("reassigns foreign-owned user creators then deletes owned tasks", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([
-      { id: "tsk_owned", ownerId: "user_delete" },
-      { id: "tsk_other", ownerId: "user_other" },
-    ]);
-    taskUpdateMock.mockResolvedValue({});
+  it("leaves work it does not own to the database, which empties the Creator and Requester", async () => {
     taskDeleteManyMock.mockResolvedValue({ count: 1 });
 
     await prepareTasksForUserDeletion("user_delete", {
       $transaction: transactionMock,
     } as never);
 
-    expect(coworkerAssignmentFindManyMock).toHaveBeenCalledWith({
-      where: { userId: "user_delete" },
-      select: { coworkerId: true },
-    });
-    expect(taskFindManyMock).toHaveBeenCalledWith({
-      where: {
-        OR: [{ creatorUserId: "user_delete" }],
-      },
-      select: { id: true, ownerId: true },
-    });
-    expect(taskUpdateMock).toHaveBeenCalledTimes(1);
-    expect(taskUpdateMock).toHaveBeenCalledWith({
-      where: { id: "tsk_other" },
-      data: {
-        creatorUserId: "user_other",
-        creatorCoworkerId: null,
-        creatorSokoBotId: null,
-      },
-    });
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(taskScheduleUpdateMock).not.toHaveBeenCalled();
     expect(taskDeleteManyMock).toHaveBeenCalledWith({
       where: { ownerId: "user_delete" },
-    });
-  });
-
-  it("deletes owned Task Schedules and re-points foreign-owned schedule creators", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([{ coworkerId: "cow_1" }]);
-    taskFindManyMock.mockResolvedValue([]);
-    taskDeleteManyMock.mockResolvedValue({ count: 0 });
-    taskScheduleFindManyMock.mockResolvedValue([
-      { id: "schedule_foreign", ownerId: "user_other" },
-    ]);
-
-    await prepareTasksForUserDeletion("user_delete", {
-      $transaction: transactionMock,
-    } as never);
-
-    expect(taskScheduleFindManyMock).toHaveBeenCalledWith({
-      where: {
-        ownerId: { not: "user_delete" },
-        OR: [
-          { creatorUserId: "user_delete" },
-          { creatorCoworkerId: { in: ["cow_1"] } },
-        ],
-      },
-      select: { id: true, ownerId: true },
-    });
-    expect(taskScheduleUpdateMock).toHaveBeenCalledWith({
-      where: { id: "schedule_foreign" },
-      data: {
-        creatorUserId: "user_other",
-        creatorCoworkerId: null,
-        creatorSokoBotId: null,
-      },
     });
     expect(taskScheduleDeleteManyMock).toHaveBeenCalledWith({
       where: { ownerId: "user_delete" },
@@ -608,8 +532,6 @@ describe("prepareTasksForUserDeletion", () => {
   });
 
   it("removes terminal claims before transaction cascade", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
     taskDeleteManyMock.mockResolvedValue({ count: 0 });
 
     await prepareTasksForUserDeletion("user_delete", {
@@ -699,8 +621,6 @@ describe("prepareTasksForUserDeletion", () => {
   });
 
   it("removes terminal x402 payments before the task and transaction cascades", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
     taskDeleteManyMock.mockResolvedValue({ count: 0 });
 
     await prepareTasksForUserDeletion("user_delete", {
@@ -858,8 +778,6 @@ describe("prepareTasksForUserDeletion", () => {
   });
 
   it("blocks and pages when the sweep would remove another user's payment", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
     taskDeleteManyMock.mockResolvedValue({ count: 0 });
     mockX402Lookups({
       foreignCharge: {
@@ -932,8 +850,6 @@ describe("prepareTasksForUserDeletion", () => {
   });
 
   it("does not page when every swept payment is charged to the deleted user", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
     taskDeleteManyMock.mockResolvedValue({ count: 0 });
     mockX402Lookups({ foreignCharge: null });
 
@@ -965,37 +881,6 @@ describe("prepareTasksForUserDeletion", () => {
     expect(taskX402PaymentFindFirstMock).not.toHaveBeenCalled();
   });
 
-  it("clears coworker-creator RESTRICT refs for foreign-owned tasks", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([{ coworkerId: "cow_1" }]);
-    taskFindManyMock.mockResolvedValue([
-      { id: "tsk_foreign", ownerId: "user_other" },
-    ]);
-    taskUpdateMock.mockResolvedValue({});
-    taskDeleteManyMock.mockResolvedValue({ count: 0 });
-
-    await prepareTasksForUserDeletion("user_delete", {
-      $transaction: transactionMock,
-    } as never);
-
-    expect(taskFindManyMock).toHaveBeenCalledWith({
-      where: {
-        OR: [
-          { creatorUserId: "user_delete" },
-          { creatorCoworkerId: { in: ["cow_1"] } },
-        ],
-      },
-      select: { id: true, ownerId: true },
-    });
-    expect(taskUpdateMock).toHaveBeenCalledWith({
-      where: { id: "tsk_foreign" },
-      data: {
-        creatorUserId: "user_other",
-        creatorCoworkerId: null,
-        creatorSokoBotId: null,
-      },
-    });
-  });
-
   async function useRealPersonalWorkspaceErasure() {
     const actual =
       await vi.importActual<typeof import("./calendar-erasure")>(
@@ -1014,8 +899,6 @@ describe("prepareTasksForUserDeletion", () => {
       }
       return [];
     });
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
     const runTransaction = transactionMock.getMockImplementation();
     transactionMock.mockImplementation(async (callback) =>
       runTransaction?.(async (tx: Record<string, unknown>) => {
@@ -1100,8 +983,6 @@ describe("prepareTasksForUserDeletion", () => {
 
   it("cancels personal workspace emails after account deletion commits", async () => {
     queryRawMock.mockResolvedValue([{ id: "personal", userId: "user_delete" }]);
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
     const scheduledEmails = [
       { id: "notice", emailId: "queued", emailScheduledAt: new Date() },
     ];
@@ -1177,8 +1058,6 @@ describe("prepareTasksForUserDeletion", () => {
   });
 
   it("best-effort deletes blob files for owned tasks after cascade", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
     taskFileFindManyMock.mockResolvedValue([
       {
         fileUrl:
@@ -1203,8 +1082,6 @@ describe("prepareTasksForUserDeletion", () => {
   });
 
   it("repoints chat room createdByUserId to a remaining member", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
     taskDeleteManyMock.mockResolvedValue({ count: 0 });
     chatRoomFindManyMock.mockResolvedValue([
       {
@@ -1237,8 +1114,6 @@ describe("prepareTasksForUserDeletion", () => {
   });
 
   it("deletes creator-only chat rooms so Restrict does not block allow", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
     taskDeleteManyMock.mockResolvedValue({ count: 0 });
     chatRoomFindManyMock.mockResolvedValue([
       {

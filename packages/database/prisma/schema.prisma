@@ -1363,6 +1363,21 @@ model Job {
   ownerId String
   owner   User   @relation("JobOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
+  /// Creator and Requester, as on Task. At most one creator FK is set (DB
+  /// check `Job_creator_at_most_one_check`); a Requester is never set beside a
+  /// person Creator (`Job_requester_not_person_creator_check`).
+  creatorUserId String?
+  creatorUser   User?   @relation("JobCreatorUser", fields: [creatorUserId], references: [id], onDelete: SetNull)
+
+  creatorCoworkerId String?
+  creatorCoworker   Coworker? @relation("JobCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
+
+  creatorSokoBotId String?  @db.Uuid
+  creatorSokoBot   SokoBot? @relation("JobCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
+
+  requestedByUserId String?
+  requestedByUser   User?   @relation("JobRequestedByUser", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
@@ -1415,6 +1430,10 @@ model Job {
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([ownerId])
+  @@index([creatorUserId])
+  @@index([creatorCoworkerId])
+  @@index([creatorSokoBotId])
+  @@index([requestedByUserId])
   @@index([jobType])
   @@index([taskId])
   @@index([workspaceId])
@@ -1904,6 +1923,7 @@ model Coworker {
   createdSocialPosts      SocialPost[]             @relation("SocialPostCreatorCoworker")
   assignedTaskSchedules   TaskSchedule[]           @relation("TaskScheduleAssignee")
   createdTaskSchedules    TaskSchedule[]           @relation("TaskScheduleCreatorCoworker")
+  createdJobs             Job[]                    @relation("JobCreatorCoworker")
   changedTaskScheduleRuns TaskScheduleRun[]        @relation("TaskScheduleRunActorCoworker")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByCoworker")
@@ -2192,6 +2212,7 @@ model SokoBot {
   createdTasks         Task[]                   @relation("TaskCreatorSokoBot")
   createdSocialPosts   SocialPost[]             @relation("SocialPostCreatorSokoBot")
   createdTaskSchedules TaskSchedule[]           @relation("TaskScheduleCreatorSokoBot")
+  createdJobs          Job[]                    @relation("JobCreatorSokoBot")
   taskEvents           TaskEvent[]
   uploadedTaskFiles    TaskFile[]               @relation("TaskFileUploadedBySokoBot")
   sokoBotUsages        SokoBotUsage[]
@@ -2943,16 +2964,23 @@ model Task {
   assigneeUserId String?
   assigneeUser   User?   @relation("TaskAssigneeUser", fields: [assigneeUserId], references: [id], onDelete: SetNull)
 
-  /// Exactly one creator FK is set (enforced by DB check). Immutable after create.
-  /// Restrict deletes so SET NULL cannot violate the exactly-one creator check.
+  /// Creator: at most one creator FK is set (DB check
+  /// `task_creator_at_most_one_check`); none means a person who deleted their
+  /// account. Immutable after create.
   creatorUserId String?
-  creatorUser   User?   @relation("TaskCreatorUser", fields: [creatorUserId], references: [id], onDelete: Restrict)
+  creatorUser   User?   @relation("TaskCreatorUser", fields: [creatorUserId], references: [id], onDelete: SetNull)
 
   creatorCoworkerId String?
   creatorCoworker   Coworker? @relation("TaskCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
 
   creatorSokoBotId String?  @db.Uuid
   creatorSokoBot   SokoBot? @relation("TaskCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
+
+  /// Requester: the person a Coworker or Soko Bot made this Task for. A record
+  /// only; it grants nothing. Never set beside a person Creator (DB check
+  /// `task_requester_not_person_creator_check`).
+  requestedByUserId String?
+  requestedByUser   User?   @relation("TaskRequestedByUser", fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
@@ -3014,6 +3042,7 @@ model Task {
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])
+  @@index([requestedByUserId])
   @@index([workspaceId, visibility])
   @@index([scheduleId])
   @@index([status, runAt])
@@ -3050,15 +3079,21 @@ model TaskSchedule {
   ownerId String
   owner   User   @relation("TaskScheduleOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
-  /// Exactly one creator FK is set (DB check), as on Task.
+  /// At most one creator FK is set (DB check
+  /// `task_schedule_creator_at_most_one_check`), as on Task.
   creatorUserId String?
-  creatorUser   User?   @relation("TaskScheduleCreatorUser", fields: [creatorUserId], references: [id], onDelete: Restrict)
+  creatorUser   User?   @relation("TaskScheduleCreatorUser", fields: [creatorUserId], references: [id], onDelete: SetNull)
 
   creatorCoworkerId String?
   creatorCoworker   Coworker? @relation("TaskScheduleCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
 
   creatorSokoBotId String?  @db.Uuid
   creatorSokoBot   SokoBot? @relation("TaskScheduleCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
+
+  /// Requester, as on Task (DB check
+  /// `task_schedule_requester_not_person_creator_check`).
+  requestedByUserId String?
+  requestedByUser   User?   @relation("TaskScheduleRequestedByUser", fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   state TaskScheduleState @default(ACTIVE)
 
@@ -3109,6 +3144,7 @@ model TaskSchedule {
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])
+  @@index([requestedByUserId])
   @@index([assigneeId])
   @@index([assigneeSokoBotId])
   @@index([assigneeUserId])

@@ -41,6 +41,8 @@ describe("GET /share/{token}", () => {
         completedAt: new Date("2026-03-26T10:10:00.000Z"),
         agentId: "agent_123",
         ownerId: "user_123",
+        creator: null,
+        requester: null,
         owner: {
           id: "user_123",
           name: "Ada Lovelace",
@@ -132,6 +134,8 @@ describe("GET /share/{token}", () => {
         completedAt: new Date("2026-03-26T10:10:00.000Z"),
         agentId: "agent_123",
         ownerId: "user_123",
+        creator: null,
+        requester: null,
         owner: {
           id: "user_123",
           name: "Ada Lovelace",

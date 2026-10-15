@@ -1,0 +1,51 @@
+import { z } from "@hono/zod-openapi";
+
+import { coworkerSummarySchema } from "@/schemas/coworker.schema";
+import { sokoBotSummarySchema } from "@/schemas/soko-bot.schema";
+import { userSummarySchema } from "@/schemas/user.schema";
+
+const workCreatorUserSchema = z
+  .object({
+    type: z.literal("user"),
+    id: z.string().openapi({ example: "user_123" }),
+    user: userSummarySchema,
+  })
+  .openapi("WorkCreatorUser");
+
+const workCreatorCoworkerSchema = z
+  .object({
+    type: z.literal("coworker"),
+    id: z.string().openapi({ example: "cow_123" }),
+    coworker: coworkerSummarySchema,
+  })
+  .openapi("WorkCreatorCoworker");
+
+const workCreatorSokoBotSchema = z
+  .object({
+    type: z.literal("sokoBot"),
+    id: z.string().uuid().openapi({
+      example: "01960001-0001-7001-8001-000000000099",
+    }),
+    sokoBot: sokoBotSummarySchema,
+  })
+  .openapi("WorkCreatorSokoBot");
+
+const workCreatorSchema = z
+  .discriminatedUnion("type", [
+    workCreatorUserSchema,
+    workCreatorCoworkerSchema,
+    workCreatorSokoBotSchema,
+  ])
+  .openapi("WorkCreator");
+
+/** `creator` and `requester` of a Task, Task Schedule or Job (ADR 0056). */
+export const workCreatorRequesterFields = {
+  creator: z.union([workCreatorSchema, z.null()]).openapi({
+    description:
+      "Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.",
+  }),
+  requester: z.union([userSummarySchema, z.null()]).openapi({
+    description:
+      "The person a Coworker or Soko Bot made it for. Null when a person made it themselves, when nobody asked, or when that person deleted their account. A record only; it grants no access.",
+  }),
+};

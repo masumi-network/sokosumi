@@ -121,6 +121,8 @@ function createJobApi(overrides: Partial<Record<string, unknown>> = {}) {
     agentId: "agent_123",
     ownerId: "user_123",
     owner,
+    creator: null,
+    requester: null,
     userId: "user_123",
     organizationId: "org_billing",
     projectId: null,

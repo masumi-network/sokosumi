@@ -49,6 +49,7 @@ import {
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import { registerJobPurchase } from "@/helpers/job-purchase-registration";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { creatorFields, type WorkCreator } from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { UserContext } from "@/middleware/auth";
@@ -91,6 +92,18 @@ async function validateCreditBalance(
   }
 }
 
+/** The Job's Creator and Requester, made for `personId` (ADR 0056). */
+function creatorConnect(creator: WorkCreator, personId: string) {
+  const fields = creatorFields(creator, personId);
+  const connect = (id: string | null) => (id ? { connect: { id } } : undefined);
+  return {
+    creatorUser: connect(fields.creatorUserId),
+    creatorCoworker: connect(fields.creatorCoworkerId),
+    creatorSokoBot: connect(fields.creatorSokoBotId),
+    requestedByUser: connect(fields.requestedByUserId),
+  };
+}
+
 /**
  * Creates a paid job (payment records and credit consumption FIFO).
  * Requires a transaction client so the caller controls the transaction boundary.
@@ -101,6 +114,7 @@ async function createPaidJob(
     agentBlockchainIdentifier: string;
     agentApiBaseUrl: string;
     ownerId: string;
+    creator: WorkCreator;
     organizationId: string | null;
     workspaceId: string;
     inputData: InputSchemaType;
@@ -135,6 +149,7 @@ async function createPaidJob(
       jobType: JobType.PAID,
       agent: { connect: { id: input.agentId } },
       owner: { connect: { id: input.ownerId } },
+      ...creatorConnect(input.creator, input.ownerId),
       ...(input.organizationId && {
         organization: { connect: { id: input.organizationId } },
       }),
@@ -213,6 +228,7 @@ async function createFreeJob(
     agentBlockchainIdentifier: string;
     agentApiBaseUrl: string;
     ownerId: string;
+    creator: WorkCreator;
     organizationId: string | null;
     workspaceId: string;
     inputData: InputSchemaType;
@@ -231,6 +247,7 @@ async function createFreeJob(
       jobType: JobType.FREE,
       agent: { connect: { id: input.agentId } },
       owner: { connect: { id: input.ownerId } },
+      ...creatorConnect(input.creator, input.ownerId),
       ...(input.organizationId && {
         organization: { connect: { id: input.organizationId } },
       }),
@@ -278,6 +295,8 @@ async function createFreeJob(
 
 interface CreateAgentJobInput {
   owner: JobOwnerContext;
+  /** Who hires: the owner themselves, or a Coworker or Soko Bot for them. */
+  creator: WorkCreator;
   agentInput: {
     agentId: string;
     inputData: InputSchemaType;
@@ -568,6 +587,7 @@ export async function createAgentJobForUser(
     agentBlockchainIdentifier: masumiAgent.blockchainIdentifier,
     agentApiBaseUrl: masumiAgent.apiBaseUrl,
     ownerId: owner.ownerId,
+    creator: input.creator,
     organizationId: owner.organizationId,
     workspaceId: owner.workspaceId,
     inputData: agentInput.inputData,

@@ -16,6 +16,7 @@ import {
   organizationSummaryFromLoadedRelation,
   userSummaryFromLoadedRelation,
 } from "@/helpers/loaded-relation-summaries";
+import { mapWorkCreator, mapWorkRequester } from "@/helpers/work-creator";
 import { mapWorkspaceSummary } from "@/helpers/workspace";
 
 function mapJobOwnerSummary(
@@ -40,6 +41,8 @@ export function flattenJob(
     agentId: job.agentId,
     ownerId: job.ownerId,
     owner,
+    creator: mapWorkCreator(`Job ${job.id}`, job),
+    requester: mapWorkRequester(`Job ${job.id}`, job),
     // Deprecated aliases — keep until clients migrate.
     userId: job.ownerId,
     user: owner,
@@ -82,6 +85,8 @@ export function serializeJobDetails(job: JobWithSokosumiStatus) {
     agentId: job.agentId,
     ownerId: job.ownerId,
     owner,
+    creator: mapWorkCreator(`Job ${job.id}`, job),
+    requester: mapWorkRequester(`Job ${job.id}`, job),
     // Deprecated aliases — keep until clients migrate.
     userId: job.ownerId,
     user: owner,

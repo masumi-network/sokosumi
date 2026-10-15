@@ -192,6 +192,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
       image: null,
       slug: "current-coworker",
     },
+    requester: null,
     creator: {
       type: "user" as const,
       id: "user_123",

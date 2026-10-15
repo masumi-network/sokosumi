@@ -89,6 +89,7 @@ const {
                 },
               }
             : null),
+      requester: null,
       creator: (() => {
         const creatorSokoBotId =
           (t.creatorSokoBotId as string | null | undefined) ?? null;

@@ -11,6 +11,7 @@ import {
   taskVisibilitySchema,
 } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+import { workCreatorRequesterFields } from "@/schemas/work-creator.schema";
 
 /**
  * Task Schedule resource (`/tasks/schedules`, ADR 0041): a repeating rule
@@ -202,6 +203,7 @@ export const taskScheduleSchema = z
     creatorUserId: z.string().nullable(),
     creatorCoworkerId: z.string().nullable(),
     creatorSokoBotId: z.string().uuid().nullable(),
+    ...workCreatorRequesterFields,
     state: taskScheduleStateSchema,
     rule: z.object({
       expr: z.string(),

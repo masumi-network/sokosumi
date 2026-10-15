@@ -50,6 +50,8 @@ function createJob(
 
   return {
     id: "job-id",
+    creator: null,
+    requester: null,
     name: "Job name",
     createdAt: new Date("2026-02-13T10:00:00.000Z"),
     updatedAt: new Date("2026-02-13T10:00:00.000Z"),

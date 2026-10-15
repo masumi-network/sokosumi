@@ -9,6 +9,7 @@ import type {
   Prisma,
   Transaction,
 } from "../generated/prisma/client.js";
+import { workCreatorRequesterInclude } from "./work-creator.js";
 import { workspaceRelationInclude } from "./workspace.js";
 
 export const jobWithEvents = {
@@ -64,6 +65,7 @@ export const jobWithTransaction = {
 const jobSummaryOwnerOrganizationInclude = {
   owner: { select: { id: true, name: true, image: true } },
   organization: { select: { id: true, name: true, slug: true } },
+  ...workCreatorRequesterInclude,
 } as const;
 
 const jobSummaryInclude = {

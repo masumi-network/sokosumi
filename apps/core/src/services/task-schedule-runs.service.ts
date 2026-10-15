@@ -420,6 +420,11 @@ function createTaskFromBlueprint(
       creatorUserId: schedule.creatorUserId,
       creatorCoworkerId: schedule.creatorCoworkerId,
       creatorSokoBotId: schedule.creatorSokoBotId,
+      requestedByUserId: schedule.requestedByUserId,
+      // The Requester follows the Task they asked for (ADR 0056).
+      ...(schedule.requestedByUserId
+        ? { participants: { create: { userId: schedule.requestedByUserId } } }
+        : {}),
       status: TaskStatus.READY,
       events: {
         create: taskCreationEvents({
