@@ -171,10 +171,6 @@ import SwiftUI
       isHovered || isReplyHovered || showsActions
     }
 
-    private var isContinuation: Bool {
-      row.isContinuation
-    }
-
     private var reactionAction: ((String) -> Void)? {
       guard row.actions.canReact else { return nil }
       return { emoji in toggleReaction(emoji) }
@@ -246,7 +242,7 @@ import SwiftUI
 
     var body: some View {
       HStack(alignment: .top, spacing: 14) {
-        if isContinuation {
+        if row.isContinuation {
           DeliveryFeedback(pendingSince: pendingSince, sentAt: sentAt)
             .frame(width: Self.avatarDiameter)
             .frame(minHeight: 16)
@@ -254,10 +250,10 @@ import SwiftUI
           ParticipantProfileButton(sender: message.sender) { avatarView }
         }
         VStack(alignment: .leading, spacing: 6) {
-          if isContinuation, row.showsPinnedLabel(isPinned: isPinned) {
+          if row.isContinuation, row.showsPinnedLabel(isPinned: isPinned) {
             pinnedLabel
           }
-          if !isContinuation {
+          if !row.isContinuation {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
               ParticipantProfileButton(sender: message.sender) {
                 Text(messageSenderName(message.sender))
@@ -294,7 +290,7 @@ import SwiftUI
           } else if let sokoBotFooter = row.sokoBotFooter {
             SokoBotMessageFooterView(turn: sokoBotFooter)
           }
-          if isContinuation, row.isEdited {
+          if row.isContinuation, row.isEdited {
             Text("Edited").help(message.editedAt.map { timeFormat.edited($0) } ?? "").font(.caption).foregroundStyle(.secondary)
           }
           if row.showsReactions {
@@ -431,7 +427,7 @@ import SwiftUI
         }
       }
       // Sender-group separation is outside the consistently padded hover row.
-      .padding(.top, isContinuation ? 0 : 8)
+      .padding(.top, row.isContinuation ? 0 : 8)
     }
 
     @ViewBuilder
