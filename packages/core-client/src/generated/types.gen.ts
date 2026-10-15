@@ -6063,7 +6063,7 @@ export type PublishSocialPostRequest = {
 export type CreateSocialPostRequest = {
     text: string;
     /**
-     * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+     * Drive files to attach, within the chosen account's image or video limit. Never mixed.
      */
     media?: Array<SocialPostMediaRef>;
     socialConnectionId?: string;
@@ -6087,7 +6087,7 @@ export type SocialPostStatisticsSummary = {
 export type UpdateSocialPostRequest = {
     text?: string;
     /**
-     * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+     * Drive files to attach, within the chosen account's image or video limit. Never mixed.
      */
     media?: Array<SocialPostMediaRef>;
     socialConnectionId?: string | null;

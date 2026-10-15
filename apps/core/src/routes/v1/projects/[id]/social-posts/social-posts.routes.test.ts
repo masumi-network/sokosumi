@@ -558,7 +558,7 @@ describe("Project social post routes", () => {
       `http://localhost/${PROJECT_ID}/social-posts`,
       json("POST", {
         text: "Hello",
-        media: Array.from({ length: 5 }, (_, index) => ({
+        media: Array.from({ length: 11 }, (_, index) => ({
           pathname: `drive/users/${USER_ID}/photo-${index}.png`,
           fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/${USER_ID}/photo-${index}.png`,
           name: `photo-${index}.png`,

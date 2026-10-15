@@ -152,6 +152,76 @@ describe("publishInstagramPost", () => {
     });
   });
 
+  it("creates a carousel container for two images and publishes it", async () => {
+    const second = {
+      ...IMAGE_REF,
+      pathname: "drive/users/user_1/photo-2.jpg",
+      fileUrl:
+        "https://store.public.blob.vercel-storage.com/drive/users/user_1/photo-2.jpg",
+      name: "photo-2.jpg",
+    };
+    const fetchMock = stubSession((call) =>
+      call.tool_slug === "INSTAGRAM_CREATE_CAROUSEL_CONTAINER"
+        ? toolResponse({ id: "carousel_1" })
+        : toolResponse({ id: "media_80" }),
+    );
+
+    await expect(
+      publishInstagramPost({ ...context, media: [IMAGE_REF, second] }),
+    ).resolves.toEqual({
+      externalId: "media_80",
+      publishedUrl: null,
+      toolSlug: "INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH",
+    });
+    expect(executeCalls(fetchMock)).toEqual([
+      {
+        tool_slug: "INSTAGRAM_CREATE_CAROUSEL_CONTAINER",
+        arguments: {
+          ig_user_id: "17841400000000000",
+          caption: "Hello Instagram",
+          child_image_urls: [IMAGE_REF.fileUrl, second.fileUrl],
+        },
+      },
+      {
+        tool_slug: "INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH",
+        arguments: {
+          ig_user_id: "17841400000000000",
+          creation_id: "carousel_1",
+          max_wait_seconds: 180,
+        },
+      },
+    ]);
+  });
+
+  it("creates a carousel container for two videos", async () => {
+    const second = {
+      ...VIDEO_REF,
+      pathname: "drive/users/user_1/clip-2.mp4",
+      fileUrl:
+        "https://store.public.blob.vercel-storage.com/drive/users/user_1/clip-2.mp4",
+      name: "clip-2.mp4",
+    };
+    const fetchMock = stubSession((call) =>
+      call.tool_slug === "INSTAGRAM_CREATE_CAROUSEL_CONTAINER"
+        ? toolResponse({ creation_id: "carousel_2" })
+        : toolResponse({ id: "media_81" }),
+    );
+
+    await publishInstagramPost({
+      ...context,
+      text: "",
+      media: [VIDEO_REF, second],
+    });
+
+    expect(executeCalls(fetchMock)[0]).toEqual({
+      tool_slug: "INSTAGRAM_CREATE_CAROUSEL_CONTAINER",
+      arguments: {
+        ig_user_id: "17841400000000000",
+        child_video_urls: [VIDEO_REF.fileUrl, second.fileUrl],
+      },
+    });
+  });
+
   it("raises a tool error when the container is refused", async () => {
     stubSession(() =>
       Response.json({

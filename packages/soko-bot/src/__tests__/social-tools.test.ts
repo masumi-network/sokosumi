@@ -240,7 +240,7 @@ describe("Social tool contracts", () => {
       schemas.create_social_post.safeParse({
         projectId,
         text: "",
-        media: Array.from({ length: 5 }, () => media),
+        media: Array.from({ length: 11 }, () => media),
       }).success,
     ).toBe(false);
     expect(

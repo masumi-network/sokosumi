@@ -21129,8 +21129,8 @@ export const CreateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 4,
-            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+            maxItems: 10,
+            description: 'Drive files to attach, within the chosen account\'s image or video limit. Never mixed.'
         },
         socialConnectionId: {
             type: 'string',
@@ -21219,8 +21219,8 @@ export const UpdateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 4,
-            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+            maxItems: 10,
+            description: 'Drive files to attach, within the chosen account\'s image or video limit. Never mixed.'
         },
         socialConnectionId: {
             type: [

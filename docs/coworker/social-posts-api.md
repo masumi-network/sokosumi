@@ -56,7 +56,7 @@ Each provider publishes through its own Composio tool sequence; the post's provi
 | X | ≤280 | 4 images / 1 GIF / 1 video | Publishing already works. |
 | LinkedIn | ≤3000, required | ≤4 images or 1 video | Person author only. |
 | Facebook | ≤63206 | ≤4 images or 1 video | Posts to the connection's single managed Page. |
-| Instagram | ≤2200 | 1 image (JPEG) or 1 video, required | Business/Creator account linked to a Page. |
+| Instagram | ≤2200 | 1–10 images (JPEG) or 1–10 videos, required | Business/Creator account linked to a Page. Two or more items publish as a carousel. |
 | TikTok | ≤2200 | 1 video, required | Privacy level is chosen at publish time and recorded on the attempt; unaudited apps post `SELF_ONLY`. |
 | YouTube | description ≤5000, title derived from the text | 1 video, required | Publishes public with an empty tag list and a default category. |
 
