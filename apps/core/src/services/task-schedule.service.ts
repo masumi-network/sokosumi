@@ -761,9 +761,10 @@ export async function changeTaskScheduleState(
     }
 
     // The member who resumes a schedule nobody is responsible for, because
-    // its person left, becomes its Requester (ADR 0056).
+    // its person left, becomes its Requester (ADR 0056); not when the resume
+    // ends it instead.
     const requester =
-      to === TaskScheduleState.ACTIVE &&
+      state === TaskScheduleState.ACTIVE &&
       resolveResponsibleUserId(current) === null
         ? { requestedByUserId: actor.userId }
         : {};

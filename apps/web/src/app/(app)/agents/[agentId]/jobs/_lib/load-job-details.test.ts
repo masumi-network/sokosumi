@@ -162,7 +162,7 @@ describe("loadJobDetails", () => {
     expect(result.readOnly).toBe(false);
   });
 
-  it("keeps a job nobody is responsible for read-only", async () => {
+  it("opens a job nobody is responsible for to the viewer", async () => {
     getSessionMock.mockResolvedValue({
       user: { id: "user-1" },
       session: { activeOrganizationId: "org-1" },
@@ -180,7 +180,7 @@ describe("loadJobDetails", () => {
     const { loadJobDetails } = await import("./load-job-details");
     const result = await loadJobDetails({ agentId: "agent-1", jobId: "job-1" });
 
-    expect(result.readOnly).toBe(true);
+    expect(result.readOnly).toBe(false);
   });
 
   it("calls notFound when core reports a missing job", async () => {

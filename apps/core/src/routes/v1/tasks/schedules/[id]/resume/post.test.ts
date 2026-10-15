@@ -227,6 +227,29 @@ describe("POST /tasks/schedules/{id}/resume", () => {
     });
   });
 
+  it("records no Requester when resuming ends a schedule nobody is responsible for", async () => {
+    const schedule = seedTaskSchedule({
+      state: "PAUSED",
+      nextRunAt: null,
+      ownerId: null,
+      creatorUserId: null,
+      creatorCoworkerId: COWORKER_ID,
+      endsMode: "ON",
+      endsOn: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    const response = await send(
+      schedule.id,
+      createTaskScheduleTestApp(mount, userAuth(MEMBER_ID)),
+    );
+
+    expect(response.status).toBe(200);
+    expect(stored(schedule.id)).toMatchObject({
+      state: "ENDED",
+      requestedByUserId: null,
+    });
+  });
+
   it("keeps the responsible person of a schedule someone is responsible for", async () => {
     const schedule = seedTaskSchedule({ state: "PAUSED", nextRunAt: null });
 

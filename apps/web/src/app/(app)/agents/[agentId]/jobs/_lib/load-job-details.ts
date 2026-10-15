@@ -71,6 +71,11 @@ export async function loadJobDetails({
     personalWorkspaceLabel:
       session.user.name?.trim() || session.user.email?.trim() || null,
     projectName: project?.name ?? null,
-    readOnly: job.responsibleUserId !== session.user.id,
+    // A Job nobody is responsible for is open to members; Core decides each action.
+    // shortcut: refund and workspace move also show to plain members there and
+    // Core refuses them (owner/admin only); hide them once Web knows the viewer's role.
+    readOnly:
+      job.responsibleUserId !== null &&
+      job.responsibleUserId !== session.user.id,
   };
 }
