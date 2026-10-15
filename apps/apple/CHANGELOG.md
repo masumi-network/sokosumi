@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/masumi-network/sokosumi/compare/macos-v1.1.0...macos-v1.1.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **apple:** show the pointing hand over links in messages ([#6404](https://github.com/masumi-network/sokosumi/issues/6404)) ([9ad9cb9](https://github.com/masumi-network/sokosumi/commit/9ad9cb90f7960ce65e934a7a25b57936c433c26e))
+
 ## [1.1.0](https://github.com/masumi-network/sokosumi/compare/macos-v1.0.1...macos-v1.1.0) (2026-10-15)
 
 
