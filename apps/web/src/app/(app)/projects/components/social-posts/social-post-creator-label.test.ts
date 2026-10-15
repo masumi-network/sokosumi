@@ -20,6 +20,24 @@ describe("socialPostCreatorLabel", () => {
     ).toBe("User");
   });
 
+  it("falls back to the kind when a user name is only whitespace", () => {
+    expect(
+      socialPostCreatorLabel(
+        { kind: "user", id: "user-1", name: "   " },
+        "User",
+      ),
+    ).toBe("User");
+  });
+
+  it("trims a user name", () => {
+    expect(
+      socialPostCreatorLabel(
+        { kind: "user", id: "user-1", name: "  Alice " },
+        "User",
+      ),
+    ).toBe("Alice");
+  });
+
   it("keeps the kind prefix for a named coworker", () => {
     expect(
       socialPostCreatorLabel(
@@ -36,6 +54,24 @@ describe("socialPostCreatorLabel", () => {
         "Coworker",
       ),
     ).toBe("Coworker");
+  });
+
+  it("shows only the kind when a coworker name is only whitespace", () => {
+    expect(
+      socialPostCreatorLabel(
+        { kind: "coworker", id: "coworker-1", name: "   " },
+        "Coworker",
+      ),
+    ).toBe("Coworker");
+  });
+
+  it("keeps the kind prefix for a named Soko Bot", () => {
+    expect(
+      socialPostCreatorLabel(
+        { kind: "sokoBot", id: "bot-1", name: "Soko" },
+        "Soko Bot",
+      ),
+    ).toBe("Soko Bot · Soko");
   });
 
   it("shows only the kind when Soko Bot has no name", () => {

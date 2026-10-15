@@ -5,6 +5,7 @@ export function socialPostCreatorLabel(
   creator: SocialPostCreator,
   kindLabel: string,
 ): string {
-  if (creator.kind === "user" && creator.name) return creator.name;
-  return creator.name ? `${kindLabel} · ${creator.name}` : kindLabel;
+  const name = creator.name?.trim();
+  if (!name) return kindLabel;
+  return creator.kind === "user" ? name : `${kindLabel} · ${name}`;
 }
