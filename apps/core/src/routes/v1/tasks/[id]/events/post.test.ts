@@ -3184,6 +3184,71 @@ describe("POST /{id}/events", () => {
     ).toHaveLength(notificationCount);
   });
 
+  /**
+   * The responsible person (ADR 0056) takes over from the Owner: a Task a
+   * Coworker made for a person has no Owner, and that person is told and gets
+   * the live update. Work nobody is responsible for tells no one.
+   */
+  it.each([
+    ["the Requester", { requestedByUserId: "user_asker" }, "user_asker"],
+    ["the person who made it", { creatorUserId: "user_maker" }, "user_maker"],
+    ["nobody", {}, null],
+  ])(
+    "sends a canceled Task's notification and live update to %s",
+    async (_who, ownership, expectedUserId) => {
+      const task = createTask({
+        status: TaskStatus.RUNNING,
+        ownerId: null,
+        ...ownership,
+      });
+      requireTaskStatusWriteAccessMock.mockResolvedValue(task);
+      prismaTaskFindUniqueMock.mockResolvedValue({
+        ...task,
+        name: "Test task",
+        assignee: null,
+        assigneeSokoBot: null,
+        project: null,
+      });
+      const tx: TransactionMock = {
+        taskEvent: {
+          create: vi.fn().mockResolvedValue(
+            createTaskEvent({
+              status: TaskStatus.CANCELED,
+              userId: "user_other",
+              coworkerId: null,
+            }),
+          ),
+        },
+        task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      };
+      mockTransaction(tx);
+
+      const app = createApp({
+        actor: "user",
+        userId: "user_other",
+        organizationId: "org_123",
+        role: "user",
+      });
+      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: TaskStatus.CANCELED }),
+      });
+
+      expect(response.status).toBe(201);
+      await Promise.all(waitUntilCapturedPromises);
+      const notified = createNotificationMock.mock.calls
+        .filter(([input]) => input.messageKey === "Notifications.Task.canceled")
+        .map(([input]) => input.userId);
+      const published = publishTaskEventDataMock.mock.calls.map(
+        ([input]) => input.userId,
+      );
+      const expected = expectedUserId ? [expectedUserId] : [];
+      expect(notified).toEqual(expected);
+      expect(published).toEqual(expected);
+    },
+  );
+
   it("lets an org workspace member cancel another member's task", async () => {
     requireTaskStatusWriteAccessMock.mockResolvedValue(
       createTask({

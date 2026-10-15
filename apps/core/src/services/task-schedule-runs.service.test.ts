@@ -9,6 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
+import { publishTaskEventData } from "@/lib/ably/publish";
 import {
   COWORKER_ID,
   MEMBER_ID,
@@ -185,6 +186,63 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     const task = taskScheduleTestDb.tasks[0];
     expect(task?.requestedByUserId).toBe(OWNER_ID);
     expect(task?.participants).toEqual([{ userId: OWNER_ID }]);
+  });
+
+  describe("live update for the released Task", () => {
+    beforeEach(() => {
+      vi.mocked(publishTaskEventData).mockClear();
+    });
+
+    it("reaches the person who made the schedule", async () => {
+      const schedule = seedTaskSchedule({
+        nextRunAt: MONDAY_9,
+        ownerId: null as unknown as string,
+        creatorUserId: MEMBER_ID,
+      });
+      seedRun(schedule, MONDAY_9);
+
+      await release();
+
+      expect(publishTaskEventData).toHaveBeenCalledWith({
+        userId: MEMBER_ID,
+        taskId: taskScheduleTestDb.tasks[0]?.id,
+        eventType: "task_event",
+      });
+    });
+
+    it("reaches the Requester of a Coworker's schedule", async () => {
+      const schedule = seedTaskSchedule({
+        nextRunAt: MONDAY_9,
+        ownerId: null as unknown as string,
+        creatorUserId: null,
+        creatorCoworkerId: COWORKER_ID,
+        requestedByUserId: MEMBER_ID,
+      });
+      seedRun(schedule, MONDAY_9);
+
+      await release();
+
+      expect(publishTaskEventData).toHaveBeenCalledWith({
+        userId: MEMBER_ID,
+        taskId: taskScheduleTestDb.tasks[0]?.id,
+        eventType: "task_event",
+      });
+    });
+
+    it("reaches nobody when nobody is responsible", async () => {
+      const schedule = seedTaskSchedule({
+        nextRunAt: MONDAY_9,
+        ownerId: null as unknown as string,
+        creatorUserId: null,
+        creatorSokoBotId: SOKO_BOT_ID,
+      });
+      seedRun(schedule, MONDAY_9);
+
+      await release();
+
+      expect(taskScheduleTestDb.tasks).toHaveLength(1);
+      expect(publishTaskEventData).not.toHaveBeenCalled();
+    });
   });
 
   it("adds no Task participant for a schedule a person made", async () => {

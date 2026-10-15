@@ -267,7 +267,7 @@ function JobDetailsTopBarActions({
     hasPersonalWorkspace,
   );
   // Any member of the job's workspace may share it (SOK-1030). Renaming and
-  // moving stay with the owner, so `readOnly` still hides those.
+  // moving stay with the responsible person, so `readOnly` still hides those.
   const canMoveStandaloneJob =
     !readOnly && !job.taskId && moveTargetCount > 0 && !!personalWorkspaceLabel;
   const isTaskControlledJob = !readOnly && !!job.taskId;

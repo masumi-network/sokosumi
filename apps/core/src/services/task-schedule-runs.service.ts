@@ -15,6 +15,7 @@ import { computeNextRun } from "@/helpers/cron";
 import { taskCreationEvents } from "@/helpers/task-creation-events";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { computeIntervalNextRun } from "@/helpers/task-schedule";
+import { resolveResponsibleUserId } from "@/helpers/task-visibility";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
@@ -375,6 +376,8 @@ class ReleaseClaimLostError extends Error {
 export interface ReleasedTask {
   id: string;
   ownerId: string;
+  creatorUserId: string | null;
+  requestedByUserId: string | null;
   assigneeUserId: string | null;
 }
 
@@ -438,7 +441,13 @@ function createTaskFromBlueprint(
         }),
       },
     },
-    select: { id: true, ownerId: true, assigneeUserId: true },
+    select: {
+      id: true,
+      ownerId: true,
+      creatorUserId: true,
+      requestedByUserId: true,
+      assigneeUserId: true,
+    },
   });
 }
 
@@ -643,17 +652,20 @@ export async function announceReleasedTasks(
 ): Promise<void> {
   await Promise.all(
     tasks.map(async (task) => {
-      try {
-        await publishTaskEventData({
-          userId: task.ownerId,
-          taskId: task.id,
-          eventType: "task_event",
-        });
-      } catch (error) {
-        Sentry.captureException(error, {
-          tags: { error_type: "publish_task_event" },
-          extra: { taskId: task.id, source: "task-schedule-release" },
-        });
+      const responsibleUserId = resolveResponsibleUserId(task);
+      if (responsibleUserId) {
+        try {
+          await publishTaskEventData({
+            userId: responsibleUserId,
+            taskId: task.id,
+            eventType: "task_event",
+          });
+        } catch (error) {
+          Sentry.captureException(error, {
+            tags: { error_type: "publish_task_event" },
+            extra: { taskId: task.id, source: "task-schedule-release" },
+          });
+        }
       }
       if (task.assigneeUserId) {
         await notifyTaskHumanAssignee(task.id, task.assigneeUserId);
@@ -772,7 +784,14 @@ export const taskScheduleReleaseService = {
         },
         orderBy: [{ runAt: "asc" }, { id: "asc" }],
         take: TASK_SCHEDULE_RELEASE_BATCH_SIZE,
-        select: { id: true, runAt: true, ownerId: true, assigneeUserId: true },
+        select: {
+          id: true,
+          runAt: true,
+          ownerId: true,
+          creatorUserId: true,
+          requestedByUserId: true,
+          assigneeUserId: true,
+        },
       });
       if (batch.length === 0) break;
 

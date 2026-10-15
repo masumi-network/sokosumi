@@ -3542,6 +3542,50 @@ describe("POST /{id}/x402-payments", () => {
       expect(publishTaskEventDataMock).toHaveBeenCalled();
     });
 
+    it.each([
+      ["the Requester", { requestedByUserId: "user_asker" }, "user_asker"],
+      ["the person who made it", { creatorUserId: "user_maker" }, "user_maker"],
+      ["nobody", {}, null],
+    ])(
+      "tells %s when a task nobody owns runs out of credits",
+      async (_who, ownership, expectedUserId) => {
+        const task = createTask({
+          ownerId: null,
+          creatorUserId: null,
+          requestedByUserId: null,
+          ...ownership,
+        });
+        requireTaskCollaborationMock.mockResolvedValue(task);
+        prismaTaskFindUniqueMock.mockResolvedValue({
+          ...task,
+          name: "Test task",
+          projectId: null,
+          workspaceId: null,
+          assignee: { name: "Test coworker" },
+          assigneeSokoBot: null,
+          project: null,
+        });
+        const app = createApp(COWORKER_AGENT_CONTEXT);
+
+        const response = await postPayment(app, validBody());
+
+        expect(response.status).toBe(422);
+        await Promise.all(waitUntilCapturedPromises);
+        const expected = expectedUserId ? [expectedUserId] : [];
+        expect(
+          createNotificationMock.mock.calls
+            .filter(
+              ([input]) =>
+                input.messageKey === "Notifications.Task.outOfCredits",
+            )
+            .map(([input]) => input.userId),
+        ).toEqual(expected);
+        expect(
+          publishTaskEventDataMock.mock.calls.map(([input]) => input.userId),
+        ).toEqual(expected);
+      },
+    );
+
     it("clears the Run at when a queued task runs out of credits", async () => {
       requireTaskCollaborationMock.mockResolvedValue(
         createTask({ status: TaskStatus.QUEUED }),

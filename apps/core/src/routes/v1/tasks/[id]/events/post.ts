@@ -515,11 +515,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
         addedParticipantUserIds,
-        userId: task.ownerId,
-        chargedUserId: resolveResponsibleUserId(task),
         organizationId: task.organizationId,
         workspaceId: task.workspaceId,
         projectId: task.projectId,
+        responsibleUserId: resolveResponsibleUserId(task),
         masumiPayment: payment,
         taskPaymentClaimId,
         pausedForInsufficientBalance,
@@ -539,11 +538,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const {
       event,
       addedParticipantUserIds,
-      userId,
-      chargedUserId,
       organizationId,
       workspaceId,
       projectId,
+      responsibleUserId,
       masumiPayment,
       taskPaymentClaimId,
       pausedForInsufficientBalance,
@@ -596,7 +594,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (charged) {
       waitUntil(
-        notifyLowBalanceAfterCharge({ userId: chargedUserId, organizationId }),
+        notifyLowBalanceAfterCharge({
+          userId: responsibleUserId,
+          organizationId,
+        }),
       );
     }
 
@@ -714,7 +715,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       waitUntil(masumiPurchasePromise);
     }
 
-    const taskIdsToPublish = [{ userId, taskId }];
+    // Live updates go to the responsible person; nobody's work has no one.
+    const taskIdsToPublish = responsibleUserId
+      ? [{ userId: responsibleUserId, taskId }]
+      : [];
 
     await Promise.all(
       taskIdsToPublish.map(

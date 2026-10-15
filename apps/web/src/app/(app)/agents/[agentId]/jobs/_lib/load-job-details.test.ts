@@ -81,6 +81,7 @@ describe("loadJobDetails", () => {
         id: "job-1",
         agent: { id: "agent-1" },
         ownerId: "other-user",
+        responsibleUserId: "other-user",
       },
     });
 
@@ -91,6 +92,7 @@ describe("loadJobDetails", () => {
       id: "job-1",
       agent: { id: "agent-1" },
       ownerId: "other-user",
+      responsibleUserId: "other-user",
     });
     expect(result).toMatchObject({
       job: {
@@ -115,6 +117,7 @@ describe("loadJobDetails", () => {
         id: "job-1",
         agent: { id: "agent-1" },
         ownerId: "user-1",
+        responsibleUserId: "user-1",
       },
     });
 
@@ -125,6 +128,7 @@ describe("loadJobDetails", () => {
       id: "job-1",
       agent: { id: "agent-1" },
       ownerId: "user-1",
+      responsibleUserId: "user-1",
     });
     expect(result).toMatchObject({
       job: {
@@ -135,6 +139,48 @@ describe("loadJobDetails", () => {
       dehydratedState: "dehydrated-state",
       personalWorkspaceLabel: null,
     });
+  });
+
+  it("lets the viewer edit a public job a Soko Bot hired at their request", async () => {
+    getSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      session: { activeOrganizationId: "org-1" },
+    });
+    getAgentByIdMock.mockResolvedValue({ data: { id: "agent-1" } });
+    getJobByIdMock.mockResolvedValue({
+      data: {
+        id: "job-1",
+        agent: { id: "agent-1" },
+        ownerId: null,
+        responsibleUserId: "user-1",
+      },
+    });
+
+    const { loadJobDetails } = await import("./load-job-details");
+    const result = await loadJobDetails({ agentId: "agent-1", jobId: "job-1" });
+
+    expect(result.readOnly).toBe(false);
+  });
+
+  it("keeps a job nobody is responsible for read-only", async () => {
+    getSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      session: { activeOrganizationId: "org-1" },
+    });
+    getAgentByIdMock.mockResolvedValue({ data: { id: "agent-1" } });
+    getJobByIdMock.mockResolvedValue({
+      data: {
+        id: "job-1",
+        agent: { id: "agent-1" },
+        ownerId: null,
+        responsibleUserId: null,
+      },
+    });
+
+    const { loadJobDetails } = await import("./load-job-details");
+    const result = await loadJobDetails({ agentId: "agent-1", jobId: "job-1" });
+
+    expect(result.readOnly).toBe(true);
   });
 
   it("calls notFound when core reports a missing job", async () => {
