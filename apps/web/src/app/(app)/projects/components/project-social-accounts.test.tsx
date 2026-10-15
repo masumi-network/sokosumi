@@ -192,8 +192,6 @@ async function connectProvider(
 }
 
 describe("ProjectSocialAccounts", () => {
-  // The mocked messages stand in for the catalog; a key renamed there but not
-  // here would render as its raw path in the app while every test stays green.
   it("only uses message keys the catalog defines", () => {
     const catalog = messages.App.Projects.ProjectSocialAccounts;
     expect(catalog.connectAccount).toBe("Connect account");
@@ -267,8 +265,9 @@ describe("ProjectSocialAccounts", () => {
     vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
       ok: false,
       error: {
-        code: "SERVICE_UNAVAILABLE",
-        message: "COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID is not configured",
+        code: "INTERNAL_SERVER_ERROR",
+        kind: "integration_not_configured",
+        message: "The service is currently unavailable.",
       },
     });
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
@@ -302,25 +301,30 @@ describe("ProjectSocialAccounts", () => {
     expect(screen.getByRole("list")).toBeVisible();
   });
 
-  it("shows TikTok as coming soon and does not start a connection", async () => {
-    const user = userEvent.setup();
-    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+  it.each([
+    ["tiktok", "TikTok"],
+    ["facebook", "Facebook"],
+  ])(
+    "shows %s as coming soon and does not start a connection",
+    async (_provider, name) => {
+      const user = userEvent.setup();
+      render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
 
-    await user.click(screen.getByRole("button", { name: "Connect account" }));
-    const tiktok = screen.getByRole("menuitem", {
-      name: "TikTok (coming soon)",
-    });
-    expect(tiktok).toHaveAttribute("aria-disabled", "true");
-    expect(tiktok).toHaveTextContent("Coming soon");
+      await user.click(screen.getByRole("button", { name: "Connect account" }));
+      const item = screen.getByRole("menuitem", {
+        name: `${name} (coming soon)`,
+      });
+      expect(item).toHaveAttribute("aria-disabled", "true");
+      expect(item).toHaveTextContent("Coming soon");
 
-    await user.click(tiktok);
-    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
-  });
+      await user.click(item);
+      expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     ["instagram", "Instagram"],
     ["linkedin", "LinkedIn"],
-    ["facebook", "Facebook"],
     ["youtube", "YouTube"],
   ])("starts a connection for %s", async (provider, name) => {
     vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
@@ -927,7 +931,7 @@ describe("ProjectSocialAccounts", () => {
     });
   });
 
-  it("explains a Facebook account that manages zero or several Pages", async () => {
+  it("explains a Facebook reconnect that manages zero or several Pages", async () => {
     const user = userEvent.setup();
     vi.mocked(completeComposioAuthCallbackAction).mockResolvedValue({
       ok: true,
@@ -938,14 +942,25 @@ describe("ProjectSocialAccounts", () => {
       error: {
         code: "BAD_REQUEST",
         kind: "social_facebook_page_required",
-        // Copy Core is free to change; the kind is what the page matches.
         message: "Facebook identity rejected",
       },
     });
 
-    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            provider: "facebook",
+            displayName: "Sokosumi Page",
+            externalHandle: null,
+            status: "reauthorization_required",
+          }),
+        ]}
+      />,
+    );
 
-    await connectProvider(user, "Facebook");
+    await user.click(screen.getByRole("button", { name: "Reconnect" }));
     await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
     await act(async () => {
       MockBroadcastChannel.instances[0]?.onmessage?.({

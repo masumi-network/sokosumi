@@ -12,7 +12,7 @@ function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-function toLocalDateKey(date: Date, timeZone: string): string {
+export function toLocalDateKey(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
