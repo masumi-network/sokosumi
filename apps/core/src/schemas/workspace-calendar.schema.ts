@@ -138,8 +138,9 @@ export const workspaceCalendarItemSchema = z
       .nullable()
       .optional()
       .openapi({ example: "user_123" }),
-    taskOwnerId: z.string().openapi({
-      description: "User who owns the Task Schedule and the Tasks it creates",
+    taskOwnerId: z.union([z.string(), z.null()]).openapi({
+      description:
+        "The person responsible for the Task Schedule and the Tasks it creates; null only when nobody is responsible for the work.",
       example: "user_123",
     }),
     scheduledAt: dateTimeSchema.openapi({

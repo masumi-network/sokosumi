@@ -33,7 +33,8 @@ export interface HistoryRowForApi {
   sortAt: Date;
   status: string;
   title: string;
-  userId: string;
+  /** Null when nobody is responsible for the work. */
+  userId: string | null;
 }
 
 export interface BuildHistoryWhereParams {
@@ -606,7 +607,8 @@ export function mapHistoryRow(
       : undefined;
   const status = jobStatus ?? row.status;
 
-  const userPreview = options?.userPreviewById?.get(row.userId);
+  const userPreview =
+    row.userId == null ? undefined : options?.userPreviewById?.get(row.userId);
   const owner = userPreview
     ? {
         userId: userPreview.userId,

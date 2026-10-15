@@ -10,6 +10,10 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
+import {
+  mapResponsibleUserWithEmail,
+  responsibleUserWithEmailInclude,
+} from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -77,7 +81,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         include: {
-          owner: { select: { id: true, name: true, email: true } },
+          ...responsibleUserWithEmailInclude,
           organization: { select: { id: true, name: true, slug: true } },
         },
       }),
@@ -90,7 +94,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       name: task.name,
       status: task.status,
       createdAt: task.createdAt,
-      owner: task.owner,
+      owner: mapResponsibleUserWithEmail(task),
       organization: task.organization,
     }));
 

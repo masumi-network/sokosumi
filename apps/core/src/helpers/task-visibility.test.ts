@@ -273,14 +273,25 @@ describe("isResponsibleUser", () => {
 });
 
 describe("buildResponsibleUserWhere", () => {
-  it("selects work whose Owner is the person while every row has an Owner", () => {
-    expect(buildResponsibleUserWhere("user_1")).toEqual({ ownerId: "user_1" });
+  it("selects work by the same precedence as resolveResponsibleUserId", () => {
+    expect(buildResponsibleUserWhere("user_1")).toEqual({
+      OR: [
+        { ownerId: "user_1" },
+        { owner: { is: null }, creatorUserId: "user_1" },
+        {
+          owner: { is: null },
+          creatorUserId: null,
+          requestedByUserId: "user_1",
+        },
+      ],
+    });
   });
 
   it("has a raw SQL twin for queries that alias the task table as t", () => {
     const sql = buildResponsibleUserSql("user_1");
 
-    expect(sql.sql).toBe('t."ownerId" = ?');
-    expect(sql.values).toEqual(["user_1"]);
+    expect(sql.sql).toContain('t."ownerId" = ?');
+    expect(sql.sql).toContain('t."requestedByUserId" = ?');
+    expect(sql.values).toEqual(["user_1", "user_1", "user_1"]);
   });
 });

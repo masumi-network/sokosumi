@@ -147,6 +147,7 @@ describe("POST /tasks/{id}/jobs", () => {
       expect.objectContaining({
         owner: {
           ownerId: "user_123",
+          requestedByUserId: "user_123",
           organizationId: "org_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
         },
@@ -154,6 +155,39 @@ describe("POST /tasks/{id}/jobs", () => {
           taskId: "tsk_123",
         },
         creator: { kind: "coworker", coworkerId: "cow_123" },
+      }),
+    );
+  });
+
+  it("makes the Job for the Requester of a Task nobody owns any more", async () => {
+    // A Run of a public Task Schedule a member resumed after its person left.
+    requireTaskAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      ownerId: null,
+      creatorUserId: null,
+      requestedByUserId: "user_resumer",
+      organizationId: "org_123",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+    });
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request("http://localhost/tsk_123/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: requestBody,
+    });
+
+    expect(response.status).toBe(201);
+    expect(createAgentJobForUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: expect.objectContaining({
+          ownerId: null,
+          requestedByUserId: "user_resumer",
+        }),
       }),
     );
   });

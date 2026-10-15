@@ -1,11 +1,13 @@
 import {
   TaskPaymentClaimStatus,
+  TaskVisibility,
   TaskX402PaymentStatus,
 } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CalendarErasureBlockedError } from "./calendar-erasure";
 import { lastVendorAdminBlockerWhere } from "./deletion-evaluate";
+import { buildResponsibleUserWhere } from "./task-visibility";
 import { prepareTasksForUserDeletion } from "./user-deletion-tasks";
 
 const {
@@ -14,6 +16,9 @@ const {
   taskDeleteManyMock,
   taskScheduleUpdateMock,
   taskScheduleDeleteManyMock,
+  taskScheduleFindManyMock,
+  taskScheduleUpdateManyMock,
+  jobDeleteManyMock,
   taskPaymentClaimFindFirstMock,
   taskPaymentClaimDeleteManyMock,
   taskX402PaymentFindFirstMock,
@@ -42,6 +47,9 @@ const {
   taskDeleteManyMock: vi.fn(),
   taskScheduleUpdateMock: vi.fn(),
   taskScheduleDeleteManyMock: vi.fn(),
+  taskScheduleFindManyMock: vi.fn(),
+  taskScheduleUpdateManyMock: vi.fn(),
+  jobDeleteManyMock: vi.fn(),
   taskPaymentClaimFindFirstMock: vi.fn(),
   taskPaymentClaimDeleteManyMock: vi.fn(),
   taskX402PaymentFindFirstMock: vi.fn(),
@@ -101,6 +109,9 @@ describe("prepareTasksForUserDeletion", () => {
     vendorMemberInviteUpdateManyMock.mockResolvedValue({ count: 0 });
     calendarInvalidationOutboxDeleteManyMock.mockResolvedValue({ count: 0 });
     taskScheduleDeleteManyMock.mockResolvedValue({ count: 0 });
+    taskScheduleFindManyMock.mockResolvedValue([]);
+    taskScheduleUpdateManyMock.mockResolvedValue({ count: 0 });
+    jobDeleteManyMock.mockResolvedValue({ count: 0 });
     queryRawMock.mockResolvedValue([]);
     eraseWorkspaceCalendarDataMock.mockResolvedValue({
       taskFiles: [],
@@ -118,6 +129,11 @@ describe("prepareTasksForUserDeletion", () => {
         taskSchedule: {
           update: taskScheduleUpdateMock,
           deleteMany: taskScheduleDeleteManyMock,
+          findMany: taskScheduleFindManyMock,
+          updateMany: taskScheduleUpdateManyMock,
+        },
+        job: {
+          deleteMany: jobDeleteManyMock,
         },
         taskFile: {
           findMany: taskFileFindManyMock,
@@ -196,11 +212,15 @@ describe("prepareTasksForUserDeletion", () => {
     expect(paymentLockStrings.join("?")).toMatch(
       /FROM "task_x402_payment" AS payment[\s\S]*FOR UPDATE OF payment/,
     );
-    expect(paymentLockValues).toEqual([
-      "user_delete",
+    const [chargeUserId, refundUserId, responsibleUserSql] = paymentLockValues;
+    expect([chargeUserId, refundUserId]).toEqual([
       "user_delete",
       "user_delete",
     ]);
+    // Tasks the user is responsible for: Owner, Creator and Requester arms.
+    expect(responsibleUserSql).toMatchObject({
+      values: ["user_delete", "user_delete", "user_delete"],
+    });
     expect(queryRawMock.mock.invocationCallOrder[4]).toBeLessThan(
       taskPaymentClaimFindFirstMock.mock.invocationCallOrder[0] ?? Infinity,
     );
@@ -395,7 +415,7 @@ describe("prepareTasksForUserDeletion", () => {
     expect(deleteTaskFileIfOwnedMock).not.toHaveBeenCalled();
   });
 
-  it("leaves work it does not own to the database, which empties the Creator and Requester", async () => {
+  it("deletes only private work and leaves public work to the database, which empties the Owner, Creator and Requester", async () => {
     taskDeleteManyMock.mockResolvedValue({ count: 1 });
 
     await prepareTasksForUserDeletion("user_delete", {
@@ -404,11 +424,13 @@ describe("prepareTasksForUserDeletion", () => {
 
     expect(taskUpdateMock).not.toHaveBeenCalled();
     expect(taskScheduleUpdateMock).not.toHaveBeenCalled();
-    expect(taskDeleteManyMock).toHaveBeenCalledWith({
-      where: { ownerId: "user_delete" },
-    });
+    const privateWork = {
+      ownerId: "user_delete",
+      visibility: TaskVisibility.PRIVATE,
+    };
+    expect(taskDeleteManyMock).toHaveBeenCalledWith({ where: privateWork });
     expect(taskScheduleDeleteManyMock).toHaveBeenCalledWith({
-      where: { ownerId: "user_delete" },
+      where: privateWork,
     });
   });
 
@@ -593,7 +615,7 @@ describe("prepareTasksForUserDeletion", () => {
         OR: [
           { transaction: { userId: "user_delete" } },
           { refundTransaction: { userId: "user_delete" } },
-          { task: { ownerId: "user_delete" } },
+          { task: buildResponsibleUserWhere("user_delete") },
         ],
       },
       select: { id: true, status: true },
@@ -650,7 +672,7 @@ describe("prepareTasksForUserDeletion", () => {
         OR: [
           { transaction: { userId: "user_delete" } },
           { refundTransaction: { userId: "user_delete" } },
-          { task: { ownerId: "user_delete" } },
+          { task: buildResponsibleUserWhere("user_delete") },
         ],
       },
     });
@@ -766,7 +788,7 @@ describe("prepareTasksForUserDeletion", () => {
             OR: [
               { transaction: { userId: "user_delete" } },
               { refundTransaction: { userId: "user_delete" } },
-              { task: { ownerId: "user_delete" } },
+              { task: buildResponsibleUserWhere("user_delete") },
             ],
           },
         ],
@@ -813,7 +835,7 @@ describe("prepareTasksForUserDeletion", () => {
         transaction: { userId: { not: "user_delete" } },
         OR: [
           { refundTransaction: { userId: "user_delete" } },
-          { task: { ownerId: "user_delete" } },
+          { task: buildResponsibleUserWhere("user_delete") },
         ],
       },
       select: {
@@ -822,7 +844,7 @@ describe("prepareTasksForUserDeletion", () => {
         transaction: { select: { userId: true } },
       },
     });
-    // Task.ownerId is documented as always the billing owner, so this should
+    // A Task's charges go to its responsible person, so this should
     // be unreachable. If it ever fires, deletion must stop before a live third
     // party's payment record is destroyed by someone else's account deletion.
     // The page must also say the repair is MANUAL: the admin refund/resolve
@@ -1072,7 +1094,9 @@ describe("prepareTasksForUserDeletion", () => {
     } as never);
 
     expect(taskFileFindManyMock).toHaveBeenCalledWith({
-      where: { task: { ownerId: "user_delete" } },
+      where: {
+        task: { ownerId: "user_delete", visibility: TaskVisibility.PRIVATE },
+      },
       select: { fileUrl: true, taskId: true },
     });
     expect(deleteTaskFileIfOwnedMock).toHaveBeenCalledWith(

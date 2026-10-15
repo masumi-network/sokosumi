@@ -76,7 +76,7 @@ export function getEventActorInfo(
   userById?: Record<string, TaskActivityActorInfo>,
   coworkerById?: Record<string, TaskActivityActorInfo>,
   sokoBotById?: Record<string, TaskActivityActorInfo>,
-  taskOwnerId?: string,
+  taskOwnerId?: string | null,
 ): TaskActivityActorInfo | undefined {
   const actor = resolveEventActorInfo(
     event,
@@ -183,7 +183,7 @@ export function buildTaskActivityActors(
   if (creator) {
     switch (creator.type) {
       case "user":
-        if (creator.id !== task.owner.id) {
+        if (creator.id !== task.owner?.id) {
           addUserActor(userById, creator.user);
         }
         break;
@@ -268,8 +268,10 @@ function addUserActor(
     id: string;
     name: string;
     image?: string | null;
-  },
+  } | null,
 ) {
+  // Nobody is named once the person responsible deleted their account.
+  if (!user) return;
   userById[user.id] = {
     name: user.name,
     image: user.image ? resolveIpfsOrHttpUrl(user.image) : null,

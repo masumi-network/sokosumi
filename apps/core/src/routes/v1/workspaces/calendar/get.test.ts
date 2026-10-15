@@ -257,6 +257,35 @@ describe("GET /workspaces/calendar", () => {
     vi.useRealTimers();
   });
 
+  it("names the responsible person of a schedule nobody owns any more", async () => {
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createRun({
+        schedule: {
+          ownerId: null,
+          creatorUserId: null,
+          requestedByUserId: "user_resumer",
+        },
+      }),
+      createRun({
+        id: "00000000-0000-7000-8000-000000000002",
+        schedule: {
+          ownerId: null,
+          creatorUserId: null,
+          requestedByUserId: null,
+        },
+      }),
+    ]);
+    taskScheduleOccurrenceCountMock.mockResolvedValue(2);
+
+    const response = await requestCalendar(createApp());
+
+    expect(response.status).toBe(200);
+    const { data } = await response.json();
+    expect(
+      data.map((item: { taskOwnerId: string | null }) => item.taskOwnerId),
+    ).toEqual(["user_resumer", null]);
+  });
+
   it("returns an upcoming Task Schedule Run in range", async () => {
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([createRun()]);
     taskScheduleOccurrenceCountMock.mockResolvedValue(1);

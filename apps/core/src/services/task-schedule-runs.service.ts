@@ -375,7 +375,7 @@ class ReleaseClaimLostError extends Error {
 
 export interface ReleasedTask {
   id: string;
-  ownerId: string;
+  ownerId: string | null;
   creatorUserId: string | null;
   requestedByUserId: string | null;
   assigneeUserId: string | null;

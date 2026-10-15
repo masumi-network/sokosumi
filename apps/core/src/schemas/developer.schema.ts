@@ -51,7 +51,10 @@ const developerTaskListItemSchema = z
     updatedAt: dateTimeSchema,
     assignee: developerCoworkerRefSchema.nullable(),
     creatorCoworker: developerCoworkerRefSchema.nullable(),
-    owner: developerTaskOwnerSchema,
+    owner: z.union([developerTaskOwnerSchema, z.null()]).openapi({
+      description:
+        "The person responsible for the task; null only when nobody is responsible for the work.",
+    }),
     organization: developerOrganizationRefSchema,
   })
   .openapi("DeveloperTaskListItem");
@@ -68,7 +71,10 @@ export const developerTaskIdParamSchema = z.object({
 export const developerTaskDetailSchema = z
   .object({
     task: taskSchema,
-    owner: developerTaskOwnerSchema,
+    owner: z.union([developerTaskOwnerSchema, z.null()]).openapi({
+      description:
+        "The person responsible for the task; null only when nobody is responsible for the work.",
+    }),
     organization: developerOrganizationRefSchema,
   })
   .openapi("DeveloperTaskDetail");

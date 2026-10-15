@@ -4,6 +4,10 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
+import {
+  mapResponsibleUserWithEmail,
+  responsibleUserWithEmailInclude,
+} from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -41,7 +45,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: { id },
       include: {
         ...taskInclude,
-        owner: { select: { id: true, name: true, email: true, image: true } },
+        ...responsibleUserWithEmailInclude,
       },
     });
 
@@ -53,11 +57,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       adminTaskDetailSchema.parse({
         task: mapTask(task, c.var.authContext),
-        owner: {
-          id: task.owner.id,
-          name: task.owner.name,
-          email: task.owner.email,
-        },
+        owner: mapResponsibleUserWithEmail(task),
         organization: task.organization,
       }),
     );

@@ -524,7 +524,10 @@ const adminTaskListItemSchema = z
     name: z.string().openapi({ example: "Quarterly report" }),
     status: taskStatusSchema.openapi({ example: TaskStatus.RUNNING }),
     createdAt: dateTimeSchema,
-    owner: adminTaskOwnerSchema,
+    owner: z.union([adminTaskOwnerSchema, z.null()]).openapi({
+      description:
+        "The person responsible for the task; null only when nobody is responsible for the work.",
+    }),
     organization: z
       .object({
         id: z.string().openapi({ example: "org_123" }),
@@ -551,7 +554,10 @@ export const adminTaskIdParamSchema = z.object({
 export const adminTaskDetailSchema = z
   .object({
     task: taskSchema,
-    owner: adminTaskOwnerSchema,
+    owner: z.union([adminTaskOwnerSchema, z.null()]).openapi({
+      description:
+        "The person responsible for the task; null only when nobody is responsible for the work.",
+    }),
     organization: z
       .object({
         id: z.string().openapi({ example: "org_123" }),

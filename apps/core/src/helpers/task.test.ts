@@ -8,6 +8,7 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
+import { taskSchema } from "@/schemas/task.schema";
 import type { TaskListItemWithIncludes, TaskWithIncludes } from "@/types/task";
 
 import {
@@ -512,6 +513,77 @@ describe("mapTask", () => {
         _count: { jobs: 0, events: 0 },
       } as unknown as TaskListItemWithIncludes),
     ).toMatchObject({ ownerId: "user_123", responsibleUserId: "user_123" });
+  });
+
+  it.each([
+    {
+      case: "names the Requester as Owner once the Owner is gone",
+      columns: {
+        requestedByUserId: "user_456",
+        requestedByUser: { id: "user_456", name: "Asker", image: null },
+      },
+      owner: { id: "user_456", name: "Asker", image: null },
+    },
+    {
+      case: "returns a null Owner when nobody is responsible for the work",
+      columns: { requestedByUserId: null, requestedByUser: null },
+      owner: null,
+    },
+  ])("$case", ({ columns, owner }) => {
+    // A public Task made by a Coworker whose person deleted their account.
+    const task = {
+      id: "tsk_ownerless",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: null,
+      organizationId: null,
+      projectId: null,
+      project: null,
+      owner: null,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: null,
+      creatorUser: null,
+      creatorCoworkerId: "cow_123",
+      creatorCoworker: defaultTaskCoworker,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
+      ...columns,
+      name: "Left behind",
+      description: null,
+      status: TaskStatus.COMPLETED,
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    // The response schema accepts the null Owner it now documents.
+    const mapped = taskSchema
+      .pick({
+        ownerId: true,
+        owner: true,
+        userId: true,
+        user: true,
+        responsibleUserId: true,
+      })
+      .parse(mapTask(task, TEST_USER_AUTH));
+
+    expect(mapped).toMatchObject({
+      ownerId: owner?.id ?? null,
+      owner,
+      userId: owner?.id ?? null,
+      user: owner,
+      responsibleUserId: owner?.id ?? null,
+    });
   });
 
   it("exposes the stored priority", () => {

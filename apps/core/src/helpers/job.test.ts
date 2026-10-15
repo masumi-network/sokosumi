@@ -76,7 +76,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              ownerId: "user_123",
+              ...buildResponsibleUserWhere("user_123"),
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             humanParentTaskVisibilityWhere,
@@ -164,7 +164,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              ownerId: "user_123",
+              ...buildResponsibleUserWhere("user_123"),
               workspaceId: personalWorkspaceContext.workspaceId,
             },
             humanParentTaskVisibilityWhere,
@@ -188,7 +188,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              ownerId: "user_123",
+              ...buildResponsibleUserWhere("user_123"),
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             humanParentTaskVisibilityWhere,
@@ -218,7 +218,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              ownerId: "user_123",
+              ...buildResponsibleUserWhere("user_123"),
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             humanParentTaskVisibilityWhere,
@@ -243,7 +243,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              ownerId: "user_123",
+              ...buildResponsibleUserWhere("user_123"),
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             humanParentTaskVisibilityWhere,
@@ -289,7 +289,7 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              ownerId: "user_123",
+              ...buildResponsibleUserWhere("user_123"),
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             {

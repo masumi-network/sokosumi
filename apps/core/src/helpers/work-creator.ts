@@ -5,6 +5,10 @@ import {
   type UserSummaryFields,
   userSummaryFromLoadedRelation,
 } from "./loaded-relation-summaries";
+import {
+  type ResponsibleUserColumns,
+  resolveResponsibleUserId,
+} from "./task-visibility";
 
 /** Who makes a Task, Task Schedule or Job (ADR 0056). */
 export type WorkCreator =
@@ -17,7 +21,7 @@ export type WorkCreator =
  * or Soko Bot acts for that person, who becomes the Requester; a person who
  * makes their own work is never its Requester.
  */
-export function creatorFields(creator: WorkCreator, personId: string) {
+export function creatorFields(creator: WorkCreator, personId: string | null) {
   switch (creator.kind) {
     case "user":
       return {
@@ -118,4 +122,70 @@ export function mapWorkRequester(
     work.requestedByUserId,
     work.requestedByUser ?? null,
   );
+}
+
+/** The Owner, person Creator and Requester relations of a row, as loaded. */
+interface ResponsibleUserRelations<User> extends ResponsibleUserColumns {
+  owner?: User | null;
+  creatorUser?: User | null;
+  requestedByUser?: User | null;
+}
+
+/**
+ * The loaded relation of the person `resolveResponsibleUserId` names, or null
+ * when nobody is responsible or the relation was not loaded.
+ */
+export function pickResponsibleUser<User>(
+  work: ResponsibleUserRelations<User>,
+): User | null {
+  const userId = resolveResponsibleUserId(work);
+  if (userId == null) return null;
+  if (work.ownerId === userId) return work.owner ?? null;
+  if (work.creatorUserId === userId) return work.creatorUser ?? null;
+  return work.requestedByUser ?? null;
+}
+
+/**
+ * The deprecated `owner` of a response: the responsible person (ADR 0056),
+ * null only when nobody is responsible for the work.
+ */
+export function mapResponsibleUserSummary(
+  context: string,
+  work: ResponsibleUserRelations<UserSummaryFields>,
+): UserSummaryFields | null {
+  const userId = resolveResponsibleUserId(work);
+  if (userId == null) return null;
+  return userSummaryFromLoadedRelation(
+    `${context} responsible person`,
+    userId,
+    pickResponsibleUser(work),
+  );
+}
+
+const personWithEmailSelect = {
+  select: { id: true, name: true, email: true, image: true },
+} as const;
+
+/**
+ * The relations admin and developer task views need to name the responsible
+ * person with an email address.
+ */
+export const responsibleUserWithEmailInclude = {
+  owner: personWithEmailSelect,
+  creatorUser: personWithEmailSelect,
+  requestedByUser: personWithEmailSelect,
+} as const;
+
+interface PersonWithEmail {
+  id: string;
+  name: string;
+  email: string;
+}
+
+/** The responsible person for an admin or developer view; null when nobody is. */
+export function mapResponsibleUserWithEmail(
+  work: ResponsibleUserRelations<PersonWithEmail>,
+): PersonWithEmail | null {
+  const user = pickResponsibleUser(work);
+  return user && { id: user.id, name: user.name, email: user.email };
 }

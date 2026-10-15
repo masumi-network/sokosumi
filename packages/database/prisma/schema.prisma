@@ -378,7 +378,8 @@ model History {
   id             String      @id @default(uuid(7))
   kind           HistoryKind
   entityId       String
-  userId         String
+  /// The responsible person for TASK and JOB rows; null when nobody is.
+  userId         String?
   workspaceId    String?     @db.Uuid
   organizationId String?
   title          String
@@ -1360,8 +1361,11 @@ model Job {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  ownerId String
-  owner   User   @relation("JobOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  /// The responsible person while every Job still has one; set only when the
+  /// Job's Task is private once the data move lands (ADR 0056). Emptied when
+  /// that person is deleted.
+  ownerId String?
+  owner   User?   @relation("JobOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
   /// Creator and Requester, as on Task. At most one creator FK is set (DB
   /// check `Job_creator_at_most_one_check`); a Requester is never set beside a
@@ -2928,9 +2932,10 @@ model Task {
   updatedAt       DateTime                 @updatedAt
   archivedAt      DateTime?
 
-  /// Workspace/billing owner. Always a user.
-  ownerId String
-  owner   User   @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  /// The one reader of private work (ADR 0056). Account deletion deletes the
+  /// private Tasks a person owns; on public ones the Owner is emptied.
+  ownerId String?
+  owner   User?   @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
@@ -3082,8 +3087,9 @@ model TaskSchedule {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  ownerId String
-  owner   User   @relation("TaskScheduleOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  /// As on Task: emptied on public schedules when the person is deleted.
+  ownerId String?
+  owner   User?   @relation("TaskScheduleOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
   /// At most one creator FK is set (DB check
   /// `task_schedule_creator_at_most_one_check`), as on Task.

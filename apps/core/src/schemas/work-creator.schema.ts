@@ -47,6 +47,26 @@ export const responsibleUserIdField = {
   }),
 };
 
+/** Said of every deprecated Owner field, which carries the responsible person. */
+export const WORK_OWNER_DESCRIPTION =
+  "Deprecated. Use responsibleUserId instead. The person responsible for the work; null only when nobody is responsible for the work.";
+
+/**
+ * Deprecated `ownerId`/`owner` of a Task, Task Schedule or Job, and their
+ * older `userId`/`user` aliases: all carry the responsible person (ADR 0056).
+ */
+export const deprecatedWorkOwnerIdSchema = z
+  .union([z.string(), z.null()])
+  .openapi({
+    example: "user_123",
+    deprecated: true,
+    description: WORK_OWNER_DESCRIPTION,
+  });
+
+export const deprecatedWorkOwnerSchema = z
+  .union([userSummarySchema, z.null()])
+  .openapi({ deprecated: true, description: WORK_OWNER_DESCRIPTION });
+
 /** `creator` and `requester` of a Task, Task Schedule or Job (ADR 0056). */
 export const workCreatorRequesterFields = {
   creator: z.union([workCreatorSchema, z.null()]).openapi({

@@ -95,7 +95,16 @@ function makeTask(overrides: Record<string, unknown> = {}) {
     name: "Quarterly report",
     status: "RUNNING",
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
+    ownerId: "user_1",
     owner: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
+    creatorUserId: "user_1",
+    creatorUser: {
+      id: "user_1",
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    },
+    requestedByUserId: null,
+    requestedByUser: null,
     organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
     ...overrides,
   };
@@ -135,6 +144,41 @@ describe("GET /v1/admin/tasks", () => {
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
     );
+  });
+
+  it("names the Requester when the Task has no Owner", async () => {
+    const grace = { id: "user_2", name: "Grace Hopper", email: "grace@x.io" };
+    taskFindManyMock.mockResolvedValue([
+      makeTask({
+        ownerId: null,
+        owner: null,
+        creatorUserId: null,
+        creatorUser: null,
+        requestedByUserId: grace.id,
+        requestedByUser: grace,
+      }),
+    ]);
+
+    const res = await createApp(mountListAdminTasks).request("/");
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).data[0].owner).toEqual(grace);
+  });
+
+  it("returns a null owner for a public Task whose person deleted their account", async () => {
+    taskFindManyMock.mockResolvedValue([
+      makeTask({
+        ownerId: null,
+        owner: null,
+        creatorUserId: null,
+        creatorUser: null,
+      }),
+    ]);
+
+    const res = await createApp(mountListAdminTasks).request("/");
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).data[0].owner).toBeNull();
   });
 
   it("returns null organization for personal tasks", async () => {

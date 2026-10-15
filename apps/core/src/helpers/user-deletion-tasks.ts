@@ -1,6 +1,9 @@
 import * as Sentry from "@sentry/node";
 import {
+  type Prisma,
   TaskPaymentClaimStatus,
+  TaskScheduleState,
+  TaskVisibility,
   TaskX402PaymentStatus,
 } from "@sokosumi/database";
 import type { createPrismaClient } from "@sokosumi/database/client";
@@ -19,7 +22,12 @@ import {
 } from "@/helpers/deletion-evaluate";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
+import {
+  buildResponsibleUserSql,
+  buildResponsibleUserWhere,
+} from "@/helpers/task-visibility";
 import { prepareVendorsForMemberDeletion } from "@/helpers/vendor-membership";
+import { stopPlannedTaskScheduleRuns } from "@/services/task-schedule-runs.service";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
 
@@ -49,9 +57,13 @@ function throwPendingX402PaymentDeletionBlocker(
 /**
  * Clear deletion blockers and delete the user in one transaction.
  *
- * - Owned tasks and Task Schedules are deleted (owner cascade would anyway).
- * - Work this user made or asked for but does not own keeps the row; the
- *   database empties their Creator and Requester columns (ADR 0056).
+ * - The private Tasks, Task Schedules and Jobs this user owns are deleted,
+ *   and so is the work in their personal workspace.
+ * - Public work stays with its workspace (ADR 0056); the database empties
+ *   this user's Owner, Creator and Requester columns on it. Public Task
+ *   Schedules this user was responsible for are paused, so nothing keeps
+ *   running with nobody behind it; the member who resumes one becomes its
+ *   Requester.
  * - Payment-claim blockers are previewed by `evaluateUserDeletion` and
  *   re-checked here under lock. Terminal claims are removed so their RESTRICT
  *   transaction relations do not block user cascade.
@@ -67,14 +79,48 @@ function throwPendingX402PaymentDeletionBlocker(
  *   removed because their RESTRICT task and transaction relations would
  *   otherwise block both the owned-task delete and the user cascade. A swept
  *   payment whose charge belongs to another user blocks deletion and pages
- *   Sentry — it means Task.ownerId was not the billing owner, and repair is
- *   manual (no admin endpoint changes payment ownership).
+ *   Sentry — it means the Task's responsible person was not the billing
+ *   owner, and repair is manual (no admin endpoint changes payment
+ *   ownership).
  * - Chat rooms this user created re-point `createdByUserId` to another remaining
  *   human member. Rooms with no other human member are deleted so Restrict does
  *   not 500 an allowed wipe.
- * - Public blob files for owned tasks are best-effort deleted after the DB
+ * - Public blob files for deleted tasks are best-effort deleted after the DB
  *   cascade (URLs remain public if blob GC fails).
  */
+/**
+ * Pause, as a member would, the public Task Schedules nobody will be
+ * responsible for once `userId` is gone.
+ */
+async function pausePublicTaskSchedules(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  const schedules = await tx.taskSchedule.findMany({
+    where: {
+      ...buildResponsibleUserWhere(userId),
+      visibility: TaskVisibility.PUBLIC,
+      state: TaskScheduleState.ACTIVE,
+    },
+    select: { id: true },
+  });
+  const now = new Date();
+  for (const schedule of schedules) {
+    await stopPlannedTaskScheduleRuns(tx, schedule.id, now, {
+      keepOwed: false,
+      exceptions: "keep",
+    });
+  }
+  await tx.taskSchedule.updateMany({
+    where: { id: { in: schedules.map((schedule) => schedule.id) } },
+    data: {
+      state: TaskScheduleState.PAUSED,
+      nextRunAt: null,
+      revision: { increment: 1 },
+    },
+  });
+}
+
 export async function prepareTasksForUserDeletion(
   userId: string,
   prisma: PrismaClient,
@@ -169,8 +215,9 @@ export async function prepareTasksForUserDeletion(
         // joined relations cannot be served by any index, so the single-query
         // form had to build and filter the full payments join on every account
         // deletion — while holding the user and task locks above. Each arm here
-        // seeks (Transaction has a userId-leading index, task has ownerId, and
-        // the payment side is reached over its transactionId/refundTransactionId
+        // seeks (Transaction has a userId-leading index, task has ownerId,
+        // creatorUserId and requestedByUserId indexes for the responsible
+        // person's three branches, and the payment side is reached over its transactionId/refundTransactionId
         // uniques and the taskId unique prefix). Only the outer SELECT takes
         // locks, exactly like FOR UPDATE OF payment did on the join.
         await tx.$queryRaw`
@@ -193,7 +240,7 @@ export async function prepareTasksForUserDeletion(
             FROM "task_x402_payment" AS task_payment
             INNER JOIN "task" AS payment_task
               ON payment_task."id" = task_payment."taskId"
-            WHERE payment_task."ownerId" = ${userId}
+            WHERE ${buildResponsibleUserSql(userId, "payment_task")}
           )
           FOR UPDATE OF payment
         `;
@@ -289,7 +336,7 @@ export async function prepareTasksForUserDeletion(
             OR: [
               { transaction: { userId } },
               { refundTransaction: { userId } },
-              { task: { ownerId: userId } },
+              { task: buildResponsibleUserWhere(userId) },
             ],
           },
           select: { id: true, status: true },
@@ -362,7 +409,7 @@ export async function prepareTasksForUserDeletion(
                   OR: [
                     { transaction: { userId } },
                     { refundTransaction: { userId } },
-                    { task: { ownerId: userId } },
+                    { task: buildResponsibleUserWhere(userId) },
                   ],
                 },
               ],
@@ -378,9 +425,9 @@ export async function prepareTasksForUserDeletion(
           });
         }
 
-        // The sweep below deletes on `task.ownerId` regardless of who was
-        // charged. Task.ownerId is documented as always the billing owner, so a
-        // row swept through the task-owner (or refund) branch whose charge belongs
+        // The sweep below deletes on the Task's responsible person regardless
+        // of who was charged. Task charges go to the responsible person, so a
+        // row swept through the task (or refund) branch whose charge belongs
         // to someone else should be unreachable — but nothing enforces that. If it
         // ever happens, continuing would let one user's account deletion destroy a
         // different live user's payment record: the charge Transaction survives,
@@ -397,7 +444,7 @@ export async function prepareTasksForUserDeletion(
             // `transaction: { userId }` branch is this user's own by definition.
             OR: [
               { refundTransaction: { userId } },
-              { task: { ownerId: userId } },
+              { task: buildResponsibleUserWhere(userId) },
             ],
           },
           select: {
@@ -432,7 +479,7 @@ export async function prepareTasksForUserDeletion(
                 // the detector's predicate. Spell that out for whoever this
                 // pages, or the on-call's first two attempts will both fail.
                 repair:
-                  "No admin endpoint clears this. Repair the ownership mismatch manually (align Task.ownerId with the charge Transaction's userId, or reassign the charge), then have the user retry deletion.",
+                  "No admin endpoint clears this. Repair the ownership mismatch manually (align the Task's responsible person with the charge Transaction's userId, or reassign the charge), then have the user retry deletion.",
               },
             },
           );
@@ -461,13 +508,17 @@ export async function prepareTasksForUserDeletion(
             OR: [
               { transaction: { userId } },
               { refundTransaction: { userId } },
-              { task: { ownerId: userId } },
+              { task: buildResponsibleUserWhere(userId) },
             ],
           },
         });
 
+        const privateTaskWhere = {
+          ownerId: userId,
+          visibility: TaskVisibility.PRIVATE,
+        };
         const ownedFiles = await tx.taskFile.findMany({
-          where: { task: { ownerId: userId } },
+          where: { task: privateTaskWhere },
           select: { fileUrl: true, taskId: true },
         });
 
@@ -495,12 +546,19 @@ export async function prepareTasksForUserDeletion(
           }
         }
 
-        await tx.taskSchedule.deleteMany({
-          where: { ownerId: userId },
+        await tx.taskSchedule.deleteMany({ where: privateTaskWhere });
+        await pausePublicTaskSchedules(tx, userId);
+        // Before their Tasks, which would only detach them. Jobs in the
+        // personal workspace go too: that workspace is deleted with the user.
+        await tx.job.deleteMany({
+          where: {
+            OR: [
+              { ownerId: userId, task: { is: privateTaskWhere } },
+              { workspace: { userId } },
+            ],
+          },
         });
-        await tx.task.deleteMany({
-          where: { ownerId: userId },
-        });
+        await tx.task.deleteMany({ where: privateTaskWhere });
 
         const createdRooms = await tx.chatRoom.findMany({
           where: { createdByUserId: userId },

@@ -96,7 +96,7 @@ async function validateCreditBalance(
 }
 
 /** The Job's Creator and Requester, made for `personId` (ADR 0056). */
-function creatorConnect(creator: WorkCreator, personId: string) {
+function creatorConnect(creator: WorkCreator, personId: string | null) {
   const fields = creatorFields(creator, personId);
   const connect = (id: string | null) => (id ? { connect: { id } } : undefined);
   return {
@@ -116,7 +116,9 @@ async function createPaidJob(
     agentId: string;
     agentBlockchainIdentifier: string;
     agentApiBaseUrl: string;
-    ownerId: string;
+    ownerId: string | null;
+    /** The person a Coworker or Soko Bot makes the Job for. */
+    personId: string | null;
     creator: WorkCreator;
     /** Pays for the Job; null charges the Organization pool with no member. */
     responsibleUserId: string | null;
@@ -153,8 +155,8 @@ async function createPaidJob(
       agentJobId: agentJobResponse.id,
       jobType: JobType.PAID,
       agent: { connect: { id: input.agentId } },
-      owner: { connect: { id: input.ownerId } },
-      ...creatorConnect(input.creator, input.ownerId),
+      ...(input.ownerId && { owner: { connect: { id: input.ownerId } } }),
+      ...creatorConnect(input.creator, input.personId),
       ...(input.organizationId && {
         organization: { connect: { id: input.organizationId } },
       }),
@@ -234,7 +236,9 @@ async function createFreeJob(
     agentId: string;
     agentBlockchainIdentifier: string;
     agentApiBaseUrl: string;
-    ownerId: string;
+    ownerId: string | null;
+    /** The person a Coworker or Soko Bot makes the Job for. */
+    personId: string | null;
     creator: WorkCreator;
     organizationId: string | null;
     workspaceId: string;
@@ -253,8 +257,8 @@ async function createFreeJob(
       agentJobId: agentJobResponse.id,
       jobType: JobType.FREE,
       agent: { connect: { id: input.agentId } },
-      owner: { connect: { id: input.ownerId } },
-      ...creatorConnect(input.creator, input.ownerId),
+      ...(input.ownerId && { owner: { connect: { id: input.ownerId } } }),
+      ...creatorConnect(input.creator, input.personId),
       ...(input.organizationId && {
         organization: { connect: { id: input.organizationId } },
       }),
@@ -337,7 +341,12 @@ interface CreateAgentJobInput {
 }
 
 export interface JobOwnerContext {
-  ownerId: string;
+  ownerId: string | null;
+  /**
+   * The person a Coworker or Soko Bot makes the Job for, and so its
+   * Requester; the Owner when omitted.
+   */
+  requestedByUserId?: string | null;
   organizationId: string | null;
   workspaceId: string;
 }
@@ -485,9 +494,10 @@ export async function createAgentJobForUser(
 ): Promise<JobWithListSummaryRelations> {
   const { owner, agentInput, taskContext } = input;
   // The Job's charge and Seat check follow its responsible person (ADR 0056).
+  const personId = owner.requestedByUserId ?? owner.ownerId;
   const responsibleUserId = resolveResponsibleUserId({
     ownerId: owner.ownerId,
-    ...creatorFields(input.creator, owner.ownerId),
+    ...creatorFields(input.creator, personId),
   });
   await requireResponsibleUserSeat(responsibleUserId, owner.organizationId);
   const maxCents =
@@ -599,6 +609,7 @@ export async function createAgentJobForUser(
     agentBlockchainIdentifier: masumiAgent.blockchainIdentifier,
     agentApiBaseUrl: masumiAgent.apiBaseUrl,
     ownerId: owner.ownerId,
+    personId,
     creator: input.creator,
     organizationId: owner.organizationId,
     workspaceId: owner.workspaceId,

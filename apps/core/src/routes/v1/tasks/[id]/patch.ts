@@ -321,7 +321,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           context,
           description: removeTaskContextAttachmentLinks(proseSource) || null,
           organizationId: task.organizationId,
-          ownerId: task.ownerId,
+          ownerId: resolveResponsibleUserId(task) ?? userContext.userId,
           actorUserId: userContext.userId,
           project: healedProject,
           preservedBrandUrl,

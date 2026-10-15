@@ -12,8 +12,9 @@ import {
   sokosumiJobStatusSchema,
 } from "@/schemas/domain-enums.schema";
 import { organizationSummarySchema } from "@/schemas/organization.schema";
-import { userSummarySchema } from "@/schemas/user.schema";
 import {
+  deprecatedWorkOwnerIdSchema,
+  deprecatedWorkOwnerSchema,
   responsibleUserIdField,
   workCreatorRequesterFields,
 } from "@/schemas/work-creator.schema";
@@ -59,24 +60,16 @@ export const jobSummarySchema = z
     updatedAt: dateTimeSchema,
     completedAt: dateTimeSchema.nullish(),
     agentId: z.string().openapi({ example: "agent_123" }),
-    ownerId: z.string().openapi({
-      example: "user_123",
-      description: "Job owner. Always a user.",
-    }),
-    owner: userSummarySchema,
+    /** @deprecated Use `responsibleUserId`. */
+    ownerId: deprecatedWorkOwnerIdSchema,
+    /** @deprecated Use `responsibleUserId`. */
+    owner: deprecatedWorkOwnerSchema,
     ...workCreatorRequesterFields,
     ...responsibleUserIdField,
-    /** @deprecated Use `ownerId`. */
-    userId: z.string().openapi({
-      example: "user_123",
-      deprecated: true,
-      description: "Deprecated. Use ownerId instead.",
-    }),
-    /** @deprecated Use `owner`. */
-    user: userSummarySchema.openapi({
-      deprecated: true,
-      description: "Deprecated. Use owner instead.",
-    }),
+    /** @deprecated Use `responsibleUserId`. */
+    userId: deprecatedWorkOwnerIdSchema,
+    /** @deprecated Use `responsibleUserId`. */
+    user: deprecatedWorkOwnerSchema,
     organizationId: z
       .string()
       .nullish()
@@ -202,24 +195,16 @@ export const jobSchema = z
     updatedAt: dateTimeSchema,
     completedAt: dateTimeSchema.nullish(),
     agentId: z.string().openapi({ example: "agent_123" }),
-    ownerId: z.string().openapi({
-      example: "user_123",
-      description: "Job owner. Always a user.",
-    }),
-    owner: userSummarySchema,
+    /** @deprecated Use `responsibleUserId`. */
+    ownerId: deprecatedWorkOwnerIdSchema,
+    /** @deprecated Use `responsibleUserId`. */
+    owner: deprecatedWorkOwnerSchema,
     ...workCreatorRequesterFields,
     ...responsibleUserIdField,
-    /** @deprecated Use `ownerId`. */
-    userId: z.string().openapi({
-      example: "user_123",
-      deprecated: true,
-      description: "Deprecated. Use ownerId instead.",
-    }),
-    /** @deprecated Use `owner`. */
-    user: userSummarySchema.openapi({
-      deprecated: true,
-      description: "Deprecated. Use owner instead.",
-    }),
+    /** @deprecated Use `responsibleUserId`. */
+    userId: deprecatedWorkOwnerIdSchema,
+    /** @deprecated Use `responsibleUserId`. */
+    user: deprecatedWorkOwnerSchema,
     organizationId: z
       .string()
       .nullish()

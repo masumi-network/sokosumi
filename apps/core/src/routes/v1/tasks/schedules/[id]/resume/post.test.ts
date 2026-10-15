@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
+  COWORKER_ID,
+  MEMBER_ID,
+  OWNER_ID,
   resetTaskScheduleTestDb,
   runsOf,
   seedRun,
   seedTaskSchedule,
   taskScheduleTestDb,
+  userAuth,
 } from "@/test-fixtures/task-schedule";
 import {
   createTaskScheduleTestApp,
@@ -198,4 +201,44 @@ describe("POST /tasks/schedules/{id}/resume", () => {
       expect(stored(schedule.id)?.state).toBe(state);
     },
   );
+
+  it("makes the member who resumes a schedule nobody is responsible for its Requester", async () => {
+    // A public schedule whose person deleted their account.
+    const schedule = seedTaskSchedule({
+      state: "PAUSED",
+      nextRunAt: null,
+      ownerId: null,
+      creatorUserId: null,
+      creatorCoworkerId: COWORKER_ID,
+    });
+
+    const response = await send(
+      schedule.id,
+      createTaskScheduleTestApp(mount, userAuth(MEMBER_ID)),
+    );
+
+    expect(response.status).toBe(200);
+    expect(stored(schedule.id)).toMatchObject({
+      state: "ACTIVE",
+      requestedByUserId: MEMBER_ID,
+    });
+    expect(await response.json()).toMatchObject({
+      data: { responsibleUserId: MEMBER_ID, ownerId: MEMBER_ID },
+    });
+  });
+
+  it("keeps the responsible person of a schedule someone is responsible for", async () => {
+    const schedule = seedTaskSchedule({ state: "PAUSED", nextRunAt: null });
+
+    const response = await send(
+      schedule.id,
+      createTaskScheduleTestApp(mount, userAuth(MEMBER_ID)),
+    );
+
+    expect(response.status).toBe(200);
+    expect(stored(schedule.id)).toMatchObject({
+      ownerId: OWNER_ID,
+      requestedByUserId: null,
+    });
+  });
 });
