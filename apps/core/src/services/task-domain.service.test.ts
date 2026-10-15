@@ -2,6 +2,10 @@ import { type Task, TaskPriority, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notFound } from "@/helpers/error";
+import {
+  publicWorkMadeBy,
+  WORK_MAKERS,
+} from "@/test-fixtures/responsible-work";
 
 import { createTaskForActor, updateTaskForActor } from "./task-domain.service";
 
@@ -122,7 +126,7 @@ describe("a Soko Bot archiving a Task", () => {
     updateTaskForActor(
       {
         actor: { kind: "soko_bot", sokoBotId: "bot_owner" },
-        ownerId: "user_owner",
+        userId: "user_owner",
         workspaceId: "workspace_org",
         taskId: teammateTask.id,
         intent: "metadata",
@@ -147,6 +151,7 @@ describe("a Soko Bot archiving a Task", () => {
       expect.objectContaining({ userId: "user_owner" }),
       teammateTask.id,
       tx,
+      { right: "manage" },
     );
     expect(tx.task.updateMany).toHaveBeenCalledOnce();
   });
@@ -166,5 +171,76 @@ describe("a Soko Bot archiving a Task", () => {
 
     await expect(archive()).rejects.toMatchObject({ status: 404 });
     expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("a person changing a Task through the domain update (ADR 0056)", () => {
+  const tx = { task: { findFirst: vi.fn(), update: vi.fn() } };
+  const rename = () =>
+    updateTaskForActor(
+      {
+        actor: { kind: "user", userId: "user_123" },
+        userId: "user_123",
+        taskId: "task_1",
+        intent: "metadata",
+        name: "Renamed",
+      },
+      tx as never,
+    );
+
+  function storedTask(columns: ReturnType<typeof publicWorkMadeBy>) {
+    return {
+      id: "task_1",
+      workspaceId: "workspace_org",
+      status: TaskStatus.DRAFT,
+      visibility: "PUBLIC",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      runAt: null,
+      updatedAt: new Date("2026-10-01T10:00:00Z"),
+      ...columns,
+    };
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    tx.task.update.mockImplementation(async ({ data }) => ({
+      id: "task_1",
+      ...data,
+    }));
+  });
+
+  it.each(WORK_MAKERS)(
+    "lets the responsible person change a Task made by a %s",
+    async (maker) => {
+      tx.task.findFirst.mockResolvedValue(
+        storedTask(publicWorkMadeBy(maker, "user_123")),
+      );
+
+      await expect(rename()).resolves.toMatchObject({ name: "Renamed" });
+      expect(tx.task.update).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each(WORK_MAKERS)(
+    "refuses anyone else a Task made by a %s",
+    async (maker) => {
+      tx.task.findFirst.mockResolvedValue(
+        storedTask(publicWorkMadeBy(maker, "user_other")),
+      );
+
+      await expect(rename()).rejects.toMatchObject({ status: 404 });
+      expect(tx.task.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it("refuses everyone a Task nobody is responsible for", async () => {
+    tx.task.findFirst.mockResolvedValue(
+      storedTask(publicWorkMadeBy("sokoBot", null)),
+    );
+
+    await expect(rename()).rejects.toMatchObject({ status: 404 });
+    expect(tx.task.update).not.toHaveBeenCalled();
   });
 });

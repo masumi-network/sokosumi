@@ -3,7 +3,6 @@ import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
-
 import {
   assertCoworkerUserContextBinding,
   filterAuthorizedOrganizationIds,
@@ -11,6 +10,7 @@ import {
   listAuthorizedUserWorkspaces,
   requireAuthorizedUserContext,
 } from "./coworker-user-context-binding";
+import { buildResponsibleUserWhere } from "./task-visibility";
 
 const {
   resolveWorkspaceForContextMock,
@@ -139,7 +139,7 @@ describe("assertCoworkerUserContextBinding", () => {
     expect(taskFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          ownerId: "user_1",
+          AND: [buildResponsibleUserWhere("user_1")],
           workspaceId: "ws_1",
           archivedAt: null,
           status: { not: TaskStatus.DRAFT },

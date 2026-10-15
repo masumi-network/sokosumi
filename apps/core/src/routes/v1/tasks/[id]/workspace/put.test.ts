@@ -6,6 +6,10 @@ import { errorHandler } from "@/helpers/error-handler.js";
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  publicWorkMadeBy,
+  WORK_MAKERS,
+} from "@/test-fixtures/responsible-work";
 
 import mountPutTaskWorkspace, { putTaskWorkspaceRequestSchema } from "./put";
 
@@ -23,7 +27,6 @@ const {
   jobUpdateManyMock,
   mapTaskMock,
   prismaTransactionMock,
-  requireTaskOwnershipMock,
   requireTaskAssignableCoworkerMock,
   requireTaskAssignableSokoBotMock,
   resolveWorkspaceForContextMock,
@@ -32,6 +35,7 @@ const {
   taskLinkFindFirstMock,
   taskFindUniqueOrThrowMock,
   taskUpdateMock,
+  workspaceFindUniqueMock,
   workspaceFindUniqueOrThrowMock,
 } = vi.hoisted(() => ({
   deliverCalendarInvalidationsNowMock: vi.fn(),
@@ -39,7 +43,6 @@ const {
   jobUpdateManyMock: vi.fn(),
   mapTaskMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  requireTaskOwnershipMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
   requireTaskAssignableSokoBotMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
@@ -48,6 +51,7 @@ const {
   taskLinkFindFirstMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
   taskUpdateMock: vi.fn(),
+  workspaceFindUniqueMock: vi.fn(),
   workspaceFindUniqueOrThrowMock: vi.fn(),
 }));
 
@@ -55,11 +59,15 @@ vi.mock("@/helpers/calendar-invalidation", () => ({
   deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
-vi.mock("@/helpers/access-control", () => ({
-  requireTaskOwnership: requireTaskOwnershipMock,
-  requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
-}));
+vi.mock("@/helpers/access-control", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/access-control")>();
+  return {
+    requireTaskMoveAccess: actual.requireTaskMoveAccess,
+    requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+    requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
+  };
+});
 
 vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
@@ -122,6 +130,7 @@ interface TransactionMock {
     findFirst: ReturnType<typeof vi.fn>;
   };
   workspace: {
+    findUnique?: ReturnType<typeof vi.fn>;
     findUniqueOrThrow: ReturnType<typeof vi.fn>;
   };
 }
@@ -306,14 +315,6 @@ describe("PUT /tasks/{id}/workspace", () => {
 
     const defaultTask = createTaskRecord();
     taskFindFirstMock.mockResolvedValue(defaultTask);
-    requireTaskOwnershipMock.mockImplementation(async () => {
-      const task = await taskFindFirstMock();
-      if (!task) {
-        const { notFound } = await import("@/helpers/error");
-        throw notFound("Task not found");
-      }
-      return task;
-    });
     workspaceFindUniqueOrThrowMock.mockImplementation(async () => {
       const task = await taskFindFirstMock();
       return {
@@ -361,8 +362,12 @@ describe("PUT /tasks/{id}/workspace", () => {
         findFirst: taskLinkFindFirstMock,
       },
       workspace: {
+        findUnique: workspaceFindUniqueMock,
         findUniqueOrThrow: workspaceFindUniqueOrThrowMock,
       },
+    });
+    workspaceFindUniqueMock.mockResolvedValue({
+      organizationId: "org_current",
     });
   });
 
@@ -986,6 +991,95 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  describe("who may move a Task (ADR 0056)", () => {
+    function requestMove(organizationId: string | null = "org_target") {
+      return createApp("org_current").request(
+        "http://localhost/tsk_123/workspace",
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ organizationId }),
+        },
+      );
+    }
+
+    function currentTask(columns: ReturnType<typeof publicWorkMadeBy>) {
+      return { ...createTaskRecord(), ...columns };
+    }
+
+    it.each(WORK_MAKERS)(
+      "lets the responsible person move a Task made by a %s",
+      async (maker) => {
+        taskFindFirstMock.mockResolvedValue(
+          currentTask(publicWorkMadeBy(maker, "user_123")),
+        );
+
+        const response = await requestMove();
+
+        expect(response.status).toBe(200);
+        expect(taskUpdateMock).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it.each(WORK_MAKERS)(
+      "refuses another member a Task made by a %s",
+      async (maker) => {
+        taskFindFirstMock.mockResolvedValue(
+          currentTask(publicWorkMadeBy(maker, "user_other")),
+        );
+
+        const response = await requestMove();
+
+        expect(response.status).toBe(404);
+        expect(taskUpdateMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["owner", "admin"])(
+      "lets an Organization %s move a Task nobody is responsible for",
+      async (role) => {
+        taskFindFirstMock.mockResolvedValue(
+          currentTask(publicWorkMadeBy("sokoBot", null)),
+        );
+        resolveMemberOrganizationByIdMock.mockResolvedValue({
+          organization: { id: "org_current" },
+          role,
+        });
+
+        const response = await requestMove();
+
+        expect(response.status).toBe(200);
+        expect(taskUpdateMock).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it("refuses a plain member a Task nobody is responsible for", async () => {
+      taskFindFirstMock.mockResolvedValue(
+        currentTask(publicWorkMadeBy("sokoBot", null)),
+      );
+
+      const response = await requestMove();
+
+      expect(response.status).toBe(403);
+      expect(taskUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps a Task nobody is responsible for out of a personal workspace", async () => {
+      taskFindFirstMock.mockResolvedValue(
+        currentTask(publicWorkMadeBy("sokoBot", null)),
+      );
+      resolveMemberOrganizationByIdMock.mockResolvedValue({
+        organization: { id: "org_current" },
+        role: "owner",
+      });
+
+      const response = await requestMove(null);
+
+      expect(response.status).toBe(400);
+      expect(taskUpdateMock).not.toHaveBeenCalled();
+    });
   });
 });

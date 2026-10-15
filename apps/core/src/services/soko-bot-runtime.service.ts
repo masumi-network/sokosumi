@@ -105,6 +105,7 @@ import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import {
   buildSokoBotAudienceJobParentTaskWhere,
   buildSokoBotAudienceTaskVisibilityWhere,
+  isResponsibleUser,
   readSokoBotPacketAudience,
   type SokoBotPacketAudience,
 } from "@/helpers/task-visibility";
@@ -2800,6 +2801,8 @@ export class SokoBotRuntimeService {
           id: true,
           name: true,
           ownerId: true,
+          creatorUserId: true,
+          requestedByUserId: true,
           status: true,
           assigneeId: true,
           assigneeSokoBotId: true,
@@ -2840,11 +2843,12 @@ export class SokoBotRuntimeService {
       }
       const cancel =
         input.status === "CANCELED" && task.status !== TaskStatus.CANCELED;
-      // Cancelling stops the work for good, so it is the owner's call and
-      // only on the owner's own Tasks; commenting stays open to any visible one.
-      if (cancel && task.ownerId !== authorized.turn.userId)
+      // Cancelling stops the work for good, so it is the call of the person
+      // responsible for the Task (ADR 0056), and only when that is the person
+      // this bot acts for; commenting stays open to any visible one.
+      if (cancel && !isResponsibleUser(task, authorized.turn.userId))
         throw new SokoBotRuntimeValidationError(
-          "Only the owner's own Tasks can be canceled; comment instead",
+          "Only Tasks the person you act for is responsible for can be canceled; comment instead",
         );
       const changeStatus =
         input.status === "READY" &&
@@ -3410,7 +3414,7 @@ export class SokoBotRuntimeService {
             kind: "soko_bot",
             sokoBotId: authorized.turn.sokoBotId,
           },
-          ownerId: authorized.turn.userId,
+          userId: authorized.turn.userId,
           workspaceId: authorized.turn.workspaceId,
           taskId: input.taskId,
           intent: "metadata",
@@ -3524,7 +3528,7 @@ export class SokoBotRuntimeService {
             kind: "soko_bot",
             sokoBotId: authorized.turn.sokoBotId,
           },
-          ownerId: authorized.turn.userId,
+          userId: authorized.turn.userId,
           workspaceId: authorized.turn.workspaceId,
           taskId: input.taskId,
           intent: "assignment",

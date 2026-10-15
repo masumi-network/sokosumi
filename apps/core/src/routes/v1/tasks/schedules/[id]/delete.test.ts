@@ -1,4 +1,10 @@
+import type { TaskSchedule } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  publicWorkMadeBy,
+  WORK_MAKERS,
+} from "@/test-fixtures/responsible-work";
 
 import {
   MEMBER_ID,
@@ -15,6 +21,13 @@ import {
 } from "@/test-fixtures/task-schedule-app";
 
 import mountDeleteTaskSchedule from "./delete";
+
+const { resolveMemberOrganizationByIdMock } = vi.hoisted(() => ({
+  resolveMemberOrganizationByIdMock: vi.fn(),
+}));
+vi.mock("@/helpers/organization", () => ({
+  resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
+}));
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
@@ -98,5 +111,71 @@ describe("DELETE /tasks/schedules/{id}", () => {
     );
 
     expect(response.status).toBe(404);
+  });
+
+  describe("who may delete a schedule (ADR 0056)", () => {
+    beforeEach(() => {
+      resolveMemberOrganizationByIdMock.mockResolvedValue({
+        organization: { id: "org_123" },
+        role: "member",
+      });
+    });
+
+    function seedPublicSchedule(columns: ReturnType<typeof publicWorkMadeBy>) {
+      // Prisma still types the Owner as required; public work has none.
+      return seedTaskSchedule(columns as unknown as Partial<TaskSchedule>);
+    }
+
+    it.each(WORK_MAKERS)(
+      "lets the responsible person delete a schedule made by a %s",
+      async (maker) => {
+        const schedule = seedPublicSchedule(publicWorkMadeBy(maker, MEMBER_ID));
+
+        const response = await remove(
+          schedule.id,
+          createTaskScheduleTestApp(
+            mountDeleteTaskSchedule,
+            userAuth(MEMBER_ID),
+          ),
+        );
+
+        expect(response.status).toBe(204);
+        expect(taskScheduleTestDb.schedules).toHaveLength(0);
+      },
+    );
+
+    it.each(["owner", "admin"])(
+      "lets an Organization %s delete a schedule nobody is responsible for",
+      async (role) => {
+        const schedule = seedPublicSchedule(publicWorkMadeBy("sokoBot", null));
+        resolveMemberOrganizationByIdMock.mockResolvedValue({
+          organization: { id: "org_123" },
+          role,
+        });
+
+        const response = await remove(
+          schedule.id,
+          createTaskScheduleTestApp(
+            mountDeleteTaskSchedule,
+            userAuth(MEMBER_ID),
+          ),
+        );
+
+        expect(response.status).toBe(204);
+        expect(taskScheduleTestDb.schedules).toHaveLength(0);
+      },
+    );
+
+    it("refuses a plain member a schedule nobody is responsible for", async () => {
+      const schedule = seedPublicSchedule(publicWorkMadeBy("person", null));
+
+      const response = await remove(
+        schedule.id,
+        createTaskScheduleTestApp(mountDeleteTaskSchedule, userAuth(MEMBER_ID)),
+      );
+
+      expect(response.status).toBe(403);
+      expect(taskScheduleTestDb.schedules).toHaveLength(1);
+    });
   });
 });
