@@ -1010,17 +1010,23 @@ struct DirectRoomAvatarStack: View {
     } else {
       HStack(spacing: -Self.overlap) {
         ForEach(participants.enumerated(), id: \.element.id) { index, participant in
+          // Web's `border-sidebar` ring: the face sits 1 pt inside its frame,
+          // and the frame is cut out of the face under it, since a Mac sidebar
+          // has no single colour to paint the ring in. Dimmed, the cut fades
+          // with the face, as web's border does.
           ParticipantAvatar(
             imageURL: participant.imageURL,
             name: participant.name,
-            size: Self.faceSize
+            size: Self.faceSize - 2
           )
-          .overlay {
-            Circle()
-              .strokeBorder(.background, lineWidth: 1)
-          }
+          .padding(1)
           .grayscale(isDimmed ? 1 : 0)
           .opacity(isDimmed ? 0.5 : 1)
+          // Outside the grayscale, whose layer would keep the cut to this face.
+          .background {
+            Circle().fill(.black).blendMode(.destinationOut)
+              .opacity(isDimmed ? 0.5 : 1)
+          }
           .overlay(alignment: .bottomTrailing) {
             if showsPresence {
               PresenceDot(presence: presence(for: participant), size: Self.markSize).offset(x: 2, y: 2)
@@ -1029,6 +1035,8 @@ struct DirectRoomAvatarStack: View {
           .zIndex(Double(participants.count - index))
         }
       }
+      // Bounds the rings' and marks' knockouts to the faces.
+      .compositingGroup()
     }
   }
 
