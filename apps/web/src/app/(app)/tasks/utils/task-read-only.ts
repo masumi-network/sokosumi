@@ -108,12 +108,19 @@ export function canCommentOnTaskForViewer(
 }
 
 /**
- * Organization workspace collaborators may cancel without owning the task,
- * even without an assigned seat. Other mutations use
+ * The owner may always cancel their own task. Organization workspace
+ * collaborators may cancel without owning the task, given an assigned seat
+ * (mirrors Core `requireTaskWriteAccess`). Other mutations use
  * {@link isReadOnlyForViewer}.
  */
 export function canCancelTaskForViewer(
   params: OrgCollaboratorViewerParams,
 ): boolean {
+  if (
+    params.sessionUserId !== params.taskOwnerId &&
+    params.hasAssignedSeat !== true
+  ) {
+    return false;
+  }
   return canOrgCollaboratorActOnTaskForViewer(params);
 }

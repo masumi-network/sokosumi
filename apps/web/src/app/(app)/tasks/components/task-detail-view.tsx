@@ -645,6 +645,7 @@ async function TaskDetailActionsSlot({
     sessionUserId: session?.user.id,
     forceReadOnly,
     taskStatus: task.status,
+    hasAssignedSeat,
   });
   const personalWorkspaceMoveLabel =
     session?.user?.name?.trim() ||
