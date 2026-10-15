@@ -257,6 +257,17 @@ describe("loadWorkspaceCalendarPage", () => {
     expect(result.currentUserId).toBe("user-1");
   });
 
+  it("reads the old owned scope of a saved URL as mine", async () => {
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({ date: "2026-06-18", scope: "owned" }),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ scope: "mine" }),
+    );
+    expect(result.calendarKey).toContain("-mine-");
+  });
+
   it("loads the route Project Calendar and ignores query project/source filters", async () => {
     const result = await loadWorkspaceCalendarPage({
       projectId: PROJECT.id,

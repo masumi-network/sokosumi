@@ -27,6 +27,7 @@ import {
 } from "@/lib/services/task.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import { readWorkScopeParam } from "@/lib/utils/work-scope";
 
 export interface CalendarPageSearchParams {
   assigneeId?: string;
@@ -137,7 +138,8 @@ export async function loadWorkspaceCalendarPage({
       params.timezone,
     );
   const activeOrganizationId = session?.session?.activeOrganizationId ?? null;
-  const scope = params.scope === "mine" ? "mine" : "workspace";
+  const scope =
+    readWorkScopeParam(params.scope ?? "") === "mine" ? "mine" : "workspace";
   const latestDate = format(latestCalendarDate, "yyyy-MM-dd");
 
   if (routeProjectId) {
@@ -170,7 +172,7 @@ export async function loadWorkspaceCalendarPage({
       includeSocialPosts,
       currentUserId: session?.user?.id ?? null,
       workspaceId: project.workspaceId,
-      calendarKey: `${project.id}-${initialDate}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}-${params.view ?? "all"}`,
+      calendarKey: `${project.id}-${initialDate}-${scope}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}-${params.view ?? "all"}`,
       coworkerOptions,
       initialDate,
       items,
@@ -222,7 +224,7 @@ export async function loadWorkspaceCalendarPage({
     includeSocialPosts,
     currentUserId: session?.user?.id ?? null,
     workspaceId,
-    calendarKey: `${initialDate}-${params.projectId ?? "all"}-${params.sourceId ?? "all"}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}-${params.view ?? "all"}`,
+    calendarKey: `${initialDate}-${params.projectId ?? "all"}-${params.sourceId ?? "all"}-${scope}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}-${params.view ?? "all"}`,
     coworkerOptions,
     initialDate,
     items,

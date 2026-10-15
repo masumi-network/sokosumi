@@ -1,4 +1,5 @@
 import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
+import { readWorkScopeParam } from "@/lib/utils/work-scope";
 
 export const TASKS_SCOPE_VALUES = ["mine", "workspace"] as const;
 
@@ -148,7 +149,7 @@ export function sanitizeTasksScopeInput(
   if (typeof raw !== "string") {
     return defaultScope;
   }
-  const requestedScope = raw.trim();
+  const requestedScope = readWorkScopeParam(raw);
   if (
     !requestedScope ||
     !TASKS_SCOPE_VALUES.includes(requestedScope as TasksScope)

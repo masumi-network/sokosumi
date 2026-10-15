@@ -968,6 +968,29 @@ describe("WorkspaceCalendar", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("loads more of a saved owned-scope URL as mine", async () => {
+    getProjectCalendarMock.mockResolvedValueOnce({
+      data: [{ ...ITEMS[0], id: "later", taskName: "Later task" }],
+      meta: { pagination: { nextCursor: null } },
+    });
+    render(
+      <NuqsTestingAdapter searchParams="?view=agenda&timezone=UTC&scope=owned">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={ITEMS}
+          lockedProjectId="project-1"
+          {...CALENDAR_PAGE}
+        />
+      </NuqsTestingAdapter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "agenda.loadMore" }));
+    await screen.findByText("Later task");
+    expect(getProjectCalendarMock).toHaveBeenLastCalledWith(
+      "project-1",
+      expect.objectContaining({ scope: "mine" }),
+    );
+  });
+
   it("keeps loaded agenda items on failure and retries with the project and filters", async () => {
     getProjectCalendarMock
       .mockRejectedValueOnce(new Error("offline"))

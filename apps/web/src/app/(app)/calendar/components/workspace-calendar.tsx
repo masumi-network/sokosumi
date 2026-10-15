@@ -41,6 +41,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
+  createParser,
   parseAsBoolean,
   parseAsString,
   parseAsStringEnum,
@@ -97,6 +98,7 @@ import {
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import { cn } from "@/lib/utils";
 import { schedulableRunAtLocalIso } from "@/lib/utils/task-schedule";
+import { readWorkScopeParam } from "@/lib/utils/work-scope";
 import {
   type ChangeableRun,
   changeRun,
@@ -200,13 +202,22 @@ interface WorkspaceCalendarProps {
   workspaceId?: string | null;
 }
 
+/** `scope`, reading a saved URL's old `owned` as `mine`. */
+const parseAsCalendarScope = createParser<"mine" | "workspace">({
+  parse: (value) => {
+    const scope = readWorkScopeParam(value);
+    return scope === "mine" || scope === "workspace" ? scope : null;
+  },
+  serialize: (scope) => scope,
+});
+
 const calendarParsers = {
   assigneeId: parseAsString,
   assigneeUserId: parseAsString,
   date: parseAsString,
   projectId: parseAsString,
   sourceId: parseAsString,
-  scope: parseAsStringLiteral(["mine", "workspace"]).withDefault("workspace"),
+  scope: parseAsCalendarScope.withDefault("workspace"),
   socialOnly: parseAsBoolean.withDefault(false),
   status: parseAsStringEnum<TaskStatusValue>(CALENDAR_STATUSES),
   postStatus:

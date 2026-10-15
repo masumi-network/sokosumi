@@ -71,6 +71,12 @@ describe("tasks-filters", () => {
       expect(sanitizeTasksScopeInput("workspace", "org-1")).toBe("workspace");
       expect(sanitizeTasksScopeInput("workspace", null)).toBe("mine");
     });
+
+    it("reads the old owned scope of a saved URL as mine", () => {
+      expect(sanitizeTasksScopeInput("owned", "org-1")).toBe("mine");
+      expect(sanitizeTasksScopeInput(" owned ", null)).toBe("mine");
+      expect(parseTasksFilters({ scope: "owned" }, "org-1").scope).toBe("mine");
+    });
   });
 
   describe("sanitizeTasksStatusInput", () => {
