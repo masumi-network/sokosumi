@@ -115,6 +115,25 @@ describe("notifyTaskParticipantsAdded", () => {
     );
   });
 
+  /**
+   * A Requester is added as a Task participant when the work is made
+   * (ADR 0056), so the participant alert is how they hear. No special case.
+   */
+  it("alerts a Requester through their Task participant row", async () => {
+    prismaTaskFindFirstMock.mockResolvedValue(
+      taskWithParticipants(["user_asker"]),
+    );
+
+    await notifyTaskParticipantsAdded("task_1", "event_1", ["user_asker"]);
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_asker",
+        messageKey: "Notifications.Task.participantAdded",
+      }),
+    );
+  });
+
   it("keeps alerting the rest when one user's notification fails", async () => {
     prismaTaskFindFirstMock.mockResolvedValue(
       taskWithParticipants(["user_a", "user_b"]),
@@ -418,6 +437,161 @@ describe("dispatchTaskNotification", () => {
   });
 });
 
+describe("dispatchTaskNotification: the responsible person", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    createNotificationMock.mockResolvedValue({});
+    markSettledAttentionReadMock.mockResolvedValue(0);
+    prismaTaskParticipantFindManyMock.mockResolvedValue([]);
+  });
+
+  // No Owner: public work, which has none (ADR 0056).
+  const PUBLIC_TASK = {
+    id: "task_1",
+    ownerId: null,
+    creatorUserId: null,
+    creatorCoworkerId: null,
+    creatorSokoBotId: null,
+    requestedByUserId: null,
+    assigneeUserId: null,
+    name: "Launch",
+    assignee: null,
+    assigneeSokoBot: null,
+    project: null,
+    projectId: null,
+    workspaceId: null,
+  };
+
+  function notifiedUserIds(): unknown[] {
+    return createNotificationMock.mock.calls.map(([n]) => n.userId);
+  }
+
+  it("tells the person who made a public Task when it fails", async () => {
+    await dispatchTaskNotification(
+      { ...PUBLIC_TASK, creatorUserId: "user_maker" },
+      "event_1",
+      "FAILED",
+      null,
+    );
+
+    expect(notifiedUserIds()).toEqual(["user_maker"]);
+  });
+
+  it("tells the Requester when a Coworker made the Task for them", async () => {
+    await dispatchTaskNotification(
+      {
+        ...PUBLIC_TASK,
+        creatorCoworkerId: "coworker_1",
+        requestedByUserId: "user_asker",
+      },
+      "event_1",
+      "INPUT_REQUIRED",
+      null,
+    );
+
+    expect(notifiedUserIds()).toEqual(["user_asker"]);
+  });
+
+  it("tells the Requester when a Soko Bot made the Task for them", async () => {
+    await dispatchTaskNotification(
+      {
+        ...PUBLIC_TASK,
+        creatorSokoBotId: "bot_1",
+        requestedByUserId: "user_asker",
+      },
+      "event_1",
+      "COMPLETED",
+      null,
+    );
+
+    expect(notifiedUserIds()).toEqual(["user_asker"]);
+  });
+
+  it("prefers the Owner over the Creator and the Requester", async () => {
+    await dispatchTaskNotification(
+      {
+        ...PUBLIC_TASK,
+        ownerId: "user_owner",
+        creatorUserId: "user_maker",
+        requestedByUserId: "user_asker",
+      },
+      "event_1",
+      "COMPLETED",
+      null,
+    );
+
+    expect(notifiedUserIds()).toEqual(["user_owner"]);
+  });
+
+  it("stays quiet for the responsible person who made the change", async () => {
+    await dispatchTaskNotification(
+      { ...PUBLIC_TASK, creatorUserId: "user_maker" },
+      "event_1",
+      "CANCELED",
+      "user_maker",
+    );
+
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("tells the responsible person when someone else made the change", async () => {
+    await dispatchTaskNotification(
+      { ...PUBLIC_TASK, requestedByUserId: "user_asker" },
+      "event_1",
+      "CANCELED",
+      "user_other",
+    );
+
+    expect(notifiedUserIds()).toEqual(["user_asker"]);
+  });
+
+  it("notifies nobody for work nobody is responsible for", async () => {
+    await dispatchTaskNotification(
+      { ...PUBLIC_TASK, creatorSokoBotId: "bot_1", assigneeUserId: "user_2" },
+      "event_1",
+      "FAILED",
+      null,
+    );
+
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("still clears the assignee's rows when nobody is responsible", async () => {
+    await dispatchTaskNotification(
+      { ...PUBLIC_TASK, creatorSokoBotId: "bot_1", assigneeUserId: "user_2" },
+      "event_1",
+      "COMPLETED",
+      null,
+    );
+
+    expect(markSettledAttentionReadMock).toHaveBeenCalledTimes(1);
+    expect(markSettledAttentionReadMock).toHaveBeenCalledWith(
+      "user_2",
+      "TASK",
+      "task_1",
+      "Notifications.Task.completed",
+    );
+  });
+
+  it("clears run attention for the Requester and the assignee on resume", async () => {
+    await dispatchTaskNotification(
+      {
+        ...PUBLIC_TASK,
+        creatorCoworkerId: "coworker_1",
+        requestedByUserId: "user_asker",
+        assigneeUserId: "user_2",
+      },
+      "event_resume",
+      "RUNNING",
+      null,
+    );
+
+    expect(
+      markAttentionReadMock.mock.calls.map(([readerId]) => readerId),
+    ).toEqual(["user_asker", "user_2"]);
+  });
+});
+
 describe("notifyTaskStatusEvent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -461,6 +635,17 @@ describe("notifyTaskStatusEvent", () => {
         throwOnError: true,
       }),
     ).rejects.toBe(failure);
+  });
+
+  it("loads every column that decides who is responsible", async () => {
+    await notifyTaskStatusEvent("task_1", "event_1", "CANCELED", null);
+
+    const select = prismaTaskFindUniqueMock.mock.calls[0]?.[0].select;
+    expect(select).toMatchObject({
+      ownerId: true,
+      creatorUserId: true,
+      requestedByUserId: true,
+    });
   });
 
   /** Agents write events with no `userId`, so the owner still hears. */
@@ -631,5 +816,34 @@ describe("markTaskArchivedRead", () => {
     await markTaskArchivedRead({ ...ARCHIVED_TASK, assigneeUserId: "user_1" });
 
     expect(markAttentionReadMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("follows the Requester when nobody owns the Task", async () => {
+    await markTaskArchivedRead({
+      id: "task_1",
+      ownerId: null,
+      creatorCoworkerId: "coworker_1",
+      requestedByUserId: "user_asker",
+      assigneeUserId: "user_2",
+    });
+
+    expect(
+      markAttentionReadMock.mock.calls.map(([readerId]) => readerId),
+    ).toEqual(["user_asker", "user_2"]);
+  });
+
+  it("marks only the assignee's and the participants' rows when nobody is responsible", async () => {
+    prismaTaskParticipantFindManyMock.mockResolvedValue([{ userId: "user_3" }]);
+
+    await markTaskArchivedRead({
+      id: "task_1",
+      ownerId: null,
+      creatorSokoBotId: "bot_1",
+      assigneeUserId: "user_2",
+    });
+
+    expect(
+      markAttentionReadMock.mock.calls.map(([readerId]) => readerId),
+    ).toEqual(["user_2", "user_3"]);
   });
 });

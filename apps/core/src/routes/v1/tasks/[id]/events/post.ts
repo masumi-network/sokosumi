@@ -53,6 +53,7 @@ import {
 } from "@/helpers/task-notifications";
 import { addTaskParticipantsFromComment } from "@/helpers/task-participants";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
+import { resolveResponsibleUserId } from "@/helpers/task-visibility";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -512,6 +513,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         organizationId: task.organizationId,
         workspaceId: task.workspaceId,
         projectId: task.projectId,
+        responsibleUserId: resolveResponsibleUserId(task),
         masumiPayment: payment,
         taskPaymentClaimId,
         pausedForInsufficientBalance,
@@ -535,6 +537,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       organizationId,
       workspaceId,
       projectId,
+      responsibleUserId,
       masumiPayment,
       taskPaymentClaimId,
       pausedForInsufficientBalance,
@@ -703,7 +706,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       waitUntil(masumiPurchasePromise);
     }
 
-    const taskIdsToPublish = [{ userId, taskId }];
+    // Live updates go to the responsible person; nobody's work has no one.
+    const taskIdsToPublish = responsibleUserId
+      ? [{ userId: responsibleUserId, taskId }]
+      : [];
 
     await Promise.all(
       taskIdsToPublish.map(
