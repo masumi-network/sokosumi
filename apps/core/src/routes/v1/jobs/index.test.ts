@@ -35,7 +35,7 @@ describe("jobs routes OpenAPI scope contract", () => {
     });
 
     expect(getScopeDescriptionFromGetOperation(doc, "/")).toContain(
-      "workspace visibility scope",
+      "'owned': Deprecated. Use mine.",
     );
     expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).toBe("");
   });

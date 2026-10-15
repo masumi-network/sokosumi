@@ -1,7 +1,12 @@
 import { TaskStatus } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  buildResponsibleUserSql,
+  buildResponsibleUserWhere,
+} from "@/helpers/task-visibility";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -191,24 +196,46 @@ describe("GET /tasks/summary", () => {
     expect(queryRawMock).toHaveBeenCalledTimes(2);
   });
 
-  it("scopes owned counts to the caller and zeroes teammates in personal workspace", async () => {
-    taskCountMock.mockResolvedValue(1);
+  it.each(["mine", "owned"])(
+    "scopes scope=%s counts to the responsible user and zeroes teammates in personal workspace",
+    async (scope) => {
+      taskCountMock.mockResolvedValue(1);
 
+      const app = createApp(USER_AUTH_CONTEXT, PERSONAL_WORKSPACE);
+      const response = await app.request(
+        `http://localhost/summary?scope=${scope}`,
+      );
+      expect(response.status).toBe(200);
+
+      const data = await parseSummary(response);
+      expect(data.createdByOtherHumans).toBe(0);
+      // completed + awaiting + previous completed (no teammates queries)
+      expect(taskCountMock).toHaveBeenCalledTimes(3);
+      expect(taskCountMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            AND: [buildResponsibleUserWhere("user_123")],
+            workspaceId: PERSONAL_WORKSPACE.workspaceId,
+          }),
+        }),
+      );
+      // The worked-minutes query is narrowed the same way.
+      expect(queryRawMock.mock.calls[0]).toContainEqual(
+        PrismaRaw.sql`AND ${buildResponsibleUserSql("user_123")}`,
+      );
+    },
+  );
+
+  it("counts the whole workspace for scope=workspace", async () => {
     const app = createApp(USER_AUTH_CONTEXT, PERSONAL_WORKSPACE);
-    const response = await app.request("http://localhost/summary?scope=owned");
+    const response = await app.request(
+      "http://localhost/summary?scope=workspace",
+    );
     expect(response.status).toBe(200);
 
-    const data = await parseSummary(response);
-    expect(data.createdByOtherHumans).toBe(0);
-    // completed + awaiting + previous completed (no teammates queries)
-    expect(taskCountMock).toHaveBeenCalledTimes(3);
-    expect(taskCountMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          ownerId: "user_123",
-          workspaceId: PERSONAL_WORKSPACE.workspaceId,
-        }),
-      }),
+    expect(taskCountMock.mock.calls[0]?.[0].where).not.toHaveProperty("AND");
+    expect(queryRawMock.mock.calls[0]).not.toContainEqual(
+      PrismaRaw.sql`AND ${buildResponsibleUserSql("user_123")}`,
     );
   });
 

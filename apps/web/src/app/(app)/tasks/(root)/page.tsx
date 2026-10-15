@@ -380,7 +380,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
             emptyResults: t("Filters.emptyResults"),
             all: t("Filters.all"),
             scopeLabel: t("Filters.scopeLabel"),
-            scopeOwned: t("Filters.scopeOwned"),
+            scopeMine: t("Filters.scopeMine"),
             scopeWorkspace: t("Filters.scopeWorkspace"),
             coworkerLabel: t("Filters.coworkerLabel"),
             statusLabel: t("Filters.statusLabel"),

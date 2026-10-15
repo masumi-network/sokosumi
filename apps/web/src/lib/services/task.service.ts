@@ -26,7 +26,7 @@ interface ListTasksParams {
   assigneeUserId?: string;
   projectId?: string;
   q?: string;
-  scope?: "workspace" | "owned";
+  scope?: "workspace" | "mine";
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
@@ -444,11 +444,11 @@ export const taskService = (() => {
    * (`max(Session.updatedAt)`); this helper does not stamp anything.
    */
   async function getActivitySummary(params: {
-    scope?: "owned" | "workspace";
+    scope?: "mine" | "workspace";
   }): Promise<TaskActivitySummary | null> {
     try {
       const result = await coreClient.getTasksSummary({
-        scope: params.scope ?? "owned",
+        scope: params.scope ?? "mine",
       });
 
       return result.data ?? null;

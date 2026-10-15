@@ -137,7 +137,7 @@ export async function loadWorkspaceCalendarPage({
       params.timezone,
     );
   const activeOrganizationId = session?.session?.activeOrganizationId ?? null;
-  const scope = params.scope === "owned" ? "owned" : "workspace";
+  const scope = params.scope === "mine" ? "mine" : "workspace";
   const latestDate = format(latestCalendarDate, "yyyy-MM-dd");
 
   if (routeProjectId) {

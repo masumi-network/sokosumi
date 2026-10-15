@@ -11,6 +11,7 @@ import { dateTimeSchema } from "@/helpers/datetime";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostProviderSchema } from "@/schemas/social-post.schema";
+import { workScopeQuerySchema } from "@/schemas/work-scope.schema";
 
 const workspaceCalendarQueryObjectSchema = z.object({
   from: z.iso.datetime().openapi({
@@ -32,9 +33,9 @@ const workspaceCalendarQueryObjectSchema = z.object({
     description:
       "Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.",
   }),
-  scope: z.enum(["owned", "workspace"]).default("workspace").openapi({
-    description: "Whether to show only the caller's tasks or the workspace",
-    example: "workspace",
+  scope: workScopeQuerySchema({
+    defaultScope: "workspace",
+    description: "Whether to show only the work you are responsible for.",
   }),
   assigneeId: z.uuid().optional().openapi({
     description: "Only items whose Task Schedule or Task has this coworker",

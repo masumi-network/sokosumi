@@ -47,7 +47,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     taskService.getActivitySummary({
       // In an org the greeting talks about the team, so count the whole
       // workspace rather than only the caller's own tasks.
-      scope: activeOrganizationId ? "workspace" : "owned",
+      scope: activeOrganizationId ? "workspace" : "mine",
     }),
   ]);
   const coworkers = coworkerRows.map(mapDbCoworkerToChatCoworker);

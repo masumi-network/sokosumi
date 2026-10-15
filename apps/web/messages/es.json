@@ -1692,7 +1692,7 @@
         "emptyResults": "No se encontraron resultados.",
         "all": "Todas",
         "scopeLabel": "Ámbito",
-        "scopeOwned": "Mis tareas",
+        "scopeMine": "Mis tareas",
         "scopeWorkspace": "Espacio de trabajo",
         "coworkerLabel": "Coworker",
         "humanLabel": "Humano",

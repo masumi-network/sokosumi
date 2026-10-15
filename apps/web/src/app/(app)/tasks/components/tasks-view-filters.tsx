@@ -27,7 +27,7 @@ interface TasksViewFiltersProps {
     emptyResults: string;
     all: string;
     scopeLabel: string;
-    scopeOwned: string;
+    scopeMine: string;
     scopeWorkspace: string;
     coworkerLabel: string;
     statusLabel: string;
@@ -115,8 +115,8 @@ export function TasksViewFilters({
             label: labels.scopeWorkspace,
           },
           {
-            value: "owned",
-            label: labels.scopeOwned,
+            value: "mine",
+            label: labels.scopeMine,
           },
         ],
       });
@@ -212,7 +212,7 @@ export function TasksViewFilters({
     labels.all,
     labels.coworkerLabel,
     labels.scopeLabel,
-    labels.scopeOwned,
+    labels.scopeMine,
     labels.scopeWorkspace,
     labels.statusLabel,
     labels.statusOptions,
