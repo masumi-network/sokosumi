@@ -81,13 +81,17 @@ struct ServerChoice: Equatable {
 
   /// Typed input: both must be http(s) URLs with a host. A Core URL without a
   /// path gets `/v1`, because a bare origin 404s every request into the Update screen.
+  /// The web URL keeps only its origin: setup and sign-up links append to it.
   init?(core: String, web: String) {
-    guard var core = Self.components(core), let web = Self.components(web)?.url else { return nil }
+    guard var core = Self.components(core), var web = Self.components(web) else { return nil }
     if core.path.isEmpty || core.path == "/" {
       core.path = "/v1"
     }
-    guard let coreURL = core.url else { return nil }
-    self.init(core: coreURL, web: web)
+    web.path = ""
+    web.query = nil
+    web.fragment = nil
+    guard let coreURL = core.url, let webURL = web.url else { return nil }
+    self.init(core: coreURL, web: webURL)
   }
 
   private static let defaultsKey = "sokosumi.server-choice.v1"

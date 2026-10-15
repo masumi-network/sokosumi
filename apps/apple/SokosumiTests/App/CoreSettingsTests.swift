@@ -12,6 +12,14 @@ struct CoreSettingsTests {
     #expect(ServerChoice(core: "https://api.sokosumi.com/", web: "https://app.sokosumi.com") == .production)
   }
 
+  /// Sign-up and setup links append to the web origin, so a pasted page URL keeps only its origin.
+  @Test func choiceKeepsOnlyTheWebOrigin() throws {
+    let pasted = try #require(ServerChoice(core: "https://core.preview.example/v1",
+                                           web: "https://web.preview.example:8443/chat/rooms?message=1#top"))
+    #expect(pasted.web.absoluteString == "https://web.preview.example:8443")
+    #expect(CoreSettings.signUpURL(from: pasted.web).absoluteString == "https://web.preview.example:8443/signup")
+  }
+
   @Test(arguments: [
     ("", "https://app.sokosumi.com"),
     ("api.sokosumi.com/v1", "https://app.sokosumi.com"),
