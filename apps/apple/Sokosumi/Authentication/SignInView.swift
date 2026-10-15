@@ -35,6 +35,9 @@ struct SignInView: View {
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
         Link("Create an account on the website", destination: CoreSettings.signUpURL)
+        #if DEBUG
+          ServerChoiceSection()
+        #endif
       case .signingIn:
         ProgressView("Contacting Sokosumi…")
         Button("Cancel") {
