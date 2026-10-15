@@ -2434,10 +2434,14 @@
       },
       "SocialPosts": {
         "loadMore": "Mehr laden",
+        "loadMoreError": "Mehr konnte nicht geladen werden.",
+        "loadMoreOffline": "Du bist offline.",
+        "loadMoreTimeout": "Zeitüberschreitung.",
         "loading": "Wird geladen…",
         "title": "Social-Media-Beiträge",
         "newPost": "Neuer Beitrag",
-        "moreActions": "Beitragsaktionen",
+        "moreActionsNamed": "Beitragsaktionen für {handle}",
+        "thisDraft": "diesen Entwurf",
         "noAccount": "Kein Konto",
         "outcomes": {
           "authorizationRevoked": "Der Planungszugriff des Coworkers wurde widerrufen. Plane diesen Beitrag neu, um ihn zu veröffentlichen.",
@@ -2461,8 +2465,12 @@
           "accounts": "Konten",
           "statistics": "Leistung"
         },
+        "filters": {
+          "platform": "Plattform"
+        },
         "empty": {
-          "drafts": "Noch keine Entwürfe."
+          "drafts": "Noch keine Entwürfe.",
+          "more": "Weitere Beiträge sind verfügbar."
         },
         "emptyHint": {
           "drafts": "Speichere einen Beitrag als Entwurf, um ihn später fertigzustellen."
@@ -2588,6 +2596,7 @@
           "failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
           "offline": "Du bist offline. Versuche es erneut.",
           "timeout": "Zeitüberschreitung. Versuche es erneut.",
+          "missingPost": "Beitrag konnte nicht geöffnet werden.",
           "unauthenticated": "Melde dich an, um fortzufahren.",
           "unauthenticatedAction": "Anmelden",
           "published": "Beitrag veröffentlicht.",
@@ -2616,6 +2625,17 @@
           "description": "Der Beitrag wird jetzt veröffentlicht.",
           "confirm": "Erneut versuchen"
         },
+        "bulkRetry": {
+          "selectPost": "Diesen Beitrag auswählen",
+          "selectAll": "Alle erneut versuchbaren Beiträge auswählen",
+          "selected": "{count} ausgewählt",
+          "retrySelected": "Auswahl erneut versuchen",
+          "title": "Diese Beiträge jetzt erneut versuchen?",
+          "description": "Jeder ausgewählte Beitrag wird sofort veröffentlicht. Du siehst danach, welche veröffentlicht wurden und welche noch Aufmerksamkeit brauchen.",
+          "confirm": "Auswahl erneut versuchen",
+          "resultsTitle": "Ergebnis",
+          "published": "Veröffentlicht"
+        },
         "connectPrompt": {
           "title": "Verbinde ein Konto, um zu posten",
           "body": "Beiträge gehen von den Konten dieses Projekts.",
@@ -2631,6 +2651,7 @@
           "now": "jetzt",
           "accountFallback": "Dein Konto",
           "open": "Vorschau",
+          "openNamed": "Vorschau für {handle}",
           "accounts": "Vorschaukonto",
           "as": "Vorschau als {provider} {handle}",
           "dialogTitle": "Beitragsvorschau",
@@ -2665,6 +2686,9 @@
           "tiktok": {
             "more": "mehr",
             "videoRequired": "TikTok braucht ein Video."
+          },
+          "x": {
+            "more": "Mehr anzeigen"
           }
         },
         "statistics": {
@@ -3645,6 +3669,10 @@
       "accountsNeedProject": {
         "title": "Verbinde deine Social-Media-Konten",
         "body": "Verwalte deine Kanäle an einem Ort. Wähle ein Projekt, um Konten zu verbinden und Beiträge zu entwerfen, zu planen und zu veröffentlichen."
+      },
+      "attentionNeedProject": {
+        "title": "Braucht Aufmerksamkeit",
+        "body": "Wähle ein Projekt, um fehlgeschlagene oder verpasste Beiträge zu sehen."
       },
       "draftsNeedProject": {
         "title": "Entwürfe",
@@ -8071,7 +8099,8 @@
         "scheduledBy": "Geplant von {name}",
         "unknownScheduler": "unbekanntem Nutzer",
         "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}",
-        "compactLabel": "{media, select, image {{count, plural, one {{provider}-Post mit Bild} other {{provider}-Post mit # Bildern}}} gif {{provider}-Post mit GIF} video {{provider}-Post mit Video} other {{provider}-Post}}"
+        "compactLabel": "{media, select, image {{count, plural, one {{provider}-Post mit Bild} other {{provider}-Post mit # Bildern}}} gif {{provider}-Post mit GIF} video {{provider}-Post mit Video} other {{provider}-Post}}",
+        "platform": "Plattform"
       },
       "socialOnly": {
         "label": "Nur Social-Beiträge"
