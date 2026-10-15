@@ -1,7 +1,7 @@
 /** Playwright capture page for Social draft-row account labels. */
 import { NextIntlClientProvider } from "next-intl";
 import { createRoot } from "react-dom/client";
-import { socialPostAccountLabel } from "@/app/projects/components/social-posts/social-post-account-label";
+import { accountChipLabel } from "@/app/projects/components/social-posts/social-post-account-chip-label";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { useMountEffect } from "@/hooks/use-mount-effect";
@@ -18,7 +18,7 @@ export function RowDisplayNamePage() {
     document.body.dataset.hydrated = "true";
   });
 
-  const accountLabel = socialPostAccountLabel(CONNECTION, "No account");
+  const accountLabel = accountChipLabel(CONNECTION, "No account");
 
   return (
     <NextIntlClientProvider

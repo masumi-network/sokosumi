@@ -88,7 +88,7 @@ import {
   SOCIAL_TABS_LIST_CLASS_NAME,
   type SocialTab,
 } from "./constants";
-import { socialPostAccountLabel } from "./social-post-account-label";
+import { accountChipLabel } from "./social-post-account-chip-label";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
@@ -848,7 +848,7 @@ export function ProjectSocialPosts({
   }
 
   function renderPost(post: SocialPost) {
-    const accountLabel = socialPostAccountLabel(
+    const accountLabel = accountChipLabel(
       post.socialConnection,
       t("noAccount"),
     );
