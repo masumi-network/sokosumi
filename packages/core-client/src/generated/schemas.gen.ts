@@ -5636,7 +5636,19 @@ export const AdminTaskListItemSchema = {
                     type: 'null'
                 }
             ],
-            description: 'The person responsible for the task; null only when nobody is responsible for the work.'
+            description: 'The person responsible for the task, with their email address; null only when nobody is responsible for the work.'
+        },
+        responsibleUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
         },
         organization: {
             type: [
@@ -5670,6 +5682,7 @@ export const AdminTaskListItemSchema = {
         'status',
         'createdAt',
         'owner',
+        'responsibleUserId',
         'organization'
     ]
 } as const;
@@ -5729,7 +5742,7 @@ export const AdminTaskDetailSchema = {
                     type: 'null'
                 }
             ],
-            description: 'The person responsible for the task; null only when nobody is responsible for the work.'
+            description: 'The person responsible for the task, with their email address; null only when nobody is responsible for the work.'
         },
         organization: {
             type: [
@@ -12651,7 +12664,19 @@ export const DeveloperTaskListItemSchema = {
                     type: 'null'
                 }
             ],
-            description: 'The person responsible for the task; null only when nobody is responsible for the work.'
+            description: 'The person responsible for the task, with their email address; null only when nobody is responsible for the work.'
+        },
+        responsibleUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
         },
         organization: {
             type: [
@@ -12688,6 +12713,7 @@ export const DeveloperTaskListItemSchema = {
         'assignee',
         'creatorCoworker',
         'owner',
+        'responsibleUserId',
         'organization'
     ]
 } as const;
@@ -12752,7 +12778,7 @@ export const DeveloperTaskDetailSchema = {
                     type: 'null'
                 }
             ],
-            description: 'The person responsible for the task; null only when nobody is responsible for the work.'
+            description: 'The person responsible for the task, with their email address; null only when nobody is responsible for the work.'
         },
         organization: {
             type: [
@@ -19553,8 +19579,21 @@ export const WorkspaceCalendarItemSchema = {
                     type: 'null'
                 }
             ],
-            description: 'The person responsible for the Task Schedule and the Tasks it creates; null only when nobody is responsible for the work.',
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUserId. The person responsible for the Task Schedule and the Tasks it creates; null only when nobody is responsible for the work.',
             example: 'user_123'
+        },
+        responsibleUserId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
         },
         scheduledAt: {
             type: 'string',
@@ -19618,6 +19657,7 @@ export const WorkspaceCalendarItemSchema = {
         'taskStatus',
         'taskAssigneeId',
         'taskOwnerId',
+        'responsibleUserId',
         'scheduledAt',
         'originalScheduledAt',
         'state',

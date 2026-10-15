@@ -82,6 +82,7 @@ const WEEK_ITEM: WorkspaceCalendarItem = {
   taskStatus: null,
   taskAssigneeId: null,
   taskOwnerId: "user-1",
+  responsibleUserId: "user-1",
   scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
   originalScheduledAt: new Date("2026-08-18T09:00:00.000Z"),
   state: "PLANNED",
@@ -215,8 +216,8 @@ describe("WorkspaceCalendar week layout", () => {
   });
 
   // Two lines of title, then who is on it: the assignee (a coworker or a
-  // member) and the owner who put it on the calendar.
-  it("wraps the title to two lines and shows assignee and owner avatars", () => {
+  // member) and the person responsible for it (`responsibleUserId`).
+  it("wraps the title to two lines and shows assignee and responsible person avatars", () => {
     renderCalendar(
       <NuqsTestingAdapter searchParams="?timezone=UTC">
         <WorkspaceCalendar
@@ -225,7 +226,9 @@ describe("WorkspaceCalendar week layout", () => {
             { id: "coworker-1", kind: "coworker", name: "Scout", image: "" },
           ]}
           initialDate="2026-08-18"
-          items={[{ ...WEEK_ITEM, taskAssigneeId: "coworker-1" }]}
+          items={[
+            { ...WEEK_ITEM, taskAssigneeId: "coworker-1", taskOwnerId: null },
+          ]}
           sources={[WEEK_SOURCE]}
         />
       </NuqsTestingAdapter>,

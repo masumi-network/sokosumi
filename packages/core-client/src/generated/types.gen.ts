@@ -1370,13 +1370,17 @@ export type AdminTaskListItem = {
     status: TaskStatus;
     createdAt: Date;
     /**
-     * The person responsible for the task; null only when nobody is responsible for the work.
+     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
      */
     owner: {
         id: string;
         name: string;
         email: string;
     } | null;
+    /**
+     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
+     */
+    responsibleUserId: string | null;
     organization: {
         id: string;
         name: string;
@@ -1406,7 +1410,7 @@ export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
 export type AdminTaskDetail = {
     task: Task;
     /**
-     * The person responsible for the task; null only when nobody is responsible for the work.
+     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
      */
     owner: {
         id: string;
@@ -3505,13 +3509,17 @@ export type DeveloperTaskListItem = {
     assignee: DeveloperCoworkerRef;
     creatorCoworker: DeveloperCoworkerRef;
     /**
-     * The person responsible for the task; null only when nobody is responsible for the work.
+     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
      */
     owner: {
         id: string;
         name: string;
         email: string;
     } | null;
+    /**
+     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
+     */
+    responsibleUserId: string | null;
     organization: {
         id: string;
         name: string;
@@ -3528,7 +3536,7 @@ export type DeveloperCoworkerRef = {
 export type DeveloperTaskDetail = {
     task: Task;
     /**
-     * The person responsible for the task; null only when nobody is responsible for the work.
+     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
      */
     owner: {
         id: string;
@@ -5719,9 +5727,15 @@ export type WorkspaceCalendarItem = {
     taskAssigneeId: string | null;
     taskAssigneeUserId?: string | null;
     /**
-     * The person responsible for the Task Schedule and the Tasks it creates; null only when nobody is responsible for the work.
+     * Deprecated. Use responsibleUserId. The person responsible for the Task Schedule and the Tasks it creates; null only when nobody is responsible for the work.
+     *
+     * @deprecated
      */
     taskOwnerId: string | null;
+    /**
+     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
+     */
+    responsibleUserId: string | null;
     /**
      * Effective time at which the item appears in the Calendar
      */
@@ -60737,7 +60751,7 @@ export type GetTransactionsData = {
          */
         q?: string;
         /**
-         * Which ledger rows to list. mine: only rows the calling user paid for, the responsible person. workspace: every ledger row in the active workspace, including organization-level ones with no user. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
+         * Which ledger rows to list. Defaults to 'mine'. 'mine': transactions charged through you. 'workspace': every transaction in the active workspace, including organization-level ones charged through nobody. 'owned': Deprecated. Use mine.
          */
         scope?: 'workspace' | 'mine' | 'owned';
         /**
@@ -60856,7 +60870,7 @@ export type GetTransactionsDailyData = {
          */
         q?: string;
         /**
-         * Which ledger rows to list. mine: only rows the calling user paid for, the responsible person. workspace: every ledger row in the active workspace, including organization-level ones with no user. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
+         * Which ledger rows to list. Defaults to 'mine'. 'mine': transactions charged through you. 'workspace': every transaction in the active workspace, including organization-level ones charged through nobody. 'owned': Deprecated. Use mine.
          */
         scope?: 'workspace' | 'mine' | 'owned';
         /**
@@ -60975,7 +60989,7 @@ export type GetTransactionsExportData = {
          */
         q?: string;
         /**
-         * Which ledger rows to list. mine: only rows the calling user paid for, the responsible person. workspace: every ledger row in the active workspace, including organization-level ones with no user. Defaults to 'mine'. 'mine': work you are responsible for. 'workspace': all work in the active workspace. 'owned': Deprecated. Use mine.
+         * Which ledger rows to list. Defaults to 'mine'. 'mine': transactions charged through you. 'workspace': every transaction in the active workspace, including organization-level ones charged through nobody. 'owned': Deprecated. Use mine.
          */
         scope?: 'workspace' | 'mine' | 'owned';
         /**

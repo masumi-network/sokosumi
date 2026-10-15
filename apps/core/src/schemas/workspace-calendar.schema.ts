@@ -11,6 +11,7 @@ import { dateTimeSchema } from "@/helpers/datetime";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostProviderSchema } from "@/schemas/social-post.schema";
+import { responsibleUserIdField } from "@/schemas/work-creator.schema";
 import { workScopeQuerySchema } from "@/schemas/work-scope.schema";
 
 const workspaceCalendarQueryObjectSchema = z.object({
@@ -138,11 +139,14 @@ export const workspaceCalendarItemSchema = z
       .nullable()
       .optional()
       .openapi({ example: "user_123" }),
+    /** @deprecated Use `responsibleUserId`. */
     taskOwnerId: z.union([z.string(), z.null()]).openapi({
+      deprecated: true,
       description:
-        "The person responsible for the Task Schedule and the Tasks it creates; null only when nobody is responsible for the work.",
+        "Deprecated. Use responsibleUserId. The person responsible for the Task Schedule and the Tasks it creates; null only when nobody is responsible for the work.",
       example: "user_123",
     }),
+    ...responsibleUserIdField,
     scheduledAt: dateTimeSchema.openapi({
       description: "Effective time at which the item appears in the Calendar",
     }),

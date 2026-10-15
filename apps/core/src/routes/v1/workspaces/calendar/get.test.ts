@@ -282,8 +282,16 @@ describe("GET /workspaces/calendar", () => {
     expect(response.status).toBe(200);
     const { data } = await response.json();
     expect(
-      data.map((item: { taskOwnerId: string | null }) => item.taskOwnerId),
-    ).toEqual(["user_resumer", null]);
+      data.map(
+        (item: {
+          responsibleUserId: string | null;
+          taskOwnerId: string | null;
+        }) => [item.responsibleUserId, item.taskOwnerId],
+      ),
+    ).toEqual([
+      ["user_resumer", "user_resumer"],
+      [null, null],
+    ]);
   });
 
   it("returns an upcoming Task Schedule Run in range", async () => {
@@ -307,6 +315,7 @@ describe("GET /workspaces/calendar", () => {
           taskAssigneeId: "coworker_123",
           taskAssigneeUserId: null,
           taskOwnerId: "user_123",
+          responsibleUserId: "user_123",
           scheduledAt: "2026-06-03T09:00:00.000Z",
           originalScheduledAt: "2026-06-03T09:00:00.000Z",
           state: "PLANNED",
@@ -823,6 +832,7 @@ describe("GET /workspaces/calendar", () => {
         taskAssigneeId: null,
         taskAssigneeUserId: "user_456",
         taskOwnerId: "user_123",
+        responsibleUserId: "user_123",
         scheduledAt: "2026-06-04T08:00:00.000Z",
         originalScheduledAt: null,
         state: "PLANNED",

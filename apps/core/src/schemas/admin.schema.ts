@@ -10,6 +10,10 @@ import {
 } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskSchema } from "@/schemas/task.schema";
+import {
+  responsibleUserIdField,
+  responsibleUserWithEmailSchema,
+} from "@/schemas/work-creator.schema";
 
 /**
  * Lower page-size cap than the global pagination limit: every overview row
@@ -512,22 +516,14 @@ export const adminTaskListQuerySchema = z
       }),
   });
 
-const adminTaskOwnerSchema = z.object({
-  id: z.string().openapi({ example: "user_123" }),
-  name: z.string().openapi({ example: "Ada Lovelace" }),
-  email: z.string().openapi({ example: "ada@example.com" }),
-});
-
 const adminTaskListItemSchema = z
   .object({
     id: z.string().openapi({ example: "0195b9f4-7d35-7a4e-b14e-111111111111" }),
     name: z.string().openapi({ example: "Quarterly report" }),
     status: taskStatusSchema.openapi({ example: TaskStatus.RUNNING }),
     createdAt: dateTimeSchema,
-    owner: z.union([adminTaskOwnerSchema, z.null()]).openapi({
-      description:
-        "The person responsible for the task; null only when nobody is responsible for the work.",
-    }),
+    owner: responsibleUserWithEmailSchema,
+    ...responsibleUserIdField,
     organization: z
       .object({
         id: z.string().openapi({ example: "org_123" }),
@@ -554,10 +550,7 @@ export const adminTaskIdParamSchema = z.object({
 export const adminTaskDetailSchema = z
   .object({
     task: taskSchema,
-    owner: z.union([adminTaskOwnerSchema, z.null()]).openapi({
-      description:
-        "The person responsible for the task; null only when nobody is responsible for the work.",
-    }),
+    owner: responsibleUserWithEmailSchema,
     organization: z
       .object({
         id: z.string().openapi({ example: "org_123" }),

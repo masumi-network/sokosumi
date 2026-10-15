@@ -9,8 +9,12 @@ import { workScopeQuerySchema } from "@/schemas/work-scope.schema";
 
 const scopeQuerySchema = workScopeQuerySchema({
   defaultScope: "mine",
-  description:
-    "Which ledger rows to list. mine: only rows the calling user paid for, the responsible person. workspace: every ledger row in the active workspace, including organization-level ones with no user.",
+  description: "Which ledger rows to list.",
+  meanings: {
+    mine: "transactions charged through you",
+    workspace:
+      "every transaction in the active workspace, including organization-level ones charged through nobody",
+  },
 });
 
 const searchQuerySchema = z

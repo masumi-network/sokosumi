@@ -145,10 +145,10 @@ export interface CalendarCoworker {
 
 interface CalendarPeople {
   assignee: TaskAssigneeView | null;
-  owner: CalendarCoworker | null;
+  responsible: CalendarCoworker | null;
 }
 
-/** Joins an item's assignee and owner ids against the workspace roster. */
+/** Joins an item's assignee and responsible person against the workspace roster. */
 function findCalendarPeople(
   item: WorkspaceCalendarItem,
   coworkers: CalendarCoworker[],
@@ -166,9 +166,9 @@ function findCalendarPeople(
     assignee: assigneeCoworker
       ? { ...assigneeCoworker, kind: assigneeCoworker.kind ?? "coworker" }
       : null,
-    owner:
+    responsible:
       coworkers.find(
-        ({ id, kind }) => kind === "user" && id === item.taskOwnerId,
+        ({ id, kind }) => kind === "user" && id === item.responsibleUserId,
       ) ?? null,
   };
 }
@@ -335,7 +335,7 @@ function CalendarEvent({
   const sourceMarker = (
     <SourceMarker decorative source={source} sourceName={sourceName} />
   );
-  const peopleNames = [people.assignee?.name, people.owner?.name]
+  const peopleNames = [people.assignee?.name, people.responsible?.name]
     .filter((name): name is string => Boolean(name?.trim()))
     .join(", ");
   const peopleStack = peopleNames ? (
@@ -347,11 +347,11 @@ function CalendarEvent({
         title={peopleNames}
       >
         {people.assignee ? <AssigneeAvatar assignee={people.assignee} /> : null}
-        {people.owner ? (
+        {people.responsible ? (
           <UserProfileAvatar
             className="z-10"
-            image={people.owner.image}
-            name={people.owner.name}
+            image={people.responsible.image}
+            name={people.responsible.name}
           />
         ) : null}
       </span>

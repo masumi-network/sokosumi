@@ -13,6 +13,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
+import { resolveResponsibleUserId } from "@/helpers/task-visibility";
 import {
   mapResponsibleUserWithEmail,
   responsibleUserWithEmailInclude,
@@ -94,6 +95,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assignee: task.assignee,
       creatorCoworker: task.creatorCoworker,
       owner: mapResponsibleUserWithEmail(task),
+      responsibleUserId: resolveResponsibleUserId(task),
       organization: task.organization,
     }));
 

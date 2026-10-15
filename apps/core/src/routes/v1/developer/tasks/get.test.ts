@@ -177,6 +177,7 @@ describe("GET /developer/tasks", () => {
         name: "Workspace User",
         email: "workspace@example.com",
       },
+      responsibleUserId: "user_workspace",
       organization: {
         id: "org_123",
         name: "Acme Corp",

@@ -94,6 +94,7 @@ const ITEMS: WorkspaceCalendarItem[] = [
     taskStatus: null,
     taskAssigneeId: "coworker-1",
     taskOwnerId: "user-1",
+    responsibleUserId: "user-1",
     scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
     originalScheduledAt: new Date("2026-08-18T09:00:00.000Z"),
     state: "PLANNED",
