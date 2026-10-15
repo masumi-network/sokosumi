@@ -6,9 +6,9 @@
   /// A room clicked in the sidebar opens ready to type, as web's room composer focuses on mount; one reached with the
   /// arrow keys leaves focus on the list, so the next key keeps moving through it.
   @MainActor struct ComposerFocusRequestTests {
-    static func mouse(_ type: NSEvent.EventType) throws -> NSEvent {
+    static func mouse(_ type: NSEvent.EventType, modifierFlags: NSEvent.ModifierFlags = []) throws -> NSEvent {
       try #require(NSEvent.mouseEvent(
-        with: type, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+        with: type, location: .zero, modifierFlags: modifierFlags, timestamp: 0, windowNumber: 0, context: nil,
         eventNumber: 0, clickCount: 1, pressure: 1
       ))
     }
@@ -41,6 +41,12 @@
       try request.roomPicked("general", by: Self.downArrow())
       #expect(!request.take("general"))
       #expect(!request.take("launch"), "The arrow key replaces the click's request")
+    }
+
+    @Test func aControlClickOpensTheMenuWithoutTakingFocus() throws {
+      let request = ComposerFocusRequest()
+      try request.roomPicked("launch", by: Self.mouse(.leftMouseDown, modifierFlags: .control))
+      #expect(!request.take("launch"))
     }
 
     @Test func aPickWithNoEventLeavesFocusOnTheList() {

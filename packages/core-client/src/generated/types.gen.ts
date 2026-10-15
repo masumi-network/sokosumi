@@ -5707,7 +5707,12 @@ export type SocialPostCalendarItem = {
     provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
     text: string;
     status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
+    revision: number;
     externalHandle: string | null;
+    /**
+     * Profile picture copy in Sokosumi storage
+     */
+    avatarUrl: string | null;
     projectName: string;
     scheduledByName: string | null;
     scheduledByImage: string | null;

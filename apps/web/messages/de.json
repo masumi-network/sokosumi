@@ -2714,7 +2714,8 @@
             "legendMore": "Mehr",
             "moreActions": "Weitere Aktionen",
             "exportCsv": "CSV exportieren",
-            "exportXlsx": "Tabelle exportieren"
+            "exportXlsx": "Tabelle exportieren",
+            "legendUnknown": "Unbekannt"
           },
           "accountsTitle": "Verbundene Konten",
           "postsTitle": "Veröffentlichte Kontobeiträge",

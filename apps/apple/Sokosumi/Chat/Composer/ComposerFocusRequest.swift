@@ -11,7 +11,8 @@
     /// Called from the sidebar's selection setter, while the event that changed the selection is still current.
     func roomPicked(_ roomId: String, by event: NSEvent?) {
       switch event?.type {
-      case .leftMouseDown, .leftMouseUp: self.roomId = roomId
+      // A control-click is the context-menu gesture, as on a message row.
+      case .leftMouseDown, .leftMouseUp: self.roomId = event.map(MessageContextMenuView.opensContextMenu) == true ? nil : roomId
       default: self.roomId = nil
       }
     }
