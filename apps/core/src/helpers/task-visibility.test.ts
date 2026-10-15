@@ -7,6 +7,7 @@ import {
   buildHumanJobParentVisibilityWhere,
   buildHumanParentTaskVisibilityWhere,
   buildHumanTaskVisibilityWhere,
+  buildResponsibleUserWhere,
   buildSokoBotAudienceJobParentTaskWhere,
   buildSokoBotAudienceTaskVisibilityWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
@@ -234,5 +235,11 @@ describe("resolveResponsibleUserId", () => {
 
   it("treats omitted columns as absent", () => {
     expect(resolveResponsibleUserId({})).toBeNull();
+  });
+});
+
+describe("buildResponsibleUserWhere", () => {
+  it("selects work whose Owner is the person while every row has an Owner", () => {
+    expect(buildResponsibleUserWhere("user_1")).toEqual({ ownerId: "user_1" });
   });
 });

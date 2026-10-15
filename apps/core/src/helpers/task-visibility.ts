@@ -69,6 +69,22 @@ export function resolveResponsibleUserId(
   return work.ownerId ?? work.creatorUserId ?? work.requestedByUserId ?? null;
 }
 
+/**
+ * Prisma filter for work `userId` is responsible for: the database twin of
+ * `resolveResponsibleUserId`. Every "mine" filter, reach check and sweep that
+ * selects work by its responsible person uses this, never `ownerId` directly.
+ * While the Owner column is required, every row has an Owner, so the Owner is
+ * the responsible person; the Creator and Requester branches join here once
+ * the column becomes nullable.
+ */
+export function buildResponsibleUserWhere(
+  userId: string,
+): Prisma.TaskWhereInput &
+  Prisma.TaskScheduleWhereInput &
+  Prisma.JobWhereInput {
+  return { ownerId: userId };
+}
+
 export function isPrivateTaskVisibleToHuman(
   task: Pick<
     { visibility: TaskVisibility; ownerId: string },
