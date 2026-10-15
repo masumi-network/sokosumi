@@ -18,8 +18,8 @@ interface ReadOnlyForViewerParams {
 interface OrgCollaboratorViewerParams extends ReadOnlyForViewerParams {
   /** Organization of the task's workspace; `null` for a personal workspace. */
   taskWorkspaceOrganizationId: string | null;
-  /** Owner of the task. */
-  taskOwnerId: string;
+  /** Owner of the task; `null` when it has none. */
+  taskOwnerId: string | null;
   /** Viewer's user id, or null/undefined when unauthenticated. */
   sessionUserId: string | null | undefined;
 }
@@ -83,7 +83,7 @@ function canOrgCollaboratorActOnTaskForViewer({
     return false;
   }
 
-  if (sessionUserId === taskOwnerId) {
+  if (taskOwnerId !== null && sessionUserId === taskOwnerId) {
     return true;
   }
 

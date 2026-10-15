@@ -77,8 +77,8 @@ function confirmation() {
     intentRevision: 1,
     source: "CHAT",
     chainDepth: 0,
-    userId: "owner",
     requestedByUserId: "owner",
+    askedByUserId: "owner",
     workspaceId: "workspace",
     sokoBotId: "bot",
     userMessage: "yes",
@@ -100,7 +100,7 @@ function confirmation() {
       decisions: [
         {
           id: "decision",
-          userId: "owner",
+          requestedByUserId: "owner",
           workspaceId: "workspace",
           sokoBotId: "bot",
           status: "PENDING",
@@ -176,7 +176,7 @@ describe("trusted scoped owner confirmation", () => {
   });
   it("does not turn another actor, room, ambiguous proposal, quotation or bot message into approval", async () => {
     for (const change of [
-      { requestedByUserId: "teammate" },
+      { askedByUserId: "teammate" },
       { chainDepth: 1 },
       { source: "EVENT" },
       // Jev did not read the message as agreeing to the proposal.

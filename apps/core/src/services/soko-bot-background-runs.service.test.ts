@@ -32,7 +32,8 @@ const authorized = {
   turn: {
     id: "parent-turn",
     sokoBotId: "bot",
-    userId: "owner",
+    actingUserId: "owner",
+    requestedByUserId: "owner",
     workspaceId: "workspace",
     versionId: "v24",
   },
@@ -52,7 +53,7 @@ const authorized = {
 const ownerParent = {
   source: "CHAT",
   parentTurnId: null,
-  requestedByUserId: null,
+  askedByUserId: null,
   chainDepth: 0,
   destinationRoomId: "room-owner",
 };
@@ -106,7 +107,7 @@ describe("background runs", () => {
     ).rejects.toThrow(/cannot start another/);
     findUniqueOrThrow.mockResolvedValueOnce({
       ...ownerParent,
-      requestedByUserId: "teammate",
+      askedByUserId: "teammate",
     });
     await expect(
       startBackgroundRun(authorized, { title: "t", brief: "b" }),

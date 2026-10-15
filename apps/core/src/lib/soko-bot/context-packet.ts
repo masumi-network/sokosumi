@@ -725,13 +725,13 @@ export class ContextPacketBuilder {
       }),
       prisma.sokoBotPendingDecision.findMany({
         where: {
-          userId: input.userId,
+          requestedByUserId: input.userId,
           workspaceId: input.workspaceId,
           status: "PENDING",
           sokoBotId: input.sokoBotId,
           expiresAt: { gt: new Date() },
           turn: {
-            requestedByUserId:
+            askedByUserId:
               input.askedByUserId && input.askedByUserId !== input.userId
                 ? input.askedByUserId
                 : null,
@@ -753,10 +753,10 @@ export class ContextPacketBuilder {
       prisma.sokoBotTurn.findMany({
         where: {
           sokoBotId: input.sokoBotId,
-          userId: input.userId,
+          requestedByUserId: input.userId,
           workspaceId: input.workspaceId,
           status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
-          requestedByUserId:
+          askedByUserId:
             input.askedByUserId && input.askedByUserId !== input.userId
               ? input.askedByUserId
               : null,
@@ -827,13 +827,13 @@ export class ContextPacketBuilder {
       }),
       prisma.sokoBotPendingDecision.count({
         where: {
-          userId: input.userId,
+          requestedByUserId: input.userId,
           workspaceId: input.workspaceId,
           status: "PENDING",
           sokoBotId: input.sokoBotId,
           expiresAt: { gt: new Date() },
           turn: {
-            requestedByUserId:
+            askedByUserId:
               input.askedByUserId && input.askedByUserId !== input.userId
                 ? input.askedByUserId
                 : null,
@@ -846,10 +846,10 @@ export class ContextPacketBuilder {
       prisma.sokoBotTurn.count({
         where: {
           sokoBotId: input.sokoBotId,
-          userId: input.userId,
+          requestedByUserId: input.userId,
           workspaceId: input.workspaceId,
           status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
-          requestedByUserId:
+          askedByUserId:
             input.askedByUserId && input.askedByUserId !== input.userId
               ? input.askedByUserId
               : null,

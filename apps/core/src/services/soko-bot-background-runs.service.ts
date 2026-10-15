@@ -45,7 +45,7 @@ export async function startBackgroundRun(
     select: {
       source: true,
       parentTurnId: true,
-      requestedByUserId: true,
+      askedByUserId: true,
       chainDepth: true,
       destinationRoomId: true,
     },
@@ -57,7 +57,7 @@ export async function startBackgroundRun(
   // A run works with the owner's whole context and posts where it was asked;
   // started from a teammate's or another bot's message, that would carry the
   // owner's private context into their room.
-  if (parent.requestedByUserId || parent.chainDepth > 0)
+  if (parent.askedByUserId || parent.chainDepth > 0)
     throw new SokoBotRuntimeValidationError(
       "Only the owner can start a background run.",
     );
@@ -72,7 +72,7 @@ export async function startBackgroundRun(
     "@/services/soko-bot-control-plane.service"
   );
   const started = await sokoBotControlPlane.startTurn({
-    userId: authorized.turn.userId,
+    userId: authorized.turn.actingUserId,
     workspaceId: authorized.turn.workspaceId,
     clientTurnId: `background:${authorized.turn.id}:${key}`,
     message: runMessage(input.title, input.brief),
@@ -188,6 +188,6 @@ export async function stopBackgroundRun(
   const { sokoBotControlPlane } = await import(
     "@/services/soko-bot-control-plane.service"
   );
-  await sokoBotControlPlane.cancelTurn(authorized.turn.userId, run.id);
+  await sokoBotControlPlane.cancelTurn(authorized.turn.actingUserId, run.id);
   return { runId: run.id, stopped: true, previousStatus: run.status };
 }

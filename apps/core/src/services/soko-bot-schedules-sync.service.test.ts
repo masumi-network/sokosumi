@@ -91,7 +91,7 @@ function continueFor(maxChecks: number) {
 const scheduledFor = new Date("2026-08-17T12:00:00.000Z");
 const dueSchedule = {
   id: "01960001-0001-7001-8001-000000000001",
-  userId: "user_1",
+  requestedByUserId: "user_1",
   workspaceId: "01960001-0001-7001-8001-000000000002",
   cronExpression: "0 * * * * *",
   timezone: "UTC",
@@ -185,7 +185,7 @@ describe("SokoBotSchedulesSyncService", () => {
       deferred: 1,
     });
     expect(startTurnMock).toHaveBeenCalledWith({
-      userId: dueSchedule.userId,
+      userId: dueSchedule.requestedByUserId,
       workspaceId: dueSchedule.workspaceId,
       clientTurnId: sokoBotScheduleClientTurnId(dueSchedule.id, scheduledFor),
       message: dueSchedule.prompt,

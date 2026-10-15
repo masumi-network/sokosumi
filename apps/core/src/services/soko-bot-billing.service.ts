@@ -123,7 +123,7 @@ export async function requireSokoBotTurnFunding(
     prisma.sokoBotTurn.findMany({
       where: {
         sokoBotId,
-        userId,
+        requestedByUserId: userId,
         status: "COMPLETED",
         // A six-hour background run costs what a hundred chat turns do; as
         // the yardstick it paused the bot with credits left.
@@ -136,7 +136,7 @@ export async function requireSokoBotTurnFunding(
     prisma.sokoBotTurn.findFirst({
       where: {
         sokoBotId,
-        userId,
+        requestedByUserId: userId,
         errorKind: SOKO_BOT_BILLING_SHORTFALL_ERROR_KIND,
         completedAt: { not: null },
       },

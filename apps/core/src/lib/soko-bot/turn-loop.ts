@@ -325,7 +325,7 @@ async function isOwnerDirected(turnId: string): Promise<boolean> {
     select: {
       source: true,
       parentTurnId: true,
-      requestedByUserId: true,
+      askedByUserId: true,
       chainDepth: true,
       chatMentionId: true,
     },
@@ -335,7 +335,7 @@ async function isOwnerDirected(turnId: string): Promise<boolean> {
     turn.parentTurnId !== null ||
     (turn.source === "CHAT" &&
       turn.chatMentionId !== null &&
-      turn.requestedByUserId === null &&
+      turn.askedByUserId === null &&
       turn.chainDepth === 0)
   );
 }

@@ -31,9 +31,11 @@ import {
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { Badge } from "@/components/ui/badge";
 import { getSession } from "@/lib/auth/auth.server";
+import { viewerIsOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { taskService } from "@/lib/services/task.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
+import { userService } from "@/lib/services/user.service";
 
 const UPCOMING_RUNS_LIMIT = 10;
 // ponytail: one max page, then drop CANCELED. Page further if a schedule can cancel more than 100 future runs.
@@ -80,6 +82,7 @@ async function TaskScheduleDetailContent({
     projectOptions,
     runs,
     createdTasks,
+    members,
     t,
     tSchedule,
     tStatus,
@@ -98,6 +101,7 @@ async function TaskScheduleDetailContent({
       sort: "createdAt",
       limit: CREATED_TASKS_LIMIT,
     }),
+    userService.getMyMembersWithOrganizations(),
     getTranslations("App.Tasks.Schedules"),
     getTranslations("App.Tasks.Schedule"),
     getTranslations("App.Tasks.Filters.statusOptions"),
@@ -144,6 +148,10 @@ async function TaskScheduleDetailContent({
                     coworkerOptions={assigneeOptions.selectableOptions}
                     projectOptions={projectOptions}
                     canCreatePrivate={activeOrganizationId !== null}
+                    canDeleteUnowned={viewerIsOrganizationOwnerOrAdmin(
+                      activeOrganizationId,
+                      members,
+                    )}
                   />
                 ) : null}
               </div>

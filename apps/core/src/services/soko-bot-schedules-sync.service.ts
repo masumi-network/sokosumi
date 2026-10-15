@@ -8,6 +8,7 @@ import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   isRetryableSokoBotRuntimeError,
   SokoBotRuntimeUnavailableError,
@@ -68,7 +69,8 @@ interface ClaimedOccurrence {
   schedule: {
     id: string;
     sokoBotId: string;
-    userId: string;
+    requestedByUserId: string | null;
+    sokoBot: { userId: string };
     workspaceId: string;
     cronExpression: string;
     timezone: string;
@@ -173,7 +175,9 @@ export class SokoBotSchedulesSyncService {
           },
         ],
       },
-      include: { schedule: true },
+      include: {
+        schedule: { include: { sokoBot: { select: { userId: true } } } },
+      },
       orderBy: [{ leaseExpiresAt: "asc" }, { id: "asc" }],
     });
     if (!pending) return null;
@@ -229,6 +233,7 @@ export class SokoBotSchedulesSyncService {
           proactivePaused: false,
         },
       },
+      include: { sokoBot: { select: { userId: true } } },
       orderBy: [{ nextRunAt: "asc" }, { id: "asc" }],
     });
     if (!due?.nextRunAt) return null;
@@ -497,7 +502,7 @@ export class SokoBotSchedulesSyncService {
           );
         }
         const started = await sokoBotControlPlane.startTurn({
-          userId: schedule.userId,
+          userId: sokoBotActingUserId(schedule),
           workspaceId: schedule.workspaceId,
           clientTurnId: sokoBotScheduleClientTurnId(schedule.id, scheduledFor),
           message,

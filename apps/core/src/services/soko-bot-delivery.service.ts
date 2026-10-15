@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-
 import type { Prisma } from "@sokosumi/database";
 import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
@@ -7,6 +6,7 @@ import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { collectTurnResultSnapshots } from "@/services/chat-result-preview.service";
 import { persistSokoBotChatTurn } from "./soko-bot-chat.service";
@@ -119,24 +119,26 @@ async function destinationStillAuthorized(
   tx: Prisma.TransactionClient,
   turn: {
     sokoBotId: string;
-    userId: string;
-    requestedByUserId?: string | null;
+    requestedByUserId: string | null;
+    sokoBot: { userId: string };
+    askedByUserId?: string | null;
     workspaceId: string;
     source: string;
     destinationAudience: Prisma.JsonValue;
   },
   roomId: string,
 ): Promise<boolean> {
+  const actingUserId = sokoBotActingUserId(turn);
   // A chat reply goes back to whoever asked: the owner, or a teammate who
   // messaged someone else's bot in their own direct chat with it.
   const recipientId =
     turn.source === "CHAT"
-      ? (turn.requestedByUserId ?? turn.userId)
-      : turn.userId;
+      ? (turn.askedByUserId ?? actingUserId)
+      : actingUserId;
   const bot = await tx.sokoBot.findFirst({
     where: {
       id: turn.sokoBotId,
-      userId: turn.userId,
+      userId: actingUserId,
       workspaceId: turn.workspaceId,
       archivedAt: null,
     },
@@ -147,8 +149,12 @@ async function destinationStillAuthorized(
     where: {
       id: turn.workspaceId,
       OR: [
-        { userId: turn.userId },
-        { organization: { members: { some: { userId: turn.userId } } } },
+        { userId: actingUserId },
+        {
+          organization: {
+            members: { some: { userId: actingUserId } },
+          },
+        },
       ],
     },
     select: { id: true },
@@ -223,6 +229,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
         include: {
           turn: {
             include: {
+              sokoBot: { select: { userId: true } },
               scheduleRun: {
                 select: {
                   schedule: { select: { name: true, systemKey: true } },

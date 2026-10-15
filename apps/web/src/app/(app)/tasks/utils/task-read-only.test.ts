@@ -258,3 +258,31 @@ describe("canCancelTaskForViewer", () => {
     ).toBe(false);
   });
 });
+
+describe("work without an Owner", () => {
+  it("lets an organization collaborator comment and cancel", () => {
+    const params = {
+      taskWorkspaceOrganizationId: "org_1",
+      taskOwnerId: null,
+      sessionUserId: "member_2",
+      forceReadOnly: false,
+      taskStatus: TaskStatus.RUNNING,
+      hasAssignedSeat: true,
+    };
+    expect(canCommentOnTaskForViewer(params)).toBe(true);
+    expect(canCancelTaskForViewer(params)).toBe(true);
+  });
+
+  it("gives nobody a personal workspace right, even a viewer with no session", () => {
+    const params = {
+      taskWorkspaceOrganizationId: null,
+      taskOwnerId: null,
+      sessionUserId: undefined,
+      forceReadOnly: false,
+      taskStatus: TaskStatus.RUNNING,
+      hasAssignedSeat: true,
+    };
+    expect(canCommentOnTaskForViewer(params)).toBe(false);
+    expect(canCancelTaskForViewer(params)).toBe(false);
+  });
+});
