@@ -136,7 +136,7 @@ import SwiftUI
               userId: workspaces.currentUserId,
               organizationId: workspaces.selection?.workspace.organizationId,
               roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
-              onAccepted: { followLatest() }
+              transcriptShown: !transcriptLoading, onAccepted: { followLatest() }
             )
             .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
           }
@@ -197,9 +197,15 @@ import SwiftUI
         }
     }
 
+    /// The room's messages are loading or preparing, so neither they nor the empty state are on screen yet.
+    private var transcriptLoading: Bool {
+      workspaces.openRoom.room.timeline.roomId != roomId || (workspaces.openRoom.room.timeline.isLoading && !hasLiveMessages)
+        || (hasLiveMessages && messages.isEmpty)
+    }
+
     @ViewBuilder
     private var transcriptBody: some View {
-      if workspaces.openRoom.room.timeline.roomId != roomId || (workspaces.openRoom.room.timeline.isLoading && !hasLiveMessages) {
+      if transcriptLoading {
         ProgressView("Loading messages…")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else if !hasLiveMessages {
@@ -221,8 +227,6 @@ import SwiftUI
           )
           .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-      } else if messages.isEmpty {
-        ProgressView("Loading messages…").frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
         messageList(messages: messages)
       }

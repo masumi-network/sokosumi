@@ -11,6 +11,7 @@ struct ChatRootView: View {
   @State private var linkTask: Task<Void, Never>?
   @State private var inviteLink: InviteLinkPresentation?
   @State private var windowID = UUID()
+  @State private var composerFocus = ComposerFocusRequest()
   @Environment(\.scenePhase) private var scenePhase
 
   var body: some View {
@@ -154,6 +155,7 @@ struct ChatRootView: View {
             .navigationTitle(workspaces.selection?.title ?? "")
         }
       }
+      .environment(\.composerFocusRequest, composerFocus)
       .modifier(RoomEditSheetsHost())
     }
     if let signOutError = auth.signOutError {

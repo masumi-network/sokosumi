@@ -24,6 +24,7 @@ import UniformTypeIdentifiers
     @EnvironmentObject private var uploads: ComposeUploads
     @EnvironmentObject private var attachmentIngress: ComposerAttachmentIngress
     @Environment(\.appearsActive) private var appearsActive
+    @Environment(\.composerFocusRequest) private var composerFocus
 
     /// A pasted Message link that became the pending quote.
     private struct QuotedLink {
@@ -33,13 +34,17 @@ import UniformTypeIdentifiers
 
     private let savedDraft: SavedComposeDraft
     private let quoteFocusRequest: String?
+    /// The room's messages or empty state are on screen: a sidebar click's focus request waits for them, as web's
+    /// `focusOnMount={!messagesPending}`, because the composer mounts again when the loading view gives way.
+    private let transcriptShown: Bool
     private let roomId: String
     private let parentMessageId: String?
     private let onAccepted: (() -> Void)?
 
-    init(userId: String, organizationId: String?, roomId: String, parentMessageId: String? = nil, pendingQuote: Binding<Components.Schemas.ChatRoomMessageQuote?> = .constant(nil), quoteFocusRequest: String? = nil, onAccepted: (() -> Void)? = nil) {
+    init(userId: String, organizationId: String?, roomId: String, parentMessageId: String? = nil, pendingQuote: Binding<Components.Schemas.ChatRoomMessageQuote?> = .constant(nil), quoteFocusRequest: String? = nil, transcriptShown: Bool = false, onAccepted: (() -> Void)? = nil) {
       _pendingQuote = pendingQuote
       self.quoteFocusRequest = quoteFocusRequest
+      self.transcriptShown = transcriptShown
       self.onAccepted = onAccepted
       self.roomId = roomId
       self.parentMessageId = parentMessageId
@@ -166,6 +171,9 @@ import UniformTypeIdentifiers
       ), submit: sendDraft, focusRequest: quoteFocusRequest, placeholder: composerPlaceholder, canSend: canSend, content: preparedContent, channels: workspaces.composerChannels, mentions: workspaces.composerMentions)
       input.onPaste = { paste in quotePastedLink(paste) }
       input.insertion = insertion
+      if transcriptShown {
+        input.takesFocus = { [composerFocus, roomId] in composerFocus?.take(roomId) == true }
+      }
       if announcesTyping {
         input.onEdit = { text in
           workspaces.composerEdited(roomId: roomId, hasText: !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, now: Date())
