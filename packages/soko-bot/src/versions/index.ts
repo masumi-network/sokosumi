@@ -60,7 +60,7 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v24,
   v25,
 ];
-export const DEFAULT_SOKO_BOT_VERSION_ID = "v24";
+export const DEFAULT_SOKO_BOT_VERSION_ID = "v25";
 
 export type { SokoBotSkill, SokoBotVersion };
 export { getSokoBotSkill, SOKO_BOT_SKILLS };
