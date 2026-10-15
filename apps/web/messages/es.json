@@ -1240,10 +1240,19 @@
             "message": "¿Aún no tienes cuenta?",
             "link": "Registrarse"
           },
+          "RegisterOnWebsite": {
+            "message": "¿Aún no tienes cuenta? Las cuentas se crean en el sitio web, no en la app.",
+            "link": "Crear una en el sitio web"
+          },
           "NoAccount": {
             "title": "No hay ninguna cuenta con este email",
             "description": "Comprueba que no tenga errores o crea una ahora.",
             "createAccount": "Crear cuenta"
+          },
+          "NoAccountOnWebsite": {
+            "title": "No hay ninguna cuenta con este email",
+            "description": "Comprueba que no tenga errores o crea una cuenta en el sitio web y luego inicia sesión aquí.",
+            "createAccount": "Crear cuenta en el sitio web"
           },
           "Handover": {
             "codeSent": "Ya tienes una cuenta, así que te enviamos un código para iniciar sesión.",

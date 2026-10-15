@@ -1240,10 +1240,19 @@
             "message": "Noch kein Konto?",
             "link": "Registrieren"
           },
+          "RegisterOnWebsite": {
+            "message": "Noch kein Konto? Konten werden auf der Website erstellt, nicht in der App.",
+            "link": "Auf der Website erstellen"
+          },
           "NoAccount": {
             "title": "Kein Konto für diese Adresse",
             "description": "Prüfe sie auf Tippfehler oder erstelle jetzt eines.",
             "createAccount": "Konto erstellen"
+          },
+          "NoAccountOnWebsite": {
+            "title": "Kein Konto für diese Adresse",
+            "description": "Prüfe sie auf Tippfehler oder erstelle ein Konto auf der Website und melde dich dann hier an.",
+            "createAccount": "Konto auf der Website erstellen"
           },
           "Handover": {
             "codeSent": "Du hast bereits ein Konto, deshalb haben wir dir einen Code zum Anmelden geschickt.",
