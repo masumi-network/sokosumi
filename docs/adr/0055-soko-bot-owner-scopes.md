@@ -8,7 +8,7 @@ A shared bot is fully visible: one room, readable and postable by every member, 
 
 A turn a member starts in chat runs for that member. A self-started turn of a shared bot runs for the first live member of its Organization from this list: the member who connected the integration whose content woke it, the schedule's member, the person behind the waking TaskEvent, the owner of the waking Job, the Task owner, the bot's creator (built-in rhythms only), then the earliest live Organization OWNER. Records the turn creates, Tasks included, belong to that member, and its spend is attributed to them. A replay is the exception: it runs only for the member it first ran for, and when that member is gone it does not run. Their words never run as anyone else.
 
-A schedule runs as the member who last set it up. A member who changes a shared bot's schedule prompt, cron or timezone takes it over, so its attribution and billing move to them. Switching it on or off does not. Built-in rhythms store the bot's live creator, else the earliest live OWNER, and start switched off.
+A schedule runs as the member who last set it up. A member who changes a shared bot's schedule prompt, cron or timezone takes it over. Switching it on or off does not. The Organization pool still pays, but from then on the schedule's turns run as the editor: the editor's seat gates their spend, the Tasks and Jobs they create belong to the editor, and the bot mentions the editor about them. If the editor has no seat, the schedule's turns are refused, and no out-of-credits notice fires because the pool still has credits. Built-in rhythms store the bot's live creator, else the earliest live OWNER, and start switched off.
 
 ## Considered Options
 
