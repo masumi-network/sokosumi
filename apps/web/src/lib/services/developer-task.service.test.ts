@@ -53,7 +53,9 @@ describe("developerTaskService", () => {
           updatedAt,
           assignee: { id: "cow_1", name: "Elena", slug: "elena" },
           creatorCoworker: null,
-          owner: {
+          // Deprecated; the service reads responsibleUser.
+          owner: null,
+          responsibleUser: {
             id: "user_1",
             name: "Ada Lovelace",
             email: "ada@example.com",
@@ -80,7 +82,11 @@ describe("developerTaskService", () => {
         updatedAt,
         assignee: { id: "cow_1", name: "Elena", slug: "elena" },
         creatorCoworker: null,
-        owner: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
+        responsibleUser: {
+          id: "user_1",
+          name: "Ada Lovelace",
+          email: "ada@example.com",
+        },
         organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
       },
     ]);
@@ -129,7 +135,12 @@ describe("developerTaskService", () => {
     getDeveloperOwnedCoworkerTaskMock.mockResolvedValue({
       data: {
         task,
-        owner: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
+        owner: null,
+        responsibleUser: {
+          id: "user_1",
+          name: "Ada Lovelace",
+          email: "ada@example.com",
+        },
         organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
       },
     });
@@ -139,7 +150,11 @@ describe("developerTaskService", () => {
     expect(getDeveloperOwnedCoworkerTaskMock).toHaveBeenCalledWith("task_1");
     expect(result).toEqual({
       task,
-      owner: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
+      responsibleUser: {
+        id: "user_1",
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+      },
       organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
     });
   });

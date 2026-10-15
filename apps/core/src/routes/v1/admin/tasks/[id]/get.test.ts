@@ -171,6 +171,7 @@ describe("GET /admin/tasks/{id}", () => {
       name: "Ada Lovelace",
       email: "ada@example.com",
     });
+    expect(body.data.responsibleUser).toEqual(body.data.owner);
     expect(body.data.user).toBeUndefined();
     expect(body.data.organization).toEqual({
       id: "org_123",
@@ -194,6 +195,27 @@ describe("GET /admin/tasks/{id}", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data.organization).toBeNull();
+  });
+
+  it("returns a null responsible person when nobody is responsible", async () => {
+    taskFindUniqueMock.mockResolvedValue({
+      ...createTask(),
+      ownerId: null,
+      owner: null,
+      creatorUserId: null,
+      creatorUser: null,
+      requestedByUserId: null,
+      requestedByUser: null,
+    });
+
+    const response = await createApp().request(
+      "/0195b9f4-7d35-7a4e-b14e-111111111111",
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.owner).toBeNull();
+    expect(body.data.responsibleUser).toBeNull();
   });
 
   it("returns 404 when the task does not exist", async () => {

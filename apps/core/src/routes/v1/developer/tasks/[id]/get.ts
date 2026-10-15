@@ -64,6 +64,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       developerTaskDetailSchema.parse({
         task: mapTask(task, c.var.authContext),
         owner: mapResponsibleUserWithEmail(task),
+        responsibleUser: mapResponsibleUserWithEmail(task),
         organization: task.organization,
       }),
     );

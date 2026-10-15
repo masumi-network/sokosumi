@@ -10,10 +10,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import {
-  buildResponsibleUserMatchingWhere,
-  resolveResponsibleUserId,
-} from "@/helpers/task-visibility";
+import { buildResponsibleUserMatchingWhere } from "@/helpers/task-visibility";
 import {
   mapResponsibleUserWithEmail,
   responsibleUserWithEmailInclude,
@@ -92,15 +89,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ]);
 
     const hasMore = tasks.length === takePlusOne;
-    const items = tasks.slice(0, take).map((task) => ({
-      id: task.id,
-      name: task.name,
-      status: task.status,
-      createdAt: task.createdAt,
-      owner: mapResponsibleUserWithEmail(task),
-      responsibleUserId: resolveResponsibleUserId(task),
-      organization: task.organization,
-    }));
+    const items = tasks.slice(0, take).map((task) => {
+      const responsibleUser = mapResponsibleUserWithEmail(task);
+      return {
+        id: task.id,
+        name: task.name,
+        status: task.status,
+        createdAt: task.createdAt,
+        owner: responsibleUser,
+        responsibleUser,
+        organization: task.organization,
+      };
+    });
 
     const paginationMeta = createPaginationMeta(
       items,

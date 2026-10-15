@@ -44,7 +44,9 @@ describe("adminTaskService", () => {
           name: "Quarterly report",
           status: "RUNNING",
           createdAt,
-          owner: {
+          // Deprecated; the service reads responsibleUser.
+          owner: null,
+          responsibleUser: {
             id: "user_1",
             name: "Ada Lovelace",
             email: "ada@example.com",
@@ -68,7 +70,11 @@ describe("adminTaskService", () => {
         name: "Quarterly report",
         status: "RUNNING",
         createdAt,
-        owner: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
+        responsibleUser: {
+          id: "user_1",
+          name: "Ada Lovelace",
+          email: "ada@example.com",
+        },
         organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
       },
     ]);
@@ -117,7 +123,12 @@ describe("adminTaskService", () => {
     getAdminTaskMock.mockResolvedValue({
       data: {
         task,
-        owner: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
+        owner: null,
+        responsibleUser: {
+          id: "user_1",
+          name: "Ada Lovelace",
+          email: "ada@example.com",
+        },
         organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
       },
     });
@@ -127,7 +138,11 @@ describe("adminTaskService", () => {
     expect(getAdminTaskMock).toHaveBeenCalledWith("task_1");
     expect(result).toEqual({
       task,
-      owner: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
+      responsibleUser: {
+        id: "user_1",
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+      },
       organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
     });
   });

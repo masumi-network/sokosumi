@@ -133,7 +133,11 @@ describe("GET /v1/admin/tasks", () => {
         status: "RUNNING",
         createdAt: "2025-01-01T00:00:00.000Z",
         owner: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
-        responsibleUserId: "user_1",
+        responsibleUser: {
+          id: "user_1",
+          name: "Ada Lovelace",
+          email: "ada@example.com",
+        },
         organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
       },
     ]);
@@ -165,7 +169,7 @@ describe("GET /v1/admin/tasks", () => {
     expect(res.status).toBe(200);
     const [item] = (await res.json()).data;
     expect(item.owner).toEqual(grace);
-    expect(item.responsibleUserId).toBe(grace.id);
+    expect(item.responsibleUser).toEqual(grace);
   });
 
   it("returns a null owner for a public Task whose person deleted their account", async () => {
@@ -183,7 +187,7 @@ describe("GET /v1/admin/tasks", () => {
     expect(res.status).toBe(200);
     const [item] = (await res.json()).data;
     expect(item.owner).toBeNull();
-    expect(item.responsibleUserId).toBeNull();
+    expect(item.responsibleUser).toBeNull();
   });
 
   it("returns null organization for personal tasks", async () => {

@@ -30,7 +30,7 @@ export default async function DeveloperTaskDetailPage({
     notFound();
   }
 
-  const { task, owner, organization } = taskDetail;
+  const { task, responsibleUser, organization } = taskDetail;
 
   return (
     <div className="min-h-full w-full">
@@ -38,12 +38,12 @@ export default async function DeveloperTaskDetailPage({
         <div className="bg-card-background flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
           <div className="text-sm">
             {/* Nobody is named once the person responsible left. */}
-            {owner && (
+            {responsibleUser && (
               <>
-                <span className="font-medium">{owner.name}</span>
+                <span className="font-medium">{responsibleUser.name}</span>
                 <span className="text-muted-foreground">
                   {" · "}
-                  {owner.email}
+                  {responsibleUser.email}
                   {" · "}
                 </span>
               </>

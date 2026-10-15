@@ -11,7 +11,7 @@ import {
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskSchema } from "@/schemas/task.schema";
 import {
-  responsibleUserIdField,
+  deprecatedResponsibleUserWithEmailSchema,
   responsibleUserWithEmailSchema,
 } from "@/schemas/work-creator.schema";
 
@@ -522,8 +522,9 @@ const adminTaskListItemSchema = z
     name: z.string().openapi({ example: "Quarterly report" }),
     status: taskStatusSchema.openapi({ example: TaskStatus.RUNNING }),
     createdAt: dateTimeSchema,
-    owner: responsibleUserWithEmailSchema,
-    ...responsibleUserIdField,
+    /** @deprecated Use `responsibleUser`. */
+    owner: deprecatedResponsibleUserWithEmailSchema,
+    responsibleUser: responsibleUserWithEmailSchema,
     organization: z
       .object({
         id: z.string().openapi({ example: "org_123" }),
@@ -550,7 +551,9 @@ export const adminTaskIdParamSchema = z.object({
 export const adminTaskDetailSchema = z
   .object({
     task: taskSchema,
-    owner: responsibleUserWithEmailSchema,
+    /** @deprecated Use `responsibleUser`. */
+    owner: deprecatedResponsibleUserWithEmailSchema,
+    responsibleUser: responsibleUserWithEmailSchema,
     organization: z
       .object({
         id: z.string().openapi({ example: "org_123" }),

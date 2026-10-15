@@ -47,22 +47,27 @@ export const responsibleUserIdField = {
   }),
 };
 
-/**
- * `owner` of an admin or developer Task view: the responsible person, with an
- * email address. Not deprecated, since nothing else carries the email yet.
- */
-export const responsibleUserWithEmailSchema = z
-  .union([
-    z.object({
-      id: z.string().openapi({ example: "user_123" }),
-      name: z.string().openapi({ example: "Ada Lovelace" }),
-      email: z.string().openapi({ example: "ada@example.com" }),
-    }),
-    z.null(),
-  ])
-  .openapi({
+const responsibleUserWithEmailBaseSchema = z.union([
+  z.object({
+    id: z.string().openapi({ example: "user_123" }),
+    name: z.string().openapi({ example: "Ada Lovelace" }),
+    email: z.string().openapi({ example: "ada@example.com" }),
+  }),
+  z.null(),
+]);
+
+/** `responsibleUser` of an admin or developer Task view (ADR 0056). */
+export const responsibleUserWithEmailSchema =
+  responsibleUserWithEmailBaseSchema.openapi({
     description:
       "The person responsible for the task, with their email address; null only when nobody is responsible for the work.",
+  });
+
+/** Deprecated `owner` of an admin or developer Task view, the same value. */
+export const deprecatedResponsibleUserWithEmailSchema =
+  responsibleUserWithEmailBaseSchema.openapi({
+    deprecated: true,
+    description: "Deprecated. Use responsibleUser.",
   });
 
 /** Said of every deprecated Owner field, which carries the responsible person. */

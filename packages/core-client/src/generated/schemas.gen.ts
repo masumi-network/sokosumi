@@ -5636,19 +5636,38 @@ export const AdminTaskListItemSchema = {
                     type: 'null'
                 }
             ],
-            description: 'The person responsible for the task, with their email address; null only when nobody is responsible for the work.'
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUser.'
         },
-        responsibleUserId: {
+        responsibleUser: {
             anyOf: [
                 {
-                    type: 'string'
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
                 },
                 {
                     type: 'null'
                 }
             ],
-            example: 'user_123',
-            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
+            description: 'The person responsible for the task, with their email address; null only when nobody is responsible for the work.'
         },
         organization: {
             type: [
@@ -5682,7 +5701,7 @@ export const AdminTaskListItemSchema = {
         'status',
         'createdAt',
         'owner',
-        'responsibleUserId',
+        'responsibleUser',
         'organization'
     ]
 } as const;
@@ -5742,6 +5761,37 @@ export const AdminTaskDetailSchema = {
                     type: 'null'
                 }
             ],
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUser.'
+        },
+        responsibleUser: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
             description: 'The person responsible for the task, with their email address; null only when nobody is responsible for the work.'
         },
         organization: {
@@ -5773,6 +5823,7 @@ export const AdminTaskDetailSchema = {
     required: [
         'task',
         'owner',
+        'responsibleUser',
         'organization'
     ]
 } as const;
@@ -12664,19 +12715,38 @@ export const DeveloperTaskListItemSchema = {
                     type: 'null'
                 }
             ],
-            description: 'The person responsible for the task, with their email address; null only when nobody is responsible for the work.'
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUser.'
         },
-        responsibleUserId: {
+        responsibleUser: {
             anyOf: [
                 {
-                    type: 'string'
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
                 },
                 {
                     type: 'null'
                 }
             ],
-            example: 'user_123',
-            description: 'The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.'
+            description: 'The person responsible for the task, with their email address; null only when nobody is responsible for the work.'
         },
         organization: {
             type: [
@@ -12713,7 +12783,7 @@ export const DeveloperTaskListItemSchema = {
         'assignee',
         'creatorCoworker',
         'owner',
-        'responsibleUserId',
+        'responsibleUser',
         'organization'
     ]
 } as const;
@@ -12778,6 +12848,37 @@ export const DeveloperTaskDetailSchema = {
                     type: 'null'
                 }
             ],
+            deprecated: true,
+            description: 'Deprecated. Use responsibleUser.'
+        },
+        responsibleUser: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
             description: 'The person responsible for the task, with their email address; null only when nobody is responsible for the work.'
         },
         organization: {
@@ -12809,6 +12910,7 @@ export const DeveloperTaskDetailSchema = {
     required: [
         'task',
         'owner',
+        'responsibleUser',
         'organization'
     ]
 } as const;

@@ -1370,7 +1370,9 @@ export type AdminTaskListItem = {
     status: TaskStatus;
     createdAt: Date;
     /**
-     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
+     * Deprecated. Use responsibleUser.
+     *
+     * @deprecated
      */
     owner: {
         id: string;
@@ -1378,9 +1380,13 @@ export type AdminTaskListItem = {
         email: string;
     } | null;
     /**
-     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
+     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
      */
-    responsibleUserId: string | null;
+    responsibleUser: {
+        id: string;
+        name: string;
+        email: string;
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -1410,9 +1416,19 @@ export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
 export type AdminTaskDetail = {
     task: Task;
     /**
-     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
+     * Deprecated. Use responsibleUser.
+     *
+     * @deprecated
      */
     owner: {
+        id: string;
+        name: string;
+        email: string;
+    } | null;
+    /**
+     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
+     */
+    responsibleUser: {
         id: string;
         name: string;
         email: string;
@@ -3509,7 +3525,9 @@ export type DeveloperTaskListItem = {
     assignee: DeveloperCoworkerRef;
     creatorCoworker: DeveloperCoworkerRef;
     /**
-     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
+     * Deprecated. Use responsibleUser.
+     *
+     * @deprecated
      */
     owner: {
         id: string;
@@ -3517,9 +3535,13 @@ export type DeveloperTaskListItem = {
         email: string;
     } | null;
     /**
-     * The person responsible for it: its Owner, else the person who made it, else the person it was made for. Null when nobody is: a Soko Bot started it on its own, or the person who made it deleted their account.
+     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
      */
-    responsibleUserId: string | null;
+    responsibleUser: {
+        id: string;
+        name: string;
+        email: string;
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -3536,9 +3558,19 @@ export type DeveloperCoworkerRef = {
 export type DeveloperTaskDetail = {
     task: Task;
     /**
-     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
+     * Deprecated. Use responsibleUser.
+     *
+     * @deprecated
      */
     owner: {
+        id: string;
+        name: string;
+        email: string;
+    } | null;
+    /**
+     * The person responsible for the task, with their email address; null only when nobody is responsible for the work.
+     */
+    responsibleUser: {
         id: string;
         name: string;
         email: string;

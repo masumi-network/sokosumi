@@ -32,23 +32,23 @@ export default async function AdminTaskDetailPage({
     notFound();
   }
 
-  const { task, owner, organization } = taskDetail;
+  const { task, responsibleUser, organization } = taskDetail;
 
   return (
     <div className="min-h-full w-full">
-      {/* Admin-only context strip: surfaces the owner email (not shown in the
+      {/* Admin-only context strip: surfaces the responsible person's email (not shown in the
           user-facing view) and the owning workspace, plus a way back to the
           list. The task itself renders read-only below. */}
       <div className={TASK_DETAIL_CONTEXT_STRIP_CLASS}>
         <div className="bg-card-background flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
           <div className="text-sm">
             {/* Nobody is named once the person responsible left. */}
-            {owner && (
+            {responsibleUser && (
               <>
-                <span className="font-medium">{owner.name}</span>
+                <span className="font-medium">{responsibleUser.name}</span>
                 <span className="text-muted-foreground">
                   {" · "}
-                  {owner.email}
+                  {responsibleUser.email}
                   {" · "}
                 </span>
               </>

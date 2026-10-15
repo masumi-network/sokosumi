@@ -177,13 +177,39 @@ describe("GET /developer/tasks", () => {
         name: "Workspace User",
         email: "workspace@example.com",
       },
-      responsibleUserId: "user_workspace",
+      responsibleUser: {
+        id: "user_workspace",
+        name: "Workspace User",
+        email: "workspace@example.com",
+      },
       organization: {
         id: "org_123",
         name: "Acme Corp",
         slug: "acme-corp",
       },
     });
+  });
+
+  it("returns a null responsible person when nobody is responsible", async () => {
+    taskFindManyMock.mockResolvedValue([
+      {
+        ...createListTask(),
+        ownerId: null,
+        owner: null,
+        creatorUserId: null,
+        creatorUser: null,
+        requestedByUserId: null,
+        requestedByUser: null,
+      },
+    ]);
+    taskCountMock.mockResolvedValue(1);
+
+    const response = await createApp().request("/");
+
+    expect(response.status).toBe(200);
+    const [item] = (await response.json()).data;
+    expect(item.owner).toBeNull();
+    expect(item.responsibleUser).toBeNull();
   });
 
   it("filters by owned coworkerId when provided", async () => {

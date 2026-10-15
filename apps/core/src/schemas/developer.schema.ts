@@ -6,7 +6,7 @@ import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskSchema } from "@/schemas/task.schema";
 import {
-  responsibleUserIdField,
+  deprecatedResponsibleUserWithEmailSchema,
   responsibleUserWithEmailSchema,
 } from "@/schemas/work-creator.schema";
 
@@ -49,8 +49,9 @@ const developerTaskListItemSchema = z
     updatedAt: dateTimeSchema,
     assignee: developerCoworkerRefSchema.nullable(),
     creatorCoworker: developerCoworkerRefSchema.nullable(),
-    owner: responsibleUserWithEmailSchema,
-    ...responsibleUserIdField,
+    /** @deprecated Use `responsibleUser`. */
+    owner: deprecatedResponsibleUserWithEmailSchema,
+    responsibleUser: responsibleUserWithEmailSchema,
     organization: developerOrganizationRefSchema,
   })
   .openapi("DeveloperTaskListItem");
@@ -67,7 +68,9 @@ export const developerTaskIdParamSchema = z.object({
 export const developerTaskDetailSchema = z
   .object({
     task: taskSchema,
-    owner: responsibleUserWithEmailSchema,
+    /** @deprecated Use `responsibleUser`. */
+    owner: deprecatedResponsibleUserWithEmailSchema,
+    responsibleUser: responsibleUserWithEmailSchema,
     organization: developerOrganizationRefSchema,
   })
   .openapi("DeveloperTaskDetail");
