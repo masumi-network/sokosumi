@@ -2,11 +2,12 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jobInclude } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { requireJobCollaboration } from "@/helpers/access-control";
-import { conflict, forbidden, notFound } from "@/helpers/error";
+import { badRequest, conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
+import { resolveResponsibleUserId } from "@/helpers/task-visibility";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type OpenAPIHonoWithAuth,
@@ -31,7 +32,8 @@ const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "put",
     path: "/{id}/workspace",
-    description: "Change job workspace",
+    description:
+      "Change job workspace. Only the person responsible for the job may move it. A job nobody is responsible for needs an organization owner or admin and cannot move to a personal workspace.",
     tags: ["Jobs"],
     request: {
       params: paramsSchema,
@@ -61,14 +63,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { organizationId: targetOrganizationId } = c.req.valid("json");
 
     const job = await serializableTransaction(async (tx) => {
-      // A delegated coworker may only move a job whose task is assigned to it.
-      await requireJobCollaboration(c.var.authContext, id, tx);
+      // Moving belongs to the job's responsible person (ADR 0056). A
+      // delegated coworker may only move a job whose task is assigned to it.
+      const accessibleJob = await requireJobCollaboration(
+        c.var.authContext,
+        id,
+        tx,
+        { right: "manage" },
+      );
 
       const currentJob = await tx.job.findFirst({
-        where: {
-          id,
-          ownerId: userContext.userId,
-        },
+        where: { id },
         select: {
           taskId: true,
           workspace: {
@@ -80,7 +85,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       if (!currentJob) {
-        throw forbidden("You can only access your own jobs");
+        throw notFound("Job not found");
       }
 
       if (currentJob.taskId !== null) {
@@ -103,7 +108,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         return serializeJobDetails(mapJobWithStatus(existingJob));
       }
 
-      // `null` targets the authenticated user's personal workspace.
+      // `null` targets the authenticated user's personal workspace, where a
+      // job nobody is responsible for would have nobody left to manage it.
+      if (
+        targetOrganizationId === null &&
+        resolveResponsibleUserId(accessibleJob) === null
+      ) {
+        throw badRequest(
+          "Work nobody is responsible for cannot move to a personal workspace",
+        );
+      }
       if (targetOrganizationId !== null) {
         await resolveMemberOrganizationById({
           id: targetOrganizationId,

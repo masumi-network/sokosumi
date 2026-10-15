@@ -2,7 +2,12 @@ import { AgentStatus, JobType } from "@sokosumi/database";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { forbidden } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  publicWorkMadeBy,
+  WORK_MAKERS,
+} from "@/test-fixtures/responsible-work";
 
 import mountPostJobInputs from "./post";
 
@@ -10,11 +15,15 @@ const {
   authContextState,
   prismaTransactionMock,
   jobEventFindFirstMock,
+  jobFindFirstMock,
   jobInputCreateMock,
+  requireAssignedOrganizationSeatMock,
+  resolveMemberOrganizationByIdMock,
+  workspaceFindUniqueMock,
   requireJobCollaborationMock,
   provideJobInputMock,
 } = vi.hoisted(() => ({
-  requireJobCollaborationMock: vi.fn(async () => undefined),
+  requireJobCollaborationMock: vi.fn(),
   authContextState: {
     current: {
       actor: "user",
@@ -30,7 +39,11 @@ const {
   },
   prismaTransactionMock: vi.fn(),
   jobEventFindFirstMock: vi.fn(),
+  jobFindFirstMock: vi.fn(),
   jobInputCreateMock: vi.fn(),
+  requireAssignedOrganizationSeatMock: vi.fn(),
+  resolveMemberOrganizationByIdMock: vi.fn(),
+  workspaceFindUniqueMock: vi.fn(),
   provideJobInputMock: vi.fn(),
 }));
 
@@ -97,6 +110,14 @@ vi.mock("@/middleware/auth", () => ({
 
 vi.mock("@/helpers/access-control.js", () => ({
   requireJobCollaboration: requireJobCollaborationMock,
+}));
+
+vi.mock("@/helpers/organization", () => ({
+  resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
+}));
+
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: requireAssignedOrganizationSeatMock,
 }));
 
 vi.mock("@sokosumi/masumi", () => ({
@@ -195,13 +216,17 @@ describe("POST /jobs/{id}/inputs", () => {
     prismaTransactionMock.mockImplementation(
       async (
         callback: (tx: {
+          job: { findFirst: typeof jobFindFirstMock };
           jobEvent: { findFirst: typeof jobEventFindFirstMock };
+          workspace: { findUnique: typeof workspaceFindUniqueMock };
         }) => Promise<unknown>,
       ) => {
         return await callback({
+          job: { findFirst: jobFindFirstMock },
           jobEvent: {
             findFirst: jobEventFindFirstMock,
           },
+          workspace: { findUnique: workspaceFindUniqueMock },
         });
       },
     );
@@ -276,5 +301,86 @@ describe("POST /jobs/{id}/inputs", () => {
 
     expect(response.status).toBe(422);
     expect(body).toBe("Seller response lost");
+  });
+
+  describe("who may answer a job's input request (ADR 0056)", () => {
+    beforeEach(async () => {
+      const actual = await vi.importActual<
+        typeof import("@/helpers/access-control")
+      >("@/helpers/access-control");
+      requireJobCollaborationMock.mockImplementation(
+        actual.requireJobCollaboration,
+      );
+      workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_123" });
+      resolveMemberOrganizationByIdMock.mockResolvedValue({
+        organization: { id: "org_123" },
+        role: "member",
+      });
+      requireAssignedOrganizationSeatMock.mockResolvedValue(undefined);
+    });
+
+    function standaloneJob(columns: ReturnType<typeof publicWorkMadeBy>) {
+      return {
+        id: "job_123",
+        taskId: null,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        ...columns,
+      };
+    }
+
+    it.each(WORK_MAKERS)(
+      "lets the responsible person answer for a job made by a %s",
+      async (maker) => {
+        jobFindFirstMock.mockResolvedValue(
+          standaloneJob(publicWorkMadeBy(maker, "user_123")),
+        );
+
+        const response = await postInputs(createApp());
+
+        expect(response.status).toBe(201);
+        expect(provideJobInputMock).toHaveBeenCalled();
+      },
+    );
+
+    it.each(WORK_MAKERS)(
+      "refuses anyone else a job made by a %s",
+      async (maker) => {
+        jobFindFirstMock.mockResolvedValue(
+          standaloneJob(publicWorkMadeBy(maker, "user_other")),
+        );
+
+        const response = await postInputs(createApp());
+
+        expect(response.status).toBe(403);
+        expect(provideJobInputMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it("lets any seated member answer for a job nobody is responsible for", async () => {
+      jobFindFirstMock.mockResolvedValue(
+        standaloneJob(publicWorkMadeBy("sokoBot", null)),
+      );
+
+      const response = await postInputs(createApp());
+
+      expect(response.status).toBe(201);
+      expect(provideJobInputMock).toHaveBeenCalled();
+    });
+
+    it("refuses a member without a seat a job nobody is responsible for", async () => {
+      jobFindFirstMock.mockResolvedValue(
+        standaloneJob(publicWorkMadeBy("sokoBot", null)),
+      );
+      requireAssignedOrganizationSeatMock.mockImplementation(async () => {
+        throw forbidden(
+          "An assigned seat is required to use this organization",
+        );
+      });
+
+      const response = await postInputs(createApp());
+
+      expect(response.status).toBe(403);
+      expect(provideJobInputMock).not.toHaveBeenCalled();
+    });
   });
 });

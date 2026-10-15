@@ -556,6 +556,10 @@ import {
   SokoBotRuntimeValidationError,
   sokoBotToolCallLimit,
 } from "@/services/soko-bot-runtime.service";
+import {
+  publicWorkMadeBy,
+  WORK_MAKERS,
+} from "@/test-fixtures/responsible-work";
 
 const SCOPE = {
   userId: "user_1",
@@ -2334,8 +2338,70 @@ describe("SokoBotRuntimeService authorization", () => {
         { taskId: "task_1", comment: "Stop", status: "CANCELED" },
         "call_cancel_other",
       ),
-    ).rejects.toThrow(/owner's own Tasks/);
+    ).rejects.toThrow(/Only Tasks the person you act for is responsible for/);
     expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
+  });
+
+  describe("cancelling follows the responsible person (ADR 0056)", () => {
+    function cancel() {
+      return new SokoBotRuntimeService()["replyToTask"](
+        {
+          turn: {
+            id: SCOPE.turnId,
+            sokoBotId: SCOPE.sokoBotId,
+            userId: SCOPE.userId,
+            workspaceId: SCOPE.workspaceId,
+          },
+        } as never,
+        { taskId: "task_1", comment: "Stop", status: "CANCELED" },
+        "call_cancel_responsible",
+      );
+    }
+
+    function storedTask(columns: ReturnType<typeof publicWorkMadeBy>) {
+      return {
+        id: "task_1",
+        name: "Launch",
+        status: TaskStatus.READY,
+        assigneeId: "coworker_1",
+        assigneeSokoBotId: null,
+        ...columns,
+      };
+    }
+
+    it.each(WORK_MAKERS)(
+      "cancels a Task made by a %s that its person is responsible for",
+      async (maker) => {
+        transactionTaskFindFirstMock.mockResolvedValue(
+          storedTask(publicWorkMadeBy(maker, SCOPE.userId)),
+        );
+
+        await expect(cancel()).resolves.toMatchObject({
+          status: TaskStatus.CANCELED,
+        });
+      },
+    );
+
+    it.each(WORK_MAKERS)(
+      "does not cancel a Task made by a %s that someone else is responsible for",
+      async (maker) => {
+        transactionTaskFindFirstMock.mockResolvedValue(
+          storedTask(publicWorkMadeBy(maker, "someone-else")),
+        );
+
+        await expect(cancel()).rejects.toThrow(/responsible for/);
+        expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it("does not cancel a Task nobody is responsible for", async () => {
+      transactionTaskFindFirstMock.mockResolvedValue(
+        storedTask(publicWorkMadeBy("sokoBot", null)),
+      );
+
+      await expect(cancel()).rejects.toThrow(/responsible for/);
+      expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
+    });
   });
 
   it("resumes its own assigned Task and fans out the soko bot event", async () => {

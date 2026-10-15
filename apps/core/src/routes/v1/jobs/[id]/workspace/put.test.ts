@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler.js";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  publicWorkMadeBy,
+  WORK_MAKERS,
+} from "@/test-fixtures/responsible-work";
 
 import mountPutJobWorkspace, { putJobWorkspaceRequestSchema } from "./put";
 
@@ -87,6 +91,9 @@ interface TransactionMock {
   };
   task?: {
     findFirst: ReturnType<typeof vi.fn>;
+  };
+  workspace?: {
+    findUnique: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -260,10 +267,7 @@ describe("PUT /jobs/{id}/workspace", () => {
 
     expect(response.status).toBe(200);
     expect(jobFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        id: "job_123",
-        ownerId: "user_123",
-      },
+      where: { id: "job_123" },
       select: {
         taskId: true,
         workspace: {
@@ -393,6 +397,116 @@ describe("PUT /jobs/{id}/workspace", () => {
 
     expect(response.status).toBe(403);
     expect(jobUpdateMock).not.toHaveBeenCalled();
+  });
+
+  describe("who may move a job (ADR 0056)", () => {
+    const workspaceFindUniqueMock = vi.fn();
+
+    beforeEach(() => {
+      workspaceFindUniqueMock.mockResolvedValue({
+        organizationId: "org_current",
+      });
+      mockTransaction({
+        job: {
+          findFirst: jobFindFirstMock,
+          findUnique: jobFindUniqueMock,
+          update: jobUpdateMock,
+        },
+        workspace: { findUnique: workspaceFindUniqueMock },
+      });
+    });
+
+    function requestMove(organizationId: string | null = "org_target") {
+      return createApp("org_current").request(
+        "http://localhost/job_123/workspace",
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ organizationId }),
+        },
+      );
+    }
+
+    function currentJob(columns: ReturnType<typeof publicWorkMadeBy>) {
+      return {
+        ...createCurrentJobRecord({
+          workspace: { organizationId: "org_current" },
+        }),
+        ...columns,
+      };
+    }
+
+    it.each(WORK_MAKERS)(
+      "lets the responsible person move a job made by a %s",
+      async (maker) => {
+        jobFindFirstMock.mockResolvedValue(
+          currentJob(publicWorkMadeBy(maker, "user_123")),
+        );
+
+        const response = await requestMove();
+
+        expect(response.status).toBe(200);
+        expect(jobUpdateMock).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it.each(WORK_MAKERS)(
+      "refuses anyone else a job made by a %s",
+      async (maker) => {
+        jobFindFirstMock.mockResolvedValue(
+          currentJob(publicWorkMadeBy(maker, "user_other")),
+        );
+
+        const response = await requestMove();
+
+        expect(response.status).toBe(403);
+        expect(jobUpdateMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["owner", "admin"])(
+      "lets an Organization %s move a job nobody is responsible for",
+      async (role) => {
+        jobFindFirstMock.mockResolvedValue(
+          currentJob(publicWorkMadeBy("sokoBot", null)),
+        );
+        resolveMemberOrganizationByIdMock.mockResolvedValue({
+          organization: { id: "org_current" },
+          role,
+        });
+
+        const response = await requestMove();
+
+        expect(response.status).toBe(200);
+        expect(jobUpdateMock).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it("refuses a plain member a job nobody is responsible for", async () => {
+      jobFindFirstMock.mockResolvedValue(
+        currentJob(publicWorkMadeBy("sokoBot", null)),
+      );
+
+      const response = await requestMove();
+
+      expect(response.status).toBe(403);
+      expect(jobUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps a job nobody is responsible for out of a personal workspace", async () => {
+      jobFindFirstMock.mockResolvedValue(
+        currentJob(publicWorkMadeBy("sokoBot", null)),
+      );
+      resolveMemberOrganizationByIdMock.mockResolvedValue({
+        organization: { id: "org_current" },
+        role: "owner",
+      });
+
+      const response = await requestMove(null);
+
+      expect(response.status).toBe(400);
+      expect(jobUpdateMock).not.toHaveBeenCalled();
+    });
   });
 
   it("allows idempotent no-op updates without membership or write checks", async () => {

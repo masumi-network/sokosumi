@@ -14,7 +14,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "delete",
     path: "/schedules/{id}",
     description:
-      "Delete a Task Schedule. Tasks it already created stay and stop pointing to it.",
+      "Delete a Task Schedule. Tasks it already created stay and stop pointing to it. A Task Schedule nobody is responsible for can be deleted only by an organization owner or admin.",
     tags: ["Task Schedules"],
     request: { params: taskScheduleParamsSchema },
     responses: {

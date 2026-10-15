@@ -1,6 +1,7 @@
 import { type Prisma, TaskStatus } from "@sokosumi/database";
 import {
   buildHumanTaskVisibilityWhere,
+  buildResponsibleUserWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
 } from "@/helpers/task-visibility";
 import { buildCoworkerSiblingTaskListFilter } from "@/helpers/vendor-siblings";
@@ -50,10 +51,12 @@ function buildVisiblePeerTaskWhere(
   switch (authContext.actor) {
     case "coworker": {
       if (authContext.context) {
+        // Without a workspace, a Coworker acting for a person reaches only
+        // the work that person is responsible for (ADR 0056).
         const base: Prisma.TaskWhereInput = workspaceId
           ? { workspaceId, archivedAt: null }
           : {
-              ownerId: authContext.context.userId,
+              AND: [buildResponsibleUserWhere(authContext.context.userId)],
               archivedAt: null,
             };
 
@@ -84,9 +87,7 @@ function buildVisiblePeerTaskWhere(
         };
       }
 
-      return {
-        ownerId: authContext.userId,
-      };
+      return buildResponsibleUserWhere(authContext.userId);
     }
     case "sokoBot": {
       return {

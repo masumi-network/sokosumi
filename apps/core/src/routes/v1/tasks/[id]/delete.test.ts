@@ -6,6 +6,10 @@ import { errorHandler } from "@/helpers/error-handler";
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  publicWorkMadeBy,
+  WORK_MAKERS,
+} from "@/test-fixtures/responsible-work";
 
 import mountDeleteTask from "./delete";
 
@@ -22,8 +26,12 @@ const {
   mapTaskMock,
   markTaskArchivedReadMock,
   prismaTransactionMock,
+  requireAssignedOrganizationSeatMock,
   requireTaskWriteAccessMock,
+  resolveMemberOrganizationByIdMock,
 } = vi.hoisted(() => ({
+  requireAssignedOrganizationSeatMock: vi.fn(),
+  resolveMemberOrganizationByIdMock: vi.fn(),
   markTaskArchivedReadMock: vi.fn(),
   deliverCalendarInvalidationsNowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -177,6 +185,14 @@ vi.mock("@/helpers/calendar-invalidation", () => ({
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskWriteAccess: requireTaskWriteAccessMock,
+}));
+
+vi.mock("@/helpers/organization", () => ({
+  resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
+}));
+
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: requireAssignedOrganizationSeatMock,
 }));
 
 vi.mock("@/helpers/task", async (importOriginal) => {
@@ -513,5 +529,108 @@ describe("DELETE /tasks/{id}", () => {
 
     expect(response.status).toBe(403);
     expect(requireTaskWriteAccessMock).not.toHaveBeenCalled();
+  });
+
+  describe("who may archive a Task (ADR 0056)", () => {
+    const taskUpdateManyMock = vi.fn();
+
+    beforeEach(async () => {
+      const actual = await vi.importActual<
+        typeof import("@/helpers/access-control")
+      >("@/helpers/access-control");
+      requireTaskWriteAccessMock.mockImplementation(
+        actual.requireTaskWriteAccess,
+      );
+      requireAssignedOrganizationSeatMock.mockResolvedValue(undefined);
+      resolveMemberOrganizationByIdMock.mockResolvedValue({
+        organization: { id: "org_123" },
+        role: "member",
+      });
+      taskUpdateManyMock.mockResolvedValue({ count: 1 });
+    });
+
+    function mockStoredTask(columns: ReturnType<typeof publicWorkMadeBy>) {
+      prismaTransactionMock.mockImplementation(async (callback) => {
+        return await callback({
+          task: {
+            findFirst: vi.fn().mockResolvedValue({
+              id: "tsk_123",
+              status: TaskStatus.READY,
+              visibility: "PUBLIC",
+              runAt: null,
+              updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+              workspaceId: "22222222-2222-7222-8222-222222222222",
+              ...columns,
+            }),
+            updateMany: taskUpdateManyMock,
+            findFirstOrThrow: vi.fn().mockResolvedValue(archivedTask),
+          },
+          workspace: {
+            findUnique: vi
+              .fn()
+              .mockResolvedValue({ organizationId: "org_123" }),
+          },
+        });
+      });
+    }
+
+    function requestArchive() {
+      return createApp().request("http://localhost/tsk_123", {
+        method: "DELETE",
+      });
+    }
+
+    it.each(WORK_MAKERS)(
+      "lets the responsible person archive a Task made by a %s",
+      async (maker) => {
+        mockStoredTask(publicWorkMadeBy(maker, "user_123"));
+
+        const response = await requestArchive();
+
+        expect(response.status).toBe(200);
+        expect(taskUpdateManyMock).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it.each(WORK_MAKERS)(
+      "still lets another seated member archive a public Task made by a %s",
+      async (maker) => {
+        mockStoredTask(publicWorkMadeBy(maker, "user_other"));
+
+        const response = await requestArchive();
+
+        expect(response.status).toBe(200);
+        expect(requireAssignedOrganizationSeatMock).toHaveBeenCalledWith(
+          "user_123",
+          "org_123",
+          expect.any(Object),
+        );
+      },
+    );
+
+    it.each(["owner", "admin"])(
+      "lets an Organization %s archive a Task nobody is responsible for",
+      async (role) => {
+        mockStoredTask(publicWorkMadeBy("sokoBot", null));
+        resolveMemberOrganizationByIdMock.mockResolvedValue({
+          organization: { id: "org_123" },
+          role,
+        });
+
+        const response = await requestArchive();
+
+        expect(response.status).toBe(200);
+        expect(taskUpdateManyMock).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it("refuses a plain member a Task nobody is responsible for", async () => {
+      mockStoredTask(publicWorkMadeBy("sokoBot", null));
+
+      const response = await requestArchive();
+
+      expect(response.status).toBe(403);
+      expect(taskUpdateManyMock).not.toHaveBeenCalled();
+    });
   });
 });
