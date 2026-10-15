@@ -1,6 +1,7 @@
 import type { Prisma } from "@sokosumi/database";
 import {
   composeSokoBotIntroduction,
+  getSokoBotVersion,
   isSokoBotSilentAnswer,
 } from "@sokosumi/soko-bot";
 import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
@@ -235,6 +236,7 @@ export async function introduceSokoBot(input: {
     where: {
       userId: input.userId,
       workspaceId: input.workspaceId,
+      projectId: null,
       archivedAt: null,
     },
     select: {
@@ -366,7 +368,19 @@ export async function findOrOpenOwnerDirectRoom(bot: {
     coworkerIds: [],
     sokoBotIds: [bot.id],
   });
-  if (created)
+  // Cuso (CMO) greets in its own first turn; the assistant's introduction
+  // would describe a different product.
+  const isCmoBot =
+    created &&
+    getSokoBotVersion(
+      (
+        await prisma.sokoBot.findUnique({
+          where: { id: bot.id },
+          select: { versionId: true },
+        })
+      )?.versionId,
+    ).profile === "cmo";
+  if (created && !isCmoBot)
     await introduceSokoBot({
       userId: bot.userId,
       workspaceId: bot.workspaceId,

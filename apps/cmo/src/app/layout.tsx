@@ -1,12 +1,13 @@
 import "./globals.css";
 
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
 
 import { Logo } from "../components/logo";
 
 export const metadata: Metadata = {
-  title: "CMO.XYZ",
+  title: "CMO.xyz",
   description:
     "An AI agent that automates a business's marketing, end to end, in one system.",
   // In public/ so each icon keeps a stable URL others can link to.
@@ -19,13 +20,16 @@ export const metadata: Metadata = {
   },
 };
 
+// PP Mori is not delivered yet; Inter (Sokosumi's typeface) stands in.
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+
 interface RootLayoutProps {
   children: ReactNode;
 }
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body>
         <header className="site-header">
           <Logo />

@@ -261,6 +261,7 @@ describe("SokoBotTaskboardSyncService private Task visibility", () => {
       }),
     );
 
+    expect(startTurnMock.mock.calls[0]?.[0]?.sokoBotId).toBeTruthy();
     const startedMessage = startTurnMock.mock.calls[0]?.[0]?.message as string;
     expect(startedMessage).toContain("Public launch");
     expect(startedMessage).toContain("public-1");

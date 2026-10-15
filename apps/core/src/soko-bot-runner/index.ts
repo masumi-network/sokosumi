@@ -23,6 +23,7 @@ import {
   tool,
 } from "ai";
 
+import { searchWeb } from "../lib/soko-bot/web-search";
 import { compactHistory } from "./history";
 import {
   citableSources,
@@ -178,7 +179,7 @@ function buildTools(
     run_subagent: async (input: { task: string }) =>
       runSubagent(input.task, capabilities, gateway, model),
     web_search: async (input: { query: string }) =>
-      searchWeb(input.query, gateway, model),
+      searchWeb(input.query, gateway, gateway(model)),
   };
   const subagentAllowed = new Set<SokoBotCapability>([
     "web_search",
@@ -214,37 +215,6 @@ function buildTools(
     });
   }
   return tools;
-}
-
-/**
- * One search, in its own model call. The Gateway runs the search inside that
- * call; keeping it out of the main conversation matters because Gemini
- * rejects a replayed history that mixes Gateway-executed and runner-executed
- * tool calls in one step. The key must not be `web_search`: OpenAI models map
- * that name to their own built-in tool and reject the call.
- */
-async function searchWeb(
-  query: string,
-  gateway: ReturnType<typeof createGateway>,
-  model: string,
-): Promise<{ query: string; results: unknown[] }> {
-  const result = await generateText({
-    model: gateway(model),
-    tools: {
-      perplexity_search: gateway.tools.perplexitySearch({ maxResults: 5 }),
-    },
-    toolChoice: { type: "tool", toolName: "perplexity_search" },
-    stopWhen: stepCountIs(1),
-    prompt: `Search the web for: ${query}`,
-  });
-  return {
-    query,
-    results: result.steps.flatMap((step) =>
-      step.content.flatMap((part) =>
-        part.type === "tool-result" ? [part.output] : [],
-      ),
-    ),
-  };
 }
 
 async function runSubagent(

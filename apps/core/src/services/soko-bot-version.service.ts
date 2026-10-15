@@ -3,6 +3,7 @@ import {
   DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
   isSokoBotCapability,
+  SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SKILLS,
   SOKO_BOT_VERSIONS,
   type SokoBotCapability,
@@ -59,8 +60,11 @@ function toVersion(row: AuthoredRow): SokoBotVersion {
   };
 }
 
+/** Code-defined versions, including other products' (CMO's Cuso). */
 function isBuiltInId(slug: string): boolean {
-  return SOKO_BOT_VERSIONS.some((version) => version.id === slug);
+  return [...SOKO_BOT_VERSIONS, ...SOKO_BOT_PRODUCT_VERSIONS].some(
+    (version) => version.id === slug,
+  );
 }
 
 /**
@@ -141,7 +145,12 @@ export async function isSelectableSokoBotVersionId(
   slug: string,
   userId: string,
 ): Promise<boolean> {
-  if (isBuiltInId(slug)) return isApprovedVersion(getSokoBotVersion(slug));
+  if (isBuiltInId(slug)) {
+    // A product's version (CMO's Cuso) is set when that product creates its
+    // bot, never picked for a personal assistant.
+    const version = getSokoBotVersion(slug);
+    return !version.profile && isApprovedVersion(version);
+  }
   const entitled =
     slug === (await getDefaultSokoBotVersionId()) ||
     (await ownPinnedVersionIds(userId)).has(slug);

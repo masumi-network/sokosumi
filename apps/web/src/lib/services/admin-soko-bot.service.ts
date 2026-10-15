@@ -22,6 +22,8 @@ export interface ListAdminSokoBotsParams {
   query?: string;
   cursor?: string;
   limit?: number;
+  /** Personal Soko Bots, Cuso (CMO.xyz) bots, or both. */
+  kind?: "all" | "assistant" | "cmo";
 }
 
 export interface AdminSokoBotQualityParams {
@@ -37,6 +39,7 @@ export const adminSokoBotService = {
       query: params.query?.trim() || undefined,
       cursor: params.cursor,
       limit: params.limit,
+      kind: params.kind,
     });
     return response.data;
   },

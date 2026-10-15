@@ -138,6 +138,7 @@ export async function createSokoBotSchedule(
     where: {
       userId: input.userId,
       workspaceId: input.workspaceId,
+      projectId: null,
       archivedAt: null,
     },
     select: { id: true },

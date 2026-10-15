@@ -74,6 +74,9 @@ export async function startBackgroundRun(
   const started = await sokoBotControlPlane.startTurn({
     userId: authorized.turn.userId,
     workspaceId: authorized.turn.workspaceId,
+    // Cuso shares a workspace with the owner's own assistant: the run belongs
+    // to the bot that started it.
+    sokoBotId: authorized.turn.sokoBotId,
     clientTurnId: `background:${authorized.turn.id}:${key}`,
     message: runMessage(input.title, input.brief),
     source: parent.source === "ADMIN_RETRY" ? "CHAT" : parent.source,

@@ -32,6 +32,7 @@ export async function simulateSokoBotTaskEvent(input: {
     where: {
       userId: input.userId,
       workspaceId: input.workspaceId,
+      projectId: null,
       archivedAt: null,
     },
     select: { id: true },

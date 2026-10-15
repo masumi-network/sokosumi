@@ -1,0 +1,270 @@
+"use client";
+
+import "./onboarding.css";
+
+import type { CmoOverview, SubscriptionCatalog } from "@sokosumi/core-client";
+import { Check } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+
+import type { CusoMessage } from "../../lib/chat-messages";
+import { BusinessMark } from "../business-mark";
+import { Logo } from "../logo";
+import { BrainStep } from "./brain-step";
+import { ConnectStep, strategySocialChannels } from "./connect-step";
+import { PricingStep } from "./pricing-step";
+import { ResearchStep } from "./research-step";
+import { StrategyStep } from "./strategy-step";
+
+export interface OnboardingActions {
+  loadState: () => Promise<{
+    overview: CmoOverview | null;
+    messages: CusoMessage[];
+  }>;
+  sendMessage: (content: string) => Promise<void>;
+  retryLearning: () => Promise<{
+    overview: CmoOverview;
+    error: string | null;
+  }>;
+  requestStrategy: (note?: string) => Promise<{
+    overview: CmoOverview | null;
+    error: string | null;
+  }>;
+  approveStrategy: () => Promise<CmoOverview>;
+  chooseMockPlan: (
+    plan: string,
+  ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
+  /** Records that the founder connected or skipped the Accounts step. */
+  finishAccounts: () => Promise<CmoOverview>;
+  connectChannel: (
+    provider:
+      | "x"
+      | "linkedin"
+      | "instagram"
+      | "facebook"
+      | "tiktok"
+      | "youtube",
+  ) => Promise<{ url: string | null; error: string | null }>;
+  completeOnboarding: () => Promise<void>;
+  signOut: () => Promise<void>;
+}
+
+export type OnboardingStep =
+  | "research"
+  | "brain"
+  | "planning"
+  | "strategy"
+  | "connect"
+  | "pricing";
+
+const STEPS: { id: OnboardingStep; label: string }[] = [
+  { id: "research", label: "Research" },
+  { id: "brain", label: "Brand Brain" },
+  { id: "strategy", label: "Strategy" },
+  { id: "connect", label: "Accounts" },
+  { id: "pricing", label: "Plan" },
+];
+
+/** Where the founder is, from what Cuso has done so far. */
+export function onboardingStep(overview: CmoOverview): OnboardingStep {
+  const work = overview.work;
+  if (!overview.brandBrain) return "research";
+  if (work?.kind === "strategy" && work.status === "running") return "planning";
+  if (!overview.strategy) {
+    return work?.kind === "strategy" && work.status === "failed"
+      ? "planning"
+      : "brain";
+  }
+  if (!overview.strategyApprovedAt) return "strategy";
+  // Saved in Core, so a reload after the Accounts step resumes on the plan.
+  return overview.accountsDoneAt ||
+    strategySocialChannels(overview).length === 0
+    ? "pricing"
+    : "connect";
+}
+
+function stepIndex(step: OnboardingStep): number {
+  return STEPS.findIndex(
+    (candidate) => candidate.id === (step === "planning" ? "strategy" : step),
+  );
+}
+
+const POLL_MS = 2_500;
+
+interface OnboardingFlowProps {
+  overview: CmoOverview;
+  messages: CusoMessage[];
+  plans: SubscriptionCatalog | null;
+  name: string;
+  /** "connect" when a network's connection sends the founder back. */
+  initialStep?: string;
+  actions: OnboardingActions;
+}
+
+/**
+ * CMO's first run: full-screen steps from Cuso's research to the plan. The
+ * chat becomes home once the founder starts.
+ */
+export function OnboardingFlow({
+  overview: initialOverview,
+  messages: initialMessages,
+  plans,
+  name,
+  initialStep,
+  actions,
+}: OnboardingFlowProps) {
+  const [overview, setOverview] = useState(initialOverview);
+  const [messages, setMessages] = useState(initialMessages);
+  // Back from the plan, or returning from a connection: show Accounts again.
+  const [revisitAccounts, setRevisitAccounts] = useState(
+    initialStep === "connect",
+  );
+
+  // The connection redirect's query has been read; a reload routes from Core.
+  useEffect(() => {
+    if (window.location.search) window.history.replaceState(null, "", "/");
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const state = await actions.loadState().catch(() => null);
+    if (!state?.overview) return;
+    setOverview(state.overview);
+    setMessages(state.messages);
+  }, [actions]);
+
+  useEffect(() => {
+    const poll = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    const timer = window.setInterval(poll, POLL_MS);
+    document.addEventListener("visibilitychange", poll);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", poll);
+    };
+  }, [refresh]);
+
+  const derived = onboardingStep(overview);
+  const step: OnboardingStep =
+    derived === "pricing" &&
+    revisitAccounts &&
+    strategySocialChannels(overview).length > 0
+      ? "connect"
+      : derived;
+  const current = stepIndex(step);
+
+  return (
+    <div className="ob">
+      <header className="ob-top">
+        <Logo />
+        <ol className="ob-steps" aria-label="Onboarding">
+          {STEPS.map((candidate, index) => (
+            <li
+              key={candidate.id}
+              className={
+                index < current ? "done" : index === current ? "now" : undefined
+              }
+              aria-current={index === current ? "step" : undefined}
+            >
+              <span className="ob-dot" aria-hidden="true">
+                {index < current ? (
+                  <Check size={11} strokeWidth={3} />
+                ) : (
+                  index + 1
+                )}
+              </span>
+              <span className="ob-step-label">{candidate.label}</span>
+            </li>
+          ))}
+        </ol>
+        <div className="ob-who">
+          <BusinessMark overview={overview} />
+          <span className="ob-who-name">{name}</span>
+        </div>
+      </header>
+
+      <main className="ob-main" key={step}>
+        {step === "research" ? (
+          <ResearchStep
+            overview={overview}
+            messages={messages}
+            onRetry={async () => {
+              const result = await actions.retryLearning();
+              setOverview(result.overview);
+              return result.error;
+            }}
+            onReply={async (text) => {
+              await actions.sendMessage(text);
+              await refresh();
+            }}
+          />
+        ) : step === "brain" ? (
+          <BrainStep
+            overview={overview}
+            messages={messages}
+            onCorrect={async (text) => {
+              await actions.sendMessage(text);
+              await refresh();
+            }}
+            onPlan={async () => {
+              const result = await actions.requestStrategy();
+              if (result.overview) setOverview(result.overview);
+              return result.error;
+            }}
+          />
+        ) : step === "planning" ? (
+          <ResearchStep
+            overview={overview}
+            messages={messages}
+            onRetry={async () => {
+              const result = await actions.requestStrategy();
+              if (result.overview) setOverview(result.overview);
+              return result.error;
+            }}
+            onReply={async (text) => {
+              await actions.sendMessage(text);
+              await refresh();
+            }}
+          />
+        ) : step === "strategy" ? (
+          <StrategyStep
+            overview={overview}
+            onChange={async (note) => {
+              const result = await actions.requestStrategy(note);
+              if (result.overview) setOverview(result.overview);
+              return result.error;
+            }}
+            onApprove={async () => {
+              setOverview(await actions.approveStrategy());
+            }}
+          />
+        ) : step === "connect" ? (
+          <ConnectStep
+            overview={overview}
+            onConnect={actions.connectChannel}
+            onContinue={async () => {
+              setOverview(await actions.finishAccounts());
+              setRevisitAccounts(false);
+            }}
+          />
+        ) : (
+          <PricingStep
+            overview={overview}
+            plans={plans}
+            onBack={
+              strategySocialChannels(overview).length > 0
+                ? () => setRevisitAccounts(true)
+                : undefined
+            }
+            onStart={actions.completeOnboarding}
+            onRefresh={refresh}
+            onChooseMockPlan={async (plan) => {
+              const result = await actions.chooseMockPlan(plan);
+              if (result.overview) setOverview(result.overview);
+              return result.error;
+            }}
+          />
+        )}
+      </main>
+    </div>
+  );
+}

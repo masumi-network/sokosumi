@@ -5670,6 +5670,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     cursor?: string;
     query?: string;
     limit?: number;
+    kind?: "all" | "assistant" | "cmo";
   }) {
     return executeCoreOperation(
       getClient,
