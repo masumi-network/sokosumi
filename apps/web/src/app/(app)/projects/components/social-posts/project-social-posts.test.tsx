@@ -94,7 +94,7 @@ const MESSAGES: Record<string, string> = {
   publishedAt: "Published {date}",
   failedAt: "Failed {date}",
   attempts: "{count} attempts",
-  "actions.publishNow": "Publish now",
+  "actions.publishNow": "Post now",
   "actions.retry": "Retry",
   "actions.dismiss": "Dismiss",
   "sections.calendar": "Calendar",
@@ -107,13 +107,13 @@ const MESSAGES: Record<string, string> = {
     "Failed to refresh statistics. Previous results are retained.",
   "connectPrompt.title": "Connect an account to start posting",
   "connectPrompt.body": "Posts go out from this project's accounts.",
-  "connectPrompt.action": "Connect X, YouTube, LinkedIn…",
+  "connectPrompt.action": "Connect account",
   "reconnectPrompt.title": "Reconnect to post",
   "reconnectPrompt.body": "Sign in again on a connected account.",
   "reconnectPrompt.action": "Reconnect",
   selectedPost: "Selected post",
   "empty.drafts": "No drafts yet.",
-  "emptyHint.drafts": "Save a post as a draft to finish it later.",
+  "emptyHint.drafts": "Save a draft to finish later.",
   "status.DRAFT": "Draft",
   "status.SCHEDULED": "Scheduled",
   "status.PUBLISHING": "Publishing…",
@@ -199,10 +199,10 @@ const MESSAGES: Record<string, string> = {
   "dismissDialog.title": "Dismiss this post?",
   "dismissDialog.description": "It leaves Needs attention.",
   "dismissDialog.confirm": "Dismiss",
-  "publishDialog.title": "Publish this post now?",
+  "publishDialog.title": "Post this now?",
   "publishDialog.description":
     "The post goes out to X right away instead of waiting for its scheduled time.",
-  "publishDialog.confirm": "Publish now",
+  "publishDialog.confirm": "Post now",
   "retryDialog.title": "Retry this post?",
   "retryDialog.description": "The post goes out now.",
   "retryDialog.confirm": "Retry",
@@ -827,12 +827,12 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
     expect(
       within(prompt).getByRole("button", {
-        name: "Connect X, YouTube, LinkedIn…",
+        name: "Connect account",
       }),
     ).toHaveClass("h-11", "md:h-8");
     await user.click(
       within(prompt).getByRole("button", {
-        name: "Connect X, YouTube, LinkedIn…",
+        name: "Connect account",
       }),
     );
 
@@ -943,7 +943,7 @@ describe("ProjectSocialPosts", () => {
       within(drafts).getByRole("heading", { name: "No drafts yet." }),
     ).toBeVisible();
     expect(
-      within(drafts).getByText("Save a post as a draft to finish it later."),
+      within(drafts).getByText("Save a draft to finish later."),
     ).toBeVisible();
     expect(
       screen.queryByRole("tab", { name: /^Needs attention/ }),
@@ -3255,7 +3255,7 @@ describe("ProjectSocialPosts", () => {
       screen.queryByRole("menuitem", { name: "Retry" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("menuitem", { name: "Publish now" }),
+      screen.queryByRole("menuitem", { name: "Post now" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "Edit" }),
@@ -3383,7 +3383,7 @@ describe("ProjectSocialPosts", () => {
     expect(within(alert).getByText("The post goes out now.")).toBeVisible();
     expect(
       within(alert).queryByRole("heading", {
-        name: "Publish this post now?",
+        name: "Post this now?",
       }),
     ).not.toBeInTheDocument();
     await user.click(within(alert).getByRole("button", { name: "Retry" }));
@@ -3434,10 +3434,10 @@ describe("ProjectSocialPosts", () => {
 
     await openTab(user, "Drafts");
     await openRowMenu(user, "post-draft");
-    await user.click(screen.getByRole("menuitem", { name: "Publish now" }));
+    await user.click(screen.getByRole("menuitem", { name: "Post now" }));
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Publish now",
+        name: "Post now",
       }),
     );
 
@@ -3482,10 +3482,10 @@ describe("ProjectSocialPosts", () => {
 
     await openTab(user, "Drafts");
     await openRowMenu(user, "post-draft");
-    await user.click(screen.getByRole("menuitem", { name: "Publish now" }));
+    await user.click(screen.getByRole("menuitem", { name: "Post now" }));
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Publish now",
+        name: "Post now",
       }),
     );
 
