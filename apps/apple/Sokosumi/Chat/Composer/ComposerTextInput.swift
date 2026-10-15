@@ -11,6 +11,8 @@ import SwiftUI
     @StateObject private var commands = MacComposerCommands()
     let submit: () -> Bool
     var focusRequest: String?
+    /// Asked once per time it is set, whether at the editor's appearance or later; true takes focus there.
+    var takesFocus: (() -> Bool)?
     var cancelEdit: (() -> Void)?
     var onBlur: (() -> Void)?
     var placeholder = "Message"
@@ -103,6 +105,13 @@ import SwiftUI
       .task {
         if cancelEdit != nil {
           commands.focusAtEnd()
+        }
+      }
+      .task(id: takesFocus == nil) {
+        guard let takesFocus, let window = commands.input?.window, takesFocus() else { return }
+        // A slow room may land after the reader moved on to another field; never take the caret from it.
+        if !(window.firstResponder is NSTextView) {
+          commands.focus()
         }
       }
       .onChange(of: focusRequest) { _, request in

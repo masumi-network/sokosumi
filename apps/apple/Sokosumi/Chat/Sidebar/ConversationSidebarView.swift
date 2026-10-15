@@ -10,6 +10,7 @@ struct ConversationSidebarView: View {
   @Environment(\.openSettings) private var openSettings
   @Environment(\.openURL) private var openURL
   @Environment(RoomEditSheets.self) private var roomEditSheets: RoomEditSheets?
+  @Environment(\.composerFocusRequest) private var composerFocus
 
   /// Web's inset rows start on the room row's label column: past its 20 pt mark and the gap after it. The
   /// indent is padding inside the row, since the sidebar List ignores `listRowInsets` on a badged row.
@@ -67,7 +68,10 @@ struct ConversationSidebarView: View {
             if workspaces.sidebar.pinnedReorderMode, partitioned.pinned.contains(where: { $0.id == id }) {
               return
             }
+            // The event that changed the selection is current only here, not in the Task.
+            let event = NSApp.currentEvent
             Task { @MainActor in
+              composerFocus?.roomPicked(id, by: event)
               await workspaces.showRoom(id)
             }
           }
