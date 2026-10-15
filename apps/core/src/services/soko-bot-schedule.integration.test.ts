@@ -65,6 +65,7 @@ describe.skipIf(!databaseUrl)(
         data: { id: botId, userId, workspaceId, status: "RUNNING" },
       });
       vi.spyOn(service, "authorize").mockImplementation(async () => ({
+        toolCallLimit: 64,
         turn: {
           id: turnId,
           userId,
