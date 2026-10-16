@@ -89,10 +89,6 @@ export const enterpriseContractSchema = z
   })
   .openapi("EnterpriseContract");
 
-export type EnterpriseContractResponse = z.infer<
-  typeof enterpriseContractSchema
->;
-
 export const createEnterpriseContractRequestSchema = z
   .object({
     organizationSlug: z.string().min(1).openapi({ example: "acme-corp" }),

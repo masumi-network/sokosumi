@@ -17,9 +17,7 @@ async function dirExists(path: string): Promise<boolean> {
   }
 }
 
-// The `skills/` directory ships beside `dist/` at the package root. The two
-// candidates cover the packaged layout (dist/src/cli/commands) and running the
-// TypeScript source directly (src/cli/commands).
+// skills/ sits at package root; candidates cover dist and source layouts.
 async function resolveSkillsDir(): Promise<string> {
   const candidates = [
     new URL("../../../skills/", import.meta.url),

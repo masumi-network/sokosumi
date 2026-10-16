@@ -15,8 +15,6 @@ export const driveFileScopeSchema = z.enum(["me", "org"]).openapi({
     "Drive file owner scope: 'me' for personal, 'org' for organization",
 });
 
-export type DriveFileScope = z.infer<typeof driveFileScopeSchema>;
-
 /**
  * Drive file upload session mint request.
  */
@@ -154,8 +152,6 @@ export const driveFileSchema = z
   })
   .openapi("DriveFile");
 
-export type DriveFile = z.infer<typeof driveFileSchema>;
-
 /**
  * Rename drive file request.
  */
@@ -204,8 +200,6 @@ const driveFolderSchema = z
   })
   .openapi("DriveFolder");
 
-export type DriveFolder = z.infer<typeof driveFolderSchema>;
-
 /**
  * Drive file item (file row in list result) with type discriminator.
  */
@@ -217,8 +211,6 @@ const driveFileItemSchema = driveFileSchema
     }),
   })
   .openapi("DriveFileItem");
-
-export type DriveFileItem = z.infer<typeof driveFileItemSchema>;
 
 /**
  * Drive list item (folder or file).
