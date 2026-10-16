@@ -76,6 +76,7 @@ import {
   useSaveCampaign,
 } from "./ads-campaign-form";
 import { ImageUploadContext } from "./ads-display-images";
+import { adsDay } from "./ads-format";
 import { AdsGoogleDisplayFields } from "./ads-google-display-fields";
 import {
   AdsGoogleDateFields,
@@ -481,8 +482,7 @@ function targetNames(targets: readonly GoogleTarget[], all: string): string {
 function useScheduleText() {
   const t = useTranslations("App.Ads.newCampaign.review");
   const formatter = useFormatter();
-  const day = (value: string) =>
-    formatter.dateTime(new Date(`${value}T00:00:00`), { dateStyle: "medium" });
+  const day = (value: string) => adsDay(formatter, value, { year: true });
 
   return (startDate: string, endDate: string) => {
     if (startDate && endDate) {
