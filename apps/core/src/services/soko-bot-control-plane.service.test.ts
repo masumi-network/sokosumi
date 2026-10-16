@@ -2706,6 +2706,82 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
   });
 
+  it.each([
+    {
+      label: "another bot's background run",
+      sokoBotId: "other_bot",
+      parentTurnId: "parent_1",
+      requestedByUserId: null,
+    },
+    {
+      label: "its own top-level turn",
+      sokoBotId: BOT_ID,
+      parentTurnId: null,
+      requestedByUserId: null,
+    },
+    {
+      label: "a member's background run",
+      sokoBotId: BOT_ID,
+      parentTurnId: "parent_1",
+      requestedByUserId: "member_1",
+    },
+  ])(
+    "lets a bot acting for nobody stop only its own background runs, not $label",
+    async ({ sokoBotId, parentTurnId, requestedByUserId }) => {
+      turnFindFirstMock.mockResolvedValue({
+        id: "turn_1",
+        status: "RUNNING",
+        eveSessionId: "session_1",
+        eveTurnId: "eve_turn_1",
+        requestedByUserId,
+        parentTurnId,
+        sokoBotId,
+        workspaceId: "workspace_1",
+        sokoBot: { userId: null, workspaceId: "workspace_1" },
+      });
+      const cancelTurn = vi.fn<SokoBotRuntime["cancelTurn"]>();
+      const runtime = runtimeWithReset(vi.fn());
+      runtime.cancelTurn = cancelTurn;
+
+      await expect(
+        new SokoBotControlPlane(runtime).cancelTurn(
+          { sokoBotId: BOT_ID },
+          "turn_1",
+        ),
+      ).rejects.toThrow("Active turn not found");
+      expect(turnUpdateManyMock).not.toHaveBeenCalled();
+      expect(cancelTurn).not.toHaveBeenCalled();
+    },
+  );
+
+  it("lets a bot acting for nobody stop its own background run nobody asked for", async () => {
+    turnFindFirstMock.mockResolvedValue({
+      id: "turn_1",
+      status: "RUNNING",
+      eveSessionId: "session_1",
+      eveTurnId: "eve_turn_1",
+      requestedByUserId: null,
+      parentTurnId: "parent_1",
+      sokoBotId: BOT_ID,
+      workspaceId: "workspace_1",
+      sokoBot: { userId: null, workspaceId: "workspace_1" },
+    });
+    turnUpdateManyMock.mockResolvedValue({ count: 1 });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.cancelTurn = vi.fn<SokoBotRuntime["cancelTurn"]>();
+
+    await new SokoBotControlPlane(runtime).cancelTurn(
+      { sokoBotId: BOT_ID },
+      "turn_1",
+    );
+
+    expect(turnUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "turn_1" }),
+      }),
+    );
+  });
+
   it("never sends a session-wide cancellation before Eve turn binding", async () => {
     turnFindFirstMock.mockResolvedValue({
       id: "turn_1",

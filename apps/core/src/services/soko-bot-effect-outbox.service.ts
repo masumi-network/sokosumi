@@ -5,6 +5,7 @@ import { writableAssistantRoomWhere } from "@/helpers/shared-soko-bot-room";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import { isOwnSharedRoom } from "@/helpers/soko-bot-notice-room";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
+import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
@@ -114,17 +115,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
     const turn = effect.receipt.turn;
     const actingUserId = sokoBotActingUserId(turn);
     const workspace = await prisma.workspace.findFirst({
-      where: {
-        id: turn.workspaceId,
-        OR: [
-          { userId: actingUserId },
-          {
-            organization: {
-              members: { some: { userId: actingUserId } },
-            },
-          },
-        ],
-      },
+      where: sokoBotWorkspaceAccessWhere(actingUserId, turn.workspaceId),
       select: { id: true },
     });
     const bot = await sokoBotForTurnMember(
@@ -219,17 +210,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
           tx,
         );
         const workspace = await tx.workspace.findFirst({
-          where: {
-            id: turn.workspaceId,
-            OR: [
-              { userId: actingUserId },
-              {
-                organization: {
-                  members: { some: { userId: actingUserId } },
-                },
-              },
-            ],
-          },
+          where: sokoBotWorkspaceAccessWhere(actingUserId, turn.workspaceId),
           select: { id: true },
         });
         if (!authority || !workspace)

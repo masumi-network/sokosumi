@@ -67,7 +67,9 @@ describe.skipIf(!databaseUrl)(
         where: { id: assignedBotId },
       });
       await db.user.deleteMany({
-        where: { id: { in: [userId, ...(assigned ? [assigned.userId] : [])] } },
+        where: {
+          id: { in: [userId, ...(assigned?.userId ? [assigned.userId] : [])] },
+        },
       });
       await db.$disconnect();
     });

@@ -47,12 +47,13 @@ export function buildHumanJobParentVisibilityWhere(
 
 export function isPrivateTaskVisibleToHuman(
   task: { visibility: TaskVisibility; ownerId: string | null },
-  userId: string,
+  /** Null for nobody: a shared Soko Bot acting on its own (ADR 0057). */
+  userId: string | null,
 ): boolean {
   if (task.visibility !== TaskVisibility.PRIVATE) {
     return true;
   }
-  return task.ownerId === userId;
+  return userId !== null && task.ownerId === userId;
 }
 
 /**

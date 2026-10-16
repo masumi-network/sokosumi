@@ -71,7 +71,15 @@ if (candidates.length > 1) {
   );
   process.exit(2);
 }
-const bot = candidates[0];
+const found = candidates[0];
+const ownerId = found.userId;
+if (ownerId === null) {
+  console.error(
+    `Soko Bot ${found.id} is shared; the smoke runs a personal bot.`,
+  );
+  process.exit(2);
+}
+const bot = { ...found, userId: ownerId };
 
 const memoryVersion =
   (

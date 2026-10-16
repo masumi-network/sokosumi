@@ -141,7 +141,8 @@ export interface ChatMemory {
 
 export interface ChatBot {
   id: string;
-  userId: string;
+  /** Null for a project or workspace bot, which has no owner. */
+  userId: string | null;
   name: string | null;
   avatarSeed: string | null;
   /** Picked mascot image; null → generative orb. */

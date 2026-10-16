@@ -176,4 +176,20 @@ describe("background runs", () => {
     );
     expect(cancelTurn).toHaveBeenCalledWith("owner", "run-1");
   });
+
+  it("stops its own run as the bot when the turn acts for nobody", async () => {
+    findFirst.mockResolvedValueOnce({ id: "run-1", status: "RUNNING" });
+    await stopBackgroundRun(
+      {
+        ...authorized,
+        turn: {
+          ...authorized.turn,
+          actingUserId: null,
+          requestedByUserId: null,
+        },
+      } as never,
+      "run-1",
+    );
+    expect(cancelTurn).toHaveBeenCalledWith({ sokoBotId: "bot" }, "run-1");
+  });
 });
