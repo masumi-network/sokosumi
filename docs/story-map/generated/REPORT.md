@@ -11,7 +11,7 @@ Marketplace where people give tasks to AI coworkers and follow the results (mobi
 **48 stories:** 🟢 30 built · 🟠 5 partly · 🟣 12 unverified · ⚪ 1 missing
 Built = checked in code/running app (see Verified); unverified = not checked yet.
 
-**Open these first (browser-friendly):** [architecture preview](architecture-preview.png) (8000 px wide, 1.5 MB) · [one-pager preview](one-pager-preview.png) (7000 px wide, 2.3 MB) · [full-resolution tiles](tiles/README.md) (architecture 4x2, one-pager 2x2) · [story-map.html](story-map.html)
+**Open these first (browser-friendly):** [architecture preview](architecture-preview.png) (8000 px wide, 1.5 MB) · [one-pager preview](one-pager-preview.png) (7000 px wide, 2.3 MB) · full-resolution downloads: [architecture.png](architecture.png?raw=true) (29600x15200, 12 MB) and [one-pager.png](one-pager.png?raw=true) (15279x18754, 9 MB), download only · [story-map.html](story-map.html)
 
 Download for full resolution (too large for most browsers and GitHub's viewer): [architecture.png](architecture.png) (29600x15200, 12 MB) · [one-pager.png](one-pager.png) (15279x18754, 9 MB)
 

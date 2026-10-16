@@ -6,7 +6,7 @@ Living map of this app's user stories and screens, with real screenshots.
 |---|---|
 | **Edit this** | `stories.yaml` (topics, optional theme, personas, flows, screens, stories, gaps) |
 | Real screenshots | `screens/<screen-id>.png` |
-| Generated - never edit | `generated/`: `REPORT.md` (stories, gaps, topics), `story-map.html`, `architecture.png`, `one-pager.png` (full resolution, download only), `architecture-preview.png` and `one-pager-preview.png` (open these in the browser), `tiles/` (full resolution in browser-sized pieces) |
+| Generated - never edit | `generated/`: `REPORT.md` (stories, gaps, topics), `story-map.html`, `architecture.png`, `one-pager.png` (full resolution, download only), `architecture-preview.png` and `one-pager-preview.png` (open these in the browser) |
 
 ## Update after any change
 ```bash
