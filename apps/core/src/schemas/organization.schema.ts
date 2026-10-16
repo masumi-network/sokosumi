@@ -45,8 +45,6 @@ export const organizationWithRoleSchema = organizationSchema
   })
   .openapi("Organization");
 
-export type OrganizationWithRole = z.infer<typeof organizationWithRoleSchema>;
-
 export const organizationsSchema = z.array(organizationWithRoleSchema);
 
 /**
@@ -72,8 +70,6 @@ export const organizationRecordSchema = z
   })
   .openapi("OrganizationRecord");
 
-export type OrganizationRecord = z.infer<typeof organizationRecordSchema>;
-
 export const organizationSummarySchema = z
   .object({
     id: z.string().openapi({ example: "org_123" }),
@@ -81,5 +77,3 @@ export const organizationSummarySchema = z
     slug: z.string().openapi({ example: "acme-labs" }),
   })
   .openapi("OrganizationSummary");
-
-export type OrganizationSummary = z.infer<typeof organizationSummarySchema>;
