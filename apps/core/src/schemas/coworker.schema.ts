@@ -162,8 +162,6 @@ export const coworkerSummarySchema = z
   })
   .openapi("CoworkerSummary");
 
-export type CoworkerSummary = z.infer<typeof coworkerSummarySchema>;
-
 export const coworkerSchema = z
   .object({
     id: z.string().openapi({ example: "cow_123" }),

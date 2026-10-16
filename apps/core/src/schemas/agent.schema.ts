@@ -306,8 +306,6 @@ export const agentReviewsSchema = z
   })
   .openapi("AgentReviews");
 
-export type AgentReviews = z.infer<typeof agentReviewsSchema>;
-
 // Intentionally omits createdAt/updatedAt: this payload is nullable at the top
 // level (null when the caller has not rated the agent), and the generated
 // client's response transformer does not null-guard a nullable top-level
