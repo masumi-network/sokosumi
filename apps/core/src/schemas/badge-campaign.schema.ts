@@ -23,11 +23,9 @@ export const ANNOUNCED_FEATURES = [
   "UNREADS",
 ] as const;
 
-export const announcedFeatureSchema = z
+const announcedFeatureSchema = z
   .enum(ANNOUNCED_FEATURES)
   .openapi("AnnouncedFeature");
-
-export type AnnouncedFeature = z.infer<typeof announcedFeatureSchema>;
 
 export const badgeCampaignSchema = z
   .object({

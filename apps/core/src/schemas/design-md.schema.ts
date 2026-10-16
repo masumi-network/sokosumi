@@ -22,8 +22,6 @@ const designMdOwnerInfoSchema = z
   ])
   .openapi("DesignMdOwnerInfo");
 
-export type DesignMdOwnerInfo = z.infer<typeof designMdOwnerInfoSchema>;
-
 /**
  * The DESIGN.md attachment that is currently in effect for a user.
  *
@@ -81,8 +79,6 @@ export const designMdWriteSchema = z
   })
   .openapi("DesignMdWrite");
 
-export type DesignMdWrite = z.infer<typeof designMdWriteSchema>;
-
 /**
  * Result of persisting a DESIGN.md: the normalized stored values, or `null`
  * when the DESIGN.md was cleared (no URL remains).
@@ -106,8 +102,6 @@ export const persistedDesignMdSchema = z
       }),
   })
   .openapi("PersistedDesignMd");
-
-export type PersistedDesignMd = z.infer<typeof persistedDesignMdSchema>;
 
 /**
  * Request body for storing an ad hoc DESIGN.md: content generated for one
@@ -136,8 +130,6 @@ export const adHocDesignMdWriteSchema = z
   })
   .openapi("AdHocDesignMdWrite");
 
-export type AdHocDesignMdWrite = z.infer<typeof adHocDesignMdWriteSchema>;
-
 /**
  * Result of storing an ad hoc DESIGN.md. Always non-null — an ad hoc store
  * never clears anything, it only ever creates a fresh blob.
@@ -156,5 +148,3 @@ export const adHocDesignMdSchema = z
     }),
   })
   .openapi("AdHocDesignMd");
-
-export type AdHocDesignMd = z.infer<typeof adHocDesignMdSchema>;

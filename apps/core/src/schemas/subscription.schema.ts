@@ -28,8 +28,6 @@ export const subscriptionSchema = z.object({
     .nullable(),
 });
 
-export type Subscription = z.infer<typeof subscriptionSchema>;
-
 /**
  * Active subscription resolved for a billing reference (a user or an
  * organization). `subscription` is `null` when the reference has no active
@@ -54,10 +52,6 @@ export const activeSubscriptionResponseSchema = z
   })
   .openapi("ActiveSubscriptionResponse");
 
-export type ActiveSubscriptionResponse = z.infer<
-  typeof activeSubscriptionResponseSchema
->;
-
 /** Request body for immediately updating an organization's purchased seats. */
 export const updateOrganizationSubscriptionSeatsSchema = z
   .object({
@@ -68,10 +62,6 @@ export const updateOrganizationSubscriptionSeatsSchema = z
   })
   .openapi("UpdateOrganizationSubscriptionSeats");
 
-export type UpdateOrganizationSubscriptionSeats = z.infer<
-  typeof updateOrganizationSubscriptionSeatsSchema
->;
-
 /** Purchased seat count after an organization seat update. */
 export const organizationSubscriptionSeatsSchema = z
   .object({
@@ -81,7 +71,3 @@ export const organizationSubscriptionSeatsSchema = z
     }),
   })
   .openapi("OrganizationSubscriptionSeats");
-
-export type OrganizationSubscriptionSeats = z.infer<
-  typeof organizationSubscriptionSeatsSchema
->;

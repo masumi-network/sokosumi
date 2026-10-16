@@ -148,7 +148,6 @@ export const userSummarySchema = z
   .openapi("UserSummary");
 
 export type User = z.infer<typeof userSchema>;
-export type UserSummary = z.infer<typeof userSummarySchema>;
 
 /**
  * One cell of the notification preference matrix: a category, a delivery
