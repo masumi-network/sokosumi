@@ -238,6 +238,7 @@ describe("social account statistics routes", () => {
   it("rejects bot REST actors and human API keys", async () => {
     const bot: AuthenticationContext = {
       actor: "sokoBot",
+      scope: "personal",
       sokoBotId: "bot",
       userId: "owner",
       workspaceId,

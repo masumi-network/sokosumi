@@ -61,6 +61,7 @@ export const COWORKER_AUTH: AuthenticationContext = {
 
 export const SOKO_BOT_AUTH: AuthenticationContext = {
   actor: "sokoBot",
+  scope: "personal",
   sokoBotId: SOKO_BOT_ID,
   userId: OWNER_ID,
   organizationId: ORG_ID,

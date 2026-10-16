@@ -7,6 +7,7 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import {
+  isPersonalSokoBotAuthContext,
   isSokoBotAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
@@ -35,7 +36,7 @@ const getMeRoute = withOrganizationSlugHeaderParameter(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(getMeRoute, async (c) => {
     const authContext = c.var.authContext;
-    const auth = isSokoBotAuthContext(authContext)
+    const auth = isPersonalSokoBotAuthContext(authContext)
       ? authContext
       : requireUserAuthContext(authContext);
     const workspace = requireWorkspaceContext(c.var.workspaceContext);

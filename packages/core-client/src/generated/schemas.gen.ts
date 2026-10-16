@@ -2389,9 +2389,15 @@ export const ChatRoomSokoBotParticipantSchema = {
             example: 'orb:user_123'
         },
         ownerUserId: {
-            type: 'string',
-            description: 'The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.',
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The user who owns this personal Soko Bot. Only the owner may add it to or remove it from a Channel. Null for a shared Soko Bot, which any member may add or remove.',
             example: 'user_123'
+        },
+        scope: {
+            $ref: '#/components/schemas/ChatRoomSokoBotScope'
         },
         presence: {
             $ref: '#/components/schemas/ChatRoomPresence'
@@ -2404,8 +2410,20 @@ export const ChatRoomSokoBotParticipantSchema = {
         'image',
         'avatarSeed',
         'ownerUserId',
+        'scope',
         'presence'
     ]
+} as const;
+
+export const ChatRoomSokoBotScopeSchema = {
+    type: 'string',
+    enum: [
+        'personal',
+        'project',
+        'workspace'
+    ],
+    description: 'Who the Soko Bot belongs to: one person, a Project, or the whole workspace.',
+    example: 'personal'
 } as const;
 
 export const ChatRoomMessageMentionSchema = {
@@ -6383,7 +6401,14 @@ export const SokoBotSummarySchema = {
             example: 'https://blob.example/mascot.png'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -6703,7 +6728,14 @@ export const TaskEventSchema = {
                     example: 'https://blob.example/mascot.png'
                 },
                 owner: {
-                    $ref: '#/components/schemas/UserSummary'
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/UserSummary'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
                 }
             },
             required: [

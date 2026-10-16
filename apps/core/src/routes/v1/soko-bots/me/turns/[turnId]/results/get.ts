@@ -36,6 +36,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: {
         id: turnId,
         requestedByUserId: auth.userId,
+        // The caller's own bot, never a shared bot they asked once.
+        sokoBot: { userId: auth.userId },
         status: "COMPLETED",
       },
       select: { id: true },

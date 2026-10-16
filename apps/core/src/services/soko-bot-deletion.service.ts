@@ -5,6 +5,12 @@ import {
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
 import { notFound } from "@/helpers/error";
+import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
+import {
+  ME_SOKO_BOT,
+  memberSokoBot,
+  type SokoBotSelector,
+} from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { revokeSokoBotIntegrationAccounts } from "@/services/soko-bot-integrations.service";
@@ -237,11 +243,17 @@ export async function deleteSokoBot(
 export async function deleteSokoBotForUser(
   userId: string,
   workspaceId: string,
+  selector: SokoBotSelector = ME_SOKO_BOT,
 ): Promise<SokoBotDeletionResult> {
-  const bot = await prisma.sokoBot.findFirst({
-    where: { userId, workspaceId, deletedAt: null },
-    select: { id: true },
-  });
+  // `me` also finds an archived bot: deleting is how an archived one goes away.
+  const bot =
+    selector.kind === "me"
+      ? await prisma.sokoBot.findFirst({
+          where: { userId, workspaceId, deletedAt: null },
+          select: { id: true, userId: true, workspaceId: true },
+        })
+      : await memberSokoBot(userId, workspaceId, selector);
   if (!bot) throw notFound("Soko Bot not found");
+  await assertSokoBotManagement(userId, bot, "delete");
   return deleteSokoBot(bot.id);
 }

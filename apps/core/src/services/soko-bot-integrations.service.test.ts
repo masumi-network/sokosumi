@@ -246,7 +246,6 @@ describe("Soko Bot OAuth replacement", () => {
       await expect(operation(input)).rejects.toThrow("Soko Bot not found");
       expect(mocks.bot).toHaveBeenCalledWith({
         where: { userId: "owner", workspaceId: "workspace", archivedAt: null },
-        select: { id: true },
       });
       expect(mocks.link).not.toHaveBeenCalled();
       expect(mocks.get).not.toHaveBeenCalled();
