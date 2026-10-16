@@ -6,9 +6,8 @@ import { useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
-
+import type { CampaignsLoadError } from "@/lib/ads/ads-load-error";
 import { AdsErrorState } from "./ads-error-state";
-import type { CampaignsLoadError } from "./ads-load-error";
 
 interface AdsCampaignsErrorProps {
   kind: CampaignsLoadError;

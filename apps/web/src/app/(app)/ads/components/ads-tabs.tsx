@@ -29,7 +29,6 @@ interface AdsTabsProps {
   campaigns: React.ReactNode;
   /** The server-rendered Market tab, present only while the URL is on it. */
   market: React.ReactNode;
-  /** The Campaigns tab's controls, on the tab row while that tab shows. */
   toolbar: React.ReactNode;
   projectId: string;
 }
@@ -61,7 +60,6 @@ export function AdsTabs({
         if (next) void setTab(next);
       }}
     >
-      {/* Same row as Schedules: the tab pill, the tab's controls on the right. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <TabsList
           aria-label={t("tabsLabel")}

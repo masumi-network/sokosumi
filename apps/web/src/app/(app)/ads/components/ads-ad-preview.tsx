@@ -11,11 +11,6 @@ import { isKeptImage } from "@/lib/ads/google-display-images";
 import type { GoogleFormValues } from "@/lib/ads/google-form-values";
 import { cn } from "@/lib/utils";
 
-/**
- * The ad as people could meet it, from what the wizard holds: a Search result
- * or two Display placements. Google mixes the texts (and images) itself, so
- * "Show another combination" steps through them.
- */
 export function AdsAdPreview() {
   const t = useTranslations("App.Ads.newCampaign.preview");
   const form = useFormContext<GoogleFormValues>();
@@ -102,7 +97,6 @@ function SearchPreview({
   );
 }
 
-/** What the Display preview needs: each image with a URL to show it from. */
 function toDisplayValues(values: GoogleFormValues) {
   return {
     ...values,
@@ -176,7 +170,6 @@ function DisplayPreview({
   );
 }
 
-/** A picture of the ad, or a quiet block until there is one. */
 function Picture({
   className,
   src,
@@ -222,7 +215,6 @@ function Logo({ name, src }: { name: string; src: string | null }) {
   );
 }
 
-/** The first letter in a circle, where Google would show a site's icon. */
 function Initial({ text }: { text: string }) {
   return (
     <span

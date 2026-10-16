@@ -11895,6 +11895,26 @@ export const ChatResultUnavailableSchema = {
     ]
 } as const;
 
+export const ChatRoomMessageResultsSchema = {
+    type: 'object',
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        results: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatResultPreview'
+            }
+        }
+    },
+    required: [
+        'messageId',
+        'results'
+    ]
+} as const;
+
 export const CreateChatRoomMessageRequestSchema = {
     type: 'object',
     properties: {

@@ -9,10 +9,10 @@ import {
 } from "@/app/ads/ads-query";
 import { campaignLoadFailure } from "@/app/ads/campaigns/campaign-load-failure";
 import { loadGoogleCampaignPage } from "@/app/ads/campaigns/google-campaign-page";
-import { loadGoogleSetup } from "@/app/ads/campaigns/google-setup";
 import { AdsCampaignBreadcrumb } from "@/app/ads/components/ads-campaign-breadcrumb";
 import { AdsEditCampaignModal } from "@/app/ads/components/ads-edit-campaign-modal";
 import { googleFormValuesFromDetails } from "@/lib/ads/google-form-values";
+import { loadGoogleSetup } from "@/lib/ads/google-setup";
 import { adsService } from "@/lib/services/ads.service";
 
 interface AdsCampaignEditProps {
@@ -26,12 +26,7 @@ interface AdsCampaignEditProps {
   breadcrumb?: boolean;
 }
 
-/**
- * Edit one Google campaign in a modal, behind the same Social beta and with
- * the same 404s as its details page. Both the edit route and the details
- * page's `@modal/(.)edit` render this. A campaign Sokosumi cannot edit, or
- * one that failed to load, shows why instead of the wizard.
- */
+/** Rendered by both the edit route and the details page's `@modal/(.)edit`. */
 export async function AdsCampaignEdit({
   params,
   searchParams,

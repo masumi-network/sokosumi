@@ -36,11 +36,6 @@ export function AdsRowsSkeleton() {
   );
 }
 
-/**
- * The campaigns list's bones: row cards in a holder, each with the name and
- * its line, then the figures (three on a phone, six from `sm`, beside the
- * name from `lg`).
- */
 export function AdsCampaignRowsSkeleton() {
   return (
     <Loading>
@@ -49,7 +44,6 @@ export function AdsCampaignRowsSkeleton() {
   );
 }
 
-/** The rows alone, for a page skeleton that announces itself. */
 export function AdsCampaignRowsBones() {
   return (
     <div className={cn(HOLDER_CLASS, "flex flex-col gap-2")}>
@@ -82,7 +76,6 @@ export function AdsCampaignRowsBones() {
               </div>
             ))}
           </div>
-          {/* The row menu is a ghost button: room for it, nothing drawn. */}
           <div className="hidden size-10 shrink-0 lg:block" />
         </div>
       ))}

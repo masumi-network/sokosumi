@@ -33,10 +33,6 @@ export function selectAccount(
   return accounts.find(({ id }) => id === accountId) ?? accounts[0];
 }
 
-/**
- * The Campaigns tab of one account, where the details and edit pages lead
- * back to. A `range` is kept when given.
- */
 export function campaignsHref(
   projectId: string,
   accountId: string,

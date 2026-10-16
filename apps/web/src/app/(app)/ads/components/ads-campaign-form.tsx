@@ -65,7 +65,6 @@ interface BasicsValues {
 type SaveOutcome = "ok" | "budget_refused" | "shown";
 
 export interface SaveCampaignOptions {
-  /** What the toast says, and what follows a saved campaign. */
   success: { message: string; onSaved: () => void };
   /** Meta create maps 422 to the budget field (our precision copy). */
   budgetPrecisionOn422?: boolean;

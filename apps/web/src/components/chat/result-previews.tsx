@@ -5,7 +5,7 @@ import {
   type ChatResultPreview,
   SokosumiJobStatus,
 } from "@sokosumi/core-client";
-import { getChatRoomMessageResultsResponseTransformer } from "@sokosumi/core-client/transformers";
+import { getMySokoBotTurnResultsResponseTransformer } from "@sokosumi/core-client/transformers";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowUpRight,
@@ -44,6 +44,7 @@ import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { ProjectSelectionMessage } from "./project-selection-message";
+import { loadRoomMessageResults } from "./room-message-results";
 import { selectChatProjectAction } from "./select-project-action";
 
 const icons = {
@@ -410,28 +411,25 @@ function AuthorizedResultPreviews({
 }: ResultPreviewsProps) {
   const t = useTranslations("Components.ChatResults");
   const { data: session } = useSession();
-  const path =
-    "turnId" in source
-      ? `/api/personal-assistant/turns/${encodeURIComponent(source.turnId)}/results`
-      : `/api/chat/${encodeURIComponent(source.roomId)}/messages/${encodeURIComponent(source.messageId)}/results`;
+  const viewerId = session?.user.id;
   const query = useQuery({
     queryKey: [
       "chat-results",
-      session?.user.id,
+      viewerId,
       session?.session.activeOrganizationId,
-      path,
+      source,
       descriptors.map((d) => d.id),
     ],
-    enabled: !!session?.user.id,
+    enabled: !!viewerId,
     queryFn: async ({ signal }) => {
-      const response = await fetch(path, {
-        signal,
-        credentials: "same-origin",
-        cache: "no-store",
-      });
+      if (!("turnId" in source))
+        return loadRoomMessageResults(source.roomId, source.messageId);
+      const response = await fetch(
+        `/api/personal-assistant/turns/${encodeURIComponent(source.turnId)}/results`,
+        { signal, credentials: "same-origin", cache: "no-store" },
+      );
       if (!response.ok) throw new Error("Results unavailable");
-      // Both endpoints share the generated response envelope.
-      const page = await getChatRoomMessageResultsResponseTransformer(
+      const page = await getMySokoBotTurnResultsResponseTransformer(
         await response.json(),
       );
       return page.data;

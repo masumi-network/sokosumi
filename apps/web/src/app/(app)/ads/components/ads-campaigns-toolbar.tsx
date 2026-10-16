@@ -19,7 +19,6 @@ import {
 
 import { AdsRangeToggle } from "./ads-range-toggle";
 
-// The wizard and its fields load on the first open, not with the list.
 const AdsNewCampaignDialog = dynamic(
   () =>
     import("./ads-new-campaign-dialog").then(
@@ -37,12 +36,6 @@ interface AdsCampaignsToolbarProps {
   range: RangeParam;
 }
 
-/**
- * The Campaigns tab's controls, on the tab row as on Schedules: the account
- * and range (kept in `?account=` and `?range=` so the server loads what the
- * URL names) and "New campaign", which opens the create wizard for the
- * selected account. The switcher only appears with two or more accounts.
- */
 export function AdsCampaignsToolbar({
   accounts,
   account,

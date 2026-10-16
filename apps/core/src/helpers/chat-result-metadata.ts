@@ -13,6 +13,17 @@ export function readChatResultSnapshots(value: unknown): ChatResultSnapshot[] {
   });
 }
 
+/** A message row's recorded snapshots; metadata that is not an object has none. */
+export function readMessageResultSnapshots(
+  metadata: unknown,
+): ChatResultSnapshot[] {
+  return readChatResultSnapshots(
+    metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      ? (metadata as Record<string, unknown>)[RESULT_SNAPSHOTS_KEY]
+      : null,
+  );
+}
+
 export function chatResultDescriptors(value: unknown) {
   return readChatResultSnapshots(value).map(({ data }) => ({
     id: data.id,

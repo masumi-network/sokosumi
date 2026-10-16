@@ -13,10 +13,8 @@ import {
   WizardSkeleton,
 } from "./ads-campaign-wizard";
 
-/** What the edit wizard starts from, loaded on the server. */
 export interface EditCampaignData {
   accountId: string;
-  /** "Google Ads account Sokosumi", in the footer. */
   accountLabel: string;
   campaignId: string;
   currency: string;
@@ -34,15 +32,9 @@ type AdsEditCampaignModalProps =
   | { campaign: EditCampaignData }
   /** Why there is no wizard: a campaign Sokosumi cannot edit, or a failed load. */
   | { notice: ReactNode }
-  /** The route is still loading. */
   | { loading: true };
 
-/**
- * "Edit campaign" in the modal Task edit uses (`TaskFormModal`), over the
- * campaign's details when opened from them (`@modal/(.)edit`) and on its own
- * for a direct link. Closing it, or saving, goes back to the details with
- * the same query (project, account, range).
- */
+/** Closing or saving goes back to the details, keeping project, account and range. */
 export function AdsEditCampaignModal(props: AdsEditCampaignModalProps) {
   const t = useTranslations("App.Ads.editCampaign");
   const tCampaigns = useTranslations("App.Ads.campaigns");

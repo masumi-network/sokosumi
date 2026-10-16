@@ -17,7 +17,6 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-/** A direct link to a campaign's edit: the edit modal on its own, with the page's breadcrumb. */
 export default async function EditAdsCampaignPage(
   props: EditAdsCampaignPageProps,
 ) {

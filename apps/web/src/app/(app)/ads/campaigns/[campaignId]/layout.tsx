@@ -1,4 +1,3 @@
-/** A campaign's page, with the edit modal's slot over it. */
 export default function AdsCampaignLayout({
   children,
   modal,

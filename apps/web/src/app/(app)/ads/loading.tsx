@@ -5,11 +5,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import { AdsCampaignRowsBones } from "./components/ads-skeleton";
 
-/**
- * Ads' shape while the project loads, as Campaigns (the default tab) draws
- * it: the tab pill with the range and "New campaign" on its right, then the
- * campaign rows.
- */
 export default async function AdsLoading() {
   const t = await getTranslations("App.Ads");
 

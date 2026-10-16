@@ -39,7 +39,7 @@ vi.mock("@/lib/services/project.service", () => ({
 vi.mock("@/lib/social-beta-access.server", () => ({
   hasCurrentUserSocialBetaAccess: hasSocialBetaAccessMock,
 }));
-vi.mock("@/app/ads/campaigns/google-setup", () => ({
+vi.mock("@/lib/ads/google-setup", () => ({
   loadGoogleSetup: setupMock,
 }));
 vi.mock("@/app/ads/components/ads-campaign-breadcrumb", () => ({

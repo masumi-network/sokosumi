@@ -6,16 +6,6 @@ import {
   type SitelinkFormValues,
 } from "./google-search";
 
-/**
- * How the create wizard pictures an ad before it exists. Google mixes a
- * responsive ad's texts (and a Display ad's images) itself, so the preview
- * shows one combination at a time; `variant` steps through them.
- */
-
-/**
- * Up to `count` of the filled texts, trimmed, starting at the `variant`th and
- * wrapping. A text is never shown twice in one combination.
- */
 export function rotateTexts(
   texts: readonly string[],
   variant: number,
@@ -28,7 +18,6 @@ export function rotateTexts(
   );
 }
 
-/** How many combinations are worth stepping through: one per text of the longest list. */
 export function previewVariants(...lists: readonly (readonly string[])[]) {
   return Math.max(
     1,
@@ -36,7 +25,6 @@ export function previewVariants(...lists: readonly (readonly string[])[]) {
   );
 }
 
-/** The domain an ad shows, `example.com` until the final URL is valid. */
 function domainOf(finalUrl: string): string {
   return adDisplayUrl(finalUrl, "", "");
 }
@@ -51,7 +39,6 @@ interface SearchAdValues {
   callouts: readonly string[];
 }
 
-/** A Search result as Google lays it out: three headlines, two descriptions. */
 export function searchAdPreview(values: SearchAdValues, variant: number) {
   return {
     displayUrl: adDisplayUrl(values.finalUrl, values.path1, values.path2),
@@ -70,11 +57,9 @@ interface DisplayAdValues {
   displayHeadlines: readonly string[];
   longHeadline: string;
   displayDescriptions: readonly string[];
-  /** Each image's role and where to show it from. */
   images: readonly { role: DisplayImageRole; url: string }[];
 }
 
-/** One picture of `role`, stepping with the variant; null without one. */
 function imageOf(
   images: DisplayAdValues["images"],
   role: DisplayImageRole,
@@ -84,7 +69,6 @@ function imageOf(
   return urls.length > 0 ? urls[variant % urls.length].url : null;
 }
 
-/** A Display ad's parts for one combination, each image shape on its own. */
 export function displayAdPreview(values: DisplayAdValues, variant: number) {
   const countOf = (role: DisplayImageRole) =>
     values.images.filter((image) => image.role === role).length;
@@ -101,6 +85,7 @@ export function displayAdPreview(values: DisplayAdValues, variant: number) {
       previewVariants(values.displayHeadlines, values.displayDescriptions),
       countOf("LANDSCAPE"),
       countOf("SQUARE"),
+      countOf("LOGO"),
     ),
   };
 }

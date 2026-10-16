@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 
 import { AdsCampaignsError } from "@/app/ads/components/ads-campaigns-error";
 import { AdsErrorState } from "@/app/ads/components/ads-error-state";
-import { toCampaignsLoadError } from "@/app/ads/components/ads-load-error";
+import { toCampaignsLoadError } from "@/lib/ads/ads-load-error";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 
 /**

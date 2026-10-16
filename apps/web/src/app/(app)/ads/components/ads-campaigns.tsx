@@ -16,7 +16,6 @@ import { cn } from "@/lib/utils";
 import { AdsCampaignActions } from "./ads-campaign-actions";
 import { adsFormat } from "./ads-format";
 
-/** The figures each row shows, in order. */
 const METRICS = [
   "spend",
   "impressions",
@@ -26,7 +25,6 @@ const METRICS = [
   "conversions",
 ] as const;
 
-/** Shown from `sm` up; a phone keeps spend, clicks and CTR. */
 const WIDE_ONLY_METRICS: ReadonlySet<string> = new Set([
   "impressions",
   "cpc",
@@ -72,12 +70,6 @@ interface AdsCampaignsProps {
   range: RangeParam;
 }
 
-/**
- * One account's campaigns, rendered on the server as the Schedules list
- * draws its rows: outlined cards in a holder, the name and status first, then
- * the range's figures. A Google row opens the campaign's details; only each
- * row's action menu is client code.
- */
 export async function AdsCampaigns({
   accountId,
   campaigns,
@@ -116,7 +108,6 @@ export async function AdsCampaigns({
     conversions: ({ conversions }) => count(conversions),
   };
 
-  /** What kind of campaign it is and what it may spend a day. */
   const summary = ({ objective, dailyBudget }: AdCampaign) =>
     [
       objective ? formatObjective(objective, tObjectives) : null,
@@ -136,15 +127,13 @@ export async function AdsCampaigns({
       <ul className="flex flex-col gap-2">
         {campaigns.map((campaign) => {
           const linked = provider === "google_ads";
-          const meta = summary(campaign);
+          const objectiveAndBudget = summary(campaign);
           return (
             <li
               key={campaign.id}
               className={cn(
                 HOLDER_ITEM_CLASS,
                 linked && HOLDER_ITEM_HOVER_CLASS,
-                // One menu for every width: beside the name on a phone, after
-                // the figures from `lg`.
                 "content-in relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 p-3 transition-colors lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:gap-x-6",
                 linked && "press",
               )}
@@ -153,7 +142,6 @@ export async function AdsCampaigns({
               <div className="col-start-1 row-start-1 min-w-0">
                 <div className="flex min-w-0 items-center gap-2">
                   {linked ? (
-                    // The link covers the whole card; the menu sits above it.
                     <Link
                       className="text-foreground focus-visible:after:ring-ring truncate text-sm font-medium after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-2"
                       href={campaignDetailsHref(
@@ -179,9 +167,9 @@ export async function AdsCampaigns({
                     {t(`status.${campaign.status}`)}
                   </Badge>
                 </div>
-                {meta ? (
+                {objectiveAndBudget ? (
                   <p className="text-muted-foreground mt-0.5 truncate text-xs tabular-nums">
-                    {meta}
+                    {objectiveAndBudget}
                   </p>
                 ) : null}
               </div>

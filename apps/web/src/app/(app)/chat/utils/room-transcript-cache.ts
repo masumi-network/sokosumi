@@ -18,6 +18,8 @@ import {
 } from "./room-transcript-ranges";
 
 export const ROOM_RETENTION_MS = 30 * 60 * 1000;
+/** A click's head read only stands in for the open that click starts. */
+const ROOM_OPEN_PREFETCH_MS = 10_000;
 export interface RoomTranscriptEntry {
   bootstrap: RoomsClientProps;
   transcript: RoomTranscript;
@@ -68,6 +70,11 @@ export class RoomTranscriptCache {
     return this.valid && !this.revoked.has(roomId);
   }
   private readonly reads = new Map<string, Promise<RoomMessagesPage | null>>();
+  // Head reads started by a room click, kept until the open's first head read takes them.
+  private readonly prefetched = new Map<
+    string,
+    { revision: number; at: number; page: Promise<RoomMessagesPage | null> }
+  >();
   // Positions follow the retained entry's lifetime without notifying data subscribers.
   private readonly positions = new WeakMap<object, TranscriptPosition>();
 
@@ -193,8 +200,25 @@ export class RoomTranscriptCache {
     this.revoked.delete(roomId);
   }
 
+  /**
+   * Start a room's first head read when the reader clicks it, alongside the
+   * route navigation, instead of after the room mounts. A room already painted
+   * from cache reads for itself on mount.
+   */
+  prefetch(roomId: string) {
+    const entry = this.get(roomId);
+    if (!this.available(roomId) || entry?.resolved) return;
+    this.prefetched.set(roomId, {
+      // A seeded entry starts at revision 0.
+      revision: entry?.revision ?? 0,
+      at: Date.now(),
+      page: this.fetch(roomId),
+    });
+  }
+
   evict(roomId: string) {
     this.revoked.add(roomId);
+    this.prefetched.delete(roomId);
     for (const key of this.reads.keys()) {
       if (JSON.parse(key)[0] === roomId) this.reads.delete(key);
     }
@@ -203,6 +227,7 @@ export class RoomTranscriptCache {
   clear() {
     this.valid = false;
     this.reads.clear();
+    this.prefetched.clear();
     this.client.removeQueries({ queryKey: this.prefix });
   }
 
@@ -210,23 +235,41 @@ export class RoomTranscriptCache {
     roomId: string,
     options?: { around?: string; cursor?: string; limit?: number },
   ) {
-    const key = JSON.stringify([roomId, options, this.get(roomId)?.revision]);
+    const revision = this.get(roomId)?.revision;
+    const key = JSON.stringify([roomId, options, revision]);
     const existing = this.reads.get(key);
     if (existing) return existing;
+    const prefetched = options ? undefined : this.prefetched.get(roomId);
+    if (prefetched) this.prefetched.delete(roomId);
+    // A prefetched page is only as new as the transcript it was started
+    // against. A failed one reads again, now with the room's access handling.
+    const promise = (
+      prefetched &&
+      prefetched.revision === revision &&
+      Date.now() - prefetched.at < ROOM_OPEN_PREFETCH_MS
+        ? prefetched.page.then((page) => page ?? this.fetch(roomId, options))
+        : this.fetch(roomId, options)
+    ).finally(() => {
+      if (this.reads.get(key) === promise) this.reads.delete(key);
+    });
+    this.reads.set(key, promise);
+    return promise;
+  }
+
+  private fetch(
+    roomId: string,
+    options?: { around?: string; cursor?: string; limit?: number },
+  ) {
     if (chatReadThrottleResumeInMs() > 0) return Promise.resolve(null);
     const lifetime = this.get(roomId)?.lifetime;
-    const promise = fetchRoomMessages(roomId, null, options, (status) => {
+    return fetchRoomMessages(roomId, null, options, (status) => {
       if (!lifetime || !this.current(roomId, lifetime)) return;
       if (status === 401) {
         window.dispatchEvent(new Event("chat-session-ended"));
       } else {
         notifyOrganizationChatRoomsChanged({ removedRoomId: roomId });
       }
-    }).finally(() => {
-      if (this.reads.get(key) === promise) this.reads.delete(key);
     });
-    this.reads.set(key, promise);
-    return promise;
   }
 
   /** Latest + visible dirty window; never downloads the rest of retained history. */

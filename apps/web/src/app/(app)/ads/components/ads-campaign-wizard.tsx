@@ -88,13 +88,11 @@ import { AdsGoogleTargetingFields } from "./ads-targeting-fields";
 const GOOGLE_TYPES = ["SEARCH", "DISPLAY"] as const;
 type GoogleType = (typeof GOOGLE_TYPES)[number];
 
-/** What each type's card shows: a search result, or an image on a page. */
 const TYPE_ICONS: Record<GoogleType, LucideIcon> = {
   SEARCH: SearchIcon,
   DISPLAY: ImageIcon,
 };
 
-/** Fields that belong only to Search; their refusals go when switching to Display. */
 const SEARCH_ONLY_FIELDS = [
   "keywords",
   "path1",
@@ -105,7 +103,6 @@ const SEARCH_ONLY_FIELDS = [
   "callouts",
 ] as const;
 
-/** Fields that belong only to Display; their refusals go when switching to Search. */
 const DISPLAY_ONLY_FIELDS = [
   "businessName",
   "displayHeadlines",
@@ -122,13 +119,11 @@ type GoogleStep =
   | "ad"
   | "review";
 
-/** The steps of each type: Display has no keywords. */
 const GOOGLE_STEPS: Record<GoogleType, readonly GoogleStep[]> = {
   SEARCH: ["type", "basics", "targeting", "keywords", "ad", "review"],
   DISPLAY: ["type", "basics", "targeting", "ad", "review"],
 };
 
-/** What "Next" checks on each step before it moves on. */
 function googleStepFields(
   step: GoogleStep,
   type: GoogleType,
@@ -149,7 +144,6 @@ function googleStepFields(
   }
 }
 
-/** The first step holding a refusal, to go back to after a refused create. */
 function firstStepWithError<S extends string>(
   steps: readonly S[],
   fieldsOf: (step: S) => readonly string[],
@@ -162,27 +156,20 @@ function firstStepWithError<S extends string>(
 }
 
 interface WizardProps {
-  /** "Google Ads account Sokosumi", under the title. */
   accountLabel: string;
   onClose: () => void;
-  /** Saving: the dialog cannot be dismissed meanwhile. */
   onBusyChange: (busy: boolean) => void;
 }
 
 interface WizardFrameProps {
-  /** "Google Ads account Sokosumi", in the footer like a schedule's summary. */
   accountLabel: string;
   children: ReactNode;
-  /** The step's labels, in order. */
   labels: readonly string[];
   step: number;
-  /** Go back to an earlier step. */
   onJump: (step: number) => void;
   onSubmit: () => void;
   submitting: boolean;
-  /** Pictures are still going in; the wizard waits for them. */
   uploading?: boolean;
-  /** The step lays out side by side (the review), so it takes more width. */
   wide?: boolean;
   /** What the last step's button says. */
   submitLabel: string;
@@ -193,13 +180,6 @@ interface WizardFrameProps {
   openSteps?: boolean;
 }
 
-/**
- * The wizard inside `TaskFormModal`, as New task and New schedule draw
- * theirs: Back in the header's start slot, the steps (a bar each, earlier
- * ones to click back to) under the header, the step, and the footer with the
- * account on the left and Next (or Create on the last step) on the right.
- * One `<form>` spans it, so Enter moves on as Next does.
- */
 function WizardFrame({
   accountLabel,
   children,
@@ -216,8 +196,6 @@ function WizardFrame({
   const t = useTranslations("App.Ads.newCampaign");
   const last = step === labels.length - 1;
   const bodyRef = useRef<HTMLDivElement>(null);
-  // Each step mounts anew (keyed): start it at the top and move focus there,
-  // so the field that held focus on the last step is not lost with it.
   const showStep = useCallback((node: HTMLDivElement | null) => {
     if (!node) return;
     if (bodyRef.current) bodyRef.current.scrollTop = 0;
@@ -234,8 +212,6 @@ function WizardFrame({
       }}
     >
       {step > 0 ? (
-        // The slot keeps what it was given when it mounted: a new key per
-        // step (and save) gives it a Back that knows the step it is on.
         <TaskFormModalHeaderStart key={`${step}:${submitting}`}>
           <Button
             className="text-primary -ml-2"
@@ -363,10 +339,6 @@ function WizardFrame({
   );
 }
 
-/**
- * Search or Display, as cards that say what each one needs, so the reader
- * knows what the next steps will ask for. Switching keeps what both share.
- */
 function GoogleTypeStep() {
   const t = useTranslations("App.Ads.newCampaign");
   const form = useFormContext<GoogleFormValues>();
@@ -403,7 +375,6 @@ function GoogleTypeStep() {
           const type = GOOGLE_TYPES.find((candidate) => candidate === value);
           if (!type) return;
           form.setValue("type", type);
-          // Spec: clear the other type's refusals; keep shared Basics.
           form.clearErrors(
             type === "DISPLAY" ? SEARCH_ONLY_FIELDS : DISPLAY_ONLY_FIELDS,
           );
@@ -413,8 +384,6 @@ function GoogleTypeStep() {
         {GOOGLE_TYPES.map((type) => {
           const Icon = TYPE_ICONS[type];
           return (
-            // A plan card from Billing, chosen like a radio: the chosen one
-            // takes the accent border and its icon the accent.
             <label
               key={type}
               className="group bg-card has-[[data-state=checked]]:border-primary has-[:focus-visible]:ring-ring-halo hover:bg-card-background-hover flex cursor-pointer flex-col gap-5 rounded-xl border p-5 transition-colors has-[:focus-visible]:ring-[3px]"
@@ -472,7 +441,6 @@ function GoogleTypeStep() {
   );
 }
 
-/** One line of the review: what it is, what was chosen, and a way back to it. */
 function SummaryRow({
   label,
   children,
@@ -510,7 +478,6 @@ function targetNames(targets: readonly GoogleTarget[], all: string): string {
   return targets.length > 0 ? targets.map(({ name }) => name).join(", ") : all;
 }
 
-/** A start and an end date as the review says them. */
 function useScheduleText() {
   const t = useTranslations("App.Ads.newCampaign.review");
   const formatter = useFormatter();
@@ -559,7 +526,6 @@ function GoogleReviewStep({
   return (
     <>
       {refusal}
-      {/* Side by side once the modal is wide enough: the ad, then what it is. */}
       <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
         <AdsSection id="campaign-wizard-preview" title={t("preview.title")}>
           <AdsAdPreview />
@@ -620,19 +586,13 @@ function GoogleReviewStep({
   );
 }
 
-/**
- * What a Google wizard does differently when it makes a campaign and when it
- * edits one. Each wizard below decides it once; the body just follows it.
- */
 interface GoogleWizardSetup {
   defaultValues: GoogleFormValues;
   /** An edit keeps its type (no type step) and opens every step from the bar. */
   editing: boolean;
-  /** Set once the start date can no longer change: why. */
   startDateHint?: string;
   failedTitle: string;
   submitLabel: string;
-  /** Under the review's summary. */
   note: string;
   save: Pick<SaveCampaignOptions, "success" | "explain">;
   send: (
@@ -675,13 +635,13 @@ function GoogleCampaignWizard({
   const current = steps[step];
   const fieldsOf = (candidate: GoogleStep) => googleStepFields(candidate, type);
 
-  async function next(): Promise<void> {
+  async function handleNext(): Promise<void> {
     if (await form.trigger(fieldsOf(current), { shouldFocus: true })) {
       setStep(step + 1);
     }
   }
 
-  const submit = form.handleSubmit(
+  const handleSave = form.handleSubmit(
     async (values) => {
       onBusyChange(true);
       try {
@@ -724,7 +684,6 @@ function GoogleCampaignWizard({
         note={setup.note}
         refusal={
           saving.refusal ? (
-            // A new key per attempt re-mounts the alert, which focuses it again.
             <RefusalAlert
               failedTitle={setup.failedTitle}
               key={saving.refusal.attempt}
@@ -745,7 +704,9 @@ function GoogleCampaignWizard({
           accountLabel={accountLabel}
           labels={steps.map((candidate) => t(`steps.${candidate}`))}
           onJump={setStep}
-          onSubmit={() => void (current === "review" ? submit() : next())}
+          onSubmit={() =>
+            void (current === "review" ? handleSave() : handleNext())
+          }
           openSteps={setup.editing}
           step={step}
           submitLabel={setup.submitLabel}
@@ -776,7 +737,6 @@ export function NewGoogleCampaignWizard({
     <GoogleCampaignWizard
       {...props}
       setup={{
-        // The reader may remove the suggestions.
         defaultValues: {
           ...EMPTY_GOOGLE_VALUES,
           locations: targeting.defaultLocations,
@@ -875,10 +835,6 @@ interface MetaValues {
 
 interface NewMetaCampaignWizardProps extends CampaignFormProps, WizardProps {}
 
-/**
- * Makes a Meta campaign: a name, a budget and one objective, then a review.
- * Its ad sets and ads are made in Meta Ads Manager, so there is no preview.
- */
 export function NewMetaCampaignWizard({
   accountLabel,
   onBusyChange,
@@ -909,13 +865,13 @@ export function NewMetaCampaignWizard({
     (candidate) => candidate === values.objective,
   );
 
-  async function next(): Promise<void> {
+  async function handleNext(): Promise<void> {
     if (await form.trigger(META_STEP_FIELDS[current], { shouldFocus: true })) {
       setStep(step + 1);
     }
   }
 
-  const create = form.handleSubmit(
+  const handleCreate = form.handleSubmit(
     async ({ name, dailyBudget, objective }) => {
       onBusyChange(true);
       try {
@@ -947,7 +903,9 @@ export function NewMetaCampaignWizard({
         accountLabel={accountLabel}
         labels={META_STEPS.map((candidate) => t(`steps.${candidate}`))}
         onJump={setStep}
-        onSubmit={() => void (current === "review" ? create() : next())}
+        onSubmit={() =>
+          void (current === "review" ? handleCreate() : handleNext())
+        }
         step={step}
         submitLabel={t("submit")}
         submitting={form.formState.isSubmitting || saving.saved}
@@ -1016,10 +974,6 @@ export function NewMetaCampaignWizard({
   );
 }
 
-/**
- * A wizard's shape while what it starts from loads: the step bars, a step's
- * heading and two blocks, and the footer (with the account once it is known).
- */
 export function WizardSkeleton({
   accountLabel,
   steps,

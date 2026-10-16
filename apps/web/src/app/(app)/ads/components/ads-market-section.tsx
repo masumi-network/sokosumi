@@ -1,11 +1,9 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-
+import { settleAdsLoad } from "@/lib/ads/ads-load-error";
 import { marketOptions, marketSummary } from "@/lib/ads/market";
 import { adsService } from "@/lib/services/ads.service";
-
 import { AdsErrorState } from "./ads-error-state";
-import { settleAdsLoad } from "./ads-load-error";
 import { AdsMarketProfile } from "./ads-market-profile";
 import { AdsMarketResults } from "./ads-market-results";
 import { AdsRowsSkeleton } from "./ads-skeleton";
