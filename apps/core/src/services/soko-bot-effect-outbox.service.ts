@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { z } from "zod";
-
+import { writableAssistantRoomWhere } from "@/helpers/shared-soko-bot-room";
+import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
+import { isOwnSharedRoom } from "@/helpers/soko-bot-notice-room";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -241,6 +243,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
             id: payload.messageId,
             roomId: payload.roomId,
             senderSokoBotId: turn.sokoBotId,
+            room: writableAssistantRoomWhere,
           },
           include: {
             senderSokoBot: { select: { name: true, archivedAt: true } },
@@ -263,8 +266,9 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
           return { message: null, reason: "MESSAGE_UNAVAILABLE" };
         const room = message.room;
         const rosterMatches =
-          JSON.stringify(room.userMembers.map((m) => m.userId).sort()) ===
-            JSON.stringify(payload.userIds) &&
+          (isOwnSharedRoom(authority, room.id) ||
+            JSON.stringify(room.userMembers.map((m) => m.userId).sort()) ===
+              JSON.stringify(payload.userIds)) &&
           JSON.stringify(
             room.coworkerMembers.map((m) => m.coworkerId).sort(),
           ) === JSON.stringify(payload.coworkerIds) &&
@@ -281,6 +285,8 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
             messageId: message.id,
             roomId: room.id,
             content: payload.content,
+            // A shared room holds the whole organization.
+            expandAll: isPersonalSokoBot(authority),
           });
           await tx.chatRoomMention.updateMany({
             where: { messageId: message.id, status: "staged" },

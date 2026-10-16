@@ -773,6 +773,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         messageId: MESSAGE_ID,
         roomId: ROOM_ID,
         content: `@${ALICE_ID} please check`,
+        expandAll: true,
       });
       expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
         messageId: MESSAGE_ID,
@@ -938,11 +939,11 @@ describe("POST /chats/rooms/{id}/messages", () => {
     });
 
     it.each([
-      ["personal", sokoBotAuthContext],
-      ["shared", sharedSokoBotAuthContext],
+      ["personal", sokoBotAuthContext, true],
+      ["shared", sharedSokoBotAuthContext, false],
     ])(
       "posts with the %s soko bot sender after membership authorization",
-      async (_kind, auth) => {
+      async (_kind, auth, expandAll) => {
         roomFindFirstMock.mockResolvedValue({
           id: ROOM_ID,
           name: "general",
@@ -962,6 +963,11 @@ describe("POST /chats/rooms/{id}/messages", () => {
 
         expect(response.status).toBe(201);
         expect((await response.json()).data.sender.type).toBe("sokoBot");
+        // Only a shared bot's "@all" stays unexpanded: its room is the org.
+        expect(persistChatHumanMentionsMock).toHaveBeenCalledWith(
+          tx,
+          expect.objectContaining({ expandAll }),
+        );
         expect(messageCreateMock).toHaveBeenCalledWith(
           expect.objectContaining({
             data: expect.objectContaining({

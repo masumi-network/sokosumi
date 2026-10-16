@@ -72,7 +72,7 @@ describe("contextPacketScope", () => {
     expect(scope.jobWhere).toEqual(buildSokoBotScopeJobWhere(projectScope));
     expect(scope.projectWhere).toEqual({ workspaceId: WS, id: "p-1" });
     expect(scope.coworkerAssignmentWhere).toEqual({ id: { in: [] } });
-    expect(scope.includeReminders).toBe(false);
+    expect(scope.includeReminders).toBe(true);
     expect(scope.askerUserId).toBe("member");
     // One memory and one conversation per bot, keyed on the bot.
     expect(scope.memoryWhere).toEqual({ sokoBotId: BOT });
@@ -93,6 +93,20 @@ describe("contextPacketScope", () => {
       workspaceId: WS,
       turn: { chatMention: { message: { roomId: "room-1" } } },
     });
+  });
+
+  it.each(["SCHEDULE", "EVENT", "INGEST"])(
+    "names no asker for a shared bot's %s turn",
+    (source) => {
+      const scope = contextPacketScope({ ...shared, source });
+      expect(scope.askedByKind).toBe("TEAMMATE");
+      expect(scope.askerUserId).toBeNull();
+    },
+  );
+
+  it("names the asking member for a shared bot's chat turn", () => {
+    const scope = contextPacketScope({ ...shared, source: "CHAT" });
+    expect(scope.askerUserId).toBe("member");
   });
 
   it("lets a workspace bot see every Project", () => {

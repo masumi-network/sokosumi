@@ -48,8 +48,7 @@ export async function resolveCreditBucketScopeContext(
     tx,
     now,
   );
-  const isConsumableEnterprise =
-    billingPlan.mode === "enterprise_contract" && billingPlan.isConsumable;
+  const isConsumableEnterprise = isConsumableEnterprisePlan(billingPlan);
   const requiresAssignedSeat =
     billingPlan.mode === "enterprise_contract" ||
     (billingPlan.mode === "self_serve" && billingPlan.plan !== "free");
@@ -85,6 +84,33 @@ export async function resolveCreditBucketScopeContext(
     organizationId,
     poolAccess,
   };
+}
+
+function isConsumableEnterprisePlan(
+  billingPlan: Awaited<ReturnType<typeof resolveOrganizationBillingPlan>>,
+): boolean {
+  return billingPlan.mode === "enterprise_contract" && billingPlan.isConsumable;
+}
+
+/**
+ * The pool a seated member of the Organization draws from, read without any
+ * member. Only for questions about the pool itself (is it empty?), never to
+ * authorize spend: spend stays gated by `resolveCreditBucketScopeContext`.
+ */
+export async function buildOrganizationPoolScopeSql(
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+  now: Date = new Date(),
+): Promise<Prisma.Sql> {
+  const billingPlan = await resolveOrganizationBillingPlan(
+    organizationId,
+    tx,
+    now,
+  );
+  return organizationPoolSql(
+    organizationId,
+    isConsumableEnterprisePlan(billingPlan),
+  );
 }
 
 export async function hasAssignedOrganizationSeat(
@@ -150,9 +176,19 @@ export function buildCreditBucketScopeSql(
     return unsatisfiableOrganizationScopeSql(context.organizationId);
   }
 
+  return organizationPoolSql(
+    context.organizationId,
+    context.poolAccess === "enterprise",
+  );
+}
+
+function organizationPoolSql(
+  organizationId: string,
+  includeEnterprise: boolean,
+): Prisma.Sql {
   return Prisma.sql`
-    cb."organizationId" = ${context.organizationId}
-    AND ${buildOrganizationSharedScopeSql(context.poolAccess === "enterprise")}
+    cb."organizationId" = ${organizationId}
+    AND ${buildOrganizationSharedScopeSql(includeEnterprise)}
   `;
 }
 

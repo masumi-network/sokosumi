@@ -10,7 +10,7 @@ import {
   completeSokoBotIntegrationAuthResponseSchema,
 } from "@/schemas/soko-bot-integration-auth.schema";
 import { completeSokoBotIntegrationAuth } from "@/services/soko-bot-integration-auth.service";
-import { finalizeSokoBotIntegration } from "@/services/soko-bot-integrations.service";
+import { finalizeSokoBotIntegration } from "@/services/soko-bot-integration-connection.service";
 import { mapIntegrationError } from "./helpers.js";
 
 export function mountSokoBotIntegrationAuthRoutes(
