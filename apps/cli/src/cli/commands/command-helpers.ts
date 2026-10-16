@@ -17,28 +17,25 @@ export type CommandOptions = Record<string, CommandOption>;
 
 export function option(
   options: CommandOptions | undefined,
-  ...names: string[]
+  name: string,
 ): CommandOption {
-  for (const name of names) {
-    if (options?.[name] !== undefined) return options[name];
-  }
-  return undefined;
+  return options?.[name];
 }
 
 export function optionString(
   options: CommandOptions | undefined,
-  ...names: string[]
+  name: string,
 ): string | undefined {
-  const value = option(options, ...names);
+  const value = option(options, name);
   if (value === undefined || typeof value === "boolean") return undefined;
   return Array.isArray(value) ? value[value.length - 1] : value;
 }
 
 export function optionBoolean(
   options: CommandOptions | undefined,
-  ...names: string[]
+  name: string,
 ): boolean {
-  const value = option(options, ...names);
+  const value = option(options, name);
   return value === true || value === "true";
 }
 

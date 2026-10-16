@@ -215,7 +215,7 @@ Customer charging and seller receipt are separate outcomes. `TaskPaymentClaim.PU
 
 | Source | Observed behavior | Consequence |
 | --- | --- | --- |
-| `apps/core/src/routes/v1/coworkers/post.ts:75-132` | Admin-only registration; requires Vendor; creates an unwhitelisted Coworker | Self-service registration needs an approved Core contract |
+| `apps/core/src/routes/v1/coworkers/post.ts:83-112` | Platform admin any network; own Vendor admin on Preprod; requires Vendor; creates an unwhitelisted Coworker | Mainnet still needs platform-admin create; Preprod Vendor admin can self-provision |
 | `apps/cli/src/auth/config.ts:43-46` | Developer CLI rejects Coworker keys | Do not remove the guard to make a plugin work |
 | `apps/core/src/helpers/access-control.ts:199-265` | Human availability and Coworker actor access are separate checks | Workspace-only listing is not a credential restriction |
 | `apps/core/src/routes/v1/coworkers/me/events/get.ts:68-94` | Pulls events for assigned non-DRAFT Tasks | Reuse as an input source, not as a work-claim protocol |

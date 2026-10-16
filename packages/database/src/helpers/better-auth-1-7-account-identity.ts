@@ -6,7 +6,7 @@ const CREDENTIAL_ISSUER = "local:credential";
 const GOOGLE_ISSUER = "https://accounts.google.com";
 const MICROSOFT_ISSUER_PREFIX = "https://login.microsoftonline.com/";
 
-export interface AccountIdentityInput {
+interface AccountIdentityInput {
   id: string;
   providerId: string;
   accountId: string;
@@ -15,7 +15,7 @@ export interface AccountIdentityInput {
   refreshToken?: string | null;
 }
 
-export interface ReadyAccountIdentity {
+interface ReadyAccountIdentity {
   status: "ready";
   id: string;
   issuer: string;
@@ -23,7 +23,7 @@ export interface ReadyAccountIdentity {
   source: "credential" | "google" | "microsoft-id-token" | "synthetic-oauth";
 }
 
-export interface UnmappedAccountIdentity {
+interface UnmappedAccountIdentity {
   status: "unmapped";
   id: string;
   providerId: string;
@@ -35,14 +35,14 @@ export interface UnmappedAccountIdentity {
     | "microsoft-id-token-malformed";
 }
 
-export type AccountIdentity = ReadyAccountIdentity | UnmappedAccountIdentity;
+type AccountIdentity = ReadyAccountIdentity | UnmappedAccountIdentity;
 
-export interface MicrosoftTokenRefresh {
+interface MicrosoftTokenRefresh {
   idToken?: string | null;
   refreshToken?: string | null;
 }
 
-export interface MicrosoftHarvestWrite {
+interface MicrosoftHarvestWrite {
   idToken: string;
   refreshToken: string | null;
 }
