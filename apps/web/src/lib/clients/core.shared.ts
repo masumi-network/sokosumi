@@ -1,5 +1,6 @@
 import {
   getChatRoomMessageResults as coreGetChatRoomMessageResults,
+  getChatRoomMessageResultsBatch as coreGetChatRoomMessageResultsBatch,
   getMySokoBotTurnResults as coreGetMySokoBotTurnResults,
   suggestTaskTags as coreSuggestTaskTags,
 } from "@sokosumi/core-client";
@@ -1243,6 +1244,22 @@ export function createCoreClient(getClient: GetCoreClient) {
         coreGetChatRoomMessageResults({
           client,
           path: { id, messageId },
+          cache: "no-store",
+        }),
+      "Failed to fetch message results",
+    );
+  }
+  async function getChatRoomMessageResultsBatch(
+    id: string,
+    messageIds: string[],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatRoomMessageResultsBatch({
+          client,
+          path: { id },
+          query: { messageIds: messageIds.join(",") },
           cache: "no-store",
         }),
       "Failed to fetch message results",
@@ -6290,6 +6307,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomMessages,
     getChatRoomMessage,
     getChatRoomMessageResults,
+    getChatRoomMessageResultsBatch,
     getMySokoBotTurnResults,
     getChatRoomThread,
     getChatRoomThreadMessages,
