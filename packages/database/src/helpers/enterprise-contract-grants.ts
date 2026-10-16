@@ -19,7 +19,7 @@ interface CreateEnterprisePeriodCreditBucketParams {
   periodId: string;
 }
 
-export interface CreateEnterprisePeriodCreditBucketResult {
+interface CreateEnterprisePeriodCreditBucketResult {
   bucketId: string;
   created: boolean;
 }
@@ -83,7 +83,7 @@ interface CreateEnterpriseTopUpCreditBucketParams {
   organizationId: string;
 }
 
-export interface CreateEnterpriseTopUpCreditBucketResult {
+interface CreateEnterpriseTopUpCreditBucketResult {
   bucketId: string;
   created: boolean;
 }
