@@ -84,5 +84,3 @@ export const taskFileSchema = z
   .openapi("TaskFile");
 
 export const taskFilesSchema = z.array(taskFileSchema).openapi("TaskFiles");
-
-export type TaskFileDto = z.infer<typeof taskFileSchema>;
