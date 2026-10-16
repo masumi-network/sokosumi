@@ -46,8 +46,6 @@ const taskLinkPeerTaskSchema = z
   })
   .openapi("TaskLinkPeerTask");
 
-export type TaskLinkPeerTaskResponse = z.infer<typeof taskLinkPeerTaskSchema>;
-
 const taskLinkRelationSchema = z
   .enum(["related", "blocks", "blocked_by", "parent", "child", "duplicate"])
   .openapi("TaskLinkRelation");

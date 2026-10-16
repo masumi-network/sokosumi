@@ -16,8 +16,6 @@ export const stripeCustomerSchema = z
   })
   .openapi("StripeCustomer");
 
-export type StripeCustomer = z.infer<typeof stripeCustomerSchema>;
-
 /**
  * Result of ensuring a Stripe customer exists for a billing entity.
  *
@@ -32,10 +30,6 @@ export const provisionedStripeCustomerSchema = z
       .openapi({ example: "cus_123", description: "Stripe customer id" }),
   })
   .openapi("ProvisionedStripeCustomer");
-
-export type ProvisionedStripeCustomer = z.infer<
-  typeof provisionedStripeCustomerSchema
->;
 
 const stripeCustomerBillingAddressSchema = z
   .object({
