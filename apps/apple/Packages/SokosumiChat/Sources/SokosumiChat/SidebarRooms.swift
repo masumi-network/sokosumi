@@ -87,6 +87,11 @@ public struct DirectRoomAvatarParticipant: Equatable, Sendable, Identifiable {
     self.isAI = isAI
     self.presence = presence
   }
+
+  /// Coworkers and Soko Bots stay always-online (ADR 0003 v1). Humans overlay live org presence; Core's snapshot is the fallback.
+  public func resolvedPresence(live: [String: Components.Schemas.ChatRoomPresence]) -> Components.Schemas.ChatRoomPresence {
+    isAI ? .online : live[id] ?? presence
+  }
 }
 
 /// Faces for a Direct sidebar row. Empty means the row should show the
