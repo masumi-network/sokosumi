@@ -55,6 +55,16 @@ describe("room message results", () => {
     ).rejects.toThrow("Results unavailable");
   });
 
+  it("keeps an empty result list for a live message", async () => {
+    fetchMock.mockResolvedValue(
+      respondWith([{ messageId: first, results: [] }]),
+    );
+    await expect(
+      loadRoomMessageResults("empty-viewer", roomId, first),
+    ).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("serves the server-started read once, then reads fresh", async () => {
     primeRoomMessageResults(
       "primed-viewer",

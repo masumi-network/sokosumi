@@ -60,10 +60,9 @@ function enqueue(roomId: string, messageId: string) {
 }
 
 function pick(results: ResultsByMessage, messageId: string) {
-  const found = results.get(messageId);
-  // A message the read omits is missing or deleted.
-  if (!found) throw new Error("Results unavailable");
-  return found;
+  // An omitted id is missing or deleted. An empty list is a live message.
+  if (!results.has(messageId)) throw new Error("Results unavailable");
+  return results.get(messageId) ?? [];
 }
 
 /**
