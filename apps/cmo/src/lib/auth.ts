@@ -224,7 +224,7 @@ export function createCmoAuth(config: CmoAuthConfig) {
       },
     },
     advanced: {
-      // Locally CMO shares the sokosumi.localhost cookie domain with Web.
+      // Distinct from Web/Core: their Domain=sokosumi.localhost cookies reach CMO too.
       cookiePrefix: "cmo",
       // Better Auth skips its CSRF origin check under test; keep it on.
       disableOriginCheck: false,

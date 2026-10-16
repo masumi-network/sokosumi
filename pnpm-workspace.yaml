@@ -23,7 +23,6 @@ overrides:
   "js-yaml@<4.3.2": "4.3.2"
   # esbuild GHSA-g7r4-m6w7-qqqr (Windows dev-server arbitrary file read).
   # Patched floor is 0.28.1; pin latest 0.28.x.
-  # tsup 9 depends on esbuild@^0.28.2 (no longer the reason this exists).
   # Keep the floor: vite@8.3.4 peers `^0.27.0 || ^0.28.0`, tsx@4.23.15
   # depends on ~0.28.0, and react-email@6.11.2 depends on ^0.28.0 — those
   # ranges can still resolve to 0.27.x or 0.28.0 without the override.
