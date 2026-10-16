@@ -12,6 +12,8 @@ interface AdsOptionalSectionProps {
   summary: string | null;
   /** Whether the section holds a refusal. */
   invalid: boolean;
+  /** The field this section folds, when a step check should be able to reopen it. */
+  name?: string;
   children: ReactNode;
 }
 
