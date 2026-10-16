@@ -136,7 +136,7 @@ export async function AdsCampaigns({
       <ul className="flex flex-col gap-2">
         {campaigns.map((campaign) => {
           const linked = provider === "google_ads";
-          const meta = summary(campaign);
+          const objectiveAndBudget = summary(campaign);
           return (
             <li
               key={campaign.id}
@@ -179,9 +179,9 @@ export async function AdsCampaigns({
                     {t(`status.${campaign.status}`)}
                   </Badge>
                 </div>
-                {meta ? (
+                {objectiveAndBudget ? (
                   <p className="text-muted-foreground mt-0.5 truncate text-xs tabular-nums">
-                    {meta}
+                    {objectiveAndBudget}
                   </p>
                 ) : null}
               </div>

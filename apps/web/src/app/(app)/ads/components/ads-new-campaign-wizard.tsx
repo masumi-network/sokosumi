@@ -632,13 +632,13 @@ export function NewGoogleCampaignWizard({
   const current = steps[step];
   const fieldsOf = (candidate: GoogleStep) => googleStepFields(candidate, type);
 
-  async function next(): Promise<void> {
+  async function handleNext(): Promise<void> {
     if (await form.trigger(fieldsOf(current), { shouldFocus: true })) {
       setStep(step + 1);
     }
   }
 
-  const create = form.handleSubmit(
+  const handleCreate = form.handleSubmit(
     async (values) => {
       onBusyChange(true);
       try {
@@ -714,7 +714,9 @@ export function NewGoogleCampaignWizard({
           accountLabel={accountLabel}
           labels={steps.map((candidate) => t(`steps.${candidate}`))}
           onJump={setStep}
-          onSubmit={() => void (current === "review" ? create() : next())}
+          onSubmit={() =>
+            void (current === "review" ? handleCreate() : handleNext())
+          }
           step={step}
           submitting={form.formState.isSubmitting || saving.saved}
           uploading={uploading}
@@ -776,13 +778,13 @@ export function NewMetaCampaignWizard({
     (candidate) => candidate === values.objective,
   );
 
-  async function next(): Promise<void> {
+  async function handleNext(): Promise<void> {
     if (await form.trigger(META_STEP_FIELDS[current], { shouldFocus: true })) {
       setStep(step + 1);
     }
   }
 
-  const create = form.handleSubmit(
+  const handleCreate = form.handleSubmit(
     async ({ name, dailyBudget, objective }) => {
       onBusyChange(true);
       try {
@@ -814,7 +816,9 @@ export function NewMetaCampaignWizard({
         accountLabel={accountLabel}
         labels={META_STEPS.map((candidate) => t(`steps.${candidate}`))}
         onJump={setStep}
-        onSubmit={() => void (current === "review" ? create() : next())}
+        onSubmit={() =>
+          void (current === "review" ? handleCreate() : handleNext())
+        }
         step={step}
         submitting={form.formState.isSubmitting || saving.saved}
       >

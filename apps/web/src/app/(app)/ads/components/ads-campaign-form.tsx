@@ -350,7 +350,7 @@ export function NameAndBudgetFields({
 }
 
 /** The campaign's type, which an edit keeps: it is only told. */
-function GoogleTypeFact() {
+function LockedCampaignType() {
   const t = useTranslations("App.Ads.newCampaign");
   const form = useFormContext<GoogleFormValues>();
   const type = form.getValues("type");
@@ -499,7 +499,7 @@ function GoogleCampaignFormBody({
           submitting={form.formState.isSubmitting}
           uploading={uploading}
         >
-          <GoogleTypeFact />
+          <LockedCampaignType />
           <AdsSection id="campaign-form-basics" title={t("sections.basics")}>
             <NameAndBudgetFields budget={budget} />
             <AdsGoogleDateFields startDateHint={setup.startDateHint} />
