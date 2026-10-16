@@ -292,8 +292,8 @@ importers:
         specifier: 0.5.0
         version: 0.5.0
       '@composio/core':
-        specifier: 0.24.0
-        version: 0.24.0(effect@3.20.0)(ws@8.21.0)(zod@4.6.7)
+        specifier: 0.25.0
+        version: 0.25.0(effect@3.20.0)(ws@8.21.0)(zod@4.6.7)
       '@hono/node-server':
         specifier: 2.1.5
         version: 2.1.5(hono@4.13.13)
@@ -1406,8 +1406,8 @@ packages:
     resolution: {integrity: sha512-dlT1m5e/0yUL0kRNcQn7yGLVThkgbB0Ga/1AmfDDC/8ik6AIiSf2QLQO2zPYvefsHP0aFgxO93cVLCCfDp7kzQ==}
     engines: {node: '>= 20.12.0'}
 
-  '@composio/client@2.0.0-rc.14':
-    resolution: {integrity: sha512-AI8peOJpZjIZOC5+7uWeaQSgjwU9XsMHLXmHLrO3xE4qREb17pT1rb64AcaY9N4VFAevg321yLGA08RKCmcWDw==}
+  '@composio/client@2.0.0-rc.17':
+    resolution: {integrity: sha512-j1fqyiAwAO6kOmbLwkLn4fb4//GNveV2yo0iMo4wTwOk9euRwQNK6lodVcRhJT6ZeRCSS2Xv8uUsJtmGsPTyiA==}
     engines: {node: '>=22'}
     peerDependencies:
       effect: '*'
@@ -1415,8 +1415,8 @@ packages:
       effect:
         optional: true
 
-  '@composio/core@0.24.0':
-    resolution: {integrity: sha512-WJpZDZ2SQjp1/zSSg8zM+J0zJ0ONcqFPb8Fb3FJKTMXzSf9Wa40GrnAIt2DE00Ydbe6dpsh0MocJEZu4C2oIuA==}
+  '@composio/core@0.25.0':
+    resolution: {integrity: sha512-oxzr0etEDb2EzoyCQfyunoui0sRZq+v97w1l4Wj445cbks/VGauQsgVjVSxMqMc74MnSnzvvZ4saQbpkycBN+g==}
     engines: {node: '>=22.22.3'}
     peerDependencies:
       zod: '>=3.25.76 <5'
@@ -10546,13 +10546,13 @@ snapshots:
       fast-wrap-ansi: 0.2.2
       sisteransi: 1.0.5
 
-  '@composio/client@2.0.0-rc.14(effect@3.20.0)':
+  '@composio/client@2.0.0-rc.17(effect@3.20.0)':
     optionalDependencies:
       effect: 3.20.0
 
-  '@composio/core@0.24.0(effect@3.20.0)(ws@8.21.0)(zod@4.6.7)':
+  '@composio/core@0.25.0(effect@3.20.0)(ws@8.21.0)(zod@4.6.7)':
     dependencies:
-      '@composio/client': 2.0.0-rc.14(effect@3.20.0)
+      '@composio/client': 2.0.0-rc.17(effect@3.20.0)
       '@composio/json-schema-to-zod': 0.3.4(zod@4.6.7)
       '@types/json-schema': 7.0.15
       is-fs-case-sensitive: 2.0.0
