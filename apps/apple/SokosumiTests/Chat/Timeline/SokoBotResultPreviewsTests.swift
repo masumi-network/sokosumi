@@ -128,7 +128,7 @@
           id: "reply", roomId: "room", content: "Done: the schedule is set and the scan is in.",
           resultPreviews: descriptors.map { .init(id: $0, capturedAt: created) }, createdAt: created,
           sender: .case3(.init(_type: .sokoBot, sokoBot: .init(id: "bot_1", name: "Soko", caption: nil, image: nil, avatarSeed: nil,
-                                                               ownerUserId: "user_2", presence: .online))),
+                                                               ownerUserId: "user_2", scope: .personal, presence: .online))),
           mentions: [], reactions: [], threadReplyCount: 0,
           metadata: .init(additionalProperties: [
             "mention_id": OpenAPIValueContainer(unvalidatedValue: "mention_1"),

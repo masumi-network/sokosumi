@@ -112,7 +112,7 @@ struct RoomHeaderIdentityTests {
       Self.room(kind: .direct, name: "group", groupName: "Launch crew",
                 members: [Self.person(Self.reader, "Me"), ada, Self.person("user_grace", "Grace")]),
       Self.room(kind: .direct, name: "assistant", members: [Self.person(Self.reader, "Me")],
-                sokoBots: [.init(id: "bot_1", name: "Soko", caption: nil, image: nil, avatarSeed: nil, ownerUserId: "user_1", presence: .online)]),
+                sokoBots: [.init(id: "bot_1", name: "Soko", caption: nil, image: nil, avatarSeed: nil, ownerUserId: "user_1", scope: .personal, presence: .online)]),
       Self.room(kind: .direct, name: "coworker", topic: "Ignored", members: [Self.person(Self.reader, "Me")],
                 coworkers: [.init(id: "cow_1", name: "Helper", slug: "helper", caption: nil, image: nil, presence: .online)])
     ]
@@ -170,7 +170,7 @@ struct RoomHeaderIdentityTests {
       Self.room(kind: .direct, name: "group", members: [myself, ada, grace]),
       Self.room(kind: .direct, name: "group", isReadOnly: true, members: [myself, ada, grace]),
       Self.room(kind: .direct, name: "assistant", members: [myself],
-                sokoBots: [.init(id: "bot_1", name: "Soko", caption: nil, image: nil, avatarSeed: nil, ownerUserId: Self.reader, presence: .online)]),
+                sokoBots: [.init(id: "bot_1", name: "Soko", caption: nil, image: nil, avatarSeed: nil, ownerUserId: Self.reader, scope: .personal, presence: .online)]),
       Self.room(kind: .direct, name: "coworker", members: [myself],
                 coworkers: [.init(id: "cow_1", name: "Helper", slug: "helper", caption: nil, image: nil, presence: .online)])
     ]
