@@ -10,7 +10,6 @@ interface AdsCampaignBreadcrumbProps {
   adsHref: string;
   /** The campaign, once its name is known. */
   campaign?: { name: string; href: string };
-  /** The page after the campaign. */
   page?: { label: "edit"; href: string };
 }
 

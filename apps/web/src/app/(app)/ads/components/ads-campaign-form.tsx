@@ -84,7 +84,6 @@ interface BasicsValues {
 type SaveOutcome = "ok" | "budget_refused" | "shown";
 
 interface SaveCampaignOptions {
-  /** What the toast says, and what follows a saved campaign. */
   success: { message: string; onSaved: () => void };
   /** Meta create maps 422 to the budget field (our precision copy). */
   budgetPrecisionOn422?: boolean;
@@ -349,7 +348,6 @@ export function NameAndBudgetFields({
   );
 }
 
-/** The campaign's type, which an edit keeps: it is only told. */
 function LockedCampaignType() {
   const t = useTranslations("App.Ads.newCampaign");
   const form = useFormContext<GoogleFormValues>();

@@ -7,7 +7,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import messages from "../../../../../messages/en.json";
 
-// The wizard has its own tests; here it only has to open for an account.
 vi.mock("./ads-new-campaign-dialog", () => ({
   AdsNewCampaignDialog: ({
     account,

@@ -105,7 +105,6 @@ export function AdsGoogleDateFields({
   );
 }
 
-/** The keywords, one per line, with "Add from Market" when there is a profile. */
 export function AdsKeywordsSection({
   projectId,
   hasMarketProfile,
@@ -171,7 +170,6 @@ export function AdsKeywordsSection({
   );
 }
 
-/** The responsive search ad: final URL, display path, texts and assets. */
 export function AdsSearchAdSection() {
   const t = useTranslations("App.Ads.newCampaign.ad");
   const tSection = useTranslations("App.Ads.newCampaign.sections");

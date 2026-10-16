@@ -69,7 +69,6 @@ async function renderCampaigns(
 
 const rows = () => screen.getAllByTestId("ads-campaign-row");
 
-/** A row's figures as label → value, in the order shown. */
 function figures(row: HTMLElement): Record<string, string> {
   return Object.fromEntries(
     within(row)
@@ -99,7 +98,6 @@ describe("AdsCampaigns", () => {
     expect(within(active).getByText("Spring sale")).toBeInTheDocument();
     expect(within(active).getByText("Active")).toBeInTheDocument();
     expect(within(paused).getByText("Paused")).toBeInTheDocument();
-    // One menu per row, at every width.
     expect(
       within(active).getAllByRole("button", { name: "menu Spring sale" }),
     ).toHaveLength(1);
@@ -110,7 +108,6 @@ describe("AdsCampaigns", () => {
 
     const [active, paused] = rows();
     expect(within(active).getByText("Search · $25.00/day")).toBeInTheDocument();
-    // Neither an objective nor a budget: no line at all.
     expect(within(paused).queryByText(/\/day/)).toBeNull();
   });
 

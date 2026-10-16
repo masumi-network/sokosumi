@@ -12,8 +12,6 @@ vi.mock("@/lib/actions/ads/action", () => ({
   getGoogleCampaignSetup: vi.fn(),
 }));
 
-// The wizards have their own tests; here they only show what they were given
-// and let the dialog be closed or held busy.
 vi.mock("./ads-new-campaign-wizard", () => {
   const Wizard =
     (kind: string) =>

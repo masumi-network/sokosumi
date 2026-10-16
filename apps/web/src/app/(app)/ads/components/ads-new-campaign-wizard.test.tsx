@@ -24,14 +24,11 @@ const {
   sizes,
   pickState,
 } = vi.hoisted(() => ({
-  /** Makes the resolver refuse `keywords` at create, which no step allows by hand. */
   forced: { keywordsRefusal: false },
   toastErrorMock: vi.fn(),
   toastSuccessMock: vi.fn(),
   uploadMock: vi.fn(),
-  /** Natural sizes by file name; the browser reads them from the pixels. */
   sizes: new Map<string, { width: number; height: number }>(),
-  /** The Drive file the picker hands back when its button is pressed. */
   pickState: { file: null as null | Record<string, unknown> },
 }));
 
@@ -166,7 +163,6 @@ async function renderWizard({
   };
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      {/* The modal the dialog puts it in: its Cancel closes, Back sits in its header. */}
       <TaskFormModal
         cancelLabel="Cancel"
         onOpenChange={(open) => {
@@ -213,7 +209,6 @@ const nextButton = () => screen.getByRole("button", { name: "Next" });
 const createButton = () =>
   screen.getByRole("button", { name: "Create campaign" });
 const backButton = () => screen.getByRole("button", { name: "Back" });
-/** The bar's button for an earlier step; its name also holds the step's label. */
 const backTo = (step: Step) =>
   screen.getByRole("button", { name: new RegExp(`^Back to ${step}`) });
 const stepBar = () => screen.getByRole("list", { name: "Steps" });
@@ -245,7 +240,6 @@ const locationsPicker = () =>
 const languagesPicker = () =>
   screen.getByRole("combobox", { name: "Languages" });
 
-/** The chosen locations and languages, apart from the step bar's list. */
 const chipTexts = () =>
   screen
     .getAllByRole("listitem")
@@ -297,7 +291,6 @@ async function addMinimumImages(user: User) {
   await screen.findByRole("img", { name: SQUARE });
 }
 
-/** What each step needs to let Next through, with Core's minimum ad. */
 async function fillBasics(user: User) {
   await user.type(nameInput(), "  Spring sale ");
   await user.type(budgetInput(), "25.5");
@@ -317,7 +310,6 @@ async function fillSearchAd(user: User) {
   }
 }
 
-/** Everything a Display ad needs but the images. */
 async function fillDisplayTexts(user: User) {
   await user.type(screen.getByLabelText("Final URL"), "https://example.com/x");
   await user.type(screen.getByLabelText("Business name"), " Acme ");
@@ -342,7 +334,6 @@ const FILL: Record<
   DISPLAY: { Basics: fillBasics, Ad: fillDisplayAd },
 };
 
-/** Fills each step from `from` up to `to` with the minimum and clicks Next. */
 async function walk(
   user: User,
   from: Step,
@@ -356,20 +347,17 @@ async function walk(
   }
 }
 
-/** From the Type step to the start of `to`, which is left empty. */
 async function goTo(user: User, to: Step, type: CampaignType = "SEARCH") {
   if (type === "DISPLAY") await user.click(typeOption("Display"));
   await walk(user, "Campaign type", to, type);
 }
 
-/** The Display wizard at its Ad step. */
 async function renderDisplayAd() {
   const user = await renderWizard({ targeting: DISPLAY_TARGETING });
   await goTo(user, "Ad", "DISPLAY");
   return user;
 }
 
-/** A Search wizard filled to the end, on the Review step. */
 async function renderSearchReview(options: RenderOptions = {}) {
   const user = await renderWizard(options);
   await goTo(user, "Review");
@@ -506,7 +494,6 @@ describe("NewCampaignWizard", () => {
 
       await goTo(user, "Keywords");
 
-      // Keywords and the ad are still empty, and nothing has complained.
       expect(screen.queryByText("Add at least one keyword.")).toBeNull();
       expect(currentStep()).toHaveTextContent("Keywords");
     });
@@ -699,7 +686,6 @@ describe("NewCampaignWizard", () => {
         expect(preview.getByText("Shoes for every run")).toBeVisible();
         expect(preview.getByText("Acme")).toBeVisible();
         expect(preview.getByText("Free returns")).toBeVisible();
-        // One headline, one picture of each shape: nothing to step through.
         expect(
           screen.queryByRole("button", { name: "Show another combination" }),
         ).toBeNull();
@@ -1233,7 +1219,6 @@ describe("NewCampaignWizard", () => {
         return user;
       }
 
-      /** Fills the rest of the steps and creates the campaign. */
       async function createFromTargeting(user: User) {
         await walk(user, "Targeting", "Review");
         await user.click(createButton());

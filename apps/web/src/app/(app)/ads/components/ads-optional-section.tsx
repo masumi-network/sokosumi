@@ -12,17 +12,10 @@ interface AdsOptionalSectionProps {
   summary: string | null;
   /** Whether the section holds a refusal. */
   invalid: boolean;
-  /** The field this section folds, when a step check should be able to reopen it. */
   name?: string;
   children: ReactNode;
 }
 
-/**
- * An optional part of the ad: closed until the reader wants it. A refusal for
- * something inside it opens it, whether a submit or a wizard step's check
- * found it, and so does each later submit it still fails; the reader can
- * close it again.
- */
 export function AdsOptionalSection({
   title,
   summary,

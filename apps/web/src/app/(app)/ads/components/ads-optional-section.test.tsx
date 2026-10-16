@@ -77,7 +77,6 @@ const checkSchema = z.object({
   other: z.string().min(1, "no"),
 });
 
-/** A wizard step: Next checks the fields and does not submit the form. */
 function StepCheckHarness() {
   const form = useForm({
     resolver: zodResolver(checkSchema),

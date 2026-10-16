@@ -21,13 +21,6 @@ interface AdsNewCampaignDialogProps {
   onClose: () => void;
 }
 
-/**
- * "New campaign" in the modal New task and New schedule use (`TaskFormModal`):
- * full screen on a phone, the same panel from `md`, the title centred and
- * Cancel on the right. A Google wizard first loads what its steps start from
- * (languages, the Market profile's suggestions); a Meta one needs nothing
- * and opens at once. It cannot be dismissed while the campaign is saving.
- */
 export function AdsNewCampaignDialog({
   account,
   projectId,
@@ -50,7 +43,6 @@ export function AdsNewCampaignDialog({
     },
     enabled: google,
     retry: false,
-    // Each open starts from the profile as it is now.
     gcTime: 0,
   });
 
@@ -104,7 +96,6 @@ export function AdsNewCampaignDialog({
   );
 }
 
-/** The first step's shape while the Google setup loads: the bars, two type cards, the footer. */
 function WizardSkeleton({ accountLabel }: { accountLabel: string }) {
   const t = useTranslations("App.Ads");
 

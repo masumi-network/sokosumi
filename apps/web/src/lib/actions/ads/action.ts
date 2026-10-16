@@ -241,11 +241,6 @@ export const listAdMarketKeywords = adsAction(
   },
 );
 
-/**
- * What the new-campaign wizard needs before it shows a Google form: whether
- * there is a Market profile, Google's languages and the profile's suggested
- * targeting. A failed part hides only itself (see `loadGoogleSetup`).
- */
 export const getGoogleCampaignSetup = adsAction(
   z.object({ projectId: trimmedId, accountId: trimmedId }),
   ({ projectId, accountId }) => loadGoogleSetup(projectId, accountId),
