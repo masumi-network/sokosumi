@@ -423,11 +423,7 @@ function AuthorizedResultPreviews({
     enabled: !!viewerId,
     queryFn: async ({ signal }) => {
       if (!("turnId" in source))
-        return loadRoomMessageResults(
-          viewerId ?? "",
-          source.roomId,
-          source.messageId,
-        );
+        return loadRoomMessageResults(source.roomId, source.messageId);
       const response = await fetch(
         `/api/personal-assistant/turns/${encodeURIComponent(source.turnId)}/results`,
         { signal, credentials: "same-origin", cache: "no-store" },

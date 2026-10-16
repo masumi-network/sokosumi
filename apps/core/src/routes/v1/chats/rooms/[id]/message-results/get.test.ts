@@ -114,4 +114,21 @@ describe("batched room result hydration", () => {
     expect(oversized.status).toBe(422);
     expect(mocks.messages).not.toHaveBeenCalled();
   });
+  it("omits only the message whose hydration throws", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.messages.mockResolvedValue([
+      { id: first, metadata: null },
+      { id: second, metadata: null },
+    ]);
+    mocks.hydrate
+      .mockRejectedValueOnce(new Error("lookup failed"))
+      .mockResolvedValueOnce([]);
+    const response = await app().request(
+      `/${roomId}/message-results?messageIds=${first},${second}`,
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toEqual([
+      { messageId: second, results: [] },
+    ]);
+  });
 });

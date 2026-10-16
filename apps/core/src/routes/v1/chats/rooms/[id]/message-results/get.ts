@@ -46,7 +46,7 @@ const route = withOrganizationSlugHeaderParameter(
     responses: {
       200: jsonSuccessResponse(
         z.array(roomMessageResultsSchema),
-        "Authorized recorded results for each live message; missing or deleted messages are omitted",
+        "Authorized recorded results for each live message; missing, deleted or unhydratable messages are omitted",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -69,16 +69,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: { id: { in: messageIds }, roomId: id, deletedAt: null },
       select: { id: true, metadata: true },
     });
+    // One message failing to hydrate is omitted, so only its card errors.
+    const settled = await Promise.allSettled(
+      messages.map(async (message) => ({
+        messageId: message.id,
+        results: await hydrateChatResultSnapshots(
+          readMessageResultSnapshots(message.metadata),
+          auth.userId,
+        ),
+      })),
+    );
+    for (const outcome of settled) {
+      if (outcome.status === "rejected") {
+        console.error("Failed to hydrate chat message results", outcome.reason);
+      }
+    }
     return ok(
       c,
-      await Promise.all(
-        messages.map(async (message) => ({
-          messageId: message.id,
-          results: await hydrateChatResultSnapshots(
-            readMessageResultSnapshots(message.metadata),
-            auth.userId,
-          ),
-        })),
+      settled.flatMap((outcome) =>
+        outcome.status === "fulfilled" ? [outcome.value] : [],
       ),
     );
   });

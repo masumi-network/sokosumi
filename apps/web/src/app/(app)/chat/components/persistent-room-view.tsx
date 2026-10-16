@@ -1,6 +1,5 @@
 "use client";
 
-import type { ChatRoomMessageResults } from "@sokosumi/core-client";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import {
   createContext,
@@ -13,7 +12,6 @@ import type {
   RoomTranscriptCache,
   RoomTranscriptEntry,
 } from "@/app/chat/utils/room-transcript-cache";
-import { primeRoomMessageResults } from "@/components/chat/room-message-results";
 import { useRoomCache, useRoomSelection } from "./room-cache-provider";
 import { RoomOpenLoadingView } from "./room-open-loading-view";
 import { RoomsClient, type RoomsClientProps } from "./rooms-client";
@@ -108,12 +106,7 @@ function SelectedRoom({
 }
 
 /** All room views live above page replacement; all rooms retain history. */
-export function RoomRouteBootstrap(
-  props: RoomsClientProps & {
-    /** Result cards of the opening page, read on the server. */
-    resultsPromise?: Promise<ChatRoomMessageResults[] | null>;
-  },
-) {
+export function RoomRouteBootstrap(props: RoomsClientProps) {
   const cache = useRoomCache();
   const register = useContext(RoomBootstrapContext);
   useLayoutEffect(() => {
@@ -128,7 +121,7 @@ export function RoomRouteBootstrap(
       )
     )
       return;
-    register?.({ ...props, messagesPromise: undefined });
+    register?.(props);
     const existing = cache.get(roomId);
     cache.client.setQueryData(
       cache.key(roomId),
@@ -144,16 +137,6 @@ export function RoomRouteBootstrap(
           }
         : cache.seed(props),
     );
-    // The cache owns history. A room it already painted reads for itself;
-    // a fresh open takes the page's server reads in place of its first ones.
-    if (existing?.resolved) return;
-    if (props.messagesPromise) cache.prime(roomId, props.messagesPromise);
-    if (props.resultsPromise)
-      primeRoomMessageResults(
-        props.currentUserId,
-        roomId,
-        props.resultsPromise,
-      );
   }, [cache, props, register]);
   return register ? null : <RoomsClient {...props} />;
 }

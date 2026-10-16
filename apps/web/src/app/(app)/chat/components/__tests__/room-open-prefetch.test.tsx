@@ -9,7 +9,6 @@ import {
   RoomRouteBootstrap,
 } from "../persistent-room-view";
 import { RoomCacheProvider } from "../room-cache-provider";
-import type { RoomMessagePage } from "../room-messages-hydrator";
 import {
   roomsClientBaseProps,
   sampleMessage,
@@ -86,7 +85,7 @@ function recordListStates(labels: Record<string, string>) {
   return { states, stop: () => observer.disconnect() };
 }
 
-describe("room open with server-started history", () => {
+describe("room open read started on click", () => {
   beforeEach(() => {
     vi.spyOn(document, "hasFocus").mockReturnValue(true);
     useChatRoomRealtimeMock.mockClear();
@@ -96,94 +95,29 @@ describe("room open with server-started history", () => {
     vi.unstubAllGlobals();
   });
 
-  it.each([
-    ["before", true],
-    ["after", false],
-  ])(
-    "never hides painted rows when the server page resolves %s mount",
-    async (_when, resolvedFirst) => {
-      const message: ChatRoomMessage = sampleMessage("server history row");
-      const page: RoomMessagePage = {
-        messages: [message],
-        nextCursor: null,
-        failed: false,
-      };
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(
-          async () =>
-            new Response(
+  it("reads history once, from the click, and fills the list without flashing", async () => {
+    const a = sampleMessage("room A row");
+    const b = { ...sampleMessage("room B row"), id: "b1", roomId: "room-b" };
+    const historyB = deferred<Response>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        String(url).includes("room-b")
+          ? historyB.promise
+          : new Response(
               JSON.stringify({
-                data: [message],
+                data: [a],
                 meta: { pagination: { nextCursor: null } },
               }),
             ),
-        ),
-      );
-      const server = deferred<RoomMessagePage>();
-      if (resolvedFirst) server.resolve(page);
-      const recorder = recordListStates({ rows: "server history row" });
-      render(
-        <>
-          <a
-            href="/chat/rooms/room-channel"
-            onClick={(event) => event.preventDefault()}
-          >
-            Open
-          </a>
-          <PersistentRoomView>
-            <RoomRouteBootstrap
-              {...roomsClientBaseProps({
-                loadHistoryOnClient: true,
-                messagesPromise: server.promise,
-              })}
-            />
-          </PersistentRoomView>
-        </>,
-        { wrapper: CacheWrapper },
-      );
-      fireEvent.click(screen.getByText("Open"));
-      if (!resolvedFirst) await act(async () => server.resolve(page));
-      expect(await screen.findByText("server history row")).toBeTruthy();
-      for (let tick = 0; tick < 10; tick++) await act(async () => {});
-      recorder.stop();
-      const firstRows = recorder.states.indexOf("rows");
-      expect(recorder.states.slice(firstRows)).toEqual(["rows"]);
-      expect(rowMounts.count).toBe(1);
-      // The open's first head read is the page's server read.
-      expect(fetch).not.toHaveBeenCalled();
-    },
-  );
-
-  it("switches from an open room to a fresh one without flashing", async () => {
-    const a = sampleMessage("room A row");
-    const b = { ...sampleMessage("room B row"), id: "b1", roomId: "room-b" };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async (url: string) =>
-          new Response(
-            JSON.stringify({
-              data: String(url).includes("room-b") ? [b] : [a],
-              meta: { pagination: { nextCursor: null } },
-            }),
-          ),
       ),
     );
-    const serverA = deferred<RoomMessagePage>();
-    serverA.resolve({ messages: [a], nextCursor: null, failed: false });
-    const serverB = deferred<RoomMessagePage>();
-    const rosterB = deferred<never>();
-    const propsA = roomsClientBaseProps({
-      loadHistoryOnClient: true,
-      messagesPromise: serverA.promise,
-    });
+    const propsA = roomsClientBaseProps({ loadHistoryOnClient: true });
+    // What the room page passes since history left it: no messages, no promise.
     const propsB = roomsClientBaseProps({
       loadHistoryOnClient: true,
       selectedRoomId: "room-b",
       rooms: [{ ...propsA.rooms[0], id: "room-b", name: "Channel B" }],
-      messagesPromise: serverB.promise,
-      rosterPromise: rosterB.promise,
     });
     function Page({ bootstrap }: { bootstrap: typeof propsA }) {
       return (
@@ -207,16 +141,31 @@ describe("room open with server-started history", () => {
     fireEvent.click(screen.getByText("Open A"));
     expect(await screen.findByText("room A row")).toBeTruthy();
     for (let tick = 0; tick < 5; tick++) await act(async () => {});
+    const roomBReads = () =>
+      vi
+        .mocked(fetch)
+        .mock.calls.filter(([url]) => String(url).includes("room-b")).length;
     const recorder = recordListStates({ A: "room A row", B: "room B row" });
+
     fireEvent.click(screen.getByText("Open B"));
+    // The read starts before the route has rendered room B at all.
+    expect(roomBReads()).toBe(1);
     view.rerender(<Page bootstrap={propsB} />);
     await act(async () =>
-      serverB.resolve({ messages: [b], nextCursor: null, failed: false }),
+      historyB.resolve(
+        new Response(
+          JSON.stringify({
+            data: [b],
+            meta: { pagination: { nextCursor: null } },
+          }),
+        ),
+      ),
     );
     expect(await screen.findByText("room B row")).toBeTruthy();
     for (let tick = 0; tick < 10; tick++) await act(async () => {});
     recorder.stop();
-    const firstB = recorder.states.indexOf("B");
-    expect(recorder.states.slice(firstB)).toEqual(["B"]);
+
+    expect(roomBReads()).toBe(1);
+    expect(recorder.states.slice(recorder.states.indexOf("B"))).toEqual(["B"]);
   });
 });

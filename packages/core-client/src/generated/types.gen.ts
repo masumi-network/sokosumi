@@ -23541,7 +23541,7 @@ export type GetChatRoomMessageResultsBatchError = GetChatRoomMessageResultsBatch
 
 export type GetChatRoomMessageResultsBatchResponses = {
     /**
-     * Authorized recorded results for each live message; missing or deleted messages are omitted
+     * Authorized recorded results for each live message; missing, deleted or unhydratable messages are omitted
      */
     200: {
         data: Array<ChatRoomMessageResults>;

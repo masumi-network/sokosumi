@@ -1,6 +1,5 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import type { QueryClient } from "@tanstack/react-query";
-import type { RoomMessagePage } from "@/app/chat/components/room-messages-hydrator";
 import type { RoomsClientProps } from "@/app/chat/components/rooms-client";
 import type { TranscriptPosition } from "@/app/chat/components/transcript-viewport";
 import {
@@ -19,6 +18,8 @@ import {
 } from "./room-transcript-ranges";
 
 export const ROOM_RETENTION_MS = 30 * 60 * 1000;
+/** A click's head read only stands in for the open that click starts. */
+const ROOM_OPEN_PREFETCH_MS = 10_000;
 export interface RoomTranscriptEntry {
   bootstrap: RoomsClientProps;
   transcript: RoomTranscript;
@@ -69,10 +70,10 @@ export class RoomTranscriptCache {
     return this.valid && !this.revoked.has(roomId);
   }
   private readonly reads = new Map<string, Promise<RoomMessagesPage | null>>();
-  // Server-started head reads, kept until the first head read takes them.
-  private readonly primed = new Map<
+  // Head reads started by a room click, kept until the open's first head read takes them.
+  private readonly prefetched = new Map<
     string,
-    { revision: number; page: Promise<RoomMessagesPage | null> }
+    { revision: number; at: number; page: Promise<RoomMessagesPage | null> }
   >();
   // Positions follow the retained entry's lifetime without notifying data subscribers.
   private readonly positions = new WeakMap<object, TranscriptPosition>();
@@ -199,25 +200,25 @@ export class RoomTranscriptCache {
     this.revoked.delete(roomId);
   }
 
-  /** The room page's server-started head read stands in for the next browser one. */
-  prime(roomId: string, page: Promise<RoomMessagePage>) {
+  /**
+   * Start a room's first head read when the reader clicks it, alongside the
+   * route navigation, instead of after the room mounts. A room already painted
+   * from cache reads for itself on mount.
+   */
+  prefetch(roomId: string) {
     const entry = this.get(roomId);
-    if (!entry) return;
-    this.primed.set(roomId, {
-      revision: entry.revision,
-      page: page.then(
-        (result) =>
-          result.failed
-            ? null
-            : { messages: result.messages, nextCursor: result.nextCursor },
-        () => null,
-      ),
+    if (!this.available(roomId) || entry?.resolved) return;
+    this.prefetched.set(roomId, {
+      // A seeded entry starts at revision 0.
+      revision: entry?.revision ?? 0,
+      at: Date.now(),
+      page: this.fetch(roomId),
     });
   }
 
   evict(roomId: string) {
     this.revoked.add(roomId);
-    this.primed.delete(roomId);
+    this.prefetched.delete(roomId);
     for (const key of this.reads.keys()) {
       if (JSON.parse(key)[0] === roomId) this.reads.delete(key);
     }
@@ -226,7 +227,7 @@ export class RoomTranscriptCache {
   clear() {
     this.valid = false;
     this.reads.clear();
-    this.primed.clear();
+    this.prefetched.clear();
     this.client.removeQueries({ queryKey: this.prefix });
   }
 
@@ -238,13 +239,15 @@ export class RoomTranscriptCache {
     const key = JSON.stringify([roomId, options, revision]);
     const existing = this.reads.get(key);
     if (existing) return existing;
-    const primed = options ? undefined : this.primed.get(roomId);
-    if (primed) this.primed.delete(roomId);
-    // A primed page is only as new as the transcript it was started against;
-    // a failed one falls back to the browser read and its access handling.
+    const prefetched = options ? undefined : this.prefetched.get(roomId);
+    if (prefetched) this.prefetched.delete(roomId);
+    // A prefetched page is only as new as the transcript it was started
+    // against. A failed one reads again, now with the room's access handling.
     const promise = (
-      primed && primed.revision === revision
-        ? primed.page.then((page) => page ?? this.fetch(roomId, options))
+      prefetched &&
+      prefetched.revision === revision &&
+      Date.now() - prefetched.at < ROOM_OPEN_PREFETCH_MS
+        ? prefetched.page.then((page) => page ?? this.fetch(roomId, options))
         : this.fetch(roomId, options)
     ).finally(() => {
       if (this.reads.get(key) === promise) this.reads.delete(key);

@@ -5,7 +5,6 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { RoomRouteBootstrap } from "@/app/chat/components/persistent-room-view";
 import { RoomOpenLoadingView } from "@/app/chat/components/room-open-loading-view";
-import { loadRoomOpenHistory } from "@/app/chat/load-room-open-history";
 import { loadRoomShellRoster } from "@/app/chat/load-room-shell-roster";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
@@ -83,14 +82,11 @@ function NoOrganizationCard({
 
 /**
  * Validate room access and register chrome without waiting for history.
- * Every room reads through its retained client transcript; the latest page,
- * its result cards and the roster start here and stream as promises.
+ * Every room reads through its retained client transcript; the roster streams
+ * separately through a promise.
  */
 function progressiveRoomOpen(shell: ChatRoomShellProps) {
   const rosterPromise = loadRoomShellRoster(shell.organizationIdForRoster);
-  const { messagesPromise, resultsPromise } = loadRoomOpenHistory(
-    shell.selectedRoomId,
-  );
 
   return (
     <RoomRouteBootstrap
@@ -106,8 +102,6 @@ function progressiveRoomOpen(shell: ChatRoomShellProps) {
       membersLoadFailed={false}
       messages={[]}
       messagesNextCursor={null}
-      messagesPromise={messagesPromise}
-      resultsPromise={resultsPromise}
       rosterPromise={rosterPromise}
     />
   );

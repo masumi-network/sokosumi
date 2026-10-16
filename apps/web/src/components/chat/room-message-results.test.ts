@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  loadRoomMessageResults,
-  primeRoomMessageResults,
-} from "./room-message-results";
+import { loadRoomMessageResults } from "./room-message-results";
 
 const roomId = "00000000-0000-4000-8000-000000000001";
 const first = "00000000-0000-4000-8000-000000000002";
@@ -37,8 +34,8 @@ describe("room message results", () => {
       ]),
     );
     const [a, b] = await Promise.all([
-      loadRoomMessageResults("viewer", roomId, first),
-      loadRoomMessageResults("viewer", roomId, second),
+      loadRoomMessageResults(roomId, first),
+      loadRoomMessageResults(roomId, second),
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][0]).toBe(
@@ -50,57 +47,16 @@ describe("room message results", () => {
 
   it("fails a row whose message the read omits", async () => {
     fetchMock.mockResolvedValue(respondWith([]));
-    await expect(
-      loadRoomMessageResults("viewer", roomId, first),
-    ).rejects.toThrow("Results unavailable");
+    await expect(loadRoomMessageResults(roomId, first)).rejects.toThrow(
+      "Results unavailable",
+    );
   });
 
   it("keeps an empty result list for a live message", async () => {
     fetchMock.mockResolvedValue(
       respondWith([{ messageId: first, results: [] }]),
     );
-    await expect(
-      loadRoomMessageResults("empty-viewer", roomId, first),
-    ).resolves.toEqual([]);
+    await expect(loadRoomMessageResults(roomId, first)).resolves.toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("serves the server-started read once, then reads fresh", async () => {
-    primeRoomMessageResults(
-      "primed-viewer",
-      roomId,
-      Promise.resolve([{ messageId: first, results: [unavailable("p")] }]),
-    );
-    await expect(
-      loadRoomMessageResults("primed-viewer", roomId, first),
-    ).resolves.toEqual([unavailable("p")]);
-    expect(fetchMock).not.toHaveBeenCalled();
-
-    fetchMock.mockResolvedValue(
-      respondWith([{ messageId: first, results: [unavailable("f")] }]),
-    );
-    await expect(
-      loadRoomMessageResults("primed-viewer", roomId, first),
-    ).resolves.toEqual([unavailable("f")]);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("reads in the browser when the server read failed or belongs to another viewer", async () => {
-    primeRoomMessageResults("failed-viewer", roomId, Promise.resolve(null));
-    primeRoomMessageResults(
-      "other-viewer",
-      roomId,
-      Promise.resolve([{ messageId: first, results: [unavailable("x")] }]),
-    );
-    fetchMock.mockImplementation(async () =>
-      respondWith([{ messageId: first, results: [unavailable("f")] }]),
-    );
-    await expect(
-      loadRoomMessageResults("failed-viewer", roomId, first),
-    ).resolves.toEqual([unavailable("f")]);
-    await expect(
-      loadRoomMessageResults("someone-else", roomId, first),
-    ).resolves.toEqual([unavailable("f")]);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
