@@ -278,6 +278,7 @@ function roomWithMembers(
         name: string | null;
         avatarImageUrl: string | null;
         avatarSeed: string | null;
+        sharedRoomId: string | null;
         userId: string;
         user: { name: string } | null;
       };
@@ -391,6 +392,7 @@ function createdMessage(
           name: "Nora",
           avatarImageUrl: null,
           avatarSeed: null,
+          sharedRoomId: null,
           userId: USER_ID,
           user: { name: "Patrick" },
         }
@@ -1082,6 +1084,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
                 name: "Soko Bot",
                 avatarImageUrl: null,
                 avatarSeed: "orb:user_123",
+                sharedRoomId: null,
                 userId: USER_ID,
                 user: { name: "Patrick" },
               },
@@ -1382,6 +1385,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
                 name: "Scout",
                 avatarImageUrl: null,
                 avatarSeed: null,
+                sharedRoomId: null,
                 userId: USER_ID,
                 user: { name: "Patrick" },
               },

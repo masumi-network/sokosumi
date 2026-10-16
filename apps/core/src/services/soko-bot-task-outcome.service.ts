@@ -25,7 +25,8 @@ export async function readSokoBotTaskOutcome(
     turnId: string;
     sokoBotId: string;
     workspaceId: string;
-    userId: string;
+    /** The Requester; null for a turn nobody asked for. */
+    userId: string | null;
     intentId?: string | null;
     intentRevision?: number | null;
     audience?: SokoBotPacketAudience;

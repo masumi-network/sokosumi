@@ -89,7 +89,7 @@ export function sokoBotKeyWorkspaceWhere(
   if (isPersonalSokoBot(bot)) {
     return sokoBotWorkspaceAccessWhere(bot.userId, bot.workspaceId);
   }
-  return { id: bot.workspaceId, organizationId: { not: null } };
+  return sokoBotWorkspaceAccessWhere(null, bot.workspaceId);
 }
 
 /**

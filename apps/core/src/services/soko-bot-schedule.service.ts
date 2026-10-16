@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
@@ -150,6 +151,28 @@ function scheduleBot(
 }
 
 /**
+ * A shared bot's runs act for nobody, so the pool pays with no Seat check
+ * (ADR 0057). The member who sets a run up needs their Seat instead.
+ */
+async function requireSharedBotScheduleSeat(
+  userId: string | null,
+  sokoBotId: string,
+  db: Prisma.TransactionClient | typeof prisma,
+) {
+  if (userId === null) return;
+  const bot = await db.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: { userId: true, workspace: { select: { organizationId: true } } },
+  });
+  if (!bot || !isSharedSokoBot(bot)) return;
+  await requireAssignedOrganizationSeat(
+    userId,
+    bot.workspace.organizationId,
+    db,
+  );
+}
+
+/**
  * Recurring prompts a Soko Bot runs on cron. Shared by the owner's console
  * and the bot's own `*_schedule` tools, so a bot can set up its own
  * check-ins without an approval round-trip.
@@ -174,6 +197,7 @@ export async function createSokoBotSchedule(
     db,
   );
   if (!bot) throw new SokoBotScheduleNotFoundError("Soko Bot not found");
+  await requireSharedBotScheduleSeat(input.userId, bot.id, db);
   const memberId = input.userId;
   // The resolver already placed a bot acting on its own in its workspace.
   const workspace =
@@ -328,6 +352,7 @@ export async function updateSokoBotSchedule(
 ) {
   const db = transaction ?? prisma;
   const schedule = await findScheduleForUser(input.userId, input, transaction);
+  await requireSharedBotScheduleSeat(input.userId, schedule.sokoBotId, db);
   const timezone = input.timezone ?? schedule.timezone;
   const cronExpression = input.cronExpression ?? schedule.cronExpression;
   if (input.cronExpression) assertNoDayOrTrap(input.cronExpression);

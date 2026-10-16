@@ -523,37 +523,7 @@ export async function requireTaskAssignableUser(
   }
 }
 
-/**
- * Owner (or the PA itself) may assign a Task onto a live Soko Bot in this
- * workspace. Marketplace coworkers cannot dump work onto another user's PA.
- */
-export async function requireTaskAssignableSokoBot(
-  sokoBotId: string,
-  workspaceId: string,
-  tx: Prisma.TransactionClient = prisma,
-  assigner: TaskAssigner = null,
-): Promise<void> {
-  const bot = await tx.sokoBot.findFirst({
-    where: {
-      id: sokoBotId,
-      workspaceId,
-      archivedAt: null,
-      deletedAt: null,
-    },
-    select: { id: true, userId: true },
-  });
-  if (!bot) {
-    throw notFound("Soko Bot is not usable in this workspace");
-  }
-  if (!assigner) return;
-  const isOwner =
-    assigner.kind === "user"
-      ? bot.userId === assigner.userId
-      : assigner.kind === "soko_bot" && bot.id === assigner.sokoBotId;
-  if (!isOwner) {
-    throw forbidden("Only the owner can assign work to this Soko Bot");
-  }
-}
+export { requireTaskAssignableSokoBot } from "./soko-bot-task-assign";
 
 // -----------------------------------------------------------------------------
 // Task collaboration (user ownership or coworker on assigned task)
