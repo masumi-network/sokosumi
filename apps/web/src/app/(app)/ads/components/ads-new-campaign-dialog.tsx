@@ -3,11 +3,14 @@
 import type { ProjectAdAccount } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { Button } from "@/components/ui/button";
+import { useUnAuthenticatedErrorHandler } from "@/hooks/use-unauthenticated-error-handler";
 import { getGoogleCampaignSetup } from "@/lib/actions/ads/action";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { UnAuthenticatedError } from "@/lib/auth/errors";
 
 import {
   NewGoogleCampaignWizard,
@@ -38,13 +41,22 @@ export function AdsNewCampaignDialog({
         projectId,
         accountId: account.id,
       });
-      if (!result.ok) throw new Error(result.error.message ?? "setup failed");
+      if (!result.ok) {
+        if (result.error.code === CommonErrorCode.UNAUTHENTICATED) {
+          throw new UnAuthenticatedError();
+        }
+        throw new Error(result.error.message ?? "setup failed");
+      }
       return result.value;
     },
     enabled: google,
     retry: false,
     gcTime: 0,
   });
+  const idleError = useRef(new Error("setup")).current;
+  const { isUnAuthenticatedError } = useUnAuthenticatedErrorHandler(
+    setup.error instanceof Error ? setup.error : idleError,
+  );
 
   const accountLabel = t("inAccount", {
     provider: tProviders(account.provider),
@@ -70,14 +82,14 @@ export function AdsNewCampaignDialog({
         targeting={setup.data.targeting}
       />
     );
-  } else if (setup.isError) {
+  } else if (setup.isError && !isUnAuthenticatedError) {
     body = (
       <SetupFailed
         onRetry={() => void setup.refetch()}
         retrying={setup.isFetching}
       />
     );
-  } else {
+  } else if (!setup.isError) {
     body = <WizardSkeleton accountLabel={accountLabel} steps={6} />;
   }
 

@@ -28,7 +28,7 @@ export function AdsOptionalSection({
   const fieldError = name
     ? (formState.errors as Record<string, unknown>)[name]
     : undefined;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(invalid);
   const [seen, setSeen] = useState({
     invalid,
     submits: formState.submitCount,
