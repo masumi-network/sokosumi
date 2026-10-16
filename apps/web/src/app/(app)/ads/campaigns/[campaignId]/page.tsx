@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -91,9 +92,10 @@ export default async function AdsCampaignDetailsPage({
           }
         />
         <Link
-          className="text-muted-foreground hover:text-foreground self-start text-sm underline-offset-4 hover:underline"
+          className="text-muted-foreground press hover:text-foreground inline-flex items-center gap-1.5 self-start text-sm transition-colors"
           href={campaignsHref(project.id, account.id, query.range)}
         >
+          <ArrowLeft aria-hidden className="size-4" />
           {t("back")}
         </Link>
         {body}
