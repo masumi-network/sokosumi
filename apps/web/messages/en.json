@@ -3181,7 +3181,6 @@
           "ENDED": "Ended",
           "OTHER": "Other"
         },
-        "spendAndClicks": "Spend {spend} · clicks {clicks}",
         "actions": {
           "label": "Actions for {name}",
           "pause": "Pause",
@@ -3230,18 +3229,18 @@
             "title": "Failed to load campaigns"
           }
         },
-        "new": "New campaign"
+        "new": "New campaign",
+        "budgetPerDay": "{budget}/day"
       },
       "newCampaign": {
         "title": "New campaign",
-        "back": "Back to campaigns",
         "inAccount": "{provider} account {name}",
         "note": {
           "google_ads": "Campaigns are created paused. Resume one here when it is ready.",
           "meta_ads": "Campaigns are created paused. Add ad sets and ads in Meta Ads Manager, then resume here."
         },
         "sections": {
-          "type": "Type",
+          "type": "Campaign type",
           "basics": "Basics",
           "targeting": "Targeting",
           "ad": "Ad"
@@ -3424,6 +3423,61 @@
           "businessNameRequired": "Enter the business name.",
           "longHeadlineRequired": "Enter a long headline.",
           "failed": "Failed to create campaign"
+        },
+        "steps": {
+          "type": "Campaign type",
+          "basics": "Basics",
+          "targeting": "Targeting",
+          "keywords": "Keywords",
+          "ad": "Ad",
+          "review": "Review"
+        },
+        "wizard": {
+          "stepsLabel": "Steps",
+          "stepOf": "Step {current} of {total}: {step}",
+          "backTo": "Back to {step}",
+          "goTo": "Go to {step}",
+          "back": "Back",
+          "next": "Next"
+        },
+        "typeTitle": "Where should your ads show?",
+        "typeIntro": "Pick one. It can't be changed once the campaign is created.",
+        "needs": {
+          "title": "You'll need",
+          "keywords": "Keywords people search for",
+          "searchTexts": "{minHeadlines} to {maxHeadlines} headlines and {minDescriptions} to {maxDescriptions} descriptions",
+          "displayTexts": "Up to {maxHeadlines} headlines, a long headline and up to {maxDescriptions} descriptions",
+          "businessName": "Your business name",
+          "images": "A landscape and a square image",
+          "finalUrl": "The page people land on"
+        },
+        "preview": {
+          "title": "Preview",
+          "searchLabel": "Search ad preview",
+          "displayLabel": "Display ad preview",
+          "sponsored": "Sponsored",
+          "note": "Google mixes your texts and images to find what works, so the real ad can look different.",
+          "another": "Show another combination",
+          "noImage": "No image yet",
+          "open": "Open"
+        },
+        "review": {
+          "title": "Summary",
+          "dailyBudget": "Daily budget",
+          "edit": "Edit",
+          "editLabel": "Edit {section}",
+          "schedule": {
+            "label": "Schedule",
+            "range": "{start} to {end}",
+            "from": "From {start}",
+            "until": "Until {end}",
+            "none": "No start or end date"
+          }
+        },
+        "setupFailed": {
+          "title": "Failed to load the campaign form",
+          "body": "Check your connection and try again.",
+          "retry": "Try again"
         }
       },
       "campaignDetails": {
@@ -3516,7 +3570,6 @@
       },
       "editCampaign": {
         "title": "Edit campaign",
-        "back": "Back to campaign",
         "submit": "Save changes",
         "reviewNote": "Saving sends the ad back to Google's review.",
         "startDateLocked": "The start date can't change once a campaign has started.",

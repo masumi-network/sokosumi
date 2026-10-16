@@ -1,9 +1,9 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { Activity } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { createAdCampaign, editAdCampaign } from "@/lib/actions/ads/action";
 import {
   EMPTY_GOOGLE_VALUES,
@@ -11,10 +11,9 @@ import {
 } from "@/lib/ads/google-form-values";
 import type { GoogleTargeting } from "@/lib/ads/targeting";
 import messages from "../../../../../messages/en.json";
-import { EditGoogleCampaignForm } from "./ads-campaign-form";
+import { EditGoogleCampaignWizard } from "./ads-campaign-wizard";
 
-const { pushMock, toastSuccessMock, uploadMock, sizes } = vi.hoisted(() => ({
-  pushMock: vi.fn(),
+const { toastSuccessMock, uploadMock, sizes } = vi.hoisted(() => ({
   toastSuccessMock: vi.fn(),
   uploadMock: vi.fn(),
   /** Natural sizes by file name; the browser reads them from the pixels. */
@@ -27,7 +26,6 @@ vi.mock("sonner", () => ({
     success: (...args: unknown[]) => toastSuccessMock(...args),
   },
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: pushMock }) }));
 vi.mock("@/lib/actions/ads/action", () => ({
   createAdCampaign: vi.fn(),
   editAdCampaign: vi.fn(),
@@ -60,9 +58,8 @@ vi.mock("@/lib/ads/image-size.client", () => {
 
 const editMock = vi.mocked(editAdCampaign);
 const createMock = vi.mocked(createAdCampaign);
-
-const DETAILS_HREF =
-  "/ads/campaigns/42?projectId=project-1&accountId=account-1&range=7d";
+const onClose = vi.fn();
+const onBusyChange = vi.fn();
 
 const TARGETING: GoogleTargeting = {
   languageOptions: [
@@ -115,39 +112,63 @@ const DISPLAY_VALUES: GoogleFormValues = {
   images: [KEPT_LANDSCAPE, KEPT_SQUARE],
 };
 
-function tree(
-  initialValues: GoogleFormValues,
-  started: boolean,
-  mode: "visible" | "hidden" = "visible",
-) {
-  return (
+type User = ReturnType<typeof userEvent.setup>;
+type Step = "Basics" | "Targeting" | "Keywords" | "Ad" | "Review";
+
+/** Inside the modal the dialog puts it in: Back sits in the modal's header. */
+function renderEdit(initialValues: GoogleFormValues, started = false) {
+  const user = userEvent.setup({ applyAccept: false });
+  render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <Activity mode={mode}>
-        <EditGoogleCampaignForm
+      <TaskFormModal
+        cancelLabel="Cancel"
+        onOpenChange={(open) => {
+          if (!open) onClose();
+        }}
+        open
+        title="Edit campaign"
+      >
+        <EditGoogleCampaignWizard
           accountId="account-1"
+          accountLabel="Google Ads account Sokosumi"
           campaignId="42"
           currency="USD"
-          detailsHref={DETAILS_HREF}
           hasMarketProfile={false}
           initialValues={initialValues}
+          onBusyChange={onBusyChange}
+          onClose={onClose}
           projectId="project-1"
           started={started}
           targeting={TARGETING}
         />
-      </Activity>
-    </NextIntlClientProvider>
+      </TaskFormModal>
+    </NextIntlClientProvider>,
   );
-}
-
-function renderEdit(initialValues: GoogleFormValues, started = false) {
-  const user = userEvent.setup({ applyAccept: false });
-  const view = render(tree(initialValues, started));
-  return { user, ...view };
+  return user;
 }
 
 const nameInput = () => screen.getByLabelText("Name");
 const save = () => screen.getByRole("button", { name: "Save changes" });
 const sent = () => editMock.mock.calls[0]?.[0];
+const stepBar = () => screen.getByRole("list", { name: "Steps" });
+/** The bar's step names: each item's hidden text, minus "Go to". */
+const stepLabels = () =>
+  within(stepBar())
+    .getAllByRole("listitem")
+    .map((item) =>
+      (item.querySelector(".sr-only")?.textContent ?? "").replace("Go to ", ""),
+    );
+const currentStep = () => screen.getByRole("listitem", { current: "step" });
+/** The bar's button for a step; its name also holds the step's label. */
+const goTo = (step: Step) =>
+  screen.getByRole("button", { name: new RegExp(`^Go to ${step}`) });
+const jump = (user: User, step: Step) => user.click(goTo(step));
+
+/** Opens Review and saves from there. */
+async function saveFromReview(user: User) {
+  await jump(user, "Review");
+  await user.click(save());
+}
 
 function refused(status?: number, message = "Core text") {
   return {
@@ -156,7 +177,7 @@ function refused(status?: number, message = "Core text") {
   };
 }
 
-describe("EditGoogleCampaignForm", () => {
+describe("EditGoogleCampaignWizard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sizes.clear();
@@ -167,51 +188,90 @@ describe("EditGoogleCampaignForm", () => {
     }));
   });
 
-  it("starts from the campaign, not from the Market profile's suggestions", () => {
-    renderEdit(SEARCH_VALUES);
+  describe("the steps", () => {
+    it("has no Campaign type step for a Search campaign", () => {
+      renderEdit(SEARCH_VALUES);
 
-    expect(nameInput()).toHaveValue("Spring sale");
-    expect(screen.getByLabelText("Daily budget (USD)")).toHaveValue(25.5);
-    expect(screen.getByLabelText("End date")).toHaveValue("2026-11-30");
-    expect(screen.getByLabelText("Final URL")).toHaveValue(
-      "https://example.com/shoes",
-    );
-    expect(screen.getByRole("textbox", { name: "Keywords" })).toHaveValue(
-      'running shoes\n"trail shoes"',
-    );
-    expect(screen.getByLabelText("Headline 3")).toHaveValue("Three");
-    expect(screen.getByText("Munich")).toBeVisible();
-    expect(screen.queryByText("Germany")).toBeNull();
+      const labels = stepLabels();
+      expect(labels).toHaveLength(5);
+      expect(labels).toEqual([
+        "Basics",
+        "Targeting",
+        "Keywords",
+        "Ad",
+        "Review",
+      ]);
+      expect(screen.queryByRole("radio")).toBeNull();
+    });
+
+    it("has no Campaign type or Keywords step for a Display campaign", () => {
+      renderEdit(DISPLAY_VALUES);
+
+      const labels = stepLabels();
+      expect(labels).toHaveLength(4);
+      expect(labels).toEqual(["Basics", "Targeting", "Ad", "Review"]);
+    });
+
+    it("opens on Basics and lets the bar jump to any step without filling anything", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      expect(currentStep()).toHaveTextContent("Basics");
+
+      await jump(user, "Ad");
+
+      expect(currentStep()).toHaveTextContent("Ad");
+      expect(screen.getByLabelText("Final URL")).toBeVisible();
+
+      await jump(user, "Basics");
+      expect(currentStep()).toHaveTextContent("Basics");
+      await jump(user, "Review");
+      expect(currentStep()).toHaveTextContent("Review");
+      expect(save()).toBeVisible();
+    });
+
+    it("validates only the current step on Next", async () => {
+      const user = renderEdit({ ...SEARCH_VALUES, finalUrl: "" });
+
+      await user.click(screen.getByRole("button", { name: "Next" }));
+
+      expect(currentStep()).toHaveTextContent("Targeting");
+    });
   });
 
-  it("tells the type without letting it change", () => {
-    renderEdit(SEARCH_VALUES);
+  describe("starts from the campaign, not from the Market profile's suggestions", () => {
+    it("fills Basics", () => {
+      renderEdit(SEARCH_VALUES);
 
-    expect(screen.queryByRole("radio")).toBeNull();
-    expect(screen.getByText("Search")).toBeVisible();
-    expect(
-      screen.getByText("Text ads on Google Search results."),
-    ).toBeVisible();
-  });
+      expect(nameInput()).toHaveValue("Spring sale");
+      expect(screen.getByLabelText("Daily budget (USD)")).toHaveValue(25.5);
+      expect(screen.getByLabelText("End date")).toHaveValue("2026-11-30");
+    });
 
-  it("says saving sends the ad back to review, and offers Save changes and Cancel", () => {
-    renderEdit(SEARCH_VALUES);
+    it("fills Targeting", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      await jump(user, "Targeting");
 
-    expect(
-      screen.getByText("Saving sends the ad back to Google's review."),
-    ).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: "Create campaign" }),
-    ).toBeNull();
-    expect(screen.getByRole("link", { name: "Cancel" })).toHaveAttribute(
-      "href",
-      DETAILS_HREF,
-    );
+      expect(screen.getByText("Munich")).toBeVisible();
+      expect(screen.queryByText("Germany")).toBeNull();
+    });
+
+    it("fills Keywords and the Search ad", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      await jump(user, "Keywords");
+      expect(screen.getByRole("textbox", { name: "Keywords" })).toHaveValue(
+        'running shoes\n"trail shoes"',
+      );
+
+      await jump(user, "Ad");
+      expect(screen.getByLabelText("Final URL")).toHaveValue(
+        "https://example.com/shoes",
+      );
+      expect(screen.getByLabelText("Headline 3")).toHaveValue("Three");
+    });
   });
 
   describe("the start date", () => {
     it("is read-only once the campaign started, still focusable, and says why", async () => {
-      const { user } = renderEdit(SEARCH_VALUES, true);
+      const user = renderEdit(SEARCH_VALUES, true);
       const startDate = screen.getByLabelText("Start date");
 
       expect(startDate).toHaveAttribute("readonly");
@@ -220,7 +280,6 @@ describe("EditGoogleCampaignForm", () => {
       expect(startDate).toHaveAccessibleDescription(
         "The start date can't change once a campaign has started.",
       );
-      await user.tab({ shift: true });
       await user.click(startDate);
       expect(startDate).toHaveFocus();
     });
@@ -235,13 +294,85 @@ describe("EditGoogleCampaignForm", () => {
     });
   });
 
-  describe("saving a Search campaign", () => {
-    it("sends the campaign to the edit action and goes back to its details", async () => {
-      editMock.mockResolvedValue({ ok: true, value: undefined });
-      const { user } = renderEdit(SEARCH_VALUES);
-      await user.type(nameInput(), "!");
+  describe("the review", () => {
+    it("tells the type without an Edit button, and says saving sends the ad back to review", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      await jump(user, "Review");
+
+      expect(screen.getByText("Campaign type")).toBeVisible();
+      expect(screen.getByText("Search")).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: "Edit Campaign type" }),
+      ).toBeNull();
+      expect(
+        screen.getByRole("button", { name: "Edit Name" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("Saving sends the ad back to Google's review."),
+      ).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: "Create campaign" }),
+      ).toBeNull();
+    });
+
+    it("tells a Display campaign's type too", async () => {
+      const user = renderEdit(DISPLAY_VALUES);
+      await jump(user, "Review");
+
+      expect(screen.getByText("Display")).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: "Edit Campaign type" }),
+      ).toBeNull();
+    });
+
+    it("jumps to the step of a refused field when saving, and shows the error", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      await user.clear(nameInput());
+      await jump(user, "Review");
 
       await user.click(save());
+
+      expect(await screen.findByText("Enter a name.")).toBeVisible();
+      expect(currentStep()).toHaveTextContent("Basics");
+      expect(editMock).not.toHaveBeenCalled();
+    });
+
+    it("opens a sitelink refusal when saving from Review lands on the Ad step", async () => {
+      const user = renderEdit({
+        ...SEARCH_VALUES,
+        sitelinks: [
+          {
+            text: "Shoes",
+            finalUrl: "",
+            description1: "",
+            description2: "",
+          },
+        ],
+      });
+
+      await saveFromReview(user);
+
+      const sitelinks = await screen.findByRole("button", {
+        name: /^Sitelinks/,
+      });
+      expect(sitelinks).toHaveAttribute("aria-expanded", "true");
+      expect(
+        screen.getByText(
+          "Enter a full address starting with http:// or https://.",
+        ),
+      ).toBeVisible();
+      expect(currentStep()).toHaveTextContent("Ad");
+      expect(editMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("saving a Search campaign", () => {
+    it("sends the campaign to the edit action and closes", async () => {
+      editMock.mockResolvedValue({ ok: true, value: undefined });
+      const user = renderEdit(SEARCH_VALUES);
+      await user.type(nameInput(), "!");
+
+      await saveFromReview(user);
 
       await waitFor(() => expect(editMock).toHaveBeenCalledTimes(1));
       expect(sent()).toEqual({
@@ -268,14 +399,14 @@ describe("EditGoogleCampaignForm", () => {
       });
       expect(createMock).not.toHaveBeenCalled();
       expect(toastSuccessMock).toHaveBeenCalledWith("Campaign updated");
-      expect(pushMock).toHaveBeenCalledWith(DETAILS_HREF);
+      expect(onClose).toHaveBeenCalledTimes(1);
     });
 
     it("leaves a locked start date out, so Core keeps it", async () => {
       editMock.mockResolvedValue({ ok: true, value: undefined });
-      const { user } = renderEdit(SEARCH_VALUES, true);
+      const user = renderEdit(SEARCH_VALUES, true);
 
-      await user.click(save());
+      await saveFromReview(user);
 
       await waitFor(() => expect(editMock).toHaveBeenCalledTimes(1));
       expect(sent()?.google).not.toHaveProperty("startDate");
@@ -284,58 +415,73 @@ describe("EditGoogleCampaignForm", () => {
 
     it("leaves the end date out once it is cleared", async () => {
       editMock.mockResolvedValue({ ok: true, value: undefined });
-      const { user } = renderEdit(SEARCH_VALUES);
+      const user = renderEdit(SEARCH_VALUES);
       await user.clear(screen.getByLabelText("End date"));
 
-      await user.click(save());
+      await saveFromReview(user);
 
       await waitFor(() => expect(editMock).toHaveBeenCalledTimes(1));
       expect(sent()?.google).not.toHaveProperty("endDate");
     });
 
-    it("judges the fields like a new campaign does", async () => {
-      const { user } = renderEdit(SEARCH_VALUES);
-      await user.clear(nameInput());
+    it("tells the parent it is busy around a save", async () => {
+      let finish: (value: { ok: true; value: undefined }) => void = () => {};
+      editMock.mockReturnValue(
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      );
+      const user = renderEdit(SEARCH_VALUES);
 
-      await user.click(save());
+      await saveFromReview(user);
 
-      expect(await screen.findByText("Enter a name.")).toBeVisible();
-      expect(editMock).not.toHaveBeenCalled();
+      await waitFor(() => expect(onBusyChange).toHaveBeenCalledWith(true));
+      expect(onBusyChange).not.toHaveBeenCalledWith(false);
+      expect(save()).toHaveAttribute("aria-busy", "true");
+
+      finish({ ok: true, value: undefined });
+
+      await waitFor(() => expect(onBusyChange).toHaveBeenLastCalledWith(false));
+      expect(onBusyChange.mock.calls.map(([busy]) => busy)).toEqual([
+        true,
+        false,
+      ]);
     });
 
     it("shows Google's message on 422 and keeps the input", async () => {
       editMock.mockResolvedValue(refused(422, "Destination not working."));
-      const { user } = renderEdit(SEARCH_VALUES);
+      const user = renderEdit(SEARCH_VALUES);
       await user.type(nameInput(), "!");
 
-      await user.click(save());
+      await saveFromReview(user);
 
       const alert = await screen.findByRole("alert");
       expect(alert).toHaveTextContent("Failed to save changes");
       expect(alert).toHaveTextContent("Destination not working.");
+      expect(onClose).not.toHaveBeenCalled();
+      await jump(user, "Basics");
       expect(nameInput()).toHaveValue("Spring sale!");
-      expect(pushMock).not.toHaveBeenCalled();
     });
 
     it("says the campaign can't be edited here when Core says it is not editable", async () => {
       editMock.mockResolvedValue(refused(409, "Campaign can't be edited here"));
-      const { user } = renderEdit(SEARCH_VALUES);
+      const user = renderEdit(SEARCH_VALUES);
 
-      await user.click(save());
+      await saveFromReview(user);
 
       const alert = await screen.findByRole("alert");
       expect(alert).toHaveTextContent("This campaign can't be edited here.");
       expect(
         within(alert).queryByRole("link", { name: "Go to accounts" }),
       ).toBeNull();
-      expect(pushMock).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
     });
 
     it("asks to reconnect on any other 409, such as an inactive connection", async () => {
       editMock.mockResolvedValue(refused(409, "Ad connection is not active"));
-      const { user } = renderEdit(SEARCH_VALUES);
+      const user = renderEdit(SEARCH_VALUES);
 
-      await user.click(save());
+      await saveFromReview(user);
 
       const alert = await screen.findByRole("alert");
       expect(alert).toHaveTextContent("Reconnect this account in Accounts");
@@ -349,9 +495,9 @@ describe("EditGoogleCampaignForm", () => {
       "shows a generic message for a Core failure (status %s)",
       async (status) => {
         editMock.mockResolvedValue(refused(status));
-        const { user } = renderEdit(SEARCH_VALUES);
+        const user = renderEdit(SEARCH_VALUES);
 
-        await user.click(save());
+        await saveFromReview(user);
 
         const alert = await screen.findByRole("alert");
         expect(alert).toHaveTextContent("Failed to save changes");
@@ -361,9 +507,9 @@ describe("EditGoogleCampaignForm", () => {
 
     it("shows the generic message when the action throws", async () => {
       editMock.mockRejectedValue(new Error("network"));
-      const { user } = renderEdit(SEARCH_VALUES);
+      const user = renderEdit(SEARCH_VALUES);
 
-      await user.click(save());
+      await saveFromReview(user);
 
       expect(await screen.findByRole("alert")).toHaveTextContent(
         "Failed to save changes",
@@ -375,8 +521,9 @@ describe("EditGoogleCampaignForm", () => {
     const tile = (name: string) =>
       within(screen.getByRole("img", { name }).closest("li") as HTMLElement);
 
-    it("shows its images, kept, with their roles", () => {
-      renderEdit(DISPLAY_VALUES);
+    it("shows its images, kept, with their roles", async () => {
+      const user = renderEdit(DISPLAY_VALUES);
+      await jump(user, "Ad");
 
       expect(
         tile("Current image (Landscape)").getByText("Landscape"),
@@ -395,9 +542,9 @@ describe("EditGoogleCampaignForm", () => {
 
     it("sends the images it kept as asset and role", async () => {
       editMock.mockResolvedValue({ ok: true, value: undefined });
-      const { user } = renderEdit(DISPLAY_VALUES, true);
+      const user = renderEdit(DISPLAY_VALUES, true);
 
-      await user.click(save());
+      await saveFromReview(user);
 
       await waitFor(() => expect(editMock).toHaveBeenCalledTimes(1));
       expect(sent()?.google).toEqual({
@@ -418,7 +565,8 @@ describe("EditGoogleCampaignForm", () => {
 
     it("removes a kept image and sends a new one beside the other that stayed", async () => {
       editMock.mockResolvedValue({ ok: true, value: undefined });
-      const { user } = renderEdit(DISPLAY_VALUES);
+      const user = renderEdit(DISPLAY_VALUES);
+      await jump(user, "Ad");
 
       await user.click(
         screen.getByRole("button", {
@@ -436,7 +584,7 @@ describe("EditGoogleCampaignForm", () => {
       Object.defineProperty(file, "size", { value: 1000 });
       await user.upload(screen.getByLabelText("Image files"), file);
       await screen.findByRole("img", { name: "wide.png" });
-      await user.click(save());
+      await saveFromReview(user);
 
       await waitFor(() => expect(editMock).toHaveBeenCalledTimes(1));
       expect(sent()?.google).toMatchObject({
@@ -454,32 +602,6 @@ describe("EditGoogleCampaignForm", () => {
           },
         ],
       });
-    });
-  });
-
-  describe("when Next shows the page again", () => {
-    it("starts over from the campaign after a save", async () => {
-      editMock.mockResolvedValue({ ok: true, value: undefined });
-      const { user, rerender } = renderEdit(SEARCH_VALUES);
-      await user.type(nameInput(), "!");
-      await user.click(save());
-      await waitFor(() => expect(pushMock).toHaveBeenCalled());
-
-      rerender(tree(SEARCH_VALUES, false, "hidden"));
-      rerender(tree(SEARCH_VALUES, false, "visible"));
-
-      await waitFor(() => expect(nameInput()).toHaveValue("Spring sale"));
-      expect(save()).not.toHaveAttribute("aria-busy", "true");
-    });
-
-    it("keeps a draft that was not sent", async () => {
-      const { user, rerender } = renderEdit(SEARCH_VALUES);
-      await user.type(nameInput(), "!");
-
-      rerender(tree(SEARCH_VALUES, false, "hidden"));
-      rerender(tree(SEARCH_VALUES, false, "visible"));
-
-      expect(nameInput()).toHaveValue("Spring sale!");
     });
   });
 });

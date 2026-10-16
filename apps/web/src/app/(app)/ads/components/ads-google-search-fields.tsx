@@ -51,11 +51,11 @@ export function AdsGoogleSearchFields({
 }: AdsGoogleSearchFieldsProps) {
   return (
     <>
-      <KeywordsSection
+      <AdsKeywordsSection
         hasMarketProfile={hasMarketProfile}
         projectId={projectId}
       />
-      <AdSection />
+      <AdsSearchAdSection />
     </>
   );
 }
@@ -105,7 +105,7 @@ export function AdsGoogleDateFields({
   );
 }
 
-function KeywordsSection({
+export function AdsKeywordsSection({
   projectId,
   hasMarketProfile,
 }: Pick<AdsGoogleSearchFieldsProps, "projectId" | "hasMarketProfile">) {
@@ -170,7 +170,7 @@ function KeywordsSection({
   );
 }
 
-function AdSection() {
+export function AdsSearchAdSection() {
   const t = useTranslations("App.Ads.newCampaign.ad");
   const tSection = useTranslations("App.Ads.newCampaign.sections");
   const form = useFormContext<GoogleSearchFormValues>();

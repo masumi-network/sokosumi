@@ -16,6 +16,7 @@ vi.mock("./ads-accounts", () => ({
 
 vi.mock("./ads-skeleton", () => ({
   AdsRowsSkeleton: () => <div>rows skeleton</div>,
+  AdsCampaignRowsSkeleton: () => <div>campaign rows skeleton</div>,
 }));
 
 import type { ProjectAdAccount } from "@sokosumi/core-client";
@@ -28,10 +29,12 @@ function renderTabs(
     accounts = [],
     campaigns = null,
     market = null,
+    toolbar = null,
   }: {
     accounts?: ProjectAdAccount[];
     campaigns?: React.ReactNode;
     market?: React.ReactNode;
+    toolbar?: React.ReactNode;
   } = {},
 ) {
   return render(
@@ -41,6 +44,7 @@ function renderTabs(
         campaigns={campaigns}
         market={market}
         projectId="project-1"
+        toolbar={toolbar}
       />
     </NuqsTestingAdapter>,
   );
@@ -120,9 +124,18 @@ describe("AdsTabs", () => {
     expect(screen.queryByText("campaigns.emptyTitle")).not.toBeInTheDocument();
   });
 
-  it("holds a skeleton while the server sends campaigns after a tab switch", () => {
+  it("holds the campaign rows' skeleton while the server sends campaigns after a tab switch", () => {
     renderTabs("", { accounts: [{ id: "a1" } as ProjectAdAccount] });
 
-    expect(screen.getByText("rows skeleton")).toBeVisible();
+    expect(screen.getByText("campaign rows skeleton")).toBeVisible();
+  });
+
+  it("puts the Campaigns controls on the tab row, only on Campaigns", async () => {
+    const user = userEvent.setup();
+    renderTabs("", { toolbar: <div>campaigns toolbar</div> });
+
+    expect(screen.getByText("campaigns toolbar")).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "tabs.market" }));
+    expect(screen.queryByText("campaigns toolbar")).toBeNull();
   });
 });

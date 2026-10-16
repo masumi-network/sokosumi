@@ -25,6 +25,7 @@ import {
   googleDisplaySpecSchema,
 } from "@/lib/ads/google-display";
 import { googleSearchSpecSchema } from "@/lib/ads/google-search";
+import { loadGoogleSetup } from "@/lib/ads/google-setup";
 import { createMarketProfileSchema } from "@/lib/ads/market";
 import { GOOGLE_LOCATION_QUERY_MAX_LENGTH } from "@/lib/ads/targeting";
 import {
@@ -238,6 +239,11 @@ export const listAdMarketKeywords = adsAction(
     const { keywords } = await adsService.listMarketKeywords(projectId);
     return keywords.map(({ keyword }) => keyword);
   },
+);
+
+export const getGoogleCampaignSetup = adsAction(
+  z.object({ projectId: trimmedId, accountId: trimmedId }),
+  ({ projectId, accountId }) => loadGoogleSetup(projectId, accountId),
 );
 
 /**
