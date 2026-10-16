@@ -185,7 +185,7 @@ export function getTaskAssigneeOption(
       avatarSeed: claimed
         ? null
         : (assignee.sokoBot.avatarSeed ??
-          defaultOrbSeed(assignee.sokoBot.owner.id)),
+          defaultOrbSeed(assignee.sokoBot.owner?.id ?? assignee.sokoBot.id)),
       vendor: sokoBotsVendor(copy.vendorName),
     };
   }

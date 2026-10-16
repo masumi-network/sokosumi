@@ -41,6 +41,7 @@ function makeSokoBot(id: string, name: string) {
     image: null as string | null,
     avatarSeed: null as string | null,
     ownerUserId: "me",
+    scope: "personal" as const,
     presence: "offline" as const,
   };
 }

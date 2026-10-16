@@ -122,6 +122,7 @@ describe("social connection suggested times route", () => {
     const bot: AuthenticationContext = {
       actor: "sokoBot",
       sokoBotId: "bot",
+      scope: "personal",
       userId: "owner",
       workspaceId,
       organizationId: null,

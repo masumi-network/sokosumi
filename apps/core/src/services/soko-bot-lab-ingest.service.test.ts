@@ -50,6 +50,8 @@ describe("runSokoBotLabIngest", () => {
     vi.clearAllMocks();
     botFindFirstMock.mockResolvedValue({
       id: "bot_1",
+      userId: "user_1",
+      projectId: null,
       workspaceId: "ws_1",
       ingestTimezone: "Europe/Zurich",
       followWholeBoard: true,
@@ -59,6 +61,33 @@ describe("runSokoBotLabIngest", () => {
     deltaMessageMock.mockResolvedValue("## Unread mail");
     beatMessageMock.mockResolvedValue({ message: "Daily stand-up." });
     startTurnMock.mockResolvedValue({ turnId: "turn_1" });
+  });
+
+  it("refuses a shared bot before reading or spending anything", async () => {
+    botFindFirstMock.mockResolvedValue({
+      id: "bot_1",
+      userId: null,
+      projectId: null,
+      workspaceId: "ws_1",
+      ingestTimezone: "Europe/Zurich",
+      followWholeBoard: true,
+    });
+
+    await expect(
+      runSokoBotLabIngest({ ...SCOPE, beat: "standup" }),
+    ).rejects.toThrow("Lab beats run only for a personal bot");
+    expect(activeIntegrationsMock).not.toHaveBeenCalled();
+    expect(beatMessageMock).not.toHaveBeenCalled();
+    expect(startTurnMock).not.toHaveBeenCalled();
+  });
+
+  it("builds the beat for the bot's owner", async () => {
+    await runSokoBotLabIngest({ ...SCOPE, beat: "standup" });
+    expect(beatMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bot: expect.objectContaining({ id: "bot_1", userId: "user_1" }),
+      }),
+    );
   });
 
   it("names what to connect instead of sending anyone to a terminal", async () => {

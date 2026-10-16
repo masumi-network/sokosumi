@@ -373,3 +373,34 @@ describe("buildTaskActivityActors", () => {
     expect(result.userById).toEqual({});
   });
 });
+
+describe("buildTaskActivityActors with a shared Soko Bot", () => {
+  it("names no owner and seeds the orb from the bot", () => {
+    const result = buildTaskActivityActors({
+      owner: { id: "user-1", name: "Ada Lovelace", image: null },
+      assignee: {
+        type: "sokoBot",
+        id: "shared-1",
+        sokoBot: {
+          id: "shared-1",
+          name: "Scout",
+          avatarSeed: null,
+          avatarImageUrl: null,
+          owner: null,
+        },
+      },
+      creator: {
+        type: "user",
+        id: "user-1",
+        user: { id: "user-1", name: "Ada Lovelace", image: null },
+      },
+      events: [],
+    } satisfies Pick<Task, "owner" | "assignee" | "creator" | "events">);
+
+    expect(result.sokoBotById?.["shared-1"]).toMatchObject({
+      name: "Scout",
+      avatarSeed: defaultOrbSeed("shared-1"),
+    });
+    expect(result.sokoBotById?.["shared-1"]?.ownerName).toBeUndefined();
+  });
+});

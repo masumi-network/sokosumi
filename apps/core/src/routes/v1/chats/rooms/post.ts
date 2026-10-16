@@ -1,9 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-
 import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonContent, jsonErrorResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { created, ok, successResponseSchema } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -13,7 +13,7 @@ import {
 } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
-  isSokoBotAuthContext,
+  isPersonalSokoBotAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
 import {
@@ -25,7 +25,6 @@ import {
 import {
   chatRoomInclude,
   createOrGetDirectRoom,
-  isOrganizationOwnerOrAdmin,
   mapChatRoomWithSidebarFlags,
   requireActiveOrganizationId,
   requireSanitizedChannelSlug,
@@ -94,7 +93,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return direct.created ? created(c, direct.room) : ok(c, direct.room);
     }
 
-    if (isSokoBotAuthContext(authContext)) {
+    if (isPersonalSokoBotAuthContext(authContext)) {
       const direct = await createOrGetSokoBotOriginatedDirect({
         sokoBotId: authContext.sokoBotId,
         ownerUserId: authContext.userId,
@@ -168,6 +167,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           userContext.userId,
           [],
           tx,
+          { discoverability: body.discoverability },
         );
 
         return tx.chatRoom.create({

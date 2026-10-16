@@ -37,6 +37,7 @@ const authorized = {
     workspaceId: "workspace",
     versionId: "v24",
   },
+  reader: { sharedScope: null },
   grant: {
     capabilities: [
       "search_inbox",
@@ -112,6 +113,24 @@ describe("background runs", () => {
     await expect(
       startBackgroundRun(authorized, { title: "t", brief: "b" }),
     ).rejects.toThrow(/Only the owner/);
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("refuses a shared bot with a reason of its own", async () => {
+    const shared = {
+      ...authorized,
+      reader: {
+        sharedScope: {
+          sokoBotId: "bot",
+          workspaceId: "workspace",
+          projectId: null,
+        },
+      },
+    } as unknown as AuthorizedSokoBotRuntime;
+    await expect(
+      startBackgroundRun(shared, { title: "t", brief: "b" }),
+    ).rejects.toThrow("A shared Soko Bot cannot start background runs");
+    expect(findUniqueOrThrow).not.toHaveBeenCalled();
     expect(startTurn).not.toHaveBeenCalled();
   });
 

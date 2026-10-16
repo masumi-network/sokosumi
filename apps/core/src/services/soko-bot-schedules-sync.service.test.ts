@@ -49,18 +49,22 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     sokoBotScheduleRun: {
       findFirst: runFindFirstMock,
+      update: vi.fn(),
       updateMany: runUpdateManyMock,
     },
     sokoBotTurn: { findUnique: turnFindUniqueMock },
     sokoBot: { findUnique: botFindUniqueMock },
+    member: { findMany: memberFindManyMock },
   },
 }));
-const { botFindUniqueMock } = vi.hoisted(() => ({
+const { botFindUniqueMock, memberFindManyMock } = vi.hoisted(() => ({
   botFindUniqueMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   SokoBotBusyError: class SokoBotBusyError extends Error {},
   SokoBotNoDestinationError: class SokoBotNoDestinationError extends Error {},
+  SokoBotNotFoundError: class SokoBotNotFoundError extends Error {},
   SokoBotRetryableStartError: class SokoBotRetryableStartError extends Error {},
   sokoBotControlPlane: {
     reconcileTurn: reconcileTurnMock,
@@ -92,6 +96,7 @@ const scheduledFor = new Date("2026-08-17T12:00:00.000Z");
 const dueSchedule = {
   id: "01960001-0001-7001-8001-000000000001",
   requestedByUserId: "user_1",
+  sokoBot: { userId: "user_1" as string | null },
   workspaceId: "01960001-0001-7001-8001-000000000002",
   cronExpression: "0 * * * * *",
   timezone: "UTC",
@@ -99,6 +104,11 @@ const dueSchedule = {
   nextRunAt: scheduledFor,
   consecutiveFailures: 0,
   capabilityNames: [] as string[],
+};
+const personalBot = {
+  userId: dueSchedule.requestedByUserId,
+  createdByUserId: dueSchedule.requestedByUserId,
+  workspace: { organizationId: null },
 };
 const claimedRun = {
   id: "01960001-0001-7001-8001-000000000003",
@@ -164,6 +174,7 @@ describe("SokoBotSchedulesSyncService", () => {
             }),
     );
     startTurnMock.mockResolvedValue({ turnId: "turn_1", status: "RUNNING" });
+    botFindUniqueMock.mockResolvedValue(personalBot);
   });
 
   it("immediately enqueues a fresh turn for reconciliation", async () => {
@@ -229,6 +240,45 @@ describe("SokoBotSchedulesSyncService", () => {
       }),
     );
   });
+
+  it.each([null, "meeting-prep"])(
+    "runs a shared bot's %s schedule for nobody, whoever asked for it",
+    async (systemKey) => {
+      botFindUniqueMock.mockResolvedValue({
+        id: "bot_1",
+        name: "Team bot",
+        userId: null,
+        createdByUserId: "creator_1",
+        workspaceId: dueSchedule.workspaceId,
+        ingestTimezone: "UTC",
+        followWholeBoard: false,
+        workspace: { organizationId: "org_1" },
+      });
+      vi.mocked(buildSystemBeatMessage).mockResolvedValue({
+        message: "Meeting prep.",
+        nudgeKeys: [],
+        skip: false,
+      });
+      dueScheduleFindFirstMock.mockResolvedValue({
+        ...dueSchedule,
+        sokoBotId: "bot_1",
+        sokoBot: { userId: null },
+        systemKey,
+      });
+
+      await new SokoBotSchedulesSyncService().syncDueSchedules({
+        shouldContinue: continueFor(1),
+      });
+
+      expect(startTurnMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: null,
+          sokoBotId: "bot_1",
+          source: "SCHEDULE",
+        }),
+      );
+    },
+  );
 
   it("completes a quiet built-in rhythm without starting a turn", async () => {
     dueScheduleFindFirstMock.mockResolvedValue({

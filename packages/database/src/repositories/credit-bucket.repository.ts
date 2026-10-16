@@ -75,7 +75,7 @@ export const creditBucketRepository = {
    * then createdAt ASC, then id ASC. Amounts in cents.
    */
   async listAvailableBucketsWithBalances(
-    userId: string,
+    userId: string | null,
     organizationId: string | null,
     tx: Prisma.TransactionClient,
   ): Promise<CreditBucketBalanceRow[]> {
@@ -186,7 +186,7 @@ export const creditBucketRepository = {
   },
 
   async listEnterprisePoolBucketsWithBalances(
-    userId: string,
+    userId: string | null,
     organizationId: string,
     tx: Prisma.TransactionClient,
   ): Promise<CreditBucketBalanceRow[]> {

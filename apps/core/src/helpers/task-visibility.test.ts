@@ -10,9 +10,17 @@ import {
   buildSokoBotAudienceJobParentTaskWhere,
   buildSokoBotAudienceTaskVisibilityWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
+  buildSokoBotReaderJobWhere,
+  buildSokoBotReaderTaskWhere,
+  buildSokoBotScopeJobWhere,
+  buildSokoBotScopeTaskWhere,
+  buildSokoBotTaskWhere,
   isPrivateTaskVisibleToCoworker,
   isPrivateTaskVisibleToHuman,
   readSokoBotPacketAudience,
+  sharedSokoBotAudience,
+  sokoBotSharedScopeOf,
+  sokoBotTurnReader,
 } from "./task-visibility";
 
 describe("task visibility helpers", () => {
@@ -165,5 +173,92 @@ describe("task visibility helpers", () => {
         },
       },
     });
+  });
+});
+
+describe("shared Soko Bot scope", () => {
+  const project = { sokoBotId: "bot_1", workspaceId: "ws_1", projectId: "p_1" };
+  const workspace = { ...project, projectId: null };
+
+  it("has no scope for a personal bot and keeps a shared bot's columns", () => {
+    const columns = { id: "bot_1", workspaceId: "ws_1", projectId: "p_1" };
+    expect(sokoBotSharedScopeOf({ ...columns, userId: "owner" })).toBeNull();
+    expect(sokoBotSharedScopeOf({ ...columns, userId: null })).toEqual(project);
+  });
+
+  it("reads a personal bot's own Tasks as its owner and a shared bot's as its scope", () => {
+    const columns = { id: "bot_1", workspaceId: "ws_1", projectId: "p_1" };
+    expect(buildSokoBotTaskWhere({ ...columns, userId: "owner" })).toEqual(
+      buildSokoBotOwnerTaskVisibilityWhere("owner"),
+    );
+    expect(buildSokoBotTaskWhere({ ...columns, userId: null })).toEqual(
+      buildSokoBotScopeTaskWhere(project),
+    );
+  });
+
+  it("answers as TEAMMATE unless another assistant asks", () => {
+    expect(sharedSokoBotAudience("ASSISTANT")).toBe("ASSISTANT");
+    expect(sharedSokoBotAudience("TEAMMATE")).toBe("TEAMMATE");
+    expect(sharedSokoBotAudience("OWNER")).toBe("TEAMMATE");
+    expect(sharedSokoBotAudience(undefined)).toBe("TEAMMATE");
+  });
+
+  it("refuses a shared bot row selected without its projectId", () => {
+    expect(() =>
+      sokoBotSharedScopeOf({ id: "bot_1", workspaceId: "ws_1", userId: null }),
+    ).toThrow("A shared Soko Bot's scope needs its projectId");
+  });
+
+  it("pins the workspace and PUBLIC, and the Project for a project bot", () => {
+    expect(buildSokoBotScopeTaskWhere(project)).toEqual({
+      workspaceId: "ws_1",
+      visibility: TaskVisibility.PUBLIC,
+      projectId: "p_1",
+    });
+    expect(buildSokoBotScopeTaskWhere(workspace)).toEqual({
+      workspaceId: "ws_1",
+      visibility: TaskVisibility.PUBLIC,
+    });
+  });
+
+  it("scopes Jobs to the bot's own hires or a visible Task", () => {
+    expect(buildSokoBotScopeJobWhere(project)).toEqual({
+      workspaceId: "ws_1",
+      OR: [
+        { sokoBotDelegations: { some: { turn: { sokoBotId: "bot_1" } } } },
+        { task: { is: buildSokoBotScopeTaskWhere(project) } },
+      ],
+    });
+  });
+
+  it("never reads as OWNER for a shared bot", () => {
+    expect(sokoBotTurnReader("member", "OWNER", project).audience).toBe(
+      "TEAMMATE",
+    );
+    expect(sokoBotTurnReader("member", undefined, project).audience).toBe(
+      "TEAMMATE",
+    );
+    expect(sokoBotTurnReader("member", "ASSISTANT", project).audience).toBe(
+      "ASSISTANT",
+    );
+    expect(sokoBotTurnReader("owner", "OWNER", null).audience).toBe("OWNER");
+  });
+
+  it("routes reader wheres by scope and keeps the personal ones unchanged", () => {
+    const owner = sokoBotTurnReader("owner", "OWNER", null);
+    expect(buildSokoBotReaderTaskWhere(owner)).toEqual(
+      buildSokoBotAudienceTaskVisibilityWhere("owner", "OWNER"),
+    );
+    expect(buildSokoBotReaderJobWhere(owner)).toEqual({
+      ownerId: "owner",
+      ...buildSokoBotAudienceJobParentTaskWhere("owner", "OWNER"),
+    });
+    const shared = sokoBotTurnReader("member", "OWNER", project);
+    expect(buildSokoBotReaderTaskWhere(shared)).toEqual(
+      buildSokoBotScopeTaskWhere(project),
+    );
+    expect(buildSokoBotReaderJobWhere(shared)).toEqual(
+      buildSokoBotScopeJobWhere(project),
+    );
   });
 });

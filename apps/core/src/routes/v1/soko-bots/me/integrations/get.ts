@@ -5,7 +5,7 @@ import { type OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { sokoBotIntegrationsSchema } from "@/schemas/soko-bot.schema";
-import { listSokoBotIntegrations } from "@/services/soko-bot-integrations.service";
+import { listSokoBotIntegrations } from "@/services/soko-bot-integration-list.service";
 import { mapIntegrationError } from "../../helpers.js";
 
 const listIntegrationsRoute = createRoute({

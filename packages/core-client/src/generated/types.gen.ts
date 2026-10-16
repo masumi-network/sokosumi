@@ -591,11 +591,26 @@ export type ChatRoomSokoBotParticipant = {
     image: string | null;
     avatarSeed: string | null;
     /**
-     * The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.
+     * The user who owns this personal Soko Bot. Only the owner may add it to or remove it from a Channel. Null for a shared Soko Bot, which any member may add or remove.
      */
-    ownerUserId: string;
+    ownerUserId: string | null;
+    scope: ChatRoomSokoBotScope;
     presence: ChatRoomPresence;
 };
+
+/**
+ * Who the Soko Bot belongs to: one person, a Project, or the whole workspace.
+ */
+export const ChatRoomSokoBotScope = {
+    PERSONAL: 'personal',
+    PROJECT: 'project',
+    WORKSPACE: 'workspace'
+} as const;
+
+/**
+ * Who the Soko Bot belongs to: one person, a Project, or the whole workspace.
+ */
+export type ChatRoomSokoBotScope = typeof ChatRoomSokoBotScope[keyof typeof ChatRoomSokoBotScope];
 
 export type ChatRoomMessageMention = {
     id: string;
@@ -1597,7 +1612,7 @@ export type SokoBotSummary = {
     name: string | null;
     avatarSeed: string | null;
     avatarImageUrl: string | null;
-    owner: UserSummary;
+    owner: UserSummary | null;
 };
 
 export type TaskParticipant = {
@@ -1728,7 +1743,7 @@ export type TaskEvent = {
         name: string | null;
         avatarSeed: string | null;
         avatarImageUrl: string | null;
-        owner: UserSummary;
+        owner: UserSummary | null;
     } | null;
     transactionId?: string | null;
     credits?: number | null;

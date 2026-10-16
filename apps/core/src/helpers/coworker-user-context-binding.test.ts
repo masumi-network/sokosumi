@@ -392,6 +392,7 @@ describe("filterAuthorizedWorkspaceIds", () => {
     const result = await filterAuthorizedWorkspaceIds(
       {
         actor: "sokoBot",
+        scope: "personal",
         sokoBotId: "bot_1",
         userId: "user_1",
         workspaceId: "ws_personal",
@@ -467,6 +468,7 @@ describe("listAuthorizedUserWorkspaces", () => {
     const result = await listAuthorizedUserWorkspaces(
       {
         actor: "sokoBot",
+        scope: "personal",
         sokoBotId: "bot_1",
         userId: "user_1",
         workspaceId: "ws_personal",
@@ -477,5 +479,21 @@ describe("listAuthorizedUserWorkspaces", () => {
 
     expect(result.workspaces).toHaveLength(3);
     expect(result.pendingInvitationCount).toBe(2);
+  });
+});
+
+describe("requireAuthorizedUserContext for a shared Soko Bot", () => {
+  it("answers 403, since the bot has no user", async () => {
+    await expect(
+      requireAuthorizedUserContext({
+        actor: "sokoBot",
+        scope: "workspace",
+        sokoBotId: "bot_1",
+        userId: null,
+        workspaceId: "ws_org",
+        organizationId: "org_1",
+        projectId: null,
+      }),
+    ).rejects.toMatchObject({ status: 403 });
   });
 });

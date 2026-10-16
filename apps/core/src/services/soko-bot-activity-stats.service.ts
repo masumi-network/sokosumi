@@ -1,19 +1,31 @@
 import { convertCentsToCredits } from "@sokosumi/utils";
-
-import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
+import { buildSokoBotTaskWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { roundCredits } from "@/lib/soko-bot/task-charges";
 
-export interface ActivityStatsBot {
+/**
+ * A shared bot has no owner, so nothing counts as "own", and must name its
+ * Project (null for a workspace bot) so team numbers stay in its scope.
+ */
+export type ActivityStatsBot = {
   id: string;
   name?: string | null;
-  userId: string;
   workspaceId: string;
-}
+} & (
+  | { userId: string; projectId?: string | null }
+  | { userId: null; projectId: string | null }
+);
 
 export interface ActivityStats {
-  own: { created: number; completed: number; failed: number; viaBot: number };
-  ownerMessages: number;
+  /** Null for a shared bot. */
+  own: {
+    created: number;
+    completed: number;
+    failed: number;
+    viaBot: number;
+  } | null;
+  /** Null for a shared bot. */
+  ownerMessages: number | null;
   botTurns: number;
   botMessages: number;
   botCredits: number;
@@ -23,17 +35,18 @@ export interface ActivityStats {
 
 const TEAM_LIMIT = 8;
 
-/**
- * What happened in a window, counted in Core so a review leads with numbers
- * instead of the bot guessing from a page of Tasks.
- */
-export async function activityStats(
+interface Window {
+  gte: Date;
+  lt: Date;
+}
+
+/** The owner's Tasks in the window, and how many the bot completed for them. */
+async function ownActivity(
   bot: ActivityStatsBot,
-  since: Date,
-  until: Date,
-): Promise<ActivityStats> {
-  const window = { gte: since, lt: until };
-  const ownTask = { workspaceId: bot.workspaceId, ownerId: bot.userId };
+  ownerId: string,
+  window: Window,
+) {
+  const ownTask = { workspaceId: bot.workspaceId, ownerId };
   const finished = (status: "COMPLETED" | "FAILED", extra: object = {}) =>
     prisma.taskEvent
       .findMany({
@@ -42,38 +55,12 @@ export async function activityStats(
         distinct: ["taskId"],
       })
       .then((rows) => rows.length);
-  const visible = buildSokoBotOwnerTaskVisibilityWhere(bot.userId);
-  const [
-    created,
-    completed,
-    failed,
-    viaBot,
-    ownerMessages,
-    botTurns,
-    botMessages,
-    botUsage,
-    debits,
-    teamCreated,
-    teamCompleted,
-  ] = await Promise.all([
+  const [created, completed, failed, viaBot, debits] = await Promise.all([
     prisma.task.count({ where: { ...ownTask, createdAt: window } }),
     finished("COMPLETED"),
     finished("FAILED"),
     finished("COMPLETED", {
       sokoBotDelegations: { some: { turn: { sokoBotId: bot.id } } },
-    }),
-    prisma.chatRoomMessage.count({
-      where: { senderUserId: bot.userId, createdAt: window, deletedAt: null },
-    }),
-    prisma.sokoBotTurn.count({
-      where: { sokoBotId: bot.id, createdAt: window },
-    }),
-    prisma.chatRoomMessage.count({
-      where: { senderSokoBotId: bot.id, createdAt: window, deletedAt: null },
-    }),
-    prisma.sokoBotUsage.aggregate({
-      where: { sokoBotId: bot.id, createdAt: window },
-      _sum: { cents: true },
     }),
     prisma.taskEvent.findMany({
       where: {
@@ -86,12 +73,59 @@ export async function activityStats(
         task: { select: { assignee: { select: { name: true } } } },
       },
     }),
+  ]);
+  return { own: { created, completed, failed, viaBot }, debits };
+}
+
+/**
+ * What happened in a window, counted in Core so a review leads with numbers
+ * instead of the bot guessing from a page of Tasks. A shared bot has no
+ * owner: it gets no "own" numbers, and every visible Task is the team's.
+ */
+export async function activityStats(
+  bot: ActivityStatsBot,
+  since: Date,
+  until: Date,
+): Promise<ActivityStats> {
+  const window = { gte: since, lt: until };
+  // Null for a shared bot, which has no owner.
+  const ownerId = bot.userId;
+  const visible = buildSokoBotTaskWhere(bot);
+  // Work without an Owner (ADR 0057) is the team's too; `NOT` drops it.
+  const others =
+    ownerId === null
+      ? {}
+      : { OR: [{ ownerId: { not: ownerId } }, { ownerId: null }] };
+  const [
+    owner,
+    ownerMessages,
+    botTurns,
+    botMessages,
+    botUsage,
+    teamCreated,
+    teamCompleted,
+  ] = await Promise.all([
+    ownerId === null ? null : ownActivity(bot, ownerId, window),
+    ownerId === null
+      ? null
+      : prisma.chatRoomMessage.count({
+          where: { senderUserId: ownerId, createdAt: window, deletedAt: null },
+        }),
+    prisma.sokoBotTurn.count({
+      where: { sokoBotId: bot.id, createdAt: window },
+    }),
+    prisma.chatRoomMessage.count({
+      where: { senderSokoBotId: bot.id, createdAt: window, deletedAt: null },
+    }),
+    prisma.sokoBotUsage.aggregate({
+      where: { sokoBotId: bot.id, createdAt: window },
+      _sum: { cents: true },
+    }),
     prisma.task.findMany({
       where: {
         workspaceId: bot.workspaceId,
         createdAt: window,
-        // Work without an Owner (ADR 0057) is the team's too; `NOT` drops it.
-        OR: [{ ownerId: { not: bot.userId } }, { ownerId: null }],
+        ...others,
         AND: [visible],
       },
       select: { owner: { select: { name: true } } },
@@ -103,7 +137,7 @@ export async function activityStats(
         createdAt: window,
         task: {
           workspaceId: bot.workspaceId,
-          OR: [{ ownerId: { not: bot.userId } }, { ownerId: null }],
+          ...others,
           AND: [visible],
         },
       },
@@ -115,6 +149,7 @@ export async function activityStats(
       take: 1000,
     }),
   ]);
+  const debits = owner?.debits ?? [];
 
   const byCoworker = new Map<string, number>();
   for (const debit of debits) {
@@ -145,7 +180,7 @@ export async function activityStats(
   }
 
   return {
-    own: { created, completed, failed, viaBot },
+    own: owner?.own ?? null,
     ownerMessages,
     botTurns,
     botMessages,
@@ -171,10 +206,17 @@ export function activityStatsLines(
     (total, row) => total + row.credits,
     0,
   );
+  const botChat = `${bot} ran ${stats.botTurns} turns and posted ${stats.botMessages} messages`;
   const lines = [
     `## ${heading}`,
-    `- Your Tasks: ${stats.own.created} created, ${stats.own.completed} completed, ${stats.own.failed} failed (${stats.own.viaBot} completed through ${bot})`,
-    `- Chat: you sent ${stats.ownerMessages} messages; ${bot} ran ${stats.botTurns} turns and posted ${stats.botMessages} messages`,
+    ...(stats.own
+      ? [
+          `- Your Tasks: ${stats.own.created} created, ${stats.own.completed} completed, ${stats.own.failed} failed (${stats.own.viaBot} completed through ${bot})`,
+        ]
+      : []),
+    stats.ownerMessages === null
+      ? `- Chat: ${botChat}`
+      : `- Chat: you sent ${stats.ownerMessages} messages; ${botChat}`,
     `- Credits: ${roundCredits(stats.botCredits + coworkerTotal)} in total, ${stats.botCredits} for ${bot}${stats.coworkerCredits.length ? `, ${stats.coworkerCredits.map((row) => `${row.name} ${row.credits}`).join(", ")}` : ""}`,
   ];
   if (stats.team.length > 0)

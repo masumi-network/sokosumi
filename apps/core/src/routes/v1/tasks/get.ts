@@ -40,7 +40,7 @@ import {
 } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
-  isSokoBotAuthContext,
+  isPersonalSokoBotAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -294,7 +294,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           statusWhere,
         );
       }
-    } else if (isSokoBotAuthContext(authContext)) {
+    } else if (isPersonalSokoBotAuthContext(authContext)) {
       if (statuses?.includes(TaskStatus.DRAFT)) {
         throw badRequest(
           "Soko Bots cannot filter by DRAFT status. DRAFT tasks are not accessible to Soko Bots.",

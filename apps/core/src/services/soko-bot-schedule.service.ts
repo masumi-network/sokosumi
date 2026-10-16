@@ -1,5 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
+import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
+import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
+import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 
@@ -10,8 +13,11 @@ export class SokoBotScheduleNotFoundError extends Error {}
 export class SokoBotScheduleValidationError extends Error {}
 
 export interface CreateSokoBotScheduleInput {
-  userId: string;
+  /** The member who asked; null when a shared bot acts on its own. */
+  userId: string | null;
   workspaceId: string;
+  /** The bot a turn runs as; without it, the caller's personal bot. */
+  sokoBotId?: string;
   name: string;
   timezone: string;
   /** Recurring runs; exactly one of `cronExpression` and `runAt`. */
@@ -104,7 +110,8 @@ export function resolveScheduleTiming(
 }
 
 export interface UpdateSokoBotScheduleInput {
-  userId: string;
+  /** The member editing; null when a shared bot acts on its own. */
+  userId: string | null;
   scheduleId?: string;
   scheduleName?: string;
   workspaceId?: string;
@@ -114,6 +121,32 @@ export interface UpdateSokoBotScheduleInput {
   timezone?: string;
   cronExpression?: string;
   prompt?: string;
+}
+
+/**
+ * The bot a schedule call reaches: one the member may reach, or, for a shared
+ * bot acting on its own (`userId` null), that bot itself.
+ */
+function scheduleBot(
+  userId: string | null,
+  workspaceId: string,
+  sokoBotId: string | undefined,
+  db: Prisma.TransactionClient | typeof prisma,
+) {
+  if (userId !== null)
+    return memberSokoBot(
+      userId,
+      workspaceId,
+      sokoBotId ? { kind: "id", sokoBotId } : ME_SOKO_BOT,
+      db,
+    );
+  return sokoBotId
+    ? sokoBotForTurnMember(
+        { sokoBotId, actingUserId: null, workspaceId },
+        "notArchived",
+        db,
+      )
+    : Promise.resolve(null);
 }
 
 /**
@@ -134,25 +167,28 @@ export async function createSokoBotSchedule(
       "Schedule name and prompt are required",
     );
   }
-  const bot = await db.sokoBot.findFirst({
-    where: {
-      userId: input.userId,
-      workspaceId: input.workspaceId,
-      archivedAt: null,
-    },
-    select: { id: true },
-  });
+  const bot = await scheduleBot(
+    input.userId,
+    input.workspaceId,
+    input.sokoBotId,
+    db,
+  );
   if (!bot) throw new SokoBotScheduleNotFoundError("Soko Bot not found");
-  const workspace = await db.workspace.findFirst({
-    where: {
-      id: input.workspaceId,
-      OR: [
-        { userId: input.userId },
-        { organization: { members: { some: { userId: input.userId } } } },
-      ],
-    },
-    select: { id: true },
-  });
+  const memberId = input.userId;
+  // The resolver already placed a bot acting on its own in its workspace.
+  const workspace =
+    memberId === null
+      ? { id: input.workspaceId }
+      : await db.workspace.findFirst({
+          where: {
+            id: input.workspaceId,
+            OR: [
+              { userId: memberId },
+              { organization: { members: { some: { userId: memberId } } } },
+            ],
+          },
+          select: { id: true },
+        });
   if (!workspace) throw new SokoBotScheduleNotFoundError("Workspace not found");
   const mutate = async (tx: Prisma.TransactionClient) => {
     // Same name = same follow-up: a model retrying or re-planning updates
@@ -162,6 +198,7 @@ export async function createSokoBotSchedule(
       select: { id: true },
     });
     if (existing) {
+      // The Requester stays whoever asked first (ADR 0057).
       return tx.sokoBotSchedule.update({
         where: { id: existing.id },
         data: {
@@ -208,9 +245,25 @@ export async function createSokoBotSchedule(
       );
 }
 
+/**
+ * Any member with access configures a shared bot, so its schedules are not
+ * limited to the member who wrote them. `null` for a personal bot.
+ */
+async function sharedBotScheduleScope(
+  userId: string | null,
+  ref: { workspaceId?: string; sokoBotId?: string },
+  db: Prisma.TransactionClient | typeof prisma,
+): Promise<{ workspaceId: string; sokoBotId: string } | null> {
+  if (!ref.workspaceId || !ref.sokoBotId) return null;
+  const bot = await scheduleBot(userId, ref.workspaceId, ref.sokoBotId, db);
+  return bot && isSharedSokoBot(bot)
+    ? { workspaceId: ref.workspaceId, sokoBotId: ref.sokoBotId }
+    : null;
+}
+
 /** Resolves by id first, then exact (case-insensitive) name; the error lists what exists so a caller can correct itself. */
 async function findScheduleForUser(
-  userId: string,
+  userId: string | null,
   ref: {
     scheduleId?: string;
     scheduleName?: string;
@@ -220,36 +273,48 @@ async function findScheduleForUser(
   transaction?: Prisma.TransactionClient,
 ) {
   const db = transaction ?? prisma;
-  const schedule = await db.sokoBotSchedule.findFirst({
-    where: {
-      requestedByUserId: userId,
-      workspaceId: ref.workspaceId,
-      sokoBotId: ref.sokoBotId,
-      OR: [
-        ...(ref.scheduleId ? [{ id: ref.scheduleId }] : []),
-        ...(ref.scheduleName
-          ? [
-              {
-                name: {
-                  equals: ref.scheduleName.trim(),
-                  mode: "insensitive" as const,
-                },
+  // A member's own lookup reaches their personal bot's schedules, whoever
+  // asked for them; a shared bot's schedules need the shared lookup below.
+  const own =
+    userId === null
+      ? null
+      : {
+          workspaceId: ref.workspaceId,
+          sokoBotId: ref.sokoBotId,
+          sokoBot: { userId },
+        };
+  const matching = {
+    OR: [
+      ...(ref.scheduleId ? [{ id: ref.scheduleId }] : []),
+      ...(ref.scheduleName
+        ? [
+            {
+              name: {
+                equals: ref.scheduleName.trim(),
+                mode: "insensitive" as const,
               },
-            ]
-          : []),
-      ],
-    },
-  });
+            },
+          ]
+        : []),
+    ],
+  };
+  const schedule =
+    own &&
+    (await db.sokoBotSchedule.findFirst({ where: { ...own, ...matching } }));
   if (schedule) return schedule;
-  const existing = await db.sokoBotSchedule.findMany({
-    where: {
-      requestedByUserId: userId,
-      workspaceId: ref.workspaceId,
-      sokoBotId: ref.sokoBotId,
-    },
-    select: { id: true, name: true },
-    orderBy: { createdAt: "asc" },
-  });
+  const shared = await sharedBotScheduleScope(userId, ref, db);
+  const sharedSchedule =
+    shared &&
+    (await db.sokoBotSchedule.findFirst({ where: { ...shared, ...matching } }));
+  if (sharedSchedule) return sharedSchedule;
+  const scope = shared ?? own;
+  const existing = scope
+    ? await db.sokoBotSchedule.findMany({
+        where: scope,
+        select: { id: true, name: true },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
   const hint =
     existing.length === 0
       ? "There are no schedules."
@@ -316,7 +381,7 @@ export async function updateSokoBotSchedule(
 }
 
 export async function deleteSokoBotSchedule(
-  userId: string,
+  userId: string | null,
   ref: {
     scheduleId?: string;
     scheduleName?: string;
