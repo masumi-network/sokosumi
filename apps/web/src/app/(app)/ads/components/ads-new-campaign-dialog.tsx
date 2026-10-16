@@ -7,13 +7,13 @@ import { useState } from "react";
 
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getGoogleCampaignSetup } from "@/lib/actions/ads/action";
 
 import {
   NewGoogleCampaignWizard,
   NewMetaCampaignWizard,
-} from "./ads-new-campaign-wizard";
+  WizardSkeleton,
+} from "./ads-campaign-wizard";
 
 interface AdsNewCampaignDialogProps {
   account: ProjectAdAccount;
@@ -86,7 +86,7 @@ export function AdsNewCampaignDialog({
       />
     );
   } else {
-    body = <WizardSkeleton accountLabel={accountLabel} />;
+    body = <WizardSkeleton accountLabel={accountLabel} steps={6} />;
   }
 
   return (
@@ -101,68 +101,6 @@ export function AdsNewCampaignDialog({
     >
       {body}
     </TaskFormModal>
-  );
-}
-
-/** The first step's shape while the Google setup loads: the bars, two type cards, the footer. */
-function WizardSkeleton({ accountLabel }: { accountLabel: string }) {
-  const t = useTranslations("App.Ads");
-
-  return (
-    <div
-      aria-busy="true"
-      aria-live="polite"
-      className="flex min-h-0 flex-1 flex-col"
-      data-testid="ads-new-campaign-loading"
-      role="status"
-    >
-      <span className="sr-only">{t("loading")}</span>
-      <div aria-hidden className="flex shrink-0 gap-1.5 px-6 py-4 md:px-8">
-        {Array.from({ length: 6 }, (_, index) => (
-          <div key={index} className="flex min-w-0 flex-1 flex-col gap-2">
-            <Skeleton className="h-[3px] w-full rounded-full" />
-            <Skeleton className="hidden h-3 w-16 sm:block" />
-          </div>
-        ))}
-      </div>
-      <div
-        aria-hidden
-        className="min-h-0 flex-1 overflow-hidden border-t px-6 py-6 md:px-8 md:py-8"
-      >
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-6 w-56" />
-            <Skeleton className="h-4 w-72 max-w-full" />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {Array.from({ length: 2 }, (_, index) => (
-              <div
-                key={index}
-                className="flex flex-col gap-5 rounded-xl border p-5"
-              >
-                <Skeleton className="size-10 rounded-lg" />
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-5 w-20" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-3 w-16" />
-                  <Skeleton className="h-4 w-4/5" />
-                  <Skeleton className="h-4 w-3/5" />
-                  <Skeleton className="h-4 w-2/3" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center justify-between gap-3 border-t px-6 py-3 md:px-8">
-        <span className="text-muted-foreground truncate text-sm">
-          {accountLabel}
-        </span>
-        <Skeleton aria-hidden className="h-10 w-28" />
-      </div>
-    </div>
   );
 }
 

@@ -1,18 +1,14 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useRef, useState } from "react";
-import { useForm, useFormContext } from "react-hook-form";
+import { useRef, useState } from "react";
+import { useFormContext } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import {
-  Form,
   FormControl,
   FormField,
   FormItem,
@@ -22,18 +18,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { ActionResultDto } from "@/lib/actions/action-result";
-import { editAdCampaign } from "@/lib/actions/ads/action";
 import type { ActionError } from "@/lib/actions/errors/action-error";
-import {
-  AD_CAMPAIGN_NAME_MAX_LENGTH,
-  CORE_CAMPAIGN_NOT_EDITABLE,
-} from "@/lib/ads/campaign";
+import { AD_CAMPAIGN_NAME_MAX_LENGTH } from "@/lib/ads/campaign";
 import {
   GOOGLE_DISPLAY_LIMITS,
   googleDisplayFormSchema,
-  toGoogleDisplayEditSpec,
 } from "@/lib/ads/google-display";
-import { type GoogleFormValues } from "@/lib/ads/google-form-values";
 import {
   GOOGLE_KEYWORD_LIMIT,
   GOOGLE_KEYWORD_MAX_LENGTH,
@@ -42,18 +32,9 @@ import {
 import {
   GOOGLE_SEARCH_LIMITS,
   googleSearchFormSchema,
-  toGoogleSearchEditSpec,
 } from "@/lib/ads/google-search";
 import type { GoogleTargeting } from "@/lib/ads/targeting";
 import { useAdsBudget } from "./ads-budget";
-import { ImageUploadContext } from "./ads-display-images";
-import { AdsGoogleDisplayFields } from "./ads-google-display-fields";
-import {
-  AdsGoogleDateFields,
-  AdsGoogleSearchFields,
-} from "./ads-google-search-fields";
-import { AdsSection } from "./ads-section";
-import { AdsGoogleTargetingFields } from "./ads-targeting-fields";
 
 export interface CampaignFormProps {
   accountId: string;
@@ -83,7 +64,7 @@ interface BasicsValues {
 
 type SaveOutcome = "ok" | "budget_refused" | "shown";
 
-interface SaveCampaignOptions {
+export interface SaveCampaignOptions {
   /** What the toast says, and what follows a saved campaign. */
   success: { message: string; onSaved: () => void };
   /** Meta create maps 422 to the budget field (our precision copy). */
@@ -206,81 +187,6 @@ export function RefusalAlert({
   );
 }
 
-interface CampaignFormFrameProps {
-  cancelHref: string;
-  children: ReactNode;
-  failedTitle: string;
-  /** A note above the actions. */
-  note?: string;
-  projectId: string;
-  saving: ReturnType<typeof useSaveCampaign>;
-  submitLabel: string;
-  onSubmit: () => Promise<void>;
-  submitting: boolean;
-  /** Pictures are still going in; the campaign waits for them. */
-  uploading?: boolean;
-}
-
-/** The form element around a provider's fields: the failure above, actions below. */
-function CampaignFormFrame({
-  cancelHref,
-  children,
-  failedTitle,
-  note,
-  onSubmit,
-  projectId,
-  saving,
-  submitLabel,
-  submitting,
-  uploading = false,
-}: CampaignFormFrameProps) {
-  const t = useTranslations("App.Ads.newCampaign");
-  const tCampaigns = useTranslations("App.Ads.campaigns");
-
-  return (
-    <form
-      className="flex flex-col gap-10"
-      noValidate
-      onSubmit={(event) => {
-        event.preventDefault();
-        void onSubmit();
-      }}
-    >
-      {saving.refusal ? (
-        // A new key per attempt re-mounts the alert, which focuses it again.
-        <RefusalAlert
-          failedTitle={failedTitle}
-          key={saving.refusal.attempt}
-          projectId={projectId}
-          refusal={saving.refusal}
-        />
-      ) : null}
-      {children}
-      <div className="flex flex-col gap-3">
-        {note ? (
-          <p className="text-muted-foreground text-right text-sm">{note}</p>
-        ) : null}
-        <div className="flex items-center justify-end gap-3">
-          {/* Always there, so the wait is announced when it starts. */}
-          <span className="text-muted-foreground mr-auto text-sm" role="status">
-            {uploading ? t("uploadingImages") : null}
-          </span>
-          <Button asChild variant="ghost">
-            <Link href={cancelHref}>{tCampaigns("cancel")}</Link>
-          </Button>
-          <Button
-            disabled={uploading}
-            loading={submitting || saving.saved}
-            type="submit"
-          >
-            {submitLabel}
-          </Button>
-        </div>
-      </div>
-    </form>
-  );
-}
-
 /** The name and daily budget, which every campaign has. */
 export function useBasics(currency: string) {
   const t = useTranslations("App.Ads.newCampaign");
@@ -349,22 +255,6 @@ export function NameAndBudgetFields({
   );
 }
 
-/** The campaign's type, which an edit keeps: it is only told. */
-function GoogleTypeFact() {
-  const t = useTranslations("App.Ads.newCampaign");
-  const form = useFormContext<GoogleFormValues>();
-  const type = form.getValues("type");
-
-  return (
-    <AdsSection id="campaign-form-type" title={t("sections.type")}>
-      <div className="grid gap-1">
-        <p className="text-sm font-medium">{t(`types.${type}`)}</p>
-        <p className="text-muted-foreground text-sm">{t(`typeHelp.${type}`)}</p>
-      </div>
-    </AdsSection>
-  );
-}
-
 /** The form's schema, which judges only the chosen type, and the budget's words. */
 export function useGoogleFormSchema(currency: string) {
   const t = useTranslations("App.Ads.newCampaign");
@@ -426,164 +316,6 @@ export function useGoogleFormSchema(currency: string) {
 }
 
 /** What the Google form submits once its fields are judged. */
-type GoogleFormOutput = z.output<
+export type GoogleFormOutput = z.output<
   ReturnType<typeof useGoogleFormSchema>["schema"]
 >;
-
-/**
- * What a Google campaign form does differently when it makes a campaign and
- * when it edits one. Each form below decides it once; the body just follows it.
- */
-interface GoogleFormSetup {
-  defaultValues: GoogleFormValues;
-  /** Set once the start date can no longer change: why. */
-  startDateHint?: string;
-  cancelHref: string;
-  failedTitle: string;
-  submitLabel: string;
-  /** A note above the actions. */
-  note?: string;
-  save: Pick<SaveCampaignOptions, "success" | "explain">;
-  send: (campaign: {
-    name: string;
-    dailyBudget: number;
-    values: GoogleFormOutput;
-  }) => Promise<ActionResultDto<unknown, ActionError>>;
-}
-
-/**
- * A Google campaign, Search or Display: the type is picked at the top, and the
- * name, budget, dates, targeting and final URL stay when it changes. Core's
- * rules per type are the Search keywords and responsive search ad, or the
- * Display images and responsive display ad.
- */
-function GoogleCampaignFormBody({
-  hasMarketProfile,
-  setup,
-  targeting,
-  ...props
-}: GoogleCampaignFormProps & { setup: GoogleFormSetup }) {
-  const t = useTranslations("App.Ads.newCampaign");
-  const { budget, schema } = useGoogleFormSchema(props.currency);
-  const form = useForm({
-    resolver: zodResolver(schema),
-    mode: "onTouched",
-    defaultValues: setup.defaultValues,
-  });
-  const saving = useSaveCampaign({
-    ...setup.save,
-    onStartOver: () => form.reset(),
-  });
-  const [uploading, setUploading] = useState(false);
-  const type = form.watch("type");
-
-  return (
-    <Form {...form}>
-      <ImageUploadContext value={{ uploading, setUploading }}>
-        <CampaignFormFrame
-          cancelHref={setup.cancelHref}
-          failedTitle={setup.failedTitle}
-          note={setup.note}
-          projectId={props.projectId}
-          saving={saving}
-          submitLabel={setup.submitLabel}
-          onSubmit={form.handleSubmit(async (values) => {
-            await saving.save(() =>
-              setup.send({
-                name: values.name.trim(),
-                dailyBudget: Number(values.dailyBudget),
-                values,
-              }),
-            );
-          })}
-          submitting={form.formState.isSubmitting}
-          uploading={uploading}
-        >
-          <GoogleTypeFact />
-          <AdsSection id="campaign-form-basics" title={t("sections.basics")}>
-            <NameAndBudgetFields budget={budget} />
-            <AdsGoogleDateFields startDateHint={setup.startDateHint} />
-          </AdsSection>
-          <AdsSection
-            id="campaign-form-targeting"
-            title={t("sections.targeting")}
-          >
-            <AdsGoogleTargetingFields
-              accountId={props.accountId}
-              languageOptions={targeting.languageOptions}
-              projectId={props.projectId}
-            />
-          </AdsSection>
-          {type === "SEARCH" ? (
-            <AdsGoogleSearchFields
-              hasMarketProfile={hasMarketProfile}
-              projectId={props.projectId}
-            />
-          ) : (
-            <AdsGoogleDisplayFields />
-          )}
-        </CampaignFormFrame>
-      </ImageUploadContext>
-    </Form>
-  );
-}
-
-interface EditGoogleCampaignFormProps extends GoogleCampaignFormProps {
-  campaignId: string;
-  /** Where the campaign's details page is, to go back to. */
-  detailsHref: string;
-  /** Its start date can no longer change. */
-  started: boolean;
-  /** The campaign as it is now. */
-  initialValues: GoogleFormValues;
-}
-
-/** Edits a Google campaign, starting from what it is now. */
-export function EditGoogleCampaignForm({
-  campaignId,
-  detailsHref,
-  initialValues,
-  started,
-  ...props
-}: EditGoogleCampaignFormProps) {
-  const t = useTranslations("App.Ads.editCampaign");
-  const router = useRouter();
-  const { accountId, projectId } = props;
-
-  return (
-    <GoogleCampaignFormBody
-      {...props}
-      setup={{
-        defaultValues: initialValues,
-        startDateHint: started ? t("startDateLocked") : undefined,
-        cancelHref: detailsHref,
-        failedTitle: t("errors.failed"),
-        submitLabel: t("submit"),
-        note: t("reviewNote"),
-        save: {
-          success: {
-            message: t("success"),
-            onSaved: () => router.push(detailsHref),
-          },
-          // Core's 409 is also an inactive connection, which asks to reconnect.
-          explain: ({ message, status }) =>
-            status === 409 && message === CORE_CAMPAIGN_NOT_EDITABLE
-              ? t("errors.conflict")
-              : undefined,
-        },
-        send: ({ name, dailyBudget, values }) =>
-          editAdCampaign({
-            projectId,
-            accountId,
-            campaignId,
-            name,
-            dailyBudget,
-            google:
-              values.type === "SEARCH"
-                ? toGoogleSearchEditSpec(values, { started })
-                : toGoogleDisplayEditSpec(values, { started }),
-          }),
-      }}
-    />
-  );
-}

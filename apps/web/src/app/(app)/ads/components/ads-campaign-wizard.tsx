@@ -36,10 +36,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createAdCampaign } from "@/lib/actions/ads/action";
-import { AD_CAMPAIGN_OBJECTIVES } from "@/lib/ads/campaign";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { ActionResultDto } from "@/lib/actions/action-result";
+import { createAdCampaign, editAdCampaign } from "@/lib/actions/ads/action";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import {
+  AD_CAMPAIGN_OBJECTIVES,
+  CORE_CAMPAIGN_NOT_EDITABLE,
+} from "@/lib/ads/campaign";
 import {
   GOOGLE_DISPLAY_LIMITS,
+  toGoogleDisplayEditSpec,
   toGoogleDisplaySpec,
 } from "@/lib/ads/google-display";
 import { driveImagesOnly } from "@/lib/ads/google-display-images";
@@ -50,6 +57,7 @@ import {
 import { parseGoogleKeywords } from "@/lib/ads/google-keywords";
 import {
   GOOGLE_SEARCH_LIMITS,
+  toGoogleSearchEditSpec,
   toGoogleSearchSpec,
 } from "@/lib/ads/google-search";
 import type { GoogleTarget } from "@/lib/ads/targeting";
@@ -59,8 +67,10 @@ import { AdsAdPreview } from "./ads-ad-preview";
 import {
   type CampaignFormProps,
   type GoogleCampaignFormProps,
+  type GoogleFormOutput,
   NameAndBudgetFields,
   RefusalAlert,
+  type SaveCampaignOptions,
   useBasics,
   useGoogleFormSchema,
   useSaveCampaign,
@@ -174,6 +184,13 @@ interface WizardFrameProps {
   uploading?: boolean;
   /** The step lays out side by side (the review), so it takes more width. */
   wide?: boolean;
+  /** What the last step's button says. */
+  submitLabel: string;
+  /**
+   * Every step can be opened from the bar, not only earlier ones: a campaign
+   * being edited is complete, so the reader goes straight to what changes.
+   */
+  openSteps?: boolean;
 }
 
 /**
@@ -193,6 +210,8 @@ function WizardFrame({
   submitting,
   uploading = false,
   wide = false,
+  submitLabel,
+  openSteps = false,
 }: WizardFrameProps) {
   const t = useTranslations("App.Ads.newCampaign");
   const last = step === labels.length - 1;
@@ -235,7 +254,7 @@ function WizardFrame({
       <div className="shrink-0 px-6 py-4 md:px-8">
         <ol aria-label={t("wizard.stepsLabel")} className="flex gap-1.5">
           {labels.map((label, index) => {
-            const done = index < step;
+            const reachable = openSteps ? index !== step : index < step;
             const content = (
               <>
                 <span className="bg-border block h-[3px] overflow-hidden rounded-full">
@@ -264,7 +283,7 @@ function WizardFrame({
                 aria-current={index === step ? "step" : undefined}
                 className="min-w-0 flex-1"
               >
-                {done ? (
+                {reachable ? (
                   <button
                     className="focus-visible:ring-ring-halo block w-full rounded-sm text-left outline-none focus-visible:ring-[3px] [&>span:last-child]:hover:text-foreground"
                     disabled={submitting}
@@ -272,7 +291,9 @@ function WizardFrame({
                     type="button"
                   >
                     <span className="sr-only">
-                      {t("wizard.backTo", { step: label })}
+                      {t(openSteps ? "wizard.goTo" : "wizard.backTo", {
+                        step: label,
+                      })}
                     </span>
                     {content}
                   </button>
@@ -329,7 +350,7 @@ function WizardFrame({
           type="submit"
         >
           {last ? (
-            t("submit")
+            submitLabel
           ) : (
             <>
               {t("wizard.next")}
@@ -512,15 +533,21 @@ function useMoney(currency: string) {
     formatter.number(Number(value), { style: "currency", currency });
 }
 
-/** The last step: the ad as it could look, then what will be created. */
+/** The last step: the ad as it could look, then what will be saved. */
 function GoogleReviewStep({
   currency,
   goTo,
+  note,
   refusal,
+  typeLocked,
 }: {
   currency: string;
   goTo: (step: GoogleStep) => void;
+  /** Said under the summary: how the campaign is created, or what an edit does. */
+  note: string;
   refusal: ReactNode;
+  /** An edit keeps its type, so its row has nothing to edit. */
+  typeLocked: boolean;
 }) {
   const t = useTranslations("App.Ads.newCampaign");
   const form = useFormContext<GoogleFormValues>();
@@ -539,7 +566,10 @@ function GoogleReviewStep({
         </AdsSection>
         <AdsSection id="campaign-wizard-summary" title={t("review.title")}>
           <dl className="flex flex-col gap-3">
-            <SummaryRow label={t("sections.type")} onEdit={() => goTo("type")}>
+            <SummaryRow
+              label={t("sections.type")}
+              onEdit={typeLocked ? undefined : () => goTo("type")}
+            >
               {t(`types.${values.type}`)}
             </SummaryRow>
             <SummaryRow label={t("name")} onEdit={() => goTo("basics")}>
@@ -583,52 +613,65 @@ function GoogleReviewStep({
               {values.finalUrl.trim()}
             </SummaryRow>
           </dl>
-          <p className="text-muted-foreground text-sm">
-            {t("note.google_ads")}
-          </p>
+          <p className="text-muted-foreground text-sm">{note}</p>
         </AdsSection>
       </div>
     </>
   );
 }
 
-interface NewGoogleCampaignWizardProps
+/**
+ * What a Google wizard does differently when it makes a campaign and when it
+ * edits one. Each wizard below decides it once; the body just follows it.
+ */
+interface GoogleWizardSetup {
+  defaultValues: GoogleFormValues;
+  /** An edit keeps its type (no type step) and opens every step from the bar. */
+  editing: boolean;
+  /** Set once the start date can no longer change: why. */
+  startDateHint?: string;
+  failedTitle: string;
+  submitLabel: string;
+  /** Under the review's summary. */
+  note: string;
+  save: Pick<SaveCampaignOptions, "success" | "explain">;
+  send: (
+    values: GoogleFormOutput,
+  ) => Promise<ActionResultDto<unknown, ActionError>>;
+}
+
+interface GoogleCampaignWizardProps
   extends GoogleCampaignFormProps,
     WizardProps {}
 
 /**
- * Makes a Google campaign one step at a time, starting from the Market
- * profile's suggestions: the type, then what that type needs, then a review
- * with a preview of the ad and the button that creates it (paused).
+ * A Google campaign one step at a time: what the type needs, then a review
+ * with a preview of the ad and the button that saves it. The type is picked
+ * first for a new campaign; an edit keeps it.
  */
-export function NewGoogleCampaignWizard({
+function GoogleCampaignWizard({
   accountLabel,
   hasMarketProfile,
   onBusyChange,
-  onClose,
+  setup,
   targeting,
   ...props
-}: NewGoogleCampaignWizardProps) {
+}: GoogleCampaignWizardProps & { setup: GoogleWizardSetup }) {
   const t = useTranslations("App.Ads.newCampaign");
   const { accountId, projectId } = props;
   const { budget, schema } = useGoogleFormSchema(props.currency);
   const form = useForm({
     resolver: zodResolver(schema),
     mode: "onTouched",
-    // The reader may remove the suggestions.
-    defaultValues: {
-      ...EMPTY_GOOGLE_VALUES,
-      locations: targeting.defaultLocations,
-      languages: targeting.defaultLanguages,
-    },
+    defaultValues: setup.defaultValues,
   });
-  const saving = useSaveCampaign({
-    success: { message: t("success"), onSaved: onClose },
-  });
+  const saving = useSaveCampaign(setup.save);
   const [uploading, setUploading] = useState(false);
   const [step, setStep] = useState(0);
   const type = form.watch("type");
-  const steps = GOOGLE_STEPS[type];
+  const steps = setup.editing
+    ? GOOGLE_STEPS[type].filter((candidate) => candidate !== "type")
+    : GOOGLE_STEPS[type];
   const current = steps[step];
   const fieldsOf = (candidate: GoogleStep) => googleStepFields(candidate, type);
 
@@ -638,25 +681,11 @@ export function NewGoogleCampaignWizard({
     }
   }
 
-  const create = form.handleSubmit(
+  const submit = form.handleSubmit(
     async (values) => {
       onBusyChange(true);
       try {
-        await saving.save(() =>
-          createAdCampaign({
-            projectId,
-            accountId,
-            name: values.name.trim(),
-            dailyBudget: Number(values.dailyBudget),
-            google:
-              values.type === "SEARCH"
-                ? toGoogleSearchSpec(values)
-                : toGoogleDisplaySpec({
-                    ...values,
-                    images: driveImagesOnly(values.images),
-                  }),
-          }),
-        );
+        await saving.save(() => setup.send(values));
       } finally {
         onBusyChange(false);
       }
@@ -669,7 +698,7 @@ export function NewGoogleCampaignWizard({
     basics: (
       <AdsSection id="campaign-form-basics" title={t("sections.basics")}>
         <NameAndBudgetFields budget={budget} />
-        <AdsGoogleDateFields />
+        <AdsGoogleDateFields startDateHint={setup.startDateHint} />
       </AdsSection>
     ),
     targeting: (
@@ -692,17 +721,19 @@ export function NewGoogleCampaignWizard({
       <GoogleReviewStep
         currency={props.currency}
         goTo={(target) => setStep(steps.indexOf(target))}
+        note={setup.note}
         refusal={
           saving.refusal ? (
             // A new key per attempt re-mounts the alert, which focuses it again.
             <RefusalAlert
-              failedTitle={t("errors.failed")}
+              failedTitle={setup.failedTitle}
               key={saving.refusal.attempt}
               projectId={projectId}
               refusal={saving.refusal}
             />
           ) : null
         }
+        typeLocked={setup.editing}
       />
     ),
   };
@@ -714,8 +745,10 @@ export function NewGoogleCampaignWizard({
           accountLabel={accountLabel}
           labels={steps.map((candidate) => t(`steps.${candidate}`))}
           onJump={setStep}
-          onSubmit={() => void (current === "review" ? create() : next())}
+          onSubmit={() => void (current === "review" ? submit() : next())}
+          openSteps={setup.editing}
           step={step}
+          submitLabel={setup.submitLabel}
           submitting={form.formState.isSubmitting || saving.saved}
           uploading={uploading}
           wide={current === "review"}
@@ -724,6 +757,106 @@ export function NewGoogleCampaignWizard({
         </WizardFrame>
       </ImageUploadContext>
     </Form>
+  );
+}
+
+/**
+ * Makes a Google campaign, starting from the Market profile's suggestions:
+ * the type, then what that type needs, then the review that creates it
+ * (paused).
+ */
+export function NewGoogleCampaignWizard({
+  targeting,
+  ...props
+}: GoogleCampaignWizardProps) {
+  const t = useTranslations("App.Ads.newCampaign");
+  const { accountId, projectId } = props;
+
+  return (
+    <GoogleCampaignWizard
+      {...props}
+      setup={{
+        // The reader may remove the suggestions.
+        defaultValues: {
+          ...EMPTY_GOOGLE_VALUES,
+          locations: targeting.defaultLocations,
+          languages: targeting.defaultLanguages,
+        },
+        editing: false,
+        failedTitle: t("errors.failed"),
+        submitLabel: t("submit"),
+        note: t("note.google_ads"),
+        save: { success: { message: t("success"), onSaved: props.onClose } },
+        send: (values) =>
+          createAdCampaign({
+            projectId,
+            accountId,
+            name: values.name.trim(),
+            dailyBudget: Number(values.dailyBudget),
+            google:
+              values.type === "SEARCH"
+                ? toGoogleSearchSpec(values)
+                : toGoogleDisplaySpec({
+                    ...values,
+                    images: driveImagesOnly(values.images),
+                  }),
+          }),
+      }}
+      targeting={targeting}
+    />
+  );
+}
+
+interface EditGoogleCampaignWizardProps extends GoogleCampaignWizardProps {
+  campaignId: string;
+  /** Its start date can no longer change. */
+  started: boolean;
+  /** The campaign as it is now. */
+  initialValues: GoogleFormValues;
+}
+
+/** Edits a Google campaign, starting from what it is now. */
+export function EditGoogleCampaignWizard({
+  campaignId,
+  initialValues,
+  started,
+  ...props
+}: EditGoogleCampaignWizardProps) {
+  const t = useTranslations("App.Ads.editCampaign");
+  const { accountId, projectId } = props;
+
+  return (
+    <GoogleCampaignWizard
+      {...props}
+      setup={{
+        defaultValues: initialValues,
+        editing: true,
+        startDateHint: started ? t("startDateLocked") : undefined,
+        failedTitle: t("errors.failed"),
+        submitLabel: t("submit"),
+        note: t("reviewNote"),
+        save: {
+          success: { message: t("success"), onSaved: props.onClose },
+          // Core's 409 is also an inactive connection, which asks to reconnect.
+          explain: ({ message, status }) =>
+            status === 409 && message === CORE_CAMPAIGN_NOT_EDITABLE
+              ? t("errors.conflict")
+              : undefined,
+        },
+        send: (values) =>
+          editAdCampaign({
+            projectId,
+            accountId,
+            campaignId,
+            name: values.name.trim(),
+            dailyBudget: Number(values.dailyBudget),
+            google:
+              values.type === "SEARCH"
+                ? toGoogleSearchEditSpec(values, { started })
+                : toGoogleDisplayEditSpec(values, { started }),
+          }),
+      }}
+    />
   );
 }
 
@@ -816,6 +949,7 @@ export function NewMetaCampaignWizard({
         onJump={setStep}
         onSubmit={() => void (current === "review" ? create() : next())}
         step={step}
+        submitLabel={t("submit")}
         submitting={form.formState.isSubmitting || saving.saved}
       >
         {current === "basics" ? (
@@ -879,5 +1013,76 @@ export function NewMetaCampaignWizard({
         )}
       </WizardFrame>
     </Form>
+  );
+}
+
+/**
+ * A wizard's shape while what it starts from loads: the step bars, a step's
+ * heading and two blocks, and the footer (with the account once it is known).
+ */
+export function WizardSkeleton({
+  accountLabel,
+  steps,
+}: {
+  accountLabel?: string;
+  steps: number;
+}) {
+  const t = useTranslations("App.Ads");
+
+  return (
+    <div
+      aria-busy="true"
+      aria-live="polite"
+      className="flex min-h-0 flex-1 flex-col"
+      data-testid="ads-new-campaign-loading"
+      role="status"
+    >
+      <span className="sr-only">{t("loading")}</span>
+      <div aria-hidden className="flex shrink-0 gap-1.5 px-6 py-4 md:px-8">
+        {Array.from({ length: steps }, (_, index) => (
+          <div key={index} className="flex min-w-0 flex-1 flex-col gap-2">
+            <Skeleton className="h-[3px] w-full rounded-full" />
+            <Skeleton className="hidden h-3 w-16 sm:block" />
+          </div>
+        ))}
+      </div>
+      <div
+        aria-hidden
+        className="min-h-0 flex-1 overflow-hidden border-t px-6 py-6 md:px-8 md:py-8"
+      >
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-6 w-56" />
+            <Skeleton className="h-4 w-72 max-w-full" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {Array.from({ length: 2 }, (_, index) => (
+              <div
+                key={index}
+                className="flex flex-col gap-5 rounded-xl border p-5"
+              >
+                <Skeleton className="size-10 rounded-lg" />
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-4 w-3/5" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center justify-between gap-3 border-t px-6 py-3 md:px-8">
+        <span className="text-muted-foreground truncate text-sm">
+          {accountLabel ?? null}
+        </span>
+        <Skeleton aria-hidden className="h-10 w-28" />
+      </div>
+    </div>
   );
 }

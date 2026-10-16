@@ -14,7 +14,7 @@ import messages from "../../../../../messages/en.json";
 import {
   NewGoogleCampaignWizard,
   NewMetaCampaignWizard,
-} from "./ads-new-campaign-wizard";
+} from "./ads-campaign-wizard";
 
 const {
   forced,

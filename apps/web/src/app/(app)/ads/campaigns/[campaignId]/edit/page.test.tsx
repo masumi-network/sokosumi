@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CoreApiRequestError } from "@/lib/clients/core.client";
@@ -7,7 +7,7 @@ const {
   adsServiceMock,
   breadcrumbMock,
   errorMock,
-  formMock,
+  modalMock,
   hasSocialBetaAccessMock,
   notFoundMock,
   projectServiceMock,
@@ -16,7 +16,7 @@ const {
   adsServiceMock: { listAccounts: vi.fn(), getCampaignDetails: vi.fn() },
   breadcrumbMock: vi.fn(),
   errorMock: vi.fn(),
-  formMock: vi.fn(),
+  modalMock: vi.fn(),
   hasSocialBetaAccessMock: vi.fn(),
   notFoundMock: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
@@ -48,10 +48,11 @@ vi.mock("@/app/ads/components/ads-campaign-breadcrumb", () => ({
     return null;
   },
 }));
-vi.mock("@/app/ads/components/ads-campaign-form", () => ({
-  EditGoogleCampaignForm: (props: Record<string, unknown>) => {
-    formMock(props);
-    return <div data-testid="form" />;
+// The modal has its own tests; here it shows what the page hands it.
+vi.mock("@/app/ads/components/ads-edit-campaign-modal", () => ({
+  AdsEditCampaignModal: (props: { notice?: React.ReactNode }) => {
+    modalMock(props);
+    return <div data-testid="modal">{props.notice}</div>;
   },
 }));
 vi.mock("@/app/ads/components/ads-campaigns-error", () => ({
@@ -101,6 +102,9 @@ const DETAILS = {
   callouts: [],
 };
 
+/** The route under test: the edit page, or the modal over the details. */
+let route = "./page";
+
 async function visit(
   searchParams: Record<string, string | undefined> = {
     projectId: "project-1",
@@ -108,15 +112,19 @@ async function visit(
     range: "7d",
   },
 ) {
-  const { default: EditAdsCampaignPage } = await import("./page");
+  const { default: EditAdsCampaignPage } = await import(route);
   return EditAdsCampaignPage({
     params: Promise.resolve({ campaignId: "42" }),
     searchParams: Promise.resolve(searchParams),
   });
 }
 
-describe("EditAdsCampaignPage", () => {
+describe.each([
+  ["the edit route", "./page"],
+  ["the details page's modal", "../@modal/(.)edit/page"],
+])("EditAdsCampaignPage from %s", (_name, path) => {
   beforeEach(() => {
+    route = path;
     vi.clearAllMocks();
     hasSocialBetaAccessMock.mockResolvedValue(true);
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
@@ -149,7 +157,7 @@ describe("EditAdsCampaignPage", () => {
     await expect(visit()).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
-  it("shows the form for an editable campaign, filled from the campaign", async () => {
+  it("opens the wizard for an editable campaign, filled from the campaign", async () => {
     render(await visit());
 
     expect(adsServiceMock.getCampaignDetails).toHaveBeenCalledWith(
@@ -159,32 +167,34 @@ describe("EditAdsCampaignPage", () => {
       "LAST_7_DAYS",
     );
     expect(setupMock).toHaveBeenCalledWith("project-1", "a1");
-    expect(formMock).toHaveBeenCalledWith({
-      accountId: "a1",
-      currency: "EUR",
-      hasMarketProfile: true,
-      projectId: "project-1",
-      targeting: SETUP.targeting,
-      campaignId: "42",
-      detailsHref:
-        "/ads/campaigns/42?projectId=project-1&accountId=a1&range=7d",
-      started: true,
-      initialValues: expect.objectContaining({
-        type: "SEARCH",
-        name: "Spring sale",
-        dailyBudget: "25",
-      }),
+    expect(modalMock).toHaveBeenCalledWith({
+      campaign: {
+        accountId: "a1",
+        accountLabel:
+          'App.Ads.newCampaign.inAccount{"provider":"App.Ads.accounts.providers.google_ads","name":"Main"}',
+        campaignId: "42",
+        currency: "EUR",
+        hasMarketProfile: true,
+        projectId: "project-1",
+        started: true,
+        targeting: SETUP.targeting,
+        initialValues: expect.objectContaining({
+          type: "SEARCH",
+          name: "Spring sale",
+          dailyBudget: "25",
+        }),
+      },
     });
-    expect(
-      screen.getByRole("link", { name: "App.Ads.editCampaign.back" }),
-    ).toHaveAttribute(
-      "href",
-      "/ads/campaigns/42?projectId=project-1&accountId=a1&range=7d",
-    );
   });
 
-  it("names the campaign in the breadcrumb, ending with Edit", async () => {
+  it("names the campaign in the breadcrumb, ending with Edit, on the edit route only", async () => {
     render(await visit());
+
+    if (route !== "./page") {
+      // Over the details page, their breadcrumb stays.
+      expect(breadcrumbMock).not.toHaveBeenCalled();
+      return;
+    }
 
     expect(breadcrumbMock).toHaveBeenCalledWith({
       adsHref: "/ads?projectId=project-1&tab=campaigns&account=a1&range=7d",
@@ -199,7 +209,7 @@ describe("EditAdsCampaignPage", () => {
     });
   });
 
-  it("shows why a campaign cannot be edited instead of the form", async () => {
+  it("says in the modal why a campaign cannot be edited, instead of the wizard", async () => {
     adsServiceMock.getCampaignDetails.mockResolvedValue({
       ...DETAILS,
       campaign: {
@@ -210,13 +220,12 @@ describe("EditAdsCampaignPage", () => {
     });
     render(await visit());
 
-    expect(formMock).not.toHaveBeenCalled();
-    expect(
-      screen.getByText("App.Ads.campaignDetails.notEditable.AD_GROUPS"),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("link", { name: "App.Ads.editCampaign.back" }),
-    ).toBeVisible();
+    expect(modalMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ campaign: expect.anything() }),
+    );
+    expect(screen.getByTestId("modal")).toHaveTextContent(
+      "App.Ads.campaignDetails.notEditable.AD_GROUPS",
+    );
   });
 
   it("asks to reconnect when the connection is no longer active", async () => {
@@ -225,12 +234,17 @@ describe("EditAdsCampaignPage", () => {
     );
     render(await visit());
 
+    expect(screen.getByTestId("modal")).toContainElement(
+      screen.getByTestId("not-active"),
+    );
     expect(errorMock).toHaveBeenCalledWith({
       kind: "not_active",
       projectId: "project-1",
       provider: "google_ads",
     });
-    expect(formMock).not.toHaveBeenCalled();
+    expect(modalMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ campaign: expect.anything() }),
+    );
   });
 
   it("shows the ads error for any other Core failure", async () => {
@@ -239,9 +253,11 @@ describe("EditAdsCampaignPage", () => {
     );
     render(await visit());
 
-    expect(screen.getByTestId("error")).toHaveTextContent(
-      "failed App.Ads.campaignDetails.errors.failed",
+    expect(
+      within(screen.getByTestId("modal")).getByTestId("error"),
+    ).toHaveTextContent("failed App.Ads.campaignDetails.errors.failed");
+    expect(modalMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ campaign: expect.anything() }),
     );
-    expect(formMock).not.toHaveBeenCalled();
   });
 });

@@ -3436,6 +3436,7 @@
           "stepsLabel": "Schritte",
           "stepOf": "Schritt {current} von {total}: {step}",
           "backTo": "Zurück zu {step}",
+          "goTo": "Zu {step}",
           "back": "Zurück",
           "next": "Weiter"
         },
@@ -3569,7 +3570,6 @@
       },
       "editCampaign": {
         "title": "Kampagne bearbeiten",
-        "back": "Zurück zur Kampagne",
         "submit": "Änderungen speichern",
         "reviewNote": "Beim Speichern wird die Anzeige erneut von Google geprüft.",
         "startDateLocked": "Das Startdatum lässt sich nicht mehr ändern, sobald die Kampagne gestartet ist.",

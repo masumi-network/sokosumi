@@ -3436,6 +3436,7 @@
           "stepsLabel": "Steps",
           "stepOf": "Step {current} of {total}: {step}",
           "backTo": "Back to {step}",
+          "goTo": "Go to {step}",
           "back": "Back",
           "next": "Next"
         },
@@ -3569,7 +3570,6 @@
       },
       "editCampaign": {
         "title": "Edit campaign",
-        "back": "Back to campaign",
         "submit": "Save changes",
         "reviewNote": "Saving sends the ad back to Google's review.",
         "startDateLocked": "The start date can't change once a campaign has started.",

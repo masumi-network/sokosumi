@@ -3436,6 +3436,7 @@
           "stepsLabel": "Pasos",
           "stepOf": "Paso {current} de {total}: {step}",
           "backTo": "Volver a {step}",
+          "goTo": "Ir a {step}",
           "back": "Atrás",
           "next": "Siguiente"
         },
@@ -3569,7 +3570,6 @@
       },
       "editCampaign": {
         "title": "Editar campaña",
-        "back": "Volver a la campaña",
         "submit": "Guardar cambios",
         "reviewNote": "Al guardar, el anuncio vuelve a revisión de Google.",
         "startDateLocked": "La fecha de inicio no se puede cambiar una vez iniciada la campaña.",

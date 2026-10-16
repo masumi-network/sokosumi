@@ -14,7 +14,7 @@ vi.mock("@/lib/actions/ads/action", () => ({
 
 // The wizards have their own tests; here they only show what they were given
 // and let the dialog be closed or held busy.
-vi.mock("./ads-new-campaign-wizard", () => {
+vi.mock("./ads-campaign-wizard", () => {
   const Wizard =
     (kind: string) =>
     ({
@@ -42,6 +42,11 @@ vi.mock("./ads-new-campaign-wizard", () => {
   return {
     NewGoogleCampaignWizard: Wizard("google"),
     NewMetaCampaignWizard: Wizard("meta"),
+    WizardSkeleton: () => (
+      <div aria-busy="true" role="status">
+        wizard skeleton
+      </div>
+    ),
   };
 });
 
