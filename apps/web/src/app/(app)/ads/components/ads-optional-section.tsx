@@ -27,20 +27,32 @@ export function AdsOptionalSection({
   title,
   summary,
   invalid,
+  name,
   children,
 }: AdsOptionalSectionProps) {
   const { formState } = useFormContext();
+  // A step check replaces this field's error and leaves submitCount alone.
+  const fieldError = name
+    ? (formState.errors as Record<string, unknown>)[name]
+    : undefined;
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState({
     invalid,
     submits: formState.submitCount,
+    fieldError,
   });
 
-  if (seen.invalid !== invalid || seen.submits !== formState.submitCount) {
+  if (
+    seen.invalid !== invalid ||
+    seen.submits !== formState.submitCount ||
+    seen.fieldError !== fieldError
+  ) {
     const refusedNow = invalid && !seen.invalid;
     const resubmitted = seen.submits !== formState.submitCount;
-    setSeen({ invalid, submits: formState.submitCount });
-    if (invalid && (refusedNow || resubmitted)) setOpen(true);
+    const rechecked =
+      fieldError !== undefined && seen.fieldError !== fieldError;
+    setSeen({ invalid, submits: formState.submitCount, fieldError });
+    if (invalid && (refusedNow || resubmitted || rechecked)) setOpen(true);
   }
 
   return (
