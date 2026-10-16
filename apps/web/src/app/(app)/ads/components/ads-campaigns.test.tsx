@@ -67,8 +67,19 @@ async function renderCampaigns(
   );
 }
 
-const table = () => within(screen.getByTestId("ads-campaigns-table"));
-const rows = () => within(screen.getByTestId("ads-campaigns-rows"));
+const rows = () => screen.getAllByTestId("ads-campaign-row");
+
+/** A row's figures as label → value, in the order shown. */
+function figures(row: HTMLElement): Record<string, string> {
+  return Object.fromEntries(
+    within(row)
+      .getAllByRole("term")
+      .map((term) => [
+        term.textContent,
+        term.nextElementSibling?.textContent ?? "",
+      ]),
+  );
+}
 
 describe("AdsCampaigns", () => {
   it("shows an empty state for an account without campaigns", async () => {
@@ -80,96 +91,71 @@ describe("AdsCampaigns", () => {
     ).toBeVisible();
   });
 
-  it("draws every column", async () => {
+  it("draws one row card per campaign with its name, status and menu", async () => {
     await renderCampaigns();
 
-    for (const column of [
-      "Campaign",
-      "Status",
-      "Daily budget",
-      "Spend",
-      "Impressions",
-      "Clicks",
-      "CTR",
-      "CPC",
-      "Conversions",
-      "Actions",
-    ]) {
-      expect(
-        table().getByRole("columnheader", { name: column }),
-      ).toBeInTheDocument();
-    }
+    const [active, paused] = rows();
+    expect(rows()).toHaveLength(2);
+    expect(within(active).getByText("Spring sale")).toBeInTheDocument();
+    expect(within(active).getByText("Active")).toBeInTheDocument();
+    expect(within(paused).getByText("Paused")).toBeInTheDocument();
+    // One menu per row, at every width.
+    expect(
+      within(active).getAllByRole("button", { name: "menu Spring sale" }),
+    ).toHaveLength(1);
+  });
+
+  it("says what kind of campaign it is and its budget per day", async () => {
+    await renderCampaigns();
+
+    const [active, paused] = rows();
+    expect(within(active).getByText("Search · $25.00/day")).toBeInTheDocument();
+    // Neither an objective nor a budget: no line at all.
+    expect(within(paused).queryByText(/\/day/)).toBeNull();
   });
 
   it("formats money and CTR, with a dash for what the provider lacks", async () => {
     await renderCampaigns();
 
-    const [, active, paused] = table().getAllByRole("row");
-    expect(
-      within(active)
-        .getAllByRole("cell")
-        .map((cell) => cell.textContent),
-    ).toEqual([
-      "Spring saleSearch",
-      "Active",
-      "$25.00",
-      "$1,234.50",
-      "12,000",
-      "340",
-      "2.83%",
-      "$3.63",
-      "12",
-      "menu Spring sale",
-    ]);
-    expect(
-      within(paused)
-        .getAllByRole("cell")
-        .map((cell) => cell.textContent),
-    ).toEqual([
-      "Winter promo",
-      "Paused",
-      "—",
-      "$1,234.50",
-      "12,000",
-      "340",
-      "—",
-      "—",
-      "—",
-      "menu Winter promo",
-    ]);
+    const [active, paused] = rows();
+    expect(figures(active)).toEqual({
+      Spend: "$1,234.50",
+      Impressions: "12,000",
+      Clicks: "340",
+      CTR: "2.83%",
+      CPC: "$3.63",
+      Conversions: "12",
+    });
+    expect(figures(paused)).toEqual({
+      Spend: "$1,234.50",
+      Impressions: "12,000",
+      Clicks: "340",
+      CTR: "—",
+      CPC: "—",
+      Conversions: "—",
+    });
   });
 
-  it("hides Impressions and CPC below xl so the table fits", async () => {
+  it("keeps spend, clicks and CTR on a phone and the rest from sm", async () => {
     await renderCampaigns();
 
-    for (const name of ["Impressions", "CPC"]) {
-      expect(table().getByRole("columnheader", { name }).className).toContain(
-        "hidden xl:table-cell",
+    const [row] = rows();
+    for (const label of ["Impressions", "CPC", "Conversions"]) {
+      expect(within(row).getByText(label).parentElement?.className).toContain(
+        "hidden sm:flex",
       );
     }
-    expect(
-      table().getByRole("columnheader", { name: "Clicks" }).className,
-    ).not.toContain("hidden");
+    for (const label of ["Spend", "Clicks", "CTR"]) {
+      expect(
+        within(row).getByText(label).parentElement?.className,
+      ).not.toContain("hidden");
+    }
   });
 
   it("formats money without decimals for JPY", async () => {
     await renderCampaigns([ACTIVE], "JPY");
 
-    expect(table().getByText("¥1,235")).toBeInTheDocument();
-  });
-
-  it("stacks name, status, spend and clicks on small screens", async () => {
-    await renderCampaigns();
-
-    const [first] = rows().getAllByRole("listitem");
-    expect(within(first).getByText("Spring sale")).toBeInTheDocument();
-    expect(within(first).getByText("Active")).toBeInTheDocument();
-    expect(
-      within(first).getByText("Spend $1,234.50 · clicks 340"),
-    ).toBeInTheDocument();
-    expect(
-      within(first).getByRole("button", { name: "menu Spring sale" }),
-    ).toBeInTheDocument();
+    expect(figures(rows()[0]).Spend).toBe("¥1,235");
   });
 });
 
@@ -177,11 +163,11 @@ describe("AdsCampaigns names", () => {
   it("link a Google campaign to its details, keeping project, account and range", async () => {
     await renderCampaigns();
 
-    expect(table().getByRole("link", { name: "Spring sale" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Spring sale" })).toHaveAttribute(
       "href",
       "/ads/campaigns/1?projectId=project-1&accountId=account-1&range=7d",
     );
-    expect(rows().getByRole("link", { name: "Winter promo" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Winter promo" })).toHaveAttribute(
       "href",
       "/ads/campaigns/2?projectId=project-1&accountId=account-1&range=7d",
     );
@@ -191,7 +177,7 @@ describe("AdsCampaigns names", () => {
     await renderCampaigns([ACTIVE], "USD", "meta_ads");
 
     expect(screen.queryByRole("link")).toBeNull();
-    expect(table().getByText("Spring sale")).toBeInTheDocument();
+    expect(screen.getByText("Spring sale")).toBeInTheDocument();
   });
 });
 

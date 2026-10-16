@@ -6,6 +6,24 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { describe, expect, it, vi } from "vitest";
 
 import messages from "../../../../../messages/en.json";
+
+// The wizard has its own tests; here it only has to open for an account.
+vi.mock("./ads-new-campaign-dialog", () => ({
+  AdsNewCampaignDialog: ({
+    account,
+    onClose,
+  }: {
+    account: ProjectAdAccount;
+    onClose: () => void;
+  }) => (
+    <div role="dialog" aria-label={`new campaign in ${account.name}`}>
+      <button onClick={onClose} type="button">
+        close
+      </button>
+    </div>
+  ),
+}));
+
 import { AdsCampaignsToolbar } from "./ads-campaigns-toolbar";
 
 const ACCOUNTS = [
@@ -67,12 +85,17 @@ describe("AdsCampaignsToolbar", () => {
     expect(onUrlUpdate).not.toHaveBeenCalled();
   });
 
-  it("links New campaign to the create page for the selected account", () => {
+  it("opens the new-campaign dialog for the selected account, and closes it", async () => {
+    const user = userEvent.setup();
     renderToolbar(ACCOUNTS);
 
-    expect(screen.getByRole("link", { name: "New campaign" })).toHaveAttribute(
-      "href",
-      "/ads/campaigns/new?projectId=project-1&accountId=a1",
-    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "New campaign" }));
+    expect(
+      await screen.findByRole("dialog", { name: "new campaign in Main" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "close" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

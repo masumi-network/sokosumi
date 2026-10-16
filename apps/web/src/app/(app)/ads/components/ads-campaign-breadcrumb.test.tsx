@@ -67,17 +67,6 @@ describe("AdsCampaignBreadcrumb", () => {
 
   // The path alone has no project: "campaigns" is no page and the ids lose
   // the query, so every ads page gives its whole trail.
-  it("gives the new-campaign page Ads › New, keeping the project", () => {
-    expect(
-      renderTrail("/ads/campaigns/new", {
-        page: { label: "new", href: "/ads/campaigns/new?projectId=p1" },
-      }).segments,
-    ).toEqual([
-      { label: "Ads", href: ADS_HREF },
-      { label: "New", href: "/ads/campaigns/new?projectId=p1" },
-    ]);
-  });
-
   it("leads back to Ads when the campaign could not be loaded", () => {
     expect(renderTrail("/ads/campaigns/42").segments).toEqual([
       { label: "Ads", href: ADS_HREF },

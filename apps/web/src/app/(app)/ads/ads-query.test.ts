@@ -6,7 +6,6 @@ import {
   campaignsHref,
   loadAdsSearchParams,
   loadCampaignDetailsSearchParams,
-  loadNewCampaignSearchParams,
   selectAccount,
 } from "./ads-query";
 
@@ -53,18 +52,6 @@ describe("selectAccount", () => {
 
   it("has no account without accounts", () => {
     expect(selectAccount([], null)).toBeUndefined();
-  });
-});
-
-describe("loadNewCampaignSearchParams", () => {
-  it("reads the project and the account", () => {
-    expect(
-      loadNewCampaignSearchParams({ projectId: "p1", accountId: "a2" }),
-    ).toEqual({ projectId: "p1", accountId: "a2" });
-    expect(loadNewCampaignSearchParams({})).toEqual({
-      projectId: null,
-      accountId: null,
-    });
   });
 });
 

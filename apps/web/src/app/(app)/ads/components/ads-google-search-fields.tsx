@@ -51,11 +51,11 @@ export function AdsGoogleSearchFields({
 }: AdsGoogleSearchFieldsProps) {
   return (
     <>
-      <KeywordsSection
+      <AdsKeywordsSection
         hasMarketProfile={hasMarketProfile}
         projectId={projectId}
       />
-      <AdSection />
+      <AdsSearchAdSection />
     </>
   );
 }
@@ -105,7 +105,8 @@ export function AdsGoogleDateFields({
   );
 }
 
-function KeywordsSection({
+/** The keywords, one per line, with "Add from Market" when there is a profile. */
+export function AdsKeywordsSection({
   projectId,
   hasMarketProfile,
 }: Pick<AdsGoogleSearchFieldsProps, "projectId" | "hasMarketProfile">) {
@@ -170,7 +171,8 @@ function KeywordsSection({
   );
 }
 
-function AdSection() {
+/** The responsive search ad: final URL, display path, texts and assets. */
+export function AdsSearchAdSection() {
   const t = useTranslations("App.Ads.newCampaign.ad");
   const tSection = useTranslations("App.Ads.newCampaign.sections");
   const form = useFormContext<GoogleSearchFormValues>();

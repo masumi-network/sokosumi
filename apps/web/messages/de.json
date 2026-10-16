@@ -3181,7 +3181,6 @@
           "ENDED": "Beendet",
           "OTHER": "Sonstige"
         },
-        "spendAndClicks": "Ausgaben {spend} · Klicks {clicks}",
         "actions": {
           "label": "Aktionen für {name}",
           "pause": "Pausieren",
@@ -3230,18 +3229,18 @@
             "title": "Kampagnen konnten nicht geladen werden"
           }
         },
-        "new": "Neue Kampagne"
+        "new": "Neue Kampagne",
+        "budgetPerDay": "{budget}/Tag"
       },
       "newCampaign": {
         "title": "Neue Kampagne",
-        "back": "Zurück zu den Kampagnen",
         "inAccount": "{provider}-Konto {name}",
         "note": {
           "google_ads": "Kampagnen werden pausiert erstellt. Setze sie hier fort, wenn sie bereit sind.",
           "meta_ads": "Kampagnen werden pausiert erstellt. Füge Anzeigengruppen und Anzeigen im Meta Ads Manager hinzu und setze sie dann hier fort."
         },
         "sections": {
-          "type": "Typ",
+          "type": "Kampagnentyp",
           "basics": "Grundlagen",
           "targeting": "Targeting",
           "ad": "Anzeige"
@@ -3424,6 +3423,60 @@
           "businessNameRequired": "Gib den Firmennamen ein.",
           "longHeadlineRequired": "Gib eine lange Überschrift ein.",
           "failed": "Kampagne konnte nicht erstellt werden"
+        },
+        "steps": {
+          "type": "Kampagnentyp",
+          "basics": "Grundlagen",
+          "targeting": "Targeting",
+          "keywords": "Keywords",
+          "ad": "Anzeige",
+          "review": "Überprüfen"
+        },
+        "wizard": {
+          "stepsLabel": "Schritte",
+          "stepOf": "Schritt {current} von {total}: {step}",
+          "backTo": "Zurück zu {step}",
+          "back": "Zurück",
+          "next": "Weiter"
+        },
+        "typeTitle": "Wo sollen deine Anzeigen erscheinen?",
+        "typeIntro": "Wähle eine Option. Sie lässt sich nach dem Erstellen der Kampagne nicht mehr ändern.",
+        "needs": {
+          "title": "Das brauchst du",
+          "keywords": "Keywords, nach denen Menschen suchen",
+          "searchTexts": "{minHeadlines} bis {maxHeadlines} Überschriften und {minDescriptions} bis {maxDescriptions} Beschreibungen",
+          "displayTexts": "Bis zu {maxHeadlines} Überschriften, eine lange Überschrift und bis zu {maxDescriptions} Beschreibungen",
+          "businessName": "Den Namen deines Unternehmens",
+          "images": "Ein Querformat- und ein quadratisches Bild",
+          "finalUrl": "Die Seite, auf der Menschen landen"
+        },
+        "preview": {
+          "title": "Vorschau",
+          "searchLabel": "Vorschau der Suchanzeige",
+          "displayLabel": "Vorschau der Displayanzeige",
+          "sponsored": "Gesponsert",
+          "note": "Google kombiniert deine Texte und Bilder, um herauszufinden, was funktioniert. Die echte Anzeige kann daher anders aussehen.",
+          "another": "Andere Kombination zeigen",
+          "noImage": "Noch kein Bild",
+          "open": "Öffnen"
+        },
+        "review": {
+          "title": "Zusammenfassung",
+          "dailyBudget": "Tagesbudget",
+          "edit": "Bearbeiten",
+          "editLabel": "{section} bearbeiten",
+          "schedule": {
+            "label": "Zeitraum",
+            "range": "{start} bis {end}",
+            "from": "Ab {start}",
+            "until": "Bis {end}",
+            "none": "Kein Start- oder Enddatum"
+          }
+        },
+        "setupFailed": {
+          "title": "Das Kampagnenformular konnte nicht geladen werden",
+          "body": "Prüfe deine Verbindung und versuche es erneut.",
+          "retry": "Erneut versuchen"
         }
       },
       "campaignDetails": {

@@ -16,9 +16,10 @@ interface AdsOptionalSectionProps {
 }
 
 /**
- * An optional part of the ad: closed until the reader wants it. A submit that
- * is refused for something inside it opens it once; the reader can close it
- * again.
+ * An optional part of the ad: closed until the reader wants it. A refusal for
+ * something inside it opens it, whether a submit or a wizard step's check
+ * found it, and so does each later submit it still fails; the reader can
+ * close it again.
  */
 export function AdsOptionalSection({
   title,
@@ -28,11 +29,16 @@ export function AdsOptionalSection({
 }: AdsOptionalSectionProps) {
   const { formState } = useFormContext();
   const [open, setOpen] = useState(false);
-  const [submits, setSubmits] = useState(formState.submitCount);
+  const [seen, setSeen] = useState({
+    invalid,
+    submits: formState.submitCount,
+  });
 
-  if (submits !== formState.submitCount) {
-    setSubmits(formState.submitCount);
-    if (invalid) setOpen(true);
+  if (seen.invalid !== invalid || seen.submits !== formState.submitCount) {
+    const refusedNow = invalid && !seen.invalid;
+    const resubmitted = seen.submits !== formState.submitCount;
+    setSeen({ invalid, submits: formState.submitCount });
+    if (invalid && (refusedNow || resubmitted)) setOpen(true);
   }
 
   return (

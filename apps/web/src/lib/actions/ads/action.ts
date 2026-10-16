@@ -10,6 +10,7 @@ import {
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
+import { loadGoogleSetup } from "@/app/ads/campaigns/google-setup";
 import {
   type ActionResultDto,
   toActionResult,
@@ -238,6 +239,16 @@ export const listAdMarketKeywords = adsAction(
     const { keywords } = await adsService.listMarketKeywords(projectId);
     return keywords.map(({ keyword }) => keyword);
   },
+);
+
+/**
+ * What the new-campaign wizard needs before it shows a Google form: whether
+ * there is a Market profile, Google's languages and the profile's suggested
+ * targeting. A failed part hides only itself (see `loadGoogleSetup`).
+ */
+export const getGoogleCampaignSetup = adsAction(
+  z.object({ projectId: trimmedId, accountId: trimmedId }),
+  ({ projectId, accountId }) => loadGoogleSetup(projectId, accountId),
 );
 
 /**

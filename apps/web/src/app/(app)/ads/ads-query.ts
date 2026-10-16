@@ -34,7 +34,7 @@ export function selectAccount(
 }
 
 /**
- * The Campaigns tab of one account, where the create and details pages lead
+ * The Campaigns tab of one account, where the details and edit pages lead
  * back to. A `range` is kept when given.
  */
 export function campaignsHref(
@@ -70,12 +70,6 @@ export function campaignEditHref(
 ): string {
   return `/ads/campaigns/${encodeURIComponent(campaignId)}/edit?${new URLSearchParams({ projectId, accountId, range })}`;
 }
-
-/** The create page's URL state: the project and the account to create in. */
-export const loadNewCampaignSearchParams = createLoader({
-  projectId: parseAsString,
-  accountId: parseAsString,
-});
 
 /** The details page's URL state: the project, the account and the range. */
 export const loadCampaignDetailsSearchParams = createLoader({
