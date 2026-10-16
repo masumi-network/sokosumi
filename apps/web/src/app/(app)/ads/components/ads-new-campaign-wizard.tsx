@@ -18,9 +18,8 @@ import {
   useFormContext,
 } from "react-hook-form";
 import * as z from "zod";
-
+import { TaskFormModalHeaderStart } from "@/app/tasks/components/task-form-modal";
 import { Button } from "@/components/ui/button";
-import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -161,6 +160,7 @@ interface WizardProps {
 }
 
 interface WizardFrameProps {
+  /** "Google Ads account Sokosumi", in the footer like a schedule's summary. */
   accountLabel: string;
   children: ReactNode;
   /** The step's labels, in order. */
@@ -168,32 +168,33 @@ interface WizardFrameProps {
   step: number;
   /** Go back to an earlier step. */
   onJump: (step: number) => void;
-  onCancel: () => void;
   onSubmit: () => void;
   submitting: boolean;
   /** Pictures are still going in; the wizard waits for them. */
   uploading?: boolean;
+  /** The step lays out side by side (the review), so it takes more width. */
+  wide?: boolean;
 }
 
 /**
- * The wizard's frame inside the dialog, as the project wizard draws it: the
- * title and the steps (a bar each, earlier ones to click back to), the step,
- * and Back / Next (or Create on the last step) at the bottom. One `<form>`
- * spans it, so Enter moves on as Next does.
+ * The wizard inside `TaskFormModal`, as New task and New schedule draw
+ * theirs: Back in the header's start slot, the steps (a bar each, earlier
+ * ones to click back to) under the header, the step, and the footer with the
+ * account on the left and Next (or Create on the last step) on the right.
+ * One `<form>` spans it, so Enter moves on as Next does.
  */
 function WizardFrame({
   accountLabel,
   children,
   labels,
-  onCancel,
   onJump,
   onSubmit,
   step,
   submitting,
   uploading = false,
+  wide = false,
 }: WizardFrameProps) {
   const t = useTranslations("App.Ads.newCampaign");
-  const tCampaigns = useTranslations("App.Ads.campaigns");
   const last = step === labels.length - 1;
   const bodyRef = useRef<HTMLDivElement>(null);
   // Each step mounts anew (keyed): start it at the top and move focus there,
@@ -206,22 +207,32 @@ function WizardFrame({
 
   return (
     <form
-      className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto]"
+      className="flex min-h-0 flex-1 flex-col"
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit();
       }}
     >
-      <div className="flex flex-col gap-4 px-6 pt-5 pb-4 sm:px-8 sm:pt-6">
-        <div className="flex flex-col gap-0.5 pr-8">
-          <DialogTitle className="text-base font-semibold">
-            {t("title")}
-          </DialogTitle>
-          <DialogDescription className="text-muted-foreground text-sm">
-            {accountLabel}
-          </DialogDescription>
-        </div>
+      {step > 0 ? (
+        // The slot keeps what it was given when it mounted: a new key per
+        // step (and save) gives it a Back that knows the step it is on.
+        <TaskFormModalHeaderStart key={`${step}:${submitting}`}>
+          <Button
+            className="text-primary -ml-2"
+            disabled={submitting}
+            onClick={() => onJump(step - 1)}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
+            <ArrowLeft aria-hidden className="mr-1 size-3.5" />
+            {t("wizard.back")}
+          </Button>
+        </TaskFormModalHeaderStart>
+      ) : null}
+
+      <div className="shrink-0 px-6 py-4 md:px-8">
         <ol aria-label={t("wizard.stepsLabel")} className="flex gap-1.5">
           {labels.map((label, index) => {
             const done = index < step;
@@ -275,7 +286,7 @@ function WizardFrame({
             );
           })}
         </ol>
-        <p className="text-muted-foreground text-xs sm:hidden">
+        <p className="text-muted-foreground mt-2 text-xs sm:hidden">
           {t("wizard.stepOf", {
             current: step + 1,
             total: labels.length,
@@ -285,12 +296,15 @@ function WizardFrame({
       </div>
 
       <div
-        className="app-scrollbar min-h-0 overflow-y-auto border-t px-6 py-6 sm:px-10 sm:py-8"
+        className="app-scrollbar min-h-0 flex-1 overflow-y-auto border-t px-6 py-6 md:px-8 md:py-8"
         ref={bodyRef}
       >
         <div
           key={step}
-          className="animate-in outline-none fade-in-0 slide-in-from-bottom-1 mx-auto flex w-full max-w-2xl flex-col gap-8 duration-200 ease-out motion-reduce:animate-none"
+          className={cn(
+            "animate-in fade-in-0 slide-in-from-bottom-1 mx-auto flex w-full flex-col gap-8 outline-none duration-200 ease-out motion-reduce:animate-none",
+            wide ? "max-w-5xl" : "max-w-2xl",
+          )}
           ref={showStep}
           tabIndex={-1}
         >
@@ -298,28 +312,18 @@ function WizardFrame({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 border-t px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-8">
-        {step > 0 ? (
-          <Button
-            disabled={submitting}
-            onClick={() => onJump(step - 1)}
-            type="button"
-            variant="ghost"
-          >
-            <ArrowLeft aria-hidden className="size-4" />
-            {t("wizard.back")}
-          </Button>
-        ) : (
-          <Button onClick={onCancel} type="button" variant="ghost">
-            {tCampaigns("cancel")}
-          </Button>
-        )}
-        {/* Always there, so the wait is announced when it starts. */}
-        <span className="text-muted-foreground mr-auto text-sm" role="status">
-          {uploading ? t("uploadingImages") : null}
-        </span>
+      <div className="flex shrink-0 flex-col items-stretch justify-between gap-3 border-t px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center md:px-8">
+        <div className="flex min-w-0 flex-col">
+          <span className="text-muted-foreground truncate text-sm">
+            {accountLabel}
+          </span>
+          {/* Always there, so the wait is announced when it starts. */}
+          <span className="text-muted-foreground text-sm" role="status">
+            {uploading ? t("uploadingImages") : null}
+          </span>
+        </div>
         <Button
-          className="min-w-28"
+          className="min-w-28 sm:ml-auto"
           disabled={uploading}
           loading={last && submitting}
           type="submit"
@@ -528,57 +532,62 @@ function GoogleReviewStep({
   return (
     <>
       {refusal}
-      <AdsSection id="campaign-wizard-preview" title={t("preview.title")}>
-        <AdsAdPreview />
-      </AdsSection>
-      <AdsSection id="campaign-wizard-summary" title={t("review.title")}>
-        <dl className="flex flex-col gap-3">
-          <SummaryRow label={t("sections.type")} onEdit={() => goTo("type")}>
-            {t(`types.${values.type}`)}
-          </SummaryRow>
-          <SummaryRow label={t("name")} onEdit={() => goTo("basics")}>
-            {values.name.trim()}
-          </SummaryRow>
-          <SummaryRow
-            label={t("review.dailyBudget")}
-            onEdit={() => goTo("basics")}
-          >
-            {money(values.dailyBudget)}
-          </SummaryRow>
-          <SummaryRow
-            label={t("review.schedule.label")}
-            onEdit={() => goTo("basics")}
-          >
-            {schedule(values.startDate, values.endDate)}
-          </SummaryRow>
-          <SummaryRow
-            label={t("targeting.locations.label")}
-            onEdit={() => goTo("targeting")}
-          >
-            {targetNames(values.locations, t("targeting.locations.all"))}
-          </SummaryRow>
-          <SummaryRow
-            label={t("targeting.languages.label")}
-            onEdit={() => goTo("targeting")}
-          >
-            {targetNames(values.languages, t("targeting.languages.all"))}
-          </SummaryRow>
-          {search ? (
-            <SummaryRow
-              label={t("keywords.label")}
-              onEdit={() => goTo("keywords")}
-            >
-              {t("keywords.count", {
-                count: parseGoogleKeywords(values.keywords).keywords.length,
-              })}
+      {/* Side by side once the modal is wide enough: the ad, then what it is. */}
+      <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
+        <AdsSection id="campaign-wizard-preview" title={t("preview.title")}>
+          <AdsAdPreview />
+        </AdsSection>
+        <AdsSection id="campaign-wizard-summary" title={t("review.title")}>
+          <dl className="flex flex-col gap-3">
+            <SummaryRow label={t("sections.type")} onEdit={() => goTo("type")}>
+              {t(`types.${values.type}`)}
             </SummaryRow>
-          ) : null}
-          <SummaryRow label={t("ad.finalUrl")} onEdit={() => goTo("ad")}>
-            {values.finalUrl.trim()}
-          </SummaryRow>
-        </dl>
-        <p className="text-muted-foreground text-sm">{t("note.google_ads")}</p>
-      </AdsSection>
+            <SummaryRow label={t("name")} onEdit={() => goTo("basics")}>
+              {values.name.trim()}
+            </SummaryRow>
+            <SummaryRow
+              label={t("review.dailyBudget")}
+              onEdit={() => goTo("basics")}
+            >
+              {money(values.dailyBudget)}
+            </SummaryRow>
+            <SummaryRow
+              label={t("review.schedule.label")}
+              onEdit={() => goTo("basics")}
+            >
+              {schedule(values.startDate, values.endDate)}
+            </SummaryRow>
+            <SummaryRow
+              label={t("targeting.locations.label")}
+              onEdit={() => goTo("targeting")}
+            >
+              {targetNames(values.locations, t("targeting.locations.all"))}
+            </SummaryRow>
+            <SummaryRow
+              label={t("targeting.languages.label")}
+              onEdit={() => goTo("targeting")}
+            >
+              {targetNames(values.languages, t("targeting.languages.all"))}
+            </SummaryRow>
+            {search ? (
+              <SummaryRow
+                label={t("keywords.label")}
+                onEdit={() => goTo("keywords")}
+              >
+                {t("keywords.count", {
+                  count: parseGoogleKeywords(values.keywords).keywords.length,
+                })}
+              </SummaryRow>
+            ) : null}
+            <SummaryRow label={t("ad.finalUrl")} onEdit={() => goTo("ad")}>
+              {values.finalUrl.trim()}
+            </SummaryRow>
+          </dl>
+          <p className="text-muted-foreground text-sm">
+            {t("note.google_ads")}
+          </p>
+        </AdsSection>
+      </div>
     </>
   );
 }
@@ -704,12 +713,12 @@ export function NewGoogleCampaignWizard({
         <WizardFrame
           accountLabel={accountLabel}
           labels={steps.map((candidate) => t(`steps.${candidate}`))}
-          onCancel={onClose}
           onJump={setStep}
           onSubmit={() => void (current === "review" ? create() : next())}
           step={step}
           submitting={form.formState.isSubmitting || saving.saved}
           uploading={uploading}
+          wide={current === "review"}
         >
           {content[current]}
         </WizardFrame>
@@ -804,7 +813,6 @@ export function NewMetaCampaignWizard({
       <WizardFrame
         accountLabel={accountLabel}
         labels={META_STEPS.map((candidate) => t(`steps.${candidate}`))}
-        onCancel={onClose}
         onJump={setStep}
         onSubmit={() => void (current === "review" ? create() : next())}
         step={step}

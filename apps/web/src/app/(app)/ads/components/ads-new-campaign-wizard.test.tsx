@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import {
   createAdCampaign,
   listAdMarketKeywords,
@@ -166,19 +166,25 @@ async function renderWizard({
   };
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <Dialog open>
-        <DialogContent>
-          {provider === "google_ads" ? (
-            <NewGoogleCampaignWizard
-              {...props}
-              hasMarketProfile={hasMarketProfile}
-              targeting={targeting}
-            />
-          ) : (
-            <NewMetaCampaignWizard {...props} />
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* The modal the dialog puts it in: its Cancel closes, Back sits in its header. */}
+      <TaskFormModal
+        cancelLabel="Cancel"
+        onOpenChange={(open) => {
+          if (!open) onClose();
+        }}
+        open
+        title="New campaign"
+      >
+        {provider === "google_ads" ? (
+          <NewGoogleCampaignWizard
+            {...props}
+            hasMarketProfile={hasMarketProfile}
+            targeting={targeting}
+          />
+        ) : (
+          <NewMetaCampaignWizard {...props} />
+        )}
+      </TaskFormModal>
     </NextIntlClientProvider>,
   );
   return user;
