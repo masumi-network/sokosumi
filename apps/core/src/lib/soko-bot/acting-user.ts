@@ -41,3 +41,17 @@ export function sokoBotScheduleActingUserId(schedule: {
 export function sokoBotScheduleActingUserWhere(actingUserId: string | null) {
   return actingUserId === null ? {} : { requestedByUserId: actingUserId };
 }
+
+/**
+ * The `startTurn` fields for a turn the bot starts itself. A personal bot
+ * acts for its owner and finds itself through them; a shared bot acts for
+ * nobody, so it names itself.
+ */
+export function sokoBotSelfStarter(bot: {
+  id: string;
+  userId: string | null;
+}): { userId: string } | { userId: null; sokoBotId: string } {
+  return bot.userId === null
+    ? { userId: null, sokoBotId: bot.id }
+    : { userId: bot.userId };
+}

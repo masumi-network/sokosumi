@@ -16,6 +16,7 @@ const {
   applyOrganizationExitChatRevocationMock,
   publishOrganizationExitChatRevocationMock,
   deliverOrganizationCalendarInvalidationsNowMock,
+  disconnectLeaverIntegrationsMock,
   queryRawMock,
   transactionMock,
   authContextState,
@@ -34,6 +35,7 @@ const {
   applyOrganizationExitChatRevocationMock: vi.fn(),
   publishOrganizationExitChatRevocationMock: vi.fn(),
   deliverOrganizationCalendarInvalidationsNowMock: vi.fn(),
+  disconnectLeaverIntegrationsMock: vi.fn(),
   queryRawMock: vi.fn(),
   transactionMock: vi.fn(),
 }));
@@ -62,6 +64,11 @@ vi.mock("@/helpers/chat-room-organization-exit", () => ({
     applyOrganizationExitChatRevocationMock(...args),
   publishOrganizationExitChatRevocation: (...args: unknown[]) =>
     publishOrganizationExitChatRevocationMock(...args),
+}));
+
+vi.mock("@/services/soko-bot-integration-leaver.service", () => ({
+  disconnectLeaverSokoBotIntegrationsBestEffort: (...args: unknown[]) =>
+    disconnectLeaverIntegrationsMock(...args),
 }));
 
 vi.mock("@/helpers/calendar-invalidation", () => ({
@@ -171,6 +178,10 @@ describe("DELETE /admin/organizations/{slug}/members/{memberId}", () => {
     expect(
       deliverOrganizationCalendarInvalidationsNowMock,
     ).toHaveBeenCalledWith("org_1", "user_target");
+    expect(disconnectLeaverIntegrationsMock).toHaveBeenCalledWith(
+      "user_target",
+      "org_1",
+    );
     expect(callOrder).toEqual(["lock", "apply", "removeMember", "publish"]);
   });
 
@@ -187,6 +198,7 @@ describe("DELETE /admin/organizations/{slug}/members/{memberId}", () => {
     expect(
       deliverOrganizationCalendarInvalidationsNowMock,
     ).not.toHaveBeenCalled();
+    expect(disconnectLeaverIntegrationsMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the organization is missing", async () => {

@@ -6,6 +6,11 @@ import {
 import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import {
+  resolveNoticeRoom,
+  SOKO_BOT_NOTICE_BOT_SELECT,
+  withNoticeMention,
+} from "@/helpers/soko-bot-notice-room";
+import {
   SOKO_BOT_OWNER_NAME_SELECT,
   sokoBotPersonaOf,
 } from "@/helpers/soko-bot-owner";
@@ -293,27 +298,29 @@ async function announceBotMessage(roomId: string, messageId: string) {
 }
 
 /**
- * A fixed message from the bot into its owner's direct chat, outside any
- * turn: nothing is classified and nothing wakes the bot. `key` makes it
- * idempotent, so a retry posts once. An owner who never opened the chat gets
- * it opened, with the bot's introduction first. Null when the bot is gone.
+ * A fixed message from the bot outside any turn: nothing is classified and
+ * nothing wakes the bot. `key` makes it idempotent, so a retry posts once.
+ * A personal bot posts into its owner's direct chat, opened with the bot's
+ * introduction first when the owner never opened it. A shared bot posts into
+ * its shared room and @mentions `mentionUserId`. Null when the bot is gone or
+ * a shared bot has no live room.
  */
 export async function postSokoBotOwnerNotice(input: {
   sokoBotId: string;
   content: string;
   key: string;
+  mentionUserId?: string | null;
 }): Promise<{ messageId: string } | null> {
   const bot = await prisma.sokoBot.findFirst({
     where: { id: input.sokoBotId, archivedAt: null },
-    select: {
-      id: true,
-      userId: true,
-      workspaceId: true,
-      workspace: { select: { organizationId: true } },
-    },
+    select: SOKO_BOT_NOTICE_BOT_SELECT,
   });
   if (!bot) return null;
-  const room = await findOrOpenOwnerDirectRoom(bot);
+  const room = await resolveNoticeRoom(bot, input.mentionUserId ?? null);
+  if (!room) return null;
+  const content = withNoticeMention(input.content, room.mentionUserId);
+  const { emitChatHumanMentionNotifications, persistChatHumanMentions } =
+    await import("@/helpers/chat-human-mentions");
   const message = await prisma.$transaction(async (tx) => {
     const posted = await tx.chatRoomMessage.upsert({
       where: {
@@ -326,11 +333,17 @@ export async function postSokoBotOwnerNotice(input: {
         roomId: room.id,
         clientMessageId: `soko-bot:notice:${input.key}`,
         senderSokoBotId: bot.id,
-        content: input.content,
+        content,
       },
       update: {},
       select: { id: true },
     });
+    if (room.mentionUserId !== null)
+      await persistChatHumanMentions(tx, {
+        messageId: posted.id,
+        roomId: room.id,
+        content,
+      });
     await tx.chatRoom.update({
       where: { id: room.id },
       data: { updatedAt: new Date() },
@@ -338,20 +351,28 @@ export async function postSokoBotOwnerNotice(input: {
     return posted;
   });
   await announceBotMessage(room.id, message.id);
+  if (room.mentionUserId !== null)
+    await emitChatHumanMentionNotifications({
+      messageId: message.id,
+      mentionedUserIds: [room.mentionUserId],
+    });
   return { messageId: message.id };
 }
 
-export async function findOrOpenOwnerDirectRoom(bot: {
-  id: string;
-  userId: string;
-  workspaceId: string;
-  workspace: { organizationId: string | null };
-}): Promise<{ id: string }> {
+/** The owner's direct room with their personal bot, opened when missing. */
+export async function findOrOpenOwnerDirectRoom(
+  bot: {
+    id: string;
+    workspaceId: string;
+    workspace: { organizationId: string | null };
+  },
+  ownerUserId: string,
+): Promise<{ id: string }> {
   const existing = await prisma.chatRoom.findFirst({
     where: {
       kind: "direct",
       sokoBotMembers: { some: { sokoBotId: bot.id } },
-      userMembers: { some: { userId: bot.userId } },
+      userMembers: { some: { userId: ownerUserId } },
     },
     orderBy: { updatedAt: "desc" },
     select: { id: true },
@@ -362,14 +383,14 @@ export async function findOrOpenOwnerDirectRoom(bot: {
   );
   const { room, created } = await createOrGetDirectRoom({
     organizationId: bot.workspace.organizationId,
-    currentUserId: bot.userId,
+    currentUserId: ownerUserId,
     memberUserIds: [],
     coworkerIds: [],
     sokoBotIds: [bot.id],
   });
   if (created)
     await introduceSokoBot({
-      userId: bot.userId,
+      userId: ownerUserId,
       workspaceId: bot.workspaceId,
       roomId: room.id,
     });

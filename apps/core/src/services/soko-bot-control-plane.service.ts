@@ -40,7 +40,12 @@ import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import {
   assertSokoBotManagement,
   authorizeSokoBotTurnAction,
+  memberAnswerableIntentWhere,
 } from "@/helpers/soko-bot-management";
+import {
+  needsProactiveDestination,
+  turnDestinationRoom,
+} from "@/helpers/soko-bot-notice-room";
 import {
   ME_SOKO_BOT,
   memberSokoBot,
@@ -163,41 +168,6 @@ export class SokoBotNoDestinationError extends Error {}
 export class SokoBotValidationError extends Error {}
 /** The administrator switched the whole feature off. */
 export class SokoBotDisabledError extends Error {}
-
-/**
- * A proactive turn needs somewhere to speak. An owner who never opened the
- * bot's chat has nowhere, so every schedule, event and ingest dead-lettered
- * and the bot looked dead. The owner's own direct room is always authorized;
- * it is opened here. A room that exists but was archived stays suppressed.
- */
-async function openFirstOwnerDirectRoom(
-  sokoBotId: string,
-  userId: string,
-): Promise<{ id: string } | null> {
-  const anyDirect = await prisma.chatRoom.findFirst({
-    where: {
-      kind: "direct",
-      sokoBotMembers: { some: { sokoBotId } },
-      userMembers: { some: { userId } },
-    },
-    select: { id: true },
-  });
-  if (anyDirect) return null;
-  const bot = await prisma.sokoBot.findFirst({
-    where: { id: sokoBotId, userId, archivedAt: null },
-    select: {
-      id: true,
-      userId: true,
-      workspaceId: true,
-      workspace: { select: { organizationId: true } },
-    },
-  });
-  if (!bot) return null;
-  const { findOrOpenOwnerDirectRoom } = await import(
-    "@/services/soko-bot-chat.service"
-  );
-  return findOrOpenOwnerDirectRoom(bot);
-}
 
 async function translateScheduleErrors<T>(run: () => Promise<T>): Promise<T> {
   try {
@@ -1974,6 +1944,7 @@ export class SokoBotControlPlane {
 
     const version = await resolveRunnableSokoBotVersion(
       input.versionId ?? bot.versionId,
+      isSharedSokoBot(bot),
     );
 
     try {
@@ -2017,23 +1988,14 @@ export class SokoBotControlPlane {
         : null
       : conversationMention?.message.roomId
         ? { id: conversationMention.message.roomId }
-        : input.chat || memberId === null
+        : input.chat
           ? null
-          : ((await prisma.chatRoom.findFirst({
-              // Rooms carry no workspace; the bot's membership scopes this to
-              // the workspace the bot lives in (one bot per user and workspace).
-              where: {
-                kind: "direct",
-                archivedAt: null,
-                sokoBotMembers: { some: { sokoBotId: bot.id } },
-                userMembers: { some: { userId: memberId } },
-              },
-              select: { id: true },
-            })) ??
-            (["SCHEDULE", "EVENT", "INGEST"].includes(source)
-              ? await openFirstOwnerDirectRoom(bot.id, memberId)
-              : null));
-    if (["SCHEDULE", "EVENT", "INGEST"].includes(source) && !destinationRoom) {
+          : await turnDestinationRoom(
+              bot,
+              { userId: memberId, clientTurnId: input.clientTurnId },
+              source,
+            );
+    if (needsProactiveDestination(source) && !destinationRoom) {
       throw new SokoBotNoDestinationError(
         "No authorized destination exists for proactive output. Restore an authorized conversation to resume delivery.",
       );
@@ -2059,6 +2021,7 @@ export class SokoBotControlPlane {
         : await prisma.sokoBotIntent.findMany({
             where: {
               ...intentScope,
+              ...memberAnswerableIntentWhere(bot),
               state: "AWAITING_CONFIRMATION",
               expiresAt: { gt: new Date() },
             },
@@ -2563,6 +2526,7 @@ export class SokoBotControlPlane {
             where: {
               id: selectedIntentId,
               ...intentScope,
+              ...memberAnswerableIntentWhere(bot),
               state: "AWAITING_CONFIRMATION",
               expiresAt: { gt: new Date() },
             },

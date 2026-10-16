@@ -1,3 +1,4 @@
+import { SOKO_BOT_SYSTEM_SCHEDULES } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -310,6 +311,44 @@ describe("SokoBotSchedulesSyncService", () => {
       scheduledFor,
     );
   });
+
+  it.each([
+    { userId: "user_1", shared: false },
+    { userId: null, shared: true },
+  ])(
+    "briefs a built-in rhythm with its own prompt (shared: $shared)",
+    async ({ userId, shared }) => {
+      dueScheduleFindFirstMock.mockResolvedValue({
+        ...dueSchedule,
+        sokoBotId: "bot_1",
+        systemKey: "standup",
+      });
+      botFindUniqueMock.mockResolvedValue({
+        id: "bot_1",
+        userId,
+        projectId: null,
+        workspaceId: dueSchedule.workspaceId,
+        ingestTimezone: "UTC",
+        followWholeBoard: false,
+      });
+      vi.mocked(buildSystemBeatMessage).mockResolvedValue({
+        message: "Standup.",
+        nudgeKeys: [],
+        skip: true,
+      });
+
+      await new SokoBotSchedulesSyncService().syncDueSchedules({
+        shouldContinue: continueFor(1),
+      });
+
+      const standup = SOKO_BOT_SYSTEM_SCHEDULES.find(
+        (schedule) => schedule.key === "standup",
+      );
+      expect(vi.mocked(buildSystemBeatMessage).mock.calls[0]?.[0].prompt).toBe(
+        shared ? standup?.promptShared : standup?.prompt,
+      );
+    },
+  );
 
   it("snapshots the occurrence prompt when claiming a due schedule", async () => {
     await new SokoBotSchedulesSyncService().syncDueSchedules({

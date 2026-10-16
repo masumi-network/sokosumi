@@ -63,12 +63,14 @@ vi.mock("@/config/env", () => ({
 }));
 
 import {
-  activeIntegrationsForBot,
   connectSokoBotIntegration,
   disconnectSokoBotIntegration,
+  finalizeSokoBotIntegration,
+} from "./soko-bot-integration-connection.service";
+import {
+  activeIntegrationsForBot,
   fetchInboxMessages,
   fetchInboxPage,
-  finalizeSokoBotIntegration,
   listIntegrationTools,
   revokeSokoBotIntegrationAccounts,
 } from "./soko-bot-integrations.service";
@@ -742,6 +744,7 @@ const githubIntegration = {
     tools: {},
   },
   composioAccountId: "acc",
+  connectorUserId: null,
   cursor: null,
 };
 

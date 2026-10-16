@@ -13,7 +13,6 @@ import {
   type ChatResultReference,
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
-  exceedsUnattendedHireBudget,
   sokoBotGenerateImageInputSchema as generateImageInputSchema,
   sokoBotGetImageInputSchema as getImageInputSchema,
   isSokoBotCapability,
@@ -185,6 +184,7 @@ import {
 } from "@/lib/soko-bot/persisted-value";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
+import { unattendedHireRefusal } from "@/lib/soko-bot/unattended-hire";
 import {
   type SokoBotWriteTargets,
   sokoBotProjectRefusal,
@@ -4882,52 +4882,14 @@ export class SokoBotRuntimeService {
       }
       case "hire_agent": {
         const hire = parseHireAgentInput(input.input);
-        // A turn with no owner message is composed from untrusted material —
-        // mail subjects, calendar titles, task comments. Hiring is the one
-        // tool that buys from a marketplace outright, so text that talks its
-        // way onto this route must not be able to commit the whole balance in
-        // a single unattended turn. The owner asking for a hire themselves is
-        // unaffected.
-        const ceiling = getEnv().SOKO_BOT_UNATTENDED_MAX_HIRE_CREDITS;
-        // One hire per unattended turn, and that one under the ceiling.
-        //
-        // Summing what the turn already committed looked more precise and was
-        // not: a tool input over 16KB is persisted as a truncated preview, so
-        // `maxCredits` disappears from the stored row and every prior hire
-        // sums to zero. Counting rows cannot be defeated that way, and it
-        // matches the prompt's own rule of one initiative per turn.
-        const unattended = exceedsUnattendedHireBudget({
-          source: authorized.turn.source,
-          chainDepth: authorized.turn.chainDepth,
-          maxCredits: Number.POSITIVE_INFINITY,
-          ceiling,
+        const refusal = await unattendedHireRefusal({
+          turn: authorized.turn,
+          shared: !!authorized.reader.sharedScope,
+          maxCredits: hire.maxCredits,
+          ceiling: getEnv().SOKO_BOT_UNATTENDED_MAX_HIRE_CREDITS,
+          toolCallId: input.toolCallId,
         });
-        if (unattended) {
-          const priorHires = await prisma.sokoBotToolCall.count({
-            where: {
-              turnId: authorized.turn.id,
-              capability: "hire_agent",
-              NOT: { toolCallId: input.toolCallId },
-            },
-          });
-          if (priorHires > 0) {
-            throw new SokoBotRuntimeValidationError(
-              "A turn nobody asked for may hire once. Report what you found and ask the owner before hiring again.",
-            );
-          }
-        }
-        if (
-          exceedsUnattendedHireBudget({
-            source: authorized.turn.source,
-            chainDepth: authorized.turn.chainDepth,
-            maxCredits: hire.maxCredits,
-            ceiling,
-          })
-        ) {
-          throw new SokoBotRuntimeValidationError(
-            `A turn nobody asked for may commit at most ${ceiling} credits; this asked for ${hire.maxCredits}. Ask the owner in their chat instead.`,
-          );
-        }
+        if (refusal) throw new SokoBotRuntimeValidationError(refusal);
         return this.executeAsAccepted(
           authorized,
           input.capability,

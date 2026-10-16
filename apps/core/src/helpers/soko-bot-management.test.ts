@@ -3,10 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
 import {
+  assertSokoBotIntegrationReplace,
   assertSokoBotManagement,
   authorizeSokoBotTurnAction,
   findResolvableSokoBotDecision,
   isMemberAskedSokoBotTurn,
+  memberAnswerableIntentWhere,
   type SokoBotAdminAction,
 } from "./soko-bot-management";
 
@@ -387,5 +389,79 @@ describe("isMemberAskedSokoBotTurn", () => {
     [null, 0, false],
   ])("%s at depth %s -> %s", (source, chainDepth, expected) => {
     expect(isMemberAskedSokoBotTurn({ source, chainDepth })).toBe(expected);
+  });
+});
+
+describe("assertSokoBotIntegrationReplace", () => {
+  it.each([
+    ["the connector", "member_2", "member_2"],
+    ["an OWNER", "owner_1", "member_2"],
+    ["an ADMIN", "admin_1", "member_2"],
+  ])(
+    "lets %s replace a shared bot's account",
+    async (_who, caller, connector) => {
+      const { client } = fakeClient();
+      await expect(
+        assertSokoBotIntegrationReplace(
+          caller,
+          WORKSPACE_BOT,
+          connector,
+          client,
+        ),
+      ).resolves.toBeUndefined();
+    },
+  );
+
+  it("refuses another plain member", async () => {
+    const { client } = fakeClient();
+    await expect(
+      assertSokoBotIntegrationReplace(
+        "member_1",
+        PROJECT_BOT,
+        "member_2",
+        client,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it.each([
+    ["a non-member", "stranger"],
+    ["a member when nobody is recorded as connector", "member_1"],
+  ])("refuses %s", async (_who, caller) => {
+    const { client } = fakeClient();
+    await expect(
+      assertSokoBotIntegrationReplace(caller, WORKSPACE_BOT, null, client),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("asks the connector without reading a role", async () => {
+    const { client, memberFindFirst } = fakeClient();
+    await assertSokoBotIntegrationReplace(
+      "member_2",
+      WORKSPACE_BOT,
+      "member_2",
+      client,
+    );
+    expect(memberFindFirst).not.toHaveBeenCalled();
+  });
+
+  it("leaves a personal bot to its owner check, with no role read", async () => {
+    const { client, memberFindFirst } = fakeClient();
+    await expect(
+      assertSokoBotIntegrationReplace("member_1", PERSONAL_BOT, null, client),
+    ).resolves.toBeUndefined();
+    expect(memberFindFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("memberAnswerableIntentWhere", () => {
+  it("lets a personal bot's owner answer every offer", () => {
+    expect(memberAnswerableIntentWhere({ userId: "owner" })).toEqual({});
+  });
+
+  it("hides a shared bot's self-started offers from member chat", () => {
+    expect(memberAnswerableIntentWhere({ userId: null })).toEqual({
+      originatingTurn: { source: "CHAT", chainDepth: 0 },
+    });
   });
 });
