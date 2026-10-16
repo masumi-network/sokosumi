@@ -136,6 +136,14 @@ function retainedPositionIndex(
   return index;
 }
 
+/** The row a remount reopens on, or -1 when it opens at the live edge. */
+function openingIndex(
+  rows: readonly RoomTranscriptRenderRow[],
+  saved: TranscriptPosition | undefined,
+): number {
+  return saved && !saved.atLiveEdge ? retainedPositionIndex(rows, saved) : -1;
+}
+
 /**
  * A transcript, mounting only the rows near the viewport.
  *
@@ -356,9 +364,8 @@ export function TranscriptViewport({
     // the end: a blank list under "Jump to latest" until a scroll re-render.
     initialOffset: () => {
       const saved = restoreRef.current;
-      const index = saved ? retainedPositionIndex(rows, saved) : -1;
-      const target =
-        !saved || saved.atLiveEdge || index < 0 ? rows.length : index;
+      const index = openingIndex(rows, saved);
+      const target = index < 0 ? rows.length : index;
       let offset = 0;
       for (let row = 0; row < target; row += 1) offset += estimateSize(row);
       return offset;
@@ -499,8 +506,8 @@ export function TranscriptViewport({
     if (openedRef.current || !scroller || rows.length === 0) return;
     openedRef.current = true;
     const saved = restoreRef.current;
-    const index = saved ? retainedPositionIndex(rows, saved) : -1;
-    if (!saved || saved.atLiveEdge || index < 0) {
+    const index = openingIndex(rows, saved);
+    if (!saved || index < 0) {
       restoreRef.current = undefined;
       virtualizer.scrollToEnd();
       return;
