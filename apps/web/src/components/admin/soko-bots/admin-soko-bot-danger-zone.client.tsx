@@ -20,7 +20,8 @@ import { ADMIN_SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 
 /**
  * Deleting another person's assistant is irreversible, so the operator has to
- * type the owner's email rather than click through a dialog.
+ * type the owner's email rather than click through a dialog. A shared bot has
+ * no owner, so its id is what the operator types.
  */
 export function AdminSokoBotDangerZone({
   sokoBotId,
@@ -29,13 +30,15 @@ export function AdminSokoBotDangerZone({
 }: {
   sokoBotId: string;
   botName: string | null;
-  ownerEmail: string;
+  /** Null for a project or workspace bot. */
+  ownerEmail: string | null;
 }) {
   const t = useTranslations("App.Admin.SokoBots.Detail.danger");
   const router = useRouter();
   const [confirmation, setConfirmation] = useState("");
   const [pending, startTransition] = useTransition();
-  const armed = confirmation.trim().toLowerCase() === ownerEmail.toLowerCase();
+  const expected = ownerEmail ?? sokoBotId;
+  const armed = confirmation.trim().toLowerCase() === expected.toLowerCase();
 
   function handleDelete() {
     startTransition(async () => {
@@ -69,7 +72,9 @@ export function AdminSokoBotDangerZone({
       <CardContent className="space-y-3">
         <div className="space-y-2">
           <Label htmlFor="admin-delete-confirmation">
-            {t("confirmLabel", { email: ownerEmail })}
+            {ownerEmail
+              ? t("confirmLabel", { email: ownerEmail })
+              : t("confirmLabelShared", { id: sokoBotId })}
           </Label>
           <Input
             id="admin-delete-confirmation"

@@ -1,6 +1,11 @@
 "use client";
 
 import {
+  type ChatResultPreview,
+  type ChatRoomMessageSender,
+  ChatRoomSokoBotScope,
+} from "@sokosumi/core-client";
+import {
   ArrowUpRight,
   CalendarClock,
   Clock,
@@ -17,7 +22,7 @@ import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { sendSokoBotTurnFeedbackAction } from "@/lib/actions/soko-bot/action";
-import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
 interface SokoBotMessageMetadata {
@@ -169,6 +174,25 @@ export function SokoBotFeedbackButtons({
   );
 }
 
+/** The id of a project or workspace bot that sent a message, else null. */
+export function sharedSokoBotId(sender: ChatRoomMessageSender): string | null {
+  // Explicit, so a missing scope (an older Core) reads as personal.
+  return sender.type === "sokoBot" &&
+    (sender.sokoBot.scope === ChatRoomSokoBotScope.PROJECT ||
+      sender.sokoBot.scope === ChatRoomSokoBotScope.WORKSPACE)
+    ? sender.sokoBot.id
+    : null;
+}
+
+/** Tasks a result preview already shows, so the footer skips them. */
+export function previewedTaskIds(results: ChatResultPreview[]): string[] {
+  return results.flatMap((result) =>
+    result.state === "available" && result.kind === "task" && result.task
+      ? [result.task.id]
+      : [],
+  );
+}
+
 /** True when `SokoBotMessageFooter` has approvals or Tasks to show. */
 export function hasSokoBotMessageFooter(metadata: unknown): boolean {
   const info = readSokoBotMetadata(metadata);
@@ -186,9 +210,12 @@ export function hasSokoBotMessageFooter(metadata: unknown): boolean {
 export function SokoBotMessageFooter({
   metadata,
   previewedTaskIds = [],
+  sharedBotId = null,
 }: {
   metadata: unknown;
   previewedTaskIds?: string[];
+  /** A shared bot's approvals live on its own console. */
+  sharedBotId?: string | null;
 }) {
   const t = useTranslations("App.Chat.SokoBot");
   const info = readSokoBotMetadata(metadata);
@@ -206,7 +233,7 @@ export function SokoBotMessageFooter({
     <div className="mt-2 flex flex-wrap gap-2">
       {pending > 0 ? (
         <Link
-          href={`${SOKO_BOT_ROUTE}?turn=${encodeURIComponent(info.turn_id)}`}
+          href={`${sokoBotConsoleRoute(sharedBotId)}?turn=${encodeURIComponent(info.turn_id)}`}
           className={`${chip} border-primary-tertiary text-foreground`}
         >
           <ShieldCheck aria-hidden className="text-primary size-3.5" />

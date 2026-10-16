@@ -2990,10 +2990,14 @@
           "overview": "Resumen",
           "design": "Diseño",
           "memory": "Memoria",
-          "ariaLabel": "Secciones del proyecto"
+          "ariaLabel": "Secciones del proyecto",
+          "bots": "Bots"
         },
         "design": {
           "document": "DESIGN.md"
+        },
+        "bots": {
+          "title": "Bots de este proyecto"
         }
       }
     },
@@ -4690,7 +4694,8 @@
             "delete": "Eliminar Soko Bot",
             "deleted": "Soko Bot eliminado.",
             "tombstoned": "Soko Bot eliminado. {tasks} tareas y {messages} mensajes de chat lo mantienen registrado.",
-            "error": "No se pudo eliminar este Soko Bot."
+            "error": "No se pudo eliminar este Soko Bot.",
+            "confirmLabelShared": "Este bot es compartido y no tiene propietario. Escribe su ID ({id}) para confirmar"
           },
           "chat": {
             "readOnly": "Solo lectura",
@@ -7727,7 +7732,12 @@
         "deleteConfirmDescription": "Esto no se puede deshacer. Su historial, memoria, programaciones y cuentas conectadas se borran. Las tareas que creó permanecen en tu tablero. Puedes crear un asistente nuevo enseguida.",
         "deleteConfirmLabel": "Escribe {name} para confirmar",
         "deleteError": "No se pudo eliminar tu Soko Bot.",
-        "deleted": "Soko Bot eliminado."
+        "deleted": "Soko Bot eliminado.",
+        "sharedArchiveDescription": "Detiene todos los turnos y programaciones para todos. Un propietario o administrador puede reactivarlo; el historial se conserva.",
+        "sharedArchiveConfirmTitle": "¿Archivar este bot compartido?",
+        "sharedArchiveConfirmDescription": "Se detiene para todos: los turnos en curso se cancelan y las programaciones se detienen. El historial se conserva.",
+        "sharedDeleteConfirmTitle": "¿Eliminar este bot compartido?",
+        "sharedDeleteConfirmDescription": "Esto no se puede deshacer. Su historial, memoria, programaciones y cuentas conectadas se borran para todos. Las tareas que creó se quedan donde están."
       },
       "Chat": {
         "defaultName": "Soko Bot",
@@ -8008,7 +8018,50 @@
       "chatWith": "Chatear con {name}",
       "yourAssistantTitle": "Tu asistente",
       "teamTitle": "Los asistentes de tu equipo",
-      "heroBody": "Cada persona tiene un asistente que trabaja su Taskboard con Coworkers, lee el correo y el calendario que conecta y la mantiene al día en el chat."
+      "heroBody": "Cada persona tiene un asistente que trabaja su Taskboard con Coworkers, lee el correo y el calendario que conecta y la mantiene al día en el chat.",
+      "Shared": {
+        "title": "Bots compartidos",
+        "count": "{count, plural, one {# bot} other {# bots}}",
+        "empty": "Aún no hay bots compartidos. Un bot compartido trabaja para un proyecto o para todo el espacio de trabajo, y todos hablan con él en una sala.",
+        "scopeWorkspace": "Trabaja para todo el espacio de trabajo",
+        "scopeProject": "Trabaja para un proyecto",
+        "scopeProjectNamed": "Trabaja para {project}",
+        "archived": "Archivado",
+        "fallbackName": "Asistente compartido",
+        "openBot": "Ajustes de {name}",
+        "Create": {
+          "trigger": "Nuevo Soko Bot",
+          "title": "Crear un Soko Bot",
+          "description": "Elige para quién trabaja. Todos los miembros comparten un bot de proyecto o de espacio de trabajo y pueden leer su historial de chat, su memoria y sus ajustes.",
+          "nameLabel": "Nombre",
+          "scopeLabel": "Trabaja para",
+          "scopes": {
+            "personal": {
+              "label": "Solo tú",
+              "hint": "Tu propio asistente. Nadie más puede gestionarlo."
+            },
+            "project": {
+              "label": "Un proyecto",
+              "hint": "Ve las Tasks públicas del proyecto. Todos hablan con él en su sala."
+            },
+            "workspace": {
+              "label": "Todo el espacio de trabajo",
+              "hint": "Ve todas las Tasks y todos los proyectos públicos. Todos hablan con él en su sala."
+            }
+          },
+          "projectLabel": "Proyecto",
+          "projectPlaceholder": "Elige un proyecto",
+          "cancel": "Cancelar",
+          "submit": "Crear",
+          "error": "No se pudo crear el Soko Bot.",
+          "created": "Soko Bot creado."
+        },
+        "Archived": {
+          "title": "{name} está archivado",
+          "description": "Un bot archivado ya no lee, no ejecuta sus programaciones ni responde en su sala. Su historial se conserva.",
+          "back": "Volver a Soko Bots"
+        }
+      }
     },
     "Calendar": {
       "Metadata": {

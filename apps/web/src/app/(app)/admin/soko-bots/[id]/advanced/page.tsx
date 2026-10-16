@@ -64,8 +64,7 @@ export default async function AdminSokoBotAdvancedPage({
         <AdminSokoBotDangerZone
           sokoBotId={bot.id}
           botName={bot.name ?? null}
-          // A shared bot has no owner; its id is what an admin types.
-          ownerEmail={bot.owner?.email ?? bot.id}
+          ownerEmail={bot.owner?.email ?? null}
         />
       </div>
     </div>

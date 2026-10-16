@@ -143,6 +143,8 @@ export interface ChatBot {
   id: string;
   /** Null for a project or workspace bot, which has no owner. */
   userId: string | null;
+  /** Core's answer to whether the viewer may archive, delete or reset it. */
+  viewerCanManage: boolean;
   name: string | null;
   avatarSeed: string | null;
   /** Picked mascot image; null → generative orb. */
@@ -294,6 +296,7 @@ function toChatBot(bot: SokoBot): ChatBot {
   return {
     id: bot.id,
     userId: bot.userId,
+    viewerCanManage: bot.viewerCanManage ?? false,
     name: bot.name,
     avatarSeed: bot.avatarSeed,
     avatarImageUrl: bot.avatarImageUrl ?? null,

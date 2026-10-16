@@ -29,6 +29,10 @@ import {
   useState,
 } from "react";
 import { DecisionCard } from "@/app/personal-assistant/components/chat/decision-card";
+import {
+  SokoBotTargetContext,
+  useSokoBotTargetId,
+} from "@/app/personal-assistant/components/soko-bot-target";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { SocialPostPreview } from "@/app/projects/components/social-posts/social-post-preview";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
@@ -41,6 +45,8 @@ import { Button } from "@/components/ui/button";
 import { FileChip } from "@/components/ui/file-chip";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import { useSession } from "@/lib/auth/auth.client";
+import { withBotIdParam } from "@/lib/soko-bot/bot-id-param";
+import { SOKO_BOT_ROUTE, sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { ProjectSelectionMessage } from "./project-selection-message";
@@ -59,6 +65,21 @@ const icons = {
   project_selection: FolderKanban,
 };
 
+/**
+ * Core points bot cards (such as a schedule) at the caller's own console. For
+ * a shared bot that is the wrong console, so send them to the bot's own.
+ */
+export function cardHref(sourceHref: string, botId?: string | null): string {
+  const rest = sourceHref.slice(SOKO_BOT_ROUTE.length);
+  if (
+    !botId ||
+    !sourceHref.startsWith(SOKO_BOT_ROUTE) ||
+    !/^([?#]|$)/.test(rest)
+  )
+    return sourceHref;
+  return `${sokoBotConsoleRoute(botId)}${rest}`;
+}
+
 /** Both chat timelines use the same recorded card and existing decision actions. */
 export function ResultPreviewCard({
   result,
@@ -70,6 +91,7 @@ export function ResultPreviewCard({
   onDecisionResolved: () => void;
 }) {
   const sourceLink = useRef<HTMLAnchorElement>(null);
+  const botId = useSokoBotTargetId();
   const t = useTranslations("Components.ChatResults");
   const format = useFormatter();
   const tTaskStatus = useTranslations("App.Tasks.Filters.statusOptions");
@@ -187,7 +209,7 @@ export function ResultPreviewCard({
     >
       <Link
         ref={sourceLink}
-        href={result.sourceHref}
+        href={cardHref(result.sourceHref, botId)}
         aria-label={t("openLabel", { title: result.title })}
         className="focus-visible:ring-ring absolute inset-0 rounded-lg outline-none focus-visible:ring-2"
         data-testid="result-preview-source"
@@ -390,21 +412,29 @@ export function ResultPreviewCard({
 
 interface ResultPreviewsProps {
   descriptors: ChatResultDescriptor[];
-  source: { roomId: string; messageId: string } | { turnId: string };
+  source:
+    | { roomId: string; messageId: string }
+    | { turnId: string; botId?: string };
   onDecisionResolved?: () => void;
   existingDecisionIds?: string[];
   renderFooter?: (results: ChatResultPreview[]) => ReactNode;
+  /** A shared bot's id, so its decision cards resolve on that bot. */
+  sokoBotId?: string | null;
 }
 export function ResultPreviews(props: ResultPreviewsProps) {
-  return props.descriptors.length ? (
-    <AuthorizedResultPreviews {...props} />
+  if (!props.descriptors.length) return props.renderFooter?.([]) ?? null;
+  const previews = <AuthorizedResultPreviews {...props} />;
+  return props.sokoBotId ? (
+    <SokoBotTargetContext.Provider value={props.sokoBotId}>
+      {previews}
+    </SokoBotTargetContext.Provider>
   ) : (
-    (props.renderFooter?.([]) ?? null)
+    previews
   );
 }
 function AuthorizedResultPreviews({
   descriptors,
-  source,
+  source: givenSource,
   onDecisionResolved,
   existingDecisionIds,
   renderFooter,
@@ -412,6 +442,10 @@ function AuthorizedResultPreviews({
   const t = useTranslations("Components.ChatResults");
   const { data: session } = useSession();
   const viewerId = session?.user.id;
+  // A shared bot's console reads, and continues, that bot's turns.
+  const botId = useSokoBotTargetId();
+  const source =
+    "turnId" in givenSource && botId ? { ...givenSource, botId } : givenSource;
   const query = useQuery({
     queryKey: [
       "chat-results",
@@ -425,7 +459,10 @@ function AuthorizedResultPreviews({
       if (!("turnId" in source))
         return loadRoomMessageResults(source.roomId, source.messageId);
       const response = await fetch(
-        `/api/personal-assistant/turns/${encodeURIComponent(source.turnId)}/results`,
+        withBotIdParam(
+          `/api/personal-assistant/turns/${encodeURIComponent(source.turnId)}/results`,
+          "botId" in source ? source.botId : null,
+        ),
         { signal, credentials: "same-origin", cache: "no-store" },
       );
       if (!response.ok) throw new Error("Results unavailable");

@@ -80,6 +80,7 @@ function state(overrides: Partial<SokoBotChatState> = {}): SokoBotChatState {
     bot: {
       id: "bot",
       userId: "user",
+      viewerCanManage: true,
       name: "Atlas",
       avatarSeed: null,
       avatarImageUrl: null,

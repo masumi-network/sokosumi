@@ -112,6 +112,28 @@ describe("useSokoBotState polling", () => {
     expect(countOf(fetchMock, "/state")).toBe(2);
   });
 
+  it("polls a shared bot's endpoints when given its id", async () => {
+    const botId = "8a7f2c1e-4b3d-4e5f-9a8b-1c2d3e4f5a6b";
+    const fetchMock = mockEndpoints({ activity: [IDLE] });
+    renderHook(() => useSokoBotState(emptyState(), botId));
+
+    await vi.advanceTimersByTimeAsync(100);
+
+    const urls = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(urls.length).toBeGreaterThanOrEqual(2);
+    for (const url of urls) expect(url).toContain(`?botId=${botId}`);
+  });
+
+  it("polls the caller's own bot without an id", async () => {
+    const fetchMock = mockEndpoints({ activity: [IDLE] });
+    renderHook(() => useSokoBotState(emptyState()));
+
+    await vi.advanceTimersByTimeAsync(100);
+
+    const urls = fetchMock.mock.calls.map(([url]) => String(url));
+    for (const url of urls) expect(url).not.toContain("botId");
+  });
+
   it("leaves the heavy state alone while nothing moves", async () => {
     const fetchMock = mockEndpoints({ activity: [IDLE] });
     renderHook(() => useSokoBotState(emptyState()));

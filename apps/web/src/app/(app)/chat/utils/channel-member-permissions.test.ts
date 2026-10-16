@@ -76,6 +76,16 @@ function room(overrides: Partial<ChatRoom> = {}): ChatRoom {
         scope: "personal",
         presence: "online",
       },
+      {
+        id: "bot-shared",
+        name: "Shared",
+        caption: "Workspace assistant",
+        image: null,
+        avatarSeed: null,
+        ownerUserId: null,
+        scope: "workspace",
+        presence: "online",
+      },
     ],
     ...overrides,
   };
@@ -185,7 +195,20 @@ describe("canRemoveChannelMember", () => {
     expect(canRemoveChannelMember(room(), human(ME), admin)).toBe(false);
   });
 
-  it("lets only its owner remove a Soko Bot", () => {
+  it("lets any host member remove a shared Soko Bot", () => {
+    expect(canRemoveChannelMember(room(), sokoBot("bot-shared"), member)).toBe(
+      true,
+    );
+    expect(
+      canRemoveChannelMember(
+        room({ myAccess: "guest" }),
+        sokoBot("bot-shared"),
+        admin,
+      ),
+    ).toBe(false);
+  });
+
+  it("lets only its owner remove a personal Soko Bot", () => {
     expect(canRemoveChannelMember(room(), sokoBot("bot-mine"), member)).toBe(
       true,
     );

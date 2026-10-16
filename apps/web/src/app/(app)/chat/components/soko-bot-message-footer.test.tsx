@@ -17,6 +17,7 @@ import {
   hasSokoBotMessageFooter,
   SokoBotFeedbackButtons,
   SokoBotMessageFooter,
+  sharedSokoBotId,
   sokoBotSourceLabel,
 } from "./soko-bot-message-footer";
 
@@ -130,5 +131,57 @@ describe("SokoBotMessageFooter task previews", () => {
       />,
     );
     expect(screen.queryByRole("link")).toBeNull();
+  });
+});
+
+describe("approvals from a shared bot", () => {
+  const pending = meta({ pending_decision_ids: ["d1"] });
+  const bot = (scope: "personal" | "project" | "workspace") => ({
+    type: "sokoBot" as const,
+    sokoBot: {
+      id: "bot-1",
+      name: "Ops",
+      caption: null,
+      image: null,
+      avatarSeed: null,
+      ownerUserId: scope === "personal" ? "user-1" : null,
+      scope,
+      presence: "online" as const,
+    },
+  });
+
+  it("names the sender only for a project or workspace bot", () => {
+    expect(sharedSokoBotId(bot("workspace"))).toBe("bot-1");
+    expect(sharedSokoBotId(bot("project"))).toBe("bot-1");
+    expect(sharedSokoBotId(bot("personal"))).toBeNull();
+    expect(sharedSokoBotId({ type: "unknown" })).toBeNull();
+  });
+
+  it("reads a sender without a scope, from an older Core, as personal", () => {
+    const { scope: _scope, ...withoutScope } = bot("workspace").sokoBot;
+    expect(
+      sharedSokoBotId({
+        type: "sokoBot",
+        sokoBot: withoutScope as typeof withoutScope & {
+          scope: "personal";
+        },
+      }),
+    ).toBeNull();
+  });
+
+  it("links a shared bot's approvals to its own console", () => {
+    render(<SokoBotMessageFooter metadata={pending} sharedBotId="bot-1" />);
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "/soko-bots/bot-1?turn=turn-1",
+    );
+  });
+
+  it("links the caller's own approvals to the assistant console", () => {
+    render(<SokoBotMessageFooter metadata={pending} />);
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "/personal-assistant?turn=turn-1",
+    );
   });
 });
