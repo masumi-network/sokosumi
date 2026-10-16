@@ -10,11 +10,11 @@ import {
 } from "@/app/ads/ads-query";
 import { campaignLoadFailure } from "@/app/ads/campaigns/campaign-load-failure";
 import { loadGoogleCampaignPage } from "@/app/ads/campaigns/google-campaign-page";
-import { loadGoogleSetup } from "@/app/ads/campaigns/google-setup";
 import { AdsCampaignBreadcrumb } from "@/app/ads/components/ads-campaign-breadcrumb";
 import { EditGoogleCampaignForm } from "@/app/ads/components/ads-campaign-form";
 import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
 import { googleFormValuesFromDetails } from "@/lib/ads/google-form-values";
+import { loadGoogleSetup } from "@/lib/ads/google-setup";
 import { adsService } from "@/lib/services/ads.service";
 import { cn } from "@/lib/utils";
 

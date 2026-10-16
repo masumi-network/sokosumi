@@ -1,6 +1,6 @@
-import { settleAdsLoad } from "@/app/ads/components/ads-load-error";
 import { toGoogleTargeting } from "@/lib/ads/targeting";
 import { adsService } from "@/lib/services/ads.service";
+import { settleAdsLoad } from "./ads-load-error";
 
 /**
  * What the Google form needs from Core before it shows: whether the project

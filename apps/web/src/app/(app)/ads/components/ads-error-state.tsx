@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
 
-import type { AdsLoadError } from "./ads-load-error";
+import type { AdsLoadError } from "@/lib/ads/ads-load-error";
 
 interface AdsErrorStateProps {
   kind: AdsLoadError;

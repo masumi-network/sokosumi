@@ -7,10 +7,9 @@ import { getTranslations } from "next-intl/server";
 import { Suspense, use } from "react";
 
 import { EmptyState } from "@/components/common/empty-state";
+import { type AdsLoad, settleAdsLoad } from "@/lib/ads/ads-load-error";
 import { adsService } from "@/lib/services/ads.service";
-
 import { AdsErrorState } from "./ads-error-state";
-import { type AdsLoad, settleAdsLoad } from "./ads-load-error";
 import { AdsMarketAdGrid } from "./ads-market-ad-grid";
 import { AdsMarketKeywordList } from "./ads-market-keyword-list";
 import { AdsMarketPoller } from "./ads-market-poller";

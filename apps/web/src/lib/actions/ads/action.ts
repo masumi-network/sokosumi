@@ -10,7 +10,6 @@ import {
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
-import { loadGoogleSetup } from "@/app/ads/campaigns/google-setup";
 import {
   type ActionResultDto,
   toActionResult,
@@ -26,6 +25,7 @@ import {
   googleDisplaySpecSchema,
 } from "@/lib/ads/google-display";
 import { googleSearchSpecSchema } from "@/lib/ads/google-search";
+import { loadGoogleSetup } from "@/lib/ads/google-setup";
 import { createMarketProfileSchema } from "@/lib/ads/market";
 import { GOOGLE_LOCATION_QUERY_MAX_LENGTH } from "@/lib/ads/targeting";
 import {
