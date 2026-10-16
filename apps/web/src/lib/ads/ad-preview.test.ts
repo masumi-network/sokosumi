@@ -112,6 +112,25 @@ describe("displayAdPreview", () => {
     expect(next.square).toBe("https://img/square.png");
   });
 
+  it("steps through extra logos", () => {
+    const images = [
+      { role: "LANDSCAPE" as const, url: "https://img/wide-1.png" },
+      { role: "SQUARE" as const, url: "https://img/square.png" },
+      { role: "LOGO" as const, url: "https://img/logo-1.png" },
+      { role: "LOGO" as const, url: "https://img/logo-2.png" },
+      { role: "LOGO" as const, url: "https://img/logo-3.png" },
+    ];
+    const values = {
+      ...DISPLAY,
+      displayHeadlines: ["Run more"],
+      displayDescriptions: ["Order today"],
+      images,
+    };
+
+    expect(displayAdPreview(values, 0).variants).toBe(3);
+    expect(displayAdPreview(values, 2).logo).toBe("https://img/logo-3.png");
+  });
+
   it("has no picture of a shape it was not given", () => {
     const bare = displayAdPreview({ ...DISPLAY, images: [] }, 0);
     expect(bare.landscape).toBeNull();

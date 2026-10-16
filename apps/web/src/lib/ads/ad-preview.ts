@@ -101,6 +101,7 @@ export function displayAdPreview(values: DisplayAdValues, variant: number) {
       previewVariants(values.displayHeadlines, values.displayDescriptions),
       countOf("LANDSCAPE"),
       countOf("SQUARE"),
+      countOf("LOGO"),
     ),
   };
 }
