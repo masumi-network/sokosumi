@@ -246,3 +246,73 @@ describe("authoritative retained history reconciliation", () => {
     cache.clear();
   });
 });
+
+describe("server-started room open", () => {
+  function opening() {
+    const cache = new RoomTranscriptCache(
+      new QueryClient(),
+      "reader",
+      "workspace",
+    );
+    const entry = cache.seed({
+      activeOrganization: null,
+      rooms: [],
+      organizationMembers: [],
+      currentUserId: "reader",
+      isOrgOwnerOrAdmin: false,
+      coworkers: [],
+      selectedRoomId: "room",
+      messageLoadFailed: false,
+      membersLoadFailed: false,
+      messages: [],
+      messagesNextCursor: null,
+      loadHistoryOnClient: true,
+    });
+    cache.client.setQueryData(cache.key("room"), entry);
+    return { cache, lifetime: entry.lifetime };
+  }
+  beforeEach(() => {
+    vi.mocked(fetchRoomMessages).mockReset();
+  });
+
+  it("resolves the first head read from the page's server read", async () => {
+    const { cache, lifetime } = opening();
+    cache.prime("room", Promise.resolve({ ...head, failed: false }));
+    await cache.refresh("room", lifetime, () => true);
+    expect(fetchRoomMessages).not.toHaveBeenCalled();
+    expect(cache.get("room")?.resolved).toBe(true);
+    expect(cache.get("room")?.transcript.messages).toEqual([message(90)]);
+
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    await cache.refresh("room", lifetime, () => true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads in the browser when the server read failed", async () => {
+    const { cache, lifetime } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.prime(
+      "room",
+      Promise.resolve({ messages: [], nextCursor: null, failed: true }),
+    );
+    await cache.refresh("room", lifetime, () => true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(1);
+    expect(cache.get("room")?.transcript.messages).toEqual([message(90)]);
+  });
+
+  it("drops a server read the transcript has moved past", async () => {
+    const { cache, lifetime } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.prime(
+      "room",
+      Promise.resolve({ messages: [], nextCursor: null, failed: false }),
+    );
+    cache.setTranscript("room", lifetime, (transcript) => ({
+      ...transcript,
+      messages: [message(90)],
+    }));
+    await cache.refresh("room", lifetime, () => true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(1);
+    expect(cache.get("room")?.transcript.messages).toEqual([message(90)]);
+  });
+});

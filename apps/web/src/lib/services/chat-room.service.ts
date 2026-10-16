@@ -436,6 +436,15 @@ export const chatRoomService = (() => {
     };
   });
 
+  /** Authorized results for each live message; missing messages are omitted. */
+  async function listMessageResults(roomId: string, messageIds: string[]) {
+    const response = await coreClient.getChatRoomMessageResultsBatch(
+      roomId,
+      messageIds,
+    );
+    return response.data;
+  }
+
   const listThreadMessages = cache(async function listThreadMessages(
     roomId: string,
     parentMessageId: string,
@@ -699,6 +708,7 @@ export const chatRoomService = (() => {
     listArchivedRooms,
     listDiscoverableChannels,
     listMessages,
+    listMessageResults,
     listPendingInvitations,
     listRoomGuestInviteLinks,
     listRoomInvitations,

@@ -1,5 +1,6 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import type { QueryClient } from "@tanstack/react-query";
+import type { RoomMessagePage } from "@/app/chat/components/room-messages-hydrator";
 import type { RoomsClientProps } from "@/app/chat/components/rooms-client";
 import type { TranscriptPosition } from "@/app/chat/components/transcript-viewport";
 import {
@@ -68,6 +69,11 @@ export class RoomTranscriptCache {
     return this.valid && !this.revoked.has(roomId);
   }
   private readonly reads = new Map<string, Promise<RoomMessagesPage | null>>();
+  // Server-started head reads, kept until the first head read takes them.
+  private readonly primed = new Map<
+    string,
+    { revision: number; page: Promise<RoomMessagesPage | null> }
+  >();
   // Positions follow the retained entry's lifetime without notifying data subscribers.
   private readonly positions = new WeakMap<object, TranscriptPosition>();
 
@@ -193,8 +199,25 @@ export class RoomTranscriptCache {
     this.revoked.delete(roomId);
   }
 
+  /** The room page's server-started head read stands in for the next browser one. */
+  prime(roomId: string, page: Promise<RoomMessagePage>) {
+    const entry = this.get(roomId);
+    if (!entry) return;
+    this.primed.set(roomId, {
+      revision: entry.revision,
+      page: page.then(
+        (result) =>
+          result.failed
+            ? null
+            : { messages: result.messages, nextCursor: result.nextCursor },
+        () => null,
+      ),
+    });
+  }
+
   evict(roomId: string) {
     this.revoked.add(roomId);
+    this.primed.delete(roomId);
     for (const key of this.reads.keys()) {
       if (JSON.parse(key)[0] === roomId) this.reads.delete(key);
     }
@@ -203,6 +226,7 @@ export class RoomTranscriptCache {
   clear() {
     this.valid = false;
     this.reads.clear();
+    this.primed.clear();
     this.client.removeQueries({ queryKey: this.prefix });
   }
 
@@ -210,23 +234,39 @@ export class RoomTranscriptCache {
     roomId: string,
     options?: { around?: string; cursor?: string; limit?: number },
   ) {
-    const key = JSON.stringify([roomId, options, this.get(roomId)?.revision]);
+    const revision = this.get(roomId)?.revision;
+    const key = JSON.stringify([roomId, options, revision]);
     const existing = this.reads.get(key);
     if (existing) return existing;
+    const primed = options ? undefined : this.primed.get(roomId);
+    if (primed) this.primed.delete(roomId);
+    // A primed page is only as new as the transcript it was started against;
+    // a failed one falls back to the browser read and its access handling.
+    const promise = (
+      primed && primed.revision === revision
+        ? primed.page.then((page) => page ?? this.fetch(roomId, options))
+        : this.fetch(roomId, options)
+    ).finally(() => {
+      if (this.reads.get(key) === promise) this.reads.delete(key);
+    });
+    this.reads.set(key, promise);
+    return promise;
+  }
+
+  private fetch(
+    roomId: string,
+    options?: { around?: string; cursor?: string; limit?: number },
+  ) {
     if (chatReadThrottleResumeInMs() > 0) return Promise.resolve(null);
     const lifetime = this.get(roomId)?.lifetime;
-    const promise = fetchRoomMessages(roomId, null, options, (status) => {
+    return fetchRoomMessages(roomId, null, options, (status) => {
       if (!lifetime || !this.current(roomId, lifetime)) return;
       if (status === 401) {
         window.dispatchEvent(new Event("chat-session-ended"));
       } else {
         notifyOrganizationChatRoomsChanged({ removedRoomId: roomId });
       }
-    }).finally(() => {
-      if (this.reads.get(key) === promise) this.reads.delete(key);
     });
-    this.reads.set(key, promise);
-    return promise;
   }
 
   /** Latest + visible dirty window; never downloads the rest of retained history. */

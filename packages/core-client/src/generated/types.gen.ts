@@ -3239,6 +3239,11 @@ export type ChatResultUnavailable = {
     state: 'unavailable';
 };
 
+export type ChatRoomMessageResults = {
+    messageId: string;
+    results: Array<ChatResultPreview>;
+};
+
 export type CreateChatRoomMessageRequest = {
     /**
      * Message body. May be empty only when `quote` is set: a quote can be the whole message.
@@ -23448,6 +23453,107 @@ export type GetChatRoomMessageResultsResponses = {
 };
 
 export type GetChatRoomMessageResultsResponse = GetChatRoomMessageResultsResponses[keyof GetChatRoomMessageResultsResponses];
+
+export type GetChatRoomMessageResultsBatchData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Comma-separated message ids, at most 50.
+         */
+        messageIds: string;
+    };
+    url: '/chats/rooms/{id}/message-results';
+};
+
+export type GetChatRoomMessageResultsBatchErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid message ids
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Read budget exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatRoomMessageResultsBatchError = GetChatRoomMessageResultsBatchErrors[keyof GetChatRoomMessageResultsBatchErrors];
+
+export type GetChatRoomMessageResultsBatchResponses = {
+    /**
+     * Authorized recorded results for each live message; missing or deleted messages are omitted
+     */
+    200: {
+        data: Array<ChatRoomMessageResults>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatRoomMessageResultsBatchResponse = GetChatRoomMessageResultsBatchResponses[keyof GetChatRoomMessageResultsBatchResponses];
 
 export type DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiData = {
     body?: never;
