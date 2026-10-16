@@ -32,7 +32,7 @@
 
 ## Decision and open payment contract
 
-[REPORTED: user decision, 2026-09-24] Hackathon Coworker registration and Cardano payment tests use Sokosumi Preprod and Cardano Preprod. The CLI keeps Core permissions and whitelist behavior unchanged. Current Core Coworker creation remains platform-admin-only; team provisioning is required before an ordinary Vendor admin can finish onboarding.
+[REPORTED: user decision, 2026-09-24] Hackathon Coworker registration and Cardano payment tests use Sokosumi Preprod and Cardano Preprod. The CLI keeps Core permissions and whitelist behavior unchanged. Current Core Coworker creation allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin).
 
 [REPORTED: user decision] A private workspace Coworker can be tested before public paid availability. Seller receipt is required for a Coworker seeking global paid availability. A platform admin reviews and approves the waitlist request. This does not change the existing whitelist control.
 
