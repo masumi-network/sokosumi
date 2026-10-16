@@ -105,6 +105,26 @@ function StepCheckHarness() {
   );
 }
 
+describe("AdsOptionalSection already refused", () => {
+  it("opens when it first appears already holding a refusal", () => {
+    function AlreadyRefused() {
+      const form = useForm();
+      return (
+        <FormProvider {...form}>
+          <AdsOptionalSection invalid summary={null} title="Extras">
+            <p>Inside</p>
+          </AdsOptionalSection>
+        </FormProvider>
+      );
+    }
+
+    render(<AlreadyRefused />);
+
+    expect(expanded()).toBe("true");
+    expect(screen.getByText("Inside")).toBeVisible();
+  });
+});
+
 describe("AdsOptionalSection step check", () => {
   it("opens again when Next still finds a refusal after the reader closed it", async () => {
     render(<StepCheckHarness />);

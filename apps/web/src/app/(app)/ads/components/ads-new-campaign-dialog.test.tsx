@@ -8,6 +8,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getGoogleCampaignSetup } from "@/lib/actions/ads/action";
 import messages from "../../../../../messages/en.json";
 
+const pushMock = vi.hoisted(() => vi.fn());
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
+
 vi.mock("@/lib/actions/ads/action", () => ({
   getGoogleCampaignSetup: vi.fn(),
 }));
@@ -90,6 +96,44 @@ function renderDialog(account: ProjectAdAccount) {
 describe("AdsNewCampaignDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("sends a lost session to sign-in instead of the connection failure", async () => {
+    const lost = new Error(
+      "An error occurred in the Server Components render.",
+    ) as Error & { digest: string };
+    lost.digest = "UNAUTHENTICATED";
+    setupMock.mockRejectedValue(lost);
+    renderDialog(GOOGLE);
+
+    await vi.waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith(
+        expect.stringContaining("/signin?returnUrl="),
+      );
+    });
+    expect(
+      screen.queryByText("Failed to load the campaign form"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Check your connection and try again."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("sends a returned unauthenticated result to sign-in", async () => {
+    setupMock.mockResolvedValue({
+      ok: false,
+      error: { code: "UNAUTHENTICATED" },
+    });
+    renderDialog(GOOGLE);
+
+    await vi.waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith(
+        expect.stringContaining("/signin?returnUrl="),
+      );
+    });
+    expect(
+      screen.queryByText("Check your connection and try again."),
+    ).not.toBeInTheDocument();
   });
 
   it("shows the wizard's shape while the Google setup loads, then the wizard", async () => {

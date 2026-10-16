@@ -336,6 +336,34 @@ describe("EditGoogleCampaignWizard", () => {
       expect(currentStep()).toHaveTextContent("Basics");
       expect(editMock).not.toHaveBeenCalled();
     });
+
+    it("opens a sitelink refusal when saving from Review lands on the Ad step", async () => {
+      const user = renderEdit({
+        ...SEARCH_VALUES,
+        sitelinks: [
+          {
+            text: "Shoes",
+            finalUrl: "",
+            description1: "",
+            description2: "",
+          },
+        ],
+      });
+
+      await saveFromReview(user);
+
+      const sitelinks = await screen.findByRole("button", {
+        name: /^Sitelinks/,
+      });
+      expect(sitelinks).toHaveAttribute("aria-expanded", "true");
+      expect(
+        screen.getByText(
+          "Enter a full address starting with http:// or https://.",
+        ),
+      ).toBeVisible();
+      expect(currentStep()).toHaveTextContent("Ad");
+      expect(editMock).not.toHaveBeenCalled();
+    });
   });
 
   describe("saving a Search campaign", () => {
