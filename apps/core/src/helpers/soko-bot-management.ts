@@ -1,7 +1,7 @@
-import type { SokoBotTurnSource } from "@sokosumi/database";
+import type { Prisma, SokoBotTurnSource } from "@sokosumi/database";
 import { forbidden } from "@/helpers/error";
 import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
-import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
+import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma, { type DbClient } from "@/lib/db/prisma";
 
 /** The bot columns a management check reads. A shared bot has no `userId`. */
@@ -31,6 +31,19 @@ export function isMemberAskedSokoBotTurn(turn: {
   chainDepth: number;
 }): boolean {
   return turn.source === "CHAT" && turn.chainDepth === 0;
+}
+
+/**
+ * The offers a member's chat turn may answer or withdraw. A shared bot's
+ * self-started offer belongs to no member: only an OWNER or ADMIN answers
+ * it, so a member's "yes" or "cancel that" never reaches it.
+ */
+export function memberAnswerableIntentWhere(bot: {
+  userId: string | null;
+}): Prisma.SokoBotIntentWhereInput {
+  return isSharedSokoBot(bot)
+    ? { originatingTurn: { source: "CHAT", chainDepth: 0 } }
+    : {};
 }
 
 async function organizationRoleInWorkspace(
@@ -67,6 +80,31 @@ export async function assertSokoBotManagement(
   if (role !== null && isOrganizationOwnerOrAdmin(role)) return;
   throw forbidden(
     `Only an organization owner or admin can ${SOKO_BOT_ADMIN_ACTIONS[action]} a shared Soko Bot`,
+  );
+}
+
+/**
+ * Replacing the account of a connected integration. A personal bot: its
+ * owner, whom resolving the bot already proved. A shared bot: the member who
+ * connected it, or an OWNER or ADMIN of the bot's Organization, read live.
+ * Connecting a new provider and disconnecting need only access.
+ */
+export async function assertSokoBotIntegrationReplace(
+  callerUserId: string,
+  bot: ManagedSokoBot,
+  connectorUserId: string | null,
+  client: DbClient = prisma,
+): Promise<void> {
+  if (isPersonalSokoBot(bot)) return;
+  if (connectorUserId === callerUserId) return;
+  const role = await organizationRoleInWorkspace(
+    callerUserId,
+    bot.workspaceId,
+    client,
+  );
+  if (role !== null && isOrganizationOwnerOrAdmin(role)) return;
+  throw forbidden(
+    "Only the member who connected this account, or an organization owner or admin, can replace it",
   );
 }
 

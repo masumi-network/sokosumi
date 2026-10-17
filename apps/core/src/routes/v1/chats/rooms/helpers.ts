@@ -27,6 +27,10 @@ import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import { isDirectKeyUniqueConstraintError } from "@/helpers/prisma";
+import {
+  sharedSokoBotRoomStateSelect,
+  writableAssistantRoomWhere,
+} from "@/helpers/shared-soko-bot-room";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
@@ -1183,7 +1187,7 @@ export function formerDirectUserIds(room: {
 /**
  * A Direct whose every other participant has left: nobody would read what is
  * added, so it keeps its history but takes no new messages, uploads or
- * Reactions (see {@link requireWritableChatRoom}).
+ * Reactions (see `requireWritableChatRoom`).
  */
 export function isReadOnlyDirectRoom(room: {
   kind: string;
@@ -1487,6 +1491,7 @@ export async function requireArchivedChatRoomUserAccess(
 // (sessions / presence) — that would pull hundreds of unused rows per message.
 const chatRoomWriteSelect = {
   id: true,
+  sharedSokoBot: sharedSokoBotRoomStateSelect,
   name: true,
   groupName: true,
   organizationId: true,
@@ -1563,24 +1568,6 @@ export async function requireChatRoomUserWriteAccess(
     tx,
   );
 
-  return room;
-}
-
-/**
- * Write access for adding to a room: a message, an upload, a Reaction. On top
- * of {@link requireChatRoomUserWriteAccess}, a Read-only Direct refuses them,
- * since nobody else is left to read them. Edits to one's own messages go
- * through the plain write access and stay allowed.
- */
-export async function requireWritableChatRoom(
-  roomId: string,
-  userId: string,
-  tx: Prisma.TransactionClient | typeof prisma,
-): Promise<ChatRoomForWrite> {
-  const room = await requireChatRoomUserWriteAccess(roomId, userId, tx);
-  if (isReadOnlyDirectRoom(room)) {
-    throw forbidden("Everyone else has left this Direct, so it is read-only.");
-  }
   return room;
 }
 
@@ -1685,10 +1672,7 @@ export async function requireRoomMemberCanInviteGuests(
   return room;
 }
 
-/**
- * Coworker membership for active (non-archived) rooms. Mirrors the inline gate
- * on coworker message POST. Returns 404 when missing or archived.
- */
+/** Coworker membership in a writable room; 404 when missing or read-only. */
 export async function requireChatRoomCoworkerAccess(
   roomId: string,
   coworkerId: string,
@@ -1702,7 +1686,7 @@ export async function requireChatRoomCoworkerAccess(
   const room = await tx.chatRoom.findFirst({
     where: {
       id: roomId,
-      archivedAt: null,
+      ...writableAssistantRoomWhere,
       coworkerMembers: {
         some: { coworkerId },
       },
@@ -1735,7 +1719,7 @@ export async function requireChatRoomSokoBotAccess(
   const room = await tx.chatRoom.findFirst({
     where: {
       id: roomId,
-      archivedAt: null,
+      ...writableAssistantRoomWhere,
       sokoBotMembers: {
         some: { sokoBotId: sokoBotId },
       },

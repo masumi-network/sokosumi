@@ -254,6 +254,47 @@ describe("committed effect outbox", () => {
       "AUDIENCE_CHANGED",
     );
   });
+  it("publishes into a shared bot's own room after members changed, without @all", async () => {
+    mocks.bot.mockResolvedValue(botRow({ userId: null, sharedRoomId: "room" }));
+    const current = message();
+    current.room.userMembers.push({ userId: "new-reader" });
+    mocks.message.mockResolvedValue(current);
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
+    expect(mocks.publish).toHaveBeenCalled();
+    expect(mocks.persistHumanMentions).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ expandAll: false }),
+    );
+  });
+  it("keeps the audience check for a shared bot in another room", async () => {
+    mocks.bot.mockResolvedValue(
+      botRow({ userId: null, sharedRoomId: "other-room" }),
+    );
+    const current = message();
+    current.room.userMembers.push({ userId: "new-reader" });
+    mocks.message.mockResolvedValue(current);
+    expect(await deliverSokoBotEffect("effect")).toBe(false);
+    expect(mocks.update.mock.calls.at(-1)?.[0].data.reason).toBe(
+      "AUDIENCE_CHANGED",
+    );
+  });
+  it("finds the message only in a room that still takes assistant posts", async () => {
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
+    expect(mocks.message.mock.calls[0]?.[0]?.where.room).toEqual({
+      archivedAt: null,
+      OR: [
+        { sharedSokoBot: { is: null } },
+        { sharedSokoBot: { is: { archivedAt: null, deletedAt: null } } },
+      ],
+    });
+  });
+  it("keeps @all for a personal bot's message", async () => {
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
+    expect(mocks.persistHumanMentions).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ expandAll: true }),
+    );
+  });
   it.each(["publish", "notify", "invalidate", "emitHumanMentions"] as const)(
     "retains obligation when %s fails and retries same message",
     async (key) => {

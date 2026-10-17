@@ -1,4 +1,8 @@
 import prisma from "@/lib/db/prisma";
+import {
+  type RhythmScopeBot,
+  rhythmTaskScope,
+} from "@/lib/soko-bot/rhythm-task-scope";
 
 export const TASK_ID_IN_TEXT =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
@@ -7,7 +11,10 @@ export interface MemoryTask {
   id: string;
   name: string;
   ownerName: string;
-  /** Neither owned by the bot's owner nor assigned to the bot. */
+  /**
+   * Neither owned by the bot's owner nor assigned to the bot. Never for a
+   * shared bot: every Task it can see is the team's.
+   */
   foreign: boolean;
   closed: boolean;
 }
@@ -20,7 +27,7 @@ export interface MemoryTask {
  */
 export async function memoryTasks(
   texts: readonly string[],
-  bot: { id: string; userId: string },
+  bot: RhythmScopeBot,
 ): Promise<Map<string, MemoryTask>> {
   const ids = [
     ...new Set(
@@ -30,8 +37,13 @@ export async function memoryTasks(
     ),
   ];
   if (ids.length === 0) return new Map();
+  // A shared bot only learns of Tasks it can see; a private one stays unknown.
+  const scope = rhythmTaskScope(bot);
   const tasks = await prisma.task.findMany({
-    where: { id: { in: ids } },
+    where: {
+      id: { in: ids },
+      ...(scope.ownerUserId === null ? scope.visible : {}),
+    },
     select: {
       id: true,
       name: true,
@@ -50,7 +62,9 @@ export async function memoryTasks(
         name: task.name ?? "Untitled task",
         ownerName: task.owner?.name?.trim() || "a teammate",
         foreign:
-          task.ownerId !== bot.userId && task.assigneeSokoBotId !== bot.id,
+          scope.ownerUserId !== null &&
+          task.ownerId !== scope.ownerUserId &&
+          task.assigneeSokoBotId !== bot.id,
         closed:
           task.archivedAt !== null ||
           task.status === "COMPLETED" ||

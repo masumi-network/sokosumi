@@ -22,21 +22,13 @@ import { describe, expect, it } from "vitest";
  * - raw SQL.
  * Those still need review.
  *
- * KNOWN lists the reads that exist today and belong to a later layer of the
- * shared bots stack. The count per file must match exactly: a new read fails,
- * and so does a fixed one until its entry is removed here.
+ * KNOWN lists reads a later layer of the shared bots stack still has to fix.
+ * The count per file must match exactly: a new read fails, and so does a
+ * fixed one until its entry is removed here. The last ones (notices, rhythms,
+ * board digests) moved to `turnDestinationRoom`, `resolveNoticeRoom` and
+ * `rhythmTaskScope`, so none is left.
  */
-const KNOWN: Record<string, number> = {
-  // Next layer (notices and delivery): the owner's direct room.
-  "services/soko-bot-chat.service.ts": 1,
-  // Next layer (rhythms): attention items, failed-Task chasing and the
-  // delegations it asked for, all for the owner.
-  "services/soko-bot-proactive.service.ts": 3,
-  // Next layer (rhythms): owner email and owner-visible Task search.
-  "services/soko-bot-rhythms.service.ts": 2,
-  // Next layer (rhythms): board digest Tasks visible to the owner.
-  "services/soko-bot-taskboard-sync.service.ts": 1,
-};
+const KNOWN: Record<string, number> = {};
 
 const RAW_OWNER_READ = /\b[\w$]*[bB]ot\??\.userId\b/g;
 const WHERE_OPEN = /\bwhere\s*:\s*\{/g;

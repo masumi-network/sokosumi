@@ -6,10 +6,8 @@ import {
 
 import { getComposio } from "@/clients/composio.client";
 import prisma from "@/lib/db/prisma";
-import {
-  catalogLogos,
-  requireBot,
-} from "@/services/soko-bot-integrations.service";
+import { requireBot } from "@/services/soko-bot-integration-connection.service";
+import { catalogLogos } from "@/services/soko-bot-integrations.service";
 
 const INTEGRATION_SELECT = {
   id: true,

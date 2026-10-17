@@ -128,6 +128,7 @@ describe("deleteSokoBot", () => {
     botFindFirstMock.mockResolvedValue({ id: BOT_ID });
     txBotFindFirstMock.mockResolvedValue({
       id: BOT_ID,
+      sharedRoomId: null,
     });
     failOpenMentionsMock.mockResolvedValue([]);
     publishMentionStatusesMock.mockResolvedValue(undefined);
@@ -160,6 +161,21 @@ describe("deleteSokoBot", () => {
     expect(data.avatarSeed).toBeNull();
     expect(data.memoryHash).toBeNull();
     expect(data.versionId).toBeNull();
+  });
+
+  it("tombstones a shared bot with a room, so the room stays a read-only archive", async () => {
+    txBotFindFirstMock.mockResolvedValue({
+      id: BOT_ID,
+      sharedRoomId: "01960001-0001-7001-8001-0000000000aa",
+    });
+
+    const result = await deleteSokoBot(BOT_ID);
+
+    expect(result.outcome).toBe("tombstoned");
+    expect(txBotDeleteMock).not.toHaveBeenCalled();
+    const data = txBotUpdateMock.mock.calls[0]?.[0]?.data;
+    expect(data.deletedAt).toBeInstanceOf(Date);
+    expect(data).not.toHaveProperty("sharedRoomId");
   });
 
   it("tombstones a bot that created a Task Schedule, whose creator FK restricts deletion", async () => {
@@ -336,7 +352,7 @@ describe("deleteSokoBotForUser", () => {
     }
     revokeIntegrationsMock.mockResolvedValue({ revoked: 0, failed: [] });
     txIntegrationsFindManyMock.mockResolvedValue([]);
-    txBotFindFirstMock.mockResolvedValue({ id: BOT_ID });
+    txBotFindFirstMock.mockResolvedValue({ id: BOT_ID, sharedRoomId: null });
     failOpenMentionsMock.mockResolvedValue([]);
     publishMentionStatusesMock.mockResolvedValue(undefined);
     txSokoBotMemberDeleteManyMock.mockResolvedValue({ count: 0 });

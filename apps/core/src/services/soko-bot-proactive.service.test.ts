@@ -59,7 +59,7 @@ describe("followUpsBlock", () => {
   const ARCHIVED = "01a0efbb-778c-7669-86b6-d50d81e74287";
   const OPEN = "01a0efbb-778c-7669-86b6-d50d81e74288";
   const KEANUS = "01a08162-3b3b-7099-825a-8a9b987034dc";
-  const owner = { id: "bot-1", userId: "andreas" };
+  const owner = { id: "bot-1", userId: "andreas", workspaceId: "ws-1" };
   const task = (id: string, extra: Record<string, unknown>) => ({
     id,
     name: "A task",
@@ -347,5 +347,30 @@ describe("findAttentionItems ownership", () => {
         where: expect.objectContaining({ ownerId: "andreas" }),
       }),
     );
+  });
+
+  it("chases every shared bot delegation inside its scope", async () => {
+    delegationFindManyMock.mockResolvedValue([{ taskId: "t1" }]);
+    taskFindManyMock.mockResolvedValue([]);
+    await findAttentionItems({
+      id: "bot-1",
+      userId: null,
+      projectId: "project-1",
+      workspaceId: "ws",
+      followWholeBoard: false,
+      now: new Date("2026-10-01T08:00:00Z"),
+    });
+    expect(delegationFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ turn: { sokoBotId: "bot-1" } }),
+      }),
+    );
+    const where = taskFindManyMock.mock.calls[0]?.[0].where;
+    expect(where).toMatchObject({
+      workspaceId: "ws",
+      visibility: "PUBLIC",
+      projectId: "project-1",
+    });
+    expect(where).not.toHaveProperty("ownerId");
   });
 });
