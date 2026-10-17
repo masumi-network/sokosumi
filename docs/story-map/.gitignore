@@ -1,0 +1,7 @@
+.cache/
+frames.json
+frames/
+.demo-session.json
+*.storage-state.json
+.env
+.env.*
