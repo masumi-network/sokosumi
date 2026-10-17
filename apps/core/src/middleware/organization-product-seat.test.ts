@@ -35,4 +35,31 @@ describe("resolveOrganizationProductSeatUser", () => {
       }),
     ).toBeNull();
   });
+
+  it("keeps the owner seat check for a personal Soko Bot", () => {
+    expect(
+      resolveOrganizationProductSeatUser({
+        actor: "sokoBot",
+        scope: "personal",
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        workspaceId: "ws-1",
+        organizationId: "org-1",
+      }),
+    ).toEqual({ organizationId: "org-1", userId: "user-1" });
+  });
+
+  it("skips a shared Soko Bot, which has no seat of its own", () => {
+    expect(
+      resolveOrganizationProductSeatUser({
+        actor: "sokoBot",
+        scope: "workspace",
+        sokoBotId: "bot-1",
+        userId: null,
+        workspaceId: "ws-1",
+        organizationId: "org-1",
+        projectId: null,
+      }),
+    ).toBeNull();
+  });
 });

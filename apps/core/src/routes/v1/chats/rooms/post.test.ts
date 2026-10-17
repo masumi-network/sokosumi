@@ -596,6 +596,42 @@ describe("POST /chats/rooms", () => {
     );
   });
 
+  it.each([
+    ["public", 201],
+    ["private", 400],
+  ] as const)(
+    "creates a %s channel with a shared Soko Bot: %s",
+    async (discoverability, status) => {
+      roomCreateMock.mockResolvedValue(channelRoom({ discoverability }));
+      sokoBotFindManyMock.mockResolvedValue([
+        {
+          id: SOKO_BOT_ID,
+          userId: null,
+          workspace: { organizationId: "org_1" },
+        },
+      ]);
+
+      const app = createApp(userAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "channel",
+          name: "Launch Room",
+          slug: "launch-room",
+          discoverability,
+          sokoBotIds: [SOKO_BOT_ID],
+        }),
+      });
+
+      expect(response.status).toBe(status);
+      if (status === 400) {
+        expect(await response.text()).toContain("only join a public channel");
+        expect(roomCreateMock).not.toHaveBeenCalled();
+      }
+    },
+  );
+
   it("creates external channel for owner", async () => {
     memberFindUniqueMock.mockResolvedValue({ role: "owner" });
     roomCreateMock.mockResolvedValue(
@@ -1932,6 +1968,37 @@ describe("POST /chats/rooms", () => {
       }),
     );
   });
+
+  it.each([
+    ["project", "project_1"],
+    ["workspace", null],
+  ] as const)(
+    "refuses a direct chat with a shared %s Soko Bot",
+    async (_scope, projectId) => {
+      sokoBotFindManyMock.mockResolvedValue([
+        {
+          id: SOKO_BOT_ID,
+          userId: null,
+          projectId,
+          name: "Team Bot",
+          workspace: { organizationId: "org_1" },
+        },
+      ]);
+      roomFindFirstMock.mockResolvedValueOnce(null);
+
+      const response = await createApp(userAuthContext).request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind: "direct", sokoBotIds: [SOKO_BOT_ID] }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toContain(
+        "A shared Soko Bot has no direct messages",
+      );
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects adding someone else's personal assistant with 403", async () => {
     sokoBotFindManyMock.mockResolvedValue([

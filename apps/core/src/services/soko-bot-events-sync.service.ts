@@ -59,7 +59,8 @@ interface Change {
 
 interface BotWork {
   sokoBotId: string;
-  userId: string;
+  /** Who the turn acts for; null when a shared bot acts on its own. */
+  userId: string | null;
   workspaceId: string;
   changes: Change[];
   /** Delegations whose baseline is set silently (first observation). */
@@ -488,6 +489,7 @@ export class SokoBotEventsSyncService {
       try {
         const started = await sokoBotControlPlane.startTurn({
           userId: work.userId,
+          sokoBotId: work.sokoBotId,
           workspaceId: work.workspaceId,
           clientTurnId: sokoBotEventClientTurnId(changes),
           message: buildEventMessage(changes),

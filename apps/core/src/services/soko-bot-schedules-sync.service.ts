@@ -8,7 +8,7 @@ import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
-import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   isRetryableSokoBotRuntimeError,
   SokoBotRuntimeUnavailableError,
@@ -502,7 +502,8 @@ export class SokoBotSchedulesSyncService {
           );
         }
         const started = await sokoBotControlPlane.startTurn({
-          userId: sokoBotActingUserId(schedule),
+          userId: sokoBotScheduleActingUserId(schedule),
+          sokoBotId: schedule.sokoBotId,
           workspaceId: schedule.workspaceId,
           clientTurnId: sokoBotScheduleClientTurnId(schedule.id, scheduledFor),
           message,

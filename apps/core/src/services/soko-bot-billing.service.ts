@@ -116,7 +116,8 @@ export async function sokoBotIdsOutOfCredits(
 }
 
 export async function requireSokoBotTurnFunding(
-  userId: string,
+  /** Null: a shared bot acting on its own, paid by the Organization pool. */
+  userId: string | null,
   sokoBotId: string,
 ): Promise<void> {
   const [completedTurns, shortfallTurn] = await Promise.all([
@@ -207,7 +208,8 @@ export async function recordSokoBotTurnUsage(
   input: {
     turnId: string;
     sokoBotId: string;
-    userId: string;
+    /** Null: a shared bot acting on its own, paid by the Organization pool. */
+    userId: string | null;
     costUsdMicros: bigint | null;
     /** The turn spent tokens; bills the minimum when no cost was reported. */
     ranModel?: boolean;

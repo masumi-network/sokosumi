@@ -63,6 +63,7 @@ function room(overrides: Partial<ChatRoom> = {}): ChatRoom {
         image: null,
         avatarSeed: null,
         ownerUserId: ME,
+        scope: "personal",
         presence: "online",
       },
       {
@@ -72,6 +73,7 @@ function room(overrides: Partial<ChatRoom> = {}): ChatRoom {
         image: null,
         avatarSeed: null,
         ownerUserId: "user-host",
+        scope: "personal",
         presence: "online",
       },
     ],

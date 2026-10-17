@@ -116,6 +116,15 @@ function turn(overrides = {}) {
     ...overrides,
   };
 }
+function botRow(overrides = {}) {
+  return {
+    id: "bot",
+    userId: "owner",
+    archivedAt: null,
+    workspace: { organizationId: "org" },
+    ...overrides,
+  };
+}
 function delivery(overrides = {}) {
   return {
     id: "delivery",
@@ -142,7 +151,7 @@ beforeEach(() => {
   mocks.find.mockResolvedValue(delivery());
   mocks.findOwned.mockResolvedValue(delivery());
   mocks.turn.mockResolvedValue(turn());
-  mocks.bot.mockResolvedValue({ id: "bot" });
+  mocks.bot.mockResolvedValue(botRow());
   mocks.workspace.mockResolvedValue({ id: "workspace" });
   mocks.room.mockResolvedValue({
     id: "room",
@@ -503,6 +512,47 @@ describe("durable delivery", () => {
         data: expect.objectContaining({ status: "SUPPRESSED" }),
       }),
     );
+  });
+
+  it("asks for the turn's bot as the turn's member, in the turn's workspace", async () => {
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.bot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "bot",
+          workspaceId: "workspace",
+          deletedAt: null,
+          workspace: {
+            id: "workspace",
+            OR: [
+              { userId: "owner" },
+              { organization: { members: { some: { userId: "owner" } } } },
+            ],
+          },
+        },
+      }),
+    );
+  });
+
+  it("delivers a shared bot's turn to the member who asked", async () => {
+    mocks.bot.mockResolvedValue(botRow({ userId: null }));
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.publish).toHaveBeenCalled();
+  });
+
+  it.each([
+    ["another user's personal bot", botRow({ userId: "someone-else" })],
+    ["an archived bot", botRow({ archivedAt: new Date() })],
+    [
+      "a shared bot outside an Organization workspace",
+      botRow({ userId: null, workspace: { organizationId: null } }),
+    ],
+    ["a bot the member no longer reaches", null],
+  ])("suppresses delivery for %s", async (_label, bot) => {
+    mocks.bot.mockResolvedValue(bot);
+    expect(await deliverSokoBotDelivery("delivery")).toBe(false);
+    expect(mocks.message).not.toHaveBeenCalled();
+    expect(mocks.publish).not.toHaveBeenCalled();
   });
 
   it("revoked workspace membership suppresses even with the chat roster intact", async () => {
