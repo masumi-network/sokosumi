@@ -3,6 +3,7 @@ import "server-only";
 import type {
   CreateTaskContext,
   GetWorkspacesCalendarData,
+  GetWorkspacesCalendarSourcesData,
   Task,
   TaskActivitySummary,
   TaskEvent,
@@ -168,10 +169,10 @@ export const taskService = (() => {
     };
   }
 
-  async function getWorkspaceCalendarSources(): Promise<
-    WorkspaceCalendarSource[]
-  > {
-    const result = await coreClient.getWorkspaceCalendarSources();
+  async function getWorkspaceCalendarSources(
+    query?: GetWorkspacesCalendarSourcesData["query"],
+  ): Promise<WorkspaceCalendarSource[]> {
+    const result = await coreClient.getWorkspaceCalendarSources(query);
     return result.data;
   }
 

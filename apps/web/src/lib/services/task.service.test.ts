@@ -198,6 +198,27 @@ describe("task.service", () => {
     expect(coreClientMock.getWorkspaceCalendarSources).toHaveBeenCalledOnce();
   });
 
+  it("requests scoped Social horizon metadata with calendar sources", async () => {
+    const sources = [
+      {
+        sourceId: "project:project-1",
+        latestScheduledSocialPostAt: new Date("2027-02-15T12:00:00Z"),
+      },
+    ];
+    coreClientMock.getWorkspaceCalendarSources.mockResolvedValue({
+      data: sources,
+    });
+    const { taskService } = await import("./task.service");
+    const query = { includeSocialPosts: "true", scope: "owned" } as const;
+
+    await expect(
+      taskService.getWorkspaceCalendarSources(query),
+    ).resolves.toEqual(sources);
+    expect(coreClientMock.getWorkspaceCalendarSources).toHaveBeenCalledWith(
+      query,
+    );
+  });
+
   it("loads one bounded calendar page", async () => {
     coreClientMock.getWorkspaceCalendar.mockResolvedValueOnce({
       data: [
