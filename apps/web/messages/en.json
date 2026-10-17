@@ -3021,10 +3021,14 @@
           "overview": "Overview",
           "design": "Design",
           "memory": "Memory",
-          "ariaLabel": "Project sections"
+          "ariaLabel": "Project sections",
+          "bots": "Bots"
         },
         "design": {
           "document": "DESIGN.md"
+        },
+        "bots": {
+          "title": "Bots for this project"
         }
       }
     },
@@ -4818,7 +4822,8 @@
             "delete": "Delete Soko Bot",
             "deleted": "Soko Bot deleted.",
             "tombstoned": "Soko Bot deleted. {tasks} tasks and {messages} chat messages keep it on record.",
-            "error": "Could not delete this Soko Bot."
+            "error": "Could not delete this Soko Bot.",
+            "confirmLabelShared": "This bot is shared and has no owner. Type its ID ({id}) to confirm"
           },
           "chat": {
             "readOnly": "Read-only",
@@ -7821,7 +7826,12 @@
         "deleteConfirmDescription": "This cannot be undone. Its history, memory, schedules and connected accounts are erased. Tasks it created stay on your board. You can create a new assistant straight away.",
         "deleteConfirmLabel": "Type {name} to confirm",
         "deleteError": "Could not delete your Soko Bot.",
-        "deleted": "Soko Bot deleted."
+        "deleted": "Soko Bot deleted.",
+        "sharedArchiveDescription": "Stops all turns and schedules for everyone. An owner or admin can reactivate it; history is kept.",
+        "sharedArchiveConfirmTitle": "Archive this shared bot?",
+        "sharedArchiveConfirmDescription": "It stops for everyone: running turns are cancelled and schedules stop. Its history is kept.",
+        "sharedDeleteConfirmTitle": "Delete this shared bot?",
+        "sharedDeleteConfirmDescription": "This cannot be undone. Its history, memory, schedules and connected accounts are erased for everyone. Tasks it created stay where they are."
       },
       "Chat": {
         "defaultName": "Soko Bot",
@@ -8102,7 +8112,53 @@
       "chatWith": "Chat with {name}",
       "yourAssistantTitle": "Your assistant",
       "teamTitle": "Your team's assistants",
-      "heroBody": "Everyone gets an assistant that works their Taskboard with Coworkers, reads the mail and calendar they connect, and keeps them posted in chat."
+      "heroBody": "Everyone gets an assistant that works their Taskboard with Coworkers, reads the mail and calendar they connect, and keeps them posted in chat.",
+      "Shared": {
+        "title": "Shared bots",
+        "count": "{count, plural, one {# bot} other {# bots}}",
+        "empty": "No shared bots yet. A shared bot works for one project or the whole workspace, and everyone talks to it in one room.",
+        "scopeWorkspace": "Works for the whole workspace",
+        "scopeProject": "Works for a project",
+        "scopeProjectNamed": "Works for {project}",
+        "archived": "Archived",
+        "fallbackName": "Shared assistant",
+        "openBot": "Settings for {name}",
+        "Create": {
+          "trigger": "New Soko Bot",
+          "title": "Create a Soko Bot",
+          "description": "Choose who it works for. Every member shares a project or workspace bot and can read its chat history, memory and settings.",
+          "nameLabel": "Name",
+          "scopeLabel": "Works for",
+          "scopes": {
+            "personal": {
+              "label": "Only you",
+              "hint": "Your own assistant. Nobody else can manage it."
+            },
+            "project": {
+              "label": "One project",
+              "hint": "Sees the project's public Tasks. Everyone talks to it in its room."
+            },
+            "workspace": {
+              "label": "The whole workspace",
+              "hint": "Sees every public Task and Project. Everyone talks to it in its room."
+            }
+          },
+          "projectLabel": "Project",
+          "projectPlaceholder": "Choose a project",
+          "cancel": "Cancel",
+          "submit": "Create",
+          "error": "Could not create the Soko Bot.",
+          "created": "Soko Bot created."
+        },
+        "Archived": {
+          "title": "{name} is archived",
+          "description": "An archived bot no longer reads, runs its schedules or answers in its room. Its history stays.",
+          "back": "Back to Soko Bots",
+          "reactivate": "Reactivate",
+          "reactivated": "Soko Bot reactivated.",
+          "reactivateError": "Could not reactivate the Soko Bot."
+        }
+      }
     },
     "Calendar": {
       "Metadata": {
