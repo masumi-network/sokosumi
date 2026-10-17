@@ -105,7 +105,7 @@ export async function FleetHealthSummary({ items }: FleetHealthSummaryProps) {
                     {item.name ?? t("unnamed")}
                   </span>
                   <span className="text-muted-foreground text-xs">
-                    {item.owner.email}
+                    {item.owner?.email}
                   </span>
                   <span className="text-semantic-destructive ms-auto text-xs">
                     {reasons

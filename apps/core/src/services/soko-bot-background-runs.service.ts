@@ -194,6 +194,9 @@ export async function stopBackgroundRun(
   const { sokoBotControlPlane } = await import(
     "@/services/soko-bot-control-plane.service"
   );
-  await sokoBotControlPlane.cancelTurn(authorized.turn.actingUserId, run.id);
+  await sokoBotControlPlane.cancelTurn(
+    authorized.turn.actingUserId ?? { sokoBotId: authorized.turn.sokoBotId },
+    run.id,
+  );
   return { runId: run.id, stopped: true, previousStatus: run.status };
 }

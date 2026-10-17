@@ -203,7 +203,7 @@ export const chatRoomSchema = z
     }),
     isReadOnly: z.boolean().openapi({
       description:
-        "Whether this Direct takes no new messages, uploads or Reactions because every other participant has left it (for example through Organization exit). Its history stays readable, and members can still edit or delete their own messages. Always false for Channels.",
+        "Whether this room takes no new messages, uploads or Reactions: a Direct whose every other participant has left it (for example through Organization exit), or the Channel of an archived or deleted shared Soko Bot. Its history stays readable, and members can still edit or delete their own messages. False for every other Channel.",
       example: false,
     }),
     groupName: z.string().nullable().openapi({

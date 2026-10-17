@@ -47,9 +47,9 @@ export async function AdminSokoBotHeader({
             ) : null}
           </div>
           <p className="text-muted-foreground truncate text-sm">
-            {bot.owner.name
+            {bot.owner?.name
               ? `${bot.owner.name} · ${bot.owner.email}`
-              : bot.owner.email}
+              : bot.owner?.email}
           </p>
         </div>
         <AdminSokoBotActions

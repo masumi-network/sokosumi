@@ -18,6 +18,8 @@ export const SOKO_BOT_ADMIN_ACTIONS = {
   archive: "archive",
   delete: "delete",
   resetMemory: "reset the memory of",
+  reactivate: "reactivate",
+  manageApiKeys: "manage the API keys of",
 } as const;
 
 export type SokoBotAdminAction = keyof typeof SOKO_BOT_ADMIN_ACTIONS;
@@ -46,7 +48,7 @@ export function memberAnswerableIntentWhere(bot: {
     : {};
 }
 
-async function organizationRoleInWorkspace(
+export async function organizationRoleInWorkspace(
   userId: string,
   workspaceId: string,
   client: DbClient,
@@ -59,25 +61,35 @@ async function organizationRoleInWorkspace(
 }
 
 /**
- * Archive, delete and memory reset. A personal bot: its owner, as today. A
- * shared bot: an OWNER or ADMIN of the bot's Organization, read live.
+ * Whether the viewer may take the {@link SOKO_BOT_ADMIN_ACTIONS}. A personal
+ * bot: its owner, with no query. A shared bot: an OWNER or ADMIN of the bot's
+ * Organization, read live.
  */
+export async function canManageSokoBot(
+  viewerUserId: string,
+  bot: ManagedSokoBot,
+  client: DbClient = prisma,
+): Promise<boolean> {
+  if (isPersonalSokoBot(bot)) return bot.userId === viewerUserId;
+  const role = await organizationRoleInWorkspace(
+    viewerUserId,
+    bot.workspaceId,
+    client,
+  );
+  return role !== null && isOrganizationOwnerOrAdmin(role);
+}
+
+/** {@link canManageSokoBot}, or HTTP 403. */
 export async function assertSokoBotManagement(
   viewerUserId: string,
   bot: ManagedSokoBot,
   action: SokoBotAdminAction,
   client: DbClient = prisma,
 ): Promise<void> {
+  if (await canManageSokoBot(viewerUserId, bot, client)) return;
   if (isPersonalSokoBot(bot)) {
-    if (bot.userId === viewerUserId) return;
     throw forbidden("Only the owner can manage this Soko Bot");
   }
-  const role = await organizationRoleInWorkspace(
-    viewerUserId,
-    bot.workspaceId,
-    client,
-  );
-  if (role !== null && isOrganizationOwnerOrAdmin(role)) return;
   throw forbidden(
     `Only an organization owner or admin can ${SOKO_BOT_ADMIN_ACTIONS[action]} a shared Soko Bot`,
   );

@@ -1,8 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
-import { notFound } from "@/helpers/error";
+import type { Prisma } from "@sokosumi/database";
+import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import { created, ok } from "@/helpers/response";
+import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
+import { organizationRoleInWorkspace } from "@/helpers/soko-bot-management";
 import {
   generateSokoBotApiKeyToken,
   hashApiKey,
@@ -36,6 +39,41 @@ const keyParamsSchema = botParamsSchema.extend({
     example: "agentkey_123",
   }),
 });
+
+const liveBot = { archivedAt: null, deletedAt: null } as const;
+
+/**
+ * The bot whose keys the caller manages. A personal bot: its owner, as
+ * before. A shared bot: an OWNER or ADMIN of its Organization, read
+ * live; a plain member gets 403, anyone else a 404.
+ */
+async function requireKeyManagedSokoBot(
+  userId: string,
+  sokoBotId: string,
+  client: Prisma.TransactionClient | typeof prisma = prisma,
+): Promise<{ id: string }> {
+  const bot = await client.sokoBot.findFirst({
+    where: { id: sokoBotId, ...liveBot },
+    select: { id: true, userId: true, workspaceId: true },
+  });
+  if (!bot) throw notFound("Soko Bot not found");
+  if (isPersonalSokoBot(bot)) {
+    if (bot.userId === userId) return bot;
+    throw notFound("Soko Bot not found");
+  }
+  const role = await organizationRoleInWorkspace(
+    userId,
+    bot.workspaceId,
+    client,
+  );
+  if (role === null) throw notFound("Soko Bot not found");
+  if (!isOrganizationOwnerOrAdmin(role)) {
+    throw forbidden(
+      "Only an organization owner or admin can manage the API keys of a shared Soko Bot",
+    );
+  }
+  return bot;
+}
 
 const apiKeySelect = {
   id: true,
@@ -124,28 +162,9 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
   app.openapi(listRoute, async (c) => {
     const auth = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
-    const bot = await prisma.sokoBot.findFirst({
-      where: {
-        id,
-        userId: auth.userId,
-        archivedAt: null,
-        deletedAt: null,
-      },
-      select: { id: true },
-    });
-    if (!bot) {
-      throw notFound("Soko Bot not found");
-    }
-
+    await requireKeyManagedSokoBot(auth.userId, id);
     const keys = await prisma.coworkerApiKey.findMany({
-      where: {
-        sokoBotId: id,
-        sokoBot: {
-          userId: auth.userId,
-          archivedAt: null,
-          deletedAt: null,
-        },
-      },
+      where: { sokoBotId: id, sokoBot: liveBot },
       select: apiKeySelect,
       orderBy: { createdAt: "desc" },
     });
@@ -161,19 +180,7 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
     const keyStart = token.slice(0, SOKO_BOT_API_KEY_START_LENGTH);
 
     const apiKey = await prisma.$transaction(async (tx) => {
-      const bot = await tx.sokoBot.findFirst({
-        where: {
-          id,
-          userId: auth.userId,
-          archivedAt: null,
-          deletedAt: null,
-        },
-        select: { id: true },
-      });
-      if (!bot) {
-        throw notFound("Soko Bot not found");
-      }
-
+      await requireKeyManagedSokoBot(auth.userId, id, tx);
       return await tx.coworkerApiKey.create({
         data: {
           coworkerId: null,
@@ -199,16 +206,9 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
     const { id, keyId } = c.req.valid("param");
     const body = c.req.valid("json");
     const apiKey = await prisma.$transaction(async (tx) => {
+      await requireKeyManagedSokoBot(auth.userId, id, tx);
       const updated = await tx.coworkerApiKey.updateMany({
-        where: {
-          id: keyId,
-          sokoBotId: id,
-          sokoBot: {
-            userId: auth.userId,
-            archivedAt: null,
-            deletedAt: null,
-          },
-        },
+        where: { id: keyId, sokoBotId: id, sokoBot: liveBot },
         data: {
           name: body.name,
           expiresAt:
@@ -238,30 +238,14 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
     const auth = requireInteractiveUserAuthContext(c.var.authContext);
     const { id, keyId } = c.req.valid("param");
     const apiKey = await prisma.$transaction(async (tx) => {
+      await requireKeyManagedSokoBot(auth.userId, id, tx);
       const revokedAt = new Date();
       await tx.coworkerApiKey.updateMany({
-        where: {
-          id: keyId,
-          sokoBotId: id,
-          revokedAt: null,
-          sokoBot: {
-            userId: auth.userId,
-            archivedAt: null,
-            deletedAt: null,
-          },
-        },
+        where: { id: keyId, sokoBotId: id, revokedAt: null, sokoBot: liveBot },
         data: { revokedAt },
       });
       return await tx.coworkerApiKey.findFirst({
-        where: {
-          id: keyId,
-          sokoBotId: id,
-          sokoBot: {
-            userId: auth.userId,
-            archivedAt: null,
-            deletedAt: null,
-          },
-        },
+        where: { id: keyId, sokoBotId: id, sokoBot: liveBot },
         select: apiKeySelect,
       });
     });

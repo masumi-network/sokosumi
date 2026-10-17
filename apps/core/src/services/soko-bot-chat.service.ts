@@ -89,7 +89,7 @@ async function publishRealtime(
  */
 function thoughtSteps(turn: {
   requestedByUserId: string | null;
-  sokoBot: { userId: string };
+  sokoBot: { userId: string | null };
   askedByUserId: string | null;
   events: { type: string; toolName: string | null; summary: string | null }[];
 }): string[] {

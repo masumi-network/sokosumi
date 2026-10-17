@@ -33,6 +33,7 @@ import {
   SokoBotRuntimeConflictError,
   SokoBotRuntimeValidationError,
 } from "@/services/soko-bot-runtime.service";
+import type { getSokoBotState } from "@/services/soko-bot-state.service";
 
 export const sokoBotPaginationQuerySchema = cursorPaginationQuerySchema.extend({
   cursor: z.string().uuid().optional(),
@@ -92,9 +93,7 @@ export async function sokoBotRouteGate(
   await next();
 }
 
-export function mapBot(
-  bot: Awaited<ReturnType<typeof sokoBotControlPlane.getForUser>>,
-) {
+export function mapBot(bot: Awaited<ReturnType<typeof getSokoBotState>>) {
   if (!bot) return null;
   return {
     ...bot,
