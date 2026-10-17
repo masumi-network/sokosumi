@@ -6,7 +6,7 @@ import type {
   TaskAssigneeUser,
 } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-import { defaultOrbSeed } from "@/lib/aurora-orb";
+import { defaultSokoBotOrbSeed } from "@/lib/soko-bot-orb-seed";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
@@ -185,7 +185,7 @@ export function getTaskAssigneeOption(
       avatarSeed: claimed
         ? null
         : (assignee.sokoBot.avatarSeed ??
-          defaultOrbSeed(assignee.sokoBot.owner?.id ?? assignee.sokoBot.id)),
+          defaultSokoBotOrbSeed(assignee.sokoBot)),
       vendor: sokoBotsVendor(copy.vendorName),
     };
   }

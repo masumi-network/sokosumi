@@ -49,9 +49,10 @@ export function canLeaveChannel(room: ChannelRoom): boolean {
 }
 
 /**
- * Remove from a Channel: guests and Coworkers by any host member, a host
- * member only by an organization owner or admin, and a Soko Bot only by its
- * owner. Never yourself; you leave instead.
+ * Remove from a Channel: guests, Coworkers and shared (project or workspace)
+ * Soko Bots by any host member, a host member only by an organization owner
+ * or admin, and a personal Soko Bot only by its owner. Never yourself; you
+ * leave instead. Core still refuses to take a shared bot out of its own room.
  */
 export function canRemoveChannelMember(
   room: ChannelRoom,
@@ -68,7 +69,8 @@ export function canRemoveChannelMember(
     return room.sokoBotMembers.some(
       (sokoBot) =>
         sokoBot.id === participant.id &&
-        sokoBot.ownerUserId === viewer.currentUserId,
+        (sokoBot.ownerUserId === null ||
+          sokoBot.ownerUserId === viewer.currentUserId),
     );
   }
   if (participant.id === viewer.currentUserId) {

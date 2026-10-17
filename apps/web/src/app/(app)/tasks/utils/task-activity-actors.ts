@@ -4,7 +4,7 @@ import {
   TaskEventStatus,
 } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-import { defaultOrbSeed } from "@/lib/aurora-orb";
+import { defaultSokoBotOrbSeed } from "@/lib/soko-bot-orb-seed";
 
 import { getCoworkerImage } from "./coworker-image";
 
@@ -262,7 +262,7 @@ function sokoBotActorInfo(sokoBot: SokoBotActorSummary): TaskActivityActorInfo {
     // here than the one the owner sees everywhere else.
     avatarSeed: sokoBot.avatarImageUrl
       ? null
-      : (sokoBot.avatarSeed ?? defaultOrbSeed(sokoBot.owner?.id ?? sokoBot.id)),
+      : (sokoBot.avatarSeed ?? defaultSokoBotOrbSeed(sokoBot)),
     ownerName: sokoBot.owner?.name,
   };
 }

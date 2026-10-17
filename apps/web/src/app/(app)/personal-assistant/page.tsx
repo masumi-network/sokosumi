@@ -124,6 +124,9 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
       userImageUrl={session.user.image ?? null}
       focusTurnId={focusTurnId}
       paidByOrganization={paidByOrganization}
+      botId={null}
+      canManage={state.bot.viewerCanManage}
+      sharedRoomId={null}
       adminHref={
         isAdmin
           ? `${ADMIN_SOKO_BOTS_ROUTE}/${encodeURIComponent(state.bot.id)}`

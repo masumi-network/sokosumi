@@ -75,7 +75,7 @@ describe("getHistoryItemHref", () => {
     expect(getHistoryItemHref(unattributed)).toBeNull();
   });
 
-  it("opens the owner's assistant page for a Soko Bot row", () => {
+  it("opens the console of the bot that spent, by id", () => {
     const sokoBot: TransactionHistoryItem = {
       ...base,
       kind: "sokoBot",
@@ -85,7 +85,10 @@ describe("getHistoryItemHref", () => {
       projectId: null,
       sokoBotId: "01960001-0001-7001-8001-000000000099",
     };
-    expect(getHistoryItemHref(sokoBot)).toBe("/personal-assistant");
+    // The by-id page sends the viewer's own personal bot to /personal-assistant.
+    expect(getHistoryItemHref(sokoBot)).toBe(
+      "/soko-bots/01960001-0001-7001-8001-000000000099",
+    );
   });
 
   it("lives in a server-safe module (SOK-990 / SOKOSUMI-RW)", () => {

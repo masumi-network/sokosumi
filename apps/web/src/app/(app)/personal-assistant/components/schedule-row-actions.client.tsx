@@ -22,6 +22,7 @@ import {
   deleteSokoBotScheduleAction,
   updateSokoBotScheduleAction,
 } from "@/lib/actions/soko-bot/action";
+import { useSokoBotTargetId } from "./soko-bot-target";
 
 interface ScheduleRowActionsProps {
   scheduleId: string;
@@ -37,11 +38,13 @@ export function ScheduleRowActions({
 }: ScheduleRowActionsProps) {
   const t = useTranslations("App.SokoBot.Schedules");
   const router = useRouter();
+  const botId = useSokoBotTargetId();
   const [isPending, startTransition] = useTransition();
 
   function toggle(next: boolean) {
     startTransition(async () => {
       const result = await updateSokoBotScheduleAction({
+        botId,
         input: { scheduleId, patch: { enabled: next } },
       });
       if (!result.ok) {
@@ -54,7 +57,10 @@ export function ScheduleRowActions({
 
   function remove() {
     startTransition(async () => {
-      const result = await deleteSokoBotScheduleAction({ scheduleId });
+      const result = await deleteSokoBotScheduleAction({
+        scheduleId,
+        botId,
+      });
       if (!result.ok) {
         toast.error(result.error.message ?? t("deleteError"));
         return;

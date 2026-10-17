@@ -157,9 +157,11 @@ import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import {
   hasSokoBotMessageFooter,
+  previewedTaskIds,
   SokoBotFeedbackButtons,
   SokoBotMessageFooter,
   SokoBotSourceLabel,
+  sharedSokoBotId,
 } from "./soko-bot-message-footer";
 
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
@@ -2911,16 +2913,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                   <ResultPreviews
                     descriptors={message.resultPreviews ?? []}
                     source={{ roomId: message.roomId, messageId: message.id }}
+                    sokoBotId={sharedSokoBotId(message.sender)}
                     renderFooter={(results) => (
                       <SokoBotMessageFooter
                         metadata={message.metadata}
-                        previewedTaskIds={results.flatMap((result) =>
-                          result.state === "available" &&
-                          result.kind === "task" &&
-                          result.task
-                            ? [result.task.id]
-                            : [],
-                        )}
+                        previewedTaskIds={previewedTaskIds(results)}
+                        sharedBotId={sharedSokoBotId(message.sender)}
                       />
                     )}
                   />

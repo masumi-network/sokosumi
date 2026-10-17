@@ -18,6 +18,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { deleteSokoBotAction } from "@/lib/actions/soko-bot/action";
+import { SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { useSokoBotTargetId } from "./soko-bot-target";
 
 /**
  * Deletion is irreversible and distinct from Archive, so it asks the owner to
@@ -26,6 +28,7 @@ import { deleteSokoBotAction } from "@/lib/actions/soko-bot/action";
 export function DeleteSokoBotButton({ botName }: { botName: string | null }) {
   const t = useTranslations("App.SokoBot.Settings");
   const router = useRouter();
+  const botId = useSokoBotTargetId();
   const [open, setOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [pending, startTransition] = useTransition();
@@ -36,14 +39,15 @@ export function DeleteSokoBotButton({ botName }: { botName: string | null }) {
 
   function handleDelete() {
     startTransition(async () => {
-      const result = await deleteSokoBotAction({});
+      const result = await deleteSokoBotAction({ botId });
       if (!result.ok) {
         toast.error(result.error.message ?? t("deleteError"));
         return;
       }
       setOpen(false);
       toast.success(t("deleted"));
-      router.refresh();
+      if (botId) router.push(SOKO_BOTS_ROUTE);
+      else router.refresh();
     });
   }
 
@@ -56,8 +60,14 @@ export function DeleteSokoBotButton({ botName }: { botName: string | null }) {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("deleteConfirmTitle")}</DialogTitle>
-          <DialogDescription>{t("deleteConfirmDescription")}</DialogDescription>
+          <DialogTitle>
+            {botId ? t("sharedDeleteConfirmTitle") : t("deleteConfirmTitle")}
+          </DialogTitle>
+          <DialogDescription>
+            {botId
+              ? t("sharedDeleteConfirmDescription")
+              : t("deleteConfirmDescription")}
+          </DialogDescription>
         </DialogHeader>
         {expected ? (
           <div className="space-y-2">

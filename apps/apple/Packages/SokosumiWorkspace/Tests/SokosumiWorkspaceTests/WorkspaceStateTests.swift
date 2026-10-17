@@ -3116,9 +3116,9 @@ private let externalMembers = """
 [{"id":"user_1","name":"Me","email":"me@example.com","image":null,"presence":"online","access":"member"},{"id":"user_guest","name":"Guest","email":"guest@example.com","image":null,"presence":"offline","access":"guest"}]
 """
 
-/// The Guest's and the caller's Soko Bots; removing the Guest takes theirs along.
+/// The Guest's and the caller's Soko Bots and a shared one; removing the Guest takes only theirs along.
 private let externalSokoBots = """
-[{"id":"bot_guest","name":"Guest bot","caption":null,"image":null,"avatarSeed":null,"ownerUserId":"user_guest","presence":"online"},{"id":"bot_me","name":"My bot","caption":null,"image":null,"avatarSeed":null,"ownerUserId":"user_1","presence":"online"}]
+[{"id":"bot_guest","name":"Guest bot","caption":null,"image":null,"avatarSeed":null,"ownerUserId":"user_guest","scope":"personal","presence":"online"},{"id":"bot_me","name":"My bot","caption":null,"image":null,"avatarSeed":null,"ownerUserId":"user_1","scope":"personal","presence":"online"},{"id":"bot_team","name":"Team bot","caption":null,"image":null,"avatarSeed":null,"ownerUserId":null,"scope":"workspace","presence":"online"}]
 """
 
 private func externalRoomJSON(_ id: String, name: String, discoverability: String, members: String = "[]", coworkers: String = "[]", sokoBots: String = "[]") -> String {
@@ -3210,7 +3210,7 @@ extension WorkspaceStateTests {
     #expect(try await state.removeChannelMember(.human("user_guest"), roomId: partners, context: context))
     #expect(state.runningMutation == nil && state.transcriptRoomId == general)
     #expect(state.rooms.first { $0.id == partners }?.userMembers.map(\.id) == ["user_1"])
-    #expect(state.rooms.first { $0.id == partners }?.sokoBotMembers.map(\.id) == ["bot_me"])
+    #expect(state.rooms.first { $0.id == partners }?.sokoBotMembers.map(\.id) == ["bot_me", "bot_team"])
     #expect(transport.operationIDs.suffix(3) == [
       "post/chats/rooms/{id}/members", "delete/chats/rooms/{id}/coworkers/{coworkerId}", "delete/chats/rooms/{id}/members/{userId}"
     ])
@@ -3244,7 +3244,7 @@ extension WorkspaceStateTests {
     await refresh.value
     let room = try #require(state.rooms.first { $0.id == partners })
     #expect(room.userMembers.map(\.id) == ["user_1"])
-    #expect(room.sokoBotMembers.map(\.id) == ["bot_me"])
+    #expect(room.sokoBotMembers.map(\.id) == ["bot_me", "bot_team"])
     #expect(transport.remainingStubs == 0)
   }
 
@@ -3299,7 +3299,7 @@ private enum MentionTarget {
   var senderJSON: String {
     switch self {
     case .coworker: #"{"type":"coworker","coworker":{"id":"cow_1","name":"Elena","slug":"elena","caption":null,"image":null,"presence":"online"}}"#
-    case .sokoBot: #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_1","ownerUserId":"user_1","presence":"online"}}"#
+    case .sokoBot: #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_1","ownerUserId":"user_1","scope":"personal","presence":"online"}}"#
     }
   }
 }
