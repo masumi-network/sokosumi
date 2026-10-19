@@ -16,7 +16,7 @@ export const coworkerCapabilitiesSchema = z
       "Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.",
   });
 
-export const coworkerProfileSchema = z
+const coworkerProfileSchema = z
   .object({
     llm: z
       .array(z.string())
@@ -161,8 +161,6 @@ export const coworkerSummarySchema = z
     slug: z.string().openapi({ example: "ops-agent" }),
   })
   .openapi("CoworkerSummary");
-
-export type CoworkerSummary = z.infer<typeof coworkerSummarySchema>;
 
 export const coworkerSchema = z
   .object({

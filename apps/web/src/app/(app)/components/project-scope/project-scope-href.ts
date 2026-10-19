@@ -11,7 +11,8 @@ export const PROJECT_SCOPE_PARAM = "projectId";
  * destination in the sidebar like Tasks or Calendar, and it scopes itself the
  * same way they do. Unlike them it has nothing to show for the workspace
  * view, so `/studio` with no project asks for one. Social is the same shape:
- * posts belong to one project's accounts, so `/social` asks for a project too.
+ * posts belong to one project's accounts, so `/social` asks for a project too,
+ * and so does `/ads`.
  */
 const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
   {
@@ -20,6 +21,7 @@ const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
     "/calendar": {},
     "/studio": {},
     "/social": {},
+    "/ads": {},
     "/drive": { view: "tasks" },
     "/history": {},
   };

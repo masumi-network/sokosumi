@@ -10,6 +10,7 @@ struct ConversationSidebarView: View {
   @Environment(\.openSettings) private var openSettings
   @Environment(\.openURL) private var openURL
   @Environment(RoomEditSheets.self) private var roomEditSheets: RoomEditSheets?
+  @Environment(\.composerFocusRequest) private var composerFocus
 
   /// Web's inset rows start on the room row's label column: past its 20 pt mark and the gap after it. The
   /// indent is padding inside the row, since the sidebar List ignores `listRowInsets` on a badged row.
@@ -67,7 +68,10 @@ struct ConversationSidebarView: View {
             if workspaces.sidebar.pinnedReorderMode, partitioned.pinned.contains(where: { $0.id == id }) {
               return
             }
+            // The event that changed the selection is current only here, not in the Task.
+            let event = NSApp.currentEvent
             Task { @MainActor in
+              composerFocus?.roomPicked(id, by: event)
               await workspaces.showRoom(id)
             }
           }
@@ -207,32 +211,54 @@ struct ConversationSidebarView: View {
   /// Every section, as the sidebar lists them while the Unreads filter is off.
   @ViewBuilder
   private func allSections(_ partitioned: PartitionedSidebarRooms, invitations: [Components.Schemas.ChatRoomInvitation]) -> some View {
+    // `SidebarSections` decides which sections stand, which headings speak and what each lists.
+    let sections = SidebarSections(
+      partitioned: partitioned,
+      hasInvitations: !invitations.isEmpty,
+      archived: workspaces.archivedChannels.rooms,
+      hasOrganization: workspaces.selection?.workspace.organizationId != nil,
+      collapsed: workspaces.sidebar.collapsedSections,
+      pinnedReorderMode: workspaces.sidebar.pinnedReorderMode
+    )
     // Web: every pinned room of any kind, in the reader's own order; hidden when nothing is pinned.
-    if !partitioned.pinned.isEmpty {
-      pinnedSection(partitioned.pinned)
+    if sections.pinned.isVisible {
+      pinnedSection(sections.pinned, rooms: partitioned.pinned)
     }
-    if workspaces.selection?.workspace.organizationId != nil {
-      Section {
-        sectionHeader("Channels", section: .channels, closedAttention: resolveSectionAttention(partitioned.channels))
-        if !workspaces.sidebar.collapsedSections.contains(.channels) {
-          if partitioned.channels.isEmpty {
-            Text("No channels yet.")
-              .foregroundStyle(.secondary)
-          }
-          ForEach(sidebarRoomListItems(partitioned.channels)) { item in
-            sidebarItem(item) { roomRow($0) }
-          }
+    if sections.channels.isVisible {
+      roomsSection(sections.channels)
+    }
+    if sections.external.isVisible {
+      externalSection(sections.external, invitations: invitations)
+    }
+    if sections.archived.isVisible {
+      archivedSection(sections.archived)
+    }
+    if sections.directs.isVisible {
+      roomsSection(sections.directs)
+    }
+  }
+
+  /// Channels or Directs: the heading, its empty-state line and the rooms with their inset Threads.
+  private func roomsSection(_ section: SidebarSection) -> some View {
+    Section {
+      sectionHeader(section)
+      if !section.isCollapsed {
+        if section.showsEmptyState {
+          emptyState(section.kind)
+        }
+        ForEach(section.items) { item in
+          sidebarItem(item) { roomRow($0) }
         }
       }
     }
-    if !partitioned.external.isEmpty || !invitations.isEmpty {
-      externalSection(partitioned.external, invitations: invitations)
-    }
-    if workspaces.selection?.workspace.organizationId != nil, !workspaces.archivedChannels.rooms.isEmpty {
-      Section {
-        sectionHeader("Archived", section: .archived)
-        if !workspaces.sidebar.collapsedSections.contains(.archived) {
-          ForEach(workspaces.archivedChannels.rooms, id: \.id) { room in
+  }
+
+  private func archivedSection(_ section: SidebarSection) -> some View {
+    Section {
+      sectionHeader(section)
+      if !section.isCollapsed {
+        ForEach(section.items) { item in
+          if case let .room(room) = item {
             ArchivedChannelRow(
               room: room,
               pending: workspaces.runningMutation?.lifecycleRoomId == room.id,
@@ -243,27 +269,30 @@ struct ConversationSidebarView: View {
         }
       }
     }
-    Section {
-      sectionHeader("Directs", section: .directs, closedAttention: resolveSectionAttention(partitioned.directMessages))
-      if !workspaces.sidebar.collapsedSections.contains(.directs) {
-        if partitioned.directMessages.isEmpty {
-          Text("No direct messages yet.")
-            .foregroundStyle(.secondary)
-        }
-        ForEach(sidebarRoomListItems(partitioned.directMessages)) { item in
-          sidebarItem(item) { roomRow($0) }
-        }
-      }
+  }
+
+  /// The empty-state line of an open section with no room.
+  @ViewBuilder
+  private func emptyState(_ kind: ConversationSidebar.Section) -> some View {
+    switch kind {
+    case .channels:
+      Text("No channels yet.")
+        .foregroundStyle(.secondary)
+    case .directs:
+      Text("No direct messages yet.")
+        .foregroundStyle(.secondary)
+    case .pinned, .external, .archived:
+      EmptyView()
     }
   }
 
-  /// The collapsible Pinned section with its reorder mode.
-  private func pinnedSection(_ pinned: [Components.Schemas.ChatRoom]) -> some View {
+  /// The collapsible Pinned section with its reorder mode; `rooms` are the move offsets' list.
+  private func pinnedSection(_ section: SidebarSection, rooms pinned: [Components.Schemas.ChatRoom]) -> some View {
     Section {
-      sectionHeader("Pinned", section: .pinned, closedAttention: resolveSectionAttention(pinned))
-      if !workspaces.sidebar.collapsedSections.contains(.pinned) {
-        // Reorder mode lists rooms only, so the move offsets stay room offsets.
-        ForEach(sidebarRoomListItems(pinned, reordering: workspaces.sidebar.pinnedReorderMode)) { item in
+      sectionHeader(section)
+      if !section.isCollapsed {
+        // Reorder mode lists rooms only (`section.items` already does), so the move offsets stay room offsets.
+        ForEach(section.items) { item in
           sidebarItem(item) { pinnedRow($0, in: pinned) }
         }
         .onMove(perform: workspaces.sidebar.pinnedReorderMode ? { movePinned(pinned, from: $0, to: $1) } : nil)
@@ -273,10 +302,10 @@ struct ConversationSidebarView: View {
 
   /// Pending invitations above joined external rooms. Under the Unreads filter only the invitations stay: they
   /// wait on the reader (web).
-  private func externalSection(_ rooms: [Components.Schemas.ChatRoom], invitations: [Components.Schemas.ChatRoomInvitation]) -> some View {
+  private func externalSection(_ section: SidebarSection, invitations: [Components.Schemas.ChatRoomInvitation]) -> some View {
     Section {
-      sectionHeader("External", section: .external, closedAttention: resolveSectionAttention(rooms, hasPendingInvitation: !invitations.isEmpty))
-      if !workspaces.sidebar.collapsedSections.contains(.external) {
+      sectionHeader(section)
+      if !section.isCollapsed {
         ForEach(invitations, id: \.id) { invitation in
           PendingInvitationRow(
             invitation: invitation,
@@ -284,7 +313,7 @@ struct ConversationSidebarView: View {
             busy: workspaces.roomMutationInFlight
           ) { respondToInvitation($0, invitation: invitation) }
         }
-        ForEach(sidebarRoomListItems(rooms)) { item in
+        ForEach(section.items) { item in
           sidebarItem(item) { roomRow($0) }
         }
       }
@@ -311,7 +340,7 @@ struct ConversationSidebarView: View {
       }
     }
     if !invitations.isEmpty {
-      externalSection([], invitations: invitations)
+      externalSection(.externalInvitations(collapsed: workspaces.sidebar.collapsedSections), invitations: invitations)
     }
     if !filter.pinned.isEmpty {
       Section {
@@ -427,9 +456,11 @@ struct ConversationSidebarView: View {
 
   /// Web's `closedAttention`: a closed section hides the rows that carry its rooms' attention, so the
   /// heading says it, in the row's own bold. An open section's rooms speak for themselves.
-  private func sectionHeader(_ title: String, section: ConversationSidebar.Section, closedAttention: SectionAttention? = nil) -> some View {
-    let collapsed = workspaces.sidebar.collapsedSections.contains(section)
-    let attention = collapsed ? closedAttention : nil
+  private func sectionHeader(_ sidebarSection: SidebarSection) -> some View {
+    let section = sidebarSection.kind
+    let title = Self.title(of: section)
+    let collapsed = sidebarSection.isCollapsed
+    let attention = sidebarSection.headerAttention
     let emphasis = SidebarEmphasis.header(attention: attention)
     return HStack {
       Button {
@@ -452,15 +483,7 @@ struct ConversationSidebarView: View {
       .help(collapsed ? "Expand \(title)" : "Collapse \(title)")
       Spacer()
       if section == .pinned, workspaces.sidebar.canReorderPinned {
-        let reordering = workspaces.sidebar.pinnedReorderMode
-        Button(reordering ? "Done reordering" : "Reorder pinned chats", systemImage: reordering ? "checkmark" : "arrow.up.arrow.down") {
-          workspaces.sidebar.setPinnedReorderMode(!reordering)
-        }
-        .labelStyle(.iconOnly)
-        .buttonStyle(.borderless)
-        .frame(width: 20)
-        .accessibilityAddTraits(reordering ? .isSelected : [])
-        .help(reordering ? "Done reordering" : "Reorder pinned chats")
+        reorderPinnedButton
       }
       if section == .channels {
         Button("Browse channels", systemImage: "list.bullet") {
@@ -477,6 +500,29 @@ struct ConversationSidebarView: View {
     .foregroundStyle(.secondary)
     .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
     .selectionDisabled()
+  }
+
+  /// The Pinned heading's control for reorder mode.
+  private var reorderPinnedButton: some View {
+    let reordering = workspaces.sidebar.pinnedReorderMode
+    return Button(reordering ? "Done reordering" : "Reorder pinned chats", systemImage: reordering ? "checkmark" : "arrow.up.arrow.down") {
+      workspaces.sidebar.setPinnedReorderMode(!reordering)
+    }
+    .labelStyle(.iconOnly)
+    .buttonStyle(.borderless)
+    .frame(width: 20)
+    .accessibilityAddTraits(reordering ? .isSelected : [])
+    .help(reordering ? "Done reordering" : "Reorder pinned chats")
+  }
+
+  private static func title(of section: ConversationSidebar.Section) -> String {
+    switch section {
+    case .pinned: "Pinned"
+    case .channels: "Channels"
+    case .external: "External"
+    case .archived: "Archived"
+    case .directs: "Directs"
+    }
   }
 
   /// Web reads the row's rail strings into the closed heading's accessible name.
@@ -709,7 +755,7 @@ struct ConversationSidebarView: View {
     guard showsDirectAvatars, !room.isSelfDirect, !room.isReadOnly else { return nil }
     let participants = directRoomAvatarParticipants(room, currentUserId: workspaces.currentUserId)
     guard participants.count == 1, let peer = participants.first else { return nil }
-    return peer.isAI ? .online : workspaces.presence(forUser: peer.id, fallback: peer.presence)
+    return peer.resolvedPresence(live: workspaces.presence.byUserId)
   }
 
   /// The status slot's content: the reorder handle, a spinner while the room changes, or the muted bell. The
@@ -945,7 +991,7 @@ struct DirectRoomAvatarStack: View {
   let participants: [DirectRoomAvatarParticipant]
   /// Self Directs and Read-only Directs show no mark.
   var showsPresence = true
-  /// A Read-only Direct's Former members: web's `opacity-50 grayscale`.
+  /// A Read-only Direct's Former members sit back: faded and greyscale.
   var isDimmed = false
   /// Live org map (userId → online/afk); humans fall back to their snapshot.
   var livePresence: [String: Components.Schemas.ChatRoomPresence] = [:]
@@ -964,29 +1010,33 @@ struct DirectRoomAvatarStack: View {
     } else {
       HStack(spacing: -Self.overlap) {
         ForEach(participants.enumerated(), id: \.element.id) { index, participant in
+          // Ring between overlapping faces: the face sits 1 pt inside its frame,
+          // and the frame is cut out of the face under it, since a Mac sidebar
+          // has no single colour to paint the ring in. Dimmed, the cut fades
+          // with the face.
           ParticipantAvatar(
             imageURL: participant.imageURL,
             name: participant.name,
-            size: Self.faceSize
+            size: Self.faceSize - 2
           )
-          .overlay {
-            Circle()
-              .strokeBorder(.background, lineWidth: 1)
-          }
+          .padding(1)
           .grayscale(isDimmed ? 1 : 0)
           .opacity(isDimmed ? 0.5 : 1)
+          // Outside the grayscale, whose layer would keep the cut to this face.
+          .background {
+            Circle().fill(.black).blendMode(.destinationOut)
+              .opacity(isDimmed ? 0.5 : 1)
+          }
           .overlay(alignment: .bottomTrailing) {
             if showsPresence {
-              PresenceDot(presence: presence(for: participant), size: Self.markSize).offset(x: 2, y: 2)
+              PresenceDot(presence: participant.resolvedPresence(live: livePresence), size: Self.markSize).offset(x: 2, y: 2)
             }
           }
           .zIndex(Double(participants.count - index))
         }
       }
+      // Bounds the rings' and marks' knockouts to the faces.
+      .compositingGroup()
     }
-  }
-
-  private func presence(for participant: DirectRoomAvatarParticipant) -> Components.Schemas.ChatRoomPresence {
-    participant.isAI ? .online : livePresence[participant.id] ?? participant.presence
   }
 }

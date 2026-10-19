@@ -7,6 +7,7 @@ import {
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useEffect, useRef } from "react";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 
 import {
   CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
@@ -134,7 +135,10 @@ export function useChatControlChannel({
     ) {
       detachControlChannel();
       const channel = ably.channels.get(
-        makeUserChatControlChannelName(currentUserId),
+        makeUserChatControlChannelName(
+          currentUserId,
+          getRealtimeChannelEnvironment(),
+        ),
       );
       safeSubscribeChannel(
         channel,

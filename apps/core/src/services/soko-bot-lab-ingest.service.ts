@@ -7,6 +7,7 @@ import {
 } from "@/lib/soko-bot/system-routes";
 import {
   ACTIVE_TURN_STATUSES,
+  FOREGROUND_TURN,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
 import { buildIngestDeltaMessageForBot } from "@/services/soko-bot-ingest.service";
@@ -82,7 +83,11 @@ export async function runSokoBotLabIngest(input: {
   // calls, and discovering afterwards that the bot was already working means
   // having made all of them for a turn that was never going to start.
   const active = await prisma.sokoBotTurn.findFirst({
-    where: { sokoBotId: bot.id, status: { in: [...ACTIVE_TURN_STATUSES] } },
+    where: {
+      sokoBotId: bot.id,
+      ...FOREGROUND_TURN,
+      status: { in: [...ACTIVE_TURN_STATUSES] },
+    },
     select: { id: true },
   });
   if (active) {

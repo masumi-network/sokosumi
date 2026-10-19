@@ -1,6 +1,13 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/ably/realtime-channel-environment", () => ({
+  getRealtimeChannelEnvironment: () => ({
+    network: "Mainnet",
+    vercelEnv: "production",
+  }),
+}));
+
 type StateListener = (change: Record<string, unknown>) => void;
 
 const { ablyClient, channel, channelListeners, connectionListeners } =

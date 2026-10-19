@@ -42,9 +42,11 @@ const sokoBotId = randomUUID();
 const turnId = randomUUID();
 const sessionId = "tables-test";
 const authorized: AuthorizedSokoBotRuntime = {
+  toolCallLimit: 64,
   turn: {
     id: turnId,
-    userId,
+    actingUserId: userId,
+    requestedByUserId: userId,
     workspaceId,
     sokoBotId,
     eveSessionId: sessionId,

@@ -198,7 +198,7 @@ describe("canCommentOnTaskForViewer", () => {
 });
 
 describe("canCancelTaskForViewer", () => {
-  it("allows organization workspace collaborators to cancel without ownership", () => {
+  it("allows an unseated organization workspace collaborator to cancel without ownership", () => {
     expect(
       canCancelTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
@@ -206,6 +206,20 @@ describe("canCancelTaskForViewer", () => {
         sessionUserId: "member_2",
         forceReadOnly: false,
         taskStatus: TaskStatus.RUNNING,
+        hasAssignedSeat: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("allows the task owner to cancel without an assigned seat", () => {
+    expect(
+      canCancelTaskForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskOwnerId: "owner_1",
+        sessionUserId: "owner_1",
+        forceReadOnly: false,
+        taskStatus: TaskStatus.RUNNING,
+        hasAssignedSeat: false,
       }),
     ).toBe(true);
   });
@@ -256,5 +270,33 @@ describe("canCancelTaskForViewer", () => {
         taskStatus: TaskStatus.GRANT_PENDING,
       }),
     ).toBe(false);
+  });
+});
+
+describe("work without an Owner", () => {
+  it("lets an organization collaborator comment and cancel", () => {
+    const params = {
+      taskWorkspaceOrganizationId: "org_1",
+      taskOwnerId: null,
+      sessionUserId: "member_2",
+      forceReadOnly: false,
+      taskStatus: TaskStatus.RUNNING,
+      hasAssignedSeat: true,
+    };
+    expect(canCommentOnTaskForViewer(params)).toBe(true);
+    expect(canCancelTaskForViewer(params)).toBe(true);
+  });
+
+  it("gives nobody a personal workspace right, even a viewer with no session", () => {
+    const params = {
+      taskWorkspaceOrganizationId: null,
+      taskOwnerId: null,
+      sessionUserId: undefined,
+      forceReadOnly: false,
+      taskStatus: TaskStatus.RUNNING,
+      hasAssignedSeat: true,
+    };
+    expect(canCommentOnTaskForViewer(params)).toBe(false);
+    expect(canCancelTaskForViewer(params)).toBe(false);
   });
 });

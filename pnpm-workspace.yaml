@@ -21,11 +21,9 @@ overrides:
   # @hey-api/json-schema-ref-parser@1.4.4 still pins js-yaml@4.2.0 (vulnerable).
   # Patched floor is 4.3.1; pin latest 4.x patch.
   "js-yaml@<4.3.2": "4.3.2"
-  # esbuild GHSA-g7r4-m6w7-qqqr (Windows dev-server arbitrary file read) — tsup
-  # still depends on esbuild@^0.27.0, which lands 0.27.7 without this pin.
-  # Patched floor is 0.28.1; pin latest 0.28.x.
-  "esbuild@<0.28.2": "0.28.2"
-
+  # esbuild GHSA-g7r4-m6w7-qqqr: dropped. Fresh re-resolve without the override
+  # already lands only esbuild@0.28.2 (patched). tsup 9 / tsx ~0.28 / react-email
+  # ^0.28 / vite peer all resolve to 0.28.2; no 0.27.x remains.
 ignoredOptionalDependencies:
   # `pdfjs-dist` declares `@napi-rs/canvas` as an optional dependency, for
   # rendering PDF pages to images. Files extraction reads the **text layer
@@ -80,6 +78,6 @@ publicHoistPattern:
 
 # Workaround: TypeScript 7 drops Assertion.not from Vitest 5's mapped Chai types.
 # Re-check when bumping vitest or typescript; drop the patch if tsc is clean without it.
-# Upstream: https://github.com/vitest-dev/vitest/issues/11144 (still open on 5.0.4)
+# Upstream: https://github.com/vitest-dev/vitest/issues/11144 (still open on 5.0.5)
 patchedDependencies:
-  vitest@5.0.4: patches/vitest@5.0.4.patch
+  vitest@5.0.5: patches/vitest@5.0.5.patch

@@ -10,7 +10,9 @@ import {
 } from "@/clients/composio.client";
 import type { SocialPostMediaBytes } from "@/clients/social-post-providers/types";
 
-const TOOL_ERROR_MESSAGE_LIMIT = 300;
+// Long enough for a Google Ads failure, whose per-error message comes after
+// several hundred characters of envelope. User-facing texts cut it shorter.
+const TOOL_ERROR_MESSAGE_LIMIT = 2000;
 
 /** Redacts credentials and identifiers before a provider message is stored. */
 function sanitizeProviderMessage(value: string): string {
@@ -95,7 +97,7 @@ function toolErrorStatus(value: unknown): number | null {
  * Creates a restricted tool-router session pinned to one connected account
  * with only the given tools enabled. The caller deletes the session.
  */
-export async function createSocialPostToolSession(input: {
+export async function createComposioToolSession(input: {
   toolkitSlug: string;
   connectedAccountId: string;
   executorUserId: string;
@@ -132,7 +134,7 @@ export async function createSocialPostToolSession(input: {
  * Composio's envelope layers stripped. A refused or unsuccessful execution is
  * raised as a {@link ComposioToolError}.
  */
-export async function executeSocialPostTool(input: {
+export async function executeComposioTool(input: {
   sessionId: string;
   toolSlug: string;
   arguments: Record<string, unknown>;

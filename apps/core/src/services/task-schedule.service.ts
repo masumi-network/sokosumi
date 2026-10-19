@@ -8,6 +8,7 @@ import {
   TaskScheduleState,
   TaskVisibility,
   VendorGrantStatus,
+  workCreatorInclude,
 } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
@@ -15,6 +16,7 @@ import { HTTPException } from "hono/http-exception";
 import {
   requireCoworkerCapability,
   requireGrantedWorkspaceAccessOrRequest,
+  requireRightOnWorkWithoutOwner,
   requireTaskAssignableSokoBot,
 } from "@/helpers/access-control";
 import {
@@ -45,6 +47,7 @@ import {
   isPrivateTaskVisibleToCoworker,
 } from "@/helpers/task-visibility";
 import { getWorkspaceGrant } from "@/helpers/vendor-grants";
+import { creatorFields, mapWorkCreator } from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import {
@@ -66,7 +69,6 @@ import type {
   UpdateTaskScheduleRunRequest,
 } from "@/schemas/task-schedule.schema";
 import {
-  creatorFields,
   requireTaskReferences,
   type TaskDomainActor,
 } from "@/services/task-domain.service";
@@ -377,9 +379,13 @@ function readableWhere(actor: ScheduleActor): Prisma.TaskScheduleWhereInput {
   };
 }
 
-/** What `canWriteTaskSchedule` reads beyond the schedule's own columns. */
+/**
+ * What `canWriteTaskSchedule` reads beyond the schedule's own columns, and the
+ * Creator a response maps.
+ */
 const SCHEDULE_ASSIGNEE_VENDOR = {
   assignee: { select: { vendorId: true } },
+  ...workCreatorInclude,
 } as const;
 
 type ScheduleWithAssigneeVendor = Prisma.TaskScheduleGetPayload<{
@@ -387,7 +393,9 @@ type ScheduleWithAssigneeVendor = Prisma.TaskScheduleGetPayload<{
 }>;
 
 /** A schedule as its reader gets it: with whether they may change it. */
-export type TaskScheduleView = TaskSchedule & { canWrite: boolean };
+export type TaskScheduleView = Omit<ScheduleWithAssigneeVendor, "assignee"> & {
+  canWrite: boolean;
+};
 
 function toTaskScheduleView(
   reader: TaskScheduleReader,
@@ -698,7 +706,8 @@ const STATE_ACTIONS: Record<
  * first Run after now (missed ones are not made up), or Ends the
  * schedule when its end rule passed meanwhile; end is final. Pause drops the
  * planned Runs but keeps skips and moves; resume plans again. End
- * cancels skips and moves into the history.
+ * cancels skips and moves into the history. Resuming a schedule without an
+ * Owner makes the member resuming it its Owner.
  */
 export async function changeTaskScheduleState(
   vars: RouteVars,
@@ -740,9 +749,15 @@ export async function changeTaskScheduleState(
       });
     }
 
+    // The member who resumes a schedule without an Owner, because its Owner
+    // left, becomes its Owner (ADR 0057); not when the resume ends it instead.
+    const owner =
+      state === TaskScheduleState.ACTIVE && current.ownerId === null
+        ? { ownerId: actor.userId }
+        : {};
     const { count } = await tx.taskSchedule.updateMany({
       where: { id, state: current.state },
-      data: { state, nextRunAt, revision: { increment: 1 } },
+      data: { state, nextRunAt, revision: { increment: 1 }, ...owner },
     });
     if (count === 0) {
       throw conflict("Task Schedule changed since it was read", {
@@ -966,7 +981,8 @@ export async function runTaskScheduleNow(
 
 /**
  * Tasks the schedule created stay; the database sets their `scheduleId` to
- * null (ADR 0041).
+ * null (ADR 0041). A schedule without an Owner is deleted only by an Organization
+ * owner or admin (ADR 0057).
  */
 export async function deleteTaskSchedule(
   vars: RouteVars,
@@ -976,6 +992,7 @@ export async function deleteTaskSchedule(
   await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);
+    await requireRightOnWorkWithoutOwner(actor.userId, current, "manage", tx);
     await requireOpenScheduleProjects(tx, current.workspaceId, [
       current.projectId,
     ]);
@@ -992,6 +1009,7 @@ export function mapTaskSchedule(schedule: TaskScheduleView) {
     creatorUserId: schedule.creatorUserId,
     creatorCoworkerId: schedule.creatorCoworkerId,
     creatorSokoBotId: schedule.creatorSokoBotId,
+    creator: mapWorkCreator(`TaskSchedule ${schedule.id}`, schedule),
     state: schedule.state,
     rule: {
       expr: schedule.expr,

@@ -24,8 +24,14 @@ public final class PinnedMessages: ObservableObject {
     pages.nextCursor
   }
 
+  /// A page of pins is out, the first or an older one.
   public var isLoading: Bool {
     pages.isLoadingFirstPage || pages.olderPageStatus == .loading
+  }
+
+  /// The first page is out: the panel's Loading line (web's `isLoading`); an older page only holds its button.
+  public var isLoadingFirstPage: Bool {
+    pages.isLoadingFirstPage
   }
 
   public func reset(roomId: String? = nil) {

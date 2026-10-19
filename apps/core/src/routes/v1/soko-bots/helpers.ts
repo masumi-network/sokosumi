@@ -107,10 +107,17 @@ type TurnWithAttribution = Awaited<
   ReturnType<typeof sokoBotControlPlane.listTurns>
 >["turns"][number];
 
-/** Flatten the mention → message → room chain into `chatRoom`. */
+/**
+ * Flatten the mention → message → room chain into `chatRoom`. The teammate
+ * who asked (`askedBy`) is `requestedBy` on the wire.
+ */
 export function mapTurn<T extends Partial<TurnWithAttribution>>(turn: T) {
-  const room = turn.chatMention?.message?.room ?? null;
-  return { ...turn, chatMention: undefined, chatRoom: room };
+  const { askedBy, chatMention, ...rest } = turn;
+  return {
+    ...rest,
+    chatRoom: chatMention?.message?.room ?? null,
+    requestedBy: askedBy,
+  };
 }
 
 export function mapControlPlaneError(error: unknown): never {

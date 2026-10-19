@@ -101,7 +101,8 @@ describe("SocialAccountsProjectPrompt", () => {
       carousel.querySelectorAll('[data-slot="carousel-item"]'),
     ).toHaveLength(6);
     expect(screen.getByText("TikTok")).toBeVisible();
-    expect(screen.getByText("Coming soon")).toBeVisible();
+    expect(screen.getByText("Facebook")).toBeVisible();
+    expect(screen.getAllByText("Coming soon")).toHaveLength(2);
 
     expect(screen.queryByRole("button", { name: "Next platforms" })).toBeNull();
     expect(
@@ -135,6 +136,27 @@ describe("SocialAccountsProjectPrompt", () => {
     await user.click(screen.getByRole("option", { name: "Marketing" }));
     expect(mocks.push).toHaveBeenCalledWith(
       "/social?projectId=marketing&tab=drafts",
+    );
+  });
+
+  it("keeps Needs attention as the destination and hides the account carousel", async () => {
+    const user = userEvent.setup();
+    setup({ kind: "attention" });
+    expect(
+      screen.getByRole("heading", { name: "Needs attention" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Choose a project to see posts that failed or were missed.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("region", { name: "Social platforms" }),
+    ).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Choose a project" }));
+    await user.click(screen.getByRole("option", { name: "Marketing" }));
+    expect(mocks.push).toHaveBeenCalledWith(
+      "/social?projectId=marketing&tab=attention",
     );
   });
 
