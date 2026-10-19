@@ -1676,6 +1676,70 @@ describe("ProjectSocialPosts", () => {
     expect(enabled.querySelector("kbd")).toHaveTextContent("⌘↵");
   });
 
+  it("says why Save draft is off when the draft is empty", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const saveDraft = within(dialog).getByRole("button", {
+      name: "Save draft",
+    });
+    const trigger = saveDraft.parentElement;
+    if (!trigger) throw new Error("Save draft has no tooltip trigger");
+    expect(saveDraft).toBeDisabled();
+    expect(saveDraft).toHaveAttribute("aria-describedby");
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+    trigger.focus();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Add text or media.",
+    );
+
+    await user.hover(trigger);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Add text or media.",
+    );
+  });
+
+  it("keeps the Save draft hint to add text or media on empty Instagram", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection({
+            provider: "instagram",
+            externalHandle: "sokosumi.ig",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const saveDraft = within(dialog).getByRole("button", {
+      name: "Save draft",
+    });
+    const trigger = saveDraft.parentElement;
+    if (!trigger) throw new Error("Save draft has no tooltip trigger");
+    expect(saveDraft).toBeDisabled();
+
+    trigger.focus();
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Add text or media.");
+    expect(tooltip).not.toHaveTextContent(
+      "Instagram requires at least one image or video.",
+    );
+  });
+
   it("names every selected network that still needs text or media", async () => {
     const user = userEvent.setup();
     render(
