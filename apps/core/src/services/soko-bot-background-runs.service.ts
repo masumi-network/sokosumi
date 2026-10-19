@@ -40,6 +40,12 @@ export async function startBackgroundRun(
   authorized: AuthorizedSokoBotRuntime,
   input: { title: string; brief: string },
 ) {
+  // Every shared turn names its member, so the owner check below would
+  // refuse it anyway, with a message about an owner the bot does not have.
+  if (authorized.reader.sharedScope)
+    throw new SokoBotRuntimeValidationError(
+      "A shared Soko Bot cannot start background runs; do the work in this turn.",
+    );
   const parent = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: authorized.turn.id },
     select: {

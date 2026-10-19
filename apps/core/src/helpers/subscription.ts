@@ -81,7 +81,7 @@ function getCurrentSubscriptionPeriod(
 
 export async function getCurrentSubscriptionCredits(params: {
   subscription: SubscriptionPeriodRecord | null;
-  userId: string;
+  userId: string | null;
   organizationId: string | null;
   tx: Prisma.TransactionClient;
   now?: Date;
@@ -307,7 +307,8 @@ export interface CreditsApiPayload {
 }
 
 export async function buildCreditsPayload(params: {
-  userId: string;
+  /** Null reads the Organization pool alone, for a Soko Bot acting on its own. */
+  userId: string | null;
   organizationId: string | null;
   referenceId: string;
   tx: Prisma.TransactionClient;

@@ -12,6 +12,7 @@ const {
   memberFindFirstMock,
   userFindUniqueMock,
   memberFindUniqueMock,
+  workspaceFindFirstMock,
 } = vi.hoisted(() => ({
   captureExternalServiceErrorMock: vi.fn(),
   verifyApiKeyMock: vi.fn(),
@@ -22,6 +23,7 @@ const {
   memberFindFirstMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
+  workspaceFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/external-service-errors", () => ({
@@ -57,6 +59,9 @@ vi.mock("@/lib/db/prisma", () => ({
     member: {
       findFirst: memberFindFirstMock,
       findUnique: memberFindUniqueMock,
+    },
+    workspace: {
+      findFirst: workspaceFindFirstMock,
     },
     $transaction: prismaTransactionMock,
   },
@@ -338,6 +343,37 @@ describe("workspaceMiddleware", () => {
         coworkerId: "cow_123",
         vendorId: TEST_VENDOR_ID,
       },
+      workspaceContext: null,
+    });
+    expect(resolveWorkspaceForContextMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves workspaceContext null for a shared Soko Bot key", async () => {
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: null,
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      revokedAt: null,
+      expiresAt: null,
+      coworker: null,
+      sokoBot: {
+        archivedAt: null,
+        deletedAt: null,
+        userId: null,
+        projectId: null,
+        workspaceId: "01960001-0001-7001-8001-000000000010",
+        user: null,
+      },
+    });
+    workspaceFindFirstMock.mockResolvedValue({ organizationId: "org_123" });
+
+    const app = createApp(true);
+    const response = await app.request("http://localhost/", {
+      headers: { authorization: "Bearer sokoBot_shared" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      authContext: { actor: "sokoBot", scope: "workspace", userId: null },
       workspaceContext: null,
     });
     expect(resolveWorkspaceForContextMock).not.toHaveBeenCalled();

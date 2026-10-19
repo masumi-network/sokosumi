@@ -4,6 +4,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
+  isPersonalSokoBotAuthContext,
   isSokoBotAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
@@ -31,7 +32,7 @@ const getMyUsageRoute = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(getMyUsageRoute, async (c) => {
     const authContext = c.var.authContext;
-    const auth = isSokoBotAuthContext(authContext)
+    const auth = isPersonalSokoBotAuthContext(authContext)
       ? authContext
       : requireUserAuthContext(authContext);
     const workspace = requireWorkspaceContext(c.var.workspaceContext);

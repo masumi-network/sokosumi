@@ -1,4 +1,7 @@
-import { sokoBotJudgeVerdictSchema } from "@sokosumi/soko-bot";
+import {
+  SOKO_BOT_SCENARIOS,
+  sokoBotJudgeVerdictSchema,
+} from "@sokosumi/soko-bot";
 import { generateText, NoOutputGeneratedError, Output } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it, vi } from "vitest";
@@ -15,8 +18,11 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+import prisma from "@/lib/db/prisma";
 import {
   generateSokoBotJudgeText,
+  judgeSokoBotLabTurn,
+  loadLabJudgePayload,
   SokoBotJudgeFailure,
   SokoBotLabJudgeError,
   sokoBotLabJudgeErrorKind,
@@ -145,5 +151,29 @@ describe("soko-bot judge failure reporting", () => {
       sokoBotLabJudgeErrorKind(new SokoBotLabJudgeError("Turn not found")),
     ).toBe("not_found");
     expect(sokoBotLabJudgeErrorKind(new Error("boom"))).toBeUndefined();
+  });
+});
+
+describe("soko-bot lab judge transcript scope", () => {
+  const scenarioId = SOKO_BOT_SCENARIOS[0]?.id ?? "missing";
+  const findTurn = vi.mocked(prisma.sokoBotTurn.findFirst);
+
+  it("keeps the member filter for any id the lab passes, even an empty one", async () => {
+    findTurn.mockResolvedValueOnce(null);
+    await expect(
+      judgeSokoBotLabTurn({ userId: "", turnId: "turn-1", scenarioId }),
+    ).rejects.toThrow("Turn not found");
+    expect(findTurn.mock.calls.at(-1)?.[0]?.where).toEqual({
+      id: "turn-1",
+      requestedByUserId: "",
+    });
+  });
+
+  it("reads any turn only for the admin payload", async () => {
+    findTurn.mockResolvedValueOnce(null);
+    await expect(loadLabJudgePayload("turn-2", scenarioId)).rejects.toThrow(
+      "Turn not found",
+    );
+    expect(findTurn.mock.calls.at(-1)?.[0]?.where).toEqual({ id: "turn-2" });
   });
 });

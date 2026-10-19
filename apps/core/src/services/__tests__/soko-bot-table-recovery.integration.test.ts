@@ -129,6 +129,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         toolCallLimit: 64,
         turn: { ...turn, actingUserId: userId },
         classificationConfidence: 1,
+        reader: { userId, audience: undefined, sharedScope: null },
         grant: {
           userId,
           workspaceId,

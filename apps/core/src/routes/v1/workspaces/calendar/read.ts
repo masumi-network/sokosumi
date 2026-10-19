@@ -24,6 +24,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import {
   type AuthenticationContext,
+  requirePersonalSokoBotAuthContext,
   resolveUserContext,
 } from "@/middleware/auth";
 import {
@@ -99,7 +100,11 @@ export async function getCalendarAccessWhere(
         workspaceId,
         assigneeSokoBotId: authContext.sokoBotId,
         status: { not: TaskStatus.DRAFT },
-        AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
+        AND: [
+          buildSokoBotOwnerTaskVisibilityWhere(
+            requirePersonalSokoBotAuthContext(authContext).userId,
+          ),
+        ],
       },
     };
   }

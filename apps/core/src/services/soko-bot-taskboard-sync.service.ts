@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
+import {
+  SOKO_BOT_OWNER_NAME_SELECT,
+  type SokoBotOwnerNameSource,
+} from "@/helpers/soko-bot-owner";
 import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
@@ -63,15 +68,19 @@ function actorLabel(event: {
   sokoBotId: string | null;
   user: { name: string | null } | null;
   coworker: { name: string | null } | null;
-  sokoBot: { name: string | null; user: { name: string | null } } | null;
+  sokoBot: (SokoBotOwnerNameSource & { name: string | null }) | null;
 }): string {
   if (event.userId) return event.user?.name?.trim() || "a teammate";
   if (event.coworkerId)
     return `Coworker ${event.coworker?.name?.trim() || ""}`.trim();
   if (event.sokoBotId) {
-    // Named with its owner: another person's assistant speaks for them.
-    const name = event.sokoBot?.name?.trim() || "A personal assistant";
-    const owner = event.sokoBot?.user.name?.trim();
+    // Named with its owner: another person's assistant speaks for them. A
+    // shared assistant has no owner to speak for.
+    const bot = event.sokoBot;
+    if (bot && isSharedSokoBot(bot))
+      return `${bot.name?.trim() || "A shared assistant"} (shared team assistant)`;
+    const name = bot?.name?.trim() || "A personal assistant";
+    const owner = bot?.user?.name?.trim();
     return owner ? `${name} (${owner}'s assistant)` : name;
   }
   return "the system";
@@ -365,9 +374,7 @@ export class SokoBotTaskboardSyncService {
           sokoBotId: true,
           user: { select: { name: true } },
           coworker: { select: { name: true } },
-          sokoBot: {
-            select: { name: true, user: { select: { name: true } } },
-          },
+          sokoBot: { select: SOKO_BOT_OWNER_NAME_SELECT },
         },
       });
       const consumed = events.length

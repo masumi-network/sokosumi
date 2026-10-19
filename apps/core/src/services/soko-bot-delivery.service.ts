@@ -4,6 +4,7 @@ import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
+import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
@@ -135,15 +136,15 @@ async function destinationStillAuthorized(
     turn.source === "CHAT"
       ? (turn.askedByUserId ?? actingUserId)
       : actingUserId;
-  const bot = await tx.sokoBot.findFirst({
-    where: {
-      id: turn.sokoBotId,
-      userId: actingUserId,
+  const bot = await sokoBotForTurnMember(
+    {
+      sokoBotId: turn.sokoBotId,
+      actingUserId,
       workspaceId: turn.workspaceId,
-      archivedAt: null,
     },
-    select: { id: true },
-  });
+    "notArchived",
+    tx,
+  );
   if (!bot) return false;
   const workspace = await tx.workspace.findFirst({
     where: {

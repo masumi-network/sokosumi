@@ -49,7 +49,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/{id}/members",
     description:
-      "Add organization members, Coworkers and the caller's own Soko Bots to a Channel. Any host member (`access=member`) may add; Guests may not. Only a Soko Bot's owner may add it. Members already in the Channel are left as they are. Matched channels are managed by Sokosumi.",
+      "Add organization members, Coworkers and Soko Bots to a Channel. Any host member (`access=member`) may add; Guests may not. Only its owner may add a personal Soko Bot. Any member may add a shared Soko Bot, as with a Coworker. Members already in the Channel are left as they are. Matched channels are managed by Sokosumi.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -210,13 +210,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
 
           if (requestedSokoBotIds.length > 0) {
-            // Owner-only: nobody adds someone else's Soko Bot.
+            // Nobody adds someone else's personal Soko Bot; a shared one
+            // belongs to the workspace and any member may add it.
             await validateChatSokoBotIds(
               requestedSokoBotIds,
               workspaceId,
               userContext.userId,
               [],
               tx,
+              { discoverability: existing.discoverability },
             );
             await tx.chatRoomSokoBotMember.createMany({
               data: requestedSokoBotIds.map((sokoBotId) => ({

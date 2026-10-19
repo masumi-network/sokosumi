@@ -10,6 +10,7 @@ import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
+import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -237,6 +238,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               "Cannot change discoverability while shareable invite links exist. Revoke or wait for them to expire first.",
             );
           }
+        }
+
+        // Every member may read a shared Soko Bot's turns, so it stays only in
+        // a public channel.
+        if (
+          body.discoverability !== undefined &&
+          body.discoverability !== "public" &&
+          existing.sokoBotMembers.some(({ sokoBot }) =>
+            isSharedSokoBot(sokoBot),
+          )
+        ) {
+          throw badRequest(
+            "Remove the shared Soko Bot first. It can only stay in a public channel.",
+          );
         }
 
         const updateData: {

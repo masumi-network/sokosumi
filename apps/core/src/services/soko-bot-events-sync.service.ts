@@ -59,7 +59,8 @@ interface Change {
 
 interface BotWork {
   sokoBotId: string;
-  userId: string;
+  /** Who the turn acts for; null when a shared bot acts on its own. */
+  userId: string | null;
   workspaceId: string;
   changes: Change[];
   /** Delegations whose baseline is set silently (first observation). */
@@ -254,14 +255,18 @@ export class SokoBotEventsSyncService {
       ) {
         continue;
       }
-      const work = byBot.get(delegation.turn.sokoBotId) ?? {
+      // A shared bot's delegations belong to different members; each result
+      // turn runs for the member who asked for that work, never another one.
+      const actingUserId = sokoBotActingUserId(delegation.turn);
+      const workKey = `${delegation.turn.sokoBotId}:${actingUserId ?? ""}`;
+      const work = byBot.get(workKey) ?? {
         sokoBotId: delegation.turn.sokoBotId,
-        userId: sokoBotActingUserId(delegation.turn),
+        userId: actingUserId,
         workspaceId: delegation.turn.workspaceId,
         changes: [],
         baselines: [],
       };
-      byBot.set(delegation.turn.sokoBotId, work);
+      byBot.set(workKey, work);
       // A background run follows the Tasks and Jobs it started itself; an
       // event turn beside it would act on the same result without its plan.
       if (
@@ -488,6 +493,7 @@ export class SokoBotEventsSyncService {
       try {
         const started = await sokoBotControlPlane.startTurn({
           userId: work.userId,
+          sokoBotId: work.sokoBotId,
           workspaceId: work.workspaceId,
           clientTurnId: sokoBotEventClientTurnId(changes),
           message: buildEventMessage(changes),

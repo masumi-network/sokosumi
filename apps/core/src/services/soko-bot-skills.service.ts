@@ -1,4 +1,5 @@
 import { getEnv } from "@/config/env";
+import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
 
 const GITHUB_API = "https://api.github.com";
@@ -203,10 +204,7 @@ export async function discoverSkills(
 }
 
 async function requireBot(userId: string, workspaceId: string) {
-  const bot = await prisma.sokoBot.findFirst({
-    where: { userId, workspaceId, archivedAt: null },
-    select: { id: true },
-  });
+  const bot = await memberSokoBot(userId, workspaceId, ME_SOKO_BOT);
   if (!bot) throw new SokoBotSkillError("Create a Soko Bot first");
   return bot;
 }

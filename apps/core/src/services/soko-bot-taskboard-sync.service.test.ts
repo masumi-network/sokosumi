@@ -371,6 +371,23 @@ describe("who a Task comment wakes", () => {
     );
   });
 
+  it("signs a shared bot's comment with no owner name", async () => {
+    const own = task({
+      ownerId: ALICE_USER_ID,
+      sokoBotDelegations: [{ id: "delegation-1" }],
+    });
+    const shared = {
+      ...comment("Atlas, can you confirm the budget?", "bot"),
+      sokoBot: { name: "Scout", userId: null, user: null },
+    };
+    expect(await sync(own, shared)).toBe(true);
+    const message = startTurnMock.mock.calls.at(-1)?.[0]?.message;
+    expect(message).toContain(
+      "Scout (shared team assistant): Atlas, can you confirm the budget?",
+    );
+    expect(message).not.toContain("'s assistant");
+  });
+
   it("follows only Tasks the bot created, assigned or edited", async () => {
     await sync(task({}), comment("x", "human"));
     const where = taskFindManyMock.mock.calls[0]?.[0]?.where as {

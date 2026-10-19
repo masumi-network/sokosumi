@@ -1,11 +1,10 @@
-import { MemberRole, type Prisma } from "@sokosumi/database";
+import type { Prisma } from "@sokosumi/database";
 import {
   buildRoomQuoteSnippetParts,
   CHANNEL_SLUG_MAX_LENGTH,
   canQuoteIntoRoom,
   channelNameFromSlug,
   formatParticipantNameList,
-  getFirstName,
   isSelfJoinableChannelDiscoverability,
   MAX_LISTED_CHAT_REACTION_REACTORS,
   sanitizeChannelSlug,
@@ -26,8 +25,10 @@ import {
 } from "@/helpers/chat-room-message-unfurl-metadata";
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import { isDirectKeyUniqueConstraintError } from "@/helpers/prisma";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
+import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import {
   type ChatRoom,
@@ -43,6 +44,10 @@ import {
 } from "./membership-status";
 // Type only: `room-unread` imports this module at runtime.
 import type { ChatRoomUnreadThreads } from "./room-unread";
+import {
+  chatRoomSokoBotSelect,
+  mapChatRoomSokoBotParticipant,
+} from "./soko-bot-participant";
 
 export const chatRoomUserSelect = {
   id: true,
@@ -58,29 +63,6 @@ export const chatRoomCoworkerSelect = {
   caption: true,
   image: true,
 } as const satisfies Prisma.CoworkerSelect;
-
-export const chatRoomSokoBotSelect = {
-  id: true,
-  name: true,
-  avatarImageUrl: true,
-  avatarSeed: true,
-  userId: true,
-  user: { select: { name: true } },
-} as const satisfies Prisma.SokoBotSelect;
-
-export function sokoBotAvatarSeedFor(bot: {
-  userId: string;
-  avatarSeed: string | null;
-}): string {
-  return bot.avatarSeed ?? `orb:${bot.userId}`;
-}
-
-export function sokoBotCaption(bot: { user: { name: string } | null }): string {
-  const ownerFirst = bot.user ? getFirstName(bot.user.name) : null;
-  return ownerFirst
-    ? `${ownerFirst}'s personal assistant`
-    : "Personal assistant";
-}
 
 type ChatRoomPresence = "online" | "afk" | "offline";
 
@@ -364,15 +346,9 @@ export function mapChatRoom(
       image: coworker.image ?? null,
       presence: "online" as const,
     })),
-    sokoBotMembers: room.sokoBotMembers.map(({ sokoBot }) => ({
-      id: sokoBot.id,
-      name: sokoBotDisplayName(sokoBot),
-      caption: sokoBotCaption(sokoBot),
-      image: sokoBot.avatarImageUrl ?? null,
-      avatarSeed: sokoBotAvatarSeedFor(sokoBot),
-      ownerUserId: sokoBot.userId,
-      presence: "online" as const,
-    })),
+    sokoBotMembers: room.sokoBotMembers.map(({ sokoBot }) =>
+      mapChatRoomSokoBotParticipant(sokoBot),
+    ),
   };
 }
 
@@ -642,15 +618,7 @@ function mapChatRoomMessageSender(
   if (row.senderSokoBot) {
     return {
       type: "sokoBot" as const,
-      sokoBot: {
-        id: row.senderSokoBot.id,
-        name: sokoBotDisplayName(row.senderSokoBot),
-        caption: sokoBotCaption(row.senderSokoBot),
-        image: row.senderSokoBot.avatarImageUrl ?? null,
-        avatarSeed: sokoBotAvatarSeedFor(row.senderSokoBot),
-        ownerUserId: row.senderSokoBot.userId,
-        presence: "online" as const,
-      },
+      sokoBot: mapChatRoomSokoBotParticipant(row.senderSokoBot),
     };
   }
 
@@ -1341,14 +1309,6 @@ export function buildDirectRoomName(names: readonly string[]): string {
 }
 
 /**
- * Organization owner/admin elevation for channel lifecycle and settings.
- * Room creator is provenance only — never authorizes.
- */
-export function isOrganizationOwnerOrAdmin(role: string): boolean {
-  return role === MemberRole.OWNER || role === MemberRole.ADMIN;
-}
-
-/**
  * Archive and restore hide or resurface a room for everyone, so only an
  * organization owner/admin may do either. Plain members leave instead (or ask
  * someone elevated to archive).
@@ -1953,13 +1913,24 @@ export async function validateChatCoworkerIds(
   return uniqueCoworkerIds;
 }
 
+/**
+ * Soko Bots to add to a room in `workspaceId`. A personal bot needs its owner
+ * (or `anyOwner`, for a 1:1 in an organization). A shared bot belongs to the
+ * workspace, so any member with room access may add it, like a Coworker. Every
+ * member may read its turns, so it joins only a public channel (`discoverability`
+ * of the target room); a direct, private or external room refuses it.
+ */
 export async function validateChatSokoBotIds(
   sokoBotIds: readonly string[],
   workspaceId: string,
   actorUserId: string,
   alreadyInRoomIds: readonly string[],
   tx: Prisma.TransactionClient,
-  options: { anyOwner?: boolean } = {},
+  options: {
+    anyOwner?: boolean;
+    direct?: boolean;
+    discoverability?: string | null;
+  } = {},
 ): Promise<string[]> {
   const uniqueIds = normalizeUniqueStrings(sokoBotIds);
   if (uniqueIds.length === 0) {
@@ -1973,21 +1944,42 @@ export async function validateChatSokoBotIds(
       deletedAt: null,
       archivedAt: null,
     },
-    select: { id: true, userId: true },
+    select: {
+      id: true,
+      userId: true,
+      workspace: { select: { organizationId: true } },
+    },
   });
   const found = new Map(bots.map((bot) => [bot.id, bot]));
   const missing = uniqueIds.filter((id) => !found.has(id));
   if (missing.length > 0) {
-    throw badRequest(
-      "Room personal assistants must be active in this workspace",
-    );
+    throw badRequest("Room Soko Bots must be active in this workspace");
   }
 
   const already = new Set(alreadyInRoomIds);
   for (const id of uniqueIds) {
     if (already.has(id)) continue;
     const bot = found.get(id);
-    if (bot && bot.userId !== actorUserId && !options.anyOwner) {
+    if (!bot) continue;
+    if (isSharedSokoBot(bot)) {
+      if (options.direct) {
+        throw badRequest(
+          "A shared Soko Bot has no direct messages. Talk to it in its shared room.",
+        );
+      }
+      if (bot.workspace.organizationId === null) {
+        throw badRequest(
+          "A shared Soko Bot can only join an organization room",
+        );
+      }
+      if (options.discoverability !== "public") {
+        throw badRequest(
+          "A shared Soko Bot can only join a public channel, because every member can read its turns.",
+        );
+      }
+      continue;
+    }
+    if (bot.userId !== actorUserId && !options.anyOwner) {
       throw forbidden("Only the owner can add this personal assistant");
     }
   }
@@ -2519,7 +2511,7 @@ export async function createOrGetDirectRoom(params: {
           sokoBotActorUserId,
           [],
           tx,
-          { anyOwner: activeOrganizationId != null },
+          { anyOwner: activeOrganizationId != null, direct: true },
         );
         const directKey = buildDirectParticipantRoomKey({
           currentUserId,

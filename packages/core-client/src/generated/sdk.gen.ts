@@ -1036,7 +1036,7 @@ export const deleteChatsRoomsByIdMembersByUserId = <ThrowOnError extends boolean
 });
 
 /**
- * Add organization members, Coworkers and the caller's own Soko Bots to a Channel. Any host member (`access=member`) may add; Guests may not. Only a Soko Bot's owner may add it. Members already in the Channel are left as they are. Matched channels are managed by Sokosumi.
+ * Add organization members, Coworkers and Soko Bots to a Channel. Any host member (`access=member`) may add; Guests may not. Only its owner may add a personal Soko Bot. Any member may add a shared Soko Bot, as with a Coworker. Members already in the Channel are left as they are. Matched channels are managed by Sokosumi.
  */
 export const postChatsRoomsByIdMembers = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdMembersData, ThrowOnError>): RequestResult<PostChatsRoomsByIdMembersResponses, PostChatsRoomsByIdMembersErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdMembersResponses, PostChatsRoomsByIdMembersErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdMembersResponseTransformer,
@@ -1058,7 +1058,7 @@ export const deleteChatsRoomsByIdCoworkersByCoworkerId = <ThrowOnError extends b
 });
 
 /**
- * Remove your own Soko Bot from a Channel. Only its owner may remove it; it also leaves when its owner leaves or is removed.
+ * Remove a Soko Bot from a Channel. Only its owner may remove a personal Soko Bot; it also leaves when its owner leaves or is removed. Any member may remove a shared Soko Bot, except from its own shared room.
  */
 export const deleteChatsRoomsByIdSokoBotsBySokoBotId = <ThrowOnError extends boolean = false>(options: Options<DeleteChatsRoomsByIdSokoBotsBySokoBotIdData, ThrowOnError>): RequestResult<DeleteChatsRoomsByIdSokoBotsBySokoBotIdResponses, DeleteChatsRoomsByIdSokoBotsBySokoBotIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteChatsRoomsByIdSokoBotsBySokoBotIdResponses, DeleteChatsRoomsByIdSokoBotsBySokoBotIdErrors, ThrowOnError>({
     responseTransformer: deleteChatsRoomsByIdSokoBotsBySokoBotIdResponseTransformer,
