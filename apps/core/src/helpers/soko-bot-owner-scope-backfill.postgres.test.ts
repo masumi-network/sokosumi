@@ -15,7 +15,7 @@ afterAll(async () => {
 
 const migrationSql = readFileSync(
   new URL(
-    "../../../../packages/database/prisma/migrations/20261019085700_soko_bot_owner_scope_backfill_rerun/migration.sql",
+    "../../../../packages/database/prisma/migrations/20261019090300_soko_bot_owner_scope_backfill_rerun/migration.sql",
     import.meta.url,
   ),
   "utf8",

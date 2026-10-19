@@ -14,7 +14,10 @@ import {
   socialPostSchema,
 } from "@/schemas/social-post.schema";
 import { refreshSocialPostStatistics } from "@/services/social-post-statistics.service";
-import { mapSocialPostServiceError } from "../../../route-helpers.js";
+import {
+  mapSocialPostServiceError,
+  presentSocialPost,
+} from "../../../route-helpers.js";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -54,10 +57,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       });
       return ok(
         c,
-        socialPostSchema.parse({
-          ...post,
-          canPublishNow: post.canPublishNow && !actor.coworkerId,
-        }),
+        socialPostSchema.parse(presentSocialPost(post, actor.coworkerId)),
       );
     } catch (error) {
       return mapSocialPostServiceError(error);

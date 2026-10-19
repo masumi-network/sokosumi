@@ -5118,3 +5118,13 @@ All from `apps/apple`, on the snapshot from that commit:
 - `mint run swiftformat --lint .`: **0/635 files require formatting**; `mint run swiftlint lint --strict`: **0 violations in 632 files**.
 
 Unverified: a shared Soko Bot in a running app; no deployed Core could create one when this was written.
+
+## 01b — the sign-in screen matches web's Log in page
+
+[#6431](https://github.com/masumi-network/sokosumi/pull/6431), taken outside the Work order at the user's request (2026-10-19). `SignInView` now draws web's auth layout ([layout.tsx](<../web/src/app/(auth)/layout.tsx>), [auth-header.tsx](<../web/src/app/(auth)/components/auth-header.tsx>), [auth-aside.tsx](<../web/src/app/(auth)/components/auth-aside.tsx>)). Every method (email, Google, Microsoft, passkey) stays on the web page the system browser opens. Assets: the wordmark (light and dark SVG), the Kanji mark (template SVG) and web's five auth photos as JPEG.
+
+Merging `main` brought #6398 (sign-up goes to the website) and #6399 (Debug server picker). Register keeps web's "Don't have an account? Register" line and opens `CoreSettings.signUpURL`. `ServerChoiceSection` stays under the terms notice in Debug builds.
+
+Recorded deviations: no customer-logo marquee and no Serviceplan quote (user choice); one "Continue in browser" button in place of web's per-method buttons; English only.
+
+Verification: `SignInViewTests` renders five states in light and dark. This Mac has Xcode 26.0.1, which cannot build the workspace (tools 6.4) or the app (type-checker limits in unrelated files). So the merged view, Register link and Debug picker included, was rendered through a standalone harness against the real `SokosumiAuth` and `CoreAPI`. The picker's fields keep leading text inside the centered column. The test suite, SwiftLint and SwiftFormat run in CI only. Unverified: the running app, a real browser round trip, keyboard focus and VoiceOver.

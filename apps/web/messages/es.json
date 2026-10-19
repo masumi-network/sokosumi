@@ -2479,6 +2479,7 @@
         },
         "status": {
           "DRAFT": "Borrador",
+          "NEEDS_APPROVAL": "Pendiente de aprobación",
           "SCHEDULED": "Programada",
           "PUBLISHING": "Publicando",
           "PUBLISHED": "Publicada",

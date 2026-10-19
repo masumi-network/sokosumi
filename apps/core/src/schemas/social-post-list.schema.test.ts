@@ -11,11 +11,15 @@ describe("listSocialPostsQuerySchema status", () => {
 
   it("parses a comma-separated list and trims entries", () => {
     const result = listSocialPostsQuerySchema.safeParse({
-      status: " DRAFT , SCHEDULED ",
+      status: " DRAFT , NEEDS_APPROVAL , SCHEDULED ",
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.status).toEqual(["DRAFT", "SCHEDULED"]);
+      expect(result.data.status).toEqual([
+        "DRAFT",
+        "NEEDS_APPROVAL",
+        "SCHEDULED",
+      ]);
     }
   });
 
