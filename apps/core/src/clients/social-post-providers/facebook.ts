@@ -78,6 +78,7 @@ export async function publishFacebookPost(
           page_id: pageId,
           photo_urls: images.map((ref) => ref.fileUrl),
           message: context.text,
+          published: true,
         }
       : images.length === 1
         ? {

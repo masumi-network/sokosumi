@@ -167,6 +167,7 @@ export function SocialPostComposerDialog({
   const scheduledAtErrorId = useId();
   const tooLongId = useId();
   const publishHintId = useId();
+  const saveHintId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadInFlightRef = useRef(false);
@@ -824,6 +825,30 @@ export function SocialPostComposerDialog({
     (primaryAction === "publish" || primaryAction === "schedule") &&
     !primaryEnabled &&
     requirementHintLines.length > 0;
+  // Save draft is off because there is nothing to keep. Instagram still
+  // needs media to post, but a caption alone can be a draft.
+  const saveHint = t("composer.requirements.text_or_media_required");
+  const showSaveRequirementHint =
+    !isScheduleOnly &&
+    primaryAction !== "save" &&
+    !canSave &&
+    !isBusy &&
+    !overLimit &&
+    !hasContent;
+  const saveDraftButton = (
+    <Button
+      type="button"
+      variant="ghost"
+      disabled={!canSave}
+      loading={pending === "save"}
+      onClick={() => {
+        void handleSaveDraft();
+      }}
+      aria-describedby={showSaveRequirementHint ? saveHintId : undefined}
+    >
+      {saveLabel}
+    </Button>
+  );
   const primaryButton = (
     <Button
       type="button"
@@ -1255,17 +1280,28 @@ export function SocialPostComposerDialog({
             </div>
             <div className="flex items-center justify-end gap-2">
               {!isScheduleOnly && primaryAction !== "save" ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={!canSave}
-                  loading={pending === "save"}
-                  onClick={() => {
-                    void handleSaveDraft();
-                  }}
-                >
-                  {saveLabel}
-                </Button>
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className="inline-flex"
+                        tabIndex={showSaveRequirementHint ? 0 : undefined}
+                      >
+                        {saveDraftButton}
+                      </span>
+                    </TooltipTrigger>
+                    {showSaveRequirementHint ? (
+                      <TooltipContent>
+                        <p>{saveHint}</p>
+                      </TooltipContent>
+                    ) : null}
+                  </Tooltip>
+                  {showSaveRequirementHint ? (
+                    <span className="sr-only" id={saveHintId}>
+                      {saveHint}
+                    </span>
+                  ) : null}
+                </>
               ) : null}
               {showRequirementHint ? (
                 <>

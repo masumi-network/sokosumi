@@ -9,9 +9,11 @@ const mocks = vi.hoisted(() => ({
   upsert: vi.fn(),
   count: vi.fn(),
   posts: vi.fn(),
+  storedPosts: vi.fn(),
   cursor: vi.fn(),
   transaction: vi.fn(),
   snapshot: vi.fn(),
+  published: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -22,9 +24,15 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: mocks.transaction,
 }));
-vi.mock("@/services/project-social-connections.service", () => ({
-  listProjectSocialConnections: mocks.listAccounts,
-}));
+vi.mock(
+  "@/services/project-social-connections.service",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/services/project-social-connections.service")
+    >()),
+    listProjectSocialConnections: mocks.listAccounts,
+  }),
+);
 vi.mock("@/clients/social-post-providers/account-statistics", () => ({
   fetchSocialAccountStatisticsPage: mocks.provider,
 }));
@@ -120,10 +128,17 @@ beforeEach(() => {
   mocks.provider.mockResolvedValue(page);
   mocks.update.mockResolvedValue({ count: 1 });
   mocks.count.mockResolvedValue(41);
+  mocks.published.mockResolvedValue({ count: 0 });
+  mocks.storedPosts.mockResolvedValue([]);
   mocks.transaction.mockImplementation(async (operation) =>
     operation({
       projectSocialConnection: { updateMany: mocks.update },
-      socialAccountPost: { upsert: mocks.upsert, count: mocks.count },
+      socialAccountPost: {
+        findMany: mocks.storedPosts,
+        upsert: mocks.upsert,
+        count: mocks.count,
+      },
+      socialPost: { updateMany: mocks.published },
     }),
   );
 });
@@ -241,7 +256,7 @@ describe("Social account statistics", () => {
     expect(mocks.provider).toHaveBeenCalledWith({
       provider: "x",
       connectedAccountId: "ca-one",
-      executorUserId: "connector",
+      executorUserId: `sokosumi:project-executor:${projectId}`,
       externalAccountId: "external-account",
       externalHandle: "launch",
       cursor: null,
@@ -286,6 +301,30 @@ describe("Social account statistics", () => {
       externalAccountId: "external-account",
       connectorUserId: "connector",
       statistics: { equals: previous },
+    });
+  });
+  it("copies measured counters onto the matching published Sokosumi post", async () => {
+    await refreshSocialAccountStatistics({
+      ...scope,
+      connectionId,
+      userId: "reader",
+    });
+    expect(mocks.published).toHaveBeenCalledWith({
+      where: {
+        projectId,
+        workspaceId,
+        socialConnectionId: connectionId,
+        status: "PUBLISHED",
+        publishedExternalId: providerPost.externalId,
+      },
+      data: {
+        statistics: {
+          metrics,
+          fetchedAt: expect.any(String),
+          refreshAttemptedAt: expect.any(String),
+          error: null,
+        },
+      },
     });
   });
   it("uses only the stored cursor for one continuation page and preserves the profile timestamp", async () => {
@@ -432,6 +471,130 @@ describe("Social account statistics", () => {
     expect(update).not.toHaveProperty("metrics");
     expect(update).not.toHaveProperty("additionalMetrics");
     expect(update).not.toHaveProperty("fetchedAt");
+    expect(mocks.published).not.toHaveBeenCalled();
+  });
+  it("keeps stored likes when a later sync only measures impressions", async () => {
+    mocks.storedPosts.mockResolvedValue([
+      {
+        externalId: providerPost.externalId,
+        metrics: {
+          views: null,
+          impressions: 40,
+          likes: 5,
+          comments: 2,
+          shares: null,
+          saves: null,
+        },
+        additionalMetrics: [
+          { key: "quotes", value: 3, period: "lifetime", unit: "count" },
+          { key: "bookmarks", value: 1, period: "lifetime", unit: "count" },
+        ],
+      },
+    ]);
+    mocks.provider.mockResolvedValue({
+      ...page,
+      posts: [
+        {
+          ...providerPost,
+          metrics: {
+            views: null,
+            impressions: 100,
+            likes: null,
+            comments: null,
+            shares: null,
+            saves: null,
+          },
+          additionalMetrics: [
+            { key: "quotes", value: null, period: "lifetime", unit: "count" },
+          ],
+        },
+      ],
+    });
+    await refreshSocialAccountStatistics({
+      ...scope,
+      connectionId,
+      userId: "reader",
+    });
+    expect(mocks.storedPosts).toHaveBeenCalledWith({
+      where: {
+        connectionId,
+        externalId: { in: [providerPost.externalId] },
+      },
+      select: {
+        externalId: true,
+        metrics: true,
+        additionalMetrics: true,
+      },
+    });
+    const { update } = mocks.upsert.mock.calls[0][0];
+    expect(update.metrics).toEqual({
+      views: null,
+      impressions: 100,
+      likes: 5,
+      comments: 2,
+      shares: null,
+      saves: null,
+    });
+    expect(update.additionalMetrics).toEqual([
+      { key: "quotes", value: 3, period: "lifetime", unit: "count" },
+      { key: "bookmarks", value: 1, period: "lifetime", unit: "count" },
+    ]);
+    expect(mocks.published).toHaveBeenCalledWith({
+      where: {
+        projectId,
+        workspaceId,
+        socialConnectionId: connectionId,
+        status: "PUBLISHED",
+        publishedExternalId: providerPost.externalId,
+      },
+      data: {
+        statistics: {
+          metrics: update.metrics,
+          fetchedAt: update.fetchedAt.toISOString(),
+          refreshAttemptedAt: expect.any(String),
+          error: null,
+        },
+      },
+    });
+  });
+  it("writes a measured zero over a stored like count", async () => {
+    mocks.storedPosts.mockResolvedValue([
+      {
+        externalId: providerPost.externalId,
+        metrics: {
+          views: null,
+          impressions: 40,
+          likes: 5,
+          comments: null,
+          shares: null,
+          saves: null,
+        },
+        additionalMetrics: [],
+      },
+    ]);
+    mocks.provider.mockResolvedValue({
+      ...page,
+      posts: [
+        {
+          ...providerPost,
+          metrics: {
+            views: null,
+            impressions: 40,
+            likes: 0,
+            comments: null,
+            shares: null,
+            saves: null,
+          },
+          additionalMetrics: [],
+        },
+      ],
+    });
+    await refreshSocialAccountStatistics({
+      ...scope,
+      connectionId,
+      userId: "reader",
+    });
+    expect(mocks.upsert.mock.calls[0][0].update.metrics.likes).toBe(0);
   });
   it("still writes measured posts when a sibling insight fails", async () => {
     mocks.provider.mockResolvedValue({
@@ -470,6 +633,14 @@ describe("Social account statistics", () => {
     expect(measured?.update).toMatchObject({ metrics });
     expect(failed?.update).not.toHaveProperty("metrics");
     expect(mocks.snapshot).toHaveBeenCalled();
+    expect(mocks.published).toHaveBeenCalledTimes(1);
+    expect(mocks.published).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          publishedExternalId: providerPost.externalId,
+        }),
+      }),
+    );
   });
   it("retains account metrics and their age when optional analytics fail", async () => {
     mocks.provider.mockResolvedValue({
