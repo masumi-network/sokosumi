@@ -184,6 +184,17 @@ describe("GET /developer/tasks", () => {
     });
   });
 
+  it("returns a null owner for a Task without an Owner", async () => {
+    taskFindManyMock.mockResolvedValue([{ ...createListTask(), owner: null }]);
+    taskCountMock.mockResolvedValue(1);
+
+    const response = await createApp().request("/");
+
+    expect(response.status).toBe(200);
+    const [item] = (await response.json()).data;
+    expect(item.owner).toBeNull();
+  });
+
   it("filters by owned coworkerId when provided", async () => {
     coworkerFindFirstMock.mockResolvedValue({ id: "cow_owned" });
     taskFindManyMock.mockResolvedValue([createListTask()]);

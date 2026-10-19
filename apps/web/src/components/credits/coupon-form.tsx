@@ -5,7 +5,6 @@ import type { Organization } from "@sokosumi/core-client";
 import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -27,6 +26,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { claimFreeCreditsWithCoupon } from "@/lib/actions/credits/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { CreditsErrorCode } from "@/lib/actions/errors/error-codes/credits";
@@ -63,9 +63,9 @@ export default function CouponForm({
     },
   });
 
-  useEffect(() => {
+  useMountEffect(() => {
     fireGTMEvent.viewCredits();
-  }, []);
+  });
 
   const { isSubmitting } = form.formState;
 

@@ -22,7 +22,7 @@ import {
   writeText,
 } from "./command-helpers.js";
 
-export interface AdminCommandContext extends CommandContext {
+interface AdminCommandContext extends CommandContext {
   target?: CliTargetConfig["target"];
   subcommand?: string;
   positionalId?: string;
@@ -148,7 +148,6 @@ export async function runAdminCommand(
     return;
   }
 
-  // Validation above requires email for either mutation command.
   if (!email) throw new Error("--email is required");
   let member = selectMember(members, email);
   if (subcommand === "add-member") {

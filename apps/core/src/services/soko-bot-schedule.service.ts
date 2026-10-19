@@ -19,6 +19,8 @@ export interface CreateSokoBotScheduleInput {
   /** One run at this instant (ISO 8601), then the schedule disables itself. */
   runAt?: string;
   prompt: string;
+  /** The writing turn's tools, when the bot wrote it; see the schema. */
+  capabilityNames?: readonly string[];
 }
 
 const MAX_ONE_TIME_LEAD_MS = 366 * 24 * 60 * 60 * 1_000;
@@ -171,6 +173,7 @@ export async function createSokoBotSchedule(
           runOnce,
           prompt: prompt.slice(0, 20_000),
           nextRunAt,
+          capabilityNames: [...(input.capabilityNames ?? [])],
         },
       });
     }
@@ -185,7 +188,7 @@ export async function createSokoBotSchedule(
     return tx.sokoBotSchedule.create({
       data: {
         sokoBotId: bot.id,
-        userId: input.userId,
+        requestedByUserId: input.userId,
         workspaceId: input.workspaceId,
         name: name.slice(0, 120),
         timezone: input.timezone,
@@ -193,6 +196,7 @@ export async function createSokoBotSchedule(
         runOnce,
         prompt: prompt.slice(0, 20_000),
         nextRunAt,
+        capabilityNames: [...(input.capabilityNames ?? [])],
       },
     });
   };
@@ -218,7 +222,7 @@ async function findScheduleForUser(
   const db = transaction ?? prisma;
   const schedule = await db.sokoBotSchedule.findFirst({
     where: {
-      userId,
+      requestedByUserId: userId,
       workspaceId: ref.workspaceId,
       sokoBotId: ref.sokoBotId,
       OR: [
@@ -238,7 +242,11 @@ async function findScheduleForUser(
   });
   if (schedule) return schedule;
   const existing = await db.sokoBotSchedule.findMany({
-    where: { userId, workspaceId: ref.workspaceId, sokoBotId: ref.sokoBotId },
+    where: {
+      requestedByUserId: userId,
+      workspaceId: ref.workspaceId,
+      sokoBotId: ref.sokoBotId,
+    },
     select: { id: true, name: true },
     orderBy: { createdAt: "asc" },
   });

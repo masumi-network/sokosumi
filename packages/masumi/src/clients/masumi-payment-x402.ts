@@ -218,9 +218,8 @@ export interface X402PayInput {
  *   failure) — the only three the spec declares. That a 500 + envelope
  *   proves "no header was issued" — i.e. the node's pay handler cannot 500
  *   AFTER its wallet signed — is a node-source-verified contract, recorded
- *   with its 2026-08-17 safety correction in
- *   `docs/wayfinder/x402-evm/NODE-QUESTIONS.md` (Answers, item 1). If that
- *   contract ever weakens, 500 must move to the ambiguous branch.
+ *   in `docs/adr/0001-x402-evm-payment-rail.md` (Decision 4 / ticket 011).
+ *   If that contract ever weakens, 500 must move to the ambiguous branch.
  * - `"ambiguous"`: no usable response (transport error, abort, a malformed
  *   200, or a non-200 that did not come from the node's own handler). A
  *   header may exist that Soko never received — still unsettleable from the

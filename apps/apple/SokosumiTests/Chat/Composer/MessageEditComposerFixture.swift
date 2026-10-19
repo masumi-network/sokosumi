@@ -18,15 +18,15 @@
     let editing: MessageEditing
     let input: MacComposerTextInput.InputView
 
-    /// `client` answers the edit's PATCH; without one `saveMessageEdit` stops at `resolveClient`.
+    /// `client` answers the edit's PATCH; without one `openRoom.saveEdit` stops at the session's `access` hook.
     static func make(dark: Bool = false, client: Client? = nil) async throws -> MessageEditComposerFixture {
       var message = chatRoomMessage(from: .init(clientTurnId: "turn", roomId: "room_1", content: "Original",
                                                 createdAt: Date(),
                                                 sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
       message.id = "message_1"
-      // The workspace's own editor, as `MessageRowView` passes it: `saveMessageEdit` saves that one.
+      // The workspace's own editor, as `MessageRowView` passes it: `openRoom.saveEdit` saves that one.
       let workspaces = client.map { client in WorkspaceState(clientProvider: { _ in client }) } ?? WorkspaceState()
-      let editing = workspaces.messageEditing
+      let editing = workspaces.openRoom.messageEditing
       editing.start(message, userId: "user")
       let content = MessageEditComposer(editing: editing)
         .environmentObject(workspaces)
@@ -51,14 +51,35 @@
     static func heldClient() throws -> Client {
       let configuration = URLSessionConfiguration.ephemeral
       configuration.protocolClasses = [EditRequestProtocol.self]
-      return try Client.connecting(to: #require(URL(string: "https://edit-fixture.invalid/v1")),
-                                   session: URLSession(configuration: configuration))
+      return try Client.core(baseURL: #require(URL(string: "https://edit-fixture.invalid/v1")),
+                             session: URLSession(configuration: configuration))
     }
 
     func waitForDraft(_ draft: String) async throws {
       _ = try await waitForView(in: input, timeoutMessage: "The draft \(draft.prefix(40).debugDescription) did not reach the text view") {
         input.serializedDraft == draft ? input : nil
       }
+    }
+
+    /// Waits until the composer exposes `text` and the window, refitted on each poll, has fitted it twice running.
+    /// The draft reaches the text view before SwiftUI grows the field and inserts the rows under it; a window
+    /// fitted in between is too short, and the centered content loses its top and its bottom row to the bitmap.
+    func waitForLayout(showing text: String) async throws {
+      let clock = ContinuousClock()
+      let deadline = clock.now.advanced(by: .seconds(10))
+      var settled = 0
+      repeat {
+        window.setContentSize(host.fittingSize)
+        host.layoutSubtreeIfNeeded()
+        let shown = await hostedTexts(in: host).contains { $0.contains(text) }
+        settled = shown && host.fittingSize == host.bounds.size ? settled + 1 : 0
+        if settled == 2 {
+          return
+        }
+        try await Task.sleep(for: .milliseconds(20))
+      } while clock.now < deadline
+      let texts = await hostedTexts(in: host)
+      try #require(settled == 2, "Timed out after 10 seconds: \(text.debugDescription) not laid out (fitting \(host.fittingSize), bounds \(host.bounds.size), texts \(texts))")
     }
 
     static func returnEvent(_ modifiers: NSEvent.ModifierFlags = []) throws -> NSEvent {

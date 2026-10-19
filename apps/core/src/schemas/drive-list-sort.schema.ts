@@ -48,13 +48,10 @@ export const driveListSortQueryFields = {
   sortOrder: driveListSortOrderSchema,
 };
 
-export type DriveListSortBy = "name" | "date" | "type";
-export type DriveListSortOrder = "asc" | "desc";
-
-export interface DriveListSort {
-  sortBy: DriveListSortBy;
-  sortOrder: DriveListSortOrder;
-}
+export type DriveListSort = {
+  sortBy: NonNullable<z.infer<typeof driveListSortBySchema>>;
+  sortOrder: NonNullable<z.infer<typeof driveListSortOrderSchema>>;
+};
 
 /**
  * Resolve optional query sort params.
@@ -62,10 +59,10 @@ export interface DriveListSort {
  */
 export function resolveDriveListSort(
   query: {
-    sortBy?: DriveListSortBy;
-    sortOrder?: DriveListSortOrder;
+    sortBy?: DriveListSort["sortBy"];
+    sortOrder?: DriveListSort["sortOrder"];
   },
-  defaultKeyWhenOnlyOrder: DriveListSortBy,
+  defaultKeyWhenOnlyOrder: DriveListSort["sortBy"],
 ): DriveListSort | null {
   if (query.sortBy === undefined && query.sortOrder === undefined) {
     return null;

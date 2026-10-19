@@ -29,8 +29,10 @@ public final class AuthState: ObservableObject {
   @Published public private(set) var status: Status
   @Published public private(set) var signOutError: String?
 
-  public let oauthSession: OAuthSession?
-  private let configuration: OAuthConfiguration?
+  public private(set) var oauthSession: OAuthSession?
+  private var configuration: OAuthConfiguration?
+  private let store: any TokenStore
+  private let transport: any TokenEndpointTransport
   private let browser: any OAuthBrowser
   private var signInTask: Task<Void, Never>?
   private var signOutTask: Task<Void, Never>?
@@ -59,6 +61,8 @@ public final class AuthState: ObservableObject {
     restoreSession: Bool = true
   ) {
     self.configuration = configuration
+    self.store = store
+    self.transport = transport
     self.browser = browser
     if let configuration {
       oauthSession = OAuthSession(configuration: configuration, store: store, transport: transport)
@@ -72,6 +76,16 @@ public final class AuthState: ObservableObject {
 
   public var isSignedIn: Bool {
     status == .signedIn
+  }
+
+  /// Points the next sign-in at another issuer (a debug build switching servers).
+  /// Only while signed out and idle: tokens belong to the issuer that minted them.
+  @discardableResult
+  public func reconfigure(_ configuration: OAuthConfiguration) -> Bool {
+    guard case .signedOut = status, signInTask == nil, signOutTask == nil else { return false }
+    self.configuration = configuration
+    oauthSession = OAuthSession(configuration: configuration, store: store, transport: transport)
+    return true
   }
 
   /// Returns the operation so callers/tests can await completion if needed.

@@ -136,6 +136,14 @@ function retainedPositionIndex(
   return index;
 }
 
+/** The row a remount reopens on, or -1 when it opens at the live edge. */
+function openingIndex(
+  rows: readonly RoomTranscriptRenderRow[],
+  saved: TranscriptPosition | undefined,
+): number {
+  return saved && !saved.atLiveEdge ? retainedPositionIndex(rows, saved) : -1;
+}
+
 /**
  * A transcript, mounting only the rows near the viewport.
  *
@@ -279,9 +287,12 @@ export function TranscriptViewport({
   // Where the reader is relative to the live edge, from the scroller itself.
   // Called on every scroll and every virtualizer change: chrome that resizes
   // the scroller and rows that grow both move the edge with no scroll event.
-  const recordDistance = (element: HTMLElement) => {
+  const recordDistance = (element: HTMLElement, corrected = Infinity) => {
     const distance = Math.max(
-      element.scrollHeight - element.clientHeight - element.scrollTop,
+      Math.min(
+        element.scrollHeight - element.clientHeight - element.scrollTop,
+        corrected,
+      ),
       0,
     );
     distanceFromEndRef.current = distance;
@@ -331,19 +342,39 @@ export function TranscriptViewport({
     },
     [rows],
   );
+  const estimateSize = (index: number) =>
+    estimateTranscriptRowHeight(
+      rows[index],
+      scroller
+        ? {
+            listWidth: scroller.clientWidth,
+            viewportWidth: window.innerWidth,
+          }
+        : undefined,
+    );
   const virtualizer = useVirtualizer<HTMLElement, HTMLDivElement>({
     count: rows.length,
+    // Off until the scroller exists: the virtualizer keeps the first offset
+    // it reads, and the opening one below needs the scroller's width.
+    enabled: scroller !== null,
     getScrollElement: () => scroller,
-    estimateSize: (index) =>
-      estimateTranscriptRowHeight(
-        rows[index],
-        scroller
-          ? {
-              listWidth: scroller.clientWidth,
-              viewportWidth: window.innerWidth,
-            }
-          : undefined,
-      ),
+    estimateSize,
+    // Open with the rows the view is about to land on. From offset 0 the
+    // first paint mounts the oldest rows while the scroller already sits at
+    // the end: a blank list under "Jump to latest" until a scroll re-render.
+    initialOffset: () => {
+      const saved = restoreRef.current;
+      const index = openingIndex(rows, saved);
+      const target = index < 0 ? rows.length : index;
+      let offset = 0;
+      for (let row = 0; row < target; row += 1) offset += estimateSize(row);
+      return offset;
+    },
+    // And with the scroller's size: without one the first range is empty,
+    // and the rows mount a render later, behind the scroll that opens.
+    initialRect: scroller
+      ? { width: scroller.clientWidth, height: scroller.clientHeight }
+      : undefined,
     getItemKey,
     rangeExtractor: transcriptRangeExtractor,
     scrollMargin,
@@ -380,7 +411,11 @@ export function TranscriptViewport({
           (instance.scrollOffset ?? 0) + previousHeight - height,
         );
       }
-      recordDistance(element);
+      // A row that grew at the live edge is followed by a scroll write the
+      // browser clamps until the taller list is laid out, so the DOM reads
+      // far from the end for that frame. The virtualizer's offset already
+      // includes the correction; trusting the DOM alone flashes the control.
+      recordDistance(element, instance.getDistanceFromEnd());
     },
   });
   virtualizerRef.current = virtualizer;
@@ -471,8 +506,8 @@ export function TranscriptViewport({
     if (openedRef.current || !scroller || rows.length === 0) return;
     openedRef.current = true;
     const saved = restoreRef.current;
-    const index = saved ? retainedPositionIndex(rows, saved) : -1;
-    if (!saved || saved.atLiveEdge || index < 0) {
+    const index = openingIndex(rows, saved);
+    if (!saved || index < 0) {
       restoreRef.current = undefined;
       virtualizer.scrollToEnd();
       return;

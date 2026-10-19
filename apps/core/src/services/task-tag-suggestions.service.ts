@@ -107,7 +107,7 @@ export function verifyTaskTagReceipt(
 
 // One atomic admission: content lease, user cooldown, and rolling user/workspace
 // windows. Denied requests never consume another counter or extend a window.
-export const TASK_TAG_SUGGESTION_ADMISSION = `
+const TASK_TAG_SUGGESTION_ADMISSION = `
 if redis.call('EXISTS', KEYS[6]) == 1 then return -1 end
 local clock = redis.call('TIME')
 local now = tonumber(clock[1]) * 1000 + math.floor(tonumber(clock[2]) / 1000)

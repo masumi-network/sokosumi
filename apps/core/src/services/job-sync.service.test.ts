@@ -1712,6 +1712,59 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(notificationUpdateManyAndReturnMock).not.toHaveBeenCalled();
   });
 
+  describe("live status reaches the Owner", () => {
+    async function syncCompletion(ownership: Record<string, unknown>) {
+      const completedJob = createJob({
+        status: SokosumiJobStatus.COMPLETED,
+        jobStatusSettled: true,
+        completedAt: new Date("2026-03-18T10:05:00.000Z"),
+        events: [
+          createJobEvent({
+            id: "event_2",
+            status: AgentJobStatus.COMPLETED,
+            result: "done",
+            statusHash: "new-hash",
+          }),
+        ],
+        ...ownership,
+      });
+      mockInitialJobQueries({ agent: [createJob(ownership)] });
+      fetchAgentJobStatusMock.mockReturnValue(
+        ok({
+          status: "completed",
+          result: "done",
+          input_schema: null,
+          statusHash: "new-hash",
+        }),
+      );
+      getJobByIdMock.mockResolvedValueOnce(completedJob);
+
+      await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+    }
+
+    it("publishes to the Owner a Coworker made the Job for", async () => {
+      await syncCompletion({
+        ownerId: "user_asker",
+        creatorUserId: null,
+        creatorCoworkerId: "coworker_1",
+      });
+
+      expect(publishJobStatusDataMock).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "user_asker", jobId: "job_1" }),
+      );
+    });
+
+    it("publishes to nobody for a Job without an Owner", async () => {
+      await syncCompletion({
+        ownerId: null,
+        creatorUserId: null,
+        creatorSokoBotId: "bot_1",
+      });
+
+      expect(publishJobStatusDataMock).not.toHaveBeenCalled();
+    });
+  });
+
   it("alerts the agent author for terminal payment failures, and nobody else", async () => {
     const updatedFailedJob = createJob({
       status: SokosumiJobStatus.PAYMENT_FAILED,

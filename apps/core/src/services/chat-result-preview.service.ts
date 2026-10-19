@@ -308,7 +308,7 @@ export async function resolveChatResultReference(
       const schedule = await client.sokoBotSchedule.findFirst({
         where: {
           id: ref.id,
-          userId: actor.userId,
+          requestedByUserId: actor.userId,
           workspaceId: actor.workspaceId,
         },
         include: {
@@ -489,7 +489,7 @@ export async function resolveChatResultReference(
       const decision = await client.sokoBotPendingDecision.findFirst({
         where: {
           id: ref.id,
-          userId: actor.userId,
+          requestedByUserId: actor.userId,
           workspaceId: actor.workspaceId,
         },
       });
