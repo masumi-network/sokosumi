@@ -43,12 +43,14 @@ struct SignInView: View {
 /// The centered column: heading, then the state's body at web's 24pt gap.
 private struct SignInColumn: View {
   @EnvironmentObject private var auth: AuthState
+  /// Web's 24px light title, scaled with the system text size.
+  @ScaledMetric(relativeTo: .title) private var headingSize = 24.0
 
   var body: some View {
     VStack(spacing: 24) {
       VStack(spacing: 4) {
         Text("Log in")
-          .font(.system(size: 24, weight: .light))
+          .font(.system(size: headingSize, weight: .light))
           .tracking(-0.4)
         Text("Hire agents on our platform")
           .foregroundStyle(.secondary)
@@ -180,6 +182,8 @@ private struct SignInFooter: View {
 /// the claim and three lines of proof top left, and the Kanji mark top right. The same in both appearances.
 private struct SignInHeroPanel: View {
   let imageName: String
+  /// Web's 36–48px claim, scaled with the system text size.
+  @ScaledMetric(relativeTo: .largeTitle) private var claimSize = 40.0
 
   private static let bullets = [
     "Specialized AI coworker built for marketing.",
@@ -207,13 +211,13 @@ private struct SignInHeroPanel: View {
       .overlay(alignment: .topLeading) {
         VStack(alignment: .leading, spacing: 40) {
           Text("AI coworkers\nfor marketing")
-            .font(.system(size: 40, weight: .medium))
+            .font(.system(size: claimSize, weight: .medium))
             .tracking(-0.8)
             .accessibilityAddTraits(.isHeader)
           VStack(alignment: .leading, spacing: 0) {
             ForEach(Self.bullets, id: \.self) { bullet in
               Text(bullet)
-                .font(.system(size: 15))
+                .font(.title3)
                 .foregroundStyle(.white.opacity(0.85))
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
