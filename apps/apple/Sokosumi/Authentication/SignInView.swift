@@ -52,11 +52,10 @@ private struct SignInColumn: View {
         Text("Log in")
           .font(.system(size: headingSize, weight: .light))
           .tracking(-0.4)
+          .accessibilityAddTraits(.isHeader)
         Text("Hire agents on our platform")
           .foregroundStyle(.secondary)
       }
-      .accessibilityElement(children: .combine)
-      .accessibilityAddTraits(.isHeader)
 
       switch auth.status {
       case .notConfigured:
@@ -76,27 +75,9 @@ private struct SignInColumn: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
+        .tint(Color("BrandSolid"))
         .controlSize(.extraLarge)
         .keyboardShortcut(.defaultAction)
-        HStack(spacing: 4) {
-          Text("Don't have an account?")
-            .foregroundStyle(.secondary)
-          // Accounts are created on the website: the sign-in sheet forgets everything once it closes, and the
-          // website's onboarding sets up the new account.
-          Link("Register", destination: CoreSettings.signUpURL)
-            .buttonStyle(.plain)
-            .foregroundStyle(.tint)
-            .pointerStyle(.link)
-        }
-        Text(SignInLinks.termsNotice)
-          .font(.callout)
-          .foregroundStyle(.secondary)
-          .tint(.secondary)
-          .multilineTextAlignment(.center)
-        #if DEBUG
-          ServerChoiceSection()
-            .multilineTextAlignment(.leading)
-        #endif
       case .signingIn:
         HStack(spacing: 8) {
           ProgressView()
@@ -116,8 +97,40 @@ private struct SignInColumn: View {
       case .signedIn:
         EmptyView()
       }
+
+      // Register and the terms stay up while the browser is open, so the column keeps its shape.
+      if showsRegistration {
+        HStack(spacing: 4) {
+          Text("Don't have an account?")
+            .foregroundStyle(.secondary)
+          // Accounts are created on the website: the sign-in sheet forgets everything once it closes, and the
+          // website's onboarding sets up the new account.
+          Link("Register", destination: CoreSettings.signUpURL)
+            .buttonStyle(.plain)
+            .foregroundStyle(Color("BrandSolid"))
+            .pointerStyle(.link)
+        }
+        Text(SignInLinks.termsNotice)
+          .font(.callout)
+          .foregroundStyle(.secondary)
+          .tint(.secondary)
+      }
+      // Signed out only: Apply changes the issuer, and an attempt in progress already started against the old one.
+      #if DEBUG
+        if case .signedOut = auth.status {
+          ServerChoiceSection()
+            .multilineTextAlignment(.leading)
+        }
+      #endif
     }
     .multilineTextAlignment(.center)
+  }
+
+  private var showsRegistration: Bool {
+    switch auth.status {
+    case .signedOut, .signingIn: true
+    case .notConfigured, .signedIn: false
+    }
   }
 }
 
@@ -155,7 +168,7 @@ private enum SignInLinks {
   }()
 }
 
-/// Web's `AuthLayoutFooter`: four quiet legal links.
+/// Web's `AuthLayoutFooter`: four quiet legal links that wrap, centered, when the window is too narrow for one row.
 private struct SignInFooter: View {
   private static let links: [(title: String, url: String)] = [
     ("Terms of Service", SignInLinks.terms),
@@ -165,7 +178,7 @@ private struct SignInFooter: View {
   ]
 
   var body: some View {
-    HStack(spacing: 16) {
+    WrappingRow(spacing: 16, centersRows: true) {
       ForEach(Self.links, id: \.url) { link in
         if let url = URL(string: link.url) {
           Link(link.title, destination: url)

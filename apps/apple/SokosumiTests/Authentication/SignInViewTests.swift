@@ -31,6 +31,7 @@
     @MainActor struct SignInViewTests {
       private static let wide = NSSize(width: 1100, height: 720)
       private static let narrow = NSSize(width: 520, height: 720)
+      private static let minimum = NSSize(width: 420, height: 720)
       private static let configuration = OAuthConfiguration(issuerBaseURL: URL(string: "https://example.com/auth")!,
                                                             clientID: "test")
 
@@ -39,7 +40,8 @@
       }
 
       /// Light beside dark, recorded as one attachment; the words each appearance exposes.
-      private static func render(named name: String, _ auth: AuthState, size: NSSize) async throws -> [[String]] {
+      private static func render(named name: String, _ auth: AuthState, size: NSSize,
+                                 inspect: ((NSView) async throws -> Void)? = nil) async throws -> [[String]] {
         var columns: [[CGImage]] = []
         var texts: [[String]] = []
         for dark in [false, true] {
@@ -64,6 +66,9 @@
           host.cacheDisplay(in: host.bounds, to: bitmap)
           try columns.append([#require(bitmap.cgImage)])
           await texts.append(hostedTexts(in: host))
+          if !dark, let inspect {
+            try await inspect(host)
+          }
         }
         let combined = try RoomHeaderTests.stitched(columns)
         try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "\(name).png")
@@ -109,7 +114,53 @@
         auth.startSignIn()
         defer { auth.cancelSignIn() }
         let texts = try await Self.render(named: "sign-in-waiting", auth, size: Self.narrow)
-        Self.expect(texts, contain: ["Log in", "Waiting for your browser", "Cancel"], lack: ["Continue in browser"])
+        Self.expect(texts, contain: ["Log in", "Waiting for your browser", "Cancel", "Register", "By creating an account, you agree to the"],
+                    lack: ["Continue in browser", "Server (Debug build)"])
+      }
+
+      /// Web's footer wraps (`flex-wrap justify-center`); at the window's 420pt minimum every link stays whole and apart.
+      @Test func theLegalFooterFitsTheMinimumWindow() async throws {
+        let titles = ["Terms of Service", "Privacy Policy", "Imprint", "Acceptable Use"]
+        _ = try await Self.render(named: "sign-in-minimum", Self.auth(), size: Self.minimum) { host in
+          var frames: [CGRect] = []
+          for title in titles {
+            let frame = try #require(await Self.lowestFrame(labelled: title, in: host), "No \(title) link")
+            #expect(frame.minX >= -1 && frame.maxX <= host.bounds.width + 1, "\(title) is clipped: \(frame) in \(host.bounds)")
+            frames.append(frame)
+          }
+          for (index, frame) in frames.enumerated() {
+            for other in frames[(index + 1)...] {
+              #expect(!frame.insetBy(dx: 1, dy: 1).intersects(other), "Footer links overlap: \(frame) and \(other)")
+            }
+          }
+        }
+      }
+
+      /// The frame, in `host` coordinates, of the lowest node labelled exactly `label`: the terms notice above the
+      /// footer exposes its own "Terms of Service" and "Privacy Policy" links.
+      private static func lowestFrame(labelled label: String, in host: NSView) async -> CGRect? {
+        _ = await hostedTexts(in: host)
+        guard let window = host.window else { return nil }
+        var frames: [CGRect] = []
+        var seen: Set<ObjectIdentifier> = []
+        func walk(_ element: Any) {
+          guard let object = element as? NSObject, seen.insert(ObjectIdentifier(object)).inserted else { return }
+          if object.responds(to: NSSelectorFromString("accessibilityLabel")),
+             object.value(forKey: "accessibilityLabel") as? String == label,
+             let screen = (object.value(forKey: "accessibilityFrame") as? NSValue)?.rectValue, screen.height > 1 {
+            frames.append(host.convert(window.convertFromScreen(screen), from: nil))
+          }
+          if object.responds(to: NSSelectorFromString("accessibilityChildren")) {
+            for child in (object.value(forKey: "accessibilityChildren") as? [Any]) ?? [] {
+              walk(child)
+            }
+          }
+          for subview in (object as? NSView)?.subviews ?? [] {
+            walk(subview)
+          }
+        }
+        walk(host)
+        return host.isFlipped ? frames.max { $0.minY < $1.minY } : frames.min { $0.minY < $1.minY }
       }
 
       @Test func anUnconfiguredBuildSaysSo() async throws {

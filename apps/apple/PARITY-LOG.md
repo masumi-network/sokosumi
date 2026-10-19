@@ -5128,3 +5128,12 @@ Merging `main` brought #6398 (sign-up goes to the website) and #6399 (Debug serv
 Recorded deviations: no customer-logo marquee and no Serviceplan quote (user choice); one "Continue in browser" button in place of web's per-method buttons; English only.
 
 Verification: `SignInViewTests` renders five states in light and dark. This Mac has Xcode 26.0.1, which cannot build the workspace (tools 6.4) or the app (type-checker limits in unrelated files). So the merged view, Register link and Debug picker included, was rendered through a standalone harness against the real `SokosumiAuth` and `CoreAPI`. The picker's fields keep leading text inside the centered column. The test suite, SwiftLint and SwiftFormat run in CI only. Unverified: the running app, a real browser round trip, keyboard focus and VoiceOver.
+
+Review follow-up, after #6431 merged (squash `7951fdf18`), taken from Cursor's draft #6432 by hand:
+- The wordmark SVGs carry `fill` on each path instead of CSS classes, which the asset catalog may drop.
+- The primary button and Register use a `BrandSolid` color asset: web's `--primary-solid`, `#2B5C78` light and `#336D8F` dark. The app's AccentColor is lighter in dark (`#418AB4`) and stays unchanged for the rest of the app.
+- Register and the terms notice stay up while the browser is open. The Debug server picker shows only when signed out, because Apply changes the issuer an attempt already started against.
+- Only "Log in" carries the header trait; the subtitle reads as its own line.
+- The legal footer wraps, centered, through `WrappingRow`'s new `centersRows`, so it fits the 420pt minimum window. `theLegalFooterFitsTheMinimumWindow` checks that each link is inside the window and none overlap.
+
+Not taken from #6432: its tests, which did not compile (calls on `NSObject` in its Apple CI run); a test comparing color constants with themselves; and a Larger Text test, since macOS ignored `dynamicTypeSize` set from the environment in a harness render. Verified the same way as above: the harness rendered every state in light and dark and at 420pt. Tests and lint run in CI only.
