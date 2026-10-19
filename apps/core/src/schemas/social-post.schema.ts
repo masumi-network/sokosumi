@@ -25,6 +25,7 @@ export const socialPostProviderSchema = z.enum(SOCIAL_POST_PROVIDER_KEYS);
 
 export const SOCIAL_POST_STATUSES = [
   "DRAFT",
+  "NEEDS_APPROVAL",
   "SCHEDULED",
   "PUBLISHING",
   "PUBLISHED",
@@ -172,6 +173,8 @@ export const socialPostSchema = z
     canSchedule: z.boolean(),
     canCancel: z.boolean(),
     canPublishNow: z.boolean(),
+    canApprove: z.boolean(),
+    canReject: z.boolean(),
     canDuplicate: z.boolean().openapi({
       description:
         "True when the post can be copied into a new draft (published, failed, or missed)",
@@ -229,6 +232,18 @@ export const cancelSocialPostRequestSchema = z
     revision: socialPostRevisionSchema,
   })
   .openapi("CancelSocialPostRequest");
+
+export const approveSocialPostRequestSchema = z
+  .object({
+    revision: socialPostRevisionSchema,
+  })
+  .openapi("ApproveSocialPostRequest");
+
+export const rejectSocialPostRequestSchema = z
+  .object({
+    revision: socialPostRevisionSchema,
+  })
+  .openapi("RejectSocialPostRequest");
 
 export const publishSocialPostRequestSchema = z
   .object({

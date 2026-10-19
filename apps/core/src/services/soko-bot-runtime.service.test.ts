@@ -4971,6 +4971,8 @@ describe("Soko Bot project social tools", () => {
     canSchedule: true,
     canCancel: true,
     canPublishNow: true,
+    canApprove: false,
+    canReject: false,
     canDuplicate: false,
     connectionNeedsReconnect: false,
   };
