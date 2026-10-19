@@ -92,7 +92,7 @@ describe("starting from a template", () => {
 
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(prompt).toHaveValue(POSTER.prompt);
-    expect(screen.getByText("2:3 · 1K · png")).toBeInTheDocument();
+    expect(screen.getByText("1:1 · 1K · png")).toBeInTheDocument();
   });
 
   it("does not submit, and leaves the caret in the prompt", () => {

@@ -6,6 +6,7 @@ import {
   modelIdForRepeat,
   resolveModel,
   settingsOf,
+  supportsVariation,
 } from "./catalog";
 import { TEST_CATALOG } from "./studio-fixtures";
 import type { StudioAsset, StudioCatalog, StudioJob } from "./types";
@@ -128,4 +129,32 @@ describe("defaultModel", () => {
     };
     expect(defaultModel(catalog)?.id).toBe("model-a");
   });
+});
+
+describe("supportsVariation", () => {
+  it("allows the known original model through either endpoint", () => {
+    expect(supportsVariation(TEST_CATALOG, MODEL_A.generateEndpoint)).toBe(
+      true,
+    );
+    expect(supportsVariation(TEST_CATALOG, MODEL_A.editEndpoint)).toBe(true);
+  });
+
+  it("refuses an old endpoint instead of switching it to the default model", () => {
+    expect(supportsVariation(TEST_CATALOG, "vendor/retired")).toBe(false);
+    expect(supportsVariation(TEST_CATALOG, null)).toBe(false);
+  });
+
+  it.each([
+    { editEndpoint: null, maxReferences: 4 },
+    { editEndpoint: "vendor/model-a/edit", maxReferences: 0 },
+  ])(
+    "requires both an edit endpoint and room for the image: %o",
+    (capabilities) => {
+      const catalog: StudioCatalog = {
+        ...TEST_CATALOG,
+        models: [{ ...MODEL_A, ...capabilities }],
+      };
+      expect(supportsVariation(catalog, MODEL_A.generateEndpoint)).toBe(false);
+    },
+  );
 });
