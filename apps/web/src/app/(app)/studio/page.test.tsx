@@ -1,14 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { imageStudioServiceMock, projectServiceMock } = vi.hoisted(() => ({
-  imageStudioServiceMock: {
-    getCatalog: vi.fn(),
-    getState: vi.fn(),
-    getWorkspaceState: vi.fn(),
-  },
-  projectServiceMock: { getProjectById: vi.fn() },
-}));
+const { hasSocialBetaAccessMock, imageStudioServiceMock, projectServiceMock } =
+  vi.hoisted(() => ({
+    hasSocialBetaAccessMock: vi.fn(),
+    imageStudioServiceMock: {
+      getCatalog: vi.fn(),
+      getState: vi.fn(),
+      getWorkspaceState: vi.fn(),
+    },
+    projectServiceMock: { getProjectById: vi.fn() },
+  }));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 
@@ -25,12 +27,17 @@ vi.mock("@/lib/services/image-studio.service", () => ({
   imageStudioService: imageStudioServiceMock,
 }));
 
+vi.mock("@/lib/social-beta-access.server", () => ({
+  hasCurrentUserSocialBetaAccess: () => hasSocialBetaAccessMock(),
+}));
+
 vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
   ImageStudio: (props: {
     catalog: { models: unknown[] };
     initialSelectedAssetId: string | null;
     projectId: string | null;
     initialState: { assets: unknown[] };
+    canScheduleSocial?: boolean;
   }) => (
     <div
       data-testid="image-studio"
@@ -38,6 +45,7 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
       data-assets={props.initialState.assets.length}
       data-project={props.projectId ?? "workspace"}
       data-selected={props.initialSelectedAssetId ?? ""}
+      data-can-schedule={String(props.canScheduleSocial ?? false)}
     />
   ),
 }));
@@ -74,6 +82,7 @@ describe("StudioPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     imageStudioServiceMock.getCatalog.mockResolvedValue(CATALOG);
+    hasSocialBetaAccessMock.mockResolvedValue(false);
   });
 
   it("opens curated styles without reading workspace images", async () => {
@@ -228,6 +237,26 @@ describe("StudioPage", () => {
 
     // Nothing to show it against, so nothing is downloaded for it.
     expect(imageStudioServiceMock.getCatalog).not.toHaveBeenCalled();
+    expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
+  });
+
+  it("lets Social beta members schedule from the studio", async () => {
+    hasSocialBetaAccessMock.mockResolvedValue(true);
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    imageStudioServiceMock.getState.mockResolvedValue(studioState());
+
+    const { default: StudioPage } = await import("./page");
+
+    render(
+      await StudioPage({
+        searchParams: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-can-schedule",
+      "true",
+    );
   });
 
   it("names the page in the document title", async () => {

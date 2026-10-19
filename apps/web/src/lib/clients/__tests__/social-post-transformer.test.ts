@@ -2,7 +2,9 @@ import {
   getProjectsByIdSocialPostsByPostIdResponseTransformer,
   getProjectsByIdSocialPostsResponseTransformer,
   patchProjectsByIdSocialPostsByPostIdResponseTransformer,
+  postProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponseTransformer,
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
   postProjectsByIdSocialPostsResponseTransformer,
@@ -17,6 +19,7 @@ function buildPost() {
     projectId: "project-1",
     provider: "x",
     text: "Scheduled post",
+    firstComment: null,
     status: "SCHEDULED",
     scheduledAt: timestamp,
     timezone: "Europe/Prague",
@@ -39,6 +42,7 @@ function buildPost() {
     canSchedule: true,
     canCancel: true,
     canPublishNow: true,
+    canDuplicate: false,
     connectionNeedsReconnect: false,
   };
 }
@@ -49,6 +53,8 @@ const transformers = [
   patchProjectsByIdSocialPostsByPostIdResponseTransformer,
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,
+  postProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponseTransformer,
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
 ];
 

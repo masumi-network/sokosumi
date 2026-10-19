@@ -1,7 +1,7 @@
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
-  SOCIAL_POST_MEDIA_REQUIREMENTS,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
@@ -9,7 +9,10 @@ import {
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  socialPostFirstCommentLimit,
   socialPostMediaKindForMime,
+  socialPostMediaRequirementMessage,
+  socialPostMeetsMediaRequirement,
   socialPostProviderLabel,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
@@ -53,6 +56,11 @@ const CANCELABLE_STATUSES: readonly SocialPostStatus[] = [
 const PUBLISH_NOW_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "SCHEDULED",
+  "FAILED",
+  "MISSED",
+];
+const DUPLICATABLE_STATUSES: readonly SocialPostStatus[] = [
+  "PUBLISHED",
   "FAILED",
   "MISSED",
 ];
@@ -113,6 +121,7 @@ export interface SocialPostSummary {
   projectId: string;
   provider: string;
   text: string;
+  firstComment: string | null;
   media: SocialPostMediaRef[];
   status: SocialPostStatus;
   scheduledAt: Date | null;
@@ -144,6 +153,7 @@ export interface SocialPostSummary {
   canSchedule: boolean;
   canCancel: boolean;
   canPublishNow: boolean;
+  canDuplicate: boolean;
   /** The linked connection exists but is no longer active, so the post cannot go out. */
   connectionNeedsReconnect: boolean;
 }
@@ -178,6 +188,7 @@ export interface CreateSocialPostInput
   coworkerId?: string;
   sokoBotId?: string;
   text: string;
+  firstComment?: string;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string;
   scheduledAt?: Date;
@@ -191,6 +202,7 @@ export interface UpdateSocialPostInput
   coworkerId?: string;
   postId: string;
   text?: string;
+  firstComment?: string;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string | null;
   revision: number;
@@ -213,6 +225,24 @@ export interface CancelSocialPostInput extends ProjectScope {
   revision: number;
 }
 
+export interface DuplicateSocialPostInput
+  extends ProjectScope,
+    WorkspaceOwnerScope {
+  userId: string;
+  coworkerId?: string;
+  postId: string;
+}
+
+export interface RecycleSocialAccountPostInput
+  extends ProjectScope,
+    WorkspaceOwnerScope {
+  userId: string;
+  coworkerId?: string;
+  accountPostId: string;
+  delayDays?: 7 | 14 | 30;
+  timezone?: string;
+}
+
 function mapCreator(record: SocialPostRecord): SocialPostCreator {
   if (record.creatorUser) {
     return { kind: "user", ...record.creatorUser };
@@ -227,12 +257,17 @@ function mapCreator(record: SocialPostRecord): SocialPostCreator {
 }
 
 export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
+  const media = parseSocialPostMedia(record.media, record.id);
+  const provider = isSocialPostProvider(record.provider)
+    ? record.provider
+    : null;
   return {
     id: record.id,
     projectId: record.projectId,
     provider: record.provider,
     text: record.text,
-    media: parseSocialPostMedia(record.media, record.id),
+    firstComment: record.firstComment,
+    media,
     status: record.status,
     scheduledAt: record.scheduledAt,
     timezone: record.timezone,
@@ -257,7 +292,11 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     canEdit: EDITABLE_STATUSES.includes(record.status),
     canSchedule: SCHEDULABLE_STATUSES.includes(record.status),
     canCancel: CANCELABLE_STATUSES.includes(record.status),
-    canPublishNow: PUBLISH_NOW_STATUSES.includes(record.status),
+    canPublishNow:
+      PUBLISH_NOW_STATUSES.includes(record.status) &&
+      provider !== null &&
+      socialPostMeetsMediaRequirement(provider, media),
+    canDuplicate: DUPLICATABLE_STATUSES.includes(record.status),
     connectionNeedsReconnect:
       RECONNECT_SENSITIVE_STATUSES.includes(record.status) &&
       record.socialConnection !== null &&
@@ -308,6 +347,25 @@ function requireProvider(provider: string): SocialPostProvider {
 }
 
 /** Text rules differ per provider: some require text, others accept media only. */
+function requireFirstCommentWithinLimit(
+  value: string | null | undefined,
+  provider: string,
+): string | null {
+  const trimmed = value?.trim() ?? "";
+  if (trimmed.length === 0) return null;
+  const scopedProvider = requireProvider(provider);
+  const limit = socialPostFirstCommentLimit(scopedProvider);
+  const cap = limit ?? SOCIAL_POST_FIRST_COMMENT_MAX;
+  if (trimmed.length > cap) {
+    throw badRequest(
+      limit === null
+        ? `First comment must be at most ${cap} characters`
+        : `First comment must be at most ${cap} characters for ${provider}`,
+    );
+  }
+  return trimmed;
+}
+
 function requireTextWithinLimit(
   text: string,
   provider: string,
@@ -336,17 +394,9 @@ function requireMediaRequirement(
   provider: SocialPostProvider,
   media: readonly SocialPostMediaRef[],
 ): void {
-  const requirement = SOCIAL_POST_MEDIA_REQUIREMENTS[provider];
-  if (requirement === "none") return;
-  const label = socialPostProviderLabel(provider);
-  if (requirement === "any") {
-    if (media.length === 0) {
-      throw badRequest(`${label} requires at least one image or video`);
-    }
-    return;
-  }
-  if (media.length !== 1 || media[0]?.kind !== "video") {
-    throw badRequest(`${label} requires a video`);
+  const message = socialPostMediaRequirementMessage(provider);
+  if (message && !socialPostMeetsMediaRequirement(provider, media)) {
+    throw badRequest(message);
   }
 }
 
@@ -600,6 +650,10 @@ export async function createSocialPost(
     media: input.media ?? [],
   });
   const text = requireTextWithinLimit(input.text, provider, media.length > 0);
+  const firstComment = requireFirstCommentWithinLimit(
+    input.firstComment,
+    provider,
+  );
   const scheduled = input.scheduledAt !== undefined;
   if (scheduled) {
     requireMediaRequirement(requireProvider(provider), media);
@@ -612,6 +666,7 @@ export async function createSocialPost(
       socialConnectionId: connection?.id ?? null,
       provider,
       text,
+      firstComment,
       media: mediaJson(media),
       status: scheduled ? "SCHEDULED" : "DRAFT",
       scheduledAt: input.scheduledAt ?? null,
@@ -646,6 +701,10 @@ export async function updateSocialPost(
           lastError: null,
           attemptCount: 0,
           nextAttemptAt: null,
+          // Past-due + attemptCount 0 is marked MISSED. Keep the slot due now.
+          ...(post.scheduledAt && post.scheduledAt.getTime() < Date.now()
+            ? { scheduledAt: new Date() }
+            : {}),
         }
       : {};
   const currentProvider = requireProvider(post.provider);
@@ -713,6 +772,13 @@ export async function updateSocialPost(
     }
   }
 
+  if (input.firstComment !== undefined || providerChanged) {
+    data.firstComment = requireFirstCommentWithinLimit(
+      input.firstComment !== undefined ? input.firstComment : post.firstComment,
+      provider,
+    );
+  }
+
   return mapSocialPost(
     await writeWithRevision(input, input.revision, data, tx),
   );
@@ -742,6 +808,7 @@ export async function scheduleSocialPost(
     throw badRequest(mediaValidationMessage(provider, validation.reason));
   }
   requireTextWithinLimit(post.text, provider, media.length > 0);
+  requireFirstCommentWithinLimit(post.firstComment, provider);
   requireMediaRequirement(provider, media);
 
   return mapSocialPost(
@@ -791,5 +858,119 @@ export async function cancelSocialPost(
       },
       tx,
     ),
+  );
+}
+
+export async function duplicateSocialPost(
+  input: DuplicateSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  await requireScopedProject(input, tx);
+  const source = await requireScopedPost(input, tx);
+  if (!DUPLICATABLE_STATUSES.includes(source.status)) {
+    throw conflict(
+      "Only a published, failed, or missed post can be duplicated",
+    );
+  }
+
+  const provider = requireProvider(source.provider);
+  const media = normalizeSocialPostMedia({
+    userId: input.userId,
+    organizationId: input.organizationId,
+    provider,
+    media: parseSocialPostMedia(source.media, source.id),
+  });
+  const text = requireTextWithinLimit(source.text, provider, media.length > 0);
+  requireMediaRequirement(provider, media);
+  const socialConnectionId =
+    source.socialConnection && source.socialConnection.status !== "disconnected"
+      ? source.socialConnection.id
+      : null;
+
+  const post = await tx.socialPost.create({
+    data: {
+      projectId: input.projectId,
+      workspaceId: input.workspaceId,
+      socialConnectionId,
+      provider,
+      text,
+      firstComment: source.firstComment,
+      media: mediaJson(media),
+      status: "DRAFT",
+      creatorUserId: input.coworkerId ? null : input.userId,
+      creatorCoworkerId: input.coworkerId ?? null,
+    },
+    include: socialPostInclude,
+  });
+  return mapSocialPost(post);
+}
+
+const DAY_MS = 86_400_000;
+
+export async function recycleSocialAccountPost(
+  input: RecycleSocialAccountPostInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  await requireScopedProject(input, tx);
+  const accountPost = await tx.socialAccountPost.findFirst({
+    where: {
+      id: input.accountPostId,
+      connection: {
+        projectId: input.projectId,
+        project: { workspaceId: input.workspaceId },
+      },
+    },
+    include: {
+      connection: { select: { id: true, status: true, provider: true } },
+    },
+  });
+  if (!accountPost) {
+    throw notFound("Performance post not found");
+  }
+
+  const match = await tx.socialPost.findFirst({
+    where: {
+      projectId: input.projectId,
+      workspaceId: input.workspaceId,
+      publishedExternalId: accountPost.externalId,
+      status: { in: [...DUPLICATABLE_STATUSES] },
+    },
+    select: { id: true },
+  });
+
+  let post: SocialPostSummary;
+  if (match) {
+    post = await duplicateSocialPost({ ...input, postId: match.id }, tx);
+  } else if (!accountPost.text.trim()) {
+    throw badRequest("This post has no text to reshare");
+  } else {
+    post = await createSocialPost(
+      {
+        ...input,
+        text: accountPost.text,
+        socialConnectionId: accountPost.connection.id,
+      },
+      tx,
+    );
+  }
+
+  if (!input.delayDays) return post;
+  if (!input.timezone) {
+    throw badRequest("timezone is required when scheduling");
+  }
+  return scheduleSocialPost(
+    {
+      projectId: input.projectId,
+      workspaceId: input.workspaceId,
+      userId: input.userId,
+      coworkerId: input.coworkerId,
+      postId: post.id,
+      scheduledAt: new Date(Date.now() + input.delayDays * DAY_MS),
+      timezone: input.timezone,
+      socialConnectionId:
+        post.socialConnection?.id ?? accountPost.connection.id,
+      revision: post.revision,
+    },
+    tx,
   );
 }

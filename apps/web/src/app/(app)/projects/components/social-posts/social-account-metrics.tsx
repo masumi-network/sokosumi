@@ -50,7 +50,7 @@ interface SocialAccountMetricsProps {
   showLifetime?: boolean;
 }
 
-export function SocialAccountMetrics({
+export function SocialMetricTiles({
   metrics,
   showLifetime = true,
 }: SocialAccountMetricsProps) {
@@ -68,7 +68,7 @@ export function SocialAccountMetrics({
   }
 
   return (
-    <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+    <>
       {metrics.map((metric, index) => {
         const unit = metric.unit === "milliseconds" ? "seconds" : metric.unit;
         return (
@@ -103,6 +103,14 @@ export function SocialAccountMetrics({
           </div>
         );
       })}
+    </>
+  );
+}
+
+export function SocialAccountMetrics(props: SocialAccountMetricsProps) {
+  return (
+    <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+      <SocialMetricTiles {...props} />
     </dl>
   );
 }

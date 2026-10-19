@@ -45,6 +45,7 @@ const EMPTY_METRICS = {
 function renderPost(
   overrides: Partial<SocialAccountPost> = {},
   account: typeof ACCOUNT | null = ACCOUNT,
+  actions?: React.ReactNode,
 ) {
   return render(
     <NextIntlClientProvider
@@ -58,6 +59,7 @@ function renderPost(
         <SocialPublishedPost
           post={{ ...POST, ...overrides }}
           account={account}
+          actions={actions}
         />
       </ul>
     </NextIntlClientProvider>,
@@ -220,6 +222,32 @@ describe("SocialPublishedPost", () => {
     ).toBeTruthy();
   });
 
+  it("keeps five key metrics and the extra Quotes tile in one definition list", () => {
+    const { container } = renderPost({
+      metrics: { ...POST.metrics, impressions: 120, comments: 2 },
+    });
+    const grids = container.querySelectorAll("dl");
+    expect(grids).toHaveLength(1);
+    const grid = grids[0];
+    expect(grid.children).toHaveLength(6);
+    for (const label of [
+      "Views",
+      "Impressions",
+      "Likes / reactions",
+      "Comments",
+      "Shares",
+      "Quotes",
+    ]) {
+      expect(screen.getByText(label).closest("dl")).toBe(grid);
+    }
+    for (const tile of grid.children) {
+      expect(tile.tagName).toBe("DIV");
+      expect(tile.firstElementChild?.tagName).toBe("DT");
+      expect(tile.lastElementChild?.tagName).toBe("DD");
+    }
+    expect(grid).not.toHaveTextContent("Updated");
+  });
+
   it.each([
     { additionalMetrics: [] },
     {
@@ -242,10 +270,49 @@ describe("SocialPublishedPost", () => {
   it("keeps an extra measured zero when all key metrics are missing", () => {
     renderPost({ metrics: EMPTY_METRICS });
     expect(screen.getByText("Quotes").closest("div")).toHaveTextContent("0");
+    const grids = screen.getByRole("listitem").querySelectorAll("dl");
+    expect(grids).toHaveLength(1);
+    expect(grids[0].children).toHaveLength(1);
+    expect(screen.getByText("Quotes").closest("dl")).toBe(grids[0]);
     expect(
       screen.queryByText(en.App.Projects.SocialPosts.statistics.noPostMetrics),
     ).not.toBeInTheDocument();
   });
+
+  it("shows the Strong badge beside the UTC date above the metrics", () => {
+    renderPost({ strong: true });
+    const date = screen.getByText("Oct 1, 12:15 AM UTC");
+    const badge = screen.getByText("Strong");
+    expect(badge).toHaveAttribute("data-slot", "badge");
+    expect(date.parentElement).toContainElement(badge);
+    expect(
+      badge.compareDocumentPosition(screen.getByText("Views")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("omits the Strong badge for a post that is not strong", () => {
+    renderPost({ strong: false });
+    expect(screen.queryByText("Strong")).not.toBeInTheDocument();
+  });
+
+  it.each([POST.url, null])(
+    "renders supplied actions alongside the platform link when its URL is %s",
+    (url) => {
+      renderPost({ url }, ACCOUNT, <button type="button">Recycle</button>);
+      const action = screen.getByRole("button", { name: "Recycle" });
+      expect(action).toBeVisible();
+      if (url) {
+        expect(action.parentElement).toContainElement(
+          screen.getByRole("link", {
+            name: en.App.Projects.SocialPosts.statistics.openPost,
+          }),
+        );
+      } else {
+        expect(screen.queryByRole("link")).not.toBeInTheDocument();
+      }
+    },
+  );
 
   it("links to the unchanged platform URL with safe attributes and a phone tap target", () => {
     renderPost();

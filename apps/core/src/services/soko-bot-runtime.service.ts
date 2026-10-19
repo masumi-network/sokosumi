@@ -3,7 +3,6 @@ import {
   AgentJobStatus,
   Channel,
   FileSourceKind,
-  FileSourceScope,
   type Prisma,
   TaskStatus,
 } from "@sokosumi/database";
@@ -102,6 +101,7 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { jsonInput } from "@/helpers/prisma-json";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
+import { activeOwnedSokoBotWhere } from "@/helpers/soko-bot-owned-bot-where";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
@@ -192,8 +192,8 @@ import {
   loadLiveResources,
   searchFiles,
 } from "@/services/file-search.service";
-import { getJob, readAssetBytes } from "@/services/image-studio-assets.service";
-import { imageFileName } from "@/services/image-studio-files.service";
+import { getJob } from "@/services/image-studio-assets.service";
+import { ensureStudioAssetDriveFile } from "@/services/image-studio-drive.service";
 import {
   createImageJob,
   DEFAULT_SETTINGS,
@@ -295,8 +295,6 @@ const CORE_TOOL_CALLS = {
 const MAX_DIRECTS_OPENED_PER_TURN = 5;
 /** Enough for a few variations; each one spends the owner's credits. */
 const MAX_IMAGES_PER_TURN = 4;
-/** Where the owner finds studio images the bot copied into Files. */
-const STUDIO_FILES_FOLDER = "Content Studio";
 
 type SocialMediaInput = NonNullable<
   z.infer<(typeof SOKO_BOT_TOOL_INPUT_SCHEMAS)["create_social_post"]>["media"]
@@ -892,11 +890,8 @@ export class SokoBotRuntimeService {
         }
         const boundBot = await tx.sokoBot.updateMany({
           where: {
-            id: turn.sokoBotId,
-            userId: actingUserId,
+            ...activeOwnedSokoBotWhere(turn.sokoBotId, actingUserId),
             adminPausedAt: null,
-            archivedAt: null,
-            status: { not: "PAUSED" },
           },
           // The bot retains the prior completed turn's session for diagnostics.
           // Bot + turn locks and the attachable active-turn check above provide
@@ -1870,55 +1865,18 @@ export class SokoBotRuntimeService {
     },
   ): Promise<{ id: string; name: string; link: string } | null> {
     const drive = await this.ownerDrive(authorized);
-    const asset = await prisma.projectImageAsset.findFirst({
-      where: { id: image.assetId, projectId: image.projectId },
-      select: { blobPathname: true, contentType: true },
+    const file = await ensureStudioAssetDriveFile({
+      projectId: image.projectId,
+      assetId: image.assetId,
+      workspaceId: drive.key.workspaceId,
+      organizationId:
+        drive.key.scope === "organization" ? drive.key.ownerId : null,
+      userId: authorized.turn.actingUserId,
+      prompt: image.prompt,
+      jobId: image.jobId,
     });
-    if (!asset) return null;
-    const name = imageFileName(image.prompt, image.jobId, asset.contentType);
-    const pathname = drive.pathnameIn(STUDIO_FILES_FOLDER, name);
-    const key = { ...drive.key, pathname };
-    const live = await prisma.fileResource.findUnique({
-      where: {
-        workspaceId_sourceKind_sourceScope_sourceId: {
-          workspaceId: key.workspaceId,
-          sourceKind: FileSourceKind.DRIVE_UPLOAD,
-          sourceScope:
-            key.scope === "organization"
-              ? FileSourceScope.ORGANIZATION
-              : FileSourceScope.USER,
-          sourceId: pathname,
-        },
-      },
-      select: { id: true, lifecycle: true, tombstonedAt: true },
-    });
-    if (live?.lifecycle === "ACTIVE" && !live.tombstonedAt)
-      return { id: live.id, name, link: `/drive/files/${live.id}` };
-    const bytes = await readAssetBytes(asset.blobPathname);
-    await reserveDriveUploadResource({
-      key,
-      displayName: name,
-      mimeType: asset.contentType,
-      sizeBytes: bytes.byteLength,
-    });
-    await put(pathname, Buffer.from(bytes), {
-      access: "public",
-      contentType: asset.contentType,
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    });
-    const activated = await activateDriveUploadResource({
-      key,
-      sizeBytes: bytes.byteLength,
-      mimeType: asset.contentType,
-    });
-    if (!activated) return null;
-    nudgeFileIndexing();
-    return {
-      id: activated.resourceId,
-      name,
-      link: `/drive/files/${activated.resourceId}`,
-    };
+    if (!file) return null;
+    return { id: file.id, name: file.name, link: `/drive/files/${file.id}` };
   }
 
   /**
@@ -3765,11 +3723,11 @@ export class SokoBotRuntimeService {
     if (approved) {
       const activeBot = await tx.sokoBot.findFirst({
         where: {
-          id: authorized.turn.sokoBotId,
-          userId: authorized.turn.actingUserId,
-          archivedAt: null,
+          ...activeOwnedSokoBotWhere(
+            authorized.turn.sokoBotId,
+            authorized.turn.actingUserId,
+          ),
           adminPausedAt: null,
-          status: { not: "PAUSED" },
         },
         select: { id: true },
       });
@@ -5723,12 +5681,7 @@ export class SokoBotRuntimeService {
     try {
       const [activeBot, workspace] = await prisma.$transaction([
         prisma.sokoBot.findFirst({
-          where: {
-            id: decision.sokoBotId,
-            userId: actingUserId,
-            archivedAt: null,
-            status: { not: "PAUSED" },
-          },
+          where: activeOwnedSokoBotWhere(decision.sokoBotId, actingUserId),
           select: { id: true },
         }),
         prisma.workspace.findFirst({
@@ -5818,12 +5771,10 @@ export class SokoBotRuntimeService {
                 FOR UPDATE
               `;
               const activeBot = await tx.sokoBot.findFirst({
-                where: {
-                  id: decision.sokoBotId,
-                  userId: actingUserId,
-                  archivedAt: null,
-                  status: { not: "PAUSED" },
-                },
+                where: activeOwnedSokoBotWhere(
+                  decision.sokoBotId,
+                  actingUserId,
+                ),
                 select: { id: true },
               });
               if (!activeBot) {
@@ -5983,12 +5934,7 @@ export class SokoBotRuntimeService {
               FOR UPDATE
             `;
             const activeBot = await tx.sokoBot.findFirst({
-              where: {
-                id: decision.sokoBotId,
-                userId: actingUserId,
-                archivedAt: null,
-                status: { not: "PAUSED" },
-              },
+              where: activeOwnedSokoBotWhere(decision.sokoBotId, actingUserId),
               select: { id: true },
             });
             if (!activeBot) {

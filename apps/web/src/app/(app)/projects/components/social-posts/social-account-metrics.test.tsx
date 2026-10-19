@@ -3,7 +3,10 @@ import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 import en from "@/../messages/en.json";
-import { SocialAccountMetrics } from "./social-account-metrics";
+import {
+  SocialAccountMetrics,
+  SocialMetricTiles,
+} from "./social-account-metrics";
 
 function renderMetrics(metrics: SocialAccountMetric[], showLifetime = true) {
   return render(
@@ -39,11 +42,47 @@ describe("SocialAccountMetrics", () => {
   });
 
   it("retains period captions for account-level metrics", () => {
-    renderMetrics([
+    const { container } = renderMetrics([
       { key: "followers_count", value: 10, period: "lifetime", unit: "count" },
       { key: "reach", value: 20, period: "days_28", unit: "count" },
     ]);
     expect(screen.getByText("Lifetime")).toBeVisible();
+    expect(screen.getByText("Last 28 days")).toBeVisible();
+    expect(container.querySelectorAll("dl")).toHaveLength(1);
+    expect(screen.getByText("Followers").closest("dl")?.children).toHaveLength(
+      2,
+    );
+  });
+
+  it("exports only dt/dd tile groups for use inside another definition list", () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+        <dl>
+          <SocialMetricTiles
+            metrics={[
+              {
+                key: "quote_count",
+                value: 0,
+                period: "lifetime",
+                unit: "count",
+              },
+              { key: "reach", value: 20, period: "days_28", unit: "count" },
+            ]}
+            showLifetime={false}
+          />
+        </dl>
+      </NextIntlClientProvider>,
+    );
+    expect(container.querySelectorAll("dl")).toHaveLength(1);
+    const grid = screen.getByText("Quotes").closest("dl");
+    expect(grid?.children).toHaveLength(2);
+    expect(screen.getByText("Quotes").closest("div")).toHaveTextContent("0");
+    for (const tile of grid?.children ?? []) {
+      expect(tile.tagName).toBe("DIV");
+      expect(tile.firstElementChild?.tagName).toBe("DT");
+      expect(tile.lastElementChild?.tagName).toBe("DD");
+    }
+    expect(screen.queryByText("Lifetime")).not.toBeInTheDocument();
     expect(screen.getByText("Last 28 days")).toBeVisible();
   });
 

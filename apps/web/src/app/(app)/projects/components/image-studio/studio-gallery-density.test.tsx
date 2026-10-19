@@ -37,6 +37,7 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: mocks.cancel,
+  prepareStudioAssetSocialMedia: vi.fn(),
 }));
 
 vi.mock("./use-studio-state", () => ({
@@ -197,6 +198,9 @@ describe("a gallery with work in it", () => {
       const box = tile.querySelector("button[aria-pressed]");
       expect(box).not.toBeNull();
       expect(box?.className).not.toContain("opacity-0");
+      expect(tile.className).toContain("border-border");
+      expect(tile.className).not.toMatch(/\bshadow(?:-lg|-md|-sm)?\b/);
+      expect(box?.className).not.toMatch(/\bshadow(?:-lg|-md|-sm)?\b/);
     }
     // Decisions are gone entirely.
     expect(screen.queryByRole("button", { name: "filterApproved" })).toBeNull();

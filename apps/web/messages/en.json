@@ -2396,7 +2396,7 @@
         },
         "replaceDialog": {
           "title": "Replace {account}?",
-          "description": "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
+          "description": "Drafts and scheduled posts move to the new account.",
           "confirm": "Replace account"
         },
         "disconnectDialog": {
@@ -2411,14 +2411,14 @@
           "syncStarted": "Sync started."
         },
         "warning": {
-          "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings."
+          "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections."
         },
         "errors": {
-          "facebookPage": "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
+          "facebookPage": "Facebook needs an account that manages exactly one Page.",
           "inFlight": "Another account action is already in progress.",
           "popupBlocked": "Your browser blocked the authorization window. Allow popups and try again.",
           "timeout": "Authorization took too long. Try again.",
-          "providerCallback": "Authorization did not complete. Return to the Project’s Social page and try again.",
+          "providerCallback": "Authorization did not complete. Try again.",
           "legacyCallback": "This callback cannot verify your account. Contact support and try again.",
           "verifier": "We could not verify your account. Start the connection again.",
           "intent": "This connection request expired or is no longer valid. Start again.",
@@ -2475,7 +2475,7 @@
           "more": "More posts are available."
         },
         "emptyHint": {
-          "drafts": "Save a post as a draft to finish it later."
+          "drafts": "Save a draft to finish later."
         },
         "status": {
           "DRAFT": "Draft",
@@ -2498,6 +2498,10 @@
           "rescheduleTitle": "Reschedule post",
           "text": "Text",
           "textPlaceholder": "What do you want to post?",
+          "firstComment": "First comment",
+          "firstCommentPlaceholder": "Hashtags or a call to action",
+          "firstCommentTooLong": "First comment is too long.",
+          "textForAccount": "Text for this account",
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Add from Drive",
@@ -2548,7 +2552,9 @@
             "dateSelected": "Date: {date}",
             "timeSelected": "Time: {time}",
             "times": "Times",
-            "now": "Now"
+            "now": "Now",
+            "suggestedTimes": "Suggested times",
+            "suggested": "Best {time}"
           },
           "timezone": {
             "yours": "Your time zone: {zone}",
@@ -2604,7 +2610,8 @@
           "published": "Post published.",
           "publishFailed": "Publishing failed: {error}",
           "publishFailedItem": "{account} — {error}",
-          "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}"
+          "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}",
+          "duplicated": "Draft created."
         },
         "needsReconnect": "Account needs reconnecting",
         "needsReconnectLink": "Reconnect the account",
@@ -2613,14 +2620,15 @@
         "failedAt": "Failed {date}",
         "attempts": "{count, plural, one {# attempt} other {# attempts}}",
         "actions": {
-          "publishNow": "Publish now",
+          "publishNow": "Post now",
           "retry": "Retry",
-          "dismiss": "Dismiss"
+          "dismiss": "Dismiss",
+          "duplicate": "Duplicate as draft"
         },
         "publishDialog": {
-          "title": "Publish this post now?",
+          "title": "Post this now?",
           "description": "The post goes out right away instead of waiting for its scheduled time.",
-          "confirm": "Publish now"
+          "confirm": "Post now"
         },
         "retryDialog": {
           "title": "Retry this post?",
@@ -2641,7 +2649,7 @@
         "connectPrompt": {
           "title": "Connect an account to start posting",
           "body": "Posts go out from this project's accounts.",
-          "action": "Connect X, YouTube, LinkedIn…"
+          "action": "Connect account"
         },
         "reconnectPrompt": {
           "title": "Reconnect to post",
@@ -2756,7 +2764,19 @@
           },
           "accountsTitle": "Connected accounts",
           "postsTitle": "Published account posts",
-          "postsHint": "Read-only history imported from connected platforms. Post filters do not change the account overview.",
+          "postsHint": "Imported from connected platforms. Recycle a strong post to share it again.",
+          "recycle": {
+            "action": "Recycle",
+            "strong": "Strong",
+            "title": "Recycle this post?",
+            "description": "Copies the text into a new draft. Nothing goes out on its own.",
+            "saveDraft": "Save as draft",
+            "inDays": "In {days} days",
+            "drafted": "Draft created.",
+            "scheduled": "Scheduled to go out again.",
+            "failed": "Couldn't recycle this post.",
+            "cancel": "Cancel"
+          },
           "account": "Account",
           "allAccounts": "All accounts",
           "syncAll": "Sync all accounts",
@@ -2847,7 +2867,16 @@
             "minutes": "minutes",
             "hours": "hours"
           }
-        }
+        },
+        "reconnection": {
+          "accounts": "Accounts needing attention",
+          "title": "{account} needs reconnecting",
+          "affected": "{count, plural, one {# post affected} other {# posts affected}}",
+          "retryTitle": "Retry failed posts?",
+          "retryDescription": "{count, plural, one {Your account is reconnected. Retry # failed post?} other {Your account is reconnected. Retry # failed posts?}}",
+          "later": "Later"
+        },
+        "moreActions": "Post actions"
       },
       "Detail": {
         "back": "Back to projects",
@@ -3015,6 +3044,8 @@
       "generate": "Generate",
       "refine": "Refine",
       "regenerate": "New variation",
+      "schedule": "Schedule this image",
+      "scheduleFailed": "Could not attach this image",
       "reroll": "Re-roll",
       "reusePrompt": "Reuse prompt",
       "download": "Download",
@@ -3138,7 +3169,8 @@
         "megapixels": "megapixel",
         "processedMegapixels": "processed megapixel"
       },
-      "creditsCheckedOn": "Price checked {date}"
+      "creditsCheckedOn": "Price checked {date}",
+      "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery."
     },
     "Ads": {
       "title": "Ads",
@@ -3729,8 +3761,8 @@
         "chooseProjectBody": "Posts go out from one project's accounts."
       },
       "accountsNeedProject": {
-        "title": "Connect your social accounts",
-        "body": "Bring your channels together. Choose a project to connect accounts, then draft, schedule, and publish your posts."
+        "title": "Choose a project",
+        "body": "Then connect accounts."
       },
       "attentionNeedProject": {
         "title": "Needs attention",
@@ -3740,10 +3772,15 @@
         "title": "Drafts",
         "body": "Choose a project to see and finish its drafts."
       },
-      "loading": "Loading Social…",
+      "loading": "Loading…",
       "pickProject": "Choose a project",
       "platforms": {
-        "label": "Social platforms"
+        "label": "Social platforms",
+        "pause": "Pause platforms"
+      },
+      "statisticsNeedProject": {
+        "title": "Choose a project to see performance",
+        "body": "Account performance belongs to a project. Choose one to evaluate its connected accounts and published content."
       }
     },
     "Error": {
@@ -5659,7 +5696,7 @@
         "success": "Account connected successfully",
         "error": "Failed to connect {provider}",
         "loadErrorTitle": "Could not load connected accounts",
-        "loadError": "We could not load your connected accounts right now.",
+        "loadError": "Check your connection and try again.",
         "retry": "Retry",
         "DisconnectModal": {
           "title": "Disconnect {provider}",
@@ -5674,7 +5711,7 @@
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Could not load account details",
-        "loadError": "We could not load your linked account details right now.",
+        "loadError": "Check your connection and try again.",
         "retry": "Retry"
       },
       "Notifications": {

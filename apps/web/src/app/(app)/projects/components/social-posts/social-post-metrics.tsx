@@ -16,10 +16,12 @@ export function SocialPostMetrics({
   statistics,
   compact = false,
   hideUpdatedAt = false,
+  extra,
 }: {
   statistics: SocialPost["statistics"];
   compact?: boolean;
   hideUpdatedAt?: boolean;
+  extra?: React.ReactNode;
 }) {
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const formatter = useFormatter();
@@ -46,6 +48,7 @@ export function SocialPostMetrics({
             </dd>
           </div>
         ))}
+        {compact ? null : extra}
       </dl>
       {compact || hideUpdatedAt ? null : (
         <p className="text-muted-foreground text-xs">

@@ -13,7 +13,11 @@ import en from "@/../messages/en.json";
 import { TestQueryProvider } from "@/test/query-provider";
 import { SocialPostStatistics } from "./social-post-statistics";
 
-const mocks = vi.hoisted(() => ({ refresh: vi.fn(), fetch: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  refresh: vi.fn(),
+  recycle: vi.fn(),
+  fetch: vi.fn(),
+}));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     data: {
@@ -24,6 +28,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 vi.mock("@/lib/actions/project/action", () => ({
   refreshProjectSocialAccountStatistics: mocks.refresh,
+  recycleProjectSocialAccountPost: mocks.recycle,
 }));
 vi.mock("next-intl", async () => {
   const { createTestFormatter } = await import("@/test/intl-formatter");
@@ -176,6 +181,7 @@ function renderStatistics(
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.refresh.mockReset();
+  mocks.recycle.mockReset();
   mocks.fetch.mockReset();
   vi.stubGlobal("fetch", mocks.fetch);
   mocks.fetch.mockResolvedValue({ ok: true, json: async () => page() });
@@ -403,6 +409,10 @@ describe("SocialPostStatistics account history", () => {
     expect(preview).toHaveTextContent("Launch account");
     expect(preview).toHaveTextContent("@launch");
     expect(within(card).getByText("Link clicks")).toBeVisible();
+    expect(card.querySelectorAll("dl")).toHaveLength(1);
+    expect(within(card).getByText("Link clicks").closest("dl")).toBe(
+      within(card).getByText("Likes / reactions").closest("dl"),
+    );
     expect(within(card).queryByText("Lifetime")).not.toBeInTheDocument();
   });
   it("hides the trend chart when the selected period has no daily points", async () => {
@@ -785,6 +795,132 @@ describe("SocialPostStatistics account history", () => {
         .getByRole("option", { name: "Brand page" })
         .querySelectorAll("[data-testid='social-post-provider-icon']"),
     ).toHaveLength(1);
+  });
+
+  it("shows Recycle only for a strong post the account can reshare", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        posts: [
+          { ...post, strong: true, canRecycle: true },
+          {
+            ...post,
+            id: "post-weak",
+            text: "Quiet post",
+            strong: false,
+            canRecycle: true,
+          },
+          {
+            ...post,
+            id: "post-locked",
+            text: "Strong but disconnected",
+            strong: true,
+            canRecycle: false,
+          },
+        ],
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(screen.getAllByText("Strong")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Recycle" })).toBeVisible();
+    expect(screen.getByText("Quiet post")).toBeVisible();
+    expect(screen.getByText("Strong but disconnected")).toBeVisible();
+    expect(screen.getAllByRole("button", { name: "Recycle" })).toHaveLength(1);
+    const card = screen.getByText(post.text).closest("li");
+    expect(card).not.toBeNull();
+    if (!card) throw new Error("Published post card is missing");
+    expect(within(card).getByTestId("social-post-preview")).toHaveAttribute(
+      "data-provider",
+      "x",
+    );
+    const badge = within(card).getByText("Strong");
+    expect(badge.parentElement).toContainElement(
+      within(card).getByText("Oct 1, 12:15 AM UTC"),
+    );
+    const recycle = within(card).getByRole("button", { name: "Recycle" });
+    expect(recycle.parentElement).toContainElement(
+      within(card).getByRole("link", {
+        name: en.App.Projects.SocialPosts.statistics.openPost,
+      }),
+    );
+  });
+
+  it("saves a recycled post as a draft", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        posts: [{ ...post, strong: true, canRecycle: true }],
+      }),
+    });
+    mocks.recycle.mockResolvedValue({
+      ok: true,
+      value: { id: "draft-1", status: "DRAFT" },
+    });
+    renderStatistics();
+    fireEvent.click(await screen.findByRole("button", { name: "Recycle" }));
+    expect(
+      await screen.findByRole("heading", { name: "Recycle this post?" }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Save as draft" }));
+    await waitFor(() =>
+      expect(mocks.recycle).toHaveBeenCalledWith({
+        projectId: "project-1",
+        accountPostId: post.id,
+      }),
+    );
+  });
+
+  it("schedules a recycled post in seven days", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        posts: [{ ...post, strong: true, canRecycle: true }],
+      }),
+    });
+    mocks.recycle.mockResolvedValue({
+      ok: true,
+      value: { id: "scheduled-1", status: "SCHEDULED" },
+    });
+    renderStatistics();
+    fireEvent.click(await screen.findByRole("button", { name: "Recycle" }));
+    fireEvent.click(await screen.findByRole("button", { name: "In 7 days" }));
+    await waitFor(() =>
+      expect(mocks.recycle).toHaveBeenCalledWith({
+        projectId: "project-1",
+        accountPostId: post.id,
+        delayDays: 7,
+        timezone: expect.any(String),
+      }),
+    );
+  });
+
+  it("hides Recycle when a post is not marked strong", async () => {
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(screen.queryByText("Strong")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Recycle" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides project-only Recycle on the all-projects view", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        posts: [{ ...post, strong: true, canRecycle: true }],
+      }),
+    });
+    renderStatistics("", { workspaceId: "workspace-1" });
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(screen.getByText("Strong")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Recycle" }),
+    ).not.toBeInTheDocument();
   });
 
   it("reads workspace statistics and hides Sync on the all-projects view", async () => {

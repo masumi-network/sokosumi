@@ -4940,6 +4940,7 @@ describe("Soko Bot project social tools", () => {
     projectId,
     provider: "x",
     text: "Launch",
+    firstComment: null,
     media: [],
     status: "DRAFT",
     scheduledAt: null,
@@ -4970,6 +4971,7 @@ describe("Soko Bot project social tools", () => {
     canSchedule: true,
     canCancel: true,
     canPublishNow: true,
+    canDuplicate: false,
     connectionNeedsReconnect: false,
   };
   const tx = {
