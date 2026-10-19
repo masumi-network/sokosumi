@@ -172,6 +172,8 @@ export interface StudioLabels {
   generate: string;
   refine: string;
   regenerate: string;
+  schedule: string;
+  scheduleFailed: string;
   reroll: string;
   reusePrompt: string;
   download: string;

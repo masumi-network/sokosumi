@@ -11,6 +11,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { toast } from "sonner";
 
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
@@ -22,7 +23,11 @@ import {
 } from "@/components/ui/popover";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { requestImageJobCancel } from "@/lib/actions/image-studio/action";
+import {
+  prepareStudioAssetSocialMedia,
+  requestImageJobCancel,
+} from "@/lib/actions/image-studio/action";
+import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { cn } from "@/lib/utils";
 
 import {
@@ -92,6 +97,7 @@ export function ImageStudio({
   initialState,
   labels,
   projectId,
+  canScheduleSocial = false,
 }: {
   /**
    * The model catalog, read once by the page.
@@ -110,6 +116,8 @@ export function ImageStudio({
    * project before anything is sent.
    */
   projectId: string | null;
+  /** Social beta members can send a lightbox image into the composer. */
+  canScheduleSocial?: boolean;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
@@ -248,6 +256,21 @@ export function ImageStudio({
       : viewing?.mode === "single" && selectedAsset
         ? [selectedAsset]
         : [];
+
+  async function scheduleAsset(asset: StudioAsset) {
+    const result = await prepareStudioAssetSocialMedia({
+      projectId: asset.projectId,
+      assetId: asset.id,
+    });
+    if (!result.ok) {
+      toast.error(labels.scheduleFailed);
+      return;
+    }
+    writeSocialComposePrefill(asset.projectId, { media: [result.value] });
+    router.push(
+      `/social?projectId=${encodeURIComponent(asset.projectId)}&compose=new`,
+    );
+  }
 
   /**
    * Repeat a piece of work on its own terms.
@@ -648,6 +671,7 @@ export function ImageStudio({
           labels={labels}
           onClose={() => setViewing(null)}
           onRegenerate={(asset) => repeat(asset, "asset")}
+          onSchedule={canScheduleSocial ? scheduleAsset : undefined}
           onSelect={selectAsset}
           onUseAsReference={(asset) => {
             setCheckedIds([asset.id]);

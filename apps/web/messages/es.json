@@ -3034,6 +3034,8 @@
       "generate": "Generar",
       "refine": "Refinar",
       "regenerate": "Nueva variante",
+      "schedule": "Programar esta imagen",
+      "scheduleFailed": "No se pudo adjuntar esta imagen",
       "reroll": "Repetir",
       "reusePrompt": "Reutilizar prompt",
       "download": "Descargar",

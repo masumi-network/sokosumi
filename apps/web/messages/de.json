@@ -3034,6 +3034,8 @@
       "generate": "Erzeugen",
       "refine": "Verfeinern",
       "regenerate": "Neue Variante",
+      "schedule": "Dieses Bild planen",
+      "scheduleFailed": "Dieses Bild konnte nicht angehängt werden",
       "reroll": "Neu würfeln",
       "reusePrompt": "Prompt wiederverwenden",
       "download": "Herunterladen",

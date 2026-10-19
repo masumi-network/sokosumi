@@ -7,6 +7,7 @@ import { ImageStudio } from "@/app/projects/components/image-studio/image-studio
 import { buildStudioLabels } from "@/app/projects/components/image-studio/studio-labels";
 import { imageStudioService } from "@/lib/services/image-studio.service";
 import { projectService } from "@/lib/services/project.service";
+import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 import { StudioPageShell } from "./components/studio-page-shell";
 
@@ -69,11 +70,12 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   // deliberately no longer part of the state payload the open studio refetches
   // every three seconds.
   const scopeId = project?.id ?? null;
-  const [state, catalog] = await Promise.all([
+  const [state, catalog, canScheduleSocial] = await Promise.all([
     scopeId
       ? loadStudioState(scopeId, query.v)
       : Promise.resolve({ assets: [], jobs: [], nextCursor: null }),
     imageStudioService.getCatalog(),
+    hasCurrentUserSocialBetaAccess(),
   ]);
 
   const initialSelectedAssetId =
@@ -93,6 +95,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         key={scopeId ?? "workspace"}
         labels={buildStudioLabels(t)}
         projectId={scopeId}
+        canScheduleSocial={canScheduleSocial}
       />
     </StudioPageShell>
   );

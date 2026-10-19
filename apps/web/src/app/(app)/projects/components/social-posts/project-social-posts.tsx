@@ -77,6 +77,10 @@ import {
   publishProjectSocialPost,
 } from "@/lib/actions/project/action";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
+import {
+  clearSocialComposePrefill,
+  peekSocialComposePrefill,
+} from "@/lib/social-compose-prefill";
 import { cn } from "@/lib/utils";
 import { loadMoreSocialPosts } from "./actions";
 import {
@@ -316,7 +320,13 @@ export function ProjectSocialPosts({
   // Social's top-level New post menu opens a fresh composer through context.
   const compose = useSocialCompose();
   const composerMode: SocialPostComposerMode | null =
-    composer ?? (compose?.open ? { kind: "create" } : null);
+    composer ??
+    (compose?.open
+      ? ({
+          kind: "create",
+          ...peekSocialComposePrefill(projectId),
+        } satisfies SocialPostComposerMode)
+      : null);
   const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);
   const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
@@ -1408,6 +1418,7 @@ export function ProjectSocialPosts({
             if (open) return;
             setComposer(null);
             compose?.setOpen(false);
+            clearSocialComposePrefill(projectId);
           }}
           onSaved={handleSaved}
           open
