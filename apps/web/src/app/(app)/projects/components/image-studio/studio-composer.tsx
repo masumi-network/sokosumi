@@ -2,7 +2,7 @@
 
 import { Check, ChevronDown, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import {
   ROOM_COMPOSER_TEXTAREA_CLASSNAME,
   RoomMessageComposer,
@@ -78,6 +78,7 @@ export const MAX_BATCH = 12;
  * correct however many models the catalog grows to.
  */
 const COPY_CHOICES = [1, 2, 3, 4] as const;
+const MAX_PROMPT_LENGTH = 4_000;
 
 function chipClass(active: boolean, disabled = false): string {
   return cn(
@@ -205,6 +206,9 @@ export function StudioComposer({
   const [copies, setCopies] = useState(1);
   const [modelQuery, setModelQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+  const promptHelpId = useId();
+  const promptLength = prompt.trim().length;
+  const promptTooLong = promptLength > MAX_PROMPT_LENGTH;
 
   /**
    * fal's pricing unit, singular and translated where we have a word for it.
@@ -352,7 +356,8 @@ export function StudioComposer({
   const selectionLimitReason = t("modelSelectionLimit", { count: MAX_BATCH });
   const canGenerate =
     !busy &&
-    prompt.trim().length > 0 &&
+    promptLength > 0 &&
+    !promptTooLong &&
     selectedModels.length > 0 &&
     !overSelectionLimit;
 
@@ -462,6 +467,32 @@ export function StudioComposer({
         attachments={[]}
         belowEditor={
           <>
+            <div
+              className="text-muted-foreground flex flex-wrap justify-between gap-x-3 gap-y-1 px-4 pb-2 text-xs"
+              id={promptHelpId}
+            >
+              <span>{t("promptShortcut")}</span>
+              <span
+                className={cn(
+                  "tabular-nums",
+                  promptTooLong && "text-destructive",
+                )}
+              >
+                {t("promptCharacterCount", {
+                  count: promptLength,
+                  limit: MAX_PROMPT_LENGTH,
+                })}
+              </span>
+            </div>
+            {promptTooLong ? (
+              <p
+                className="text-destructive px-4 pb-2 text-xs"
+                id={`${promptHelpId}-error`}
+                role="alert"
+              >
+                {t("promptTooLong", { limit: MAX_PROMPT_LENGTH })}
+              </p>
+            ) : null}
             {overSelectionLimit ? (
               <p className="text-destructive px-4 pb-2 text-xs" role="alert">
                 {selectionLimitReason}
@@ -926,12 +957,26 @@ export function StudioComposer({
       >
         <Textarea
           aria-label={labels.promptPlaceholder}
-          className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
+          aria-describedby={
+            promptTooLong
+              ? `${promptHelpId} ${promptHelpId}-error`
+              : promptHelpId
+          }
+          aria-invalid={promptTooLong || undefined}
+          className={cn(
+            ROOM_COMPOSER_TEXTAREA_CLASSNAME,
+            "focus-visible:ring-ring-halo focus-visible:ring-[3px] focus-visible:ring-inset",
+          )}
           onChange={(event) => onPromptChange(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (
               event.key === "Enter" &&
-              (event.shiftKey || event.metaKey || event.ctrlKey)
+              (event.metaKey || event.ctrlKey) &&
+              !event.shiftKey &&
+              !event.altKey &&
+              !event.repeat &&
+              !event.nativeEvent.isComposing &&
+              event.nativeEvent.keyCode !== 229
             ) {
               event.preventDefault();
               submit();
