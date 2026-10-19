@@ -61,7 +61,7 @@ describe("loadMoreSocialPosts", () => {
       cursor: "cursor-2",
     });
     expect(SECTION_STATUSES).toEqual({
-      drafts: ["DRAFT"],
+      drafts: ["DRAFT", "PUBLISHING", "NEEDS_APPROVAL"],
       attention: ["FAILED", "MISSED", "NEEDS_APPROVAL"],
     });
   });

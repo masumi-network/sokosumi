@@ -26,7 +26,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/{id}/social-posts/{postId}/approve",
     description:
-      "Approve a Social post that needs approval. A future scheduled time stays; the post then publishes on that time. Otherwise it becomes a draft. Requires an interactive user session in the Project's Workspace.",
+      "Approve a Social post that needs approval. Optionally supply scheduledAt and timezone to schedule it in the same step. The planned time must be more than one minute in the future to schedule; otherwise, without an override, approval saves a draft. Scheduled approval requires an active connection and valid content and media. Requires an interactive user session in the Project's Workspace.",
     tags: ["Projects"],
     request: {
       params: socialPostParamsSchema,
@@ -65,6 +65,10 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         userId: userContext.userId,
         postId,
         revision: input.revision,
+        ...(input.scheduledAt
+          ? { scheduledAt: new Date(input.scheduledAt) }
+          : {}),
+        ...(input.timezone ? { timezone: input.timezone } : {}),
       });
       return ok(c, socialPostSchema.parse(presentSocialPost(post)));
     } catch (error) {

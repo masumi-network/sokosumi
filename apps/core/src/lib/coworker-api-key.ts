@@ -6,7 +6,7 @@ import { createHash } from "@better-auth/utils/hash";
 /** Prefix for third-party vendor Coworker API keys. */
 export const COWORKER_API_KEY_PREFIX = "coworker_";
 /** Prefix for Soko Bot API keys. */
-export const SOKO_BOT_API_KEY_PREFIX = "sokoBot_";
+const SOKO_BOT_API_KEY_PREFIX = "sokoBot_";
 
 export function isSokoBotApiKeyToken(token: string): boolean {
   return token.startsWith(SOKO_BOT_API_KEY_PREFIX);

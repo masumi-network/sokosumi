@@ -7,13 +7,16 @@ Authenticate with a Coworker API key and `X-Context-User-Id` plus `X-Context-Org
 1. List the Project's connected accounts using `GET /v1/projects/{id}/social-connections`; choose an active connection.
 2. Create a draft using `POST /v1/projects/{id}/social-posts` with `text` and `socialConnectionId`. The existing validated Drive `media` field is also supported.
 3. Schedule through `POST /v1/projects/{id}/social-posts/{postId}/schedule` with `revision`, `scheduledAt` (more than one minute in the future), and optionally `timezone`. Alternatively provide `scheduledAt` during creation.
-4. Read the latest post revision before editing, rescheduling, or canceling. The same workspace/project boundaries and revision conflicts apply as in the human UI.
+4. Copy a published, failed, or missed post into a new post that needs human approval with `POST /v1/projects/{id}/social-posts/{postId}/duplicate`. The copy keeps text, media, and the account when it is still connected. It does not copy the provider post id or the old schedule.
+5. Read the latest post revision before editing, rescheduling, or canceling. The same workspace/project boundaries and revision conflicts apply as in the human UI.
 
-Core records the Coworker as creator independently of the contextual human. `scheduledByUserId` is the human on whose behalf scheduling occurred; `scheduledByCoworkerId` identifies the delegating Coworker. Editing scheduled content also updates scheduler attribution. Human rescheduling, editing scheduled content, or Publish now takes over scheduling responsibility.
+Core records the Coworker or Soko Bot as creator independently of the contextual human. Creating, duplicating, recycling, or changing the planned time of an agent post keeps it in `NEEDS_APPROVAL`, with both scheduler fields null. A person approving into Scheduled becomes `scheduledByUserId`; `scheduledByCoworkerId` stays null. Editing or rescheduling an already scheduled post updates scheduler attribution as before.
 
 Before a delayed provider call, Core rechecks that the contextual user is active, Coworker capability, delegated-user access, beta eligibility, and current workspace membership. Revoked access fails the post without contacting the provider. Lease recovery of an already confirmed publication remains idempotent. A human can reschedule or publish a failed post explicitly.
 
 Connecting, reconnecting, replacing, disconnecting accounts, OAuth completion, Publish now/Retry, and approve/reject remain interactive-human actions on these REST routes. Coworker post responses set `canPublishNow`, `canApprove`, and `canReject` to false. Calendar's Social feed remains interactive-human-only in this layer.
+
+A person approves with `POST /v1/projects/{id}/social-posts/{postId}/approve` and `{ "revision": 2 }`. The stored planned time must be more than `SOCIAL_POST_MIN_SCHEDULE_LEAD_MS` (one minute) in the future; otherwise approval saves a draft. To choose a new time and approve atomically, include optional `scheduledAt` (ISO datetime) and `timezone` (IANA zone). An explicit time must satisfy the same minimum lead time as scheduling. Scheduling through approval requires the same active connection, text, first-comment, and media checks as scheduling. Only an interactive human session can approve or reject.
 
 ## Published post statistics
 

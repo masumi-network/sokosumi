@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  approveSocialPostRequestSchema,
   createSocialPostRequestSchema,
   scheduleSocialPostRequestSchema,
 } from "./social-post.schema";
@@ -52,5 +53,28 @@ describe("scheduleSocialPostRequestSchema timezone", () => {
         timezone: "Mars/Olympus",
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("approveSocialPostRequestSchema", () => {
+  it("accepts revision alone or a replacement time and timezone", () => {
+    expect(
+      approveSocialPostRequestSchema.safeParse({ revision: 2 }).success,
+    ).toBe(true);
+    expect(
+      approveSocialPostRequestSchema.safeParse({
+        revision: 2,
+        scheduledAt: FUTURE,
+        timezone: "Europe/Zurich",
+      }).success,
+    ).toBe(true);
+  });
+  it.each([
+    {},
+    { revision: -1 },
+    { revision: 1, scheduledAt: "tomorrow" },
+    { revision: 1, timezone: "Mars/Olympus" },
+  ])("rejects invalid approval input %j", (input) => {
+    expect(approveSocialPostRequestSchema.safeParse(input).success).toBe(false);
   });
 });

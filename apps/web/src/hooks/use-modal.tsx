@@ -15,8 +15,6 @@ type ModalComponent<AdditionalProps extends object = EmptyModalProps> =
 export default function useModal(Modal: ModalComponent<EmptyModalProps>): {
   Component: React.JSX.Element;
   showModal: () => void;
-  hideModal: () => void;
-  toggleModal: () => void;
 };
 export default function useModal<AdditionalProps extends object>(
   Modal: ModalComponent<AdditionalProps>,
@@ -24,8 +22,6 @@ export default function useModal<AdditionalProps extends object>(
 ): {
   Component: React.JSX.Element;
   showModal: () => void;
-  hideModal: () => void;
-  toggleModal: () => void;
 };
 
 export default function useModal<AdditionalProps extends object>(
@@ -36,10 +32,6 @@ export default function useModal<AdditionalProps extends object>(
 
   const showModal = () => setOpen(true);
 
-  const hideModal = () => setOpen(false);
-
-  const toggleModal = () => setOpen((prev) => !prev);
-
   return {
     Component: (
       <Modal
@@ -49,7 +41,5 @@ export default function useModal<AdditionalProps extends object>(
       />
     ),
     showModal,
-    hideModal,
-    toggleModal,
   };
 }

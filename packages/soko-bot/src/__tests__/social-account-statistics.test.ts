@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   composeSystemPrompt,
-  DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
@@ -52,10 +51,9 @@ describe("account-wide Social statistics", () => {
     ).toBe(false);
   });
 
-  it("teaches the new default to evaluate externally published posts without changing v22", () => {
-    const version = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
+  it("teaches v23 to evaluate externally published posts without changing v22", () => {
+    const version = getSokoBotVersion("v23");
     const prior = getSokoBotVersion("v22");
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v23");
     expect(version.model).toBe(prior.model);
     expect(version.systemPrompt).toBe(prior.systemPrompt);
     const prompt = composeSystemPrompt(version);

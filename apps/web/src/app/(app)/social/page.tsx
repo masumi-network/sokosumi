@@ -1,3 +1,4 @@
+import type { SocialPost } from "@sokosumi/core-client";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -92,6 +93,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             }
             calendar={<SocialCalendar calendar={calendar} />}
             notice={projectId ? t("pickUnavailable") : undefined}
+            workspaceId={calendar.workspaceId}
           />
         </SocialCalendarPreviewProvider>
       </SocialPageShell>
@@ -117,30 +119,55 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
       }),
       sokoBotService.getMine().catch(() => null),
     ]);
+  // Count every affected scheduled/failed post, including later list pages.
+  const affectedPosts: SocialPost[] = [...pages[1].posts];
+  const scheduledPage = await projectService.listSocialPosts(project.id, {
+    statuses: ["SCHEDULED"],
+  });
+  affectedPosts.push(...scheduledPage.posts);
+  for (const [statuses, initialCursor] of [
+    [SECTION_STATUSES.attention, pages[1].nextCursor],
+    [["SCHEDULED"], scheduledPage.nextCursor],
+  ] as const) {
+    let cursor = initialCursor;
+    while (cursor) {
+      const page = await projectService.listSocialPosts(project.id, {
+        statuses,
+        cursor,
+      });
+      affectedPosts.push(...page.posts);
+      cursor = page.nextCursor;
+    }
+  }
   const activeConnections = connections.filter(
     (socialConnection) => socialConnection.status === "active",
   );
   const managedAccountCount = connections.filter(
     (socialConnection) => socialConnection.status !== "disconnected",
   ).length;
+  const listedPosts = [
+    ...new Map(
+      pages.flatMap((page) => page.posts).map((post) => [post.id, post]),
+    ).values(),
+  ];
   const posts = selectedPost
     ? [
         selectedPost,
-        ...pages
-          .flatMap((page) => page.posts)
-          .filter((post) => post.id !== selectedPost.id),
+        ...listedPosts.filter((post) => post.id !== selectedPost.id),
       ]
-    : pages.flatMap((page) => page.posts);
+    : listedPosts;
 
   return (
     <SocialPageShell title={t("title")}>
       <SocialCalendarPreviewProvider>
         <SocialComposeProvider>
           <ProjectSocialPosts
+            connectDisabled={Boolean(project.closingAt || project.closedAt)}
             accounts={
               <ProjectSocialAccounts
                 projectId={project.id}
                 connections={connections}
+                connectDisabled={Boolean(project.closingAt || project.closedAt)}
               />
             }
             actions={
@@ -156,6 +183,8 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
               />
             }
             accountCount={managedAccountCount}
+            managedConnections={connections}
+            affectedPosts={affectedPosts}
             connections={activeConnections}
             nextCursors={Object.fromEntries(
               SECTION_ORDER.map((section, index) => [
@@ -165,6 +194,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             )}
             posts={posts}
             projectId={project.id}
+            requestedPostId={query.postId}
             selectedPostId={selectedPost?.id}
           />
         </SocialComposeProvider>

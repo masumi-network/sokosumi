@@ -18,6 +18,8 @@ import { refreshProjectSocialPostStatistics } from "@/lib/actions/project/action
 import type { SocialPostComposerMode } from "./social-post-composer-dialog";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
+import { SocialPostPreviewFailure } from "./social-post-preview-failure";
+import { SocialPostStatusBadge } from "./social-post-status-badge";
 
 export function SocialPostPreviewDialog({
   post,
@@ -76,6 +78,21 @@ export function SocialPostPreviewDialog({
                 : null}
           </DialogDescription>
         </DialogHeader>
+        {post?.status === "NEEDS_APPROVAL" ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <SocialPostStatusBadge
+              status={post.status}
+              label={t("status.NEEDS_APPROVAL")}
+            />
+            <span className="text-muted-foreground">
+              {t("draftedBy", {
+                name:
+                  post.creator.name?.trim() ||
+                  t(`creator.${post.creator.kind}`),
+              })}
+            </span>
+          </div>
+        ) : null}
         {post?.connectionNeedsReconnect ? (
           <p
             className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
@@ -91,6 +108,7 @@ export function SocialPostPreviewDialog({
             </Link>
           </p>
         ) : null}
+        {post ? <SocialPostPreviewFailure post={post} /> : null}
         {post ? (
           <SocialPostPreview
             account={
@@ -131,7 +149,7 @@ export function SocialPostPreviewDialog({
           </div>
         ) : null}
         {post ? (
-          <DialogFooter className="gap-2 sm:gap-2">
+          <DialogFooter className="flex-wrap gap-2 sm:gap-2">
             {actions}
             <>
               {post.canEdit ? (
@@ -163,15 +181,20 @@ export function SocialPostPreviewDialog({
               {post.canSchedule ? (
                 <Button
                   type="button"
+                  variant={
+                    post.status === "NEEDS_APPROVAL" ? "outline" : "default"
+                  }
                   className="min-h-11 md:min-h-10"
                   onClick={() => {
                     onCompose({ kind: "schedule", post });
                     onOpenChange(false);
                   }}
                 >
-                  {post.status === "DRAFT"
-                    ? t("composer.schedule")
-                    : t("composer.reschedule")}
+                  {post.status === "NEEDS_APPROVAL"
+                    ? t("composer.changeTime")
+                    : post.status === "DRAFT"
+                      ? t("composer.schedule")
+                      : t("composer.reschedule")}
                 </Button>
               ) : null}
             </>

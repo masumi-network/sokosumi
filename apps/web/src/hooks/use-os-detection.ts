@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import { getOSFromUserAgent, type OS } from "@/lib/utils/user-agent";
 
@@ -9,24 +9,30 @@ interface OSInfo {
   isMobile: boolean;
 }
 
-/**
- * Hook to detect the user's operating system from the user agent.
- * Uses requestAnimationFrame to defer detection until after hydration,
- * avoiding hydration mismatches when server and client values differ.
- */
+const SERVER_OS_INFO: OSInfo = {
+  os: "Unknown",
+  isMobile: false,
+};
+
+let cachedUserAgent: string | null = null;
+let cachedOsInfo: OSInfo = SERVER_OS_INFO;
+
+const subscribe = () => () => {};
+
+function getClientOsInfo(): OSInfo {
+  const userAgent = navigator.userAgent;
+  if (cachedUserAgent === userAgent) {
+    return cachedOsInfo;
+  }
+  cachedUserAgent = userAgent;
+  cachedOsInfo = getOSFromUserAgent();
+  return cachedOsInfo;
+}
+
+function getServerOsInfo(): OSInfo {
+  return SERVER_OS_INFO;
+}
+
 export function useOSDetection(): OSInfo {
-  const [osInfo, setOsInfo] = useState<OSInfo>({
-    os: "Unknown",
-    isMobile: false,
-  });
-
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      setOsInfo(getOSFromUserAgent());
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, []);
-
-  return osInfo;
+  return useSyncExternalStore(subscribe, getClientOsInfo, getServerOsInfo);
 }

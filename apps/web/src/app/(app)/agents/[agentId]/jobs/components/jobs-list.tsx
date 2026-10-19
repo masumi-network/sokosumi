@@ -12,6 +12,7 @@ import { loadMoreOwnedAgentJobs } from "@/app/agents/[agentId]/jobs/actions";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 import { jobStatusDataSchema } from "@/lib/ably/schema";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -160,7 +161,11 @@ export function JobsList({
     [filteredJobs, locale],
   );
 
-  const channelName = makeAgentJobsChannelName(agentId, userId);
+  const channelName = makeAgentJobsChannelName(
+    agentId,
+    userId,
+    getRealtimeChannelEnvironment(),
+  );
 
   function handleStatusUpdate(updates: JobStatusUpdateData[]) {
     if (updates.length === 0) {

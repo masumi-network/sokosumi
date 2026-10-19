@@ -20,12 +20,12 @@ export const ACTIVE_SUBSCRIPTION_STATUSES = [
 ] as const;
 
 export const FREE_SUBSCRIPTION_PLAN = "free";
-export const MONTHLY_BILLING_INTERVAL = "month";
+const MONTHLY_BILLING_INTERVAL = "month";
 
 /** Pre-create next local-free period this far before current periodEnd (5m cron × 3+ ticks). */
 export const FREE_SUBSCRIPTION_PRECREATE_LOOKAHEAD_MS = 15 * 60 * 1000;
 
-export const LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT = "local-free:";
+const LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT = "local-free:";
 
 export const LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS = ":local-free:";
 

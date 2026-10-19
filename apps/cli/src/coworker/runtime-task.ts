@@ -46,7 +46,7 @@ function checkAbort(signal?: AbortSignal): void {
   }
 }
 
-export function describeRuntimeGrantError(error: unknown): string | undefined {
+function describeRuntimeGrantError(error: unknown): string | undefined {
   const kind = record(record(error)?.body)?.kind;
   const grantMessages = {
     grant_required:

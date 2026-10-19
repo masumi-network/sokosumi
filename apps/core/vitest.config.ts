@@ -29,6 +29,7 @@ const optInPostgresFiles = [
   "src/services/file-curated-vocabulary.postgres.test.ts",
   "src/helpers/transaction-history.postgres.test.ts",
   "src/helpers/history-sort-at.postgres.test.ts",
+  "src/helpers/soko-bot-owner-scope.postgres.test.ts",
 ];
 
 const optInIntegrationFiles = [

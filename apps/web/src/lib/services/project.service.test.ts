@@ -30,6 +30,8 @@ const coreClientMock = {
   postProjectsByIdSocialPosts: vi.fn(),
   postProjectsByIdSocialPostsByPostIdApprove: vi.fn(),
   postProjectsByIdSocialPostsByPostIdCancel: vi.fn(),
+  postProjectsByIdSocialPostsByPostIdDuplicate: vi.fn(),
+  postProjectsByIdSocialAccountPostsByAccountPostIdRecycle: vi.fn(),
   postProjectsByIdSocialPostsByPostIdPublish: vi.fn(),
   postProjectsByIdSocialPostsByPostIdReject: vi.fn(),
   postProjectsByIdSocialPostsByPostIdSchedule: vi.fn(),
@@ -766,6 +768,42 @@ describe("project.service", () => {
       ).toHaveBeenCalledWith("project-1", "post-1", { revision: 2 });
     });
 
+    it("duplicates a post through the generated client", async () => {
+      coreClientMock.postProjectsByIdSocialPostsByPostIdDuplicate.mockResolvedValue(
+        { data: { ...post, id: "post-copy", status: "DRAFT" } },
+      );
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.duplicateSocialPost("project-1", "post-1"),
+      ).resolves.toMatchObject({ id: "post-copy", status: "DRAFT" });
+      expect(
+        coreClientMock.postProjectsByIdSocialPostsByPostIdDuplicate,
+      ).toHaveBeenCalledWith("project-1", "post-1");
+    });
+
+    it("recycles a Performance post through the generated client", async () => {
+      coreClientMock.postProjectsByIdSocialAccountPostsByAccountPostIdRecycle.mockResolvedValue(
+        { data: { ...post, id: "post-recycle", status: "SCHEDULED" } },
+      );
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.recycleSocialAccountPost("project-1", "account-post-1", {
+          delayDays: 7,
+          timezone: "Europe/Berlin",
+        }),
+      ).resolves.toMatchObject({ id: "post-recycle", status: "SCHEDULED" });
+      expect(
+        coreClientMock.postProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
+      ).toHaveBeenCalledWith("project-1", "account-post-1", {
+        delayDays: 7,
+        timezone: "Europe/Berlin",
+      });
+    });
+
     it("publishes a post now with the observed revision", async () => {
       const publishedAt = new Date("2026-09-15T10:00:00.000Z");
       coreClientMock.postProjectsByIdSocialPostsByPostIdPublish.mockResolvedValue(
@@ -824,6 +862,30 @@ describe("project.service", () => {
       expect(
         coreClientMock.postProjectsByIdSocialPostsByPostIdReject,
       ).toHaveBeenCalledWith("project-1", "post-1", { revision: 4 });
+    });
+
+    it("forwards an approval time override and propagates approval errors", async () => {
+      const input = {
+        revision: 3,
+        scheduledAt: new Date("2026-11-01T10:00:00.000Z"),
+        timezone: "Europe/Zurich",
+      };
+      coreClientMock.postProjectsByIdSocialPostsByPostIdApprove.mockResolvedValue(
+        { data: { ...post, status: "SCHEDULED" } },
+      );
+      const { projectService } = await import("./project.service");
+      await expect(
+        projectService.approveSocialPost("project-1", "post-1", input),
+      ).resolves.toMatchObject({ status: "SCHEDULED" });
+      expect(
+        coreClientMock.postProjectsByIdSocialPostsByPostIdApprove,
+      ).toHaveBeenCalledWith("project-1", "post-1", input);
+      coreClientMock.postProjectsByIdSocialPostsByPostIdApprove.mockRejectedValue(
+        new Error("Account disconnected"),
+      );
+      await expect(
+        projectService.approveSocialPost("project-1", "post-1", input),
+      ).rejects.toThrow("Account disconnected");
     });
 
     it("propagates Core errors from publishing", async () => {

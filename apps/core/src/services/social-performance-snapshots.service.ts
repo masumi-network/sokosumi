@@ -22,11 +22,6 @@ function utcDate(value: Date): Date {
   return date;
 }
 
-function observationWindow(fetchedAt: Date) {
-  const from = utcDate(fetchedAt);
-  return { from, until: new Date(from.getTime() + 86_400_000) };
-}
-
 /** Capture account observations only. Post counters stay on SocialAccountPost. */
 export async function recordSocialPerformanceSnapshot(
   tx: Prisma.TransactionClient,
@@ -56,16 +51,14 @@ export async function recordSocialPerformanceSnapshot(
   });
 }
 
-/** Insights read post observations from SocialAccountPost via connectionId+fetchedAt. */
+/** Insights read every cached post for the connection, not only that UTC day. */
 export async function listSocialPerformancePostObservations(
   db: PostObservationStore,
   input: { connectionId: string; fetchedAt: Date },
 ) {
-  const { from, until } = observationWindow(input.fetchedAt);
   const rows = await db.socialAccountPost.findMany({
     where: {
       connectionId: input.connectionId,
-      fetchedAt: { gte: from, lt: until },
     },
     include: { connection: { select: { provider: true } } },
     orderBy: [{ fetchedAt: "asc" }, { id: "asc" }],

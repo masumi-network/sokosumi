@@ -7,8 +7,8 @@ struct ChatMessagePreviewTests {
   /// Covers representable ChatMessagePreview.text inputs, with and without roster names.
   /// One lone-surrogate case is excluded: Swift String cannot hold malformed UTF-16.
   @Test func matchesWebPreviewCorpus() throws {
-    // Bundled, not read from #filePath: Xcode Cloud runs the test bundle on a
-    // machine where the source checkout is not at the compile-time path.
+    // Bundled, not read from #filePath: a test bundle can run on a machine
+    // where the source checkout is not at the compile-time path.
     let url = try #require(
       Bundle.module.url(forResource: "chat-message-preview", withExtension: "json", subdirectory: "Fixtures")
     )

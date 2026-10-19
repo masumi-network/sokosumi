@@ -83,10 +83,37 @@ describe("versions", () => {
     const prompt = composeSystemPrompt(
       getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
     );
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v23");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v25");
     expect(prompt).toMatch(/Instagram/);
     expect(prompt).toMatch(/TikTok/);
     expect(prompt).not.toMatch(/X only/);
+  });
+
+  it("teaches the default to take on bulk work instead of declining it", () => {
+    const prompt = composeSystemPrompt(
+      getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
+    );
+    expect(prompt).toContain("start_background_run");
+    expect(prompt).toContain("nextPageToken");
+    expect(composeSystemPrompt(getSokoBotVersion("v23"))).not.toContain(
+      "# Long and bulk work",
+    );
+  });
+
+  it("lets v25 carry a chained job through instead of splitting it into questions", () => {
+    const v25 = getSokoBotVersion("v25");
+    const prompt = composeSystemPrompt(v25);
+    expect(prompt).not.toContain("Do not perform specialist work yourself");
+    expect(prompt).not.toContain("Split proposed work and ask user");
+    expect(prompt).not.toContain("E. One initiative per turn.");
+    expect(prompt).toContain("A request with several steps is one job");
+    expect(prompt).toContain("# Chained work");
+    expect(prompt).toContain("# Chat result previews");
+    expect(prompt).toContain("# Long and bulk work");
+    expect(v25.model).toBe(getSokoBotVersion("v24").model);
+    expect(composeSystemPrompt(getSokoBotVersion("v24"))).toContain(
+      "Do not perform specialist work yourself",
+    );
   });
 
   it("tell owners what a version change means for them", () => {

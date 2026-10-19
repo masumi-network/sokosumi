@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { NOTIFICATION_PREFERENCES_HREF } from "../account/constants";
+import { NOTIFICATION_PREFERENCES_HREF } from "@/app/account/constants";
 import { NotificationBrowserPermissionPrimer } from "./notification-browser-permission-primer";
 
 vi.mock("next-intl", () => ({

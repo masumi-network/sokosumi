@@ -8,7 +8,7 @@ export const MemberRole = {
 
 export type MemberRole = (typeof MemberRole)[keyof typeof MemberRole];
 
-export const organizationMembersCountInclude = {
+const organizationMembersCountInclude = {
   _count: {
     select: {
       members: true,

@@ -68,6 +68,7 @@ export function SocialPostStatusBadge({
   showLabel = true,
   className,
 }: SocialPostStatusBadgeProps) {
+  showLabel = status === "NEEDS_APPROVAL" || showLabel;
   const marker = STATUS_MARKERS[status];
   const style = getToneStyle(marker.tone);
   return (

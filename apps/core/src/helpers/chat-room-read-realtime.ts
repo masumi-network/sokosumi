@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/utils";
 
 import { getRestClient } from "@/lib/ably/client";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 
 export interface PublishChatRoomReadRealtimeInput {
   roomId: string;
@@ -22,7 +23,9 @@ export async function publishChatRoomReadRealtime(
 ): Promise<void> {
   try {
     const client = getRestClient();
-    const channel = client.channels.get(makeChatRoomChannelName(input.roomId));
+    const channel = client.channels.get(
+      makeChatRoomChannelName(input.roomId, getRealtimeChannelEnvironment()),
+    );
     // Ephemeral (ADR-0033's one transferable lesson): a read receipt is
     // derived, and the next room payload carries the same mark. It gains
     // nothing from history, rewind or resume, and a reconnecting client

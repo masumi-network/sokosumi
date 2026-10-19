@@ -26,7 +26,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/{id}/social-posts/{postId}/cancel",
     description:
-      "Cancel a draft, scheduled, or needs-approval Social post. Canceling an already canceled post is a no-op. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.",
+      "Cancel a draft, scheduled, or needs-approval Social post, or dismiss a failed or missed one. Canceling an already canceled post is a no-op. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.",
     tags: ["Projects"],
     request: {
       params: socialPostParamsSchema,

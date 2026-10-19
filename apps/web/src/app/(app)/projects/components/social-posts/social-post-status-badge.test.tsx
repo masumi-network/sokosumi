@@ -24,6 +24,17 @@ describe("SocialPostStatusBadge", () => {
     ).toHaveTextContent(status.toLowerCase());
   });
 
+  it("always shows the waiting status as text", () => {
+    render(
+      <SocialPostStatusBadge
+        label="Needs approval"
+        showLabel={false}
+        status="NEEDS_APPROVAL"
+      />,
+    );
+    expect(screen.getByText("Needs approval")).toBeVisible();
+  });
+
   it("spins while a post is publishing", () => {
     const { container } = render(
       <SocialPostStatusBadge label="Publishing" status="PUBLISHING" />,

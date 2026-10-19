@@ -19,6 +19,7 @@ import type {
   ProjectStar,
   ProjectStatsEntry,
   PublishSocialPostRequest,
+  RecycleSocialAccountPostRequest,
   RejectSocialPostRequest,
   ScheduleSocialPostRequest,
   SocialPost,
@@ -455,6 +456,32 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function duplicateSocialPost(
+    projectId: string,
+    postId: string,
+  ): Promise<SocialPost> {
+    const result =
+      await coreClient.postProjectsByIdSocialPostsByPostIdDuplicate(
+        projectId,
+        postId,
+      );
+    return result.data;
+  }
+
+  async function recycleSocialAccountPost(
+    projectId: string,
+    accountPostId: string,
+    input: RecycleSocialAccountPostRequest = {},
+  ): Promise<SocialPost> {
+    const result =
+      await coreClient.postProjectsByIdSocialAccountPostsByAccountPostIdRecycle(
+        projectId,
+        accountPostId,
+        input,
+      );
+    return result.data;
+  }
+
   async function publishSocialPost(
     projectId: string,
     postId: string,
@@ -617,6 +644,8 @@ export const projectService = (() => {
     updateSocialPost,
     scheduleSocialPost,
     cancelSocialPost,
+    duplicateSocialPost,
+    recycleSocialAccountPost,
     publishSocialPost,
     approveSocialPost,
     rejectSocialPost,

@@ -1,15 +1,15 @@
 import type { SocialPostStatus } from "@sokosumi/core-client";
 
 /**
- * One tab per list. Scheduled, published and canceled posts have no list: the
+ * Scheduled, published and canceled posts have no list: the
  * calendar tab already shows them, and a post a link names is shown above the
- * tabs. Failed, missed, and needs-approval posts still need a person, so they
- * keep a list of their own.
+ * tabs. Publishing stays on Drafts until it finishes. Waiting posts appear above
+ * drafts and in Needs attention alongside failed and missed posts.
  */
 export type SectionKey = "drafts" | "attention";
 export const SECTION_STATUSES: Record<SectionKey, readonly SocialPostStatus[]> =
   {
-    drafts: ["DRAFT"],
+    drafts: ["DRAFT", "PUBLISHING", "NEEDS_APPROVAL"],
     attention: ["FAILED", "MISSED", "NEEDS_APPROVAL"],
   };
 export const SECTION_ORDER: SectionKey[] = ["drafts", "attention"];
@@ -23,9 +23,3 @@ export const SOCIAL_TABS = [
   "accounts",
 ] as const;
 export type SocialTab = (typeof SOCIAL_TABS)[number];
-
-/** Social tab row: 44px phone targets, scroll from the start beside New post. */
-export const SOCIAL_TABS_LIST_CLASS_NAME =
-  "app-scrollbar h-auto min-h-11 w-full min-w-0 max-w-full flex-1 justify-start overflow-x-auto overscroll-x-contain";
-export const SOCIAL_TAB_TRIGGER_CLASS_NAME =
-  "h-auto min-h-11 shrink-0 md:min-h-8";

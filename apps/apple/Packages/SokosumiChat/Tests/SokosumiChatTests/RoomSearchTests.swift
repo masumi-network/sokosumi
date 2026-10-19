@@ -25,7 +25,7 @@ struct RoomSearchTests {
 
   @Test func resetRejectsAnUncancelledLateResponse() async throws {
     let transport = PausedSearchTransport()
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let search = RoomSearch()
     let task = Task { await search.search(query: "hello", roomId: testRoomId, client: client, organizationSlug: nil) }
     await transport.waitForRequest()

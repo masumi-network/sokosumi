@@ -8,6 +8,7 @@ describe("ConnectionsPageSkeleton", () => {
     render(<ConnectionsPageSkeleton />);
 
     expect(screen.getByTestId("connections-loading")).toBeTruthy();
+    expect(screen.getByTestId("connections-loading-sign-in")).toBeTruthy();
     expect(screen.getByTestId("connections-loading-social")).toBeTruthy();
     expect(screen.getByTestId("connections-loading-tabs")).toBeTruthy();
     expect(screen.getByTestId("connections-loading-content")).toBeTruthy();

@@ -6,6 +6,7 @@ import prisma from "@/lib/db/prisma";
 const {
   projectFindFirstMock,
   socialConnectionFindFirstMock,
+  socialAccountPostFindFirstMock,
   socialPostCreateMock,
   socialPostFindFirstMock,
   socialPostFindManyMock,
@@ -14,6 +15,7 @@ const {
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
   socialConnectionFindFirstMock: vi.fn(),
+  socialAccountPostFindFirstMock: vi.fn(),
   socialPostCreateMock: vi.fn(),
   socialPostFindFirstMock: vi.fn(),
   socialPostFindManyMock: vi.fn(),
@@ -25,6 +27,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     project: { findFirst: projectFindFirstMock },
     projectSocialConnection: { findFirst: socialConnectionFindFirstMock },
+    socialAccountPost: { findFirst: socialAccountPostFindFirstMock },
     socialPost: {
       create: socialPostCreateMock,
       findFirst: socialPostFindFirstMock,
@@ -40,6 +43,7 @@ const WORKSPACE_ID = "22222222-2222-4222-8222-222222222222";
 const SOCIAL_CONNECTION_ID = "33333333-3333-4333-8333-333333333333";
 const POST_ID = "44444444-4444-4444-8444-444444444444";
 const USER_ID = "user_123";
+const SOKO_BOT_ID = "55555555-5555-4555-8555-555555555555";
 const NOW = new Date("2026-09-15T10:00:00.000Z");
 const FUTURE = new Date("2026-09-16T10:00:00.000Z");
 
@@ -100,6 +104,7 @@ const draftPost = {
   socialConnectionId: null,
   provider: "x",
   text: "Hello world",
+  firstComment: null,
   media: [],
   status: "DRAFT",
   scheduledAt: null,
@@ -108,6 +113,7 @@ const draftPost = {
   creatorCoworkerId: null,
   creatorSokoBotId: null,
   scheduledByUserId: null,
+  scheduledByCoworkerId: null,
   canceledAt: null,
   publishedAt: null,
   publishedExternalId: null,
@@ -139,6 +145,13 @@ const scheduledPost = {
     externalHandle: "sokosumi",
     status: "active",
   },
+};
+
+const pendingPost = {
+  ...scheduledPost,
+  status: "NEEDS_APPROVAL",
+  scheduledByUserId: null,
+  scheduledByCoworkerId: null,
 };
 
 async function loadService() {
@@ -211,9 +224,38 @@ describe("social posts service", () => {
         canPublishNow: true,
         canApprove: false,
         canReject: false,
+        canDuplicate: false,
       }),
     ]);
   });
+
+  it.each([["FAILED"], ["MISSED"], ["FAILED", "MISSED"]] as const)(
+    "orders %s by last attempt, then scheduled time",
+    async (...statuses) => {
+      const { listSocialPosts } = await loadService();
+
+      await listSocialPosts({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        statuses: [...statuses],
+      });
+
+      expect(socialPostFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            projectId: PROJECT_ID,
+            workspaceId: WORKSPACE_ID,
+            status: { in: [...statuses] },
+          },
+          orderBy: [
+            { lastAttemptAt: { sort: "desc", nulls: "last" } },
+            { scheduledAt: { sort: "desc", nulls: "last" } },
+            { id: "desc" },
+          ],
+        }),
+      );
+    },
+  );
 
   it("paginates a filtered section independently of its history", async () => {
     const rows = Array.from({ length: 21 }, (_, index) => ({
@@ -326,6 +368,7 @@ describe("social posts service", () => {
       lastAttemptAt: NOW,
       lastAttempt,
       canPublishNow: true,
+      canDuplicate: false,
       connectionNeedsReconnect: true,
     });
     expect(posts[1]).toMatchObject({
@@ -334,14 +377,17 @@ describe("social posts service", () => {
       canCancel: false,
       canSchedule: false,
       canPublishNow: false,
+      canDuplicate: false,
       connectionNeedsReconnect: false,
     });
     expect(posts[2]).toMatchObject({
       canPublishNow: true,
+      canDuplicate: true,
       connectionNeedsReconnect: false,
     });
     expect(posts[3]).toMatchObject({
       canPublishNow: false,
+      canDuplicate: true,
       connectionNeedsReconnect: false,
     });
   });
@@ -367,6 +413,30 @@ describe("social posts service", () => {
       canReject: true,
     });
   });
+
+  it.each([
+    { provider: "instagram", media: [], canPublishNow: false },
+    { provider: "tiktok", media: [], canPublishNow: false },
+    { provider: "youtube", media: [], canPublishNow: false },
+    { provider: "tiktok", media: [VIDEO_REF], canPublishNow: true },
+    { provider: "instagram", media: [JPEG_REF], canPublishNow: true },
+    { provider: "x", media: [], canPublishNow: true },
+  ] as const)(
+    "sets canPublishNow $canPublishNow on a $provider draft",
+    async ({ provider, media, canPublishNow }) => {
+      socialPostFindManyMock.mockResolvedValue([
+        { ...draftPost, provider, media },
+      ]);
+      const { listSocialPosts } = await loadService();
+
+      const { posts } = await listSocialPosts({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+      });
+
+      expect(posts[0]).toMatchObject({ canPublishNow });
+    },
+  );
 
   it("returns not found for a post in another Project", async () => {
     socialPostFindFirstMock.mockResolvedValue(null);
@@ -414,51 +484,67 @@ describe("social posts service", () => {
     },
   );
 
-  it("requires media for an instagram post", async () => {
-    socialConnectionFindFirstMock.mockResolvedValue({
-      ...activeConnection,
-      provider: "instagram",
-    });
-    const { createSocialPost } = await loadService();
+  it.each(["instagram", "tiktok", "youtube"] as const)(
+    "saves a %s draft without media",
+    async (provider) => {
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        provider,
+      });
+      const { createSocialPost } = await loadService();
 
-    await expect(
-      createSocialPost({
+      await createSocialPost({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
         organizationId: null,
         userId: USER_ID,
         socialConnectionId: SOCIAL_CONNECTION_ID,
         text: "Hello",
-      }),
-    ).rejects.toMatchObject({
-      status: 400,
-      message: "Instagram requires at least one image or video",
-    });
-    expect(socialPostCreateMock).not.toHaveBeenCalled();
-  });
+      });
 
-  it("requires a video for a youtube post", async () => {
-    socialConnectionFindFirstMock.mockResolvedValue({
-      ...activeConnection,
-      provider: "youtube",
-    });
-    const { createSocialPost } = await loadService();
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            provider,
+            text: "Hello",
+            status: "DRAFT",
+          }),
+        }),
+      );
+    },
+  );
 
-    await expect(
-      createSocialPost({
-        projectId: PROJECT_ID,
-        workspaceId: WORKSPACE_ID,
-        organizationId: null,
-        userId: USER_ID,
-        socialConnectionId: SOCIAL_CONNECTION_ID,
-        text: "Hello",
-      }),
-    ).rejects.toMatchObject({
-      status: 400,
-      message: "YouTube requires a video",
-    });
-    expect(socialPostCreateMock).not.toHaveBeenCalled();
-  });
+  it.each([
+    ["instagram", "Instagram requires at least one image or video"],
+    ["tiktok", "TikTok requires a video"],
+    ["youtube", "YouTube requires a video"],
+  ] as const)(
+    "still requires media to schedule a %s post",
+    async (provider, message) => {
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        provider,
+      });
+      const { createSocialPost } = await loadService();
+
+      await expect(
+        createSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          text: "Hello",
+          scheduledAt: FUTURE,
+          timezone: "Europe/Zurich",
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message,
+      });
+      expect(socialPostCreateMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("requires text for a linkedin post", async () => {
     socialConnectionFindFirstMock.mockResolvedValue({
@@ -484,12 +570,40 @@ describe("social posts service", () => {
     expect(socialPostCreateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects a draft whose stored content cannot move to the new provider", async () => {
+  it("moves a text draft onto Instagram without media", async () => {
     const instagramConnection = {
       ...activeConnection,
       provider: "instagram",
     };
     socialConnectionFindFirstMock.mockResolvedValue(instagramConnection);
+    const { updateSocialPost } = await loadService();
+
+    await updateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      postId: POST_ID,
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      revision: 0,
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          provider: "instagram",
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+        }),
+      }),
+    );
+  });
+
+  it("refuses to strip media from a scheduled Instagram post", async () => {
+    socialPostFindFirstMock.mockResolvedValue({
+      ...scheduledPost,
+      provider: "instagram",
+      media: [JPEG_REF],
+    });
     const { updateSocialPost } = await loadService();
 
     await expect(
@@ -499,8 +613,8 @@ describe("social posts service", () => {
         organizationId: null,
         userId: USER_ID,
         postId: POST_ID,
-        socialConnectionId: SOCIAL_CONNECTION_ID,
-        revision: 0,
+        media: [],
+        revision: 1,
       }),
     ).rejects.toMatchObject({
       status: 400,
@@ -581,6 +695,7 @@ describe("social posts service", () => {
           socialConnectionId: null,
           provider: "x",
           text: "Hello world",
+          firstComment: null,
           media: [],
           status: "DRAFT",
           scheduledAt: null,
@@ -609,6 +724,49 @@ describe("social posts service", () => {
         text: "x".repeat(281),
       }),
     ).rejects.toMatchObject({ status: 400 });
+    expect(socialPostCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("stores a first comment on create", async () => {
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      firstComment: "#launch",
+    });
+    const { createSocialPost } = await loadService();
+
+    const post = await createSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      text: "Hello world",
+      firstComment: " #launch ",
+    });
+
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ firstComment: "#launch" }),
+      }),
+    );
+    expect(post.firstComment).toBe("#launch");
+  });
+
+  it("rejects a first comment beyond the provider limit", async () => {
+    const { createSocialPost } = await loadService();
+
+    await expect(
+      createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        text: "Hello world",
+        firstComment: "x".repeat(281),
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "First comment must be at most 280 characters for x",
+    });
     expect(socialPostCreateMock).not.toHaveBeenCalled();
   });
 
@@ -1129,6 +1287,36 @@ describe("social posts service", () => {
     expect(post).toMatchObject({ text: "Edited", revision: 1 });
   });
 
+  it("updates a draft first comment", async () => {
+    socialPostFindFirstMock
+      .mockResolvedValueOnce(draftPost)
+      .mockResolvedValueOnce({
+        ...draftPost,
+        firstComment: "#launch",
+        revision: 1,
+      });
+    const { updateSocialPost } = await loadService();
+
+    const post = await updateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      organizationId: null,
+      postId: POST_ID,
+      firstComment: " #launch ",
+      revision: 0,
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: POST_ID, revision: 0 },
+      data: {
+        firstComment: "#launch",
+        revision: { increment: 1 },
+      },
+    });
+    expect(post.firstComment).toBe("#launch");
+  });
+
   it("refuses to clear the connection of a scheduled post", async () => {
     socialPostFindFirstMock.mockResolvedValue(scheduledPost);
     const { updateSocialPost } = await loadService();
@@ -1310,6 +1498,48 @@ describe("social posts service", () => {
     expect(post).toMatchObject({ status: "CANCELED", revision: 1 });
   });
 
+  it.each(["FAILED", "MISSED"] as const)(
+    "cancels a %s post",
+    async (status) => {
+      socialPostFindFirstMock
+        .mockResolvedValueOnce({
+          ...scheduledPost,
+          status,
+          lastError: "X rejected the post",
+        })
+        .mockResolvedValueOnce({
+          ...scheduledPost,
+          status: "CANCELED",
+          canceledAt: NOW,
+          revision: 2,
+        });
+      const { cancelSocialPost } = await loadService();
+
+      const post = await cancelSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        postId: POST_ID,
+        revision: 1,
+      });
+
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: POST_ID, revision: 1 },
+        data: {
+          status: "CANCELED",
+          canceledAt: NOW,
+          revision: { increment: 1 },
+        },
+      });
+      expect(post).toMatchObject({
+        status: "CANCELED",
+        canEdit: false,
+        canSchedule: false,
+        canCancel: false,
+      });
+    },
+  );
+
   it("refuses to cancel a published post", async () => {
     socialPostFindFirstMock.mockResolvedValue({
       ...draftPost,
@@ -1329,70 +1559,85 @@ describe("social posts service", () => {
     ).rejects.toMatchObject({ status: 409 });
     expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
   });
-  it("records a coworker creator and contextual scheduling user separately", async () => {
-    const { createSocialPost } = await loadService();
-    await createSocialPost({
-      projectId: PROJECT_ID,
-      workspaceId: WORKSPACE_ID,
-      organizationId: null,
-      userId: USER_ID,
-      coworkerId: "cow_123",
-      text: "Hello",
-      socialConnectionId: SOCIAL_CONNECTION_ID,
-      scheduledAt: new Date(NOW.getTime() + 120_000),
-    });
-    expect(socialPostCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          status: "NEEDS_APPROVAL",
-          creatorUserId: null,
-          creatorCoworkerId: "cow_123",
-          scheduledByUserId: USER_ID,
-          scheduledByCoworkerId: "cow_123",
+  it.each([undefined, FUTURE])(
+    "records a coworker creator without a scheduler for planned time %s",
+    async (scheduledAt) => {
+      const { createSocialPost } = await loadService();
+      await createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        coworkerId: "cow_123",
+        text: "Hello",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        scheduledAt,
+      });
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "NEEDS_APPROVAL",
+            scheduledAt: scheduledAt ?? null,
+            creatorUserId: null,
+            creatorCoworkerId: "cow_123",
+            scheduledByUserId: null,
+            scheduledByCoworkerId: null,
+          }),
         }),
-      }),
-    );
-  });
-  it("records a bot creator while retaining its owner's scheduling authority", async () => {
-    const sokoBotId = "55555555-5555-4555-8555-555555555555";
-    socialPostCreateMock.mockResolvedValue({
-      ...scheduledPost,
-      creatorUserId: null,
-      creatorUser: null,
-      creatorSokoBotId: sokoBotId,
-      creatorSokoBot: { id: sokoBotId, name: "Soko" },
-    });
-    const { createSocialPost } = await loadService();
+      );
+    },
+  );
+  it.each([undefined, FUTURE])(
+    "records a bot creator without a scheduler for planned time %s",
+    async (scheduledAt) => {
+      const sokoBotId = SOKO_BOT_ID;
+      socialPostCreateMock.mockResolvedValue({
+        ...pendingPost,
+        scheduledAt: scheduledAt ?? null,
+        creatorUserId: null,
+        creatorUser: null,
+        creatorSokoBotId: sokoBotId,
+        creatorSokoBot: { id: sokoBotId, name: "Soko" },
+      });
+      const { createSocialPost } = await loadService();
 
-    const post = await createSocialPost({
-      projectId: PROJECT_ID,
-      workspaceId: WORKSPACE_ID,
-      organizationId: null,
-      userId: USER_ID,
-      sokoBotId,
-      text: "Hello",
-      socialConnectionId: SOCIAL_CONNECTION_ID,
-      scheduledAt: FUTURE,
-    });
+      const post = await createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        sokoBotId,
+        text: "Hello",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        scheduledAt,
+      });
 
-    expect(socialPostCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          status: "NEEDS_APPROVAL",
-          creatorUserId: null,
-          creatorCoworkerId: null,
-          creatorSokoBotId: sokoBotId,
-          scheduledByUserId: USER_ID,
-          scheduledByCoworkerId: null,
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "NEEDS_APPROVAL",
+            creatorUserId: null,
+            creatorCoworkerId: null,
+            creatorSokoBotId: sokoBotId,
+            scheduledAt: scheduledAt ?? null,
+            scheduledByUserId: null,
+            scheduledByCoworkerId: null,
+          }),
         }),
-      }),
-    );
-    expect(post.creator).toEqual({
-      kind: "sokoBot",
-      id: sokoBotId,
-      name: "Soko",
-    });
-  });
+      );
+      expect(post.creator).toEqual({
+        kind: "sokoBot",
+        id: sokoBotId,
+        name: "Soko",
+      });
+      expect(post).toMatchObject({
+        status: "NEEDS_APPROVAL",
+        canApprove: true,
+        canReject: true,
+        canPublishNow: false,
+      });
+    },
+  );
 
   it("rejects conflicting bot and coworker authorship before writing", async () => {
     const { createSocialPost } = await loadService();
@@ -1518,45 +1763,649 @@ describe("social posts service", () => {
     );
   });
 
-  it("keeps needs-approval when a time is set", async () => {
-    const pending = { ...scheduledPost, status: "NEEDS_APPROVAL", revision: 2 };
-    socialPostFindFirstMock
-      .mockResolvedValueOnce(pending)
-      .mockResolvedValueOnce({ ...pending, revision: 3 });
-    const { scheduleSocialPost } = await loadService();
+  it("copies a published post into a new draft without the provider id", async () => {
+    const published = {
+      ...scheduledPost,
+      status: "PUBLISHED",
+      text: "Winner",
+      firstComment: "#winner",
+      media: [IMAGE_REF],
+      publishedAt: NOW,
+      publishedExternalId: "1907",
+      publishedUrl: "https://x.com/sokosumi/status/1907",
+    };
+    socialPostFindFirstMock.mockResolvedValue(published);
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      id: "55555555-5555-4555-8555-555555555555",
+      text: "Winner",
+      firstComment: "#winner",
+      media: [IMAGE_REF],
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      socialConnection: scheduledPost.socialConnection,
+    });
+    const { duplicateSocialPost } = await loadService();
 
-    const post = await scheduleSocialPost({
+    const post = await duplicateSocialPost({
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
+      organizationId: null,
       userId: USER_ID,
       postId: POST_ID,
-      scheduledAt: FUTURE,
+    });
+
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          provider: "x",
+          text: "Winner",
+          firstComment: "#winner",
+          media: [IMAGE_REF],
+          status: "DRAFT",
+          creatorUserId: USER_ID,
+          creatorCoworkerId: null,
+          creatorSokoBotId: null,
+        },
+      }),
+    );
+    expect(post).toMatchObject({
+      id: "55555555-5555-4555-8555-555555555555",
+      status: "DRAFT",
+      text: "Winner",
+      firstComment: "#winner",
+      canDuplicate: false,
+      publishedExternalId: null,
+      scheduledAt: null,
+    });
+  });
+
+  it.each(["FAILED", "MISSED"] as const)(
+    "duplicates a %s post",
+    async (status) => {
+      socialPostFindFirstMock.mockResolvedValue({
+        ...scheduledPost,
+        status,
+        lastError: "gone",
+      });
+      socialPostCreateMock.mockResolvedValue(draftPost);
+      const { duplicateSocialPost } = await loadService();
+
+      await duplicateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        postId: POST_ID,
+      });
+
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "DRAFT",
+            text: scheduledPost.text,
+            socialConnectionId: SOCIAL_CONNECTION_ID,
+          }),
+        }),
+      );
+    },
+  );
+
+  it.each([
+    "DRAFT",
+    "NEEDS_APPROVAL",
+    "SCHEDULED",
+    "PUBLISHING",
+    "CANCELED",
+  ] as const)("rejects duplicating a %s post", async (status) => {
+    socialPostFindFirstMock.mockResolvedValue({ ...draftPost, status });
+    const { duplicateSocialPost } = await loadService();
+
+    await expect(
+      duplicateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        postId: POST_ID,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "Only a published, failed, or missed post can be duplicated",
+    });
+    expect(socialPostCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the provider when the account is gone or disconnected", async () => {
+    socialPostFindFirstMock.mockResolvedValue({
+      ...scheduledPost,
+      status: "PUBLISHED",
+      provider: "linkedin",
+      socialConnection: {
+        ...scheduledPost.socialConnection,
+        status: "disconnected",
+      },
+    });
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      provider: "linkedin",
+    });
+    const { duplicateSocialPost } = await loadService();
+
+    await duplicateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      postId: POST_ID,
+    });
+
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          provider: "linkedin",
+          socialConnectionId: null,
+        }),
+      }),
+    );
+  });
+
+  it.each(["coworker", "sokoBot"] as const)(
+    "requires approval for a duplicate created by a %s",
+    async (kind) => {
+      const coworkerId = kind === "coworker" ? "cow_123" : undefined;
+      const sokoBotId = kind === "sokoBot" ? SOKO_BOT_ID : undefined;
+      const creatorId = coworkerId ?? SOKO_BOT_ID;
+      socialPostFindFirstMock.mockResolvedValue({
+        ...scheduledPost,
+        status: "PUBLISHED",
+      });
+      socialPostCreateMock.mockResolvedValue({
+        ...pendingPost,
+        scheduledAt: null,
+        timezone: null,
+        creatorUserId: null,
+        creatorCoworkerId: coworkerId ?? null,
+        creatorSokoBotId: sokoBotId ?? null,
+        creatorUser: null,
+        creatorCoworker: coworkerId ? { id: coworkerId, name: "Scout" } : null,
+        creatorSokoBot: sokoBotId ? { id: sokoBotId, name: "Scout" } : null,
+      });
+      const { duplicateSocialPost } = await loadService();
+
+      const post = await duplicateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        coworkerId,
+        sokoBotId,
+        postId: POST_ID,
+      });
+
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "NEEDS_APPROVAL",
+            creatorUserId: null,
+            creatorCoworkerId: coworkerId ?? null,
+            creatorSokoBotId: sokoBotId ?? null,
+          }),
+        }),
+      );
+      expect(post.creator).toEqual({
+        kind,
+        id: creatorId,
+        name: "Scout",
+      });
+      expect(post).toMatchObject({
+        status: "NEEDS_APPROVAL",
+        scheduledAt: null,
+        scheduledByUserId: null,
+        scheduledByCoworkerId: null,
+        canPublishNow: false,
+      });
+    },
+  );
+
+  it("rejects conflicting bot and coworker duplicate authorship", async () => {
+    const { duplicateSocialPost } = await loadService();
+
+    await expect(
+      duplicateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        coworkerId: "cow_123",
+        sokoBotId: SOKO_BOT_ID,
+        postId: POST_ID,
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(socialPostCreateMock).not.toHaveBeenCalled();
+  });
+
+  const accountPost = {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    connectionId: SOCIAL_CONNECTION_ID,
+    externalId: "1907",
+    text: "Winner on the feed",
+    connection: {
+      id: SOCIAL_CONNECTION_ID,
+      status: "active",
+      provider: "x",
+    },
+  };
+
+  it.each([
+    ["coworker", false, undefined],
+    ["coworker", true, undefined],
+    ["coworker", false, 7],
+    ["coworker", true, 7],
+    ["sokoBot", false, undefined],
+    ["sokoBot", true, undefined],
+    ["sokoBot", false, 7],
+    ["sokoBot", true, 7],
+  ] as const)(
+    "keeps %s recycle pending with match %s and delay %s",
+    async (kind, matched, delayDays) => {
+      const coworkerId = kind === "coworker" ? "cow_123" : undefined;
+      const sokoBotId = kind === "sokoBot" ? SOKO_BOT_ID : undefined;
+      const recycledPost = {
+        ...pendingPost,
+        scheduledAt: null,
+        timezone: null,
+        creatorUser: null,
+        creatorCoworker: coworkerId ? { id: coworkerId, name: "Scout" } : null,
+        creatorSokoBot: sokoBotId ? { id: sokoBotId, name: "Scout" } : null,
+      };
+      socialAccountPostFindFirstMock.mockResolvedValue(accountPost);
+      socialPostFindFirstMock
+        .mockResolvedValue(recycledPost)
+        .mockResolvedValueOnce(matched ? { id: POST_ID } : null);
+      if (matched) {
+        socialPostFindFirstMock.mockResolvedValueOnce({
+          ...scheduledPost,
+          status: "PUBLISHED",
+        });
+      }
+      socialPostCreateMock.mockResolvedValue(recycledPost);
+      const { recycleSocialAccountPost } = await loadService();
+
+      const post = await recycleSocialAccountPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        coworkerId,
+        sokoBotId,
+        accountPostId: accountPost.id,
+        delayDays,
+        timezone: "Europe/Zurich",
+      });
+
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "NEEDS_APPROVAL",
+            creatorUserId: null,
+            creatorCoworkerId: coworkerId ?? null,
+            creatorSokoBotId: sokoBotId ?? null,
+          }),
+        }),
+      );
+      if (delayDays) {
+        expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              status: "NEEDS_APPROVAL",
+              scheduledAt: new Date(NOW.getTime() + delayDays * 86_400_000),
+              scheduledByUserId: null,
+              scheduledByCoworkerId: null,
+            }),
+          }),
+        );
+      } else {
+        expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+      }
+      expect(post).toMatchObject({
+        status: "NEEDS_APPROVAL",
+        canPublishNow: false,
+        creator: { kind, id: coworkerId ?? sokoBotId, name: "Scout" },
+      });
+    },
+  );
+
+  it("recycles a matching published post through duplicate", async () => {
+    const published = {
+      ...scheduledPost,
+      status: "PUBLISHED",
+      text: "Winner on the feed",
+      publishedExternalId: "1907",
+    };
+    socialAccountPostFindFirstMock.mockResolvedValue(accountPost);
+    socialPostFindFirstMock
+      .mockResolvedValueOnce({ id: POST_ID })
+      .mockResolvedValueOnce(published);
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      id: "55555555-5555-4555-8555-555555555555",
+      text: "Winner on the feed",
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      socialConnection: scheduledPost.socialConnection,
+    });
+    const { recycleSocialAccountPost } = await loadService();
+
+    const post = await recycleSocialAccountPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      accountPostId: accountPost.id,
+    });
+
+    expect(post).toMatchObject({
+      status: "DRAFT",
+      text: "Winner on the feed",
+      publishedExternalId: null,
+    });
+  });
+
+  it("recycles imported text when no Sokosumi post matches", async () => {
+    socialAccountPostFindFirstMock.mockResolvedValue(accountPost);
+    socialPostFindFirstMock.mockResolvedValue(null);
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      text: "Winner on the feed",
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      socialConnection: scheduledPost.socialConnection,
+    });
+    const { recycleSocialAccountPost } = await loadService();
+
+    await recycleSocialAccountPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      accountPostId: accountPost.id,
+    });
+
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          text: "Winner on the feed",
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          status: "DRAFT",
+        }),
+      }),
+    );
+  });
+
+  it("schedules the recycled draft when a delay is chosen", async () => {
+    socialAccountPostFindFirstMock.mockResolvedValue(accountPost);
+    socialPostFindFirstMock.mockResolvedValue({
+      ...draftPost,
+      text: "Winner on the feed",
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      socialConnection: scheduledPost.socialConnection,
+    });
+    socialPostFindFirstMock.mockResolvedValueOnce(null);
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      text: "Winner on the feed",
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      socialConnection: scheduledPost.socialConnection,
+    });
+    socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
+    const { recycleSocialAccountPost } = await loadService();
+
+    await recycleSocialAccountPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      accountPostId: accountPost.id,
+      delayDays: 7,
       timezone: "Europe/Zurich",
-      revision: 2,
     });
 
     expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ status: "NEEDS_APPROVAL" }),
+        data: expect.objectContaining({
+          status: "SCHEDULED",
+          timezone: "Europe/Zurich",
+        }),
       }),
     );
-    expect(post).toMatchObject({
-      status: "NEEDS_APPROVAL",
-      canApprove: true,
-      canPublishNow: false,
-    });
   });
 
-  it("approves a pending post with a future time into scheduled", async () => {
-    const pending = { ...scheduledPost, status: "NEEDS_APPROVAL", revision: 2 };
-    socialPostFindFirstMock
-      .mockResolvedValueOnce(pending)
-      .mockResolvedValueOnce({
-        ...pending,
-        status: "SCHEDULED",
-        scheduledByUserId: USER_ID,
+  it("rejects a missing Performance post", async () => {
+    socialAccountPostFindFirstMock.mockResolvedValue(null);
+    const { recycleSocialAccountPost } = await loadService();
+    await expect(
+      recycleSocialAccountPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        accountPostId: accountPost.id,
+      }),
+    ).rejects.toThrow("Performance post not found");
+  });
+
+  it("clears retry state when a scheduled post is edited after a failed attempt", async () => {
+    socialPostFindFirstMock.mockResolvedValue({
+      ...scheduledPost,
+      lastError: "X is unavailable",
+      attemptCount: 2,
+      nextAttemptAt: FUTURE,
+    });
+    const { updateSocialPost } = await loadService();
+
+    await updateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: scheduledPost.revision,
+      text: "Fixed copy",
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          text: "Fixed copy",
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
+        }),
+      }),
+    );
+    expect(socialPostUpdateManyMock.mock.calls[0]?.[0].data).not.toHaveProperty(
+      "scheduledAt",
+    );
+  });
+
+  it("moves a past-due scheduled post to now when it is edited", async () => {
+    const pastDue = new Date(NOW.getTime() - 70 * 60_000);
+    socialPostFindFirstMock.mockResolvedValue({
+      ...scheduledPost,
+      scheduledAt: pastDue,
+      lastError: "X is unavailable",
+      attemptCount: 2,
+      nextAttemptAt: FUTURE,
+    });
+    const { updateSocialPost } = await loadService();
+
+    await updateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: scheduledPost.revision,
+      text: "Fixed copy",
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          text: "Fixed copy",
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
+          scheduledAt: NOW,
+        }),
+      }),
+    );
+  });
+
+  it.each([undefined, "cow_123"])(
+    "keeps needs-approval without scheduler when a time is set by %s",
+    async (coworkerId) => {
+      const pending = {
+        ...scheduledPost,
+        status: "NEEDS_APPROVAL",
+        revision: 2,
+      };
+      socialPostFindFirstMock
+        .mockResolvedValueOnce(pending)
+        .mockResolvedValueOnce({ ...pendingPost, revision: 3 });
+      const { scheduleSocialPost } = await loadService();
+
+      const post = await scheduleSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        coworkerId,
+        postId: POST_ID,
+        scheduledAt: FUTURE,
+        timezone: "Europe/Zurich",
+        revision: 2,
+      });
+
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "NEEDS_APPROVAL",
+            scheduledByUserId: null,
+            scheduledByCoworkerId: null,
+          }),
+        }),
+      );
+      expect(post).toMatchObject({
+        status: "NEEDS_APPROVAL",
+        scheduledByUserId: null,
         scheduledByCoworkerId: null,
-        revision: 3,
+        canApprove: true,
+        canPublishNow: false,
+      });
+    },
+  );
+
+  it.each([
+    FUTURE,
+    new Date(NOW.getTime() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS + 1),
+  ])(
+    "approves a pending post with future planned time %s into scheduled",
+    async (scheduledAt) => {
+      const pending = { ...pendingPost, scheduledAt, revision: 2 };
+      socialPostFindFirstMock
+        .mockResolvedValueOnce(pending)
+        .mockResolvedValueOnce({
+          ...pending,
+          status: "SCHEDULED",
+          scheduledByUserId: USER_ID,
+          scheduledByCoworkerId: null,
+          revision: 3,
+        });
+      const { approveSocialPost } = await loadService();
+
+      const post = await approveSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        postId: POST_ID,
+        revision: 2,
+      });
+
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: POST_ID, revision: 2 },
+        data: {
+          status: "SCHEDULED",
+          scheduledAt,
+          timezone: "Europe/Zurich",
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          scheduledByUserId: USER_ID,
+          scheduledByCoworkerId: null,
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
+          revision: { increment: 1 },
+        },
+      });
+      expect(post).toMatchObject({
+        status: "SCHEDULED",
+        canApprove: false,
+        canPublishNow: true,
+      });
+    },
+  );
+
+  it.each([
+    null,
+    new Date(NOW.getTime() - 1),
+    new Date(NOW.getTime() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS - 1),
+    new Date(NOW.getTime() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS),
+  ])(
+    "approves a pending post with planned time %s into a draft",
+    async (scheduledAt) => {
+      const pending = {
+        ...draftPost,
+        status: "NEEDS_APPROVAL",
+        scheduledAt,
+      };
+      socialPostFindFirstMock
+        .mockResolvedValueOnce(pending)
+        .mockResolvedValueOnce({ ...draftPost, revision: 1 });
+      const { approveSocialPost } = await loadService();
+
+      const post = await approveSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        postId: POST_ID,
+        revision: 0,
+      });
+
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: POST_ID, revision: 0 },
+        data: {
+          status: "DRAFT",
+          scheduledByUserId: null,
+          scheduledByCoworkerId: null,
+          revision: { increment: 1 },
+        },
+      });
+      expect(post).toMatchObject({ status: "DRAFT", canApprove: false });
+      expect(socialConnectionFindFirstMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("approves and schedules a stale post at a supplied future time", async () => {
+    const scheduledAt = new Date(
+      NOW.getTime() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS + 1,
+    );
+    socialPostFindFirstMock
+      .mockResolvedValueOnce({ ...pendingPost, scheduledAt: NOW })
+      .mockResolvedValueOnce({
+        ...scheduledPost,
+        scheduledAt,
+        timezone: "America/New_York",
+        revision: 2,
       });
     const { approveSocialPost } = await loadService();
 
@@ -1565,53 +2414,146 @@ describe("social posts service", () => {
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
       postId: POST_ID,
-      revision: 2,
+      revision: 1,
+      scheduledAt,
+      timezone: "America/New_York",
     });
 
     expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: POST_ID, revision: 2 },
+      where: { id: POST_ID, revision: 1 },
       data: {
         status: "SCHEDULED",
+        scheduledAt,
+        timezone: "America/New_York",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
         scheduledByUserId: USER_ID,
         scheduledByCoworkerId: null,
+        lastError: null,
+        attemptCount: 0,
+        nextAttemptAt: null,
         revision: { increment: 1 },
       },
     });
     expect(post).toMatchObject({
       status: "SCHEDULED",
+      scheduledAt,
+      timezone: "America/New_York",
+      scheduledByUserId: USER_ID,
       canApprove: false,
-      canPublishNow: true,
+      canReject: false,
     });
   });
 
-  it("approves a pending post without a future time into a draft", async () => {
-    const pending = {
-      ...draftPost,
-      status: "NEEDS_APPROVAL",
-      scheduledAt: null,
-    };
-    socialPostFindFirstMock
-      .mockResolvedValueOnce(pending)
-      .mockResolvedValueOnce({ ...draftPost, revision: 1 });
-    const { approveSocialPost } = await loadService();
+  it.each([
+    new Date(NOW.getTime() - 1),
+    new Date(NOW.getTime() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS - 1),
+    new Date(NOW.getTime() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS),
+  ])(
+    "refuses an approval replacement time %s without enough lead",
+    async (scheduledAt) => {
+      socialPostFindFirstMock.mockResolvedValue(pendingPost);
+      const { approveSocialPost } = await loadService();
 
-    const post = await approveSocialPost({
-      projectId: PROJECT_ID,
-      workspaceId: WORKSPACE_ID,
-      userId: USER_ID,
-      postId: POST_ID,
-      revision: 0,
-    });
+      await expect(
+        approveSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          postId: POST_ID,
+          revision: 1,
+          scheduledAt,
+        }),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    },
+  );
 
-    expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: POST_ID, revision: 0 },
-      data: {
-        status: "DRAFT",
-        revision: { increment: 1 },
-      },
-    });
-    expect(post).toMatchObject({ status: "DRAFT", canApprove: false });
-  });
+  describe.each([false, true])(
+    "approval with replacement time %s",
+    (replacement) => {
+      it.each([
+        {
+          name: "no linked connection",
+          post: { ...pendingPost, socialConnectionId: null },
+          connection: activeConnection,
+          status: 400,
+        },
+        {
+          name: "missing connection",
+          post: pendingPost,
+          connection: null,
+          status: 404,
+        },
+        {
+          name: "inactive connection",
+          post: pendingPost,
+          connection: { ...activeConnection, status: "expired" },
+          status: 409,
+        },
+        {
+          name: "disconnected connection",
+          post: pendingPost,
+          connection: { ...activeConnection, status: "disconnected" },
+          status: 409,
+        },
+        {
+          name: "mixed media",
+          post: { ...pendingPost, media: [IMAGE_REF, GIF_REF] },
+          connection: activeConnection,
+          status: 400,
+        },
+        {
+          name: "required Instagram media",
+          post: { ...pendingPost, provider: "instagram" },
+          connection: { ...activeConnection, provider: "instagram" },
+          status: 400,
+        },
+        {
+          name: "overlong text",
+          post: { ...pendingPost, text: "x".repeat(281) },
+          connection: activeConnection,
+          status: 400,
+        },
+        {
+          name: "missing text and media",
+          post: { ...pendingPost, text: " " },
+          connection: activeConnection,
+          status: 400,
+        },
+        {
+          name: "unsupported provider media",
+          post: { ...pendingPost, provider: "linkedin", media: [GIF_REF] },
+          connection: { ...activeConnection, provider: "linkedin" },
+          status: 400,
+        },
+        {
+          name: "overlong first comment",
+          post: { ...pendingPost, firstComment: "x".repeat(281) },
+          connection: activeConnection,
+          status: 400,
+        },
+      ])(
+        "refuses $name before approving",
+        async ({ post, connection, status }) => {
+          socialPostFindFirstMock.mockResolvedValue(post);
+          socialConnectionFindFirstMock.mockResolvedValue(connection);
+          const { approveSocialPost } = await loadService();
+
+          await expect(
+            approveSocialPost({
+              projectId: PROJECT_ID,
+              workspaceId: WORKSPACE_ID,
+              userId: USER_ID,
+              postId: POST_ID,
+              revision: 1,
+              ...(replacement ? { scheduledAt: FUTURE } : {}),
+            }),
+          ).rejects.toMatchObject({ status });
+          expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+        },
+      );
+    },
+  );
 
   it("rejects a pending post by canceling it", async () => {
     const pending = { ...draftPost, status: "NEEDS_APPROVAL" };
