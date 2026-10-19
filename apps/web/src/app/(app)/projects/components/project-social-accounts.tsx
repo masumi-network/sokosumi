@@ -476,7 +476,7 @@ export function ProjectSocialAccounts({
               size="sm"
               variant="outline"
               className="h-11 md:h-8"
-              disabled={isBusy}
+              disabled={isBusy || connectDisabled}
               loading={pendingTarget === connection.id}
               onClick={() => void startOAuth("reconnect", connection.id)}
             >

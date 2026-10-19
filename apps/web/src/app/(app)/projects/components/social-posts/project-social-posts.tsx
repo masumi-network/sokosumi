@@ -112,6 +112,8 @@ interface ProjectSocialPostsProps {
    * Defaults to `connections.length` when the page only loaded actives.
    */
   accountCount?: number;
+  /** Closing or closed projects cannot reconnect accounts. */
+  connectDisabled?: boolean;
   managedConnections?: ProjectSocialConnection[];
   affectedPosts?: SocialPost[];
   posts: SocialPost[];
@@ -265,6 +267,7 @@ function SocialPostRowSkeleton() {
 export function ProjectSocialPosts({
   accounts,
   accountCount,
+  connectDisabled = false,
   managedConnections,
   affectedPosts = [],
   actions,
@@ -1214,6 +1217,7 @@ export function ProjectSocialPosts({
                   {sectionReconnections.length > 0 ? (
                     <ProjectSocialAccounts
                       connections={managed}
+                      connectDisabled={connectDisabled}
                       projectId={projectId}
                       reconnections={sectionReconnections}
                       onReconnected={handleReconnected}

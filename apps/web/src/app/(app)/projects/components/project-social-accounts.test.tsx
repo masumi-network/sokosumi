@@ -744,6 +744,25 @@ describe("ProjectSocialAccounts", () => {
     expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
   });
 
+  it("disables the reconnect item on a closed project", async () => {
+    const user = userEvent.setup();
+    const connection = buildConnection({ status: "reauthorization_required" });
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[connection]}
+        connectDisabled
+        reconnections={[{ connection, affectedPosts: [] }]}
+      />,
+    );
+    const reconnect = within(
+      screen.getByTestId(`social-reconnect-${connection.id}`),
+    ).getByRole("button", { name: "Reconnect" });
+    expect(reconnect).toBeDisabled();
+    await user.click(reconnect);
+    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
+  });
+
   it("shows a reconnect item with the account avatar and starts the existing flow", async () => {
     const user = userEvent.setup();
     const restore = stubLoadedImage();

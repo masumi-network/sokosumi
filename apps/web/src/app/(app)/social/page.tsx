@@ -159,6 +159,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
       <SocialCalendarPreviewProvider>
         <SocialComposeProvider>
           <ProjectSocialPosts
+            connectDisabled={Boolean(project.closingAt || project.closedAt)}
             accounts={
               <ProjectSocialAccounts
                 projectId={project.id}
