@@ -2498,6 +2498,7 @@
           "rescheduleTitle": "Reprogramar publicación",
           "text": "Texto",
           "textPlaceholder": "¿Qué quieres publicar?",
+          "textForAccount": "Texto de esta cuenta",
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Añadir desde Drive",

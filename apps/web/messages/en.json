@@ -2498,6 +2498,7 @@
           "rescheduleTitle": "Reschedule post",
           "text": "Text",
           "textPlaceholder": "What do you want to post?",
+          "textForAccount": "Text for this account",
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Add from Drive",

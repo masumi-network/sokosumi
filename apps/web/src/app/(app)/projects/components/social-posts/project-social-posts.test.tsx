@@ -140,6 +140,7 @@ const MESSAGES: Record<string, string> = {
     "Write the text, pick the account, and choose when it goes out.",
   "composer.text": "Text",
   "composer.textPlaceholder": "What do you want to post?",
+  "composer.textForAccount": "Text for this account",
   "composer.characters": "{count} / {limit}",
   "composer.media.addFromDrive": "Add from Drive",
   "composer.media.drop": "Drop files to attach",
@@ -2367,10 +2368,153 @@ describe("ProjectSocialPosts", () => {
     expect(x).toHaveClass("text-destructive");
     expect(linkedIn).toHaveTextContent("LinkedIn post · 300 / 3000");
     expect(linkedIn).not.toHaveClass("text-destructive");
-    // One text goes to both, so the stricter limit blocks saving.
+    // Shared text still goes to both until an account is edited on its own.
     expect(
       within(dialog).getByRole("button", { name: "Save draft" }),
     ).toBeDisabled();
+    expect(
+      within(dialog).getByTestId("social-post-text-for-account"),
+    ).toHaveTextContent("Text for this account");
+  });
+
+  it("saves different text for each picked account", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({ id: "post-x", text: "Short for X" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({
+          id: "post-li",
+          provider: "linkedin",
+          text: "Longer for LinkedIn",
+        }),
+      });
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Short for X" },
+    });
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: "Preview as LinkedIn @sokosumi-co",
+      }),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Longer for LinkedIn" },
+    });
+    expect(within(dialog).getByTestId("social-post-preview")).toHaveTextContent(
+      "Longer for LinkedIn",
+    );
+    expect(
+      within(dialog).getByTestId("social-post-platform-x"),
+    ).toHaveTextContent("X post · 11 / 280");
+    expect(
+      within(dialog).getByTestId("social-post-platform-linkedin"),
+    ).toHaveTextContent("LinkedIn post · 19 / 3000");
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledTimes(2);
+    });
+    expect(createProjectSocialPost).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        projectId: PROJECT_ID,
+        text: "Short for X",
+        socialConnectionId: "connection-1",
+      }),
+    );
+    expect(createProjectSocialPost).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        projectId: PROJECT_ID,
+        text: "Longer for LinkedIn",
+        socialConnectionId: "connection-2",
+      }),
+    );
+  });
+
+  it("lets a long LinkedIn caption save after X is shortened", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "a".repeat(300) },
+    });
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeDisabled();
+
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "a".repeat(280) },
+    });
+    expect(screen.getByTestId("social-post-character-count")).toHaveTextContent(
+      "280 / 280",
+    );
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: "Preview as LinkedIn @sokosumi-co",
+      }),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "a".repeat(300) },
+    });
+    expect(screen.getByTestId("social-post-character-count")).toHaveTextContent(
+      "300 / 3000",
+    );
+    expect(
+      within(dialog).getByTestId("social-post-platform-x"),
+    ).toHaveTextContent("X post · 280 / 280");
+    expect(
+      within(dialog).getByTestId("social-post-platform-linkedin"),
+    ).toHaveTextContent("LinkedIn post · 300 / 3000");
+    expect(
+      within(dialog).queryByTestId("social-post-too-long"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeEnabled();
   });
 
   it("keeps each connected network's limit after every account is deselected", async () => {
