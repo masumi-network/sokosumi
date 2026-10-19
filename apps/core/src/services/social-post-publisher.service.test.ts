@@ -1237,7 +1237,7 @@ describe("social post publisher service", () => {
       });
     });
 
-    it.each(["PUBLISHING", "PUBLISHED", "CANCELED"])(
+    it.each(["NEEDS_APPROVAL", "PUBLISHING", "PUBLISHED", "CANCELED"])(
       "refuses to publish a %s post now",
       async (status) => {
         socialPostFindFirstMock.mockResolvedValue({ ...failedPost, status });

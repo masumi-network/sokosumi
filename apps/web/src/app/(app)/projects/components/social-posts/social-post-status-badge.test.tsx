@@ -5,6 +5,7 @@ import { SocialPostStatusBadge } from "./social-post-status-badge";
 
 const STATUSES = [
   "DRAFT",
+  "NEEDS_APPROVAL",
   "SCHEDULED",
   "PUBLISHING",
   "PUBLISHED",

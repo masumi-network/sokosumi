@@ -5757,7 +5757,7 @@ export type SocialPostCalendarItem = {
     postId: string;
     provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
     text: string;
-    status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
+    status: 'DRAFT' | 'NEEDS_APPROVAL' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
     revision: number;
     externalHandle: string | null;
     /**
@@ -6696,6 +6696,8 @@ export type SocialPost = {
     canSchedule: boolean;
     canCancel: boolean;
     canPublishNow: boolean;
+    canApprove: boolean;
+    canReject: boolean;
     /**
      * True when the post can be copied into a new draft (published, failed, or missed)
      */
@@ -6723,6 +6725,7 @@ export type SocialPostMediaRef = {
 
 export const SocialPostStatus = {
     DRAFT: 'DRAFT',
+    NEEDS_APPROVAL: 'NEEDS_APPROVAL',
     SCHEDULED: 'SCHEDULED',
     PUBLISHING: 'PUBLISHING',
     PUBLISHED: 'PUBLISHED',
@@ -6816,6 +6819,20 @@ export type ScheduleSocialPostRequest = {
     scheduledAt: Date;
     timezone?: string;
     socialConnectionId?: string;
+    /**
+     * Revision the client last observed; mismatches return 409
+     */
+    revision: number;
+};
+
+export type ApproveSocialPostRequest = {
+    /**
+     * Revision the client last observed; mismatches return 409
+     */
+    revision: number;
+};
+
+export type RejectSocialPostRequest = {
     /**
      * Revision the client last observed; mismatches return 409
      */
@@ -41381,7 +41398,7 @@ export type GetProjectsByIdCalendarData = {
          */
         includeSocialPosts?: 'true' | 'false';
         /**
-         * Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
+         * Agenda view: only future NEEDS_APPROVAL/SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
          */
         agendaOnly?: 'true' | 'false';
         /**
@@ -47118,6 +47135,275 @@ export type PostProjectsByIdSocialPostsByPostIdScheduleResponses = {
 };
 
 export type PostProjectsByIdSocialPostsByPostIdScheduleResponse = PostProjectsByIdSocialPostsByPostIdScheduleResponses[keyof PostProjectsByIdSocialPostsByPostIdScheduleResponses];
+
+export type PostProjectsByIdSocialPostsByPostIdApproveData = {
+    body: ApproveSocialPostRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/approve';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdApproveErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdApproveError = PostProjectsByIdSocialPostsByPostIdApproveErrors[keyof PostProjectsByIdSocialPostsByPostIdApproveErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdApproveResponses = {
+    /**
+     * Social post approved
+     */
+    200: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdApproveResponse = PostProjectsByIdSocialPostsByPostIdApproveResponses[keyof PostProjectsByIdSocialPostsByPostIdApproveResponses];
+
+export type PostProjectsByIdSocialPostsByPostIdRejectData = {
+    body: RejectSocialPostRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/reject';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdRejectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdRejectError = PostProjectsByIdSocialPostsByPostIdRejectErrors[keyof PostProjectsByIdSocialPostsByPostIdRejectErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdRejectResponses = {
+    /**
+     * Social post rejected
+     */
+    200: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdRejectResponse = PostProjectsByIdSocialPostsByPostIdRejectResponses[keyof PostProjectsByIdSocialPostsByPostIdRejectResponses];
 
 export type PostProjectsByIdSocialPostsByPostIdCancelData = {
     body: CancelSocialPostRequest;
@@ -66052,7 +66338,7 @@ export type GetWorkspacesCalendarData = {
          */
         includeSocialPosts?: 'true' | 'false';
         /**
-         * Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
+         * Agenda view: only future NEEDS_APPROVAL/SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
          */
         agendaOnly?: 'true' | 'false';
         /**
