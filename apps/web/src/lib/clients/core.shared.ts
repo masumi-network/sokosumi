@@ -58,6 +58,7 @@ import type {
   GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData,
   GetProjectsByIdCalendarData,
   GetProjectsByIdImageStudioData,
+  GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesData,
   GetProjectsByIdSocialConnectionsStatisticsData,
   GetProjectsByIdSocialPostsData,
   GetProjectsByIdSocialPostsStatisticsData,
@@ -305,6 +306,7 @@ import {
   getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
+  getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes as coreGetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
   getProjectsByIdSocialConnectionsStatistics as coreGetProjectsByIdSocialConnectionsStatistics,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
   getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
@@ -3394,6 +3396,24 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch Project social posts",
+    );
+  }
+
+  async function getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes(
+    id: string,
+    connectionId: string,
+    query: GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes({
+          client,
+          path: { id, connectionId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch suggested posting times",
     );
   }
 
@@ -6569,6 +6589,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobsByJobIdCancel,
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsStatistics,
+    getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
     getProjectsByIdSocialConnectionsStatistics,
     postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
     postProjectsByIdSocialPostsByPostIdStatisticsRefresh,

@@ -45,6 +45,9 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getProjectsByIdSocialConnections: (...args: unknown[]) =>
       getSocialConnectionsMock(...args),
+    getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes: (
+      ...args: unknown[]
+    ) => getSuggestedTimesMock(...args),
   },
 }));
 
@@ -61,6 +64,7 @@ const {
   drivePickerFile,
   drivePickerVideoFile,
   getSocialConnectionsMock,
+  getSuggestedTimesMock,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
@@ -68,6 +72,7 @@ const {
   toastSuccessMock: vi.fn(),
   uploadDriveFileMock: vi.fn(),
   getSocialConnectionsMock: vi.fn(),
+  getSuggestedTimesMock: vi.fn(),
   drivePickerFile: {
     name: "launch.png",
     fileUrl:
@@ -266,6 +271,8 @@ const MESSAGES: Record<string, string> = {
   dateSelected: "Date: {date}",
   timeSelected: "Time: {time}",
   times: "Times",
+  suggestedTimes: "Suggested times",
+  suggested: "Best {time}",
   "toasts.unauthenticated": "Please log in to continue.",
   "toasts.unauthenticatedAction": "Log in",
   "preview.open": "Preview",
@@ -659,6 +666,7 @@ describe("ProjectSocialPosts", () => {
     getSocialConnectionsMock.mockRejectedValue(
       new Error("photo lookup unavailable"),
     );
+    getSuggestedTimesMock.mockResolvedValue({ data: { hours: [] } });
     vi.mocked(createProjectSocialPost).mockResolvedValue({
       ok: true,
       value: buildPost({ id: "post-new", text: "Fresh" }),
@@ -3069,6 +3077,50 @@ describe("ProjectSocialPosts", () => {
       );
     });
     expect(publishProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it("offers best-time chips from this account's Performance hours", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    const suggested = new Date(2026, 8, 20, 14, 0);
+    getSuggestedTimesMock.mockResolvedValue({ data: { hours: [14, 18] } });
+    vi.mocked(createProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: SCHEDULED_POST,
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const chips = await waitFor(() => {
+      const found = within(dialog).getAllByRole("button", {
+        name: /^Best /,
+      });
+      expect(found).toHaveLength(2);
+      return found;
+    });
+    await user.type(within(dialog).getByLabelText("Text"), "Peak hour");
+    await user.click(chips[0]);
+    await user.click(
+      within(dialog).getByRole("button", { name: /^Schedule for / }),
+    );
+
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({ scheduledAt: suggested.toISOString() }),
+      );
+    });
+    expect(getSuggestedTimesMock).toHaveBeenCalledWith(
+      PROJECT_ID,
+      "connection-1",
+      expect.objectContaining({ timezone: expect.any(String) }),
+    );
   });
 
   it("retries only the accounts that failed after a partial save", async () => {

@@ -45,6 +45,11 @@ const SOCIAL_CONNECTION_OPERATIONS = [
     method: "delete",
     responseStatuses: ["200", "401", "403", "404", "409", "422", "500", "503"],
   },
+  {
+    path: `${PROJECTS_BASE_PATH}/{id}/social-connections/{connectionId}/suggested-times`,
+    method: "get",
+    responseStatuses: ["200", "400", "401", "403", "404", "422", "500", "503"],
+  },
 ] as const;
 
 const AD_OPERATIONS = [

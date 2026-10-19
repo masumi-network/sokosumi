@@ -2549,7 +2549,9 @@
             "dateSelected": "Date: {date}",
             "timeSelected": "Time: {time}",
             "times": "Times",
-            "now": "Now"
+            "now": "Now",
+            "suggestedTimes": "Suggested times",
+            "suggested": "Best {time}"
           },
           "timezone": {
             "yours": "Your time zone: {zone}",

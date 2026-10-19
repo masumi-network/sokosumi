@@ -16,6 +16,10 @@ import {
   buildSocialPerformanceHeadline,
   emptySocialPerformanceHeadline,
 } from "@/helpers/social-performance-headline";
+import {
+  suggestBestPostingTimes,
+  suggestedTimesLookbackStart,
+} from "@/helpers/social-suggested-times";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -219,6 +223,39 @@ async function scopedConnections(input: AccountStatisticsScope) {
     const account = accountFromRecord(record);
     return summary && account ? [{ record, account }] : [];
   });
+}
+
+/** Hours that already earned engagement. Empty when history is too thin. */
+export async function listSuggestedPostingTimes(input: {
+  projectId: string;
+  workspaceId: string;
+  connectionId: string;
+  timezone: string;
+  now?: Date;
+}) {
+  const accounts = await scopedConnections(input);
+  if (!accounts.some(({ account }) => account.id === input.connectionId))
+    throw notFound("Project social connection not found");
+  const now = input.now ?? new Date();
+  const rows = await prisma.socialAccountPost.findMany({
+    where: {
+      connectionId: input.connectionId,
+      publishedAt: { gte: suggestedTimesLookbackStart(now) },
+    },
+    select: {
+      publishedAt: true,
+      metrics: true,
+      additionalMetrics: true,
+      connection: { select: { provider: true } },
+    },
+  });
+  return {
+    hours: suggestBestPostingTimes({
+      posts: mapAccountPosts(rows),
+      timezone: input.timezone,
+      now,
+    }),
+  };
 }
 
 function selectedConnections(

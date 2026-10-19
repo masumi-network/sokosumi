@@ -5967,6 +5967,10 @@ export type RefreshSocialAccountStatisticsRequest = {
     continueHistory?: boolean;
 };
 
+export type SocialConnectionSuggestedTimes = {
+    hours: Array<number>;
+};
+
 export type InitiateProjectSocialConnectionResponse = {
     connectionId: string;
     redirectUrl: string;
@@ -42750,6 +42754,158 @@ export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResp
 };
 
 export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponse = PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses[keyof PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query: {
+        timezone: string;
+    };
+    url: '/projects/{id}/social-connections/{connectionId}/suggested-times';
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesError = GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesErrors[keyof GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesErrors];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesResponses = {
+    /**
+     * Suggested posting hours
+     */
+    200: {
+        data: SocialConnectionSuggestedTimes;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesResponse = GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesResponses];
 
 export type PostProjectsByIdSocialConnectionsInitiateData = {
     body: InitiateProjectSocialConnectionRequest;

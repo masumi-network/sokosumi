@@ -20672,6 +20672,24 @@ export const RefreshSocialAccountStatisticsRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const SocialConnectionSuggestedTimesSchema = {
+    type: 'object',
+    properties: {
+        hours: {
+            type: 'array',
+            items: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 23
+            },
+            maxItems: 3
+        }
+    },
+    required: [
+        'hours'
+    ]
+} as const;
+
 export const InitiateProjectSocialConnectionResponseSchema = {
     type: 'object',
     properties: {

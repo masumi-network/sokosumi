@@ -235,6 +235,31 @@ export function SocialPostComposerDialog({
   const [scheduledAt, setScheduledAt] = useState(
     post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
   );
+  const suggestedConnectionId =
+    connectionIds.length === 1 ? connectionIds[0] : undefined;
+  const { data: suggestedTimes } = useQuery({
+    queryKey: [
+      "social-suggested-times",
+      session?.user?.id,
+      session?.session.activeOrganizationId ?? null,
+      projectId,
+      suggestedConnectionId,
+      viewerTimezone,
+    ],
+    queryFn: async () =>
+      (
+        await coreClient.getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes(
+          projectId,
+          suggestedConnectionId!,
+          { timezone: viewerTimezone },
+        )
+      ).data,
+    enabled:
+      open && Boolean(suggestedConnectionId) && Boolean(session?.user?.id),
+    staleTime: 5 * 60_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
   const [pending, setPending] = useState<PendingSubmit>(null);
   const [uploadPending, setUploadPending] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -1213,6 +1238,7 @@ export function SocialPostComposerDialog({
                   invalid={scheduledAtTooSoon}
                   labelledBy={scheduledAtId}
                   onChange={setScheduledAt}
+                  suggestedHours={suggestedTimes?.hours}
                   value={scheduledAt}
                 />
                 {scheduledAtTooSoon ? (
