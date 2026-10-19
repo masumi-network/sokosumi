@@ -15,9 +15,11 @@ export const SOCIAL_METRIC_KEYS = [
 export function SocialPostMetrics({
   statistics,
   compact = false,
+  hideUpdatedAt = false,
 }: {
   statistics: SocialPost["statistics"];
   compact?: boolean;
+  hideUpdatedAt?: boolean;
 }) {
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const formatter = useFormatter();
@@ -33,7 +35,7 @@ export function SocialPostMetrics({
         className={
           compact
             ? "flex flex-wrap gap-x-3 gap-y-1 text-xs"
-            : "grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6"
+            : "grid grid-cols-2 gap-3 text-sm sm:grid-cols-3"
         }
       >
         {entries.map(({ key, value }) => (
@@ -45,7 +47,7 @@ export function SocialPostMetrics({
           </div>
         ))}
       </dl>
-      {compact ? null : (
+      {compact || hideUpdatedAt ? null : (
         <p className="text-muted-foreground text-xs">
           {statistics?.fetchedAt
             ? t("updatedAt", {

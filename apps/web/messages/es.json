@@ -2660,6 +2660,7 @@
           "offline": "Estás sin conexión.",
           "timeout": "Se agotó el tiempo.",
           "missing": "No se pudo abrir esta publicación.",
+          "mediaUnavailable": "El historial importado aún no incluye los archivos multimedia.",
           "linkedin": {
             "like": "Recomendar",
             "comment": "Comentar",
@@ -2777,8 +2778,8 @@
           "historyNotFetched": "Todavía no se ha importado el historial de la cuenta.",
           "historyLimited": "El historial está incompleto o limitado por la plataforma. Revisa los permisos y vuelve a sincronizar.",
           "dateUnavailable": "Fecha de publicación no disponible",
-          "mediaPost": "Publicación multimedia",
-          "openPost": "Abrir publicación en la plataforma",
+          "noPostMetrics": "Todavía no se han recibido métricas para esta publicación.",
+          "openPost": "Ver publicación en la plataforma",
           "accountMetrics": {
             "followers": "Seguidores",
             "following": "Cuentas seguidas",
@@ -2821,7 +2822,13 @@
             "linkClicks": "Clics en enlaces",
             "replies": "Respuestas",
             "reposts": "Republicaciones",
-            "dislikes": "No me gusta"
+            "dislikes": "No me gusta",
+            "quotes": "Citas",
+            "totalWatchTime": "Tiempo total de reproducción",
+            "averageWatchTime": "Tiempo medio de reproducción",
+            "skipRate": "Tasa de omisión",
+            "facebookViews": "Visualizaciones en Facebook",
+            "crosspostedViews": "Visualizaciones de publicaciones cruzadas"
           },
           "periods": {
             "lifetime": "Acumulado",

@@ -62,6 +62,31 @@ describe("SocialPostMetrics", () => {
     );
   });
 
+  it.each([null, new Date("2026-10-08T12:00:00.000Z")])(
+    "can hide the update status while retaining metrics and refresh errors (%s)",
+    (fetchedAt) => {
+      render(
+        <SocialPostMetrics
+          hideUpdatedAt
+          statistics={{
+            metrics,
+            fetchedAt,
+            refreshAttemptedAt: null,
+            error: "rate limited",
+          }}
+        />,
+      );
+      expect(screen.getByText("Views").closest("div")).toHaveTextContent("0");
+      expect(screen.queryByText(/^Updated /)).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Statistics have not been fetched."),
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Failed to refresh statistics",
+      );
+    },
+  );
+
   it("hides missing compact counts and the not-fetched line", () => {
     render(
       <SocialPostMetrics

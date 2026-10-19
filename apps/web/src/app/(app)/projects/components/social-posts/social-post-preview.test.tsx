@@ -38,6 +38,44 @@ const VIDEO: SocialPostMediaRef = {
 };
 
 describe("SocialPostPreview", () => {
+  it.each(["instagram", "youtube", "tiktok"] as const)(
+    "uses neutral imported-media copy for %s when media is unavailable",
+    (provider) => {
+      render(
+        <SocialPostPreview
+          account={ACCOUNT}
+          media={[]}
+          mediaUnavailable
+          provider={provider}
+          text="Published post"
+          timestamp={null}
+        />,
+      );
+      expect(screen.getByText("mediaUnavailable")).toBeVisible();
+      expect(
+        screen.queryByText(/mediaRequired|videoRequired/),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(["x", "linkedin", "facebook", "instagram", "youtube"] as const)(
+    "can label an unknown publication date in the %s feed",
+    (provider) => {
+      render(
+        <SocialPostPreview
+          account={ACCOUNT}
+          media={[]}
+          provider={provider}
+          text="Published post"
+          timestamp={null}
+          timestampLabel="Publication date unavailable"
+        />,
+      );
+      expect(screen.getByText(/Publication date unavailable/)).toBeVisible();
+      expect(screen.queryByText(/\bnow\b/)).not.toBeInTheDocument();
+    },
+  );
+
   it("renders an X post with name, handle, and highlighted tags and links", () => {
     render(
       <SocialPostPreview
