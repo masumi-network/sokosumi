@@ -63,7 +63,7 @@
           let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
           host.cacheDisplay(in: host.bounds, to: bitmap)
           try columns.append([#require(bitmap.cgImage)])
-          texts.append(await hostedTexts(in: host))
+          await texts.append(hostedTexts(in: host))
         }
         let combined = try RoomHeaderTests.stitched(columns)
         try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "\(name).png")
