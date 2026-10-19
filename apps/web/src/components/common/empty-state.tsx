@@ -9,6 +9,8 @@ interface EmptyStateProps {
   /** The next step. An empty state should never be a dead end. */
   action?: React.ReactNode;
   className?: string;
+  /** Extra classes for the description, e.g. `text-balance` for a two-line hint. */
+  descriptionClassName?: string;
 }
 
 export function EmptyState({
@@ -17,6 +19,7 @@ export function EmptyState({
   description,
   action,
   className,
+  descriptionClassName,
 }: EmptyStateProps) {
   return (
     <div
@@ -38,7 +41,12 @@ export function EmptyState({
           {title}
         </h2>
       ) : null}
-      <p className="text-muted-foreground max-w-[44ch] text-sm text-pretty">
+      <p
+        className={cn(
+          "text-muted-foreground max-w-[44ch] text-sm text-pretty",
+          descriptionClassName,
+        )}
+      >
         {description}
       </p>
       {action ? <div className="mt-3">{action}</div> : null}

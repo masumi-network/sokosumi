@@ -91,6 +91,8 @@ export function LoadErrorState({
       <EmptyState
         action={retry}
         description={description}
+        // Two even lines, not one long line and a stray "try again."
+        descriptionClassName="text-balance"
         icon={CloudOff}
         title={title}
       />

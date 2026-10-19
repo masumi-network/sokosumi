@@ -25,6 +25,10 @@ describe("LoadErrorState", () => {
       within(failed).getByRole("heading", { name: "Couldn't load accounts" }),
     ).toBeVisible();
     expect(within(failed).getByText(props.description)).toBeVisible();
+    expect(within(failed).getByText(props.description)).toHaveClass(
+      "text-muted-foreground",
+      "text-balance",
+    );
     // The icon is decoration: the title already says what failed.
     expect(failed.querySelector("svg[aria-hidden]")).not.toBeNull();
 
