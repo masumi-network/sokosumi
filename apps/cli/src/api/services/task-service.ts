@@ -14,12 +14,27 @@ interface FetchTasksOptions {
   take?: number | string;
 }
 
-interface CreateTaskData {
+interface TaskFields {
   name?: string;
   description?: string | null;
   coworkerId?: string | null;
+  assigneeUserId?: string;
+  projectId?: string;
+  priority?: string;
+}
+
+interface CreateTaskData extends TaskFields {
   status?: string;
 }
+
+interface CreateTaskLinkData {
+  toTaskId: string;
+  relation: string;
+  note?: string;
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface CreateTaskEventData {
   status?: string;
@@ -54,17 +69,22 @@ function tasksPath(options: FetchTasksOptions = {}): string {
   return query ? `${TASKS_PATH}?${query}` : TASKS_PATH;
 }
 
+function taskPayload(data: TaskFields): Record<string, unknown> {
+  const { coworkerId, ...rest } = data;
+  const payload: Record<string, unknown> = Object.fromEntries(
+    Object.entries(rest).filter(([, value]) => value !== undefined),
+  );
+  if (coworkerId !== undefined) payload.assigneeId = coworkerId;
+  if (typeof payload.name === "string") payload.name = payload.name.trim();
+  return payload;
+}
+
 export async function createTask(
   client: CoreHttpClient,
   data: CreateTaskData = {},
   signal?: AbortSignal,
 ): Promise<{ response: ApiResponse<unknown>; task: Task }> {
-  const { coworkerId, ...rest } = data;
-  const payload = {
-    ...rest,
-    ...(coworkerId !== undefined ? { assigneeId: coworkerId } : {}),
-  };
-  if (typeof payload.name === "string") payload.name = payload.name.trim();
+  const payload = taskPayload(data);
   const response = parseApiResponse(
     await client.post<unknown>(TASKS_PATH, payload, signal),
   );
@@ -84,6 +104,73 @@ export async function fetchTask(
     ),
   );
   return { response, task: parseTask(response.data) };
+}
+
+/**
+ * Core resolves short identifiers such as SOK-12 only on GET /v1/tasks/:id,
+ * so other Task routes get the UUID from that lookup first.
+ */
+export async function resolveTaskId(
+  client: CoreHttpClient,
+  ref: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  requireId(ref, "taskId");
+  if (UUID_PATTERN.test(ref)) return ref;
+  const { task } = await fetchTask(client, ref, signal);
+  if (!task.id) throw new Error(`Task ${ref} has no id in Core's response`);
+  return task.id;
+}
+
+export async function updateTask(
+  client: CoreHttpClient,
+  taskId: string,
+  data: TaskFields,
+  signal?: AbortSignal,
+): Promise<{ response: ApiResponse<unknown>; task: Task }> {
+  requireId(taskId, "taskId");
+  const response = parseApiResponse(
+    await client.patch<unknown>(
+      `${TASKS_PATH}/${encodeURIComponent(taskId)}`,
+      taskPayload(data),
+      signal,
+    ),
+  );
+  return { response, task: parseTask(response.data) };
+}
+
+export async function fetchTaskLinks(
+  client: CoreHttpClient,
+  taskId: string,
+  signal?: AbortSignal,
+): Promise<{ response: ApiResponse<unknown[]>; links: unknown[] }> {
+  requireId(taskId, "taskId");
+  const response = listResponse(
+    parseApiResponse(
+      await client.get<unknown>(
+        `${TASKS_PATH}/${encodeURIComponent(taskId)}/links`,
+        signal,
+      ),
+    ),
+  );
+  return { response, links: response.data };
+}
+
+export async function createTaskLink(
+  client: CoreHttpClient,
+  taskId: string,
+  data: CreateTaskLinkData,
+  signal?: AbortSignal,
+): Promise<{ response: ApiResponse<unknown>; link: unknown }> {
+  requireId(taskId, "taskId");
+  const response = parseApiResponse(
+    await client.post<unknown>(
+      `${TASKS_PATH}/${encodeURIComponent(taskId)}/links`,
+      data,
+      signal,
+    ),
+  );
+  return { response, link: response.data };
 }
 
 export async function fetchTasks(

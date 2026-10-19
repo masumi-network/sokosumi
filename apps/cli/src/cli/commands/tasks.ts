@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import {
   fetchPersonalWorkspaceAccess,
   verifyPersonalWorkspace,
@@ -5,10 +6,14 @@ import {
 import {
   createTask,
   createTaskEvent,
+  createTaskLink,
   fetchTask,
   fetchTaskEvents,
   fetchTaskJobs,
+  fetchTaskLinks,
   fetchTasks,
+  resolveTaskId,
+  updateTask,
 } from "../../api/services/task-service.js";
 import { fetchUserIdentity } from "../../api/services/user-identity-service.js";
 import {
@@ -25,6 +30,26 @@ import {
   writeJson,
   writeText,
 } from "./command-helpers.js";
+
+const PRIORITIES = ["URGENT", "HIGH", "MEDIUM", "LOW", "NONE"] as const;
+const LINK_RELATIONS = [
+  "related",
+  "blocks",
+  "blocked_by",
+  "parent",
+  "child",
+  "duplicate",
+] as const;
+
+const TASK_ID_COMMANDS = [
+  "get",
+  "events",
+  "jobs",
+  "comment",
+  "update",
+  "links",
+  "link",
+];
 
 export interface TasksCommandContext extends CommandContext {
   subcommand?: string;
@@ -78,7 +103,9 @@ function printTask(
   const events = Array.isArray(details.events) ? details.events : [];
   writeText(stdout, [
     `Task ${String(value.id || "unknown")}`,
+    value.identifier ? `identifier: ${String(value.identifier)}` : undefined,
     `status: ${String(value.status || "unknown")}`,
+    value.priority ? `priority: ${String(value.priority)}` : undefined,
     `coworker: ${String(value.coworkerName || value.coworkerId || "-")}`,
     value.name ? `name: ${String(value.name)}` : undefined,
     value.description
@@ -117,6 +144,57 @@ function printEvents(
       lines.push(`  ${truncate(event.comment || event.message, 220)}`);
   }
   writeText(stdout, lines);
+}
+
+function printLinks(
+  stdout: CommandContext["stdout"],
+  links: readonly unknown[],
+): void {
+  if (!links.length) return writeText(stdout, ["No links found."]);
+  const lines = ["Links"];
+  for (const raw of links) {
+    const link = record(raw);
+    const peer = record(link.peerTask);
+    lines.push(
+      `${String(link.relation || "-")} ${String(peer.identifier || peer.id || "-")} ${String(peer.name || "")}`.trim(),
+    );
+    if (link.note) lines.push(`  ${truncate(link.note, 220)}`);
+  }
+  writeText(stdout, lines);
+}
+
+async function readDescription(
+  options: CommandOptions | undefined,
+): Promise<string | undefined> {
+  const text = optionString(options, "description");
+  const file = optionString(options, "description-file");
+  if (text !== undefined && file !== undefined)
+    throw new Error(
+      "Pass either --description or --description-file, not both",
+    );
+  return file === undefined ? text : readFile(file, "utf8");
+}
+
+/** Fields shared by `tasks create` and `tasks update`. */
+async function readTaskFields(options: CommandOptions | undefined) {
+  const coworkerId = optionString(options, "coworker-id");
+  const assigneeUserId = optionString(options, "assignee-user-id");
+  if (coworkerId !== undefined && assigneeUserId !== undefined)
+    throw new Error(
+      "Pass either --coworker-id or --assignee-user-id, not both",
+    );
+  return {
+    name: optionString(options, "name"),
+    description: await readDescription(options),
+    coworkerId,
+    assigneeUserId,
+    projectId: optionString(options, "project-id"),
+    priority: validateStatus(
+      option(options, "priority"),
+      PRIORITIES,
+      "--priority",
+    ),
+  };
 }
 
 async function collectTaskDetails(
@@ -182,12 +260,11 @@ export async function runTasksCommand({
     return;
   }
   if (command === "create") {
-    const coworkerId = optionString(options, "coworker-id");
-    const description = optionString(options, "description");
-    if (!coworkerId)
-      throw new Error("--coworker-id is required for `tasks create`");
-    if (!description)
-      throw new Error("--description is required for `tasks create`");
+    const fields = await readTaskFields(options);
+    if (!fields.description)
+      throw new Error(
+        "--description or --description-file is required for `tasks create`",
+      );
     const personal = optionBoolean(options, "personal");
     if (
       personal &&
@@ -208,9 +285,7 @@ export async function runTasksCommand({
     const { task, response } = await createTask(
       client,
       {
-        coworkerId,
-        description,
-        name: optionString(options, "name"),
+        ...fields,
         status: validateStatus(option(options, "status"), ["DRAFT", "READY"]),
       },
       signal,
@@ -246,35 +321,39 @@ export async function runTasksCommand({
     else printTask(stdout, task, details);
     return;
   }
-  const id = positionalId || optionString(options, "id");
+  if (!TASK_ID_COMMANDS.includes(command))
+    throw new Error(`Unknown tasks subcommand: ${command}`);
+  const ref = positionalId || optionString(options, "id");
+  if (!ref) throw new Error(`task id is required for \`tasks ${command}\``);
   if (command === "get") {
-    if (!id) throw new Error("task id is required for `tasks get`");
-    const { task } = await fetchTask(client, id, signal);
-    const details = await collectTaskDetails(client, id, signal);
+    const { task } = await fetchTask(client, ref, signal);
+    const details = task.id
+      ? await collectTaskDetails(client, task.id, signal)
+      : {};
     if (json) writeJson(stdout, { task, ...details });
     else printTask(stdout, task, details);
     return;
   }
   if (command === "events") {
-    if (!id) throw new Error("task id is required for `tasks events`");
+    const id = await resolveTaskId(client, ref, signal);
     const { events } = await fetchTaskEvents(client, id, signal);
     if (json) writeJson(stdout, { events });
     else printEvents(stdout, events);
     return;
   }
   if (command === "jobs") {
-    if (!id) throw new Error("task id is required for `tasks jobs`");
+    const id = await resolveTaskId(client, ref, signal);
     const { jobs } = await fetchTaskJobs(client, id, signal);
     if (json) writeJson(stdout, { jobs });
     else printJobList(stdout, jobs);
     return;
   }
   if (command === "comment") {
-    if (!id) throw new Error("task id is required for `tasks comment`");
     const comment = optionString(options, "comment");
     const status = optionString(options, "status");
     if (!comment && !status)
       throw new Error("--comment or --status is required for `tasks comment`");
+    const id = await resolveTaskId(client, ref, signal);
     const { event } = await createTaskEvent(
       client,
       id,
@@ -290,5 +369,40 @@ export async function runTasksCommand({
       ]);
     return;
   }
-  throw new Error(`Unknown tasks subcommand: ${command}`);
+  if (command === "update") {
+    const fields = await readTaskFields(options);
+    if (Object.values(fields).every((value) => value === undefined))
+      throw new Error(
+        "Pass at least one of --name, --description, --description-file, --priority, --project-id, --coworker-id, or --assignee-user-id",
+      );
+    const id = await resolveTaskId(client, ref, signal);
+    const { task } = await updateTask(client, id, fields, signal);
+    if (json) writeJson(stdout, { task });
+    else printTask(stdout, task, {});
+    return;
+  }
+  if (command === "links") {
+    const id = await resolveTaskId(client, ref, signal);
+    const { links } = await fetchTaskLinks(client, id, signal);
+    if (json) writeJson(stdout, { links });
+    else printLinks(stdout, links);
+    return;
+  }
+  const to = optionString(options, "to");
+  const relation = optionString(options, "relation");
+  if (!to) throw new Error("--to is required for `tasks link`");
+  if (!relation || !(LINK_RELATIONS as readonly string[]).includes(relation))
+    throw new Error(`--relation must be one of: ${LINK_RELATIONS.join(", ")}`);
+  const { link } = await createTaskLink(
+    client,
+    await resolveTaskId(client, ref, signal),
+    {
+      toTaskId: await resolveTaskId(client, to, signal),
+      relation,
+      note: optionString(options, "note"),
+    },
+    signal,
+  );
+  if (json) writeJson(stdout, { link });
+  else printLinks(stdout, [link]);
 }

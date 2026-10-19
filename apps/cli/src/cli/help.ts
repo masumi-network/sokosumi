@@ -46,7 +46,13 @@ export type ValueOptionName =
   | "timeout-ms"
   | "result-file"
   | "email"
-  | "slug";
+  | "slug"
+  | "description-file"
+  | "project-id"
+  | "assignee-user-id"
+  | "to"
+  | "relation"
+  | "note";
 
 type CliOptionValue = string | string[];
 
@@ -93,6 +99,12 @@ export interface CliOptions {
   "organization-id"?: string;
   "organization-slug"?: string;
   slug?: string;
+  "description-file"?: string;
+  "project-id"?: string;
+  "assignee-user-id"?: string;
+  to?: string;
+  relation?: string;
+  note?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
   personal?: boolean;
@@ -203,6 +215,11 @@ Organization Tasks:
   Personal setup: coworkers register/connect --personal; workspaces list --personal checks existence without creating.
   Personal Tasks: tasks create --personal --coworker-id ID --description TEXT --status READY
   Example: sokosumi --preprod tasks create --organization-slug WORKSPACE_SLUG --coworker-id ID --description TEXT --status READY
+  Task ids accept a UUID or a short identifier such as SOK-12.
+  Create or update: --name TEXT, --description TEXT or --description-file FILE, --priority URGENT|HIGH|MEDIUM|LOW|NONE,
+    --project-id ID, and one assignee: --coworker-id ID or --assignee-user-id ID.
+  Status and progress: tasks comment TASK_ID --status STATUS --comment TEXT
+  Links: tasks link TASK_ID --to OTHER_TASK_ID --relation related|blocks|blocked_by|parent|child|duplicate [--note TEXT]
 
 Agent runtime tools on Preprod:
   runtime key-import requires --coworker-id ID --api-key-stdin and stores a verified key in the OS vault.

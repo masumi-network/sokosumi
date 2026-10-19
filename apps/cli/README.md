@@ -171,6 +171,11 @@ pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod tasks get TASK_ID -
 pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod tasks events TASK_ID --organization-slug WORKSPACE_SLUG --json
 ```
 
+[VERIFIED: `src/cli/commands/tasks.ts`]
+Task ids accept a UUID or a short identifier such as `SOK-12`; the CLI resolves identifiers through `GET /v1/tasks/:id` before other calls.
+`tasks create` and `tasks update` take `--name`, `--description` or `--description-file`, `--priority`, `--project-id`, and one assignee: `--coworker-id` or `--assignee-user-id`.
+`tasks link TASK_ID --relation RELATION --to OTHER_TASK_ID [--note TEXT]` links Tasks; `tasks links TASK_ID` lists them.
+
 [VERIFIED: `src/cli/index.ts`]
 Task commands reject `--organization-id` and `--workspace-id` before authentication. Use the Workspace slug instead.
 Other command families reject `--organization-slug`. Connection and Seat checks still take the organization ID.

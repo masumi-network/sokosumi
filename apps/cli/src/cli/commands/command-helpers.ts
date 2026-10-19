@@ -80,6 +80,7 @@ export function parseInteger(
 export function validateStatus(
   value: CommandOption,
   allowed: readonly string[],
+  label = "--status",
 ): string | undefined {
   const text =
     value === undefined || typeof value === "boolean"
@@ -89,7 +90,7 @@ export function validateStatus(
           .toUpperCase();
   if (!text) return undefined;
   if (!allowed.includes(text))
-    throw new Error(`--status must be one of: ${allowed.join(", ")}`);
+    throw new Error(`${label} must be one of: ${allowed.join(", ")}`);
   return text;
 }
 

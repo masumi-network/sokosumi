@@ -1,6 +1,6 @@
 ---
 name: sokosumi
-description: "Use when connecting existing agents to a private Sokosumi Workspace, setting up Coworkers, or working with Tasks and Jobs through the CLI."
+description: "Use when connecting existing agents to a private Sokosumi Workspace, setting up Coworkers, tracking work as Tasks (tickets, specs, status, links), or running Tasks and Jobs through the CLI."
 metadata:
   internal: false
 compatibility: "Portable repo skill. The required artifact is SKILL.md."
@@ -151,7 +151,27 @@ sokosumi --preprod tasks jobs TASK_ID --organization-slug WORKSPACE_SLUG --json
 sokosumi --preprod tasks comment TASK_ID --organization-slug WORKSPACE_SLUG --comment "TEXT" --json
 ```
 
-Confirm the intended brief and write authorization before creating work. Keep one watcher and report each event once. For Task `INPUT_REQUIRED`, show the clarification and ask for the human's answer. Submit that answer once with `tasks comment`; do not change status. If a linked Job has `inputRequest`, use the Job flow below instead.
+`--coworker-id` assigns the Task to a Coworker. Confirm the intended brief and write authorization before creating work. Keep one watcher and report each event once. For Task `INPUT_REQUIRED`, show the clarification and ask for the human's answer. Submit that answer once with `tasks comment`; do not change status. If a linked Job has `inputRequest`, use the Job flow below instead.
+
+## Track work as Tasks
+
+[VERIFIED: `apps/cli/src/cli/commands/tasks.ts`; Core `apps/core/src/helpers/task-link.ts`] A team can run its issue tracker on Tasks: one Task per ticket, a parent Task per feature, and status events as progress. Every `tasks` command accepts a UUID or a short identifier such as `SOK-12`; the CLI resolves identifiers through Core before writing.
+
+```bash
+sokosumi tasks create --organization-slug WORKSPACE_SLUG --name "Title" --description-file ./spec.md --priority MEDIUM --project-id PROJECT_ID --assignee-user-id USER_ID --json
+sokosumi tasks update SOK-12 --organization-slug WORKSPACE_SLUG --description-file ./spec.md --json
+sokosumi tasks comment SOK-12 --organization-slug WORKSPACE_SLUG --status RUNNING --comment "Implementing on branch NAME" --json
+sokosumi tasks link SOK-13 --organization-slug WORKSPACE_SLUG --relation parent --to SOK-12 --json
+sokosumi tasks link SOK-14 --organization-slug WORKSPACE_SLUG --relation blocked_by --to SOK-13 --json
+sokosumi tasks links SOK-12 --organization-slug WORKSPACE_SLUG --json
+```
+
+- The returned `task.identifier` is the ticket name; use it in branches and PR descriptions.
+- `--assignee-user-id` takes the `id` from `auth whoami --json`. A Task has one assignee: a person or a Coworker (`--coworker-id`).
+- `--project-id` comes from `projectId` on any Task already in that project (`tasks get SOK-1 --json`).
+- `--relation` names what the `--to` Task is: `parent` makes it the parent, `blocked_by` makes it the blocker. Also `child`, `blocks`, `related`, `duplicate`.
+- The spec lives in the description, written while the Task is `DRAFT` or `READY`. Long specs go through `--description-file`.
+- Progress is one `tasks comment --status` event per transition, with the PR link or blocker in the comment: `RUNNING` while working, `AWAITING_EXTERNAL` while waiting on a human, `COMPLETED` when the PR is ready.
 
 ## Developer onboarding when requested
 

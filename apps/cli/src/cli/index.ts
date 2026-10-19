@@ -119,6 +119,12 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "result-file",
   "email",
   "slug",
+  "description-file",
+  "project-id",
+  "assignee-user-id",
+  "to",
+  "relation",
+  "note",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([

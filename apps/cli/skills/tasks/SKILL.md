@@ -1,6 +1,6 @@
 ---
 name: tasks
-description: "Use when creating, inspecting, or commenting on Sokosumi coworker tasks through the headless CLI."
+description: "Use when creating, updating, linking, inspecting, or commenting on Sokosumi Tasks through the headless CLI."
 metadata:
   internal: false
 ---
@@ -20,7 +20,12 @@ sokosumi tasks get TASK_ID --organization-slug WORKSPACE_SLUG --json
 sokosumi tasks events TASK_ID --organization-slug WORKSPACE_SLUG --json
 sokosumi tasks jobs TASK_ID --organization-slug WORKSPACE_SLUG --json
 sokosumi tasks comment TASK_ID --organization-slug WORKSPACE_SLUG --comment "TEXT" --json
+sokosumi tasks update TASK_ID --organization-slug WORKSPACE_SLUG --priority HIGH --description-file ./spec.md --json
+sokosumi tasks link TASK_ID --organization-slug WORKSPACE_SLUG --relation parent --to PARENT_TASK_ID --json
+sokosumi tasks links TASK_ID --organization-slug WORKSPACE_SLUG --json
 ```
+
+TASK_ID accepts a UUID or a short identifier such as `SOK-12`. For tracking human work (specs, priority, people as assignees, parent and blocker links, status events), follow "Track work as Tasks" in the `sokosumi` Skill.
 
 Use `watch` for a running Task when that Skill is installed. Otherwise use the `get`, `events`, and `jobs` commands above with one watcher. Preserve the selected Workspace slug. Report each event once and pause for required human input. `watch` is a Skill, not a `sokosumi tasks watch` command.
 

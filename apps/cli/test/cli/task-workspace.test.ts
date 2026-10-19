@@ -92,6 +92,18 @@ test("Task Workspace selection preserves the selected target and applies to ever
     ["events", "task-1"],
     ["jobs", "task-1"],
     ["comment", "task-1", "--comment", "hello"],
+    [
+      "update",
+      "task-1",
+      "--priority",
+      "high",
+      "--project-id",
+      "project-1",
+      "--assignee-user-id",
+      "user-1",
+    ],
+    ["links", "task-1"],
+    ["link", "task-1", "--to", "task-1", "--relation", "blocks", "--note", "n"],
   ]) {
     await runCli(
       [
@@ -106,8 +118,9 @@ test("Task Workspace selection preserves the selected target and applies to ever
       f.deps,
     );
   }
-  assert.equal(f.output.length, 5);
+  assert.equal(f.output.length, 8);
   assert.ok(calls.includes("/v1/tasks"));
+  assert.ok(calls.includes("/v1/tasks/task-1/links"));
   assert.ok(calls.includes("/v1/tasks/task-1/events"));
   assert.ok(calls.includes("/v1/tasks/task-1/jobs"));
 });
